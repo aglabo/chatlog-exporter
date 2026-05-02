@@ -8,16 +8,23 @@
 
 // cspell:words sess sessabcd sessabcdef
 
-// -- import --
-
+// ─── BDD modules
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
+// ─── Test target
 import { writeSession } from '../../libs/session-writer.ts';
+
+// ─── Helpers
+// types
 import type { ExportedSession } from '../../types/session.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+/**
+ * テスト用の `ExportedSession` を生成するファクトリ関数。
+ * デフォルト値（sessionId・date・project・slug・turns）を持ち、`overrides` で任意フィールドを上書きできる。
+ */
 function _makeSession(overrides: Partial<ExportedSession> = {}): ExportedSession {
   return {
     meta: {
@@ -35,8 +42,7 @@ function _makeSession(overrides: Partial<ExportedSession> = {}): ExportedSession
   };
 }
 
-// ─── writeSession ─────────────────────────────────────────────────────────────
-
+// ─── Tests
 /**
  * `writeSession` の機能テストスイート。
  *
@@ -69,8 +75,14 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-01: ファイル生成確認 ─────────────────────────────────────────
 
+  /**
+   * Markdown ファイルの生成と返却パスの確認シナリオ。
+   * writeSession が .md ファイルを生成して実在するパスを返すことを確認する。
+   */
   describe('Given: 基本的な ExportedSession', () => {
+    /** writeSession(tempDir, "claude", session) を呼び出す */
     describe('When: writeSession(tempDir, "claude", session) を呼び出す', () => {
+      /** T-EC-WS-01: Markdown ファイルが生成される */
       describe('Then: T-EC-WS-01 - Markdown ファイルが生成される', () => {
         it('T-EC-WS-01-01: 返却パスが .md で終わる', async () => {
           const session = _makeSession();
@@ -92,8 +104,15 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-02: パス構造の検証 ───────────────────────────────────────────
 
+  /**
+   * 出力パスのディレクトリ構造検証シナリオ。
+   * `claude/2026/2026-03/` のパターンが生成されることを確認する。
+   * Obsidian インポート時のフォルダ構成に直接影響する重要な仕様。
+   */
   describe('Given: agent="claude", date="2026-03-15", project="my-project"', () => {
+    /** writeSession(tempDir, "claude", session) を呼び出す */
     describe('When: writeSession(tempDir, "claude", session) を呼び出す', () => {
+      /** T-EC-WS-02: 正しいディレクトリ構造のパスが返る */
       describe('Then: T-EC-WS-02 - 正しいディレクトリ構造のパスが返る', () => {
         it('T-EC-WS-02-01: パスに "claude" セグメントが含まれる', async () => {
           const session = _makeSession();
@@ -125,8 +144,15 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-03: ファイル内容の検証 ──────────────────────────────────────
 
+  /**
+   * 生成 Markdown の内容確認シナリオ。
+   * session_id フロントマター・H1 タイトル・### User/Assistant セクションが
+   * 正しく出力されることを実ファイル読み込みで確認する。
+   */
   describe('Given: firstUserText="What is TDD?" のセッション', () => {
+    /** writeSession を呼び出してファイルを読み込む */
     describe('When: writeSession を呼び出してファイルを読み込む', () => {
+      /** T-EC-WS-03: ファイル内容が正しい */
       describe('Then: T-EC-WS-03 - ファイル内容が正しい', () => {
         it('T-EC-WS-03-01: frontmatter の "session_id:" が含まれる', async () => {
           const session = _makeSession();
@@ -165,8 +191,14 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-04: 深いネストのディレクトリ自動生成 ────────────────────────
 
+  /**
+   * 未作成の深いネストパスへの自動 mkdir 確認シナリオ。
+   * outputBase が存在しなくても mkdir -p 相当で自動生成されることを確認する。
+   */
   describe('Given: 存在しない深いネストの outputBase', () => {
+    /** writeSession(nestedOutputBase, "codex", session) を呼び出す */
     describe('When: writeSession(nestedOutputBase, "codex", session) を呼び出す', () => {
+      /** T-EC-WS-04: ディレクトリが自動生成されファイルが書き出される */
       describe('Then: T-EC-WS-04 - ディレクトリが自動生成されファイルが書き出される', () => {
         it('T-EC-WS-04-01: エラーなく実行され .md ファイルが返る', async () => {
           const session = _makeSession();
@@ -189,8 +221,15 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-05: agent="codex" のパス検証 ────────────────────────────────
 
+  /**
+   * agent="codex" でパスに "/codex/" セグメントが含まれるケース。
+   * writeSession に渡す agent 引数がパスの第1セグメントに正しく反映されることを確認する。
+   * claude と codex のエクスポートが別ディレクトリに分離されることの仕様確認。
+   */
   describe('Given: agent="codex"', () => {
+    /** writeSession(tempDir, "codex", session) を呼び出す */
     describe('When: writeSession(tempDir, "codex", session) を呼び出す', () => {
+      /** T-EC-WS-05: パスに "codex" セグメントが含まれる */
       describe('Then: T-EC-WS-05 - パスに "codex" セグメントが含まれる', () => {
         it('T-EC-WS-05-01: パスに "/codex/" が含まれる', async () => {
           const session = _makeSession();
@@ -203,8 +242,16 @@ describe('writeSession', () => {
 
   // ─── T-EC-WS-06: sessionId のハッシュがファイル名に含まれる ──────────────
 
+  /**
+   * sessionId ハッシュのファイル名への埋め込みを確認するシナリオ。
+   * ハイフンを除去した先頭 8 文字が含まれることで、
+   * 同一日付の別セッションとのファイル名衝突を防ぐ設計の確認。
+   * ハイフンを除去した先頭 8 文字が含まれることで、同一日付の別セッションとの衝突を防ぐ設計の確認。
+   */
   describe('Given: sessionId="sess-abcdef12-3456-7890-abcd-ef1234567890"', () => {
+    /** writeSession を呼び出す */
     describe('When: writeSession を呼び出す', () => {
+      /** T-EC-WS-06: ファイル名に sessionId 先頭8文字（ハイフン除去）が含まれる */
       describe('Then: T-EC-WS-06 - ファイル名に sessionId 先頭8文字（ハイフン除去）が含まれる', () => {
         it('T-EC-WS-06-01: パスに "sessabcd" が含まれる', async () => {
           const session = _makeSession();
