@@ -37,3 +37,14 @@ export interface ExportConfig {
   /** 出力先ディレクトリのベースパス。デフォルトは "./chatlogs" */
   outputDir: string;
 }
+
+/**
+ * `parseArgs()` が CLI 引数から生成する未解決設定。`buildConfig()` が完全な `ExportConfig` に解決する。
+ *
+ * `configFile` は `GlobalConfig.getInstance()` に渡す設定ファイルパスを保持する専用フィールドであり、
+ * `ExportConfig` には含まれない。
+ */
+export type ParsedConfig = Partial<ExportConfig> & {
+  /** グローバル設定ファイルのパス。`--config` オプションで指定する。 */
+  configFile?: string;
+};
