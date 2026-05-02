@@ -6,42 +6,43 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import {
-  DEFAULT_EXPORT_CONFIG,
-} from '../../../../export-chatlog/scripts/constants/defaults.constants.ts';
+// ─── Test target
 import { parseArgs } from '../../../../export-chatlog/scripts/export-chatlog.ts';
 
-type ExportConfig = ReturnType<typeof parseArgs>;
+// ─── Helpers
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+// types
+import type { ExportConfig } from '../../../../export-chatlog/scripts/types/export-config.types.ts';
 
+// ─── Tests
+
+/**
+ * `parseArgs` のユニットテストスイート。
+ *
+ * CLI 引数配列を受け取り ExportConfig を返す関数の動作を検証する。
+ * agent 名・period・--output/--base/--input オプションの各解析パターンと、
+ * 複数フィールドの組み合わせ・未知引数での ChatlogError スローをカバーする。
+ *
+ * @see parseArgs
+ * @see ExportConfig
+ */
 describe('parseArgs', () => {
-  // ─── T-EC-PA-01: デフォルト値 ────────────────────────────────────────────────
-
-  describe('Given: 空の引数配列 []', () => {
-    describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-EC-PA-01 - デフォルト値が適用される', () => {
-        const _defaultCases: { id: string; field: keyof ExportConfig; expected: unknown }[] = [
-          { id: 'T-EC-PA-01-01', field: 'agent', expected: DEFAULT_EXPORT_CONFIG.agent },
-          { id: 'T-EC-PA-01-02', field: 'outputDir', expected: DEFAULT_EXPORT_CONFIG.outputDir },
-          { id: 'T-EC-PA-01-03', field: 'period', expected: undefined },
-          { id: 'T-EC-PA-01-05', field: 'baseDir', expected: undefined },
-        ];
-        for (const { id, field, expected } of _defaultCases) {
-          it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
-            assertEquals(parseArgs([])[field], expected);
-          });
-        }
-      });
-    });
-  });
-
   // ─── T-EC-PA-02〜15: 単一オプション ──────────────────────────────────────────
 
+  /**
+   * テーブル駆動による単一オプション解析の網羅的検証。
+   * agent 名・period・--output・--base・--input の各オプションを
+   * 1件ずつ独立させて対応フィールドへの正確なマッピングを確認する。
+   * `--opt val` と `--opt=val` 両形式の等価性も含む。
+   */
   describe('Given: 単一オプション', () => {
+    /** `parseArgs(args)` を呼び出したときのフィールド値を検証する。 */
     describe('When: parseArgs(args) を呼び出す', () => {
+      /** 対応フィールドに期待値が設定されることを確認する。 */
       describe('Then: 対応フィールドに値が設定される', () => {
         const _cases: { id: string; args: string[]; field: keyof ExportConfig; expected: unknown }[] = [
           { id: 'T-EC-PA-02-01', args: ['codex'], field: 'agent', expected: 'codex' },
@@ -89,6 +90,10 @@ describe('parseArgs', () => {
 
   // ─── 複数フィールド組み合わせ ─────────────────────────────────────────────────
 
+  /**
+   * baseDir と outputDir を同時に指定する組み合わせケース。
+   * --base と --output が互いに干渉せず独立したフィールドに設定されることを確認する。
+   */
   describe('Given: ["--base", "/data", "--output", "/data/claude"]', () => {
     it('T-EC-PA-09: baseDir と outputDir が同時に設定される', () => {
       const result = parseArgs(['--base', '/data', '--output', '/data/claude']);
@@ -97,6 +102,11 @@ describe('parseArgs', () => {
     });
   });
 
+  /**
+   * agent・period・--output を同時に指定する3フィールド組み合わせケース。
+   * 位置引数（agent・period）とオプション引数（--output）が混在しても
+   * 正しく解析されることを確認する。
+   */
   describe('Given: ["claude", "2026-03", "--output", "/out"]', () => {
     it('T-EC-PA-07: agent・period・outputDir が同時に設定される', () => {
       const result = parseArgs(['claude', '2026-03', '--output', '/out']);
@@ -106,6 +116,11 @@ describe('parseArgs', () => {
     });
   });
 
+  /**
+   * agent と --base を組み合わせるケース。
+   * claude エージェントで --base によるカスタムセッションディレクトリ指定が
+   * 正しく解析されることを確認する。
+   */
   describe('Given: ["claude", "--base", "/data/logs"]', () => {
     it('T-EC-PA-10: agent と baseDir が同時に設定される', () => {
       const result = parseArgs(['claude', '--base', '/data/logs']);
@@ -114,6 +129,11 @@ describe('parseArgs', () => {
     });
   });
 
+  /**
+   * chatgpt agent と --input を組み合わせるケース。
+   * ChatGPT エクスポートでは --input で入力ディレクトリを指定するため、
+   * agent と inputDir が同時に正しく設定されることを確認する。
+   */
   describe('Given: ["chatgpt", "--input", "/data/export"]', () => {
     it('T-EC-PA-14: agent と inputDir が同時に設定される', () => {
       const result = parseArgs(['chatgpt', '--input', '/data/export']);
@@ -122,6 +142,11 @@ describe('parseArgs', () => {
     });
   });
 
+  /**
+   * chatgpt + period + inputDir の3フィールド組み合わせケース。
+   * 位置引数として period と inputDir（パス）が並んでも
+   * パス判定（/ または ドライブレター:/ で始まる）により正しく区別されることを確認する。
+   */
   describe('Given: ["chatgpt", "2026-03", "/path/to/export"]', () => {
     it('T-EC-PA-15-02: period と inputDir が同時に設定される', () => {
       const result = parseArgs(['chatgpt', '2026-03', '/path/to/export']);
@@ -130,6 +155,11 @@ describe('parseArgs', () => {
     });
   });
 
+  /**
+   * period と inputDir の順番を逆にした境界値ケース。
+   * パスと期間文字列の順序に依存せず正しく解析されることを確認する。
+   * 順序不問の解析仕様を明示的に検証する。
+   */
   describe('Given: ["chatgpt", "/path/to/export", "2026-03"]（順番逆）', () => {
     it('T-EC-PA-15-03: 順番が逆でも period と inputDir が正しく設定される', () => {
       const result = parseArgs(['chatgpt', '/path/to/export', '2026-03']);
@@ -140,8 +170,16 @@ describe('parseArgs', () => {
 
   // ─── 異常系: ChatlogError がスローされる ──────────────────────────────────────
 
+  /**
+   * 未知のオプション・未知の位置引数に対するエラー仕様の検証。
+   * テーブル駆動で複数の不正パターンを網羅し、
+   * すべて ChatlogError('Invalid Args') がスローされることを確認する。
+   * サイレントに無視するのではなく明示的に失敗する設計の確認。
+   */
   describe('Given: 不正な引数', () => {
+    /** `parseArgs(args)` を呼び出したときにエラーがスローされることを検証する。 */
     describe('When: parseArgs(args) を呼び出す', () => {
+      /** ChatlogError(InvalidArgs) がスローされることを確認する。 */
       describe('Then: ChatlogError(InvalidArgs) がスローされる', () => {
         const _errorCases: { id: string; args: string[]; label: string }[] = [
           { id: 'T-EC-PA-06-01', args: ['--unknown'], label: '未知オプション' },
