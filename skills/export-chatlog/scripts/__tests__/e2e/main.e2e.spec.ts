@@ -8,24 +8,41 @@
 
 // cspell:words sess
 
+// ─── BDD modules
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import type { Stub } from '@std/testing/mock';
+// stubs
 import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+// ─── Test target
 import { main } from '../../../../export-chatlog/scripts/export-chatlog.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Helpers
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+// types
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
-/** JSONL エントリを文字列化してファイルに書き込む */
+// ─── Internal Helpers
+
+/**
+ * JSONL エントリを文字列化してファイルに書き込む。
+ * 各エントリを JSON.stringify して改行区切りで結合し、末尾に改行を付加する。
+ * E2E テストで実際の JSONL ファイルを作成するために使用する。
+ */
 async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
   const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
   await Deno.writeTextFile(filePath, content);
 }
 
-/** Claude セッション JSONL のエントリを生成する */
+/**
+ * Claude セッション JSONL のエントリを生成する。
+ * type="user" と type="assistant" のエントリを生成し、
+ * sessionId・timestamp・cwd・content テキストを引数で指定できる。
+ * E2E テストで最小構成の JSONL を組み立てるために使用する。
+ */
 function _claudeEntry(
   type: 'user' | 'assistant',
   sessionId: string,
@@ -52,7 +69,12 @@ function _claudeEntry(
   };
 }
 
-/** Codex セッション JSONL のエントリを生成する */
+/**
+ * Codex セッション JSONL のエントリを生成する。
+ * type="session_meta" と type="response_item" の2種類のエントリを生成し、
+ * timestamp・id・cwd・role・text を opts で指定できる。
+ * E2E テストで Codex の最小構成 JSONL を組み立てるために使用する。
+ */
 function _codexEntry(
   type: 'session_meta' | 'response_item',
   timestamp: string,
@@ -79,8 +101,7 @@ function _codexEntry(
   };
 }
 
-// ─── E2E テスト ───────────────────────────────────────────────────────────────
-
+// ─── Tests
 /**
  * `main()` 関数の E2E テストスイート。
  *
@@ -122,14 +143,23 @@ describe('main (export-chatlog)', () => {
   });
 
   afterEach(async () => {
-    envStub.restore();
     loggerStub.restore();
+    GlobalConfig.resetInstance();
+    envStub.restore();
     await Deno.remove(tempDir, { recursive: true });
   });
 
   // ─── T-EC-E2E-01: claude agent 正常実行 ─────────────────────────────────
 
+  /**
+   * claude agent の正常実行シナリオ。
+   *
+   * 最小構成（user + assistant 各1エントリ）の JSONL が存在するとき、
+   * main() が Markdown を生成してログにパスを出力することを確認する。
+   * エクスポート全フロー（解析→探索→パース→書き出し）が疎通していることの基本確認。
+   */
   describe('Given: ~/.claude/projects/ に有効な claude セッションJSONL', () => {
+    /** main(["claude", "--output", outputDir]) を呼び出す */
     describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-my-app`;
@@ -140,6 +170,7 @@ describe('main (export-chatlog)', () => {
         ]);
       });
 
+      /** T-EC-E2E-01: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-01 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-01-01: outputDir に .md ファイルが生成される', async () => {
           await main(['claude', '--output', outputDir]);
@@ -158,7 +189,15 @@ describe('main (export-chatlog)', () => {
 
   // ─── T-EC-E2E-02: codex agent 正常実行 ──────────────────────────────────
 
+  /**
+   * codex agent の正常実行シナリオ。
+   *
+   * ~/.codex/sessions/YYYY/MM/DD/ 形式のディレクトリに session_meta + response_item が
+   * 存在するとき、codex エクスポートフローが疎通して .md ファイルを生成することを確認する。
+   * claude と異なるディレクトリ構造・JSONL フォーマットが正しく処理されることの基本確認。
+   */
   describe('Given: ~/.codex/sessions/ に有効な codex セッションJSONL', () => {
+    /** main(["codex", "--output", outputDir]) を呼び出す */
     describe('When: main(["codex", "--output", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions/2026/03/15`;
@@ -179,6 +218,7 @@ describe('main (export-chatlog)', () => {
         ]);
       });
 
+      /** T-EC-E2E-02: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-02 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-02-01: outputDir に .md ファイルが生成される', async () => {
           await main(['codex', '--output', outputDir]);
@@ -191,6 +231,18 @@ describe('main (export-chatlog)', () => {
 
   // ─── T-EC-E2E-03: 期間フィルタ ───────────────────────────────────────────
 
+  /**
+   * 期間フィルタ（YYYY-MM）の選択的エクスポートシナリオ。
+   *
+   * 同一プロジェクト内に 2026-03（範囲内）と 2026-02（範囲外）のセッションが混在する状態で、
+   * 期間引数によって対象セッションのみ抽出されることを確認する。
+   * 全件除外（2026-04 指定）では出力ゼロになることも合わせて検証する。
+   */
+  /**
+   * 2026-03（範囲内）と 2026-02（範囲外）が混在する前提条件。
+   * 同一プロジェクトに異なる月のセッションが混在することで、
+   * 期間フィルタの選択性をエンドツーエンドで検証する。
+   */
   describe('Given: 範囲内と範囲外のJSONLが混在', () => {
     beforeEach(async () => {
       const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-filter-app`;
@@ -219,7 +271,9 @@ describe('main (export-chatlog)', () => {
       ]);
     });
 
+    /** period="2026-03" でフィルタしたとき範囲内セッションのみが選択されることを確認する。 */
     describe('When: period="2026-03" でフィルタする', () => {
+      /** T-EC-E2E-03-01: 範囲内セッションのみエクスポートされる */
       describe('Then: T-EC-E2E-03-01 - 範囲内セッションのみエクスポートされる', () => {
         it('T-EC-E2E-03-01: ファイルが1件生成される', async () => {
           await main(['claude', '2026-03', '--output', outputDir]);
@@ -229,7 +283,9 @@ describe('main (export-chatlog)', () => {
       });
     });
 
+    /** period="2026-04" でフィルタしたとき全件が範囲外になり出力ゼロになる境界ケースを確認する。 */
     describe('When: period="2026-04" でフィルタする（全件範囲外）', () => {
+      /** T-EC-E2E-03-02: ファイルが生成されない */
       describe('Then: T-EC-E2E-03-02 - ファイルが生成されない', () => {
         it('T-EC-E2E-03-02: ファイルが0件', async () => {
           await main(['claude', '2026-04', '--output', outputDir]);
@@ -242,7 +298,15 @@ describe('main (export-chatlog)', () => {
 
   // ─── T-EC-E2E-06: 出力ディレクトリ構造 ──────────────────────────────────
 
+  /**
+   * 出力ディレクトリ構造（agent/YYYY/YYYY-MM/）の検証シナリオ。
+   *
+   * main() が生成するファイルパスに `claude/2026/2026-03` セグメントが
+   * 含まれることを確認する。パス構造は Obsidian へのインポート時の
+   * フォルダ整理に直結するため、形式の正確性が重要。
+   */
   describe('Given: claude セッションと outputDir が指定される', () => {
+    /** main(["claude", "--output", outputDir]) を呼び出す */
     describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-struct-app`;
@@ -259,6 +323,7 @@ describe('main (export-chatlog)', () => {
         ]);
       });
 
+      /** T-EC-E2E-06: outputDir/claude/YYYY/YYYY-MM/ 構造が生成される */
       describe('Then: T-EC-E2E-06 - outputDir/claude/YYYY/YYYY-MM/ 構造が生成される', () => {
         it('T-EC-E2E-06-01: 出力パスに "claude/2026/2026-03" が含まれる', async () => {
           await main(['claude', '--output', outputDir]);
@@ -274,7 +339,15 @@ describe('main (export-chatlog)', () => {
 
   // ─── T-EC-E2E-07: スキップ対象のみJSONL → console.error にスキップログ ───
 
+  /**
+   * スキップ対象のみ含む JSONL の出力ゼロシナリオ。
+   *
+   * ユーザーメッセージが "yes" のみ（短文肯定）のとき、セッション全体がスキップされ
+   * .md ファイルが生成されないことを確認する。
+   * isSkippable による除外ロジックが E2E 全フローで機能することの統合確認。
+   */
   describe('Given: 全ユーザーメッセージがスキップ対象のJSONL', () => {
+    /** main(["claude", "--output", outputDir]) を呼び出す */
     describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-skip-app`;
@@ -291,6 +364,7 @@ describe('main (export-chatlog)', () => {
         ]);
       });
 
+      /** T-EC-E2E-07: ファイルが生成されない */
       describe('Then: T-EC-E2E-07 - ファイルが生成されない', () => {
         it('T-EC-E2E-07-01: ログパスが 0 件（スキップされた）', async () => {
           await main(['claude', '--output', outputDir]);
@@ -303,6 +377,19 @@ describe('main (export-chatlog)', () => {
 
   // ─── T-EC-E2E-08: 年指定で複数 yyyy-mm への分散出力 ──────────────────────
 
+  /**
+   * 年指定（YYYY）での複数 YYYY-MM サブディレクトリへの分散出力シナリオ。
+   *
+   * 2026-01 と 2026-03 のセッションが混在する状態で period="2026" を指定したとき、
+   * 両月のファイルが `claude/2026/2026-01/` と `claude/2026/2026-03/` に
+   * それぞれ出力されることを確認する。
+   * YYYY 指定が複数の YYYY-MM ディレクトリに正しく分散されることの検証。
+   */
+  /**
+   * 2026-01 と 2026-03 のセッションが混在する前提条件。
+   * 年指定（period="2026"）で両月が同時にエクスポートされ、
+   * それぞれの月ディレクトリに分散出力されることを E2E で検証する。
+   */
   describe('Given: 2026-01 と 2026-03 のセッションが混在する', () => {
     beforeEach(async () => {
       const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-multi-month`;
@@ -329,7 +416,9 @@ describe('main (export-chatlog)', () => {
       ]);
     });
 
+    /** period="2026" で年指定エクスポートしたとき複数 YYYY-MM への分散出力を確認する。 */
     describe('When: period="2026" で年指定エクスポートする', () => {
+      /** T-EC-E2E-08: 2つの yyyy-mm サブディレクトリに分散出力される */
       describe('Then: T-EC-E2E-08 - 2つの yyyy-mm サブディレクトリに分散出力される', () => {
         it('T-EC-E2E-08-01: ファイルが 2 件生成される', async () => {
           await main(['claude', '2026', '--output', outputDir]);
