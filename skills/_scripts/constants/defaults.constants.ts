@@ -9,6 +9,13 @@
 import type { KnownAgent } from './agents.constants.ts';
 
 // ─────────────────────────────────────────────
+// 設定ファイル
+// ─────────────────────────────────────────────
+
+/** GlobalConfig が読み込むデフォルト設定ファイルパス。 */
+export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
+
+// ─────────────────────────────────────────────
 // エージェント
 // ─────────────────────────────────────────────
 
@@ -26,6 +33,16 @@ export const DEFAULT_AI_MODEL = 'sonnet';
 export const DEFAULT_TIMEOUT_MS = 120_000;
 
 // ─────────────────────────────────────────────
+// 並列処理・バッチ処理系
+// ─────────────────────────────────────────────
+
+/** Claude CLI へのバッチリクエスト 1 回あたりの最大ファイル数。 */
+export const DEFAULT_CHUNK_SIZE = 10;
+
+/** 同時実行するタスクの最大並列数。 */
+export const DEFAULT_CONCURRENCY = 4;
+
+// ─────────────────────────────────────────────
 // ハッシュ生成系
 // ─────────────────────────────────────────────
 
@@ -37,13 +54,3 @@ export const MIN_RANDOM_LENGTH = 4;
 
 /** generateHash の maxRandomLength パラメータのデフォルト値。 */
 export const DEFAULT_MAX_RANDOM_LENGTH = 16;
-
-// ─────────────────────────────────────────────
-// 並列処理・バッチ処理系
-// ─────────────────────────────────────────────
-
-/** Claude CLI へのバッチリクエスト 1 回あたりの最大ファイル数。 */
-export const DEFAULT_CHUNK_SIZE = 10;
-
-/** 同時実行するタスクの最大並列数。 */
-export const DEFAULT_CONCURRENCY = 4;
