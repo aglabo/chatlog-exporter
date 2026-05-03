@@ -11,17 +11,19 @@
 //
 // This software is released under the MIT License.
 
+// ---  BDD modules  ---
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import type { Stub } from '@std/testing/mock';
+// stubs
 import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
-// test target
+// ---  Test target  ---
 import { main } from '../../classify-chatlog.ts';
-// classes
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 
-// helpers
+// --- Helpers
+// mocks
 import {
   installCommandMock,
   makeCountingMock,
@@ -29,14 +31,17 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// logger stub
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+// classes
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
 
 /**
  * inputDir / configsDir を作成して返す。
- * - configsDir/defaults.yaml: 空の設定ファイル（GlobalConfig 用）
+ * - configsDir/config.yaml: 空の設定ファイル（GlobalConfig 用）
  * - configsDir/projects.dic: テスト用プロジェクト辞書（YAML 形式）
  * - inputDir/claude/2026-03/: 月別ディレクトリ
  */
@@ -48,7 +53,7 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
 }> {
   const inputDir = await Deno.makeTempDir();
   const configsDir = await Deno.makeTempDir();
-  const configFile = `${configsDir}/defaults.yaml`;
+  const configFile = `${configsDir}/config.yaml`;
   const monthDir = `${inputDir}/${agent}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
   await Deno.writeTextFile(configFile, '{}\n');
