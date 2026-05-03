@@ -8,25 +8,33 @@
 
 // cspell:words sess
 
-// -- import --
-
+// ─── BDD modules
 import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
+// ─── Test target
 import { parseCodexSession } from '../../exporter/codex-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
+
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+/** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
+/**
+ * 各要素を JSON.stringify して改行区切りで結合し、末尾に改行を付加して JSONL ファイルに書き込む。
+ * 機能テストで実際の JSONL ファイルを一時ディレクトリに作成するために使用する。
+ */
 async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
   const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
   await Deno.writeTextFile(filePath, content);
 }
 
-// ─── parseCodexSession ────────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `parseCodexSession` の機能テストスイート。
@@ -58,7 +66,15 @@ describe('parseCodexSession', () => {
 
   // ─── T-EC-PX-01: 正常パース ────────────────────────────────────────────────
 
+  /**
+   * 最小構成 JSONL の正常パースシナリオ。
+   * session_meta + user + assistant 各1エントリから
+   * sessionId・date・project・turns・firstUserText の全フィールドが
+   * 正しく抽出されることを確認する。
+   * cwd からプロジェクト名（my-codex-app）を導出するロジックも含む。
+   */
   describe('Given: session_meta + user + assistant エントリのJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -125,7 +141,13 @@ describe('parseCodexSession', () => {
 
   // ─── T-EC-PX-02: session_meta なし → null ─────────────────────────────────
 
+  /**
+   * session_meta エントリが欠落している JSONL での null 返却仕様の検証。
+   * Codex セッションは session_meta がなければセッション情報を特定できないため、
+   * null を返してスキップ処理を促す設計の確認。
+   */
   describe('Given: session_meta エントリが存在しないJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -162,7 +184,13 @@ describe('parseCodexSession', () => {
 
   // ─── T-EC-PX-03: 期間外 → null ─────────────────────────────────────────────
 
+  /**
+   * session_meta の timestamp が期間外のときの null 返却仕様の検証。
+   * 2026-03 フィルタに対して 2026-02 の session_meta は期間外と判定されることを確認する。
+   * period フィルタが session_meta.timestamp を基準に動作することの検証。
+   */
   describe('Given: session_meta の timestamp が期間外のJSONL', () => {
+    /** 指定期間でフィルタしたときの結果を検証する。 */
     describe('When: parsePeriod("2026-03") の期間でフィルタする', () => {
       let filePath: string;
       let marchRange: PeriodRange;
@@ -206,7 +234,14 @@ describe('parseCodexSession', () => {
 
   // ─── T-EC-PX-04: AGENTS.md instructions 除外 ──────────────────────────────
 
+  /**
+   * "# AGENTS.md instructions" で始まる user ターンを除外するシナリオ。
+   * Codex が AGENTS.md の内容をユーザーターンに混入させるため、
+   * このプレフィックスを持つターンはエクスポート対象外として除外されることを確認する。
+   * 除外後の firstUserText が次の有効な user ターンになることも検証する。
+   */
   describe('Given: user ターンが "# AGENTS.md instructions" で始まるJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -261,7 +296,12 @@ describe('parseCodexSession', () => {
 
   // ─── T-EC-PX-06: ファイル不存在 → null ────────────────────────────────────
 
+  /**
+   * 存在しないファイルパスを渡したときの null 返却仕様の検証。
+   * エラーを throw せず null を返すことで呼び出し元がスキップ処理を続けられる設計の確認。
+   */
   describe('Given: 存在しないファイルパス', () => {
+    /** `parseCodexSession(nonExistentPath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseCodexSession(nonExistentPath, allPeriod) を呼び出す', () => {
       describe('Then: T-EC-PX-06 - null を返す', () => {
         it('T-EC-PX-06-01: null を返す', async () => {
