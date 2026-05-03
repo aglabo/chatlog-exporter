@@ -2,5 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>aglabo/renovate-config"
+  ],
+  // Enabled package managers
+  "enabledManagers": [
+    "github-actions",
+    "deno"
   ]
 }
