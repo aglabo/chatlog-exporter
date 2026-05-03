@@ -26,6 +26,8 @@
 - 新機能には必ずユニットテストを追加する
 - テストは `skills/<module>/__tests__/` 配下に配置する
 - テストファイル名: `<name>.<type>.spec.ts`（例: `backup.unit.spec.ts`）
+- テストコードの詳細規約（import 構成・JSDoc・テスト ID・命名）は以下を参照する
 
 @.claude/rules/naming-conventions.md
 @.claude/rules/directory-structure.md
+@.claude/rules/testing-conventions.md
