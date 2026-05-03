@@ -31,7 +31,7 @@ export const CONCURRENCY = 4;
 export const DISCARD_THRESHOLD = 0.7;
 export const MAX_BODY_CHARS = 8000;
 
-const _SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+export const SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
 [{"file":"<filename>","decision":"KEEP or DISCARD","confidence":0.0,"reason":"..."},...]
 
 KEEP: design decisions, reusable patterns, new concepts, architecture discussion
@@ -239,7 +239,7 @@ export const buildBatchPrompt = async (files: string[]): Promise<string> => {
 
 export const runClaude = async (prompt: string): Promise<string> => {
   const cmd = new Deno.Command('claude', {
-    args: ['-p', _SYSTEM_PROMPT, '--output-format', 'text'],
+    args: ['-p', SYSTEM_PROMPT, '--output-format', 'text'],
     stdin: 'piped',
     stdout: 'piped',
     stderr: 'null',
