@@ -21,4 +21,4 @@ concurrency: 4
 # アセットディレクトリ
 dicsDir: "./assets/dics"
 promptsDir: "./assets/prompts"
-chatlogDir: "./chatlog"
+chatlogDir: "./chatlogs"
