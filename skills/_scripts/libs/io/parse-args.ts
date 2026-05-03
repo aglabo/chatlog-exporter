@@ -74,12 +74,12 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; i
       throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
     }
 
-    if (/^\d{4}-\d{2}$/.test(arg)) {
+    if (/^\d{4}-\d{2}$/.test(arg) || /^\d{4}$/.test(arg)) {
       _set('period', arg);
     } else if (isKnownAgent(arg)) {
       _set('agent', arg);
     } else if (isDirectoryArg(arg)) {
-      _set('inputDir', arg);
+      _set('inputDir', normalizePath(arg));
     } else {
       throw new ChatlogError('InvalidArgs', `不明な引数: ${arg}`);
     }

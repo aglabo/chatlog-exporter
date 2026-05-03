@@ -6,13 +6,15 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// ─── External modules ───────────────────────────────────────────────────────
+// ─── Shared modules ─────────────────────────────────────────────────────────
+// libs
 import { getDirectory } from '../../../_scripts/libs/file-io/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
 import { quoteString } from '../../../_scripts/libs/text/string-utils.ts';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Local modules ───────────────────────────────────────────────────────────
+// types
 import type { ExportedSession, SessionMeta, Turn } from '../types/session.types.ts';
 
 /** セッションの Markdown ファイル出力パスを生成する。 */

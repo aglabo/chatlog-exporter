@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Local modules ───────────────────────────────────────────────────────────
+// types
 import type { PeriodRange } from '../../types/filter.types.ts';
 import type { ExportedSession } from '../../types/session.types.ts';
 

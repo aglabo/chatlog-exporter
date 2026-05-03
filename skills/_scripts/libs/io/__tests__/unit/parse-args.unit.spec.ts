@@ -106,14 +106,18 @@ describe('parseArgsToConfig', () => {
     });
   });
 
-  // ─── T-PA-05: 位置引数 — YYYY-MM ─────────────────────────────────────────
+  // ─── T-PA-05: 位置引数 — 期間文字列 ─────────────────────────────────────
 
-  describe('Given: YYYY-MM 形式の位置引数', () => {
+  describe('Given: 期間形式の位置引数', () => {
     describe('When: parseArgsToConfig(args) を呼び出す', () => {
       describe('Then: T-PA-05 - period に設定される', () => {
         it('T-PA-05-01: "2026-03" → period が "2026-03" になる', () => {
           const result = parseArgsToConfig<TestConfig>(['2026-03'], OPT_KEYS, OPT_FLAGS);
           assertEquals(result.period, '2026-03');
+        });
+        it('T-PA-05-02: "2026" → period が "2026" になる（年のみ指定）', () => {
+          const result = parseArgsToConfig<TestConfig>(['2026'], OPT_KEYS, OPT_FLAGS);
+          assertEquals(result.period, '2026');
         });
       });
     });
@@ -143,15 +147,15 @@ describe('parseArgsToConfig', () => {
   describe('Given: ディレクトリパスの位置引数', () => {
     describe('When: parseArgsToConfig(args) を呼び出す', () => {
       describe('Then: T-PA-07 - inputDir に設定される', () => {
-        const _cases: { id: string; path: string }[] = [
-          { id: 'T-PA-07-01', path: '/absolute/path' },
-          { id: 'T-PA-07-02', path: './relative/path' },
-          { id: 'T-PA-07-03', path: 'C:\\Windows\\path' },
+        const _cases: { id: string; input: string; expected: string }[] = [
+          { id: 'T-PA-07-01', input: '/absolute/path', expected: '/absolute/path' },
+          { id: 'T-PA-07-02', input: './relative/path', expected: './relative/path' },
+          { id: 'T-PA-07-03', input: 'C:\\Windows\\path', expected: 'C:/Windows/path' },
         ];
-        for (const { id, path } of _cases) {
-          it(`${id}: "${path}" → inputDir が "${path}" になる`, () => {
-            const result = parseArgsToConfig<TestConfig>([path], OPT_KEYS, OPT_FLAGS);
-            assertEquals(result.inputDir, path);
+        for (const { id, input, expected } of _cases) {
+          it(`${id}: "${input}" → inputDir が "${expected}" になる`, () => {
+            const result = parseArgsToConfig<TestConfig>([input], OPT_KEYS, OPT_FLAGS);
+            assertEquals(result.inputDir, expected);
           });
         }
       });

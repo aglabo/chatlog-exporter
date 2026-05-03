@@ -16,6 +16,13 @@ import type { KnownAgent } from './agents.constants.ts';
 export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
 
 // ─────────────────────────────────────────────
+// ディレクトリ
+// ─────────────────────────────────────────────
+
+/** config.yaml の chatlogDir に対応するデフォルトのチャットログ出力ディレクトリ。 */
+export const DEFAULT_CHATLOG_DIR = './chatlogs';
+
+// ─────────────────────────────────────────────
 // エージェント
 // ─────────────────────────────────────────────
 

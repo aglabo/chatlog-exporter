@@ -6,11 +6,14 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// ─── External modules ───────────────────────────────────────────────────────
+// ─── Shared modules ─────────────────────────────────────────────────────────
+// error
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+// libs
 import { isoToLocalDayMs } from '../../../_scripts/libs/text/date-utils.ts';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Local modules ───────────────────────────────────────────────────────────
+// types
 import type { PeriodRange } from '../types/filter.types.ts';
 
 // ----------
