@@ -10,17 +10,19 @@
 import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// test target
+// --- Test target ---
 import { buildConfig } from '../../classify-chatlog.ts';
-// classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+
+// --- Helpers
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_CLASSIFY_CONFIG } from '../../constants/classify.constants.ts';
 // types
 import type { CommandProvider } from '../../../../_scripts/types/providers.types.ts';
 import type { ParsedConfig } from '../../types/classify.types.ts';
+// classes
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
@@ -365,9 +367,9 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance();
         });
-        it('T-CL-BC-18-01: configFile=/custom/config/defaults.yaml → projectsDic === /custom/config/projects.dic', () => {
+        it('T-CL-BC-18-01: configFile=/custom/config/config.yaml → projectsDic === /custom/config/projects.dic', () => {
           const result = buildConfig(
-            { ..._EMPTY_PARSED, configFile: '/custom/config/defaults.yaml' },
+            { ..._EMPTY_PARSED, configFile: '/custom/config/config.yaml' },
             globalConfig,
           );
           assertEquals(result.projectsDic, '/custom/config/projects.dic');
