@@ -13,19 +13,20 @@
 // ExportConfig → PeriodRange のフィルタと mapping トラバースのみ行う。
 // テスト内で await は不要。型として sync であることを明示する。
 
-// -- BDD modules --
+// ─── BDD modules
 import { assertEquals, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// -- test target --
+// ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';
 import { parseChatGPTConversation } from '../../chatgpt-exporter.ts';
 
-// -- types --
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../../types/filter.types.ts';
 import type { ChatGPTConversation } from '../../types/chatgpt-entry.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
@@ -75,7 +76,7 @@ function _makeNormalConv(): ChatGPTConversation {
   };
 }
 
-// ─── parseChatGPTConversation ─────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `parseChatGPTConversation` の機能テストスイート。
