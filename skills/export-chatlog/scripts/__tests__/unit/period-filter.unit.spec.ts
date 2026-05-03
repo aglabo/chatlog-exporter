@@ -6,12 +6,14 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
+// ─── Test target
 import { inPeriod, parsePeriod } from '../../../../export-chatlog/scripts/libs/period-filter.ts';
 
-// ─── parsePeriod ──────────────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `parsePeriod` のユニットテストスイート。
@@ -24,8 +26,14 @@ import { inPeriod, parsePeriod } from '../../../../export-chatlog/scripts/libs/p
  * @see PeriodRange
  */
 describe('parsePeriod', () => {
+  /**
+   * 期間指定なしのデフォルト全期間シナリオ。
+   * undefined を渡すと startMs=0, endMs=Infinity の全件取得範囲が返ることを確認する。
+   */
   describe('Given: undefined（期間指定なし）', () => {
+    /** parsePeriod(undefined) を呼び出す */
     describe('When: parsePeriod(undefined) を呼び出す', () => {
+      /** T-EC-PF-01: 全期間を返す */
       describe('Then: T-EC-PF-01 - 全期間を返す', () => {
         it('T-EC-PF-01-01: startMs=0, endMs=Infinity を返す', () => {
           const range = parsePeriod(undefined);
@@ -36,8 +44,14 @@ describe('parsePeriod', () => {
     });
   });
 
+  /**
+   * YYYY-MM 形式の月指定シナリオ。
+   * [2026-03-01, 2026-04-01) の半開区間（ローカル時刻基準）が返ることを確認する。
+   */
   describe('Given: "2026-03"（年月指定）', () => {
+    /** parsePeriod("2026-03") を呼び出す */
     describe('When: parsePeriod("2026-03") を呼び出す', () => {
+      /** T-EC-PF-01: 2026年3月の範囲を返す */
       describe('Then: T-EC-PF-01 - 2026年3月の範囲を返す', () => {
         it('T-EC-PF-01-02: startMs が 2026年3月1日のミリ秒', () => {
           const range = parsePeriod('2026-03');
@@ -54,8 +68,14 @@ describe('parsePeriod', () => {
     });
   });
 
+  /**
+   * YYYY 形式の年指定シナリオ。
+   * [2026-01-01, 2027-01-01) の半開区間が返ることを確認する。
+   */
   describe('Given: "2026"（年指定）', () => {
+    /** parsePeriod("2026") を呼び出す */
     describe('When: parsePeriod("2026") を呼び出す', () => {
+      /** T-EC-PF-01: 2026年の範囲を返す */
       describe('Then: T-EC-PF-01 - 2026年の範囲を返す', () => {
         it('T-EC-PF-01-04: startMs が 2026年1月1日のミリ秒', () => {
           const range = parsePeriod('2026');
@@ -72,8 +92,14 @@ describe('parsePeriod', () => {
     });
   });
 
+  /**
+   * 不正な形式（YYYY-MM でも YYYY でもない）での Error スローシナリオ。
+   * サイレントに undefined を返すのではなく明示的に失敗することを確認する。
+   */
   describe('Given: "invalid"（不正な形式）', () => {
+    /** parsePeriod("invalid") を呼び出す */
     describe('When: parsePeriod("invalid") を呼び出す', () => {
+      /** T-EC-PF-01: Error をスローする */
       describe('Then: T-EC-PF-01 - Error をスローする', () => {
         it('T-EC-PF-01-06: Error がスローされる', () => {
           assertThrows(() => parsePeriod('invalid'), Error);
@@ -98,12 +124,14 @@ describe('parsePeriod', () => {
 describe('inPeriod', () => {
   const range = parsePeriod('2026-03'); // 2026-03-01 〜 2026-04-01
 
+  /** 半開区間 [startMs, endMs) の内側にある基本ケース */
   describe('Given: 範囲内のタイムスタンプ "2026-03-15T00:00:00Z"', () => {
     it('T-EC-PF-02-01: true を返す', () => {
       assertEquals(inPeriod('2026-03-15T00:00:00Z', range), true);
     });
   });
 
+  /** startMs - 1ms は区間外になる境界直前ケース */
   describe('Given: startMs の 1ms 前のタイムスタンプ（範囲外）', () => {
     it('T-EC-PF-02-02: false を返す', () => {
       // startMs - 1ms は必ず範囲外（ローカル時刻ベースの境界値テスト）
@@ -112,12 +140,14 @@ describe('inPeriod', () => {
     });
   });
 
+  /** endMs と等しい 2026-04-01T00:00:00Z は半開区間の外 — false を返す */
   describe('Given: 範囲外（後）のタイムスタンプ "2026-04-01T00:00:00Z"', () => {
     it('T-EC-PF-02-03: false を返す（半開区間）', () => {
       assertEquals(inPeriod('2026-04-01T00:00:00Z', range), false);
     });
   });
 
+  /** startMs と等しい境界値は区間内 [startMs, endMs) の始端を含むケース */
   describe('Given: startMs と等しいタイムスタンプ（2026-03-01T00:00:00 local）', () => {
     it('T-EC-PF-02-04: true を返す（境界値含む）', () => {
       // 月の最初の瞬間は範囲内
@@ -126,6 +156,7 @@ describe('inPeriod', () => {
     });
   });
 
+  /** endMs と等しい境界値は半開区間の終端で含まれない — false を返すケース */
   describe('Given: endMs と等しいタイムスタンプ（2026-04-01T00:00:00 local）', () => {
     it('T-EC-PF-02-05: false を返す（半開区間、終端は含まない）', () => {
       const ts = new Date(range.endMs).toISOString();

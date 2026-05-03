@@ -6,14 +6,18 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// -- external --
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+// cspell:words conv
 
-// -- internal --
+// ─── External modules ───────────────────────────────────────────────────────
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
+
+// ─── Internal modules ───────────────────────────────────────────────────────
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 import type { ExportConfig } from '../types/export-config.types.ts';
 import type { ExportResult } from '../types/export-result.types.ts';
 import type { FileResult } from '../types/file-result.types.ts';

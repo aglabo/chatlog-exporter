@@ -18,19 +18,19 @@
  *   codex   — ~/.codex/sessions/YYYY/MM/DD/ 以下のJSONL
  */
 
-// -- external --
+// ─── External modules ───────────────────────────────────────────────────────
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { isKnownAgent } from '../../_scripts/constants/agents.constants.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 
-// -- internal --
+// ─── Internal modules ───────────────────────────────────────────────────────
 import { exportChatGPT } from './exporter/chatgpt-exporter.ts';
 import { exportClaude } from './exporter/claude-exporter.ts';
 import { exportCodex } from './exporter/codex-exporter.ts';
 // constants
 import { DEFAULT_EXPORT_CONFIG } from './constants/defaults.constants.ts';
-// type
+// types
 import type { ExportConfig } from './types/export-config.types.ts';
 
 // ─────────────────────────────────────────────

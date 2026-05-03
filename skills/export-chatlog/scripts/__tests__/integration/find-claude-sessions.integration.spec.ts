@@ -6,26 +6,29 @@
 //
 // This software is released under the MIT License.
 
-// -- BDD modules --
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-// -- for stub --
-import type { Stub } from '@std/testing/mock';
+// stub
 import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
-// -- test target --
+// ─── Test target
 import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
 import { findClaudeSessions } from '../../exporter/claude-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
 
-// -- types --
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+/** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
-// ─── findClaudeSessions ───────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `findClaudeSessions` の統合テストスイート（実ファイルシステム使用）。
@@ -64,7 +67,12 @@ describe('findClaudeSessions', () => {
 
   // ─── T-EC-FS-01: projectsDir 走査 ─────────────────────────────────────────
 
+  /**
+   * 複数プロジェクトディレクトリの全ファイル収集シナリオ。
+   * proj-a と proj-b に計 3 件の .jsonl があるとき、全件が収集されることを確認する。
+   */
   describe('Given: ~/.claude/projects/ に2つのプロジェクトディレクトリと .jsonl ファイルがある', () => {
+    /** findClaudeSessions(allPeriod) を呼び出す */
     describe('When: findClaudeSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects`;
@@ -75,6 +83,7 @@ describe('findClaudeSessions', () => {
         await Deno.writeTextFile(`${projectsDir}/proj-b/session3.jsonl`, '{}');
       });
 
+      /** T-EC-FS-01: 全プロジェクトの .jsonl ファイルを収集する */
       describe('Then: T-EC-FS-01 - 全プロジェクトの .jsonl ファイルを収集する', () => {
         it('T-EC-FS-01-01: 収集ファイル数が 3', async () => {
           const results = await findClaudeSessions(ALL_PERIOD);
@@ -91,7 +100,13 @@ describe('findClaudeSessions', () => {
 
   // ─── T-EC-FS-02: subagents/ ディレクトリの除外 ────────────────────────────
 
+  /**
+   * subagents/ ディレクトリ内ファイルを除外するシナリオ。
+   * Claude Code がサブエージェント用に作成する subagents/ フォルダは
+   * エクスポート対象外として除外されることを確認する。
+   */
   describe('Given: プロジェクト内に subagents/ サブディレクトリがある', () => {
+    /** findClaudeSessions(allPeriod) を呼び出す */
     describe('When: findClaudeSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects`;
@@ -100,6 +115,7 @@ describe('findClaudeSessions', () => {
         await Deno.writeTextFile(`${projectsDir}/proj-a/subagents/sub.jsonl`, '{}');
       });
 
+      /** T-EC-FS-02: subagents/ 内ファイルは除外される */
       describe('Then: T-EC-FS-02 - subagents/ 内ファイルは除外される', () => {
         it('T-EC-FS-02-01: 収集ファイル数が 1（subagents 除外）', async () => {
           const results = await findClaudeSessions(ALL_PERIOD);
@@ -116,8 +132,14 @@ describe('findClaudeSessions', () => {
 
   // ─── T-EC-FS-04: projectsDir が存在しない → 空配列 ───────────────────────
 
+  /**
+   * projects ディレクトリが存在しない場合のエラーなし空配列返却シナリオ。
+   * 初回実行や未セットアップ環境でもクラッシュせず空配列を返すことを確認する。
+   */
   describe('Given: ~/.claude/projects/ が存在しない', () => {
+    /** findClaudeSessions(allPeriod) を呼び出す */
     describe('When: findClaudeSessions(allPeriod) を呼び出す', () => {
+      /** T-EC-FS-04: 空配列を返す（エラーなし） */
       describe('Then: T-EC-FS-04 - 空配列を返す（エラーなし）', () => {
         it('T-EC-FS-04-01: 空配列が返される', async () => {
           // tempDir に .claude/projects/ を作らない
@@ -130,7 +152,13 @@ describe('findClaudeSessions', () => {
 
   // ─── T-EC-FS-05: 結果がソートされている ──────────────────────────────────
 
+  /**
+   * 複数ファイルの辞書順ソート仕様の検証。
+   * proj-z と proj-a をこの順で作成し、返却結果が辞書順（proj-a → proj-z）に
+   * 並ぶことを確認する。エクスポート結果の再現性（冪等性）に必要な仕様。
+   */
   describe('Given: 複数のファイルが存在する', () => {
+    /** findClaudeSessions(allPeriod) を呼び出す */
     describe('When: findClaudeSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects`;
@@ -140,6 +168,7 @@ describe('findClaudeSessions', () => {
         await Deno.writeTextFile(`${projectsDir}/proj-a/session.jsonl`, '{}');
       });
 
+      /** T-EC-FS-05: 結果がソートされている */
       describe('Then: T-EC-FS-05 - 結果がソートされている', () => {
         it('T-EC-FS-05-01: 返却パスが辞書順', async () => {
           const results = await findClaudeSessions(ALL_PERIOD);
@@ -152,6 +181,11 @@ describe('findClaudeSessions', () => {
 
   // ─── T-EC-FS-06: projectDir 引数で任意ディレクトリを指定 ─────────────────
 
+  /**
+   * projectDir 引数で任意ディレクトリを指定するシナリオ。
+   * デフォルトの ~/.claude/projects ではなく指定パスを参照することで、
+   * --base オプションによるカスタムベースディレクトリが機能することを確認する。
+   */
   describe('Given: projectDir 引数に任意のディレクトリを指定する', () => {
     let customProjectsDir: string;
 
@@ -165,7 +199,9 @@ describe('findClaudeSessions', () => {
       await Deno.remove(customProjectsDir, { recursive: true });
     });
 
+    /** findClaudeSessions(allPeriod, customProjectsDir) を呼び出す */
     describe('When: findClaudeSessions(allPeriod, customProjectsDir) を呼び出す', () => {
+      /** T-EC-FS-06: 指定ディレクトリを参照してファイルを収集する */
       describe('Then: T-EC-FS-06 - 指定ディレクトリを参照してファイルを収集する', () => {
         it('T-EC-FS-06-01: 収集ファイル数が 1', async () => {
           const results = await findClaudeSessions(ALL_PERIOD, customProjectsDir);

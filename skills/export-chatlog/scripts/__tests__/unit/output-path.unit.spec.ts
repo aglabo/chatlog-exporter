@@ -6,12 +6,23 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
+// ─── Test target
 import { buildOutputPath } from '../../../../export-chatlog/scripts/libs/session-writer.ts';
+
+// ─── Helpers
+// types
 import type { SessionMeta } from '../../../../export-chatlog/scripts/types/session.types.ts';
 
+// ─── Internal Helpers
+
+/**
+ * テスト用の `SessionMeta` を生成するファクトリ関数。
+ * デフォルト値（sessionId・date・project・slug・firstUserText）を持ち、`overrides` で任意フィールドを上書きできる。
+ */
 function _makeMeta(overrides: Partial<SessionMeta> = {}): SessionMeta {
   return {
     sessionId: 'abc-def-12345678',
@@ -23,6 +34,8 @@ function _makeMeta(overrides: Partial<SessionMeta> = {}): SessionMeta {
   };
 }
 
+// ─── Tests
+
 /**
  * `buildOutputPath` のユニットテストスイート。
  *
@@ -33,8 +46,16 @@ function _makeMeta(overrides: Partial<SessionMeta> = {}): SessionMeta {
  * @see buildOutputPath
  */
 describe('buildOutputPath', () => {
+  /**
+   * 基本的なパス構造の生成確認シナリオ。
+   *
+   * `outputBase/agent/YYYY/YYYY-MM/ファイル名.md` 形式の出力パスに
+   * slug と sessionId ハッシュ（先頭 8 文字、ハイフン除去）が含まれることを確認する。
+   */
   describe('Given: outputBase="/out", agent="claude", 基本的な meta', () => {
+    /** `buildOutputPath` を呼び出したときの出力パスを検証する。 */
     describe('When: buildOutputPath(...) を呼び出す', () => {
+      /** T-EC-OP-01: 正しいパス構造を生成する */
       describe('Then: T-EC-OP-01 - 正しいパス構造を生成する', () => {
         it('T-EC-OP-01-01: パスが "出力ベース/claude/YYYY/YYYY-MM/ファイル名.md" 形式', () => {
           const meta = _makeMeta();
@@ -59,6 +80,11 @@ describe('buildOutputPath', () => {
     });
   });
 
+  /**
+   * agent="codex" でパスに "codex" セグメントが含まれるケース。
+   * agent 名がパスの第1セグメントに正しく埋め込まれることを確認する。
+   * claude と codex でパスが独立して区別されることの仕様確認。
+   */
   describe('Given: agent="codex"', () => {
     it('T-EC-OP-01-04: パスに "codex" セグメントが含まれる', () => {
       const meta = _makeMeta();
@@ -67,6 +93,11 @@ describe('buildOutputPath', () => {
     });
   });
 
+  /**
+   * date="2026-03-15" から YYYY・YYYY-MM への分割が正しいケース。
+   * "2026-03-15" が YYYY="2026" と YYYY-MM="2026-03" に分割されて
+   * パスに埋め込まれることを確認する。Obsidian の月別フォルダ整理に直結する仕様。
+   */
   describe('Given: date="2026-03-15"', () => {
     it('T-EC-OP-01-05: YYYY="2026", YYYY-MM="2026-03" が正しく埋め込まれる', () => {
       const meta = _makeMeta({ date: '2026-03-15' });

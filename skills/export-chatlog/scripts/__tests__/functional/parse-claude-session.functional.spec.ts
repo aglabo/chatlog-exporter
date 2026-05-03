@@ -8,27 +8,33 @@
 
 // cspell:words sess
 
-// -- import --
-
-// BDD spec modules
+// ─── BDD modules
 import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// test target
+// ─── Test target
 import { parseClaudeSession } from '../../exporter/claude-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
+
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+/** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
+/**
+ * 各要素を JSON.stringify して改行区切りで結合し、末尾に改行を付加して JSONL ファイルに書き込む。
+ * 機能テストで実際の JSONL ファイルを一時ディレクトリに作成するために使用する。
+ */
 async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
   const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
   await Deno.writeTextFile(filePath, content);
 }
 
-// ─── parseClaudeSession ───────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `parseClaudeSession` の機能テストスイート。
@@ -60,7 +66,15 @@ describe('parseClaudeSession', () => {
 
   // ─── T-EC-PC-01: 正常パース ────────────────────────────────────────────────
 
+  /**
+   * 最小構成 JSONL の正常パースシナリオ。
+   *
+   * user + assistant 各1エントリから sessionId・date・project・turns・firstUserText の
+   * 全フィールドが正しく抽出されることを確認する。
+   * cwd からプロジェクト名（my-app）を導出するロジックも含む。
+   */
   describe('Given: user + assistant 各1エントリのJSONL', () => {
+    /** `parseClaudeSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseClaudeSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -85,6 +99,7 @@ describe('parseClaudeSession', () => {
         ]);
       });
 
+      /** T-EC-PC-01: 正常にパースされる */
       describe('Then: T-EC-PC-01 - 正常にパースされる', () => {
         it('T-EC-PC-01-01: null でない ExportedSession を返す', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);
@@ -131,7 +146,13 @@ describe('parseClaudeSession', () => {
 
   // ─── T-EC-PC-02: スキップ対象のみ → null ───────────────────────────────────
 
+  /**
+   * 全ユーザーメッセージがスキップ対象のとき null を返すシナリオ。
+   * "yes"・"ok" のような短文肯定しか含まないセッションは
+   * エクスポート価値がないため除外されることを確認する。
+   */
   describe('Given: 全ユーザーメッセージがスキップ対象のJSONL', () => {
+    /** `parseClaudeSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseClaudeSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -164,6 +185,7 @@ describe('parseClaudeSession', () => {
         ]);
       });
 
+      /** T-EC-PC-02: null を返す */
       describe('Then: T-EC-PC-02 - null を返す', () => {
         it('T-EC-PC-02-01: null を返す', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);
@@ -175,7 +197,12 @@ describe('parseClaudeSession', () => {
 
   // ─── T-EC-PC-03: 期間外 → null ─────────────────────────────────────────────
 
+  /**
+   * 期間外タイムスタンプのセッションを null で除外するシナリオ。
+   * 2026-03 フィルタに対して 2026-02 のエントリは期間外と判定されることを確認する。
+   */
   describe('Given: 期間外のタイムスタンプを持つJSONL', () => {
+    /** 指定期間でフィルタしたときの結果を検証する。 */
     describe('When: parsePeriod("2026-03") の期間でフィルタする', () => {
       let filePath: string;
       let marchRange: PeriodRange;
@@ -202,6 +229,7 @@ describe('parseClaudeSession', () => {
         ]);
       });
 
+      /** T-EC-PC-03: null を返す */
       describe('Then: T-EC-PC-03 - null を返す', () => {
         it('T-EC-PC-03-01: null を返す', async () => {
           const result = await parseClaudeSession(filePath, marchRange);
@@ -213,8 +241,14 @@ describe('parseClaudeSession', () => {
 
   // ─── T-EC-PC-05: ファイル不存在 → null ────────────────────────────────────
 
+  /**
+   * ファイルが存在しないパスを渡したとき null を返すシナリオ。
+   * エラーを throw せず null を返すことで呼び出し元がスキップ処理を続けられる設計の確認。
+   */
   describe('Given: 存在しないファイルパス', () => {
+    /** `parseClaudeSession(nonExistentPath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseClaudeSession(nonExistentPath, allPeriod) を呼び出す', () => {
+      /** T-EC-PC-05: null を返す */
       describe('Then: T-EC-PC-05 - null を返す', () => {
         it('T-EC-PC-05-01: null を返す', async () => {
           const result = await parseClaudeSession(`${tempDir}/no-such-file.jsonl`, ALL_PERIOD);
@@ -226,7 +260,13 @@ describe('parseClaudeSession', () => {
 
   // ─── T-EC-PC-06: 同一msgId の assistant を連結 ────────────────────────────
 
+  /**
+   * 同一 message.id の assistant エントリが複数あるとき1件に連結するシナリオ。
+   * Claude がストリーミング応答を分割して JSONL に書く場合のケース。
+   * turns が user + 連結済み assistant の2件になることを確認する。
+   */
   describe('Given: 同一 msgId の assistant エントリが2件連続するJSONL', () => {
+    /** `parseClaudeSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
     describe('When: parseClaudeSession(filePath, allPeriod) を呼び出す', () => {
       let filePath: string;
 
@@ -258,6 +298,7 @@ describe('parseClaudeSession', () => {
         ]);
       });
 
+      /** T-EC-PC-06: assistant ターンが1件に連結される */
       describe('Then: T-EC-PC-06 - assistant ターンが1件に連結される', () => {
         it('T-EC-PC-06-01: turns の件数が 2（user + assistant 連結）', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);

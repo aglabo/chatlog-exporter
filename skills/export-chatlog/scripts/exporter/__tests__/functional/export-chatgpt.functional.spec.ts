@@ -7,16 +7,23 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words conv
+
+// ─── BDD modules
 import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
+// ─── Test target
+import { exportChatGPT } from '../../chatgpt-exporter.ts';
+
+// ─── Helpers
+// types
 import type { ExportConfig } from '../../../types/export-config.types.ts';
 import type { PeriodRange } from '../../../types/filter.types.ts';
 import type { ExportedSession } from '../../../types/session.types.ts';
-import { exportChatGPT } from '../../chatgpt-exporter.ts';
 import type { ChatGPTConversation } from '../../types/chatgpt-entry.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
 /** 有効な ExportedSession を返す parseConversation Provider */
 function _makeValidSession(): ExportedSession {
@@ -40,7 +47,7 @@ async function _writeConvFile(filePath: string, conversations: ChatGPTConversati
   await Deno.writeTextFile(filePath, JSON.stringify(conversations));
 }
 
-// ─── 仕様定義 ─────────────────────────────────────────────────────────────────
+// ─── Specification
 // ExportResult カウンタの仕様（この定義がテスト全体の基準）:
 //   exportedCount : writeSession が成功した呼び出し回数（= outputPaths.length）
 //   skippedCount  : parseConversation が null を返した会話数（期間外・内容なし）
@@ -51,23 +58,22 @@ async function _writeConvFile(filePath: string, conversations: ChatGPTConversati
 //   I/O・副作用なし。Promise.all の並列実行下でもシングルスレッド（Deno）のため安全。
 //   テスト内で Promise を返してはならない。
 
-// ─── exportChatGPT ────────────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `exportChatGPT` の機能テストスイート（Provider 注入使用）。
  *
- * Provider を差し替えることで実際の I/O を行わずに動作を検証する。
- * 以下のケースをカバーする:
- * - 有効な会話1件 → exportedCount=1, outputPaths=['/fake/path.md']
- * - parseConversation が null → skippedCount=1, outputPaths=[]
- * - findFiles が0件 → 全カウント0, outputPaths=[]
- * - config.baseDir が undefined → エラースロー
- * - writeSession が例外 → errorCount=1, outputPaths=[]
- * - 複数ファイル並列処理（全成功） → exportedCount=3, outputPaths 内容と順序を検証
- * - エラーファイルと正常ファイルの混在 → 各カウント正確, outputPaths=['/fake/path.md']
- * - 複数ファイル・各ファイルに複数会話 → 各カウント正確
- * - 全ファイルが読み込みエラー → errorCount=2, outputPaths=[]
- * - Promise.all 並列処理でも outputPaths はファイル入力順に決定論的
+ * findFiles / parseConversation / writeSession の各 Provider を差し替えることで、
+ * 実ファイルシステムへの依存を最小化しつつ動作を検証する。
+ * ExportResult の3カウンタ（exportedCount / skippedCount / errorCount）と
+ * outputPaths の正確性・決定論的な順序保証を検証する。
+ *
+ * テストケース分類:
+ * 正常系: T-EC-GE-01（1件）/ T-EC-GE-06（3件並列）/ T-EC-GE-10（順序保証）
+ * スキップ: T-EC-GE-02（parseConversation が null）
+ * 境界値: T-EC-GE-03（0件）/ T-EC-GE-04（baseDir 未設定）
+ * エラー系: T-EC-GE-05（writeSession 例外）/ T-EC-GE-09（全ファイル読み込み失敗）
+ * 混在: T-EC-GE-07（エラー・正常・スキップ混在）/ T-EC-GE-08（複数会話・複数ファイル）
  *
  * @see exportChatGPT
  */
@@ -87,7 +93,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-01: 有効な会話1件 → exportedCount=1, outputPaths=['/fake/path.md'] ─
 
+  /**
+   * 正常系の基本ケース。
+   * 1ファイル1会話が parseConversation → writeSession の全工程を通過することを検証する。
+   * exportedCount=1 かつ outputPaths に writeSession の返却パスが含まれることを確認する。
+   */
   describe('Given: 有効な会話1件を含む Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-01: exportedCount=1, skippedCount=0, errorCount=0, outputPaths=["/fake/path.md"]', async () => {
         const convFile = `${tempDir}/conversations-000.json`;
@@ -131,7 +143,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-02: parseConversation が null → skippedCount=1, outputPaths=[] ─
 
+  /**
+   * parseConversation が null を返すスキップ仕様の検証。
+   * 期間外・内容なしなどの理由でパース結果が null になった場合、
+   * skippedCount が正確にカウントされ writeSession が呼ばれないことを確認する。
+   */
   describe('Given: parseConversation が null を返す Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-02: skippedCount=1, exportedCount=0, outputPaths=[]', async () => {
         const convFile = `${tempDir}/conversations-000.json`;
@@ -169,7 +187,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-03: findFiles が0件 → 全カウント0, outputPaths=[] ─────────────
 
+  /**
+   * 入力ファイルが0件の境界値ケース。
+   * findFiles が空配列を返す状況で、全カウンタが0のまま空結果を返すことを検証する。
+   * 処理対象なしでも正常終了（例外なし）することを確認する。
+   */
   describe('Given: findFiles が 0 件を返す Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-03: exportedCount=0, skippedCount=0, errorCount=0, outputPaths=[]', async () => {
         const config: ExportConfig = {
@@ -197,7 +221,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-04: config.baseDir が undefined → エラースロー ─────────────
 
+  /**
+   * config.baseDir が未設定の必須パラメータ検証ケース。
+   * ChatGPT エクスポートは入力ディレクトリが必須であるため、
+   * baseDir=undefined のときエラーがスローされることを検証する。
+   */
   describe('Given: config.baseDir が undefined', () => {
+    /** `exportChatGPT` を呼び出したときにエラーがスローされることを検証する。 */
     describe('When: exportChatGPT(config) を呼び出す', () => {
       it('T-EC-GE-04: エラーをスローする', async () => {
         const config: ExportConfig = {
@@ -218,7 +248,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-05: writeSession が例外 → errorCount=1, outputPaths=[] ────────
 
+  /**
+   * writeSession が例外を投げるエラー系ケース。
+   * parseConversation は成功するが writeSession で失敗する状況を想定する。
+   * errorCount に計上され outputPaths には追加されないことを検証する。
+   */
   describe('Given: writeSession が例外をスローする Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-05: errorCount=1, exportedCount=0, outputPaths=[]', async () => {
         const convFile = `${tempDir}/conversations-000.json`;
@@ -259,7 +295,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-06: 複数ファイルの並列処理（全成功）→ outputPaths 内容と順序を検証 ─
 
+  /**
+   * 3ファイル全成功の並列処理ケース。
+   * 各ファイルに異なる conv.id を設定することで outputPaths の内容を識別可能にし、
+   * exportedCount=3 かつ outputPaths がファイル入力順に並ぶことを検証する。
+   */
   describe('Given: 有効な会話を1件ずつ含む3ファイルの Provider（各ファイルに異なる conv.id）', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-06: exportedCount=3, outputPaths=[session-a.md, session-b.md, session-c.md]（入力順）', async () => {
         // 各ファイルにユニークな conv.id を設定して、writeSession の返却パスで識別する
@@ -327,7 +369,13 @@ describe('exportChatGPT', () => {
   // validFile の conv.id='valid' → validSession を返す → exportedCount に計上
   // skipFile の conv.id='skip' → null を返す → skippedCount に計上
 
+  /**
+   * エラー・正常・スキップの3種混在ケース。
+   * JSONパース不能ファイル（errorCount）・有効ファイル（exportedCount）・
+   * スキップファイル（skippedCount）が混在したとき、各カウンタが正確になることを検証する。
+   */
   describe('Given: JSONパース不能ファイル・有効ファイル・スキップファイルの混在Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-07: exportedCount=1, skippedCount=1, errorCount=1, outputPaths=["/fake/path.md"]', async () => {
         const errorFile = `${tempDir}/conversations-001.json`;
@@ -384,7 +432,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-08: 複数ファイル・各ファイルに複数会話 ─────────────────────
 
+  /**
+   * 複数ファイル・各ファイルに複数会話が含まれる最複合ケース。
+   * file1=[有効, スキップ]・file2=[有効, writeSessionエラー] の構成で、
+   * exportedCount=2, skippedCount=1, errorCount=1 になることを検証する。
+   */
   describe('Given: 複数会話を含む2ファイルの Provider（一部スキップ・writeSessionエラー混在）', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-08: exportedCount=2, skippedCount=1, errorCount=1', async () => {
         // file1: [有効, スキップ] file2: [有効, writeSessionエラー]
@@ -459,7 +513,13 @@ describe('exportChatGPT', () => {
 
   // ─── T-EC-GE-09: 全ファイルが読み込みエラー → errorCount=2, outputPaths=[] ─
 
+  /**
+   * 全ファイルが読み込みエラーになるケース。
+   * findFiles が存在しないパスを返すとき、2件すべてが errorCount に計上され
+   * outputPaths が空配列になることを検証する。
+   */
   describe('Given: 全ファイルが存在しないパスを返す findFiles Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-09: exportedCount=0, skippedCount=0, errorCount=2, outputPaths=[]', async () => {
         const config: ExportConfig = {
@@ -495,7 +555,14 @@ describe('exportChatGPT', () => {
   // _mergeResults はその順序を維持して outputPaths をマージする。
   // （実装: results.forEach(r => outputPaths.push(...r.outputPaths))）
 
+  /**
+   * Promise.all 並列処理での outputPaths 順序保証の検証。
+   * ECMAScript 仕様では Promise.all は入力配列の順序で結果を返す。
+   * 並列処理であっても outputPaths がファイル入力順 [x.md, y.md, z.md] に
+   * 決定論的に並ぶことを検証する。
+   */
   describe('Given: id が "x"/"y"/"z" の会話を1件ずつ含む3ファイル（Promise.all 並列処理）', () => {
+    /** `exportChatGPT` を呼び出したときの outputPaths の順序を検証する。 */
     describe('When: exportChatGPT(config, providers) を呼び出す', () => {
       it('T-EC-GE-10: outputPaths がファイル入力順 [x.md, y.md, z.md] で決定論的', async () => {
         const convX: ChatGPTConversation = {

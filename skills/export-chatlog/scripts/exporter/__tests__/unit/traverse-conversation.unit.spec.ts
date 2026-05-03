@@ -7,13 +7,18 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
+// ─── Test target
 import { traverseConversation } from '../../chatgpt-exporter.ts';
+
+// ─── Helpers
+// types
 import type { ChatGPTMappingNode } from '../../types/chatgpt-entry.types.ts';
 
-// ─── traverseConversation ─────────────────────────────────────────────────────
+// ─── Tests
 // traverseConversation の責務:
 //   mapping を currentNodeId から leaf→root で辿り、root→leaf 順に並べ直したうえで、
 //   以下をすべて除外した ChatGPTMessage[] を返す:
@@ -25,14 +30,21 @@ import type { ChatGPTMappingNode } from '../../types/chatgpt-entry.types.ts';
 /**
  * `traverseConversation` のユニットテストスイート。
  *
- * ChatGPT mapping を currentNodeId から root まで遡り、root→leaf 順のメッセージ列を返す関数を検証する。
- * 線形チェーン・weight=0 除外・system/tool role 除外・null メッセージ除外・存在しないノード ID の各ケースをカバーする。
+ * ChatGPT mapping を currentNodeId から root まで遡り、root→leaf 順に並べ直したうえで
+ * フィルタリングされたメッセージ列を返す関数を検証する。
+ * 除外対象: message=null・weight=0・author.role が 'system' または 'tool'。
+ * 線形チェーン・weight=0 除外・system/tool role 除外・null メッセージ除外・
+ * 存在しないノード ID・weight 未設定の各ケースをカバーする。
  *
  * @see traverseConversation
  */
 describe('traverseConversation', () => {
   // ─── T-EC-GT-02-01: 3ノード線形チェーン（system 除外）→ 2メッセージ ──────
 
+  /**
+   * 3ノード線形チェーンで system ノードが除外される基本ケース。
+   * root→leaf のトラバース順序が正しく、system ロールが除外されることを検証する。
+   */
   describe('Given: 3ノードの線形チェーン（system + user + assistant）', () => {
     it('T-EC-GT-02-01: system を除外した root→leaf 順の2メッセージを返す', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -80,6 +92,11 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-02: weight: 0.0 ノード含む → そのノードを除外 ─────────
 
+  /**
+   * weight=0.0 のノードを含む境界値ケース。
+   * ChatGPT mapping では weight=0 のノードは無効な候補を示すため、
+   * トラバース結果から除外されることを検証する。
+   */
   describe('Given: weight=0.0 のノードを含む', () => {
     it('T-EC-GT-02-02: weight=0.0 ノードを除外する', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -129,6 +146,11 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-03: role: 'system' ノード含む → 除外 ─────────────────
 
+  /**
+   * system ロールの単体除外ケース。
+   * T-EC-GT-02-01 とは異なり system のみを含む単純な2ノード構成で、
+   * system が除外されユーザーメッセージのみが返ることを検証する。
+   */
   describe('Given: role="system" のノードを含む', () => {
     it('T-EC-GT-02-03: system ノードを除外する', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -163,6 +185,11 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-04: role: 'tool' ノード含む → 除外 ───────────────────
 
+  /**
+   * tool ロールの除外ケース。
+   * ツール実行結果ノード（role="tool"）がチェーン中間に位置するとき、
+   * そのノードのみが除外され user と assistant が残ることを検証する。
+   */
   describe('Given: role="tool" のノードを含む', () => {
     it('T-EC-GT-02-04: tool ノードを除外する', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -209,6 +236,11 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-05: message: null ノード含む → 除外 ──────────────────
 
+  /**
+   * message=null のノードを含む境界値ケース。
+   * ChatGPT mapping のルートノードは message=null を持つことがあるため、
+   * null メッセージノードが除外されてメッセージを持つノードのみが返ることを検証する。
+   */
   describe('Given: message=null のノードを含む', () => {
     it('T-EC-GT-02-05: message=null ノードを除外する', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -238,6 +270,10 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-06: 存在しない currentNodeId → [] ────────────────────
 
+  /**
+   * currentNodeId が mapping に存在しない境界値ケース。
+   * 無効な ID が渡されたとき、例外を投げずに空配列を返すことを検証する。
+   */
   describe('Given: 存在しない currentNodeId', () => {
     it('T-EC-GT-02-06: 空配列を返す', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {
@@ -260,6 +296,11 @@ describe('traverseConversation', () => {
 
   // ─── T-EC-GT-02-07: weight=undefined のノード → 除外しない ──────────
 
+  /**
+   * weight フィールドが未設定（undefined）のノードの境界値ケース。
+   * weight=0 のみが除外対象であり、undefined は有効として扱われることを検証する。
+   * `msg.weight === 0` という厳密等価が使われていることの確認でもある。
+   */
   describe('Given: weight フィールドが未設定（undefined）のノードを含む', () => {
     it('T-EC-GT-02-07: weight=undefined のノードを結果に含める', () => {
       const mapping: Record<string, ChatGPTMappingNode> = {

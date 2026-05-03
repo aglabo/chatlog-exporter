@@ -13,19 +13,20 @@
 // ExportConfig → PeriodRange のフィルタと mapping トラバースのみ行う。
 // テスト内で await は不要。型として sync であることを明示する。
 
-// -- BDD modules --
+// ─── BDD modules
 import { assertEquals, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// -- test target --
+// ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';
 import { parseChatGPTConversation } from '../../chatgpt-exporter.ts';
 
-// -- types --
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../../types/filter.types.ts';
 import type { ChatGPTConversation } from '../../types/chatgpt-entry.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
@@ -75,12 +76,14 @@ function _makeNormalConv(): ChatGPTConversation {
   };
 }
 
-// ─── parseChatGPTConversation ─────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `parseChatGPTConversation` の機能テストスイート。
  *
- * 正常会話オブジェクト・スキップ対象会話・期間外会話・current_node 未設定の各ケースを検証する。
+ * 同期関数（I/O・副作用なし）として動作し、ChatGPTConversation と PeriodRange を受け取り、
+ * ExportedSession または null を返す関数を検証する。
+ * period フィルタ・isSkippable 判定・current_node フォールバックの各仕様をカバーする。
  *
  * @see parseChatGPTConversation
  * @see parsePeriod
@@ -88,7 +91,12 @@ function _makeNormalConv(): ChatGPTConversation {
 describe('parseChatGPTConversation', () => {
   // ─── T-EC-GP-01: 正常会話オブジェクト・全期間 ─────────────────────────────
 
+  /**
+   * 正常な会話オブジェクトと全期間フィルタを組み合わせた正常系ケース。
+   * mapping トラバース・meta 生成・turns 構築の各工程が正しく動作することを検証する。
+   */
   describe('Given: 正常な会話オブジェクト + 全期間', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
     describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
       // ─── T-EC-GP-01-01: 非 null を返す ───────────────────────────────────
 
@@ -126,7 +134,13 @@ describe('parseChatGPTConversation', () => {
 
   // ─── T-EC-GP-02: 全 user ターンが isSkippable 対象 → null ────────────────
 
+  /**
+   * 全ての user ターンが isSkippable 対象になる会話のスキップ仕様の検証。
+   * 有効な user 発言が存在しない会話（"yes" などの短文肯定のみ）は
+   * null を返してスキップされることを検証する。
+   */
   describe('Given: 全 user ターンが isSkippable 対象の会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
     describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
       // null 理由: all-turns-skipped（有効 user ターンなし）
       it('T-EC-GP-02-01: null を返す', () => {
@@ -159,7 +173,13 @@ describe('parseChatGPTConversation', () => {
 
   // ─── T-EC-GP-03: create_time が期間外 → null ──────────────────────────────
 
+  /**
+   * create_time が period 範囲外の会話に対する期間フィルタ仕様の検証。
+   * 会話の create_time が parsePeriod で指定した期間に含まれないとき、
+   * null を返してスキップされることを検証する。
+   */
   describe('Given: create_time が期間外の会話', () => {
+    /** 指定期間でフィルタしたときの戻り値を検証する。 */
     describe('When: parsePeriod("2026-03") の期間でフィルタする', () => {
       // null 理由: period-filtered（create_time が期間外）
       it('T-EC-GP-03-01: null を返す', () => {
@@ -174,7 +194,13 @@ describe('parseChatGPTConversation', () => {
 
   // ─── T-EC-GP-04: current_node 未設定 → フォールバック ─────────────────────
 
+  /**
+   * current_node が未設定のフォールバック仕様の検証。
+   * current_node が省略された場合、children が空のノード（leaf）を末尾ノードとして使い、
+   * 有効な ExportedSession が返ることを検証する。
+   */
   describe('Given: current_node が未設定の会話（children が空のノードからフォールバック）', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
     describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
       it('T-EC-GP-04-01: ExportedSession を返す（null でない）', () => {
         const conv: ChatGPTConversation = {
@@ -216,7 +242,13 @@ describe('parseChatGPTConversation', () => {
 
   // ─── T-EC-GP-04-02: current_node 未設定 + leaf ノードなし → null ────────
 
+  /**
+   * current_node 未設定かつ leaf ノードが存在しない無効 mapping のケース。
+   * children が空のノードが1件もない mapping では末尾ノードを特定できないため、
+   * null を返すことを検証する。
+   */
   describe('Given: current_node が未設定かつ children が空のノードが存在しない会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
     describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
       // null 理由: invalid-mapping（有効な末尾ノードが特定できない）
       it('T-EC-GP-04-02: null を返す', () => {

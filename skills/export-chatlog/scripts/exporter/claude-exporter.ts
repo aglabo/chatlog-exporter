@@ -6,16 +6,18 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// -- external --
+// ─── External modules ───────────────────────────────────────────────────────
 import { homeDir } from '../../../_scripts/libs/file-io/dir-utils.ts';
 import { findDirectories, findEntries } from '../../../_scripts/libs/file-io/find-entries.ts';
 import { normalizePath } from '../../../_scripts/libs/file-io/path-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 
-// -- internal --
+// ─── Internal modules ───────────────────────────────────────────────────────
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 import type { ExportConfig } from '../types/export-config.types.ts';
 import type { ExportResult } from '../types/export-result.types.ts';
 import type { PeriodRange } from '../types/filter.types.ts';

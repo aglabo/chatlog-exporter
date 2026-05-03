@@ -6,8 +6,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Types
 import type { ExportedSession } from '../../../types/session.types.ts';
 
+// ─── Helpers
 /**
  * 1セッションの処理フローを表すタプル。
  * - [0] filePath: findSessions が返すファイルパス

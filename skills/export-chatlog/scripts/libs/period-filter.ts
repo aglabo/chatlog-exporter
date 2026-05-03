@@ -6,9 +6,16 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── External modules ───────────────────────────────────────────────────────
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { isoToLocalDayMs } from '../../../_scripts/libs/text/date-utils.ts';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 import type { PeriodRange } from '../types/filter.types.ts';
+
+// ----------
+// Functions
+// ----------
 
 /** CLI の期間文字列（"YYYY-MM" / "YYYY" / undefined）を PeriodRange に変換する。 */
 export const parsePeriod = (period: string | undefined): PeriodRange => {
