@@ -6,24 +6,27 @@
 //
 // This software is released under the MIT License.
 
-// -- BDD module --
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-// -- stub --
-import type { Stub } from '@std/testing/mock';
+// stub
 import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
-// -- test target --
+// ─── Test target
 import { findCodexSessions } from '../../exporter/codex-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
-// -- types --
+
+// ─── Helpers
+// types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
-// ─── ヘルパー ──────────────────────────────────────────────────────────────────
-
+// ─── Internal Helpers
+/** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
-// ─── findCodexSessions ────────────────────────────────────────────────────────
+// ─── Tests
 
 /**
  * `findCodexSessions` の統合テストスイート（実ファイルシステム使用）。
@@ -62,7 +65,12 @@ describe('findCodexSessions', () => {
 
   // ─── T-EC-FX-01: sessionsDir 走査 ─────────────────────────────────────────
 
+  /**
+   * YYYY/MM/DD 階層の sessionsDir を再帰走査するシナリオ。
+   * 複数日付ディレクトリにわたる全 .jsonl ファイルが収集されることを確認する。
+   */
   describe('Given: ~/.codex/sessions/YYYY/MM/DD/ に .jsonl ファイルが存在する', () => {
+    /** findCodexSessions(allPeriod) を呼び出す */
     describe('When: findCodexSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions`;
@@ -73,6 +81,7 @@ describe('findCodexSessions', () => {
         await Deno.writeTextFile(`${sessionsDir}/2026/03/16/session3.jsonl`, '{}');
       });
 
+      /** T-EC-FX-01: 全ての .jsonl ファイルを収集する */
       describe('Then: T-EC-FX-01 - 全ての .jsonl ファイルを収集する', () => {
         it('T-EC-FX-01-01: 収集ファイル数が 3', async () => {
           const results = await findCodexSessions(ALL_PERIOD);
@@ -89,8 +98,14 @@ describe('findCodexSessions', () => {
 
   // ─── T-EC-FX-02: sessionsDir が存在しない → 空配列 ────────────────────────
 
+  /**
+   * sessions ディレクトリが存在しない場合のエラーなし空配列返却シナリオ。
+   * codex 未使用の環境でもクラッシュせず空配列を返すことを確認する。
+   */
   describe('Given: ~/.codex/sessions/ が存在しない', () => {
+    /** findCodexSessions(allPeriod) を呼び出す */
     describe('When: findCodexSessions(allPeriod) を呼び出す', () => {
+      /** T-EC-FX-02: 空配列を返す（エラーなし） */
       describe('Then: T-EC-FX-02 - 空配列を返す（エラーなし）', () => {
         it('T-EC-FX-02-01: 空配列が返される', async () => {
           // tempDir に .codex/sessions/ を作らない
@@ -103,7 +118,13 @@ describe('findCodexSessions', () => {
 
   // ─── T-EC-FX-03: 複数月にわたるセッション走査 ────────────────────────────
 
+  /**
+   * 複数年月にまたがるセッションが全件収集されるシナリオ。
+   * 2025-12-31・2026-02-28・2026-03-01 に分散したファイルが
+   * 再帰走査によりすべて収集されることを確認する。
+   */
   describe('Given: 複数の年月ディレクトリに .jsonl ファイルが存在する', () => {
+    /** findCodexSessions(allPeriod) を呼び出す */
     describe('When: findCodexSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions`;
@@ -115,6 +136,7 @@ describe('findCodexSessions', () => {
         await Deno.writeTextFile(`${sessionsDir}/2025/12/31/c.jsonl`, '{}');
       });
 
+      /** T-EC-FX-03: 全月のファイルを収集する */
       describe('Then: T-EC-FX-03 - 全月のファイルを収集する', () => {
         it('T-EC-FX-03-01: 収集ファイル数が 3（全月）', async () => {
           const results = await findCodexSessions(ALL_PERIOD);
@@ -126,7 +148,13 @@ describe('findCodexSessions', () => {
 
   // ─── T-EC-FX-04: 結果がソートされている ──────────────────────────────────
 
+  /**
+   * 異なる日付ディレクトリにあるファイルの辞書順ソート仕様の検証。
+   * 2026/03/16 と 2026/03/15 を逆順で作成し、返却結果が辞書順（15 → 16）に
+   * 並ぶことを確認する。エクスポート結果の再現性（冪等性）に必要な仕様。
+   */
   describe('Given: 複数のファイルが異なる日付ディレクトリに存在する', () => {
+    /** findCodexSessions(allPeriod) を呼び出す */
     describe('When: findCodexSessions(allPeriod) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions`;
@@ -136,6 +164,7 @@ describe('findCodexSessions', () => {
         await Deno.writeTextFile(`${sessionsDir}/2026/03/15/session.jsonl`, '{}');
       });
 
+      /** T-EC-FX-04: 結果がソートされている */
       describe('Then: T-EC-FX-04 - 結果がソートされている', () => {
         it('T-EC-FX-04-01: 返却パスが辞書順', async () => {
           const results = await findCodexSessions(ALL_PERIOD);
