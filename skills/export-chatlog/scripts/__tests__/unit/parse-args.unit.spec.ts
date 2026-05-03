@@ -16,7 +16,7 @@ import { parseArgs } from '../../../../export-chatlog/scripts/export-chatlog.ts'
 // ─── Helpers
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // types
-import type { ExportConfig } from '../../../../export-chatlog/scripts/types/export-config.types.ts';
+import type { ParsedConfig } from '../../../../export-chatlog/scripts/types/export-config.types.ts';
 
 // ─── Tests
 
@@ -44,7 +44,7 @@ describe('parseArgs', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       /** 対応フィールドに期待値が設定されることを確認する。 */
       describe('Then: 対応フィールドに値が設定される', () => {
-        const _cases: { id: string; args: string[]; field: keyof ExportConfig; expected: unknown }[] = [
+        const _cases: { id: string; args: string[]; field: keyof ParsedConfig; expected: unknown }[] = [
           { id: 'T-EC-PA-02-01', args: ['codex'], field: 'agent', expected: 'codex' },
           { id: 'T-EC-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
           { id: 'T-EC-PA-03-02', args: ['2026'], field: 'period', expected: '2026' },
@@ -165,6 +165,32 @@ describe('parseArgs', () => {
       const result = parseArgs(['chatgpt', '/path/to/export', '2026-03']);
       assertEquals(result.period, '2026-03');
       assertEquals(result.inputDir, '/path/to/export');
+    });
+  });
+
+  // ─── T-EC-PA-16: --config オプション ────────────────────────────────────────
+
+  /**
+   * `--config` オプションによるグローバル設定ファイルパスの解析検証。
+   * `--config VALUE` 形式と `--config=VALUE` 形式の両方が
+   * `configFile` フィールドに正しくマッピングされることを確認する。
+   */
+  describe('Given: --config または --config=VALUE', () => {
+    /** `parseArgs(args)` を呼び出す。 */
+    describe('When: parseArgs(args) を呼び出す', () => {
+      /** `configFile` に値が設定されることを確認する。 */
+      describe('Then: T-EC-PA-16 - configFile に値が設定される', () => {
+        const _cases = [
+          { id: 'T-EC-PA-16-01', args: ['--config', '/path/to/config.yaml'], expected: '/path/to/config.yaml' },
+          { id: 'T-EC-PA-16-02', args: ['--config=/path/to/config.yaml'], expected: '/path/to/config.yaml' },
+        ];
+        for (const { id, args, expected } of _cases) {
+          it(`${id}: ${args.join(' ')} → configFile が "${expected}" になる`, () => {
+            const result = parseArgs(args);
+            assertEquals(result.configFile, expected);
+          });
+        }
+      });
     });
   });
 
