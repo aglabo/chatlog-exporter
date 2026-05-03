@@ -6,17 +6,21 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// constants
-import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
+// --- external modules
+// yaml
+import { parse } from '@std/yaml';
+
+// --- local modules
 // libs
 import { resolveConfigPath } from '../libs/file-io/path-utils.ts';
 import { parseNumber, parseString } from '../libs/text/string-utils.ts';
-// yaml
-import { parse } from '@std/yaml';
+// constants
+import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
+import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
 // types
 import type { ConfigSchema, ConfigValues, SchemaValueType } from '../constants/schema.constants.ts';
 import type { CommandProvider, ReadTextFileProvider, StatProvider } from '../types/providers.types.ts';
-// Error
+// classes
 import { ChatlogError } from './ChatlogError.class.ts';
 
 /**
@@ -28,7 +32,7 @@ import { ChatlogError } from './ChatlogError.class.ts';
  */
 export class GlobalConfig {
   private static _instance: GlobalConfig | undefined;
-  private static readonly _DEFAULT_CONFIG_PATH = 'assets/configs/defaults.yaml';
+  private static readonly _DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_FILE;
   private static readonly _DEFAULT_READ_TEXT_FILE: ReadTextFileProvider = (path: string) => Deno.readTextFile(path);
   private _schema: ConfigSchema;
   private _fields: ConfigValues = {} as ConfigValues;
