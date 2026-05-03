@@ -8,16 +8,18 @@
 
 // cspell:words conv
 
-// ─── External modules ───────────────────────────────────────────────────────
+// ─── Shared modules ─────────────────────────────────────────────────────────
+// error
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+// libs
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 
-// ─── Internal modules ───────────────────────────────────────────────────────
+// ─── Local modules ───────────────────────────────────────────────────────────
+// libs
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
+// types
 import type { ExportConfig } from '../types/export-config.types.ts';
 import type { ExportResult } from '../types/export-result.types.ts';
 import type { FileResult } from '../types/file-result.types.ts';
