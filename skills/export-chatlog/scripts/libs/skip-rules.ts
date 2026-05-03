@@ -6,7 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// ─── Internal modules ───────────────────────────────────────────────────────
+// ─── Local modules ───────────────────────────────────────────────────────────
 // constants
 import {
   SESSION_SKIP_KEYWORDS,
