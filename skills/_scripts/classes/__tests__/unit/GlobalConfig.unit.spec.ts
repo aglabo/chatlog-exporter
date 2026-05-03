@@ -6,110 +6,44 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// -- BDD modules --
+// --- BDD modules ---
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
-// -- test dependencies --
-import type { ReadTextFileProvider, StatProvider } from '../../../types/providers.types.ts';
-import { ChatlogError } from '../../ChatlogError.class.ts';
-
-// -- test target --
+// --- Test target ---
 import { GlobalConfig } from '../../GlobalConfig.class.ts';
 
+// --- Helper
+// stub providers
+import type { ReadTextFileProvider, StatProvider } from '../../../types/providers.types.ts';
+// constants
+import { DEFAULT_CONFIG_FILE } from '../../../constants/defaults.constants.ts';
+// classes
+import { ChatlogError } from '../../ChatlogError.class.ts';
+
 // ─────────────────────────────────────────────
-// parseYaml パラメータテーブル
+// parseYaml パラメータテーブル 型定義
 // ─────────────────────────────────────────────
 
-type HappyCase = {
+/** テストケース: 正常系 */
+type NormalCase = {
   id: string;
   label: string;
   input: Record<string, unknown>;
   expected: Record<string, string | number>;
 };
+
+/** テストケース: 異常系 */
+// deno-lint-ignore no-explicit-any
+type ErrorCase = { id: string; label: string; input: Record<string, unknown>; errorType: new(...args: any[]) => Error };
+
+/** テストケース: エッジケース */
 type EdgeCase = {
   id: string;
   label: string;
   input: Record<string, unknown>;
   expected: Record<string, string | number>;
 };
-// deno-lint-ignore no-explicit-any
-type ErrorCase = { id: string; label: string; input: Record<string, unknown>; errorType: new(...args: any[]) => Error };
-
-/** 正常系: 入力 → 期待出力の変換テスト (T-CLS-GC-10〜14) */
-const _happyCases: HappyCase[] = [
-  {
-    id: 'T-CLS-GC-10',
-    label: 'string フィールドはそのまま返す',
-    input: { agent: 'claude' },
-    expected: { agent: 'claude' },
-  },
-  {
-    id: 'T-CLS-GC-11',
-    label: 'number フィールドの数値型はそのまま返す',
-    input: { timeoutMs: 120000 },
-    expected: { timeoutMs: 120000 },
-  },
-  {
-    id: 'T-CLS-GC-12',
-    label: 'number フィールドの数値文字列は数値に変換',
-    input: { timeoutMs: '120_000' },
-    expected: { timeoutMs: 120000 },
-  },
-  {
-    id: 'T-CLS-GC-13',
-    label: '複数フィールドを正しく変換して返す',
-    input: { agent: 'claude', timeoutMs: 30000 },
-    expected: { agent: 'claude', timeoutMs: 30000 },
-  },
-  { id: 'T-CLS-GC-14', label: '空オブジェクトは空オブジェクトを返す', input: {}, expected: {} },
-];
-
-/** エッジケース: null/undefined の挙動 (T-CLS-GC-15〜17) */
-const _edgeCases: EdgeCase[] = [
-  { id: 'T-CLS-GC-15', label: 'undefined 値のキーは結果に含まれない', input: { agent: undefined }, expected: {} },
-  {
-    id: 'T-CLS-GC-16',
-    label: "string フィールドの null は '' に変換される",
-    input: { agent: null },
-    expected: { agent: '' },
-  },
-  { id: 'T-CLS-GC-17', label: 'number フィールドの null は省略される', input: { timeoutMs: null }, expected: {} },
-];
-
-/** 異常系: エラースロー確認 (T-CLS-GC-18〜22) */
-const _errorCases: ErrorCase[] = [
-  {
-    id: 'T-CLS-GC-18',
-    label: '未知キーは ChatlogError をスローする',
-    input: { unknownKey: 'value' },
-    errorType: ChatlogError,
-  },
-  {
-    id: 'T-CLS-GC-19',
-    label: 'string フィールドに number 型は TypeError をスローする',
-    input: { agent: 42 },
-    errorType: TypeError,
-  },
-  {
-    id: 'T-CLS-GC-20',
-    label: 'number フィールドに非数値文字列は TypeError をスローする',
-    input: { timeoutMs: 'abc' },
-    errorType: TypeError,
-  },
-  {
-    id: 'T-CLS-GC-21',
-    label: 'number フィールドに boolean は TypeError をスローする',
-    input: { timeoutMs: true },
-    errorType: TypeError,
-  },
-  {
-    id: 'T-CLS-GC-22',
-    label: '不明キーが混在しても ChatlogError をスローする',
-    input: { agent: 'claude', badKey: 'x' },
-    errorType: ChatlogError,
-  },
-];
 
 // ─────────────────────────────────────────────
 // GlobalConfig
@@ -153,6 +87,78 @@ describe('GlobalConfig', () => {
   // ─── parseYaml ─────────────────────────────────────────────────────────────
 
   describe('parseYaml', () => {
+    const _happyCases: NormalCase[] = [
+      {
+        id: 'T-CLS-GC-10',
+        label: 'string フィールドはそのまま返す',
+        input: { agent: 'claude' },
+        expected: { agent: 'claude' },
+      },
+      {
+        id: 'T-CLS-GC-11',
+        label: 'number フィールドの数値型はそのまま返す',
+        input: { timeoutMs: 120000 },
+        expected: { timeoutMs: 120000 },
+      },
+      {
+        id: 'T-CLS-GC-12',
+        label: 'number フィールドの数値文字列は数値に変換',
+        input: { timeoutMs: '120_000' },
+        expected: { timeoutMs: 120000 },
+      },
+      {
+        id: 'T-CLS-GC-13',
+        label: '複数フィールドを正しく変換して返す',
+        input: { agent: 'claude', timeoutMs: 30000 },
+        expected: { agent: 'claude', timeoutMs: 30000 },
+      },
+      { id: 'T-CLS-GC-14', label: '空オブジェクトは空オブジェクトを返す', input: {}, expected: {} },
+    ];
+
+    const _edgeCases: EdgeCase[] = [
+      { id: 'T-CLS-GC-15', label: 'undefined 値のキーは結果に含まれない', input: { agent: undefined }, expected: {} },
+      {
+        id: 'T-CLS-GC-16',
+        label: "string フィールドの null は '' に変換される",
+        input: { agent: null },
+        expected: { agent: '' },
+      },
+      { id: 'T-CLS-GC-17', label: 'number フィールドの null は省略される', input: { timeoutMs: null }, expected: {} },
+    ];
+
+    const _errorCases: ErrorCase[] = [
+      {
+        id: 'T-CLS-GC-18',
+        label: '未知キーは ChatlogError をスローする',
+        input: { unknownKey: 'value' },
+        errorType: ChatlogError,
+      },
+      {
+        id: 'T-CLS-GC-19',
+        label: 'string フィールドに number 型は TypeError をスローする',
+        input: { agent: 42 },
+        errorType: TypeError,
+      },
+      {
+        id: 'T-CLS-GC-20',
+        label: 'number フィールドに非数値文字列は TypeError をスローする',
+        input: { timeoutMs: 'abc' },
+        errorType: TypeError,
+      },
+      {
+        id: 'T-CLS-GC-21',
+        label: 'number フィールドに boolean は TypeError をスローする',
+        input: { timeoutMs: true },
+        errorType: TypeError,
+      },
+      {
+        id: 'T-CLS-GC-22',
+        label: '不明キーが混在しても ChatlogError をスローする',
+        input: { agent: 'claude', badKey: 'x' },
+        errorType: ChatlogError,
+      },
+    ];
+
     for (const tc of _happyCases) {
       it(`${tc.id}: ${tc.label}`, async () => {
         const _config = await GlobalConfig.getInstance();
@@ -371,5 +377,15 @@ describe('GlobalConfig', () => {
       });
       assertEquals(_result, { chatlogDir: '/custom/chatlog' });
     });
+  });
+});
+
+// ─────────────────────────────────────────────
+// DEFAULT_CONFIG_FILE 定数検証
+// ─────────────────────────────────────────────
+
+describe('DEFAULT_CONFIG_FILE', () => {
+  it('T-CLS-GC-60: DEFAULT_CONFIG_FILE が "assets/configs/config.yaml" である', () => {
+    assertEquals(DEFAULT_CONFIG_FILE, 'assets/configs/config.yaml');
   });
 });
