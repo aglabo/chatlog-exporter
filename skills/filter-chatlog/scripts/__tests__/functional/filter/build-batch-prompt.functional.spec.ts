@@ -1,20 +1,22 @@
-// src: scripts/__tests__/functional/filter-chatlog.buildBatchPrompt.functional.spec.ts
+// src: scripts/__tests__/functional/filter/build-batch-prompt.functional.spec.ts
 // @(#): buildBatchPrompt の機能テスト
 //       実ファイルを使用したバッチプロンプト構築の検証
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
-import { assertStringIncludes } from '@std/assert';
-import { assertEquals } from '@std/assert';
+// ─── BDD modules
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// test target
-import { buildBatchPrompt } from '../../filter-chatlog.ts';
+// ─── Test target
+import { buildBatchPrompt } from '../../../filter-chatlog.ts';
 
-// ─── 共通セットアップ ──────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
 let tempDir: string;
 
 beforeEach(async () => {
@@ -25,11 +27,29 @@ afterEach(async () => {
   await Deno.remove(tempDir, { recursive: true });
 });
 
-// ─── T-FL-BP-01: 複数ファイル → === FILE N: filename === 形式 ──────────────────
+// ─── Tests
 
+/**
+ * `buildBatchPrompt` 関数の機能テストスイート。
+ *
+ * `buildBatchPrompt(files)` は複数の .md ファイルを読み込み、
+ * `=== FILE N: filename ===` 形式のヘッダ付きバッチプロンプト文字列を生成する。
+ * 本文が `MAX_BODY_CHARS`（8000）を超える場合は切り詰める。
+ *
+ * テスト ID 範囲: T-FL-BP-01 〜 T-FL-BP-02
+ *
+ * @see buildBatchPrompt
+ */
 describe('buildBatchPrompt', () => {
+  /**
+   * 通常の .md ファイル（2 件）を入力とする前提条件グループ。
+   *
+   * 各ファイルが `=== FILE N: filename ===` 形式でプロンプトに埋め込まれることを検証する。
+   */
   describe('Given: 2 つのファイル', () => {
+    /** buildBatchPrompt([file1, file2]) を呼び出すとき。 */
     describe('When: buildBatchPrompt([file1, file2]) を呼び出す', () => {
+      /** `=== FILE N: filename ===` 形式で結合されることを検証する。 */
       describe('Then: T-FL-BP-01 - === FILE N: filename === 形式で結合される', () => {
         it('T-FL-BP-01-01: "=== FILE 1:" を含む', async () => {
           const file1 = `${tempDir}/chat-a.md`;
@@ -76,10 +96,15 @@ describe('buildBatchPrompt', () => {
     });
   });
 
-  // ─── T-FL-BP-02: 本文が maxChars を超える → 切り詰め ─────────────────────────
-
+  /**
+   * `MAX_BODY_CHARS`（8000）を大幅に超える本文を持つファイルを入力とする前提条件グループ。
+   *
+   * プロンプト全体が無制限に巨大化しないよう、本文が切り詰められることを検証する。
+   */
   describe('Given: MAX_BODY_CHARS を超える長大な本文のファイル', () => {
+    /** buildBatchPrompt([file]) を呼び出すとき。 */
     describe('When: buildBatchPrompt([file]) を呼び出す', () => {
+      /** 本文が切り詰められ、結果長が合理的な範囲に収まることを検証する。 */
       describe('Then: T-FL-BP-02 - 本文が切り詰められる', () => {
         it('T-FL-BP-02-01: 結果の長さが無制限に増大しない', async () => {
           const longText = 'x'.repeat(20000);
