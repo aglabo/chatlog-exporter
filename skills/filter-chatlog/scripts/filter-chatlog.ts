@@ -17,6 +17,9 @@
 // 定数
 // ─────────────────────────────────────────────
 
+// -- constants --
+import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
+
 // -- external --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
@@ -407,7 +410,7 @@ export const main = async (args?: string[]): Promise<void> => {
 
     const total = targetFiles.length;
     if (total === 0) {
-      logger.info('対象ファイルなし');
+      logger.info(`${LOGGER_HEADER.NO_FILE_FOUND}: 対象ファイルなし`);
       logger.info('完了: kept=0 discarded=0 skipped=0 error=0');
       return;
     }
