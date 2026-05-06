@@ -30,6 +30,7 @@
  */
 
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
@@ -231,12 +232,7 @@ const _resolveSearchDir = async (baseDir: string, agent: string, period?: string
   // YYYY-MM 直下構造（claude等）
   const _flat = `${_agentDir}/${period}`;
 
-  try {
-    const stat = await Deno.stat(_withYear);
-    return stat.isDirectory ? _withYear : _flat;
-  } catch {
-    return _flat;
-  }
+  return await dirExists(_withYear) ? _withYear : _flat;
 };
 
 export const findMdFiles = async (baseDir: string, agent: string, period?: string): Promise<string[]> => {
@@ -293,11 +289,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
     const { agent, period, inputDir, dryRun, report } = parseArgs(args);
 
-    try {
-      const stat = await Deno.stat(inputDir);
-      if (!stat.isDirectory) { throw new Error(); }
-    } catch (e) {
-      if (e instanceof ChatlogError) { throw e; }
+    if (!await dirExists(inputDir)) {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${inputDir}`);
     }
 
