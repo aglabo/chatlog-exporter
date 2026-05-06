@@ -14,18 +14,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { buildBatchPrompt } from '../../../filter-chatlog.ts';
 
+// ─── Helpers
+import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
+
 // ─── Internal Helpers
-
-/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
-let tempDir: string;
-
-beforeEach(async () => {
-  tempDir = await Deno.makeTempDir();
-});
-
-afterEach(async () => {
-  await Deno.remove(tempDir, { recursive: true });
-});
 
 // ─── Tests
 
@@ -41,6 +33,20 @@ afterEach(async () => {
  * @see buildBatchPrompt
  */
 describe('buildBatchPrompt', () => {
+  /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
+  let tempDir: string;
+
+  /** チャットログファイルを配置する月別ディレクトリのパス。 */
+  let periodDir1: string;
+
+  beforeEach(async () => {
+    ({ tempDir, periodDir1 } = await makePeriodDir());
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
   /**
    * 通常の .md ファイル（2 件）を入力とする前提条件グループ。
    *
@@ -52,7 +58,7 @@ describe('buildBatchPrompt', () => {
       /** `=== FILE N: filename ===` 形式で結合されることを検証する。 */
       describe('Then: T-FL-BP-01 - === FILE N: filename === 形式で結合される', () => {
         it('T-FL-BP-01-01: "=== FILE 1:" を含む', async () => {
-          const file1 = `${tempDir}/chat-a.md`;
+          const file1 = `${periodDir1}/chat-a.md`;
           await Deno.writeTextFile(
             file1,
             '---\ntitle: テスト\n---\n### User\n質問\n\n### Assistant\n回答\n',
@@ -64,7 +70,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-01-02: ファイル名が含まれる', async () => {
-          const file1 = `${tempDir}/my-chatlog.md`;
+          const file1 = `${periodDir1}/my-chatlog.md`;
           await Deno.writeTextFile(
             file1,
             '---\ntitle: テスト\n---\n### User\n質問\n\n### Assistant\n回答\n',
@@ -76,8 +82,8 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-01-03: 2 ファイルで "=== FILE 2:" も含まれる', async () => {
-          const file1 = `${tempDir}/chat-a.md`;
-          const file2 = `${tempDir}/chat-b.md`;
+          const file1 = `${periodDir1}/chat-a.md`;
+          const file2 = `${periodDir1}/chat-b.md`;
           await Deno.writeTextFile(
             file1,
             '---\ntitle: A\n---\n### User\n質問A\n\n### Assistant\n回答A\n',
@@ -108,7 +114,7 @@ describe('buildBatchPrompt', () => {
       describe('Then: T-FL-BP-02 - 本文が切り詰められる', () => {
         it('T-FL-BP-02-01: 結果の長さが無制限に増大しない', async () => {
           const longText = 'x'.repeat(20000);
-          const file = `${tempDir}/long.md`;
+          const file = `${periodDir1}/long.md`;
           await Deno.writeTextFile(
             file,
             `---\ntitle: Long\n---\n### User\n${longText}\n\n### Assistant\n回答\n`,
