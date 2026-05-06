@@ -26,23 +26,23 @@ afterEach(async () => {
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-function _makeValidContent(): string {
+const _makeValidContent = (): string => {
   const userText = 'u'.repeat(300);
   const assistantText = 'a'.repeat(300);
   return `---\ntitle: テスト\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-}
+};
 
-async function _makeTestFile(path: string, content: string): Promise<void> {
+const _makeTestFile = async (path: string, content: string): Promise<void> => {
   const dir = path.replace(/\/[^/]+$/, '');
   await Deno.mkdir(dir, { recursive: true });
   await Deno.writeTextFile(path, content);
-}
+};
 
-async function _runPipeline(
+const _runPipeline = async (
   baseDir: string,
   agent: string,
   period?: string,
-): Promise<{ noise: number; keep: number }> {
+): Promise<{ noise: number; keep: number }> => {
   const files = await findMdFiles(baseDir, agent, period);
   let noise = 0;
   let keep = 0;
@@ -56,7 +56,7 @@ async function _runPipeline(
   }
 
   return { noise, keep };
-}
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // findMdFiles → classifyFile パイプライン
