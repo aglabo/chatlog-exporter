@@ -17,6 +17,8 @@ import { parse as parseYaml } from '@std/yaml';
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // types
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+// exists
+import { fileExists } from '../../../libs/file-io/exists-utils.ts';
 
 // -- error class --
 import { ChatlogError } from '../../ChatlogError.class.ts';
@@ -41,13 +43,7 @@ const FIXTURES_DIR = new URL('./fixtures-data/to-frontmatter', import.meta.url)
   .replace(/^\/([A-Z]:)/, '$1');
 
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
-  try {
-    await Deno.stat(`${dir}/input.md`);
-    await Deno.stat(`${dir}/config.yaml`);
-    return true;
-  } catch {
-    return false;
-  }
+  return await fileExists(`${dir}/input.md`) && await fileExists(`${dir}/config.yaml`);
 };
 
 async function _loadFixture(
