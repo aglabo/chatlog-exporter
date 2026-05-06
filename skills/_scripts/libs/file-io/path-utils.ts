@@ -8,9 +8,10 @@
 
 // utils
 import { getProjectRootDir } from './dir-utils.ts';
+import { fileOrDirExists } from './exists-utils.ts';
 // types
 import type { ResolveConfigPathOptions } from '../../types/file-io.types.ts';
-import type { CommandProvider, StatProvider } from '../../types/providers.types.ts';
+import type { CommandProvider } from '../../types/providers.types.ts';
 // error class
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
@@ -23,8 +24,6 @@ const _WIN_ABS = /^[A-Za-z]:\//;
 
 /** コマンドプロバイダのデフォルト実装 */
 const _DEFAULT_COMMAND_PROVIDER = Deno.Command as unknown as CommandProvider;
-/** ファイル情報取得プロバイダのデフォルト実装 */
-const _DEFAULT_STAT_PROVIDER: StatProvider = (path: string) => Deno.stat(path);
 
 // ─────────────────────────────────────────────
 // パス正規化
@@ -72,7 +71,7 @@ export const resolveConfigPath = async ({
   configPath,
   defaultPath,
   commandProvider = _DEFAULT_COMMAND_PROVIDER,
-  statProvider = _DEFAULT_STAT_PROVIDER,
+  statProvider,
 }: ResolveConfigPathOptions): Promise<string> => {
   const _path = configPath ?? defaultPath;
   let _resolved: string;
@@ -84,7 +83,10 @@ export const resolveConfigPath = async ({
   }
 
   try {
-    await statProvider(_resolved);
+    const _exists = await fileOrDirExists(_resolved, statProvider);
+    if (!_exists) {
+      throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
+    }
   } catch (e) {
     if (e instanceof ChatlogError) { throw e; }
     throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
