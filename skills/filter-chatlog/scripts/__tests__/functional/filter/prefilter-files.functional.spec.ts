@@ -16,32 +16,12 @@ import { stub } from '@std/testing/mock';
 // ─── Test target
 import { prefilterFiles } from '../../../filter-chatlog.ts';
 
+// ─── Helpers
+import { makePeriodDir, makeValidContent } from '../../_helpers/chatlog-fixtures.ts';
+// constants
+import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
+
 // ─── Internal Helpers
-
-/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
-let tempDir: string;
-
-beforeEach(async () => {
-  tempDir = await Deno.makeTempDir();
-});
-
-afterEach(async () => {
-  await Deno.remove(tempDir, { recursive: true });
-});
-
-/**
- * 最小限の有効な会話コンテンツ文字列を生成する。
- *
- * User ターン 500 文字 + Assistant ターン 500 文字で合計 1000 文字を超え、
- * `prefilterFiles` の本文長チェックを通過する標準的な .md コンテンツを返す。
- *
- * @returns frontmatter + User/Assistant ターンを含む Markdown 文字列
- */
-function _makeValidContent(): string {
-  const userText = 'u'.repeat(500);
-  const assistantText = 'a'.repeat(500);
-  return `---\ntitle: テスト\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-}
 
 // ─── Tests
 
@@ -60,6 +40,20 @@ function _makeValidContent(): string {
  * @see prefilterFiles
  */
 describe('prefilterFiles', () => {
+  /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
+  let tempDir: string;
+
+  /** チャットログファイルを配置する月別ディレクトリのパス。 */
+  let periodDir1: string;
+
+  beforeEach(async () => {
+    ({ tempDir, periodDir1 } = await makePeriodDir());
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
   /**
    * 除外パターンに一致するファイル名を持つファイルを入力とする前提条件グループ。
    *
@@ -71,8 +65,8 @@ describe('prefilterFiles', () => {
       /** ファイルがスキップされ、結果に含まれないことを検証する。 */
       describe('Then: T-FL-PFF-01 - ファイルがスキップされる', () => {
         it('T-FL-PFF-01-01: say-ok-and-nothing-else.md は通過しない', async () => {
-          const filePath = `${tempDir}/say-ok-and-nothing-else.md`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
+          const filePath = `${periodDir1}/say-ok-and-nothing-else.md`;
+          await Deno.writeTextFile(filePath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
           const result = await prefilterFiles([filePath]);
@@ -95,7 +89,7 @@ describe('prefilterFiles', () => {
       /** ファイルがスキップされ、結果に含まれないことを検証する。 */
       describe('Then: T-FL-PFF-02 - ファイルがスキップされる', () => {
         it('T-FL-PFF-02-01: body が空のファイルは通過しない', async () => {
-          const filePath = `${tempDir}/empty-body.md`;
+          const filePath = `${periodDir1}/empty-body.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n');
           const errStub = stub(console, 'error', () => {});
 
@@ -119,7 +113,7 @@ describe('prefilterFiles', () => {
       /** ファイルがスキップされ、結果に含まれないことを検証する。 */
       describe('Then: T-FL-PFF-03 - ファイルがスキップされる', () => {
         it('T-FL-PFF-03-01: 短い本文のファイルは通過しない', async () => {
-          const filePath = `${tempDir}/short.md`;
+          const filePath = `${periodDir1}/short.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
@@ -143,8 +137,8 @@ describe('prefilterFiles', () => {
       /** ファイルが通過し、結果に含まれることを検証する。 */
       describe('Then: T-FL-PFF-04 - ファイルが通過する', () => {
         it('T-FL-PFF-04-01: 正常なファイルは通過する', async () => {
-          const filePath = `${tempDir}/normal.md`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
+          const filePath = `${periodDir1}/normal.md`;
+          await Deno.writeTextFile(filePath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
           const result = await prefilterFiles([filePath]);
@@ -155,9 +149,9 @@ describe('prefilterFiles', () => {
         });
 
         it('T-FL-PFF-04-02: 複数ファイルのうち正常なものだけ通過する', async () => {
-          const validPath = `${tempDir}/valid.md`;
-          const shortPath = `${tempDir}/short.md`;
-          await Deno.writeTextFile(validPath, _makeValidContent());
+          const validPath = `${periodDir1}/valid.md`;
+          const shortPath = `${periodDir1}/short.md`;
+          await Deno.writeTextFile(validPath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
           await Deno.writeTextFile(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
