@@ -21,6 +21,8 @@ import { ChatlogEntry } from '../../ChatlogEntry.class.ts';
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // type
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+// exists
+import { fileExists } from '../../../libs/file-io/exists-utils.ts';
 // -- error class --
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -58,13 +60,7 @@ async function _loadFixture(
 }
 
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
-  try {
-    await Deno.stat(`${dir}/input.md`);
-    await Deno.stat(`${dir}/config.yaml`);
-    return true;
-  } catch {
-    return false;
-  }
+  return await fileExists(`${dir}/input.md`) && await fileExists(`${dir}/config.yaml`);
 };
 
 const _fixtureDirs = await findFixtureDirs(FIXTURES_DIR, _isFixtureDir);
