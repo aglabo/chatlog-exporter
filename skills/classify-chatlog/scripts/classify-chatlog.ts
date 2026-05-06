@@ -17,6 +17,7 @@
 // -- external --
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
 import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
+import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findEntries } from '../../_scripts/libs/file-io/find-entries.ts';
 import { getDirectory } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
@@ -332,13 +333,7 @@ export const main = async (argv?: string[]): Promise<void> => {
 
     // 入力ディレクトリ確認
     const agentDir = `${_config.inputDir}/${_config.agent}`;
-    try {
-      const stat = await Deno.stat(agentDir);
-      if (!stat.isDirectory) {
-        throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
-      }
-    } catch (e) {
-      if (e instanceof ChatlogError) { throw e; }
+    if (!await dirExists(agentDir)) {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
     }
 
