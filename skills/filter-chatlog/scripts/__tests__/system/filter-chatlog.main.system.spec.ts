@@ -10,7 +10,7 @@ import { describe, it } from '@std/testing/bdd';
 
 const SCRIPT_PATH = new URL('../../filter-chatlog.ts', import.meta.url).pathname;
 
-async function runFilter(args: string[]): Promise<number> {
+const runFilter = async (args: string[]): Promise<number> => {
   const _cmd = new Deno.Command(Deno.execPath(), {
     args: ['run', '--allow-read', '--allow-write', '--allow-run', SCRIPT_PATH, ...args],
     stdout: 'null',
@@ -18,7 +18,7 @@ async function runFilter(args: string[]): Promise<number> {
   });
   const { code } = await _cmd.output();
   return code;
-}
+};
 
 // ─── T-FL-SYS-01: 存在しない inputDir → exit(1) ──────────────────────────────
 

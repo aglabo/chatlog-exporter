@@ -27,45 +27,9 @@ import {
 } from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
 // types
 import type { CommandMockHandle } from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
+import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
 
 // ─── Internal Helpers
-
-/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
-let tempDir: string;
-
-/** Deno.Command モックのハンドル。afterEach で restore する。 */
-let commandHandle: CommandMockHandle;
-
-beforeEach(async () => {
-  tempDir = await Deno.makeTempDir();
-});
-
-afterEach(async () => {
-  commandHandle?.restore();
-  await Deno.remove(tempDir, { recursive: true });
-});
-
-/**
- * 初期値がすべて 0 の `Stats` オブジェクトを生成する。
- *
- * @returns `{ kept: 0, discarded: 0, skipped: 0, error: 0 }` の Stats
- */
-function _makeStats(): Stats {
-  return { kept: 0, discarded: 0, skipped: 0, error: 0 };
-}
-
-/**
- * テスト用 .md ファイルを一時ディレクトリに作成し、そのパスを返す。
- *
- * @param name - ファイル名（例: `a.md`）
- * @returns 作成したファイルの絶対パス
- */
-async function _createTempFile(name: string): Promise<string> {
-  const filePath = `${tempDir}/${name}`;
-  const content = '---\ntitle: テスト\n---\n### User\n質問\n\n### Assistant\n回答\n';
-  await Deno.writeTextFile(filePath, content);
-  return filePath;
-}
 
 // ─── Tests
 
@@ -85,6 +49,46 @@ async function _createTempFile(name: string): Promise<string> {
  * @see processChunk
  */
 describe('processChunk', () => {
+  /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
+  let tempDir: string;
+
+  /** チャットログファイルを配置する月別ディレクトリのパス。 */
+  let periodDir1: string;
+
+  /** Deno.Command モックのハンドル。afterEach で restore する。 */
+  let commandHandle: CommandMockHandle;
+
+  /**
+   * 初期値がすべて 0 の `Stats` オブジェクトを生成する。
+   *
+   * @returns `{ kept: 0, discarded: 0, skipped: 0, error: 0 }` の Stats
+   */
+  function _makeStats(): Stats {
+    return { kept: 0, discarded: 0, skipped: 0, error: 0 };
+  }
+
+  /**
+   * テスト用 .md ファイルを一時ディレクトリに作成し、そのパスを返す。
+   *
+   * @param name - ファイル名（例: `a.md`）
+   * @returns 作成したファイルの絶対パス
+   */
+  async function _createTempFile(name: string): Promise<string> {
+    const filePath = `${periodDir1}/${name}`;
+    const content = '---\ntitle: テスト\n---\n### User\n質問\n\n### Assistant\n回答\n';
+    await Deno.writeTextFile(filePath, content);
+    return filePath;
+  }
+
+  beforeEach(async () => {
+    ({ tempDir, periodDir1 } = await makePeriodDir());
+  });
+
+  afterEach(async () => {
+    commandHandle?.restore();
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
   /**
    * DISCARD 判定を返す Claude モックと `dryRun=true` の前提条件グループ。
    *

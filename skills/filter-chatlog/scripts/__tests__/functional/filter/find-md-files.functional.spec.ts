@@ -14,18 +14,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { findMdFiles } from '../../../filter-chatlog.ts';
 
+// ─── Helpers
+import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
+
 // ─── Internal Helpers
-
-/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
-let tempDir: string;
-
-beforeEach(async () => {
-  tempDir = await Deno.makeTempDir();
-});
-
-afterEach(async () => {
-  await Deno.remove(tempDir, { recursive: true });
-});
 
 // ─── Tests
 
@@ -41,6 +33,27 @@ afterEach(async () => {
  * @see findMdFiles
  */
 describe('findMdFiles', () => {
+  /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
+  let tempDir: string;
+
+  /** エージェントディレクトリのパス（tempDir/claude）。findMdFiles の baseDir に渡す。 */
+  let agentDir: string;
+
+  /** チャットログファイルを配置する月別ディレクトリのパス（2026-03）。 */
+  let periodDir1: string;
+
+  /** period 絞り込みテスト用の追加月ディレクトリのパス（2026-04）。 */
+  let periodDir2: string;
+
+  beforeEach(async () => {
+    ({ tempDir, periodDir1, periodDir2 } = await makePeriodDir('claude', '2026-03', '2026-04'));
+    agentDir = `${tempDir}/claude`;
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
   /**
    * `YYYY/YYYY-MM/` 構造のディレクトリに .md ファイルが 2 件ある前提条件グループ。
    *
@@ -52,23 +65,19 @@ describe('findMdFiles', () => {
       /** 2 件のファイルパスがソート済みで返されることを検証する。 */
       describe('Then: T-FL-FM-01 - 2 件のファイルパスが返される', () => {
         it('T-FL-FM-01-01: 2 件の .md ファイルが返される', async () => {
-          const monthDir = `${tempDir}/2026/2026-03`;
-          await Deno.mkdir(monthDir, { recursive: true });
-          await Deno.writeTextFile(`${monthDir}/chat-a.md`, '# A');
-          await Deno.writeTextFile(`${monthDir}/chat-b.md`, '# B');
+          await Deno.writeTextFile(`${periodDir1}/chat-a.md`, '# A');
+          await Deno.writeTextFile(`${periodDir1}/chat-b.md`, '# B');
 
-          const result = await findMdFiles(tempDir);
+          const result = await findMdFiles(agentDir);
 
           assertEquals(result.length, 2);
         });
 
         it('T-FL-FM-01-02: ソート済みで返される', async () => {
-          const monthDir = `${tempDir}/2026/2026-03`;
-          await Deno.mkdir(monthDir, { recursive: true });
-          await Deno.writeTextFile(`${monthDir}/chat-b.md`, '# B');
-          await Deno.writeTextFile(`${monthDir}/chat-a.md`, '# A');
+          await Deno.writeTextFile(`${periodDir1}/chat-b.md`, '# B');
+          await Deno.writeTextFile(`${periodDir1}/chat-a.md`, '# A');
 
-          const result = await findMdFiles(tempDir);
+          const result = await findMdFiles(agentDir);
 
           assertEquals(result[0].endsWith('chat-a.md'), true);
           assertEquals(result[1].endsWith('chat-b.md'), true);
@@ -88,14 +97,10 @@ describe('findMdFiles', () => {
       /** 指定月のファイルのみ返されることを検証する。 */
       describe('Then: T-FL-FM-02 - 指定月のファイルのみ返される', () => {
         it('T-FL-FM-02-01: period="2026-03" → その月のファイルのみ', async () => {
-          const march = `${tempDir}/2026/2026-03`;
-          const april = `${tempDir}/2026/2026-04`;
-          await Deno.mkdir(march, { recursive: true });
-          await Deno.mkdir(april, { recursive: true });
-          await Deno.writeTextFile(`${march}/chat.md`, '# March');
-          await Deno.writeTextFile(`${april}/chat.md`, '# April');
+          await Deno.writeTextFile(`${periodDir1}/chat.md`, '# March');
+          await Deno.writeTextFile(`${periodDir2}/chat.md`, '# April');
 
-          const result = await findMdFiles(tempDir, '2026-03');
+          const result = await findMdFiles(agentDir, '2026-03');
 
           assertEquals(result.length, 1);
           assertEquals(result[0].includes('2026-03'), true);
@@ -115,14 +120,14 @@ describe('findMdFiles', () => {
       /** 該当プロジェクトのファイルのみ返されることを検証する。 */
       describe('Then: T-FL-FM-03 - 該当プロジェクトのファイルのみ返される', () => {
         it('T-FL-FM-03-01: project 指定 → そのプロジェクトのファイルのみ', async () => {
-          const projA = `${tempDir}/2026/2026-03/proj-a`;
-          const projB = `${tempDir}/2026/2026-03/proj-b`;
+          const projA = `${periodDir1}/proj-a`;
+          const projB = `${periodDir1}/proj-b`;
           await Deno.mkdir(projA, { recursive: true });
           await Deno.mkdir(projB, { recursive: true });
           await Deno.writeTextFile(`${projA}/chat.md`, '# ProjA');
           await Deno.writeTextFile(`${projB}/chat.md`, '# ProjB');
 
-          const result = await findMdFiles(tempDir, '2026-03', 'proj-a');
+          const result = await findMdFiles(agentDir, '2026-03', 'proj-a');
 
           assertEquals(result.length, 1);
           assertEquals(result[0].includes('proj-a'), true);
@@ -142,7 +147,7 @@ describe('findMdFiles', () => {
       /** 空配列が返されることを検証する。 */
       describe('Then: T-FL-FM-04 - 空配列が返される（エラーなし）', () => {
         it('T-FL-FM-04-01: 存在しないディレクトリ → 空配列', async () => {
-          const result = await findMdFiles(`${tempDir}/nonexistent`);
+          const result = await findMdFiles(`${agentDir}/nonexistent`);
 
           assertEquals(result.length, 0);
         });
@@ -161,13 +166,19 @@ describe('findMdFiles', () => {
       /** フラット構造からもファイルが収集されることを検証する。 */
       describe('Then: T-FL-FM-05 - フラット構造からもファイルを収集する', () => {
         it('T-FL-FM-05-01: フラット構造でも .md ファイルが返される', async () => {
-          const flatDir = `${tempDir}/2026-03`;
-          await Deno.mkdir(flatDir, { recursive: true });
-          await Deno.writeTextFile(`${flatDir}/chat.md`, '# Flat');
+          // フラット構造のみのテストのため、ネスト構造を持たない独自 tempDir を使用する
+          const flatBase = await Deno.makeTempDir();
+          try {
+            const flatDir = `${flatBase}/2026-03`;
+            await Deno.mkdir(flatDir, { recursive: true });
+            await Deno.writeTextFile(`${flatDir}/chat.md`, '# Flat');
 
-          const result = await findMdFiles(tempDir, '2026-03');
+            const result = await findMdFiles(flatBase, '2026-03');
 
-          assertEquals(result.length, 1);
+            assertEquals(result.length, 1);
+          } finally {
+            await Deno.remove(flatBase, { recursive: true });
+          }
         });
       });
     });

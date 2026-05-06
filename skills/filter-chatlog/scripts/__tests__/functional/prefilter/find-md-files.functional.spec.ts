@@ -14,32 +14,26 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { findMdFiles } from '../../../prefilter-chatlog.ts';
 
+// ─── Helpers
+import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
+
 // ─── Internal Helpers
 
-/** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
-let tempDir: string;
-
-beforeEach(async () => {
-  tempDir = await Deno.makeTempDir();
-});
-
-afterEach(async () => {
-  await Deno.remove(tempDir, { recursive: true });
-});
-
 /**
- * `baseDir/agent/YYYY/YYYY-MM/` 構造のテスト用ディレクトリを作成し、そのパスを返す。
+ * `tempDir` 内に codex エージェントの period ディレクトリを追加作成する。
  *
- * @param agent - エージェント名（例: `"claude"`, `"codex"`）
- * @param yearMonth - 対象月（例: `"2026-03"`）
- * @returns 作成したディレクトリの絶対パス
+ * 2エージェント混在テスト（T-PF-FM-07）専用。claude 側の tempDir に codex のパスを追加する。
+ *
+ * @param tempDir - `makePeriodDir` で作成済みの一時ディレクトリ
+ * @param period - 対象月（YYYY-MM 形式、例: '2026-03'）
+ * @returns 作成した codex の月別ディレクトリの絶対パス
  */
-async function _makeTestDirs(agent: string, yearMonth: string): Promise<string> {
-  const yyyy = yearMonth.slice(0, 4);
-  const dir = `${tempDir}/${agent}/${yyyy}/${yearMonth}`;
+const _makeCodexDir = async (tempDir: string, period: string): Promise<string> => {
+  const yyyy = period.slice(0, 4);
+  const dir = `${tempDir}/codex/${yyyy}/${period}`;
   await Deno.mkdir(dir, { recursive: true });
   return dir;
-}
+};
 
 // ─── Tests
 
@@ -55,6 +49,23 @@ async function _makeTestDirs(agent: string, yearMonth: string): Promise<string> 
  * @see findMdFiles
  */
 describe('findMdFiles (prefilter)', () => {
+  /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
+  let tempDir: string;
+
+  /** チャットログファイルを配置する月別ディレクトリのパス（claude/2026-03）。 */
+  let periodDir1: string;
+
+  /** period 絞り込みテスト用の追加月ディレクトリのパス（claude/2026-04）。 */
+  let periodDir2: string;
+
+  beforeEach(async () => {
+    ({ tempDir, periodDir1, periodDir2 } = await makePeriodDir('claude', '2026-03', '2026-04'));
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
   /**
    * `tempDir/claude/2026/2026-03/` に .md ファイルが 2 件ある前提条件グループ。
    *
@@ -66,9 +77,8 @@ describe('findMdFiles (prefilter)', () => {
       /** 2 件のファイルパスがソート済みで返されることを検証する。 */
       describe('Then: T-PF-FM-01 - 2 件のファイルパスがソート済みで返される', () => {
         it('T-PF-FM-01-01: 2 件のファイルパスが返される', async () => {
-          const dir = await _makeTestDirs('claude', '2026-03');
-          await Deno.writeTextFile(`${dir}/chat-a.md`, '# A');
-          await Deno.writeTextFile(`${dir}/chat-b.md`, '# B');
+          await Deno.writeTextFile(`${periodDir1}/chat-a.md`, '# A');
+          await Deno.writeTextFile(`${periodDir1}/chat-b.md`, '# B');
 
           const result = await findMdFiles(tempDir, 'claude');
 
@@ -76,9 +86,8 @@ describe('findMdFiles (prefilter)', () => {
         });
 
         it('T-PF-FM-01-02: ソート済みで返される', async () => {
-          const dir = await _makeTestDirs('claude', '2026-03');
-          await Deno.writeTextFile(`${dir}/chat-b.md`, '# B');
-          await Deno.writeTextFile(`${dir}/chat-a.md`, '# A');
+          await Deno.writeTextFile(`${periodDir1}/chat-b.md`, '# B');
+          await Deno.writeTextFile(`${periodDir1}/chat-a.md`, '# A');
 
           const result = await findMdFiles(tempDir, 'claude');
 
@@ -100,10 +109,8 @@ describe('findMdFiles (prefilter)', () => {
       /** 2026-03 のファイルのみ返されることを検証する。 */
       describe('Then: T-PF-FM-02 - 2026-03 のファイルのみ返される', () => {
         it('T-PF-FM-02-01: 1 件のみ返される', async () => {
-          const dir03 = await _makeTestDirs('claude', '2026-03');
-          const dir04 = await _makeTestDirs('claude', '2026-04');
-          await Deno.writeTextFile(`${dir03}/chat.md`, '# March');
-          await Deno.writeTextFile(`${dir04}/chat.md`, '# April');
+          await Deno.writeTextFile(`${periodDir1}/chat.md`, '# March');
+          await Deno.writeTextFile(`${periodDir2}/chat.md`, '# April');
 
           const result = await findMdFiles(tempDir, 'claude', '2026-03');
 
@@ -125,13 +132,19 @@ describe('findMdFiles (prefilter)', () => {
       /** フラット構造からも .md ファイルが返されることを検証する。 */
       describe('Then: T-PF-FM-03 - フラット構造からも .md が返される', () => {
         it('T-PF-FM-03-01: フラット構造でも .md ファイルが返される', async () => {
-          const flatDir = `${tempDir}/claude/2026-03`;
-          await Deno.mkdir(flatDir, { recursive: true });
-          await Deno.writeTextFile(`${flatDir}/chat.md`, '# Flat');
+          // フラット構造のみのテストのため、ネスト構造を持たない独自 tempDir を使用する
+          const flatBase = await Deno.makeTempDir();
+          try {
+            const flatDir = `${flatBase}/claude/2026-03`;
+            await Deno.mkdir(flatDir, { recursive: true });
+            await Deno.writeTextFile(`${flatDir}/chat.md`, '# Flat');
 
-          const result = await findMdFiles(tempDir, 'claude', '2026-03');
+            const result = await findMdFiles(flatBase, 'claude', '2026-03');
 
-          assertEquals(result.length, 1);
+            assertEquals(result.length, 1);
+          } finally {
+            await Deno.remove(flatBase, { recursive: true });
+          }
         });
       });
     });
@@ -148,10 +161,8 @@ describe('findMdFiles (prefilter)', () => {
       /** 2 件全て返されることを検証する。 */
       describe('Then: T-PF-FM-04 - 2 件全て返される', () => {
         it('T-PF-FM-04-01: 2 件全て返される', async () => {
-          const dir03 = await _makeTestDirs('claude', '2026-03');
-          const dir04 = await _makeTestDirs('claude', '2026-04');
-          await Deno.writeTextFile(`${dir03}/chat.md`, '# March');
-          await Deno.writeTextFile(`${dir04}/chat.md`, '# April');
+          await Deno.writeTextFile(`${periodDir1}/chat.md`, '# March');
+          await Deno.writeTextFile(`${periodDir2}/chat.md`, '# April');
 
           const result = await findMdFiles(tempDir, 'claude');
 
@@ -191,9 +202,8 @@ describe('findMdFiles (prefilter)', () => {
       /** .md のみが返されることを検証する。 */
       describe('Then: T-PF-FM-06 - .md のみ返される', () => {
         it('T-PF-FM-06-01: 1 件のみ（.md のみ）返される', async () => {
-          const dir = await _makeTestDirs('claude', '2026-03');
-          await Deno.writeTextFile(`${dir}/chat.md`, '# MD');
-          await Deno.writeTextFile(`${dir}/note.txt`, 'text');
+          await Deno.writeTextFile(`${periodDir1}/chat.md`, '# MD');
+          await Deno.writeTextFile(`${periodDir1}/note.txt`, 'text');
 
           const result = await findMdFiles(tempDir, 'claude');
 
@@ -215,9 +225,8 @@ describe('findMdFiles (prefilter)', () => {
       /** claude 配下の 1 件のみが返されることを検証する。 */
       describe('Then: T-PF-FM-07 - claude 配下の 1 件のみ返される', () => {
         it('T-PF-FM-07-01: claude 配下の 1 件のみが返される', async () => {
-          const claudeDir = await _makeTestDirs('claude', '2026-03');
-          const codexDir = await _makeTestDirs('codex', '2026-03');
-          await Deno.writeTextFile(`${claudeDir}/claude-chat.md`, '# Claude');
+          const codexDir = await _makeCodexDir(tempDir, '2026-03');
+          await Deno.writeTextFile(`${periodDir1}/claude-chat.md`, '# Claude');
           await Deno.writeTextFile(`${codexDir}/codex-chat.md`, '# Codex');
 
           const result = await findMdFiles(tempDir, 'claude');

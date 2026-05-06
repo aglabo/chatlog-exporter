@@ -27,11 +27,11 @@ afterEach(async () => {
 
 // ─── 有効なコンテンツ生成ヘルパー ────────────────────────────────────────────
 
-function _makeValidContent(title: string): string {
+const _makeValidContent = (title: string): string => {
   const userText = 'u'.repeat(500);
   const assistantText = 'a'.repeat(500);
   return `---\ntitle: ${title}\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-}
+};
 
 // ─── T-FL-IO-01: findMdFiles → prefilterFiles パイプライン ───────────────────
 
