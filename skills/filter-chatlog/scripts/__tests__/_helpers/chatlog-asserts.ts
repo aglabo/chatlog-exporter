@@ -15,9 +15,9 @@ import { assertEquals } from '@std/assert';
  *
  * @param path - 確認するファイルの絶対パス
  */
-export async function assertFileExists(path: string): Promise<void> {
+export const assertFileExists = async (path: string): Promise<void> => {
   assertEquals((await Deno.stat(path)).isFile, true);
-}
+};
 
 /**
  * 指定パスのファイルが存在するかどうかを返す。
@@ -27,11 +27,11 @@ export async function assertFileExists(path: string): Promise<void> {
  * @param path - 確認するファイルの絶対パス
  * @returns ファイルが存在すれば `true`、存在しなければ `false`
  */
-export async function fileExists(path: string): Promise<boolean> {
+export const fileExists = async (path: string): Promise<boolean> => {
   try {
     await Deno.stat(path);
     return true;
   } catch {
     return false;
   }
-}
+};
