@@ -8,6 +8,16 @@
 // https://opensource.org/licenses/MIT
 
 /**
+ * `YYYY-MM` 形式の期間文字列を `YYYY/YYYY-MM` のディレクトリパス断片に変換する。
+ *
+ * @param period - 対象月（YYYY-MM 形式、例: '2026-03'）
+ * @returns ディレクトリパス断片（例: '2026/2026-03'）
+ */
+export const periodToPath = (period: string): string => {
+  return `${period.slice(0, 4)}/${period}`;
+};
+
+/**
  * frontmatter 付きチャットログ Markdown を生成する。
  *
  * User/Assistant 各 `minLength` 文字の会話テキストを含む最小構成を返す。
@@ -16,29 +26,61 @@
  * @param title - フロントマターの title 値（デフォルト: 'テスト'）
  * @returns frontmatter 付き Markdown 文字列
  */
-export function makeValidContent(minLength: number, title = 'テスト'): string {
+export const makeValidContent = (minLength: number, title = 'テスト'): string => {
   const userText = 'u'.repeat(minLength);
   const assistantText = 'a'.repeat(minLength);
   return `---\ntitle: ${title}\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-}
+};
 
 /**
- * テスト用の一時ディレクトリ構造を作成する。
+ * テスト用の一時ディレクトリ構造を 2 期間分作成する。
  *
- * `tempDir/agent/YYYY/YYYY-MM` 形式のディレクトリを作成し、
- * tempDir と chatlogDir を返す。
+ * `tempDir/agent/YYYY/YYYY-MM/` 形式のディレクトリを 2 件作成し、
+ * tempDir と periodDir1・periodDir2 を返す。
+ * period1 と period2 が同じ値の場合は Error を throw する。
+ *
+ * @param agent - エージェント名（デフォルト: 'claude'）
+ * @param period1 - 対象月 1（YYYY-MM 形式、デフォルト: '2026-03'）
+ * @param period2 - 対象月 2（YYYY-MM 形式、デフォルト: '2026-04'）
+ * @returns 作成したディレクトリのパス群
+ * @throws {Error} period1 と period2 が同じ値のとき
+ */
+export const makePeriodDir = async (
+  agent = 'claude',
+  period1 = '2026-03',
+  period2 = '2026-04',
+): Promise<{ tempDir: string; periodDir1: string; periodDir2: string }> => {
+  if (period1 === period2) {
+    throw new Error(`makePeriodDir: period1 and period2 must differ (got '${period1}')`);
+  }
+
+  const tempDir = await Deno.makeTempDir();
+
+  const periodDir1 = `${tempDir}/${agent}/${periodToPath(period1)}`;
+  await Deno.mkdir(periodDir1, { recursive: true });
+
+  const periodDir2 = `${tempDir}/${agent}/${periodToPath(period2)}`;
+  await Deno.mkdir(periodDir2, { recursive: true });
+
+  return { tempDir, periodDir1, periodDir2 };
+};
+
+/**
+ * テスト用の一時ディレクトリを 1 期間分作成し、chatlogDir を返す。
+ *
+ * E2E テスト向けの単一期間ヘルパー。`tempDir/agent/YYYY/YYYY-MM/` を作成し、
+ * そのパスを `chatlogDir` として返す。
  *
  * @param agent - エージェント名（デフォルト: 'claude'）
  * @param period - 対象月（YYYY-MM 形式、デフォルト: '2026-03'）
- * @returns 作成したディレクトリのパス群
+ * @returns `{ tempDir, chatlogDir }` — `chatlogDir` = `tempDir/agent/YYYY/YYYY-MM/`
  */
-export async function makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
+export const makeTestDirs = async (agent = 'claude', period = '2026-03'): Promise<{
   tempDir: string;
   chatlogDir: string;
-}> {
+}> => {
   const tempDir = await Deno.makeTempDir();
-  const yyyy = period.slice(0, 4);
-  const chatlogDir = `${tempDir}/${agent}/${yyyy}/${period}`;
+  const chatlogDir = `${tempDir}/${agent}/${periodToPath(period)}`;
   await Deno.mkdir(chatlogDir, { recursive: true });
   return { tempDir, chatlogDir };
-}
+};
