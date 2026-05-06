@@ -20,6 +20,14 @@
 - `strict` モードを前提とする
 - 型は明示的に書く（`any` 禁止）
 - インポート/エクスポートは明示的に行う（`export *` 乱用禁止）
+- 関数定義はアロー関数形式を基本とする（`function` キーワードによるトップレベル宣言は使用しない）
+  ```typescript
+  // Good
+  const func = (param: string): string => { ... };
+
+  // Bad
+  function func(param: string): string { ... }
+  ```
 
 ## テスト
 
