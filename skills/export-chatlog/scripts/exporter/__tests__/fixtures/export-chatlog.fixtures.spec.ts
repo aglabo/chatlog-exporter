@@ -26,6 +26,7 @@ import type { IsFixtureDirProvider } from '../../../../../_scripts/__tests__/hel
 import type { PeriodRange } from '../../../types/filter.types.ts';
 // exists
 import { fileExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── Internal Helpers
 
@@ -61,7 +62,7 @@ const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
 /** output.yaml が存在する場合に読み込む（edge 系は null） */
 async function _loadOutputOrNull(dir: string): Promise<FixtureOutput | null> {
   try {
-    const content = await Deno.readTextFile(`${dir}/output.yaml`);
+    const content = await readTextFile(`${dir}/output.yaml`);
     return parseYaml(content) as FixtureOutput;
   } catch {
     return null;
