@@ -13,7 +13,6 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // helpers
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
@@ -21,6 +20,7 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
 
