@@ -20,6 +20,7 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 import { findFixtureDirs, type IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // exists
 import { fileExists } from '../../../libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../libs/file-io/read-utils.ts';
 
 // -- test target --
 import { ChatlogEntry } from '../../ChatlogEntry.class.ts';
@@ -43,8 +44,8 @@ const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
 async function _loadFixture(
   dir: string,
 ): Promise<{ input: string; expected: _FixtureExpected }> {
-  const input = await Deno.readTextFile(`${dir}/input.md`);
-  const expectedRaw = await Deno.readTextFile(`${dir}/expected.yaml`);
+  const input = await readTextFile(`${dir}/input.md`);
+  const expectedRaw = await readTextFile(`${dir}/expected.yaml`);
   const expected = parseYaml(expectedRaw) as _FixtureExpected;
   return { input, expected };
 }
