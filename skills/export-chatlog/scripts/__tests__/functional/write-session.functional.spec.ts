@@ -18,6 +18,8 @@ import { writeSession } from '../../libs/session-writer.ts';
 // ─── Helpers
 // types
 import type { ExportedSession } from '../../types/session.types.ts';
+// exists
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── Internal Helpers
 
@@ -95,8 +97,7 @@ describe('writeSession', () => {
           const outPath = await writeSession(tempDir, 'claude', session);
           // Windows パス対応
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const stat = await Deno.stat(normalizedPath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(normalizedPath), true);
         });
       });
     });
@@ -212,8 +213,7 @@ describe('writeSession', () => {
           const nestedBase = `${tempDir}/deep/nested/dir`;
           const outPath = await writeSession(nestedBase, 'codex', session);
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const stat = await Deno.stat(normalizedPath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(normalizedPath), true);
         });
       });
     });
