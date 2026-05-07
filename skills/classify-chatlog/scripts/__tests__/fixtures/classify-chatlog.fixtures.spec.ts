@@ -27,6 +27,7 @@ import type { ClassifyStats, ProjectDicEntry } from '../../types/classify.types.
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { loadProjectDic } from '../../libs/load-project-dic.ts';
 
 // ─── フィクスチャパス ──────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
 /** output.yaml から期待値を読み込む */
 async function _loadOutput(dir: string): Promise<FixtureOutput> {
-  const content = await Deno.readTextFile(`${dir}/output.yaml`);
+  const content = await readTextFile(`${dir}/output.yaml`);
   return parseYaml(content) as FixtureOutput;
 }
 
@@ -76,7 +77,7 @@ for (const _relPath of _fixtureDirs) {
       beforeEach(async () => {
         _tempDir = await Deno.makeTempDir();
         _stats = { moved: 0, skipped: 0, error: 0 };
-        _inputContent = await Deno.readTextFile(_inputPath);
+        _inputContent = await readTextFile(_inputPath);
 
         // input.md を tempdir にコピー
         await Deno.writeTextFile(`${_tempDir}/input.md`, _inputContent);
