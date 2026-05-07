@@ -29,6 +29,8 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// exists
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // test target
 import { segmentChatlog } from '../../normalize-chatlog.ts';
@@ -93,10 +95,9 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
       if (!entry.isDirectory) { continue; }
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
       const childAbs = `${dir}/${entry.name}`;
-      try {
-        await Deno.stat(`${childAbs}/input.md`);
+      if (await fileExists(`${childAbs}/input.md`)) {
         dirs.push(childRel);
-      } catch {
+      } else {
         await _walk(childAbs, childRel);
       }
     }
