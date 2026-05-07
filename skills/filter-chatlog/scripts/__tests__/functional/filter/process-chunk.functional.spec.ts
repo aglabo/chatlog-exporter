@@ -28,6 +28,8 @@ import {
 // types
 import type { CommandMockHandle } from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
+// exists
+import { fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── Internal Helpers
 
@@ -115,8 +117,7 @@ describe('processChunk', () => {
           errStub.restore();
           logStub.restore();
 
-          const stat = await Deno.stat(filePath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(filePath), true);
         });
 
         it('T-FL-PCK-01-02: stats.discarded が 1 になる', async () => {
@@ -167,13 +168,7 @@ describe('processChunk', () => {
           errStub.restore();
           logStub.restore();
 
-          let fileExists = true;
-          try {
-            await Deno.stat(filePath);
-          } catch {
-            fileExists = false;
-          }
-          assertEquals(fileExists, false);
+          assertEquals(await fileOrDirExists(filePath), false);
         });
 
         it('T-FL-PCK-02-02: stats.discarded が 1 になる', async () => {
