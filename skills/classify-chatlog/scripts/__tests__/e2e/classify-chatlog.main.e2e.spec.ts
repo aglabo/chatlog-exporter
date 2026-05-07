@@ -38,6 +38,7 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // exists
 import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
 
@@ -165,7 +166,7 @@ describe('main - 正常分類', () => {
         it('T-CL-E2E-02-02: 移動先ファイルに "project: \\"app1\\"" が含まれる', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          const content = await Deno.readTextFile(`${monthDir}/app1/chat.md`);
+          const content = await readTextFile(`${monthDir}/app1/chat.md`);
           assertStringIncludes(content, 'project: "app1"');
         });
       });
