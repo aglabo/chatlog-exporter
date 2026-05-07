@@ -12,6 +12,7 @@
 // error
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // libs
+import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
@@ -227,7 +228,7 @@ const _processFile = async (
 ): Promise<FileResult> => {
   let conversations: ChatGPTConversation[];
   try {
-    const text = await Deno.readTextFile(file);
+    const text = await readTextFile(file);
     conversations = JSON.parse(text) as ChatGPTConversation[];
   } catch {
     return { outputPaths: [], skippedCount: 0, errorCount: 1 };
