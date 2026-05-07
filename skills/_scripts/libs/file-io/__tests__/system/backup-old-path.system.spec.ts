@@ -1,4 +1,4 @@
-// src: scripts/libs/__tests__/system/backup.system.spec.ts
+// src: scripts/libs/__tests__/system/backup-old-path.system.spec.ts
 // @(#): backupOldPath のシステムテスト（Deno ファイルシステム実使用）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -9,7 +9,7 @@
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-import { backupOldPath } from '../../backup.ts';
+import { backupOldPath } from '../../backup-old-path.ts';
 import { fileExists, fileOrDirExists } from '../../exists-utils.ts';
 
 // ─────────────────────────────────────────────
