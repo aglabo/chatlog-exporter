@@ -23,6 +23,7 @@ import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // exists
 import { fileExists } from '../../../libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../libs/file-io/read-utils.ts';
 // -- error class --
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -45,15 +46,15 @@ const FIXTURES_DIR = new URL('./fixtures-data/render-entry', import.meta.url)
 async function _loadFixture(
   dir: string,
 ): Promise<{ input: string; fieldOrder: string[]; expected: _FixtureExpected }> {
-  const input = await Deno.readTextFile(`${dir}/input.md`);
-  const configRaw = await Deno.readTextFile(`${dir}/config.yaml`);
+  const input = await readTextFile(`${dir}/input.md`);
+  const configRaw = await readTextFile(`${dir}/config.yaml`);
   const config = parseYaml(configRaw) as _FixtureConfig;
   let fixtureExpected: _FixtureExpected;
   try {
-    const raw = await Deno.readTextFile(`${dir}/expected.yaml`);
+    const raw = await readTextFile(`${dir}/expected.yaml`);
     fixtureExpected = parseYaml(raw) as _FixtureExpected;
   } catch {
-    const expectedText = await Deno.readTextFile(`${dir}/expected.md`);
+    const expectedText = await readTextFile(`${dir}/expected.md`);
     fixtureExpected = { expected: expectedText };
   }
   return { input, fieldOrder: config.fieldOrder, expected: fixtureExpected };
