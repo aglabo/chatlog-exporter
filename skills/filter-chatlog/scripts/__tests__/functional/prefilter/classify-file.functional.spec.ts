@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { classifyFile } from '../../../prefilter-chatlog.ts';
 
 // ─── Helpers
-import { makeValidContent } from '../../_helpers/chatlog-fixtures.ts';
+import { makeRepeatedContent } from '../../_helpers/chatlog-fixtures.ts';
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 
@@ -51,14 +51,17 @@ describe('classifyFile', () => {
         it('T-PF-CL-01-01: isNoise が true になる', () => {
           const { isNoise } = classifyFile(
             'say-ok-and-nothing-else.md',
-            makeValidContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
           );
 
           assertEquals(isNoise, true);
         });
 
         it('T-PF-CL-01-02: reason に "ファイル名パターン:" が含まれる', () => {
-          const { reason } = classifyFile('say-ok-and-nothing-else.md', makeValidContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { reason } = classifyFile(
+            'say-ok-and-nothing-else.md',
+            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+          );
 
           assertEquals(reason.includes('ファイル名パターン:'), true);
         });
@@ -125,13 +128,13 @@ describe('classifyFile', () => {
       /** isNoise=false かつ reason が空文字列であることを検証する。 */
       describe('Then: T-PF-CL-04 - isNoise=false が返される', () => {
         it('T-PF-CL-04-01: isNoise が false になる', () => {
-          const { isNoise } = classifyFile('valid-chat.md', makeValidContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { isNoise } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
 
           assertEquals(isNoise, false);
         });
 
         it('T-PF-CL-04-02: reason が空文字列になる', () => {
-          const { reason } = classifyFile('valid-chat.md', makeValidContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { reason } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
 
           assertEquals(reason, '');
         });
@@ -150,7 +153,7 @@ describe('classifyFile', () => {
       /** frontmatter は会話解析対象外のため isNoise=false であることを検証する。 */
       describe('Then: T-PF-CL-05 - isNoise=false が返される（frontmatter は会話解析対象外）', () => {
         it('T-PF-CL-05-01: isNoise が false になる', () => {
-          const { isNoise } = classifyFile('valid-chat.md', makeValidContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { isNoise } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
 
           assertEquals(isNoise, false);
         });

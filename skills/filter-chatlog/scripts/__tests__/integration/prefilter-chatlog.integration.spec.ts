@@ -12,6 +12,12 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // test target
 import { classifyFile, findMdFiles } from '../../prefilter-chatlog.ts';
 
+// ─── Helpers
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { makeRepeatedContent } from '../_helpers/chatlog-fixtures.ts';
+// constants
+import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
+
 // ─── 共通セットアップ ──────────────────────────────────────────────────────────
 
 let tempDir: string;
@@ -26,11 +32,8 @@ afterEach(async () => {
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-const _makeValidContent = (): string => {
-  const userText = 'u'.repeat(300);
-  const assistantText = 'a'.repeat(300);
-  return `---\ntitle: テスト\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-};
+/** `PREFILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH);
 
 const _makeTestFile = async (path: string, content: string): Promise<void> => {
   const dir = path.replace(/\/[^/]+$/, '');
@@ -49,7 +52,7 @@ const _runPipeline = async (
 
   for (const filePath of files) {
     const filename = filePath.split(/[/\\]/).pop()!;
-    const text = await Deno.readTextFile(filePath);
+    const text = await readTextFile(filePath);
     const { isNoise } = classifyFile(filename, text);
     if (isNoise) { noise++; }
     else { keep++; }

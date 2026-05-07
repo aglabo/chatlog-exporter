@@ -20,6 +20,7 @@ import { writeSession } from '../../libs/session-writer.ts';
 import type { ExportedSession } from '../../types/session.types.ts';
 // exists
 import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── Internal Helpers
 
@@ -159,7 +160,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const content = await Deno.readTextFile(normalizedPath);
+          const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, 'session_id:');
         });
 
@@ -167,7 +168,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const content = await Deno.readTextFile(normalizedPath);
+          const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '# What is TDD?');
         });
 
@@ -175,7 +176,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const content = await Deno.readTextFile(normalizedPath);
+          const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '### User');
         });
 
@@ -183,7 +184,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
           const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
-          const content = await Deno.readTextFile(normalizedPath);
+          const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '### Assistant');
         });
       });

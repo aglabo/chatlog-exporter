@@ -33,6 +33,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
+import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
@@ -306,7 +307,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
 
       let text: string;
       try {
-        text = await Deno.readTextFile(filePath);
+        text = await readTextFile(filePath);
       } catch (e) {
         logger.error(`  error (${filename}): ${e}`);
         counts.error++;

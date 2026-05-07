@@ -22,6 +22,7 @@ import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/out
 
 // test target
 import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { main } from '../../normalize-chatlog.ts';
 import type { HashProvider } from '../../normalize-chatlog.ts';
 
@@ -175,7 +176,7 @@ describe('normalize-chatlog - full E2E', () => {
       assertEquals(backupExists, true);
 
       // reproducibility: 入力ファイルは不変
-      const afterContent = await Deno.readTextFile(`${inputDir}/chat.md`);
+      const afterContent = await readTextFile(`${inputDir}/chat.md`);
       assertEquals(afterContent, inputContent);
     });
   });

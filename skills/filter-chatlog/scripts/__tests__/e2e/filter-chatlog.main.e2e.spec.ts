@@ -39,8 +39,9 @@ import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 import type { CommandMockHandle } from '../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../skills/_scripts/__tests__/helpers/logger-stub.ts';
 // e2e helpers
-import { fileExists } from '../_helpers/chatlog-asserts.ts';
-import { makeTestDirs, makeValidContent } from '../_helpers/chatlog-fixtures.ts';
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { assertFileNotExists } from '../_helpers/chatlog-asserts.ts';
+import { makeRepeatedContent, makeTestDirs } from '../_helpers/chatlog-fixtures.ts';
 
 // ─── Internal Helpers
 
@@ -49,8 +50,8 @@ import { makeTestDirs, makeValidContent } from '../_helpers/chatlog-fixtures.ts'
 /** `_makeTestDirs` のラッパー。デフォルト引数付きで `makeTestDirs` を呼び出す。 */
 const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(agent, period);
 
-/** `_makeValidContent` のラッパー。`FILTER_MIN_CONTENT_LENGTH` を固定して `makeValidContent` を呼び出す。 */
-const _makeValidContent = (title = 'テスト') => makeValidContent(FILTER_MIN_CONTENT_LENGTH, title);
+/** `_makeValidContent` のラッパー。`FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = (title = 'テスト') => makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH, title);
 
 // ─── Tests
 
@@ -167,7 +168,7 @@ describe('main - DISCARD 判定', () => {
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/discard.md`), false);
+            await assertFileNotExists(`${chatlogDir}/discard.md`);
           });
         });
       });
@@ -343,7 +344,7 @@ describe('main - DISCARD + KEEP 混在', () => {
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/discard.md`), false);
+            await assertFileNotExists(`${chatlogDir}/discard.md`);
           });
 
           it('T-FL-E2E-05-02: keep.md が残っている', async () => {
@@ -412,7 +413,7 @@ describe('main - period 絞り込み', () => {
           it('T-FL-E2E-06-01: 指定月 (2026-03) のファイルが削除される', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${tempDir}/claude/2026/2026-03/march.md`), false);
+            await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-06-02: 他の月 (2026-04) のファイルは残っている', async () => {
@@ -656,13 +657,13 @@ describe('main - period 未指定', () => {
           it('T-FL-E2E-10-01: 2026-03 のファイルが削除される', async () => {
             await main(['claude', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${tempDir}/claude/2026/2026-03/march.md`), false);
+            await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-10-02: 2026-04 のファイルが削除される', async () => {
             await main(['claude', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${tempDir}/claude/2026/2026-04/april.md`), false);
+            await assertFileNotExists(`${tempDir}/claude/2026/2026-04/april.md`);
           });
         });
       });

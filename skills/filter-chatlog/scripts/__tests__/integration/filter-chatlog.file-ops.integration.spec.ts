@@ -13,6 +13,11 @@ import { stub } from '@std/testing/mock';
 // test target
 import { buildBatchPrompt, findMdFiles, prefilterFiles } from '../../../../filter-chatlog/scripts/filter-chatlog.ts';
 
+// ─── Helpers
+import { makeRepeatedContent } from '../_helpers/chatlog-fixtures.ts';
+// constants
+import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
+
 // ─── 共通セットアップ ──────────────────────────────────────────────────────────
 
 let tempDir: string;
@@ -25,13 +30,10 @@ afterEach(async () => {
   await Deno.remove(tempDir, { recursive: true });
 });
 
-// ─── 有効なコンテンツ生成ヘルパー ────────────────────────────────────────────
+// ─── 内部ヘルパー ─────────────────────────────────────────────────────────────
 
-const _makeValidContent = (title: string): string => {
-  const userText = 'u'.repeat(500);
-  const assistantText = 'a'.repeat(500);
-  return `---\ntitle: ${title}\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
-};
+/** `FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = (title: string) => makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH, title);
 
 // ─── T-FL-IO-01: findMdFiles → prefilterFiles パイプライン ───────────────────
 

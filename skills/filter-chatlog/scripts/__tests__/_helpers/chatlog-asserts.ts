@@ -8,10 +8,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertFalse } from '@std/assert';
 
 // ─── Helpers
-import { fileExists as _fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 /**
  * 指定パスが通常ファイルとして存在することをアサートする。
@@ -19,15 +19,14 @@ import { fileExists as _fileExists, fileOrDirExists } from '../../../../_scripts
  * @param path - 確認するファイルの絶対パス
  */
 export const assertFileExists = async (path: string): Promise<void> => {
-  assertEquals(await _fileExists(path), true);
+  assert(await fileExists(path));
 };
 
 /**
- * 指定パスのファイルが存在するかどうかを返す。
- *
- * `fileOrDirExists` への alias。ファイル・ディレクトリを区別しない。
+ * 指定パスに通常ファイルが存在しないことをアサートする。
  *
  * @param path - 確認するファイルの絶対パス
- * @returns ファイルが存在すれば `true`、存在しなければ `false`
  */
-export const fileExists = fileOrDirExists;
+export const assertFileNotExists = async (path: string): Promise<void> => {
+  assertFalse(await fileExists(path));
+};

@@ -18,18 +18,29 @@ export const periodToPath = (period: string): string => {
 };
 
 /**
- * frontmatter 付きチャットログ Markdown を生成する。
+ * frontmatter 付きチャットログ Markdown を任意の会話テキストで生成する。
  *
- * User/Assistant 各 `minLength` 文字の会話テキストを含む最小構成を返す。
+ * @param title - フロントマターの title 値
+ * @param question - User セクションのテキスト（デフォルト: '質問'）
+ * @param answer - Assistant セクションのテキスト（デフォルト: '回答'）
+ * @returns frontmatter 付き Markdown 文字列
+ */
+export const makeValidContent = (title: string, question = '質問', answer = '回答'): string => {
+  return `---\ntitle: ${title}\n---\n### User\n${question}\n\n### Assistant\n${answer}\n`;
+};
+
+/**
+ * frontmatter 付きチャットログ Markdown を連続文字列で生成する。
+ *
+ * User/Assistant 各 `minLength` 文字の繰り返し文字列を含む最小構成を返す。
+ * 文字数ベースの閾値テストに使用する。
  *
  * @param minLength - User/Assistant 各テキストの文字数
  * @param title - フロントマターの title 値（デフォルト: 'テスト'）
  * @returns frontmatter 付き Markdown 文字列
  */
-export const makeValidContent = (minLength: number, title = 'テスト'): string => {
-  const userText = 'u'.repeat(minLength);
-  const assistantText = 'a'.repeat(minLength);
-  return `---\ntitle: ${title}\n---\n### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
+export const makeRepeatedContent = (minLength: number, title = 'テスト'): string => {
+  return makeValidContent(title, 'u'.repeat(minLength), 'a'.repeat(minLength));
 };
 
 /**

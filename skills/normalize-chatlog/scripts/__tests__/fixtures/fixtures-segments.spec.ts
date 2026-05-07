@@ -31,6 +31,7 @@ import {
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // exists
 import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
 import { segmentChatlog } from '../../normalize-chatlog.ts';
@@ -53,7 +54,7 @@ type FixtureOutput =
 
 /** output.yaml から期待セグメント数またはエラー種別を読み込む */
 async function _loadOutput(dir: string): Promise<FixtureOutput> {
-  const content = await Deno.readTextFile(`${dir}/output.yaml`);
+  const content = await readTextFile(`${dir}/output.yaml`);
   const parsed = parseYaml(content) as Record<string, unknown>;
   if (parsed.error !== undefined) {
     return { kind: 'error', error: String(parsed.error), expectedResult: null };
@@ -125,7 +126,7 @@ for (const _relPath of _fixtureDirs) {
         beforeEach(async () => {
           _mockHandle = installCommandMock(_buildMock(_output));
 
-          const _inputContent = await Deno.readTextFile(_inputPath);
+          const _inputContent = await readTextFile(_inputPath);
           const _result = await segmentChatlog(_inputPath, _inputContent);
           _segments = _result ?? [];
         });
@@ -148,7 +149,7 @@ for (const _relPath of _fixtureDirs) {
         beforeEach(async () => {
           _mockHandle = installCommandMock(_buildMock(_output));
 
-          const _inputContent = await Deno.readTextFile(_inputPath);
+          const _inputContent = await readTextFile(_inputPath);
           _result = await segmentChatlog(_inputPath, _inputContent);
         });
 

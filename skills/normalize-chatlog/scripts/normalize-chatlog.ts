@@ -24,6 +24,7 @@ import { backupOldPath } from '../../_scripts/libs/file-io/backup-old-path.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
+import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 
 // -- io --
 import { logger } from '../../_scripts/libs/io/logger.ts';
@@ -541,7 +542,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
     const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
     await runConcurrent(mdFiles, async (filePath) => {
-      const content = await Deno.readTextFile(filePath);
+      const content = await readTextFile(filePath);
       const { meta: sourceMeta } = parseFrontmatterEntries(content);
 
       const segments = await segmentChatlog(filePath, content);

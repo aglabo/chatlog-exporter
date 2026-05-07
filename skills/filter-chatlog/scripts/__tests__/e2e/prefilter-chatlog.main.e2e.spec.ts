@@ -25,8 +25,9 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
-import { assertFileExists, fileExists } from '../_helpers/chatlog-asserts.ts';
-import { makeTestDirs, makeValidContent } from '../_helpers/chatlog-fixtures.ts';
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { assertFileExists, assertFileNotExists } from '../_helpers/chatlog-asserts.ts';
+import { makeRepeatedContent, makeTestDirs } from '../_helpers/chatlog-fixtures.ts';
 
 // ─── Internal Helpers
 
@@ -35,8 +36,8 @@ import { makeTestDirs, makeValidContent } from '../_helpers/chatlog-fixtures.ts'
 /** `_makeTestDirs` のラッパー。デフォルト引数付きで `makeTestDirs` を呼び出す。 */
 const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(agent, period);
 
-/** `_makeValidContent` のラッパー。`PREFILTER_MIN_CONTENT_LENGTH` を固定して `makeValidContent` を呼び出す。 */
-const _makeValidContent = () => makeValidContent(PREFILTER_MIN_CONTENT_LENGTH);
+/** `_makeValidContent` のラッパー。`PREFILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH);
 
 // ─── Tests
 
@@ -192,7 +193,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
 
           await main(['claude', '2026-03', '--input', tempDir]);
 
-          assertEquals(await fileExists(noisePath), false);
+          await assertFileNotExists(noisePath);
           assertEquals(await fileExists(validPath), true);
         });
       });
@@ -351,7 +352,7 @@ describe('main (prefilter) - period 絞り込み', () => {
 
           await main(['claude', '2026-03', '--input', tempDir]);
 
-          assertEquals(await fileExists(noisePath03), false);
+          await assertFileNotExists(noisePath03);
           assertEquals(await fileExists(noisePath04), true);
         });
       });

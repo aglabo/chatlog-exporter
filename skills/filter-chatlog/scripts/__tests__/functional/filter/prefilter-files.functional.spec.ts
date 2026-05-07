@@ -17,7 +17,7 @@ import { stub } from '@std/testing/mock';
 import { prefilterFiles } from '../../../filter-chatlog.ts';
 
 // ─── Helpers
-import { makePeriodDir, makeValidContent } from '../../_helpers/chatlog-fixtures.ts';
+import { makePeriodDir, makeRepeatedContent } from '../../_helpers/chatlog-fixtures.ts';
 // constants
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 
@@ -66,7 +66,7 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-01 - ファイルがスキップされる', () => {
         it('T-FL-PFF-01-01: say-ok-and-nothing-else.md は通過しない', async () => {
           const filePath = `${periodDir1}/say-ok-and-nothing-else.md`;
-          await Deno.writeTextFile(filePath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
           const result = await prefilterFiles([filePath]);
@@ -138,7 +138,7 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-04 - ファイルが通過する', () => {
         it('T-FL-PFF-04-01: 正常なファイルは通過する', async () => {
           const filePath = `${periodDir1}/normal.md`;
-          await Deno.writeTextFile(filePath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
           const result = await prefilterFiles([filePath]);
@@ -151,7 +151,7 @@ describe('prefilterFiles', () => {
         it('T-FL-PFF-04-02: 複数ファイルのうち正常なものだけ通過する', async () => {
           const validPath = `${periodDir1}/valid.md`;
           const shortPath = `${periodDir1}/short.md`;
-          await Deno.writeTextFile(validPath, makeValidContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           await Deno.writeTextFile(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 

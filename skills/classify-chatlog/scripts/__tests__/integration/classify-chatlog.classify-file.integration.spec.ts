@@ -21,6 +21,7 @@ import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.t
 import type { ClassifyStats } from '../../types/classify.types.ts';
 // exists
 import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── ヘルパー ────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ describe('classifyFile', () => {
 
           await classifyFile(fileMeta, 'app1', false, stats);
 
-          const _dstText = await Deno.readTextFile(`${tempDir}/app1/a.md`);
+          const _dstText = await readTextFile(`${tempDir}/app1/a.md`);
           assertStringIncludes(_dstText, 'project: "app1"');
         });
 

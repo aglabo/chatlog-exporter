@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
 import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
@@ -47,7 +48,7 @@ function _extractFrontmatterField(content: string, key: string): string {
 
 /** output-<N>.md のフロントマターからフィールド値を抽出して Segment を構築する */
 async function _loadOutputSegment(filePath: string): Promise<Segment> {
-  const content = await Deno.readTextFile(filePath);
+  const content = await readTextFile(filePath);
   return {
     title: _extractFrontmatterField(content, 'title'),
     summary: _extractFrontmatterField(content, 'summary'),
@@ -134,13 +135,13 @@ for (const _dirName of _fixtureDirs) {
       beforeEach(async () => {
         _expectedSegments = await Promise.all(_outputFiles.map(_loadOutputSegment));
         _fixtureContents = await Promise.all(
-          _outputFiles.map((f) => Deno.readTextFile(f)),
+          _outputFiles.map((f) => readTextFile(f)),
         );
 
         const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
         _mockHandle = installCommandMock(makeSuccessMock(_stdout));
 
-        const _inputContent = await Deno.readTextFile(_inputPath);
+        const _inputContent = await readTextFile(_inputPath);
         _sourceMeta = parseFrontmatter(_inputContent).meta;
         const _result = await segmentChatlog(_inputPath, _inputContent);
         _segments = _result ?? [];
