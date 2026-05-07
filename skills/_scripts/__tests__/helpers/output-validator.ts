@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 
 import { assertEquals } from '@std/assert';
+import { readTextFile } from '../../libs/file-io/read-utils.ts';
 
 /**
  * 正規化セグメント出力ファイルの構造を検証する。
@@ -20,7 +21,7 @@ export async function assertOutputFile(
     expectFrontmatterField?: { key: string; value: string };
   },
 ): Promise<void> {
-  const content = await Deno.readTextFile(filePath);
+  const content = await readTextFile(filePath);
 
   assertEquals(
     content.startsWith('---\n'),
