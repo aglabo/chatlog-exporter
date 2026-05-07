@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // helpers
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
@@ -118,11 +119,11 @@ describe('main - dry-run モード', () => {
         });
 
         it('T-SF-E2E-01-01: ファイルの内容が変更されない', async () => {
-          const originalContent = await Deno.readTextFile(`${targetDir}/test.md`);
+          const originalContent = await readTextFile(`${targetDir}/test.md`);
 
           await main([targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
 
-          const updatedContent = await Deno.readTextFile(`${targetDir}/test.md`);
+          const updatedContent = await readTextFile(`${targetDir}/test.md`);
           assertEquals(updatedContent, originalContent);
         });
 
