@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
 import { generateSegmentFile, segmentChatlog, START_BODY_HEADING } from '../../normalize-chatlog.ts';
@@ -42,7 +43,7 @@ function _extractBodyFromFixture(content: string): string {
 
 /** runai-markdown fixture の output-<N>.md から body のみを持つ Segment を構築する（モック注入用） */
 async function _loadOutputSegment(filePath: string): Promise<Segment> {
-  const content = await Deno.readTextFile(filePath);
+  const content = await readTextFile(filePath);
   const marker = START_BODY_HEADING + '\n';
   const idx = content.indexOf(marker);
   return {
@@ -113,13 +114,13 @@ for (const _dirName of _fixtureDirs) {
       beforeEach(async () => {
         _expectedSegments = await Promise.all(_bodyOutputFiles.map(_loadOutputSegment));
         _bodyFixtureContents = await Promise.all(
-          _bodyOutputFiles.map((f) => Deno.readTextFile(f)),
+          _bodyOutputFiles.map((f) => readTextFile(f)),
         );
 
         const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
         _mockHandle = installCommandMock(makeSuccessMock(_stdout));
 
-        const _inputContent = await Deno.readTextFile(_inputPath);
+        const _inputContent = await readTextFile(_inputPath);
         const _result = await segmentChatlog(_inputPath, _inputContent);
         _segments = _result ?? [];
       });
