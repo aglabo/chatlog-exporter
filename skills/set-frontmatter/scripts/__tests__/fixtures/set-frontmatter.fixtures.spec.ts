@@ -20,6 +20,7 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
@@ -81,10 +82,9 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
       if (!entry.isDirectory) { continue; }
       const childAbs = `${dir}/${entry.name}`;
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-      try {
-        await Deno.stat(`${childAbs}/input.md`);
+      if (await fileExists(`${childAbs}/input.md`)) {
         dirs.push(childRel);
-      } catch {
+      } else {
         // input.md がなければ子ディレクトリを再帰的にスキャン
         await _scan(childAbs, childRel);
       }
