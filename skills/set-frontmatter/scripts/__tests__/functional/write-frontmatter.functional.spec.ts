@@ -16,8 +16,8 @@ import type { FrontmatterFileMeta, FrontmatterResult, Stats } from '../../set-fr
 import { writeFrontmatter } from '../../set-frontmatter.ts';
 
 // exists
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 
