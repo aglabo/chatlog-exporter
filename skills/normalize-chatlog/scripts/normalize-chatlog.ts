@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────
 
 // types
-import type { StatSyncProvider } from '../../_scripts/types/providers.types.ts';
+import type { ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
 
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
@@ -20,7 +20,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
 
 // -- file-io --
-import { backupOldPath, defaultListDir } from '../../_scripts/libs/file-io/backup.ts';
+import { backupOldPath } from '../../_scripts/libs/file-io/backup-old-path.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
@@ -349,7 +349,7 @@ export const writeOutput = async (
   content: string,
   dryRun: boolean,
   stats: Stats,
-  listDir: (dir: string) => Promise<string[]> = defaultListDir,
+  listDir: ListDirProvider = (dir) => Array.fromAsync(Deno.readDir(dir), (e) => e.name),
 ): Promise<void> => {
   if (dryRun) {
     logger.info(`[dry-run] would write: ${outputPath}`);
