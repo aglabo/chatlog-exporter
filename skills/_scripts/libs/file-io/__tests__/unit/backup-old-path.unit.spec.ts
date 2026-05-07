@@ -1,4 +1,4 @@
-// src: scripts/libs/__tests__/unit/backup.unit.spec.ts
+// src: scripts/libs/__tests__/unit/backup-old-path.unit.spec.ts
 // @(#): backupOldPath のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -6,19 +6,25 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── BDD modules
 import { assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-import { backupOldPath } from '../../backup.ts';
+// ─── Test target
+import { backupOldPath } from '../../backup-old-path.ts';
 
-// ─────────────────────────────────────────────
-// backupOldPath
-// ─────────────────────────────────────────────
+// ─── Internal Helpers
+
+// functions
+/** ファイルが常に存在するように見せる `StatProvider` フェイク。 */
+const _fakeStatExists = (_path: string): Promise<Deno.FileInfo> => Promise.resolve({ isFile: true } as Deno.FileInfo);
+
+// ─── Tests
 
 /**
  * `backupOldPath` のユニットテストスイート。
  *
- * Fake の listDir を使い、Deno ファイルシステムに依存せず
+ * Fake の listDir / statProvider を使い、Deno ファイルシステムに依存せず
  * エラー処理ロジックをカバーする。
  *
  * @see backupOldPath
@@ -39,22 +45,12 @@ describe('backupOldPath', () => {
             return Array.from({ length: 99 }, (_, i) => `output.old-${String(i + 1).padStart(2, '0')}.md`);
           };
 
-          // フェイクの stat: ファイルが存在するように見せる
-          const origStat = Deno.stat;
-          // deno-lint-ignore no-explicit-any
-          (Deno as any).stat = (_path: string) => ({ isFile: true });
-
-          try {
-            // act & assert
-            await assertRejects(
-              () => backupOldPath(outputPath, fakeListDir),
-              Error,
-              'too many backups',
-            );
-          } finally {
-            // deno-lint-ignore no-explicit-any
-            (Deno as any).stat = origStat;
-          }
+          // act & assert
+          await assertRejects(
+            () => backupOldPath(outputPath, fakeListDir, _fakeStatExists),
+            Error,
+            'too many backups',
+          );
         });
       });
     });
