@@ -56,32 +56,6 @@ export const makeValidContent = (title: string, question = '質問', answer = '�
 };
 
 /**
- * フロントマターのみ（本文なし）の Markdown を生成する。
- *
- * `buildBatchPrompt` においてターンが検出されず本文が空になるケースの検証に使用する。
- *
- * @param title - フロントマターの title 値
- * @returns フロントマターのみの Markdown 文字列
- */
-export const makeFrontmatterOnlyContent = (title: string): string => {
-  return `---\ntitle: ${title}\n---\n`;
-};
-
-/**
- * フロントマター付き・ターンマーカーなしの生テキスト Markdown を生成する。
- *
- * `### User`/`### Assistant` マーカーを含まないため `parseConversation` がターンを検出せず、
- * `buildBatchPrompt` において本文が空になるケースの検証に使用する。
- *
- * @param title - フロントマターの title 値
- * @param body - フロントマター後の本文テキスト（デフォルト: '生テキストです。'）
- * @returns フロントマター付き生テキスト Markdown 文字列
- */
-export const makePlainContent = (title: string, body = '生テキストです。'): string => {
-  return `---\ntitle: ${title}\n---\n${body}\n`;
-};
-
-/**
  * frontmatter 付きチャットログ Markdown を連続文字列で生成する。
  *
  * User/Assistant 各 `minLength` 文字の繰り返し文字列を含む最小構成を返す。
