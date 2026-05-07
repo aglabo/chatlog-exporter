@@ -1,20 +1,37 @@
 // src: scripts/normalize-chatlog.ts
-// @(#): Utilities for normalizing chatlog processing
+// @(#): チャットログを AI でトピック別セグメントに分割し、フロントマター付き Markdown として出力する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// normalize_chatlog.ts — Utilities for normalizing chatlog processing
 
-// -- external --
+// ─────────────────────────────────────────────
+// shared modules
+// ─────────────────────────────────────────────
+
+// types
+import type { StatSyncProvider } from '../../_scripts/types/providers.types.ts';
+
+// classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+
+// -- ai --
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
+
+// -- file-io --
 import { backupOldPath, defaultListDir } from '../../_scripts/libs/file-io/backup.ts';
+import { dirExistsSync } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
+
+// -- io --
 import { logger } from '../../_scripts/libs/io/logger.ts';
+
+// -- parallel --
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
+
+// -- text --
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
@@ -22,44 +39,69 @@ import { quoteString } from '../../_scripts/libs/text/string-utils.ts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Structured result of {@link parseArgs}. */
+/**
+ * CLI 引数を解析した結果を格納する構造体。
+ *
+ * `dir` または `agent`+`yearMonth` の組み合わせで入力ディレクトリを指定する。
+ * どちらも省略された場合は {@link resolveInputDir} がエラーを返す。
+ */
 export type ParsedArgs = {
+  /** 入力ディレクトリの絶対・相対パス（`--dir` で指定）。 */
   dir?: string;
+  /** エージェント名（`--agent` で指定）。`yearMonth` と組み合わせて入力パスを構築する。 */
   agent?: string;
+  /** 年月文字列（`--year-month` で指定）。`YYYY-MM` 形式。 */
   yearMonth?: string;
+  /** ドライランフラグ。`true` のときディスク書き込みを行わない。 */
   dryRun: boolean;
+  /** 最大並列タスク数。デフォルト: {@link _DEFAULT_CONCURRENCY}。 */
   concurrency: number;
+  /** 出力ベースディレクトリ（`--output` で指定）。省略時は {@link _DEFAULT_OUTPUT_DIR}。 */
   output?: string;
 };
 
-/** A single topic segment extracted from a chatlog by {@link segmentChatlog}. */
+/**
+ * {@link segmentChatlog} が AI から受け取る 1 トピックセグメント。
+ *
+ * AI は chatlog の内容を複数のトピックに分割し、各トピックをこの形式で返す。
+ */
 export type Segment = {
+  /** セグメントの短いトピックタイトル。 */
   title: string;
+  /** セグメントの 1 文要約。 */
   summary: string;
+  /** セグメントの会話本文（元テキストをそのままコピー）。 */
   content: string;
 };
 
-/** Counters for {@link writeOutput} results across a batch run. */
+/**
+ * バッチ処理結果の集計カウンター。{@link writeOutput} が直接更新する。
+ */
 export type Stats = {
+  /** 正常に書き込まれたファイル数。 */
   success: number;
+  /** スキップされたファイル数。 */
   skip: number;
+  /** 失敗したファイル数（AI エラー・書き込みエラー等）。 */
   fail: number;
 };
 
-/** Result of {@link resolveInputDir}: either a resolved directory path or an error message. */
+/**
+ * {@link resolveInputDir} の戻り値。解決成功または失敗のいずれかを表す判別共用体。
+ */
 export type ResolveResult =
   | { ok: true; dir: string }
   | { ok: false; error: string };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Default maximum number of concurrent tasks for {@link parseArgs}. */
+/** 並列タスク数のデフォルト値。{@link parseArgs} の初期値として使用する。 */
 const _DEFAULT_CONCURRENCY = 4;
 
-/** Maximum number of segments returned by {@link segmentChatlog}. */
+/** {@link segmentChatlog} が返すセグメントの上限数。 */
 const _MAX_SEGMENTS = 10;
 
-/** Markdown heading that marks the start of the body section in a segment file. */
+/** セグメントファイルの本文セクションを示す Markdown 見出し。 */
 export const START_BODY_HEADING = '## Excerpt';
 
 // ─── ID Generation ────────────────────────────────────────────────────────────
@@ -81,12 +123,19 @@ export const extractBaseName = (filePath: string): string => {
   return withoutExt.replace(/-[0-9a-f]{7}$/, '');
 };
 
-/** Function type for generating a 7-character hex hash string. */
+/** 7 文字の 16 進数ハッシュ文字列を生成する関数の型。テスト用インジェクションに利用する。 */
 export type HashProvider = () => string;
 
 /**
- * Generates a 7-char hex hash from baseName and segment index using SHA-256.
- * Input: SHA-256 of `<baseName>-<XX>-<timestamp12>-<random8>`
+ * `baseName` とセグメントインデックス `xx` から 7 文字の SHA-256 ハッシュを生成する。
+ *
+ * 入力文字列: `<baseName>-<xx>-<timestamp12>-<random8>`
+ * - `timestamp12`: `YYYYMMDDHHmmss` 形式の 12 桁文字列
+ * - `random8`: 4 バイトの乱数を 16 進数 8 文字に変換した文字列
+ *
+ * @param baseName - ソースファイルの拡張子なし・ハッシュなしのベース名
+ * @param xx       - ゼロ埋め 2 桁のセグメントインデックス文字列（例: `"01"`）
+ * @returns SHA-256 ダイジェストの先頭 7 文字（16 進数）
  */
 const _computeHash7 = async (baseName: string, xx: string): Promise<string> => {
   const now = new Date();
@@ -363,23 +412,18 @@ export const resolveInputDir = (
 };
 
 /**
- * Validates that `dir` exists on the filesystem by calling `statFn`.
+ * Validates that `dir` exists as a directory on the filesystem.
  *
- * @param dir    - The directory path to check
- * @param statFn - Injectable stat function; defaults to `Deno.statSync`
- * @returns `true` if `statFn(dir)` succeeds without throwing, `false` otherwise
+ * @param dir          - The directory path to check
+ * @param statProvider - Injectable sync stat function; defaults to `Deno.statSync`
+ * @returns `true` if the path is an existing directory, `false` if not found
+ * @throws For errors other than `NotFound` (e.g. `PermissionDenied`)
  */
 export const validateInputDir = (
   dir: string,
-  statFn?: (path: string) => unknown,
+  statProvider?: StatSyncProvider,
 ): boolean => {
-  const fn = statFn || Deno.statSync;
-  try {
-    fn(dir);
-    return true;
-  } catch {
-    return false;
-  }
+  return dirExistsSync(dir, statProvider);
 };
 
 /**
