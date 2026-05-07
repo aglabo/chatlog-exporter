@@ -26,6 +26,7 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 
 // test target
 import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { main } from '../../normalize-chatlog.ts';
 import type { HashProvider } from '../../normalize-chatlog.ts';
 
@@ -130,7 +131,7 @@ describe('main - reproducibility', () => {
         it('T-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
           await main(['--dir', inputDir, '--output', outputDir]);
 
-          const afterContent = await Deno.readTextFile(`${inputDir}/input.md`);
+          const afterContent = await readTextFile(`${inputDir}/input.md`);
           assertEquals(afterContent, inputContent);
         });
       });
