@@ -74,6 +74,7 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; i
       throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
     }
 
+    // 位置パラメータ解釈
     if (/^\d{4}-\d{2}$/.test(arg) || /^\d{4}$/.test(arg)) {
       _set('period', arg);
     } else if (isKnownAgent(arg)) {
