@@ -18,6 +18,32 @@ export const periodToPath = (period: string): string => {
 };
 
 /**
+ * フロントマターのみ（本文なし）の Markdown を生成する。
+ *
+ * `buildBatchPrompt` においてターンが検出されず本文が空になるケースの検証に使用する。
+ *
+ * @param title - フロントマターの title 値
+ * @returns フロントマターのみの Markdown 文字列
+ */
+export const makeFrontmatter = (title: string): string => {
+  return `---\ntitle: ${title}\n---\n`;
+};
+
+/**
+ * フロントマター付き・ターンマーカーなしの生テキスト Markdown を生成する。
+ *
+ * `### User`/`### Assistant` マーカーを含まないため `parseConversation` がターンを検出せず、
+ * `buildBatchPrompt` において本文が空になるケースの検証に使用する。
+ *
+ * @param title - フロントマターの title 値
+ * @param body - フロントマター後の本文テキスト（デフォルト: '生テキストです。'）
+ * @returns フロントマター付き生テキスト Markdown 文字列
+ */
+export const makePlainContent = (title: string, content: string = '生テキストです。'): string => {
+  return makeFrontmatter(title) + `\n${content.trim()}\n`;
+};
+
+/**
  * frontmatter 付きチャットログ Markdown を任意の会話テキストで生成する。
  *
  * @param title - フロントマターの title 値
@@ -26,7 +52,33 @@ export const periodToPath = (period: string): string => {
  * @returns frontmatter 付き Markdown 文字列
  */
 export const makeValidContent = (title: string, question = '質問', answer = '回答'): string => {
-  return `---\ntitle: ${title}\n---\n### User\n${question}\n\n### Assistant\n${answer}\n`;
+  return makePlainContent(title, `### User\n${question}\n\n### Assistant\n${answer}`);
+};
+
+/**
+ * フロントマターのみ（本文なし）の Markdown を生成する。
+ *
+ * `buildBatchPrompt` においてターンが検出されず本文が空になるケースの検証に使用する。
+ *
+ * @param title - フロントマターの title 値
+ * @returns フロントマターのみの Markdown 文字列
+ */
+export const makeFrontmatterOnlyContent = (title: string): string => {
+  return `---\ntitle: ${title}\n---\n`;
+};
+
+/**
+ * フロントマター付き・ターンマーカーなしの生テキスト Markdown を生成する。
+ *
+ * `### User`/`### Assistant` マーカーを含まないため `parseConversation` がターンを検出せず、
+ * `buildBatchPrompt` において本文が空になるケースの検証に使用する。
+ *
+ * @param title - フロントマターの title 値
+ * @param body - フロントマター後の本文テキスト（デフォルト: '生テキストです。'）
+ * @returns フロントマター付き生テキスト Markdown 文字列
+ */
+export const makePlainContent = (title: string, body = '生テキストです。'): string => {
+  return `---\ntitle: ${title}\n---\n${body}\n`;
 };
 
 /**
