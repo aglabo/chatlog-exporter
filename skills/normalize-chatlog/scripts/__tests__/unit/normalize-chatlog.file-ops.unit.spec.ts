@@ -20,6 +20,7 @@ import {
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // exists
 import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
 import {
@@ -57,7 +58,7 @@ describe('writeOutput', () => {
       await writeOutput(outputPath, content, false, stats);
 
       // assert
-      const written = await Deno.readTextFile(outputPath);
+      const written = await readTextFile(outputPath);
       assertEquals(written, content);
       assertEquals(stats.success, 1);
     });
@@ -75,8 +76,8 @@ describe('writeOutput', () => {
 
       // assert
       const backupPath = `${tmpDir}/output.old-01.md`;
-      const backupContent = await Deno.readTextFile(backupPath);
-      const written = await Deno.readTextFile(outputPath);
+      const backupContent = await readTextFile(backupPath);
+      const written = await readTextFile(outputPath);
       assertEquals(backupContent, oldContent);
       assertEquals(written, newContent);
       assertEquals(stats.success, 1);
