@@ -28,6 +28,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
+import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
@@ -123,7 +124,7 @@ export interface Dics {
 export const loadDics = async (dicsDir: string): Promise<Dics> => {
   const readFile = async (path: string): Promise<string> => {
     try {
-      return await Deno.readTextFile(path);
+      return await readTextFile(path);
     } catch {
       logger.warn(`辞書ファイルが見つかりません: ${path}`);
       return '';
@@ -265,7 +266,7 @@ export const formatEntryShort = (e: DicEntry): string => {
 export const loadFrontmatterFileMeta = async (filePath: string): Promise<FrontmatterFileMeta | null> => {
   let text: string;
   try {
-    text = await Deno.readTextFile(filePath);
+    text = await readTextFile(filePath);
   } catch {
     return null;
   }
