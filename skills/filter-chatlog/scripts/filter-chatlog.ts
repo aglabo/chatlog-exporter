@@ -10,7 +10,7 @@
  * filter_chatlog.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
  *
  * 使い方:
- *   deno run --allow-read --allow-run filter_chatlog.ts [YYYY-MM] [project] [--dry-run] [--input DIR]
+ *   deno run --allow-read --allow-run filter_chatlog.ts [YYYY-MM] [--dry-run] [--input DIR]
  */
 
 // ─────────────────────────────────────────────
@@ -22,17 +22,24 @@ import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.
 
 // -- external --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
+import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
 import { parseConversation } from '../../_scripts/libs/text/markdown-utils.ts';
 
-export const CHUNK_SIZE = 10;
-export const CONCURRENCY = 4;
+// -- internal --
+// constants
+import { DEFAULT_CHUNK_SIZE, DEFAULT_CONCURRENCY } from '../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_FILTER_CONFIG } from './constants/filter.constants.ts';
+// types
+import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
+
 export const DISCARD_THRESHOLD = 0.7;
 export const MAX_BODY_CHARS = 8000;
 
@@ -134,29 +141,21 @@ export const extractBodyText = (body: string, maxChars = MAX_BODY_CHARS): string
 // ファイル列挙
 // ─────────────────────────────────────────────
 
-const _resolveSearchDir = async (
+const _resolveSearchDir = (
   baseDir: string,
   period?: string,
-  project?: string,
-): Promise<string> => {
+): string => {
   if (!period) {
     return baseDir;
   }
-  // YYYY-MM 形式の場合、YYYY/YYYY-MM 構造にも対応
-  const yearDir = `${baseDir}/${period.slice(0, 4)}/${period}`;
-  const flatDir = `${baseDir}/${period}`;
-  if (await dirExists(yearDir)) {
-    return project ? `${yearDir}/${project}` : yearDir;
-  }
-  return project ? `${flatDir}/${project}` : flatDir;
+  return `${baseDir}/${period.slice(0, 4)}/${period}`;
 };
 
-export const findMdFiles = async (
+export const findMdFiles = (
   baseDir: string,
   period?: string,
-  project?: string,
 ): Promise<string[]> => {
-  const _searchDir = await _resolveSearchDir(baseDir, period, project);
+  const _searchDir = _resolveSearchDir(baseDir, period);
   return findFilesLib(_searchDir);
 };
 
@@ -338,42 +337,58 @@ export const processChunk = async (
 // 引数解析
 // ─────────────────────────────────────────────
 
-export interface Args {
-  agent: string;
-  period?: string;
-  project?: string;
-  dryRun: boolean;
-  inputDir: string;
-}
-
-export const parseArgs = (args: string[]): Args => {
-  let agent: string | undefined;
-  let period: string | undefined;
-  let project: string | undefined;
-  let dryRun = false;
-  let inputDir = './temp/chatlog';
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--dry-run') {
-      dryRun = true;
-    } else if (arg === '--input' && i + 1 < args.length) {
-      inputDir = args[++i];
-    } else if (arg.startsWith('--input=')) {
-      inputDir = arg.slice('--input='.length);
-    } else if (arg.startsWith('-')) {
-      throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
-    } else if (/^\d{4}-\d{2}$/.test(arg)) {
-      period = arg;
-    } else if (period) {
-      project = arg;
-    } else {
-      agent = arg;
-    }
-  }
-
-  return { agent: agent ?? 'claude', period, project, dryRun, inputDir };
+/** `--option value` 形式のオプションと ParsedConfig キーのマッピング。 */
+const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
+  '--input': 'inputDir',
+  '--config': 'configFile',
 };
+
+/** `--flag` 形式（値なし）のオプションと ParsedConfig キーのマッピング。 */
+const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
+  '--dry-run': 'dryRun',
+};
+
+/**
+ * コマンドライン引数を解析して ParsedConfig を返す。
+ * - モデルのデフォルト値解決は `main()` で GlobalConfig を取得した後に行う。
+ */
+export const parseArgs = (args: string[]): ParsedConfig => {
+  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+};
+
+// ─────────────────────────────────────────────
+// 設定構築
+// ─────────────────────────────────────────────
+
+/**
+ * ParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
+ * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
+ * - inputDir 優先順位: `parsed.inputDir` > `globalConfig.get('chatlogDir')` > `defaults.inputDir`
+ * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
+ * - period: `parsed` のみ（GlobalConfig 連携なし）
+ * - `configFile` は FilterConfig に存在しないため結果に含まれない。
+ */
+export function buildConfig(
+  parsed: ParsedConfig,
+  globalConfig: GlobalConfig,
+  defaults?: FilterConfig,
+): FilterConfig {
+  const _defaults = defaults ?? DEFAULT_FILTER_CONFIG;
+  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
+  const _inputDir = parsed.inputDir ?? (globalConfig.get('chatlogDir') as string | undefined) ?? _defaults.inputDir;
+  const _chunkSize = parsed.chunkSize ?? (globalConfig.get('chunkSize') as number | undefined) ?? _defaults.chunkSize;
+  const _concurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number | undefined)
+    ?? _defaults.concurrency;
+  const { configFile: _cf, ...rest } = parsed;
+  return {
+    ..._defaults,
+    ...rest,
+    agent: _agent,
+    inputDir: _inputDir,
+    chunkSize: _chunkSize,
+    concurrency: _concurrency,
+  };
+}
 
 // ─────────────────────────────────────────────
 // メイン
@@ -381,18 +396,22 @@ export const parseArgs = (args: string[]): Args => {
 
 export const main = async (args?: string[]): Promise<void> => {
   try {
-    const { agent, period, project, dryRun, inputDir } = parseArgs(args ?? Deno.args);
-    const agentDir = `${inputDir}/${agent}`;
+    const _parsed = parseArgs(args ?? Deno.args);
+    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _config = buildConfig(_parsed, _globalConfig);
+
+    const agentDir = `${_config.inputDir}/${_config.agent}`;
 
     // 入力ディレクトリ確認
     if (!await dirExists(agentDir)) {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
     }
 
-    logger.info(`対象 agent: ${agent}`);
+    logger.info(`対象 agent: ${_config.agent}`);
+    if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
 
     // ファイル列挙
-    const allFiles = await findMdFiles(agentDir, period, project);
+    const allFiles = await findMdFiles(agentDir, _config.period);
 
     // 事前フィルタ
     const targetFiles = await prefilterFiles(allFiles);
@@ -405,15 +424,17 @@ export const main = async (args?: string[]): Promise<void> => {
     }
 
     logger.info(`判定対象ファイル数: ${total}`);
-    if (dryRun) { logger.info('dry-run モード: ファイルは削除しません'); }
+    if (_config.dryRun) { logger.info('dry-run モード: ファイルは削除しません'); }
 
     // チャンク分割して並列処理
     const stats: Stats = { kept: 0, discarded: 0, skipped: 0, error: 0 };
 
-    await runChunked(targetFiles, CHUNK_SIZE, (chunk) => processChunk(chunk, dryRun, stats), CONCURRENCY);
+    const _chunkSize = _config.chunkSize ?? DEFAULT_CHUNK_SIZE;
+    const _concurrency = _config.concurrency ?? DEFAULT_CONCURRENCY;
+    await runChunked(targetFiles, _chunkSize, (chunk) => processChunk(chunk, _config.dryRun, stats), _concurrency);
 
     // サマリー
-    const drySuffix = dryRun ? ' (dry-run)' : '';
+    const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
       `\n完了${drySuffix}: kept=${stats.kept} discarded=${stats.discarded} skipped=${stats.skipped} error=${stats.error}`,
     );
