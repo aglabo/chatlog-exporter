@@ -6,15 +6,13 @@
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
+// ─── BDD modules
 import { assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
-import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
-import { parseConversation } from '../../../../_scripts/libs/text/markdown-utils.ts';
+// ─── Test target
 import {
   type ClaudeResult,
   extractBodyText,
@@ -22,8 +20,19 @@ import {
   isExcludedByFilename,
   parseArgs,
 } from '../../filter-chatlog.ts';
+// types
+import type { ParsedConfig } from '../../types/filter.types.ts';
 
-type Args = ReturnType<typeof parseArgs>;
+// ─── Helpers
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
+import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
+import { parseConversation } from '../../../../_scripts/libs/text/markdown-utils.ts';
+
+// ─── Internal Helpers
+
+// types
+type Args = ParsedConfig;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseArgs
@@ -36,11 +45,10 @@ describe('parseArgs', () => {
     describe('When: parseArgs([]) を呼び出す', () => {
       describe('Then: T-FL-PA-01 - デフォルト値が適用される', () => {
         const _defaultCases: { id: string; field: keyof Args; expected: unknown }[] = [
-          { id: 'T-FL-PA-01-01', field: 'agent', expected: 'claude' },
-          { id: 'T-FL-PA-01-02', field: 'dryRun', expected: false },
-          { id: 'T-FL-PA-01-03', field: 'inputDir', expected: './temp/chatlog' },
+          { id: 'T-FL-PA-01-01', field: 'agent', expected: undefined },
+          { id: 'T-FL-PA-01-02', field: 'dryRun', expected: undefined },
+          { id: 'T-FL-PA-01-03', field: 'inputDir', expected: undefined },
           { id: 'T-FL-PA-01-04', field: 'period', expected: undefined },
-          { id: 'T-FL-PA-01-05', field: 'project', expected: undefined },
         ];
         for (const { id, field, expected } of _defaultCases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
@@ -59,8 +67,6 @@ describe('parseArgs', () => {
         const _cases: { id: string; args: string[]; field: keyof Args; expected: unknown }[] = [
           { id: 'T-FL-PA-02-01', args: ['chatgpt'], field: 'agent', expected: 'chatgpt' },
           { id: 'T-FL-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
-          { id: 'T-FL-PA-04-01', args: ['2026-03', 'my-project'], field: 'project', expected: 'my-project' },
-          { id: 'T-FL-PA-04-02', args: ['2026-03', 'my-project'], field: 'period', expected: '2026-03' },
           { id: 'T-FL-PA-05-01', args: ['--dry-run'], field: 'dryRun', expected: true },
           { id: 'T-FL-PA-06-01', args: ['--input', '/path/to/input'], field: 'inputDir', expected: '/path/to/input' },
           { id: 'T-FL-PA-07-01', args: ['--input=/path/to/input'], field: 'inputDir', expected: '/path/to/input' },
@@ -76,12 +82,11 @@ describe('parseArgs', () => {
 
   // ─── T-FL-PA-08: 複数オプション組み合わせ ────────────────────────────────────
 
-  describe('Given: claude 2026-03 my-proj --dry-run --input ./in を渡す', () => {
+  describe('Given: claude 2026-03 --dry-run --input ./in を渡す', () => {
     it('T-FL-PA-08-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['claude', '2026-03', 'my-proj', '--dry-run', '--input', './in']);
+      const result = parseArgs(['claude', '2026-03', '--dry-run', '--input', './in']);
       assertEquals(result.agent, 'claude');
       assertEquals(result.period, '2026-03');
-      assertEquals(result.project, 'my-proj');
       assertEquals(result.dryRun, true);
       assertEquals(result.inputDir, './in');
     });
@@ -96,6 +101,22 @@ describe('parseArgs', () => {
         ChatlogError,
         'Invalid Args',
       );
+    });
+  });
+
+  // ─── T-FL-PA-10: --config オプション ─────────────────────────────────────────
+
+  describe('Given: --config オプションが渡される', () => {
+    describe('When: parseArgs を呼び出す', () => {
+      describe('Then: configFile フィールドに値が設定される', () => {
+        it('T-FL-PA-10-01: --config cfg.yaml → configFile が "cfg.yaml" になる', () => {
+          assertEquals(parseArgs(['--config', 'cfg.yaml']).configFile, 'cfg.yaml');
+        });
+
+        it('T-FL-PA-10-02: --config=cfg.yaml → configFile が "cfg.yaml" になる', () => {
+          assertEquals(parseArgs(['--config=cfg.yaml']).configFile, 'cfg.yaml');
+        });
+      });
     });
   });
 });
