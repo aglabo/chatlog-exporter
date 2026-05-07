@@ -1,5 +1,5 @@
-// src: skills/_scripts/libs/file-io/backup.ts
-// @(#): ファイルバックアップユーティリティ
+// src: skills/_scripts/libs/file-io/backup-old-path.ts
+// @(#): 既存ファイルを連番バックアップ (.old-NN.md) にリネームするユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -17,7 +17,7 @@
 // functions
 import { fileExists } from './exists-utils.ts';
 // types
-import type { ListDirProvider } from '../../types/providers.types.ts';
+import type { ListDirProvider, StatProvider } from '../../types/providers.types.ts';
 // classes
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
@@ -32,12 +32,24 @@ import { ChatlogError } from '../../classes/ChatlogError.class.ts';
  * @param dir - スキャンするディレクトリパス
  * @returns ファイル名の配列
  */
-export const defaultListDir = async (dir: string): Promise<string[]> => {
-  const names: string[] = [];
-  for await (const entry of Deno.readDir(dir)) {
-    names.push(entry.name);
-  }
-  return names;
+const _defaultListDir = async (dir: string): Promise<string[]> =>
+  (await Array.fromAsync(Deno.readDir(dir))).map((e) => e.name);
+
+/**
+ * ファイル名一覧から `<baseName>.old-NN.md` 形式のスロット番号を検索し、
+ * 次の空きスロット番号を返す。
+ *
+ * @param files    - ディレクトリ内のファイル名一覧
+ * @param baseName - バックアップ対象のベース名（拡張子なし）
+ * @returns 次の空きスロット番号（1〜100、100 は上限超過を示す）
+ */
+const _findNextSlot = (files: string[], baseName: string): number => {
+  const _pattern = new RegExp(`^${baseName}\\.old-(\\d{2})\\.md$`);
+  const _used = files
+    .map((name) => _pattern.exec(name))
+    .filter((m) => m !== null)
+    .map((m) => Number(m![1]));
+  return _used.length === 0 ? 1 : Math.max(..._used) + 1;
 };
 
 // ─────────────────────────────────────────────
@@ -54,31 +66,27 @@ export const defaultListDir = async (dir: string): Promise<string[]> => {
  * - `entry.md`（バックアップなし）→ `entry.old-01.md` にリネーム
  * - `entry.md`（`entry.old-01.md` 既存）→ `entry.old-02.md` にリネーム
  *
- * @param outputPath - バックアップ対象のファイルパス（`.md` 拡張子推奨）
- * @param listDir    - ディレクトリ一覧取得関数（テスト用インジェクション可能、デフォルト: `defaultListDir`）
+ * @param outputPath   - バックアップ対象のファイルパス（`.md` 拡張子推奨）
+ * @param listDir      - ディレクトリ一覧取得関数（テスト用インジェクション可能、デフォルト: `defaultListDir`）
+ * @param statProvider - ファイル存在確認関数（テスト用インジェクション可能、デフォルト: `Deno.stat`）
  * @returns void
  * @throws {Error} バックアップスロットが 99 を超えた場合
  */
 export const backupOldPath = async (
   outputPath: string,
-  listDir: ListDirProvider = defaultListDir,
+  listDir: ListDirProvider = _defaultListDir,
+  statProvider: StatProvider = Deno.stat,
 ): Promise<void> => {
-  if (!await fileExists(outputPath)) {
+  if (!await fileExists(outputPath, statProvider)) {
     return;
   }
 
   const base = outputPath.endsWith('.md') ? outputPath.slice(0, -3) : outputPath;
   const dir = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '.';
   const baseName = base.includes('/') ? base.slice(base.lastIndexOf('/') + 1) : base;
-  const backupPattern = new RegExp(`^${baseName}\\.old-(\\d{2})\\.md$`);
 
-  const files = await listDir(dir);
-  const usedSlots = files
-    .map((name) => backupPattern.exec(name))
-    .filter((m) => m !== null)
-    .map((m) => Number(m![1]));
-
-  const next = usedSlots.length === 0 ? 1 : Math.max(...usedSlots) + 1;
+  const _files = await listDir(dir);
+  const next = _findNextSlot(_files, baseName);
   if (next > 99) { throw new ChatlogError('TooManyBackups', `too many backups for: ${outputPath}`); }
 
   const idx = String(next).padStart(2, '0');
