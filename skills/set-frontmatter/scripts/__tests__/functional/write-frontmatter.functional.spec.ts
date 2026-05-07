@@ -15,6 +15,9 @@ import { stub } from '@std/testing/mock';
 import type { FrontmatterFileMeta, FrontmatterResult, Stats } from '../../set-frontmatter.ts';
 import { writeFrontmatter } from '../../set-frontmatter.ts';
 
+// exists
+import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 
 let tempDir: string;
@@ -213,14 +216,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          let tmpExists = false;
-          try {
-            await Deno.stat(`${filePath}.tmp`);
-            tmpExists = true;
-          } catch {
-            tmpExists = false;
-          }
-          assertEquals(tmpExists, false);
+          assertEquals(await fileOrDirExists(`${filePath}.tmp`), false);
         });
       });
     });
