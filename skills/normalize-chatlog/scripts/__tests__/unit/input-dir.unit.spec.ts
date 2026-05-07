@@ -17,6 +17,10 @@ import {
   validateInputDir,
 } from '../../normalize-chatlog.ts';
 
+// ─── Helpers
+// types
+import type { StatSyncProvider } from '../../../../_scripts/types/providers.types.ts';
+
 // ─── resolveInputDir 単体テスト ────────────────────────────────────────────────
 
 /**
@@ -115,29 +119,29 @@ describe('resolveInputDir', () => {
 // ─── validateInputDir 単体テスト ──────────────────────────────────────────────
 
 describe('validateInputDir', () => {
-  describe('Given: statFn が成功（例外なし）', () => {
+  describe('Given: statProvider がディレクトリ情報を返す', () => {
     it('Then: [正常] - true を返す', () => {
-      const statFn = (_path: string) => ({ isDirectory: true });
-      const result = validateInputDir('/any/path', statFn);
+      const statProvider: StatSyncProvider = (_path: string) => ({ isFile: false, isDirectory: true } as Deno.FileInfo);
+      const result = validateInputDir('/any/path', statProvider);
 
       assertEquals(result, true);
     });
   });
 
-  describe('Given: statFn が例外をスロー', () => {
+  describe('Given: statProvider が NotFound をスロー', () => {
     it('Then: [異常] - false を返す', () => {
-      const statFn = (_path: string): unknown => {
+      const statProvider: StatSyncProvider = (_path: string): Deno.FileInfo => {
         throw new Deno.errors.NotFound('not found');
       };
-      const result = validateInputDir('/nonexistent/path', statFn);
+      const result = validateInputDir('/nonexistent/path', statProvider);
 
       assertEquals(result, false);
     });
   });
 
-  describe('Given: statFn が undefined として渡される', () => {
+  describe('Given: statProvider が undefined として渡される', () => {
     it('Then: [エッジケース] - Deno.statSync をデフォルトとして使用し、存在するディレクトリには true を返す', () => {
-      // undefined を明示的に渡す（falsyフォールバックのテスト）
+      // undefined を明示的に渡す（デフォルト引数のテスト）
       // 実際のFS（カレントディレクトリ "."）を使う
       const result = validateInputDir('.', undefined);
 
@@ -145,7 +149,7 @@ describe('validateInputDir', () => {
     });
   });
 
-  describe('Given: statFn が undefined として渡され、存在しないパス', () => {
+  describe('Given: statProvider が undefined として渡され、存在しないパス', () => {
     it('Then: [エッジケース] - Deno.statSync をデフォルトとして使用し、存在しないパスには false を返す', () => {
       const result = validateInputDir('/nonexistent/path/xyz', undefined);
 

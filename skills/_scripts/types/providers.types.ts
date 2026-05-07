@@ -26,6 +26,9 @@ export type GlobProvider = (pattern: string) => Promise<string[]>;
 /** Deno.stat 互換の関数型。テスト用インジェクションに利用する。 */
 export type StatProvider = (path: string) => Promise<Deno.FileInfo>;
 
+/** Deno.statSync 互換の同期関数型。テスト用インジェクションに利用する。 */
+export type StatSyncProvider = (path: string) => Deno.FileInfo;
+
 /** テキストファイルを読み込む関数の型。テスト用インジェクションに利用する。 */
 export type ReadTextFileProvider = (path: string) => Promise<string>;
 

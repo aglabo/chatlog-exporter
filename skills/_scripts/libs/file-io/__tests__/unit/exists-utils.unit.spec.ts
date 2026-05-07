@@ -8,15 +8,15 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertRejects } from '@std/assert';
+import { assertEquals, assertRejects, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { dirExists, fileExists, fileOrDirExists } from '../../exists-utils.ts';
+import { dirExists, dirExistsSync, fileExists, fileOrDirExists } from '../../exists-utils.ts';
 
 // ─── Helpers
 // types
-import type { StatProvider } from '../../../../types/providers.types.ts';
+import type { StatProvider, StatSyncProvider } from '../../../../types/providers.types.ts';
 
 // ─── Internal Helpers
 
@@ -34,6 +34,24 @@ const _notFoundStat: StatProvider = (_path: string) => Promise.reject(new Deno.e
 /** 権限不足を示す `StatProvider` モック。`Deno.errors.PermissionDenied` をスローする。 */
 const _permissionDeniedStat: StatProvider = (_path: string) =>
   Promise.reject(new Deno.errors.PermissionDenied('permission denied'));
+
+/** ディレクトリとして存在することを示す同期 `StatSyncProvider` モック。`isFile: false, isDirectory: true` を返す。 */
+const _existsDirStatSync: StatSyncProvider = (_path: string) => ({ isFile: false, isDirectory: true } as Deno.FileInfo);
+
+/** ファイルとして存在することを示す同期 `StatSyncProvider` モック。`isFile: true, isDirectory: false` を返す。 */
+const _existsFileStatSync: StatSyncProvider = (
+  _path: string,
+) => ({ isFile: true, isDirectory: false } as Deno.FileInfo);
+
+/** 存在しないパスを示す同期 `StatSyncProvider` モック。`Deno.errors.NotFound` をスローする。 */
+const _notFoundStatSync: StatSyncProvider = (_path: string): Deno.FileInfo => {
+  throw new Deno.errors.NotFound('no such file');
+};
+
+/** 権限不足を示す同期 `StatSyncProvider` モック。`Deno.errors.PermissionDenied` をスローする。 */
+const _permissionDeniedStatSync: StatSyncProvider = (_path: string): Deno.FileInfo => {
+  throw new Deno.errors.PermissionDenied('permission denied');
+};
 
 // ─── Tests
 
@@ -278,6 +296,89 @@ describe('dirExists', () => {
         it('T-LIB-SU-12-01: statProvider が PermissionDenied をスローする場合、そのまま再スローされる', async () => {
           await assertRejects(
             () => dirExists('/restricted/dir', _permissionDeniedStat),
+            Deno.errors.PermissionDenied,
+          );
+        });
+      });
+    });
+  });
+});
+
+/**
+ * `dirExistsSync` 関数のユニットテストスイート。
+ *
+ * `dirExistsSync(path, statProvider?)` は `statProvider` の成否と `isDirectory` フラグで
+ * ディレクトリ存在を同期的に判定し、ディレクトリなら `true`、ファイルや不在なら `false` を返す。
+ *
+ * テスト ID 範囲: T-LIB-SU-13 〜 T-LIB-SU-16
+ *
+ * @see dirExistsSync
+ */
+describe('dirExistsSync', () => {
+  /**
+   * `statProvider` がディレクトリ情報を返す前提条件グループ。
+   *
+   * ディレクトリとして存在するパスに対して `true` が返ることを検証する。
+   */
+  describe('Given: statProvider がディレクトリ情報を返す', () => {
+    /** `dirExistsSync` を呼び出すとき。 */
+    describe('When: dirExistsSync を実行する', () => {
+      /** `true` が返ることを検証する。 */
+      describe('Then: T-LIB-SU-13 - true が返る', () => {
+        it('T-LIB-SU-13-01: statProvider が isDirectory:true を返す場合、true が返る', () => {
+          assertEquals(dirExistsSync('/some/dir', _existsDirStatSync), true);
+        });
+      });
+    });
+  });
+
+  /**
+   * `statProvider` がファイル情報を返す前提条件グループ。
+   *
+   * ファイルとして存在するパスに対して `false` が返ることを検証する（ディレクトリではないため）。
+   */
+  describe('Given: statProvider がファイル情報を返す（isDirectory: false）', () => {
+    /** `dirExistsSync` を呼び出すとき。 */
+    describe('When: dirExistsSync を実行する', () => {
+      /** ファイルはディレクトリではないため `false` が返ることを検証する。 */
+      describe('Then: T-LIB-SU-14 - false が返る', () => {
+        it('T-LIB-SU-14-01: statProvider が isDirectory:false を返す場合、false が返る', () => {
+          assertEquals(dirExistsSync('/some/file.md', _existsFileStatSync), false);
+        });
+      });
+    });
+  });
+
+  /**
+   * `statProvider` が `NotFound` 例外をスローする前提条件グループ。
+   *
+   * パスが存在しない場合に `false` が返ることを検証する。
+   */
+  describe('Given: statProvider が NotFound 例外をスローする', () => {
+    /** `dirExistsSync` を呼び出すとき。 */
+    describe('When: dirExistsSync を実行する', () => {
+      /** `false` が返ることを検証する。 */
+      describe('Then: T-LIB-SU-15 - false が返る', () => {
+        it('T-LIB-SU-15-01: statProvider が NotFound をスローする場合、false が返る', () => {
+          assertEquals(dirExistsSync('/nonexistent/dir', _notFoundStatSync), false);
+        });
+      });
+    });
+  });
+
+  /**
+   * `statProvider` が `NotFound` 以外の例外をスローする前提条件グループ。
+   *
+   * パーミッションエラーなど回復不可能なエラーは握りつぶさず再スローすることを検証する。
+   */
+  describe('Given: statProvider が PermissionDenied 例外をスローする', () => {
+    /** `dirExistsSync` を呼び出すとき。 */
+    describe('When: dirExistsSync を実行する', () => {
+      /** `PermissionDenied` が再スローされることを検証する。 */
+      describe('Then: T-LIB-SU-16 - PermissionDenied が再スローされる', () => {
+        it('T-LIB-SU-16-01: statProvider が PermissionDenied をスローする場合、そのまま再スローされる', () => {
+          assertThrows(
+            () => dirExistsSync('/restricted/dir', _permissionDeniedStatSync),
             Deno.errors.PermissionDenied,
           );
         });
