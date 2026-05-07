@@ -23,6 +23,7 @@ import { SYSTEM_PROMPT } from '../../../filter-chatlog.ts';
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── Internal Helpers
 
@@ -62,7 +63,7 @@ interface FixtureInfo {
 // functions
 /** output.yaml から期待値を読み込む。 */
 const _loadOutput = async (dir: string): Promise<FixtureOutput> => {
-  const content = await Deno.readTextFile(`${dir}/output.yaml`);
+  const content = await readTextFile(`${dir}/output.yaml`);
   return parseYaml(content) as FixtureOutput;
 };
 
@@ -114,7 +115,7 @@ const _buildUserPrompt = (filename: string, body: string): string => {
  * @param fixture - mock_response を持つ FixtureInfo
  */
 const _runMockFixture = async (fixture: FixtureInfo): Promise<void> => {
-  const _inputContent = await Deno.readTextFile(fixture.inputPath);
+  const _inputContent = await readTextFile(fixture.inputPath);
   const { body } = _parseFrontmatter(_inputContent);
   const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
   void _prompt;
@@ -141,7 +142,7 @@ const _runMockFixture = async (fixture: FixtureInfo): Promise<void> => {
  * @param fixture - mock_response を持たない FixtureInfo
  */
 const _runRealFixture = async (fixture: FixtureInfo): Promise<void> => {
-  const _inputContent = await Deno.readTextFile(fixture.inputPath);
+  const _inputContent = await readTextFile(fixture.inputPath);
   const { body } = _parseFrontmatter(_inputContent);
   const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
 
