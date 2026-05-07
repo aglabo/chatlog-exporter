@@ -24,6 +24,7 @@ import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
+import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
@@ -178,7 +179,7 @@ export const prefilterFiles = async (files: string[]): Promise<string[]> => {
 
     let text: string;
     try {
-      text = await Deno.readTextFile(filePath);
+      text = await readTextFile(filePath);
     } catch {
       skipped++;
       continue;
@@ -220,12 +221,7 @@ export const buildBatchPrompt = async (files: string[]): Promise<string> => {
   for (let i = 0; i < files.length; i++) {
     const filePath = files[i];
     const filename = filePath.split(/[/\\]/).pop()!;
-    let text: string;
-    try {
-      text = await Deno.readTextFile(filePath);
-    } catch {
-      text = '';
-    }
+    const text = await readTextFile(filePath);
     const { content } = parseFrontmatterEntries(text);
     const bodyText = extractBodyText(content, MAX_BODY_CHARS);
 
