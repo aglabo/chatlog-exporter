@@ -18,6 +18,8 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 
 // -- helpers --
 import { findFixtureDirs, type IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+// exists
+import { fileExists } from '../../../libs/file-io/exists-utils.ts';
 
 // -- test target --
 import { ChatlogEntry } from '../../ChatlogEntry.class.ts';
@@ -35,12 +37,7 @@ const FIXTURES_DIR = new URL('./fixtures-data/divide-entry', import.meta.url)
   .replace(/^\/([A-Z]:)/, '$1');
 
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
-  try {
-    await Deno.stat(`${dir}/input.md`);
-    return true;
-  } catch {
-    return false;
-  }
+  return await fileExists(`${dir}/input.md`);
 };
 
 async function _loadFixture(

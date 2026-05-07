@@ -6,8 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 const SCRIPT_PATH = new URL('../../classify-chatlog.ts', import.meta.url).pathname;
 const FIXTURE_SYSTEM_DATA = new URL('./fixtures', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
@@ -62,13 +63,9 @@ describe('[AI] main - 短文ファイルの misc 分類', { ignore: !_shouldRunA
           // AI をスキップしたことを stderr の warn ヘッダーで保証
           assertStringIncludes(stderr, '[skip-ai: too-short]');
 
-          const moved = await Deno.stat(`${monthDir}/misc/test-file.md`);
-          assert(moved.isFile);
+          assertEquals(await fileExists(`${monthDir}/misc/test-file.md`), true);
 
-          await assertRejects(
-            () => Deno.stat(`${monthDir}/test-file.md`),
-            Deno.errors.NotFound,
-          );
+          assertEquals(await fileOrDirExists(`${monthDir}/test-file.md`), false);
         });
       });
     });

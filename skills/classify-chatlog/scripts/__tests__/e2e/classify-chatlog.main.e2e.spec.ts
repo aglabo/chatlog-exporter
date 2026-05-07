@@ -36,6 +36,8 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+// exists
+import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
 
@@ -104,8 +106,7 @@ describe('main - dry-run モード', () => {
         it('T-CL-E2E-01-01: 元ファイルが移動せず残っている', async () => {
           await main(['claude', '2026-03', '--dry-run', '--input', inputDir, '--config', configFile]);
 
-          const stat = await Deno.stat(`${monthDir}/chat.md`);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
         it('T-CL-E2E-01-02: "[dry-run]" がログに出力される', async () => {
@@ -158,8 +159,7 @@ describe('main - 正常分類', () => {
         it('T-CL-E2E-02-01: ファイルが app1/ サブディレクトリに移動している', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          const stat = await Deno.stat(`${monthDir}/app1/chat.md`);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(`${monthDir}/app1/chat.md`), true);
         });
 
         it('T-CL-E2E-02-02: 移動先ファイルに "project: \\"app1\\"" が含まれる', async () => {
@@ -310,21 +310,13 @@ describe('main - project 設定済みファイルの実移動', () => {
         it('T-CL-E2E-08-01: existing-project/ にファイルが移動している', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          const stat = await Deno.stat(`${monthDir}/existing-project/chat.md`);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(`${monthDir}/existing-project/chat.md`), true);
         });
 
         it('T-CL-E2E-08-02: 元のパスにファイルが存在しない', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          let srcExists = false;
-          try {
-            await Deno.stat(`${monthDir}/chat.md`);
-            srcExists = true;
-          } catch (e) {
-            if (!(e instanceof Deno.errors.NotFound)) { throw e; }
-          }
-          assertEquals(srcExists, false);
+          assertEquals(await fileOrDirExists(`${monthDir}/chat.md`), false);
         });
       });
     });
@@ -383,14 +375,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
         it('T-CL-E2E-09-02: app1/app1/ ディレクトリが作成されない', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          let doubleNestedExists = false;
-          try {
-            await Deno.stat(`${inputDir}/claude/2026-03/app1/app1`);
-            doubleNestedExists = true;
-          } catch (e) {
-            if (!(e instanceof Deno.errors.NotFound)) { throw e; }
-          }
-          assertEquals(doubleNestedExists, false);
+          assertEquals(await fileOrDirExists(`${inputDir}/claude/2026-03/app1/app1`), false);
         });
       });
     });
@@ -543,8 +528,7 @@ describe('main - AI 失敗フォールバック', () => {
         it('T-CL-E2E-06-01: misc/ にファイルが移動している', async () => {
           await main(['claude', '2026-03', '--input', inputDir, '--config', configFile]);
 
-          const stat = await Deno.stat(`${monthDir}/misc/chat.md`);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(`${monthDir}/misc/chat.md`), true);
         });
 
         it('T-CL-E2E-06-02: 完了ログに moved=1 が含まれる', async () => {

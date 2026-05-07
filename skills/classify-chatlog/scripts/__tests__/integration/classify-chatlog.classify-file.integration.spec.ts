@@ -19,6 +19,8 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
 // types
 import type { ClassifyStats } from '../../types/classify.types.ts';
+// exists
+import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── ヘルパー ────────────────────────────────────────────────────────────────
 
@@ -68,8 +70,7 @@ describe('classifyFile', () => {
 
           await classifyFile(fileMeta, 'app1', false, stats);
 
-          const dstDirStat = await Deno.stat(`${tempDir}/app1`);
-          assertEquals(dstDirStat.isDirectory, true);
+          assertEquals(await dirExists(`${tempDir}/app1`), true);
         });
 
         it('T-CL-CF-02-01: dstPath にファイルが存在する', async () => {
@@ -81,8 +82,7 @@ describe('classifyFile', () => {
 
           await classifyFile(fileMeta, 'app1', false, stats);
 
-          const dstStat = await Deno.stat(`${tempDir}/app1/a.md`);
-          assertEquals(dstStat.isFile, true);
+          assertEquals(await fileExists(`${tempDir}/app1/a.md`), true);
         });
 
         it('T-CL-CF-02-02: srcPath が存在しない', async () => {
@@ -94,14 +94,7 @@ describe('classifyFile', () => {
 
           await classifyFile(fileMeta, 'app1', false, stats);
 
-          let srcStillExists = false;
-          try {
-            await Deno.stat(srcPath);
-            srcStillExists = true;
-          } catch (e) {
-            if (!(e instanceof Deno.errors.NotFound)) { throw e; }
-          }
-          assertEquals(srcStillExists, false, 'srcPath がまだ存在する');
+          assertEquals(await fileOrDirExists(srcPath), false, 'srcPath がまだ存在する');
         });
 
         it('T-CL-CF-02-03: dstPath のテキストに "project: app1" が含まれる', async () => {

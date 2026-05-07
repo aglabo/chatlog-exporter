@@ -49,7 +49,10 @@ describe('classifyFile', () => {
       /** isNoise=true かつ reason にファイル名パターンの説明が含まれることを検証する。 */
       describe('Then: T-PF-CL-01 - isNoise=true が返される', () => {
         it('T-PF-CL-01-01: isNoise が true になる', () => {
-          const { isNoise } = classifyFile('say-ok-and-nothing-else.md', makeValidContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { isNoise } = classifyFile(
+            'say-ok-and-nothing-else.md',
+            makeValidContent(PREFILTER_MIN_CONTENT_LENGTH),
+          );
 
           assertEquals(isNoise, true);
         });

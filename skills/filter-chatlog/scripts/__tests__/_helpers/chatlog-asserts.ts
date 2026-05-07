@@ -10,28 +10,24 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 
+// ─── Helpers
+import { fileExists as _fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+
 /**
  * 指定パスが通常ファイルとして存在することをアサートする。
  *
  * @param path - 確認するファイルの絶対パス
  */
 export const assertFileExists = async (path: string): Promise<void> => {
-  assertEquals((await Deno.stat(path)).isFile, true);
+  assertEquals(await _fileExists(path), true);
 };
 
 /**
  * 指定パスのファイルが存在するかどうかを返す。
  *
- * `Deno.stat` の成否でファイル存在を判定し、存在しない場合は `false` を返す。
+ * `fileOrDirExists` への alias。ファイル・ディレクトリを区別しない。
  *
  * @param path - 確認するファイルの絶対パス
  * @returns ファイルが存在すれば `true`、存在しなければ `false`
  */
-export const fileExists = async (path: string): Promise<boolean> => {
-  try {
-    await Deno.stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-};
+export const fileExists = fileOrDirExists;

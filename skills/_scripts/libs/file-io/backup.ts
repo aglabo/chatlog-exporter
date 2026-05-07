@@ -5,6 +5,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
+
 /**
  * backup.ts — 既存ファイルを連番バックアップ (.old-NN.md) するユーティリティ
  *
@@ -12,8 +13,13 @@
  * リネームする。outputPath が存在しない場合は何もしない。
  */
 
-import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+// --- hared modules
+// functions
+import { fileExists } from './exists-utils.ts';
+// types
 import type { ListDirProvider } from '../../types/providers.types.ts';
+// classes
+import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // 内部ユーティリティ
@@ -57,10 +63,7 @@ export const backupOldPath = async (
   outputPath: string,
   listDir: ListDirProvider = defaultListDir,
 ): Promise<void> => {
-  try {
-    await Deno.stat(outputPath);
-  } catch {
-    // File does not exist → nothing to back up
+  if (!await fileExists(outputPath)) {
     return;
   }
 

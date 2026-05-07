@@ -7,6 +7,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { fileExists } from '../../libs/file-io/exists-utils.ts';
 import { findDirectories } from '../../libs/file-io/find-entries.ts';
 import { normalizePath } from '../../libs/file-io/path-utils.ts';
 
@@ -23,15 +24,10 @@ export type IsFixtureDirProvider = (dir: string) => Promise<boolean>;
 
 /**
  * dir 直下に `input.md` が存在すれば true を返す。
- * ファイルが存在しない場合や stat に失敗した場合は false を返す。
+ * ファイルが存在しない場合は false を返す。`NotFound` 以外のエラーは再スローする。
  */
 export const defaultIsFixtureDir = async (dir: string): Promise<boolean> => {
-  try {
-    await Deno.stat(`${dir}/input.md`);
-    return true;
-  } catch {
-    return false;
-  }
+  return await fileExists(`${dir}/input.md`);
 };
 
 /**

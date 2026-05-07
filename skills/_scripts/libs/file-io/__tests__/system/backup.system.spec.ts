@@ -10,6 +10,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 import { backupOldPath } from '../../backup.ts';
+import { fileExists, fileOrDirExists } from '../../exists-utils.ts';
 
 // ─────────────────────────────────────────────
 // backupOldPath
@@ -64,8 +65,7 @@ describe('backupOldPath', () => {
 
           // assert
           const backupPath = `${tmpDir}/output.old-01.md`;
-          const stat = await Deno.stat(backupPath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(backupPath), true);
         });
 
         it('T-LIB-B-02-02: 元のファイルが存在しなくなる', async () => {
@@ -77,13 +77,7 @@ describe('backupOldPath', () => {
           await backupOldPath(outputPath);
 
           // assert
-          let exists = true;
-          try {
-            await Deno.stat(outputPath);
-          } catch {
-            exists = false;
-          }
-          assertEquals(exists, false);
+          assertEquals(await fileOrDirExists(outputPath), false);
         });
       });
     });
@@ -105,8 +99,7 @@ describe('backupOldPath', () => {
 
           // assert
           const backupPath = `${tmpDir}/output.old-02.md`;
-          const stat = await Deno.stat(backupPath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(backupPath), true);
         });
       });
     });
@@ -129,8 +122,7 @@ describe('backupOldPath', () => {
 
           // assert
           const backupPath = `${subDir}/file.old-01.md`;
-          const stat = await Deno.stat(backupPath);
-          assertEquals(stat.isFile, true);
+          assertEquals(await fileExists(backupPath), true);
         });
       });
     });

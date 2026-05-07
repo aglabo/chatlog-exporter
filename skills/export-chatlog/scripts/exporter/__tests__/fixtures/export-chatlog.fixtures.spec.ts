@@ -24,6 +24,8 @@ import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-
 // types
 import type { IsFixtureDirProvider } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import type { PeriodRange } from '../../../types/filter.types.ts';
+// exists
+import { fileExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── Internal Helpers
 
@@ -53,12 +55,7 @@ const FIXTURES_DIR = new URL('../fixtures-data', import.meta.url)
 // functions
 /**  fixture ディレクトリチェック */
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
-  try {
-    await Deno.stat(`${dir}/input.jsonl`);
-    return true;
-  } catch {
-    return false;
-  }
+  return await fileExists(`${dir}/input.jsonl`);
 };
 
 /** output.yaml が存在する場合に読み込む（edge 系は null） */

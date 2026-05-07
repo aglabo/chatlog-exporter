@@ -18,6 +18,8 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// exists
+import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // test target
 import {
@@ -92,13 +94,7 @@ describe('writeOutput', () => {
       await writeOutput(outputPath, 'content', true, stats);
 
       // assert
-      let fileExists = true;
-      try {
-        await Deno.stat(outputPath);
-      } catch {
-        fileExists = false;
-      }
-      assertEquals(fileExists, false);
+      assertEquals(await fileOrDirExists(outputPath), false);
       assertEquals(stats.success, 0);
     });
   });

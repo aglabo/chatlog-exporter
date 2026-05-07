@@ -22,6 +22,7 @@ import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.
 
 // -- external --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
@@ -143,12 +144,10 @@ const _resolveSearchDir = async (
   // YYYY-MM 形式の場合、YYYY/YYYY-MM 構造にも対応
   const yearDir = `${baseDir}/${period.slice(0, 4)}/${period}`;
   const flatDir = `${baseDir}/${period}`;
-  try {
-    await Deno.stat(yearDir);
+  if (await dirExists(yearDir)) {
     return project ? `${yearDir}/${project}` : yearDir;
-  } catch {
-    return project ? `${flatDir}/${project}` : flatDir;
   }
+  return project ? `${flatDir}/${project}` : flatDir;
 };
 
 export const findMdFiles = async (
@@ -390,13 +389,7 @@ export const main = async (args?: string[]): Promise<void> => {
     const agentDir = `${inputDir}/${agent}`;
 
     // 入力ディレクトリ確認
-    try {
-      const stat = await Deno.stat(agentDir);
-      if (!stat.isDirectory) {
-        throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
-      }
-    } catch (e) {
-      if (e instanceof ChatlogError) { throw e; }
+    if (!await dirExists(agentDir)) {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
     }
 

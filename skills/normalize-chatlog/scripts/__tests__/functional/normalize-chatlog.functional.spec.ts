@@ -158,6 +158,11 @@ describe('segmentChatlog', () => {
 
 // ─── writeOutput tests ────────────────────────────────────────────────────────
 
+// ─── Internal Helpers
+
+/** ファイルとして存在することを示す `stat` スタブ返し値。`fileExists` が `true` を返す前提条件に使用する。 */
+const _existingFileStat = () => Promise.resolve({ isFile: true } as Deno.FileInfo);
+
 /**
  * writeOutput の機能テスト。
  * Deno.stat / Deno.rename / Deno.writeTextFile をモック化し、
@@ -227,7 +232,7 @@ describe('writeOutput', () => {
     describe('When: writeOutput を呼び出す', () => {
       describe('Then: Task T-13-02 - 既存ファイルのリネームと新規書き込み', () => {
         it('T-13-02-01: 既存ファイルを .old-01.md にリネームしてから書き込む', async () => {
-          statStub = stub(Deno, 'stat', () => Promise.resolve({} as Deno.FileInfo));
+          statStub = stub(Deno, 'stat', _existingFileStat);
           const renamedArgs: Array<[string, string]> = [];
           renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
@@ -246,7 +251,7 @@ describe('writeOutput', () => {
         });
 
         it('T-13-02-02: .old-01.md が既にある場合は .old-02.md にリネームする', async () => {
-          statStub = stub(Deno, 'stat', () => Promise.resolve({} as Deno.FileInfo));
+          statStub = stub(Deno, 'stat', _existingFileStat);
           const renamedArgs: Array<[string, string]> = [];
           renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
@@ -314,7 +319,7 @@ describe('writeOutput', () => {
       describe('When: writeOutput を呼び出す', () => {
         describe('Then: Task T-13-05 - バックアップスロット上限超過で Error をスローする', () => {
           it('T-13-05-01: "too many backups" エラーをスローする', async () => {
-            statStub = stub(Deno, 'stat', () => Promise.resolve({} as Deno.FileInfo));
+            statStub = stub(Deno, 'stat', _existingFileStat);
             renameStub = stub(Deno, 'rename', () => Promise.resolve());
             const allSlots = Array.from({ length: 99 }, (_, i) => `entry.old-${String(i + 1).padStart(2, '0')}.md`);
             const stats: Stats = { success: 0, skip: 0, fail: 0 };
