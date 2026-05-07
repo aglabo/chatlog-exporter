@@ -17,3 +17,6 @@ export const OVER_MAX_CHARS_LENGTH = 20000;
 
 /** MAX_BODY_CHARS（8000）＋ヘッダーオーバーヘッド分を加えた結果長の上限。本文切り詰め後のプロンプト全体長の検証に使用する。 */
 export const MAX_PROMPT_LENGTH = 10000;
+
+/** filter-chatlog の CHUNK_SIZE（実運用での最大バッチサイズ）。境界値テストに使用する。 */
+export const CHUNK_SIZE = 10;
