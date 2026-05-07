@@ -21,6 +21,7 @@ import {
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
@@ -65,7 +66,7 @@ const _shouldRunClaude = Deno.env.get('RUN_CLAUDE_TESTS') === '1';
 
 /** output.yaml から期待値を読み込む */
 async function _loadOutput(dir: string): Promise<FixtureOutput> {
-  const content = await Deno.readTextFile(`${dir}/output.yaml`);
+  const content = await readTextFile(`${dir}/output.yaml`);
   return parseYaml(content) as FixtureOutput;
 }
 
@@ -101,7 +102,7 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
 
 /** FrontmatterFileMeta を input.md から構築する */
 async function _makeFrontmatterFileMeta(filePath: string): Promise<FrontmatterFileMeta> {
-  const text = await Deno.readTextFile(filePath);
+  const text = await readTextFile(filePath);
 
   // 簡易フロントマター解析
   const lines = normalizeLine(text).split('\n');
