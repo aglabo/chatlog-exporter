@@ -16,6 +16,7 @@ import type { FrontmatterFileMeta, FrontmatterResult, Stats } from '../../set-fr
 import { writeFrontmatter } from '../../set-frontmatter.ts';
 
 // exists
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
@@ -76,7 +77,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated.includes('---'), true);
         });
 
@@ -101,7 +102,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated.includes("type: 'research'"), true);
         });
 
@@ -114,7 +115,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated.includes("category: 'development'"), true);
         });
 
@@ -127,7 +128,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated.includes('# テスト'), true);
         });
       });
@@ -149,7 +150,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, true, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated, originalContent);
         });
 
@@ -195,7 +196,7 @@ describe('writeFrontmatter', () => {
 
           await writeFrontmatter(fm, result, false, stats);
 
-          const updated = await Deno.readTextFile(filePath);
+          const updated = await readTextFile(filePath);
           assertEquals(updated, originalContent);
         });
       });
