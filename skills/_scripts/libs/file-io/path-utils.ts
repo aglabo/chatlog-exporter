@@ -8,12 +8,9 @@
 
 // utils
 import { getProjectRootDir } from './dir-utils.ts';
-import { fileOrDirExists } from './exists-utils.ts';
 // types
 import type { ResolveConfigPathOptions } from '../../types/file-io.types.ts';
 import type { CommandProvider } from '../../types/providers.types.ts';
-// error class
-import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
@@ -65,13 +62,11 @@ export const isAbsolutePath = (path: string): boolean => {
  * configPath が絶対パスなら正規化して返す。
  * 相対パスなら getProjectRootDir() と結合して正規化して返す。
  * configPath が未指定のときは defaultPath を使用する。
- * 解決したパスが存在しない場合は ChatlogError(InputNotFound) をスローする。
  */
 export const resolveConfigPath = async ({
   configPath,
   defaultPath,
   commandProvider = _DEFAULT_COMMAND_PROVIDER,
-  statProvider,
 }: ResolveConfigPathOptions): Promise<string> => {
   const _path = configPath ?? defaultPath;
   let _resolved: string;
@@ -81,16 +76,5 @@ export const resolveConfigPath = async ({
     const _root = await getProjectRootDir(commandProvider);
     _resolved = normalizePath(`${_root}/${_path}`);
   }
-
-  try {
-    const _exists = await fileOrDirExists(_resolved, statProvider);
-    if (!_exists) {
-      throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
-    }
-  } catch (e) {
-    if (e instanceof ChatlogError) { throw e; }
-    throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
-  }
-
   return _resolved;
 };
