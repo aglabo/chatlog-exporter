@@ -30,13 +30,12 @@ import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // -- internal --
 // constants
-import { DEFAULT_CHUNK_SIZE, DEFAULT_CONCURRENCY } from '../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_FILTER_CONFIG } from './constants/filter.constants.ts';
 // types
 import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 // libs
+import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { findMdFiles } from './libs/find-files.ts';
 import { prefilterFiles } from './libs/prefilter.ts';
 import { processChunk } from './libs/process-chunk.ts';
 
@@ -93,30 +92,35 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
+ * - discardThreshold: `globalConfig.get('discardThreshold')` > `defaults.discardThreshold`
  * - `configFile` は FilterConfig に存在しないため結果に含まれない。
  */
 export const buildConfig = (
   parsed: ParsedConfig,
   globalConfig: GlobalConfig,
-  defaults?: FilterConfig,
+  defaults: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): FilterConfig => {
-  const _defaults = defaults ?? DEFAULT_FILTER_CONFIG;
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
+  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
   const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? _defaults.inputDir;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? defaults.inputDir;
   const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
-  const _chunkSize = parsed.chunkSize ?? (globalConfig.get('chunkSize') as number | undefined) ?? _defaults.chunkSize;
-  const _concurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number | undefined)
-    ?? _defaults.concurrency;
+  const _chunkSize = parsed.chunkSize ?? (globalConfig.get('chunkSize') as number);
+  const _concurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number);
+  const _minCharCount = parsed.minCharCount ?? (globalConfig.get('minCharCount') as number);
+  const _minAssistantChars = parsed.minAssistantChars ?? (globalConfig.get('minAssistantChars') as number);
+  const _discardThreshold = (globalConfig.get('discardThreshold') as number) ?? defaults.discardThreshold;
   const { configFile: _cf, ...rest } = parsed;
   return {
-    ..._defaults,
+    ...defaults,
     ...rest,
     agent: _agent,
     inputDir: _inputDir,
     chatlogsDir: _chatlogsDir,
     chunkSize: _chunkSize,
     concurrency: _concurrency,
+    minCharCount: _minCharCount,
+    minAssistantChars: _minAssistantChars,
+    discardThreshold: _discardThreshold,
   };
 };
 
@@ -142,15 +146,16 @@ export const main = async (args?: string[]): Promise<void> => {
 
     // ファイル列挙
     const _searchDir = resolveChatlogsDir(_config.chatlogsDir, _config.agent, _config.period);
-    const allFiles = await findMdFiles(_searchDir);
+    const allFiles = await findFiles(_searchDir);
 
     // 事前フィルタ
-    const targetFiles = await prefilterFiles(allFiles);
+    const stats = { kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 };
+    const targetFiles = await prefilterFiles(allFiles, _config.minCharCount, _config.minAssistantChars, stats);
 
     const total = targetFiles.length;
     if (total === 0) {
       logger.info(`${LOGGER_HEADER.NO_FILE_FOUND}: 対象ファイルなし`);
-      logger.info('完了: kept=0 discarded=0 skipped=0 error=0');
+      logger.info(`完了: total=${allFiles.length} preSkipped=${stats.preSkipped} kept=0 discarded=0 skipped=0 error=0`);
       return;
     }
 
@@ -158,16 +163,17 @@ export const main = async (args?: string[]): Promise<void> => {
     if (_config.dryRun) { logger.info('dry-run モード: ファイルは削除しません'); }
 
     // チャンク分割して並列処理
-    const stats = { kept: 0, discarded: 0, skipped: 0, error: 0 };
-
-    const _chunkSize = _config.chunkSize ?? DEFAULT_CHUNK_SIZE;
-    const _concurrency = _config.concurrency ?? DEFAULT_CONCURRENCY;
-    await runChunked(targetFiles, _chunkSize, (chunk) => processChunk(chunk, _config.dryRun, stats), _concurrency);
+    await runChunked(
+      targetFiles,
+      _config.chunkSize,
+      (chunk) => processChunk(chunk, _config.dryRun, stats, _config.discardThreshold),
+      _config.concurrency,
+    );
 
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
-      `\n完了${drySuffix}: kept=${stats.kept} discarded=${stats.discarded} skipped=${stats.skipped} error=${stats.error}`,
+      `\n完了${drySuffix}: total=${allFiles.length} preSkipped=${stats.preSkipped} kept=${stats.kept} discarded=${stats.discarded} skipped=${stats.skipped} error=${stats.error}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
