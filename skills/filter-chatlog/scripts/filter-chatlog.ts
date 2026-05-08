@@ -27,7 +27,7 @@ import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
@@ -341,6 +341,7 @@ export const processChunk = async (
 const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
   '--input': 'inputDir',
   '--config': 'configFile',
+  '--chatlogs-dir': 'chatlogsDir',
 };
 
 /** `--flag` 形式（値なし）のオプションと ParsedConfig キーのマッピング。 */
@@ -350,10 +351,21 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
 
 /**
  * コマンドライン引数を解析して ParsedConfig を返す。
- * - モデルのデフォルト値解決は `main()` で GlobalConfig を取得した後に行う。
+ * - `--chatlogs-dir` の値はディレクトリパス形式（`/` を含む）でなければ `ChatlogError(InvalidArgs)` をスローする。
+ * - `chatlogsDir` が未指定の場合は `inputDir` の値をフォールバックとして設定する。
  */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  const _parsed = parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
+    throw new ChatlogError(
+      'InvalidArgs',
+      `--chatlogs-dir にはディレクトリパスを指定してください: ${_parsed.chatlogsDir}`,
+    );
+  }
+  return {
+    ..._parsed,
+    chatlogsDir: _parsed.chatlogsDir ?? _parsed.inputDir,
+  };
 };
 
 // ─────────────────────────────────────────────
@@ -363,7 +375,8 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - inputDir 優先順位: `parsed.inputDir` > `globalConfig.get('chatlogDir')` > `defaults.inputDir`
+ * - chatlogsDir 優先順位: `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
+ * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
  * - `configFile` は FilterConfig に存在しないため結果に含まれない。
@@ -375,7 +388,9 @@ export function buildConfig(
 ): FilterConfig {
   const _defaults = defaults ?? DEFAULT_FILTER_CONFIG;
   const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
-  const _inputDir = parsed.inputDir ?? (globalConfig.get('chatlogDir') as string | undefined) ?? _defaults.inputDir;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? _defaults.inputDir;
+  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
   const _chunkSize = parsed.chunkSize ?? (globalConfig.get('chunkSize') as number | undefined) ?? _defaults.chunkSize;
   const _concurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number | undefined)
     ?? _defaults.concurrency;
@@ -385,6 +400,7 @@ export function buildConfig(
     ...rest,
     agent: _agent,
     inputDir: _inputDir,
+    chatlogsDir: _chatlogsDir,
     chunkSize: _chunkSize,
     concurrency: _concurrency,
   };
@@ -400,7 +416,7 @@ export const main = async (args?: string[]): Promise<void> => {
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    const agentDir = `${_config.inputDir}/${_config.agent}`;
+    const agentDir = `${_config.chatlogsDir ?? _config.inputDir}/${_config.agent}`;
 
     // 入力ディレクトリ確認
     if (!await dirExists(agentDir)) {
