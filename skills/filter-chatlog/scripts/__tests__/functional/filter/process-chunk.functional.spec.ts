@@ -40,7 +40,7 @@ import { fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-i
 /**
  * `processChunk` 関数の機能テストスイート。
  *
- * `processChunk(files, dryRun, stats)` は Claude CLI にバッチ判定を依頼し、
+ * `processChunk(files, dryRun, stats, discardThreshold)` は Claude CLI にバッチ判定を依頼し、
  * DISCARD/KEEP 判定に応じてファイル削除と統計更新を行う。
  *
  * ## 判定ルール
@@ -65,10 +65,10 @@ describe('processChunk', () => {
   /**
    * 初期値がすべて 0 の `Stats` オブジェクトを生成する。
    *
-   * @returns `{ kept: 0, discarded: 0, skipped: 0, error: 0 }` の Stats
+   * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の Stats
    */
   function _makeStats(): Stats {
-    return { kept: 0, discarded: 0, skipped: 0, error: 0 };
+    return { kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 };
   }
 
   /**
@@ -115,7 +115,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], true, stats);
+          await processChunk([filePath], true, stats, DISCARD_THRESHOLD);
           errStub.restore();
           logStub.restore();
 
@@ -134,7 +134,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], true, stats);
+          await processChunk([filePath], true, stats, DISCARD_THRESHOLD);
           errStub.restore();
           logStub.restore();
 
@@ -166,7 +166,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
           logStub.restore();
 
@@ -185,7 +185,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
           logStub.restore();
 
@@ -216,7 +216,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -246,7 +246,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -273,7 +273,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([file1, file2], false, stats);
+          await processChunk([file1, file2], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 2);
@@ -300,7 +300,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -331,7 +331,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -356,10 +356,42 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats);
+          await processChunk([filePath], false, stats, DISCARD_THRESHOLD);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * カスタム discardThreshold=0.5 を使い、confidence=0.6 の DISCARD が削除されることを検証するグループ。
+   *
+   * discardThreshold が引数で制御できることを確認する。
+   */
+  describe('Given: DISCARD 判定 confidence=0.6 と discardThreshold=0.5', () => {
+    /** processChunk([file], false, stats, 0.5) を呼び出すとき。 */
+    describe('When: processChunk([file], false, stats, 0.5) を呼び出す', () => {
+      /** confidence(0.6) >= threshold(0.5) なので DISCARD → stats.discarded が 1 になる。 */
+      describe('Then: T-FL-PCK-09 - stats.discarded が 1 になる', () => {
+        it('T-FL-PCK-09-01: threshold=0.5, confidence=0.6 → stats.discarded === 1', async () => {
+          const filePath = await _createTempFile('j.md');
+          const response = JSON.stringify([
+            { file: 'j.md', decision: 'DISCARD', confidence: 0.6, reason: 'trivial' },
+          ]);
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response)),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const logStub = stub(console, 'log', () => {});
+          const stats = _makeStats();
+
+          await processChunk([filePath], false, stats, 0.5);
+          errStub.restore();
+          logStub.restore();
+
+          assertEquals(stats.discarded, 1);
         });
       });
     });
