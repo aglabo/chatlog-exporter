@@ -1,0 +1,37 @@
+// src: scripts/types/filter.types.ts
+// @(#): filter-chatlog スクリプト固有の型定義
+//
+// Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
+// ─────────────────────────────────────────────
+// 分類設定型
+// ─────────────────────────────────────────────
+
+/** `main` が使用するフィルタ処理の設定。すべてのフィールドに値が入る。 */
+export interface FilterConfig {
+  /** 対象 AI エージェント名（例: `claude`, `chatgpt`）。 */
+  agent: string;
+  /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
+  period?: string;
+  /** チャットログが格納された入力ディレクトリのパス。 */
+  inputDir: string;
+
+  // flags
+  /** `true` のときファイルを削除せず判定結果のみ表示する。 */
+  dryRun: boolean;
+
+  // config.yaml only
+  /** バッチ処理 1 回あたりの最大ファイル数。省略時は `DEFAULT_CHUNK_SIZE` にフォールバック。 */
+  chunkSize?: number;
+  /** 同時実行する claude CLI プロセスの最大並列数。省略時は `DEFAULT_CONCURRENCY` にフォールバック。 */
+  concurrency?: number;
+}
+
+/** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
+export type ParsedConfig = Partial<FilterConfig> & {
+  /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
+  configFile?: string;
+};
