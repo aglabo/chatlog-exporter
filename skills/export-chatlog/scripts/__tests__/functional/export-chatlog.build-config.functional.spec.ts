@@ -23,9 +23,6 @@ import type { ParsedConfig } from '../../types/export-config.types.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-/** ファイル存在チェックを常に `true` で返すスタブ。テスト環境で `statProvider` として使用する。 */
-const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.FileInfo);
-
 /**
  * git コマンドを実行しない `CommandProvider` モック。
  *
@@ -58,7 +55,6 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
     readTextFileProvider: () => Promise.resolve(yaml),
-    statProvider: _existsStat,
     commandProvider: _NoopCommandProvider as unknown as CommandProvider,
     configFile: 'dummy.yaml',
   });
