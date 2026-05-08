@@ -13,14 +13,6 @@ import { findFiles as findFilesLib } from '../../../_scripts/libs/file-io/find-f
 // ファイル列挙
 // ─────────────────────────────────────────────
 
-const _resolveSearchDir = (baseDir: string, period?: string): string => {
-  if (!period) {
-    return baseDir;
-  }
-  return `${baseDir}/${period.slice(0, 4)}/${period}`;
-};
-
-export const findMdFiles = (baseDir: string, period?: string): Promise<string[]> => {
-  const _searchDir = _resolveSearchDir(baseDir, period);
-  return findFilesLib(_searchDir);
+export const findMdFiles = (searchDir: string): Promise<string[]> => {
+  return findFilesLib(searchDir);
 };
