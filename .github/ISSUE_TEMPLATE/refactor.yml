@@ -1,0 +1,176 @@
+name: Refactoring
+description: Improve code structure, readability, or maintainability without changing external behavior.
+title: "[Refactor]"
+labels: ["refactor"]
+assignees: ["atsushifx"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for refactoring work that **does not change external behavior**.
+        If your change adds new functionality or introduces breaking changes, consider an Enhancement issue instead.
+
+  - type: dropdown
+    id: debt_type
+    attributes:
+      label: Technical Debt Classification
+      description: What category of technical debt does this refactoring address?
+      options:
+        - Code duplication — Remove repeated logic
+        - Complexity reduction — Simplify overly complex logic
+        - Dead code removal — Delete unused code or files
+        - API cleanup — Improve interface clarity or consistency
+        - Structural modernization — Adopt current patterns or idioms
+        - Maintainability improvement — General readability or organization
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this refactoring?
+      options:
+        - High (Significantly reduces technical debt or unblocks other work)
+        - Medium (Improves maintainability or developer workflow)
+        - Low (Nice to have, minor cleanup)
+    validations:
+      required: true
+
+  - type: textarea
+    id: target_code_scope
+    attributes:
+      label: Target Scope
+      description: |
+        Identify the exact code to be refactored. Include file paths, module names, class names, or function names where applicable.
+      placeholder: |
+        Files / Directories:
+          - skills/filter-chatlog/scripts/prefilter-chatlog.ts
+          - skills/_scripts/libs/
+
+        Modules / Classes:
+          - prefilter-chatlog module
+
+        Functions:
+          - loadFrontmatter()
+          - checkFilename()
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_refactoring
+    attributes:
+      label: Proposed Refactoring
+      description: |
+        Describe the specific structural or architectural changes. Avoid vague descriptions like "clean up" — explain what changes and why.
+      placeholder: |
+        - Replace `loadFrontmatter()` with shared `parseFrontmatterEntries()` from `_scripts/libs/`
+        - Replace inline filename extraction with `getFileName()` from `path-utils.ts`
+        - Consolidate pattern constants into `patterns.constants.ts`
+    validations:
+      required: true
+
+  - type: textarea
+    id: design_rationale
+    attributes:
+      label: Design Rationale
+      description: Why this approach was chosen over alternatives.
+      placeholder: |
+        - Considered alternatives:
+        - Why they were rejected:
+        - Key trade-offs:
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-Goals
+      description: What is explicitly out of scope for this refactoring.
+      placeholder: |
+        - Not included in this change:
+        - Will be addressed separately:
+
+  - type: textarea
+    id: current_vs_desired
+    attributes:
+      label: Current Structure vs Desired Structure
+      description: Explain how the code is structured now and how it should look after refactoring.
+      placeholder: |
+        Current:  Module owns utility logic that duplicates shared libraries, causing maintenance overhead
+        Desired:  Module delegates to shared libraries and focuses only on its core responsibility
+
+  - type: textarea
+    id: risk_assessment
+    attributes:
+      label: Risk Assessment
+      description: |
+        Identify potential risks introduced by this refactoring.
+      placeholder: |
+        Regression risk:
+          - Behavior differences between old and new implementation (e.g., edge cases in YAML parsing)
+
+        Dependency impact:
+          - Other modules that import the refactored code
+
+        Rollback concern:
+          - Whether the change can be reverted cleanly if issues arise
+
+  - type: textarea
+    id: testing_strategy
+    attributes:
+      label: Testing Strategy
+      description: |
+        Describe how behavioral parity will be verified before and after the refactoring.
+      placeholder: |
+        Unit tests:
+          - Existing unit tests must pass without modification
+
+        Regression validation:
+          - Run `deno task test:unit` before and after to confirm no behavior change
+
+        Manual verification:
+          - Run prefilter-chatlog on sample input and compare output
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact_assessment
+    attributes:
+      label: Impact Assessment
+      description: |
+        Check all that apply. Note: refactoring should not break public behavior.
+        If breaking changes are needed, consider an Enhancement issue instead.
+      options:
+        - label: Affects public API
+        - label: Requires documentation update
+        - label: May introduce breaking changes
+
+  - type: textarea
+    id: benefits_impact
+    attributes:
+      label: Benefits and Impact
+      description: Explain why this refactoring would be valuable.
+      placeholder: |
+        - Reduces duplication, making bug fixes easier to apply in one place
+        - Improves readability and lowers onboarding cost
+        - Shared library test coverage now extends to this module
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Links, related modules, or other supporting info.
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: |
+        This refactoring is considered done when:
+      placeholder: |
+        - [ ] All identified duplicate logic is replaced with shared library calls
+        - [ ] `deno task test:unit` passes without modification
+        - [ ] `dprint fmt --check` passes
+        - [ ] External behavior is identical before and after the change

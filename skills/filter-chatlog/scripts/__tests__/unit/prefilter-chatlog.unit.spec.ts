@@ -1,192 +1,32 @@
 // src: scripts/__tests__/unit/prefilter-chatlog.unit.spec.ts
 // @(#): prefilter-chatlog.ts のユニットテスト
-//       loadFrontmatter / parseConversation / checkFilename /
-//       checkUserContent / checkAssistantContent / parseArgs
+//       parseConversation / checkFilename /
+//       checkUserContent / checkAssistantContent / parseArgs / buildConfig
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals, assertNotEquals, assertThrows } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// test target
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { parseConversation, type Turn } from '../../../../_scripts/libs/text/markdown-utils.ts';
+// ─── Test target
 import {
+  buildConfig,
   checkAssistantContent,
   checkFilename,
   checkUserContent,
-  loadFrontmatter,
-  MIN_ASSISTANT_CHARS,
   parseArgs,
 } from '../../prefilter-chatlog.ts';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// loadFrontmatter
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('loadFrontmatter', () => {
-  // ─── T-PF-LF-01: frontmatter あり → meta と body を正しく分離する ──────────────
-
-  describe('Given: frontmatter 付きのテキスト', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-01 - meta のキー/値が解析され body が分離される', () => {
-        const text = '---\ntitle: テスト\nauthor: bob\n---\n本文\n';
-
-        it('T-PF-LF-01-01: body が "本文\\n" になる', () => {
-          const { content } = loadFrontmatter(text);
-
-          assertEquals(content, '本文\n');
-        });
-
-        it('T-PF-LF-01-02: meta.title が "テスト" になる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['title'], 'テスト');
-        });
-
-        it('T-PF-LF-01-03: meta.author が "bob" になる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['author'], 'bob');
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-02: frontmatter なし → meta={} かつ body=全文 ───────────────────
-
-  describe('Given: "---" で始まらないテキスト', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-02 - meta={} かつ body=全文', () => {
-        const text = '本文のみ\n追加行';
-
-        it('T-PF-LF-02-01: body が入力テキスト全体と等しい', () => {
-          const { content } = loadFrontmatter(text);
-
-          assertEquals(content, text);
-        });
-
-        it('T-PF-LF-02-02: meta が空オブジェクトになる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(Object.keys(meta).length, 0);
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-03: 閉じ区切りなし → meta={} かつ body=全文 ────────────────────
-
-  describe('Given: 開始区切りはあるが閉じ区切りがないテキスト', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-03 - 閉じ区切りなし → body=全文', () => {
-        const text = '---\ntitle: テスト\n本文（閉じ区切りなし）';
-
-        it('T-PF-LF-03-01: body が入力テキスト全体と等しい', () => {
-          const { content } = loadFrontmatter(text);
-
-          assertEquals(content, text);
-        });
-
-        it('T-PF-LF-03-02: meta が空オブジェクトになる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(Object.keys(meta).length, 0);
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-04: frontmatter のみ（body 空） ──────────────────────────────────
-
-  describe('Given: frontmatter のみで本文がないテキスト', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-04 - body="" かつ meta が解析される', () => {
-        const text = '---\ntitle: テスト\n---\n';
-
-        it('T-PF-LF-04-01: body が空文字列になる', () => {
-          const { content } = loadFrontmatter(text);
-
-          assertEquals(content, '');
-        });
-
-        it('T-PF-LF-04-02: meta.title が "テスト" になる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['title'], 'テスト');
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-05: コロンスペースなし行はスキップ ──────────────────────────────
-
-  describe('Given: "key:value"（スペースなし）と "good: ok"（スペースあり）が混在', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-05 - スペースなし行はスキップされる', () => {
-        const text = '---\nkey:value\ngood: ok\n---\nbody';
-
-        it('T-PF-LF-05-01: meta.key が undefined になる（スペースなし行は無視）', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['key'], undefined);
-        });
-
-        it('T-PF-LF-05-02: meta.good が "ok" になる（スペースあり行は正常パース）', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['good'], 'ok');
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-06: スペース始まり行はスキップ ──────────────────────────────────
-
-  describe('Given: インデント行と通常行が混在する frontmatter', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-06 - スペース始まり行は除外される', () => {
-        const text = '---\n  indented: val\ntop: ok\n---\nbody';
-
-        it('T-PF-LF-06-01: meta.indented が undefined になる（インデント行は除外）', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['indented'], undefined);
-        });
-
-        it('T-PF-LF-06-02: meta.top が "ok" になる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['top'], 'ok');
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-LF-07: CRLF 改行の正規化 ───────────────────────────────────────────
-
-  describe('Given: CRLF 改行のテキスト（Windows 形式）', () => {
-    describe('When: loadFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-PF-LF-07 - CRLF が正規化されて正しくパースされる', () => {
-        const text = '---\r\ntitle: テスト\r\n---\r\n本文\r\n';
-
-        it('T-PF-LF-07-01: meta.title が "テスト" になる', () => {
-          const { meta } = loadFrontmatter(text);
-
-          assertEquals(meta['title'], 'テスト');
-        });
-
-        it('T-PF-LF-07-02: body が "本文\\n" になる（CRLF が LF に変換される）', () => {
-          const { content } = loadFrontmatter(text);
-
-          assertEquals(content, '本文\n');
-        });
-      });
-    });
-  });
-});
+// ─── Helpers
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { parseConversation, type Turn } from '../../../../_scripts/libs/text/markdown-utils.ts';
+import { MIN_ASSISTANT_CHARS } from '../../constants/filter.constants.ts';
+// types
+import type { CommandProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseConversation
@@ -780,10 +620,10 @@ describe('parseArgs (prefilter)', () => {
   describe('Given: 引数なしの空配列', () => {
     describe('When: parseArgs([]) を呼び出す', () => {
       describe('Then: T-PF-PA-01 - デフォルト値が適用される', () => {
-        it('T-PF-PA-01-01: agent が "claude" になる', () => {
+        it('T-PF-PA-01-01: agent が undefined になる', () => {
           const result = parseArgs([]);
 
-          assertEquals(result.agent, 'claude');
+          assertEquals(result.agent, undefined);
         });
 
         it('T-PF-PA-01-02: dryRun が false になる', () => {
@@ -792,10 +632,10 @@ describe('parseArgs (prefilter)', () => {
           assertEquals(result.dryRun, false);
         });
 
-        it('T-PF-PA-01-03: inputDir が "./temp/chatlog" になる', () => {
+        it('T-PF-PA-01-03: inputDir が undefined になる', () => {
           const result = parseArgs([]);
 
-          assertEquals(result.inputDir, './temp/chatlog');
+          assertEquals(result.inputDir, undefined);
         });
 
         it('T-PF-PA-01-04: period が undefined になる', () => {
@@ -967,6 +807,175 @@ describe('parseArgs (prefilter)', () => {
             () => parseArgs(['--unknown']),
             ChatlogError,
             'Invalid Args',
+          );
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-PA-12: --chatlogs-dir オプション ───────────────────────────────────
+
+  describe('Given: --chatlogs-dir オプション付き引数', () => {
+    describe('When: parseArgs(["--chatlogs-dir", "/path/to/chatlogs"]) を呼び出す', () => {
+      describe('Then: T-PF-PA-12 - chatlogsDir が設定される', () => {
+        it('T-PF-PA-12-01: chatlogsDir が "/path/to/chatlogs" になる', () => {
+          const result = parseArgs(['--chatlogs-dir', '/path/to/chatlogs']);
+
+          assertEquals(result.chatlogsDir, '/path/to/chatlogs');
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-PA-13: --chatlogs-dir にパスでない値 ───────────────────────────────
+
+  describe('Given: --chatlogs-dir にディレクトリパスでない値', () => {
+    describe('When: parseArgs(["--chatlogs-dir", "notapath"]) を呼び出す', () => {
+      describe('Then: T-PF-PA-13 - ChatlogError(InvalidArgs) がスローされる', () => {
+        it('T-PF-PA-13-01: ChatlogError がスローされる', () => {
+          assertThrows(
+            () => parseArgs(['--chatlogs-dir', 'notapath']),
+            ChatlogError,
+          );
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildConfig
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('buildConfig', () => {
+  /**
+   * git コマンドを実行しない `CommandProvider` モック。
+   *
+   * `GlobalConfig.getInstance()` に渡す `commandProvider` として使用し、
+   * 実際の git rev-parse を発行せずに成功レスポンスを返す。
+   */
+  class _NoopCommandProvider {
+    /** コマンドと引数を受け取るが何も実行しない（インターフェース互換用）。 */
+    constructor(_cmd: string, _opts: { args: string[] }) {}
+
+    /** 常に `{ success: true, code: 0, stdout: 空バイト列 }` を返す。 */
+    output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+      return Promise.resolve({ success: true, code: 0, stdout: new Uint8Array() });
+    }
+  }
+
+  /**
+   * 空の GlobalConfig インスタンスを生成する。
+   *
+   * `GlobalConfig.resetInstance()` でリセットしてから空 YAML で初期化する。
+   *
+   * @returns 初期化済みの `GlobalConfig` インスタンス（空設定）
+   */
+  const _makeEmptyGlobalConfig = async (): Promise<GlobalConfig> => {
+    GlobalConfig.resetInstance();
+    return await GlobalConfig.getInstance({
+      readTextFileProvider: () => Promise.resolve('{}'),
+      commandProvider: _NoopCommandProvider as unknown as CommandProvider,
+      configFile: 'dummy.yaml',
+      schema: {},
+    });
+  };
+
+  let globalConfig: GlobalConfig;
+  beforeEach(async () => {
+    globalConfig = await _makeEmptyGlobalConfig();
+  });
+  afterEach(() => {
+    GlobalConfig.resetInstance();
+  });
+
+  // ─── T-PF-BC-01: 空の Args → デフォルト値が適用される ───────────────────────
+
+  describe('Given: 空の Args オブジェクト', () => {
+    describe('When: buildConfig({ dryRun: false, report: false }, globalConfig) を呼び出す', () => {
+      describe('Then: T-PF-BC-01 - デフォルト値が適用される', () => {
+        it('T-PF-BC-01-01: agent が "claude" になる', () => {
+          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).agent, 'claude');
+        });
+
+        it('T-PF-BC-01-02: inputDir が "./chatlogs" になる', () => {
+          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).inputDir, './chatlogs');
+        });
+
+        it('T-PF-BC-01-03: dryRun が false になる', () => {
+          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).dryRun, false);
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-BC-02: agent を指定 → 指定値が優先される ──────────────────────────
+
+  describe('Given: agent を指定した Args', () => {
+    describe('When: buildConfig({ agent: "codex", dryRun: false, report: false }, globalConfig) を呼び出す', () => {
+      describe('Then: T-PF-BC-02 - 指定した agent が使われる', () => {
+        it('T-PF-BC-02-01: agent が "codex" になる', () => {
+          assertEquals(buildConfig({ agent: 'codex', dryRun: false, report: false }, globalConfig).agent, 'codex');
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-BC-03: dryRun/report フラグ ────────────────────────────────────────
+
+  describe('Given: dryRun=true, report=true の Args', () => {
+    describe('When: buildConfig({ dryRun: true, report: true }, globalConfig) を呼び出す', () => {
+      describe('Then: T-PF-BC-03 - フラグが反映される', () => {
+        it('T-PF-BC-03-01: dryRun が true になる', () => {
+          assertEquals(buildConfig({ dryRun: true, report: true }, globalConfig).dryRun, true);
+        });
+
+        it('T-PF-BC-03-02: report が true になる', () => {
+          assertEquals(buildConfig({ dryRun: true, report: true }, globalConfig).report, true);
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-BC-04: inputDir と chatlogsDir を指定 ──────────────────────────────
+
+  describe('Given: inputDir と chatlogsDir を指定した Args', () => {
+    describe('When: buildConfig({ inputDir: "/path", chatlogsDir: "/chat", ... }, globalConfig) を呼び出す', () => {
+      describe('Then: T-PF-BC-04 - 両フィールドが設定される', () => {
+        it('T-PF-BC-04-01: inputDir が "/path" になる', () => {
+          assertEquals(
+            buildConfig({ inputDir: '/path', chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig)
+              .inputDir,
+            '/path',
+          );
+        });
+
+        it('T-PF-BC-04-02: chatlogsDir が "/chat" になる', () => {
+          assertEquals(
+            buildConfig({ inputDir: '/path', chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig)
+              .chatlogsDir,
+            '/chat',
+          );
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-BC-05: カスタムデフォルト値 ───────────────────────────────────────
+
+  describe('Given: カスタムデフォルト値を渡す', () => {
+    describe('When: buildConfig({...}, globalConfig, customDefaults) を呼び出す', () => {
+      describe('Then: T-PF-BC-05 - カスタムデフォルト値が適用される', () => {
+        it('T-PF-BC-05-01: agent がカスタムデフォルト "chatgpt" になる', () => {
+          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
+          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).agent, 'chatgpt');
+        });
+
+        it('T-PF-BC-05-02: inputDir がカスタムデフォルト "/custom" になる', () => {
+          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
+          assertEquals(
+            buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).inputDir,
+            '/custom',
           );
         });
       });

@@ -20,6 +20,7 @@ import { main } from '../../prefilter-chatlog.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // types
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
@@ -76,6 +77,7 @@ describe('main (prefilter) - dry-run モード', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -128,6 +130,7 @@ describe('main (prefilter) - report モード', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -182,6 +185,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -235,6 +239,7 @@ describe('main (prefilter) - 全件 keep', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -288,6 +293,7 @@ describe('main (prefilter) - 空ディレクトリ', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -341,6 +347,7 @@ describe('main (prefilter) - period 絞り込み', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -393,6 +400,7 @@ describe('main (prefilter) - report 完了ログ', () => {
 
         afterEach(async () => {
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 

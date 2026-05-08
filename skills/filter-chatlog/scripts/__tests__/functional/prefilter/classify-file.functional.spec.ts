@@ -33,7 +33,7 @@ import { PREFILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
  * 3. Assistant 応答が短すぎる（< 100 文字）→ `isNoise=true`
  * 4. 上記いずれにも該当しない → `isNoise=false`
  *
- * テスト ID 範囲: T-PF-CL-01 〜 T-PF-CL-06
+ * テスト ID 範囲: T-PF-CL-01 〜 T-PF-CL-09
  *
  * @see classifyFile
  */
@@ -143,19 +143,101 @@ describe('classifyFile', () => {
   });
 
   /**
-   * frontmatter に `/export-log` を含むが body は正常な会話コンテンツの前提条件グループ。
+   * frontmatter あり・本文が正常な会話の前提条件グループ。
    *
-   * frontmatter はノイズ判定の対象外であり、`isNoise=false` になることを検証する。
+   * `ChatlogEntry` が frontmatter を除いた content のみを会話解析に渡すため、
+   * frontmatter の内容に関わらず `isNoise=false` になることを検証する。
    */
-  describe('Given: frontmatter の title に /export-log が含まれるが body は正常な会話', () => {
+  describe('Given: frontmatter 付きの通常会話テキスト', () => {
     /** classifyFile(filename, text) を呼び出すとき。 */
     describe('When: classifyFile(filename, text) を呼び出す', () => {
       /** frontmatter は会話解析対象外のため isNoise=false であることを検証する。 */
       describe('Then: T-PF-CL-05 - isNoise=false が返される（frontmatter は会話解析対象外）', () => {
         it('T-PF-CL-05-01: isNoise が false になる', () => {
-          const { isNoise } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const text = [
+            '---',
+            'title: テスト会話',
+            'date: 2026-01-01',
+            '---',
+            '',
+            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+          ].join('\n');
+          const { isNoise } = classifyFile('valid-chat.md', text);
 
           assertEquals(isNoise, false);
+        });
+      });
+    });
+  });
+
+  /**
+   * frontmatter の閉じ区切りがない不正フォーマットの前提条件グループ。
+   *
+   * `classifyFile` が `ChatlogEntry` の `InvalidFormat` エラーをキャッチし、
+   * エラーをスローせず安全に処理することを検証する。
+   */
+  describe('Given: frontmatter の閉じ区切りがない不正フォーマットテキスト', () => {
+    /** classifyFile(filename, text) を呼び出すとき。 */
+    describe('When: classifyFile(filename, text) を呼び出す', () => {
+      /** エラーをスローせず isNoise=false が返されることを検証する。 */
+      describe('Then: T-PF-CL-07 - エラーをスローせず isNoise=false が返される', () => {
+        it('T-PF-CL-07-01: エラーをスローしない', () => {
+          const text = [
+            '---',
+            'title: 不正フォーマット',
+            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+          ].join('\n');
+          let threw = false;
+          try {
+            classifyFile('malformed.md', text);
+          } catch {
+            threw = true;
+          }
+
+          assertEquals(threw, false);
+        });
+
+        it('T-PF-CL-07-02: isNoise が false になる（削除対象にしない）', () => {
+          const text = [
+            '---',
+            'title: 不正フォーマット',
+            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+          ].join('\n');
+          const { isNoise } = classifyFile('malformed.md', text);
+
+          assertEquals(isNoise, false);
+        });
+      });
+    });
+  });
+
+  /**
+   * frontmatter あり・本文がノイズ会話の前提条件グループ。
+   *
+   * `ChatlogEntry` が frontmatter を除いた content を渡すため、
+   * ノイズパターンが content から正しく検出されることを検証する。
+   */
+  describe('Given: frontmatter 付きのノイズ会話テキスト', () => {
+    /** classifyFile(filename, text) を呼び出すとき。 */
+    describe('When: classifyFile(filename, text) を呼び出す', () => {
+      /** isNoise=true かつ reason が空でないことを検証する。 */
+      describe('Then: T-PF-CL-08 - isNoise=true が返される', () => {
+        it('T-PF-CL-08-01: isNoise が true になる', () => {
+          const text = [
+            '---',
+            'title: ノイズ会話',
+            '---',
+            '',
+            '### User',
+            '=== GIT LOGS ===\ngit log --oneline',
+            '',
+            '### Assistant',
+            '了解',
+            '',
+          ].join('\n');
+          const { isNoise } = classifyFile('noise-chat.md', text);
+
+          assertEquals(isNoise, true);
         });
       });
     });

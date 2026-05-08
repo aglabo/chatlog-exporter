@@ -13,6 +13,7 @@ import {
   DEFAULT_CONCURRENCY,
 } from '../../../_scripts/constants/defaults.constants.ts';
 import type { FilterConfig } from '../types/filter.types.ts';
+import type { PrefilterConfig } from '../types/prefilter.types.ts';
 
 // ─────────────────────────────────────────────
 // filter-chatlog 固有定数
@@ -30,7 +31,18 @@ export const MIN_CHAR_COUNT = 1000;
 /** isExcludedByContent の Assistant 応答最小文字数閾値（userTurns=1 時）。 */
 export const MIN_ASSISTANT_CHARS_CONTENT = 300;
 
-/** parseArgs で未指定のフィールドに適用するデフォルト設定。 */
+/** prefilter-chatlog の Assistant 応答最小文字数閾値（userTurns=1 時）。 */
+export const MIN_ASSISTANT_CHARS = 100;
+
+/** prefilter-chatlog の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
+export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
+  agent: DEFAULT_AGENT,
+  inputDir: DEFAULT_CHATLOG_DIR,
+  dryRun: false,
+  report: false,
+};
+
+/** filter-chatlog の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
   inputDir: DEFAULT_CHATLOG_DIR,
