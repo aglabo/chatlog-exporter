@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // types
-import type { CommandProvider, StatProvider } from './providers.types.ts';
+import type { CommandProvider } from './providers.types.ts';
 
 // ─────────────────────────────────────────────
 // パス解決系
@@ -21,6 +21,4 @@ export interface ResolveConfigPathOptions {
   defaultPath: string;
   /** コマンドプロバイダ: `Git`用 (テスト用に置き換え可能) */
   commandProvider?: CommandProvider;
-  /** Statプロバイダ: ファイルの状態取得用 */
-  statProvider?: StatProvider;
 }
