@@ -13,14 +13,11 @@ import { assertEquals, assertNotEquals, assertStringIncludes, assertThrows } fro
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import {
-  type ClaudeResult,
-  extractBodyText,
-  isExcludedByContent,
-  isExcludedByFilename,
-  parseArgs,
-} from '../../filter-chatlog.ts';
+import { parseArgs } from '../../filter-chatlog.ts';
+// functions
+import { extractBodyText, isExcludedByContent, isExcludedByFilename } from '../../libs/prefilter.ts';
 // types
+import type { ClaudeResult } from '../../types/filter.types.ts';
 import type { ParsedConfig } from '../../types/filter.types.ts';
 
 // ─── Helpers
