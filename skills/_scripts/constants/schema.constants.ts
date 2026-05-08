@@ -27,6 +27,12 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   chunkSize: 'number',
   /** 同時実行する並列タスク数の上限。 */
   concurrency: 'number',
+  /** コンテンツ最小文字数フィルタ閾値。 */
+  minCharCount: 'number',
+  /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
+  minAssistantChars: 'number',
+  /** DISCARD 判定に必要な最低信頼度スコア（filter-chatlog 使用）。 */
+  discardThreshold: 'number',
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: 'string',
   /** プロンプトテンプレートが置かれたディレクトリのパス。 */
@@ -67,4 +73,10 @@ export const DEFAULT_VALUES: ConfigValues = {
   promptsDir: './assets/prompts',
   /** デフォルトチャットログディレクトリ */
   chatlogsDir: './chatlogs',
+  /** デフォルトコンテンツ最小文字数 */
+  minCharCount: 1000,
+  /** デフォルト Assistant 応答最小文字数 */
+  minAssistantChars: 300,
+  /** デフォルト DISCARD 閾値 */
+  discardThreshold: 0.7,
 } as const;
