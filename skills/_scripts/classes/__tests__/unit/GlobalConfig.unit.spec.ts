@@ -342,40 +342,40 @@ describe('GlobalConfig', () => {
     });
   });
 
-  // ─── chatlogDir ────────────────────────────────────────────────────────────
+  // ─── chatlogsDir ────────────────────────────────────────────────────────────
 
-  describe('chatlogDir', () => {
+  describe('chatlogsDir', () => {
     const _existsStat: StatProvider = (_path) => Promise.resolve({ isFile: true } as Deno.FileInfo);
     const _makeReadOk = (content: string): ReadTextFileProvider => (_path) => Promise.resolve(content);
 
-    it('T-CLS-GC-50: get("chatlogDir") がデフォルト値 "./chatlog" を返す', async () => {
+    it('T-CLS-GC-50: get("chatlogsDir") がデフォルト値 "./chatlogs" を返す', async () => {
       const _config = await GlobalConfig.getInstance();
-      assertEquals(_config.get('chatlogDir'), './chatlog');
+      assertEquals(_config.get('chatlogsDir'), './chatlogs');
     });
 
-    it('T-CLS-GC-51: parseYaml({ chatlogDir: "/custom/chatlog" }) が正しく返す', async () => {
+    it('T-CLS-GC-51: parseYaml({ chatlogsDir: "/custom/chatlog" }) が正しく返す', async () => {
       const _config = await GlobalConfig.getInstance();
-      assertEquals(_config.parseYaml({ chatlogDir: '/custom/chatlog' }), { chatlogDir: '/custom/chatlog' });
+      assertEquals(_config.parseYaml({ chatlogsDir: '/custom/chatlog' }), { chatlogsDir: '/custom/chatlog' });
     });
 
-    it('T-CLS-GC-52: parseYaml({ chatlogDir: null }) が { chatlogDir: "" } を返す', async () => {
+    it('T-CLS-GC-52: parseYaml({ chatlogsDir: null }) が { chatlogsDir: "" } を返す', async () => {
       const _config = await GlobalConfig.getInstance();
-      assertEquals(_config.parseYaml({ chatlogDir: null }), { chatlogDir: '' });
+      assertEquals(_config.parseYaml({ chatlogsDir: null }), { chatlogsDir: '' });
     });
 
-    it('T-CLS-GC-53: parseYaml({ chatlogDir: 42 }) が TypeError をスローする', async () => {
+    it('T-CLS-GC-53: parseYaml({ chatlogsDir: 42 }) が TypeError をスローする', async () => {
       const _config = await GlobalConfig.getInstance();
-      assertThrows(() => _config.parseYaml({ chatlogDir: 42 }), TypeError);
+      assertThrows(() => _config.parseYaml({ chatlogsDir: 42 }), TypeError);
     });
 
-    it('T-CLS-GC-54: loadConfigFile で chatlogDir を含む YAML が正しく変換される', async () => {
+    it('T-CLS-GC-54: loadConfigFile で chatlogsDir を含む YAML が正しく変換される', async () => {
       const _config = await GlobalConfig.getInstance();
       const _result = await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
-        readTextFileProvider: _makeReadOk('chatlogDir: /custom/chatlog\n'),
+        readTextFileProvider: _makeReadOk('chatlogsDir: /custom/chatlog\n'),
         statProvider: _existsStat,
       });
-      assertEquals(_result, { chatlogDir: '/custom/chatlog' });
+      assertEquals(_result, { chatlogsDir: '/custom/chatlog' });
     });
   });
 });
