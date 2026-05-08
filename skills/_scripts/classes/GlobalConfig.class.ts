@@ -19,7 +19,7 @@ import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
 // types
 import type { ConfigSchema, ConfigValues, SchemaValueType } from '../constants/schema.constants.ts';
-import type { CommandProvider, ReadTextFileProvider, StatProvider } from '../types/providers.types.ts';
+import type { CommandProvider, ReadTextFileProvider } from '../types/providers.types.ts';
 // classes
 import { ChatlogError } from './ChatlogError.class.ts';
 
@@ -52,7 +52,6 @@ export class GlobalConfig {
     schema?: ConfigSchema;
     configFile?: string;
     readTextFileProvider?: ReadTextFileProvider;
-    statProvider?: StatProvider;
     commandProvider?: CommandProvider;
   }): Promise<GlobalConfig> {
     if (!GlobalConfig._instance) {
@@ -62,7 +61,6 @@ export class GlobalConfig {
           const _loaded = await GlobalConfig._instance.loadConfigFile({
             configPath: options.configFile,
             readTextFileProvider: options.readTextFileProvider,
-            statProvider: options.statProvider,
             commandProvider: options.commandProvider,
           });
           GlobalConfig._instance._fields = { ...DEFAULT_VALUES, ..._loaded } as ConfigValues;
@@ -114,17 +112,23 @@ export class GlobalConfig {
   async loadConfigFile(options?: {
     configPath?: string;
     readTextFileProvider?: ReadTextFileProvider;
-    statProvider?: StatProvider;
     commandProvider?: CommandProvider;
   }): Promise<Partial<ConfigValues>> {
     const _readTextFile = options?.readTextFileProvider ?? GlobalConfig._DEFAULT_READ_TEXT_FILE;
     const _resolved = await resolveConfigPath({
       configPath: options?.configPath,
       defaultPath: GlobalConfig._DEFAULT_CONFIG_PATH,
-      statProvider: options?.statProvider,
       commandProvider: options?.commandProvider,
     });
-    const _text = await _readTextFile(_resolved);
+    let _text: string;
+    try {
+      _text = await _readTextFile(_resolved);
+    } catch (e) {
+      if (e instanceof Deno.errors.NotFound) {
+        throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
+      }
+      throw e;
+    }
     let _raw: unknown;
     try {
       _raw = parse(_text);

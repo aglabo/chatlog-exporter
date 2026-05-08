@@ -26,8 +26,6 @@ import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.FileInfo);
-
 /** git コマンドを実行しない CommandProvider モック。 */
 class _NoopCommandProvider {
   constructor(_cmd: string, _opts: { args: string[] }) {}
@@ -41,7 +39,6 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
     readTextFileProvider: () => Promise.resolve(yaml),
-    statProvider: _existsStat,
     commandProvider: _NoopCommandProvider as unknown as CommandProvider,
     configFile: 'dummy.yaml',
   });

@@ -16,6 +16,8 @@ import { findMdFiles } from '../../../libs/find-files.ts';
 
 // ─── Helpers
 import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
+// path builder
+import { agentPath } from '../../../../../_scripts/libs/file-io/resolve-directory.ts';
 
 // ─── Internal Helpers
 
@@ -24,9 +26,8 @@ import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
 /**
  * `findMdFiles` 関数の機能テストスイート。
  *
- * `findMdFiles(baseDir, period?)` は YYYY/YYYY-MM/ 構造の
- * ディレクトリから .md ファイルをソート済みで列挙する。
- * `period` 指定で対象月を絞り込む。
+ * `findMdFiles(searchDir)` は指定ディレクトリから .md ファイルをソート済みで列挙する。
+ * period 絞り込みは呼び出し元が `agentPath` で searchDir を組み立てて渡す。
  *
  * テスト ID 範囲: T-FL-FM-01, T-FL-FM-02, T-FL-FM-04
  *
@@ -87,20 +88,21 @@ describe('findMdFiles', () => {
   });
 
   /**
-   * 複数月のディレクトリが存在し、`period` を指定する前提条件グループ。
+   * 複数月のディレクトリが存在し、`agentPath` で period を絞り込む前提条件グループ。
    *
    * 指定月のファイルのみ返され、他月のファイルが除外されることを検証する。
    */
   describe('Given: 複数月のディレクトリがある場合に period 指定', () => {
-    /** findMdFiles(baseDir, "2026-03") を呼び出すとき。 */
-    describe('When: findMdFiles(baseDir, "2026-03") を呼び出す', () => {
+    /** agentPath で組み立てた searchDir を findMdFiles に渡すとき。 */
+    describe('When: agentPath で searchDir を組み立てて findMdFiles を呼び出す', () => {
       /** 指定月のファイルのみ返されることを検証する。 */
       describe('Then: T-FL-FM-02 - 指定月のファイルのみ返される', () => {
         it('T-FL-FM-02-01: period="2026-03" → その月のファイルのみ', async () => {
           await Deno.writeTextFile(`${periodDir1}/chat.md`, '# March');
           await Deno.writeTextFile(`${periodDir2}/chat.md`, '# April');
 
-          const result = await findMdFiles(agentDir, '2026-03');
+          const searchDir = `${tempDir}/${agentPath('claude', '2026-03')}`;
+          const result = await findMdFiles(searchDir);
 
           assertEquals(result.length, 1);
           assertEquals(result[0].includes('2026-03'), true);

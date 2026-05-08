@@ -26,9 +26,6 @@ import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class
 
 // ─── Internal Helpers
 
-/** ファイル存在チェックを常に `true` で返すスタブ。テスト環境で `statProvider` として使用する。 */
-const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.FileInfo);
-
 /**
  * git コマンドを実行しない `CommandProvider` モック。
  *
@@ -58,7 +55,6 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
     readTextFileProvider: () => Promise.resolve(yaml),
-    statProvider: _existsStat,
     commandProvider: _NoopCommandProvider as unknown as CommandProvider,
     configFile: 'dummy.yaml',
   });

@@ -15,7 +15,7 @@ import { GlobalConfig } from '../../GlobalConfig.class.ts';
 
 // --- Helper
 // stub providers
-import type { ReadTextFileProvider, StatProvider } from '../../../types/providers.types.ts';
+import type { ReadTextFileProvider } from '../../../types/providers.types.ts';
 // constants
 import { DEFAULT_CONFIG_FILE } from '../../../constants/defaults.constants.ts';
 // classes
@@ -186,15 +186,14 @@ describe('GlobalConfig', () => {
   describe('loadConfigFile', () => {
     // ─── test helpers ───────────────────────────────────────────────────────
     const _makeReadOk = (content: string): ReadTextFileProvider => (_path: string) => Promise.resolve(content);
-    const _existsStat: StatProvider = (_path: string) => Promise.resolve({ isFile: true } as Deno.FileInfo);
-    const _notFoundStat: StatProvider = (_path: string) => Promise.reject(new Deno.errors.NotFound('no such file'));
+    /** ファイル未存在を模倣する `ReadTextFileProvider`。`loadConfigFile` の NotFound 捕捉をテストする。 */
+    const _notFoundRead: ReadTextFileProvider = () => Promise.reject(new Deno.errors.NotFound('no such file'));
 
     it('T-CLS-GC-30: configPath に絶対パスを渡す → YAMLを読み込んで Partial を返す', async () => {
       const _config = await GlobalConfig.getInstance();
       const _result = await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
         readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-        statProvider: _existsStat,
       });
       assertEquals(_result, { agent: 'chatgpt' });
     });
@@ -209,7 +208,6 @@ describe('GlobalConfig', () => {
       await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
         readTextFileProvider: _trackingRead,
-        statProvider: _existsStat,
       });
       assertEquals(_calledPath, '/mock/config.yaml');
     });
@@ -219,7 +217,6 @@ describe('GlobalConfig', () => {
       await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
         readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-        statProvider: _existsStat,
       });
       assertEquals(_config.get('agent'), 'claude');
     });
@@ -230,19 +227,17 @@ describe('GlobalConfig', () => {
       const _result = await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
         readTextFileProvider: _makeReadOk(_yaml),
-        statProvider: _existsStat,
       });
       assertEquals(_result, { agent: 'chatgpt', timeoutMs: 60000 });
     });
 
-    it('T-CLS-GC-34: statProvider が NotFound → ChatlogError の kind が FileDirNotFound で reject', async () => {
+    it('T-CLS-GC-34: readTextFileProvider が NotFound → ChatlogError の kind が FileDirNotFound で reject', async () => {
       const _config = await GlobalConfig.getInstance();
       const _err = await assertRejects(
         () =>
           _config.loadConfigFile({
             configPath: '/mock/missing.yaml',
-            readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-            statProvider: _notFoundStat,
+            readTextFileProvider: _notFoundRead,
           }),
         ChatlogError,
       );
@@ -256,7 +251,6 @@ describe('GlobalConfig', () => {
           _config.loadConfigFile({
             configPath: '/mock/config.yaml',
             readTextFileProvider: _makeReadOk('key: [unclosed'),
-            statProvider: _existsStat,
           }),
         ChatlogError,
       );
@@ -270,7 +264,6 @@ describe('GlobalConfig', () => {
           _config.loadConfigFile({
             configPath: '/mock/config.yaml',
             readTextFileProvider: _makeReadOk('just a string\n'),
-            statProvider: _existsStat,
           }),
         ChatlogError,
       );
@@ -284,7 +277,6 @@ describe('GlobalConfig', () => {
           _config.loadConfigFile({
             configPath: '/mock/config.yaml',
             readTextFileProvider: _makeReadOk('unknownKey: someValue\n'),
-            statProvider: _existsStat,
           }),
         ChatlogError,
       );
@@ -295,9 +287,9 @@ describe('GlobalConfig', () => {
   // ─── getInstance with configFile ───────────────────────────────────────────
 
   describe('getInstance with configFile', () => {
-    const _existsStat: StatProvider = (_path) => Promise.resolve({ isFile: true } as Deno.FileInfo);
-    const _notFoundStat: StatProvider = (_path) => Promise.reject(new Deno.errors.NotFound('no such file'));
     const _makeReadOk = (content: string): ReadTextFileProvider => (_path) => Promise.resolve(content);
+    /** ファイル未存在を模倣する `ReadTextFileProvider`。`getInstance` の NotFound 無視をテストする。 */
+    const _notFoundRead: ReadTextFileProvider = () => Promise.reject(new Deno.errors.NotFound('no such file'));
 
     it('T-CLS-GC-40: 引数なしで呼ぶと get("agent") が DEFAULT_VALUES の値を返す', async () => {
       const _config = await GlobalConfig.getInstance();
@@ -308,7 +300,6 @@ describe('GlobalConfig', () => {
       const _config = await GlobalConfig.getInstance({
         configFile: '/mock/config.yaml',
         readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-        statProvider: _existsStat,
       });
       assertEquals(_config.get('agent'), 'chatgpt');
     });
@@ -316,8 +307,7 @@ describe('GlobalConfig', () => {
     it('T-CLS-GC-42: configFile 指定+存在しない → エラーなし、get("agent") が DEFAULT_VALUES の値を返す', async () => {
       const _config = await GlobalConfig.getInstance({
         configFile: '/mock/missing.yaml',
-        readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-        statProvider: _notFoundStat,
+        readTextFileProvider: _notFoundRead,
       });
       assertEquals(_config.get('agent'), 'claude');
     });
@@ -328,7 +318,6 @@ describe('GlobalConfig', () => {
           GlobalConfig.getInstance({
             configFile: '/mock/config.yaml',
             readTextFileProvider: _makeReadOk('key: [unclosed'),
-            statProvider: _existsStat,
           }),
         ChatlogError,
       );
@@ -345,7 +334,6 @@ describe('GlobalConfig', () => {
   // ─── chatlogsDir ────────────────────────────────────────────────────────────
 
   describe('chatlogsDir', () => {
-    const _existsStat: StatProvider = (_path) => Promise.resolve({ isFile: true } as Deno.FileInfo);
     const _makeReadOk = (content: string): ReadTextFileProvider => (_path) => Promise.resolve(content);
 
     it('T-CLS-GC-50: get("chatlogsDir") がデフォルト値 "./chatlogs" を返す', async () => {
@@ -373,7 +361,6 @@ describe('GlobalConfig', () => {
       const _result = await _config.loadConfigFile({
         configPath: '/mock/config.yaml',
         readTextFileProvider: _makeReadOk('chatlogsDir: /custom/chatlog\n'),
-        statProvider: _existsStat,
       });
       assertEquals(_result, { chatlogsDir: '/custom/chatlog' });
     });

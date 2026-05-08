@@ -7,15 +7,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/**
- * `YYYY-MM` 形式の期間文字列を `YYYY/YYYY-MM` のディレクトリパス断片に変換する。
- *
- * @param period - 対象月（YYYY-MM 形式、例: '2026-03'）
- * @returns ディレクトリパス断片（例: '2026/2026-03'）
- */
-export const periodToPath = (period: string): string => {
-  return `${period.slice(0, 4)}/${period}`;
-};
+import { agentPath } from '../../../../_scripts/libs/file-io/resolve-directory.ts';
 
 /**
  * フロントマターのみ（本文なし）の Markdown を生成する。
@@ -93,10 +85,10 @@ export const makePeriodDir = async (
 
   const tempDir = await Deno.makeTempDir();
 
-  const periodDir1 = `${tempDir}/${agent}/${periodToPath(period1)}`;
+  const periodDir1 = `${tempDir}/${agentPath(agent, period1)}`;
   await Deno.mkdir(periodDir1, { recursive: true });
 
-  const periodDir2 = `${tempDir}/${agent}/${periodToPath(period2)}`;
+  const periodDir2 = `${tempDir}/${agentPath(agent, period2)}`;
   await Deno.mkdir(periodDir2, { recursive: true });
 
   return { tempDir, periodDir1, periodDir2 };
@@ -117,7 +109,7 @@ export const makeTestDirs = async (agent = 'claude', period = '2026-03'): Promis
   chatlogsDir: string;
 }> => {
   const tempDir = await Deno.makeTempDir();
-  const chatlogsDir = `${tempDir}/${agent}/${periodToPath(period)}`;
+  const chatlogsDir = `${tempDir}/${agentPath(agent, period)}`;
   await Deno.mkdir(chatlogsDir, { recursive: true });
   return { tempDir, chatlogsDir };
 };

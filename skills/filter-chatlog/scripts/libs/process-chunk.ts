@@ -7,14 +7,14 @@
 // https://opensource.org/licenses/MIT
 
 // ─── external ───
+import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
-import { DISCARD_THRESHOLD } from '../constants/filter.constants.ts';
+import { DISCARD_THRESHOLD, SYSTEM_PROMPT } from '../constants/filter.constants.ts';
 import type { ClaudeResult, Stats } from '../types/filter.types.ts';
 import { buildBatchPrompt } from './batch-prompt.ts';
-import { runClaude } from './claude-runner.ts';
 
 // ─────────────────────────────────────────────
 // チャンク処理
@@ -29,9 +29,9 @@ export const processChunk = async (
 
   let rawResult: string;
   try {
-    rawResult = await runClaude(batchPrompt);
+    rawResult = await runAI(SYSTEM_PROMPT, batchPrompt);
   } catch (e) {
-    logger.warn(`  警告: claude CLI 実行失敗。チャンク内ファイルをすべて KEEP 扱い`);
+    logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  error: ${e}`);
     for (const f of chunkFiles) {
       logger.info(`  kept (claude error): ${f.split(/[/\\]/).pop()}`);
@@ -42,7 +42,7 @@ export const processChunk = async (
 
   const parsed = parseJsonArray<ClaudeResult>(rawResult);
   if (!parsed) {
-    logger.warn(`  警告: JSON パース失敗。チャンク内ファイルをすべて KEEP 扱い`);
+    logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
     for (const f of chunkFiles) {
       logger.info(`  kept (parse error): ${f.split(/[/\\]/).pop()}`);

@@ -11,7 +11,13 @@ import { assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
-import { getDirectory, getFileName, isAbsolutePath, normalizePath, resolveConfigPath } from '../../path-utils.ts';
+import {
+  getDirectory,
+  getFileName,
+  isAbsolutePath,
+  normalizePath,
+  resolveConfigPath,
+} from '../../path-utils.ts';
 
 // -- test helpers --
 import {
@@ -19,16 +25,9 @@ import {
   makeSuccessMock,
 } from '../../../../__tests__/helpers/deno-command-mock.ts';
 // providers for
-import type { CommandProvider, StatProvider } from '../../../../types/providers.types.ts';
+import type { CommandProvider } from '../../../../types/providers.types.ts';
 // error class
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
-
-// ─────────────────────────────────────────────
-// shared mocks
-// ─────────────────────────────────────────────
-
-const _existsStat: StatProvider = (_path: string) =>
-  Promise.resolve({ isFile: true, isDirectory: false } as Deno.FileInfo);
 
 // ─────────────────────────────────────────────
 // normalizePath
@@ -342,7 +341,6 @@ describe('resolveConfigPath', () => {
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '/home/user/config.yaml',
-              statProvider: _existsStat,
             }),
             '/home/user/config.yaml',
           );
@@ -359,7 +357,6 @@ describe('resolveConfigPath', () => {
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'C:\\Users\\foo\\config.yaml',
-              statProvider: _existsStat,
             }),
             'C:/Users/foo/config.yaml',
           );
@@ -379,7 +376,6 @@ describe('resolveConfigPath', () => {
               defaultPath: 'default.yaml',
               configPath: 'config/settings.yaml',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/config/settings.yaml',
           );
@@ -395,7 +391,6 @@ describe('resolveConfigPath', () => {
           assertEquals(
             await resolveConfigPath({
               defaultPath: '/home/user/project/default.yaml',
-              statProvider: _existsStat,
             }),
             '/home/user/project/default.yaml',
           );
@@ -414,7 +409,6 @@ describe('resolveConfigPath', () => {
             await resolveConfigPath({
               defaultPath: 'config/default.yaml',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/config/default.yaml',
           );
@@ -452,7 +446,6 @@ describe('resolveConfigPath', () => {
               defaultPath: 'default.yaml',
               configPath: '',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/',
           );
@@ -472,7 +465,6 @@ describe('resolveConfigPath', () => {
               defaultPath: 'default.yaml',
               configPath: 'assets/dics',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/assets/dics',
           );
@@ -489,7 +481,6 @@ describe('resolveConfigPath', () => {
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '/home/user/data',
-              statProvider: _existsStat,
             }),
             '/home/user/data',
           );
@@ -509,7 +500,6 @@ describe('resolveConfigPath', () => {
               defaultPath: 'default.yaml',
               configPath: 'assets/dics/',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/assets/dics/',
           );
@@ -528,7 +518,6 @@ describe('resolveConfigPath', () => {
             await resolveConfigPath({
               defaultPath: 'assets/dics',
               commandProvider: _mock as unknown as CommandProvider,
-              statProvider: _existsStat,
             }),
             '/home/user/project/assets/dics',
           );
@@ -537,82 +526,18 @@ describe('resolveConfigPath', () => {
     });
   });
 
-  describe('Given: configPath の絶対パスが存在しない', () => {
-    describe('When: resolveConfigPath を実行する（statProvider が NotFound を返す）', () => {
-      describe('Then: T-LIB-U-14-12 - ChatlogError(InputNotFound) で reject する', () => {
-        it('T-LIB-U-14-12: 絶対パスが存在しない場合 ChatlogError(InputNotFound) が throw される', async () => {
-          const _notFoundStat = () => Promise.reject(new Deno.errors.NotFound('no such file'));
-          await assertRejects(
-            () =>
-              resolveConfigPath({
-                defaultPath: 'default.yaml',
-                configPath: '/nonexistent/config.yaml',
-                statProvider: _notFoundStat,
-              }),
-            ChatlogError,
-            'File Or Dir Not Found',
-          );
-        });
-      });
-    });
-  });
-
-  describe('Given: 相対パスを解決した結果のパスが存在しない', () => {
-    describe('When: resolveConfigPath を実行する（statProvider が NotFound を返す）', () => {
-      describe('Then: T-LIB-U-14-13 - ChatlogError(InputNotFound) で reject する', () => {
-        it('T-LIB-U-14-13: 相対パス解決後のパスが存在しない場合 ChatlogError(InputNotFound) が throw される', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
-          const _notFoundStat = () => Promise.reject(new Deno.errors.NotFound('no such file'));
-          await assertRejects(
-            () =>
-              resolveConfigPath({
-                defaultPath: 'default.yaml',
-                configPath: 'config/missing.yaml',
-                commandProvider: _mock as unknown as CommandProvider,
-                statProvider: _notFoundStat,
-              }),
-            ChatlogError,
-            'File Or Dir Not Found',
-          );
-        });
-      });
-    });
-  });
-
-  describe('Given: configPath 未指定で defaultPath 解決後のパスが存在しない', () => {
-    describe('When: resolveConfigPath を実行する（statProvider が NotFound を返す）', () => {
-      describe('Then: T-LIB-U-14-14 - ChatlogError(InputNotFound) で reject する', () => {
-        it('T-LIB-U-14-14: defaultPath 解決後のパスが存在しない場合 ChatlogError(InputNotFound) が throw される', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
-          const _notFoundStat = () => Promise.reject(new Deno.errors.NotFound('no such file'));
-          await assertRejects(
-            () =>
-              resolveConfigPath({
-                defaultPath: 'config/default.yaml',
-                commandProvider: _mock as unknown as CommandProvider,
-                statProvider: _notFoundStat,
-              }),
-            ChatlogError,
-            'File Or Dir Not Found',
-          );
-        });
-      });
-    });
-  });
-
-  describe('Given: configPath の絶対パスが存在する', () => {
-    describe('When: resolveConfigPath を実行する（statProvider が成功を返す）', () => {
-      describe('Then: T-LIB-U-14-15 - 正規化されたパスが返る', () => {
-        it('T-LIB-U-14-15: statProvider が成功を返す場合、正規化されたパスが返る', async () => {
+  describe('Given: configPath に絶対パスを指定し statProvider を渡さない', () => {
+    /** `statProvider` なしでパス解決のみ行うことを検証する。 */
+    describe('When: resolveConfigPath を実行する', () => {
+      /** statProvider 不要でも正規化パスが返ることを確認する。 */
+      describe('Then: T-LIB-U-14-16 - statProvider 未指定でも正規化パスが返る', () => {
+        it('T-LIB-U-14-16: statProvider 未指定でも /home/user/config.yaml が返る', async () => {
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'default.yaml',
-              configPath: '/existing/config.yaml',
-              statProvider: _existsStat,
+              configPath: '/home/user/config.yaml',
             }),
-            '/existing/config.yaml',
+            '/home/user/config.yaml',
           );
         });
       });
