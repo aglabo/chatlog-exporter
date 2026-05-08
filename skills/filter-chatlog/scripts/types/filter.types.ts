@@ -37,3 +37,23 @@ export type ParsedConfig = Partial<FilterConfig> & {
   /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
   configFile?: string;
 };
+
+// ─────────────────────────────────────────────
+// Claude CLI 判定結果型
+// ─────────────────────────────────────────────
+
+/** Claude CLI が返すファイル単位の判定結果。 */
+export interface ClaudeResult {
+  file: string;
+  decision: 'KEEP' | 'DISCARD';
+  confidence: number;
+  reason: string;
+}
+
+/** バッチ処理全体の処理統計。 */
+export interface Stats {
+  kept: number;
+  discarded: number;
+  skipped: number;
+  error: number;
+}
