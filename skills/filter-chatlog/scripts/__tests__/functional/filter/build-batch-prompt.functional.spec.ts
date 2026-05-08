@@ -12,7 +12,7 @@ import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildBatchPrompt } from '../../../filter-chatlog.ts';
+import { buildBatchPrompt } from '../../../libs/batch-prompt.ts';
 // types
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 

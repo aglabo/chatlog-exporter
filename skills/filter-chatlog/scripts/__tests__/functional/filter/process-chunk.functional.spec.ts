@@ -14,9 +14,11 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { DISCARD_THRESHOLD, processChunk } from '../../../filter-chatlog.ts';
+import { processChunk } from '../../../libs/process-chunk.ts';
+// constants
+import { DISCARD_THRESHOLD } from '../../../constants/filter.constants.ts';
 // types
-import type { Stats } from '../../../filter-chatlog.ts';
+import type { Stats } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 import {

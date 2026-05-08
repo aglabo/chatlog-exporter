@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { prefilterFiles } from '../../../filter-chatlog.ts';
+import { prefilterFiles } from '../../../libs/prefilter.ts';
 
 // ─── Helpers
 import { makePeriodDir, makeRepeatedContent } from '../../_helpers/chatlog-fixtures.ts';
