@@ -19,7 +19,7 @@ export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
 // ディレクトリ
 // ─────────────────────────────────────────────
 
-/** config.yaml の chatlogDir に対応するデフォルトのチャットログ出力ディレクトリ。 */
+/** config.yaml の chatlogsDir に対応するデフォルトのチャットログ出力ディレクトリ。 */
 export const DEFAULT_CHATLOG_DIR = './chatlogs';
 
 // ─────────────────────────────────────────────
