@@ -18,9 +18,6 @@ import { parse as parseYaml } from '@std/yaml';
 import { runAI } from '../../../../../_scripts/libs/ai/run-ai.ts';
 import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 
-// constants
-import { SYSTEM_PROMPT } from '../../../constants/filter.constants.ts';
-
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
@@ -28,6 +25,13 @@ import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts
 // ─── Internal Helpers
 
 // constants
+/** Real AI テスト用システムプロンプト（process-chunk.ts の _SYSTEM_PROMPT と同値）。 */
+const _SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+[{"file":"<filename>","decision":"KEEP or DISCARD","confidence":0.0,"reason":"..."},...]
+
+KEEP: design decisions, reusable patterns, new concepts, architecture discussion
+DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
+
 /** fixtures-data/fixtures/mock の絶対パス（Windows パス正規化済み）。 */
 const MOCK_FIXTURES_DIR = new URL('./fixtures-data/fixtures/mock', import.meta.url)
   .pathname
@@ -146,7 +150,7 @@ const _runRealFixture = async (fixture: FixtureInfo): Promise<void> => {
   const { body } = _parseFrontmatter(_inputContent);
   const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
 
-  const _rawResult = await runAI(SYSTEM_PROMPT, _prompt);
+  const _rawResult = await runAI(_SYSTEM_PROMPT, _prompt);
   const _parsed = parseJsonArray<ClaudeResult>(_rawResult);
   if (!_parsed || _parsed.length === 0) { return; }
   const _result = _parsed[0];
