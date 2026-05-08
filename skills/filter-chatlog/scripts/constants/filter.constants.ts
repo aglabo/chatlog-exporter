@@ -24,12 +24,11 @@ export const DISCARD_THRESHOLD = 0.7;
 /** バッチプロンプトに含める本文の最大文字数。 */
 export const MAX_BODY_CHARS = 8000;
 
-/** Claude CLI に渡すシステムプロンプト。 */
-export const SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
-[{"file":"<filename>","decision":"KEEP or DISCARD","confidence":0.0,"reason":"..."},...]
+/** isExcludedByContent のコンテンツ最小文字数フィルタ閾値。 */
+export const MIN_CHAR_COUNT = 1000;
 
-KEEP: design decisions, reusable patterns, new concepts, architecture discussion
-DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
+/** isExcludedByContent の Assistant 応答最小文字数閾値（userTurns=1 時）。 */
+export const MIN_ASSISTANT_CHARS_CONTENT = 300;
 
 /** parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
@@ -39,4 +38,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   // config.yaml only
   chunkSize: DEFAULT_CHUNK_SIZE,
   concurrency: DEFAULT_CONCURRENCY,
+  minCharCount: MIN_CHAR_COUNT,
+  minAssistantChars: MIN_ASSISTANT_CHARS_CONTENT,
+  discardThreshold: DISCARD_THRESHOLD,
 };

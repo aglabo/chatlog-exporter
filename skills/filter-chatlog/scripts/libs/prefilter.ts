@@ -13,8 +13,10 @@ import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter
 import { parseConversation } from '../../../_scripts/libs/text/markdown-utils.ts';
 
 // ─── internal ───
-import { MAX_BODY_CHARS } from '../constants/filter.constants.ts';
+import { MAX_BODY_CHARS, MIN_ASSISTANT_CHARS_CONTENT, MIN_CHAR_COUNT } from '../constants/filter.constants.ts';
 import { EXCLUDE_FILENAME_PATTERNS_STR, SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
+// types
+import type { Stats } from '../types/filter.types.ts';
 
 // ─────────────────────────────────────────────
 // 事前フィルタ関数
@@ -32,8 +34,8 @@ export const isExcludedByFilename = (filename: string): boolean => {
 
 export const isExcludedByContent = (
   body: string,
-  minCharCount = 1000,
-  minAssistantChars = 300,
+  minCharCount = MIN_CHAR_COUNT,
+  minAssistantChars = MIN_ASSISTANT_CHARS_CONTENT,
 ): { excluded: boolean; reason: string } => {
   if (body.length < minCharCount) {
     return { excluded: true, reason: `本文が短すぎる (${body.length} < ${minCharCount} 文字)` };
@@ -72,7 +74,21 @@ export const extractBodyText = (body: string, maxChars = MAX_BODY_CHARS): string
   return parts.join('\n\n').slice(0, maxChars);
 };
 
-export const prefilterFiles = async (files: string[]): Promise<string[]> => {
+/**
+ * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
+ *
+ * @param files - フィルタリング対象のファイルパス配列
+ * @param minCharCount - 本文の最小文字数（デフォルト: `MIN_CHAR_COUNT`）
+ * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `MIN_ASSISTANT_CHARS_CONTENT`）
+ * @param stats - 処理統計オブジェクト（省略可）。指定時は `preSkipped` にスキップ数を代入する。
+ * @returns フィルタリングを通過したファイルパスの配列
+ */
+export const prefilterFiles = async (
+  files: string[],
+  minCharCount = MIN_CHAR_COUNT,
+  minAssistantChars = MIN_ASSISTANT_CHARS_CONTENT,
+  stats?: Stats,
+): Promise<string[]> => {
   const passed: string[] = [];
   let skipped = 0;
 
@@ -99,7 +115,7 @@ export const prefilterFiles = async (files: string[]): Promise<string[]> => {
       continue;
     }
 
-    const { excluded, reason } = isExcludedByContent(content);
+    const { excluded, reason } = isExcludedByContent(content, minCharCount, minAssistantChars);
     if (excluded) {
       logger.info(`  skipped (${reason}): ${filename}`);
       skipped++;
@@ -116,5 +132,6 @@ export const prefilterFiles = async (files: string[]): Promise<string[]> => {
   }
 
   logger.info(`事前フィルタ: 対象=${files.length} 通過=${passed.length} スキップ=${skipped}`);
+  if (stats) { stats.preSkipped = skipped; }
   return passed;
 };

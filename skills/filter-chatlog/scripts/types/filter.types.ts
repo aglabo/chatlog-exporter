@@ -26,10 +26,16 @@ export interface FilterConfig {
   dryRun: boolean;
 
   // config.yaml only
-  /** バッチ処理 1 回あたりの最大ファイル数。省略時は `DEFAULT_CHUNK_SIZE` にフォールバック。 */
-  chunkSize?: number;
-  /** 同時実行する claude CLI プロセスの最大並列数。省略時は `DEFAULT_CONCURRENCY` にフォールバック。 */
-  concurrency?: number;
+  /** バッチ処理 1 回あたりの最大ファイル数。 */
+  chunkSize: number;
+  /** 同時実行する claude CLI プロセスの最大並列数。 */
+  concurrency: number;
+  /** コンテンツ最小文字数フィルタ閾値。 */
+  minCharCount: number;
+  /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
+  minAssistantChars: number;
+  /** DISCARD 判定に必要な最低信頼度スコア。 */
+  discardThreshold: number;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
@@ -55,5 +61,6 @@ export interface Stats {
   kept: number;
   discarded: number;
   skipped: number;
+  preSkipped: number;
   error: number;
 }

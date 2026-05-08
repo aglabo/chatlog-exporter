@@ -18,6 +18,13 @@ maxRandomLength: 16
 chunkSize: 10
 concurrency: 4
 
+# 文字数フィルタ系
+minCharCount: 1000 # コンテンツ最小文字数
+minAssistantChars: 300 # Assistant 応答最小文字数（userTurns=1 時）
+
+# DISCARD 判定系（filter-chatlog）
+discardThreshold: 0.7 # confidence がこの値以上の DISCARD を削除対象とする
+
 # アセットディレクトリ
 dicsDir: "./assets/dics"
 promptsDir: "./assets/prompts"
