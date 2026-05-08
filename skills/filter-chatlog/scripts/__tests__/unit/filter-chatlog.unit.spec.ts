@@ -160,6 +160,10 @@ describe('parseArgs', () => {
           assertEquals(result.dryRun, true);
           assertEquals(result.chatlogsDir, '/base');
         });
+        it('T-FL-PA-13-02: chatlogsDir=/base のとき inputDir が undefined', () => {
+          const result = parseArgs(['claude', '2026-03', '--dry-run', '--chatlogs-dir', '/base']);
+          assertEquals(result.inputDir, undefined);
+        });
       });
     });
   });
@@ -196,6 +200,9 @@ describe('parseArgs', () => {
         it('T-FL-PA-15-01: --input /path/to → chatlogsDir が "/path/to" になる', () => {
           assertEquals(parseArgs(['--input', '/path/to']).chatlogsDir, '/path/to');
         });
+        it('T-FL-PA-15-02: --input /path/to → inputDir が "/path/to" のまま', () => {
+          assertEquals(parseArgs(['--input', '/path/to']).inputDir, '/path/to');
+        });
       });
     });
   });
@@ -210,6 +217,56 @@ describe('parseArgs', () => {
       describe('Then: chatlogsDir が undefined になる', () => {
         it('T-FL-PA-16-01: 引数なし → chatlogsDir が undefined になる', () => {
           assertEquals(parseArgs([]).chatlogsDir, undefined);
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-PA-17: --chatlogs-dir 指定時に inputDir は undefined ────────────────
+
+  /**
+   * `--chatlogs-dir` のみ指定したとき `inputDir` が `undefined` のままであることを検証するグループ。
+   *
+   * `chatlogsDir` が指定されても `inputDir` は独立したフィールドであり、
+   * `--input` を渡さない限り `undefined` になる。
+   */
+  describe('Given: --chatlogs-dir が指定されて --input が未指定', () => {
+    describe('When: parseArgs を呼び出す', () => {
+      describe('Then: T-FL-PA-17 - inputDir が undefined のまま', () => {
+        it('T-FL-PA-17-01: --chatlogs-dir /base → inputDir が undefined', () => {
+          assertEquals(parseArgs(['--chatlogs-dir', '/base']).inputDir, undefined);
+        });
+        it('T-FL-PA-17-02: --chatlogs-dir /base → chatlogsDir が "/base"', () => {
+          assertEquals(parseArgs(['--chatlogs-dir', '/base']).chatlogsDir, '/base');
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-PA-18: --input バリデーション ──────────────────────────────────────
+
+  /**
+   * `--input` にディレクトリパスでない値を渡した場合の異常系グループ。
+   *
+   * ディレクトリパス（`/` を含む）でない値は `ChatlogError(InvalidArgs)` をスローする。
+   */
+  describe('Given: --input にディレクトリパスでない値を渡す', () => {
+    describe('When: parseArgs を呼び出す', () => {
+      describe('Then: T-FL-PA-18 - ChatlogError(InvalidArgs) がスローされる', () => {
+        it('T-FL-PA-18-01: --input foo（スラッシュなし）→ ChatlogError(InvalidArgs) がスローされる', () => {
+          assertThrows(
+            () => parseArgs(['--input', 'foo']),
+            ChatlogError,
+            'Invalid Args',
+          );
+        });
+        it('T-FL-PA-18-02: エラーメッセージに "--input" が含まれる', () => {
+          try {
+            parseArgs(['--input', 'foo']);
+            throw new Error('エラーがスローされなかった');
+          } catch (e) {
+            assertStringIncludes((e as ChatlogError).message, '--input');
+          }
         });
       });
     });
