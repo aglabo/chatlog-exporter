@@ -67,7 +67,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ExportConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - outputDir 優先順位: `parsed.outputDir` > `globalConfig.get('chatlogDir')` > `defaults.outputDir`
+ * - outputDir 優先順位: `parsed.outputDir` > `globalConfig.get('chatlogsDir')` > `defaults.outputDir`
  * - baseDir 優先順位: `parsed.baseDir` > `defaults.baseDir`
  * - inputDir 優先順位: `parsed.inputDir` > `defaults.inputDir`
  * - period: `parsed.period` のみ (GlobalConfig に期間設定なし)
@@ -79,7 +79,7 @@ export function buildConfig(
 ): ExportConfig {
   const _defaults = defaults ?? DEFAULT_EXPORT_CONFIG;
   const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
-  const _outputDir = parsed.outputDir ?? (globalConfig.get('chatlogDir') as string | undefined) ?? _defaults.outputDir;
+  const _outputDir = parsed.outputDir ?? (globalConfig.get('chatlogsDir') as string | undefined) ?? _defaults.outputDir;
   const _baseDir = parsed.baseDir ?? _defaults.baseDir;
   const _inputDir = parsed.inputDir ?? _defaults.inputDir;
   const { configFile: _configFile, ...parsedRest } = parsed;
