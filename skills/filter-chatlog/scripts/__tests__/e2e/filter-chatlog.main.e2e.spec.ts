@@ -79,12 +79,12 @@ describe('main - dry-run モード', () => {
       /** dry-run モードではファイルが削除されず、`[dry-run]` ログが出力されること。 */
       describe('Then: T-FL-E2E-01 - dry-run → ファイルが削除されない', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([{ file: 'chat.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' }]),
@@ -99,15 +99,15 @@ describe('main - dry-run モード', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: chat.md を chatlogDir に配置', () => {
+        describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/chat.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-01-01: ファイルが削除されずに残り "[dry-run]" がログに出力される', async () => {
             await main(['claude', '2026-03', '--dry-run', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/chat.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
             assertEquals(loggerStub.logLogs.some((l) => l.includes('[dry-run]')), true);
           });
         });
@@ -140,12 +140,12 @@ describe('main - DISCARD 判定', () => {
       /** DISCARD 判定のファイルがファイルシステムから削除されること。 */
       describe('Then: T-FL-E2E-02 - ファイルが削除される', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([{ file: 'discard.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' }]),
@@ -160,15 +160,15 @@ describe('main - DISCARD 判定', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: discard.md を chatlogDir に配置', () => {
+        describe('Given: discard.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/discard.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/discard.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            await assertFileNotExists(`${chatlogDir}/discard.md`);
+            await assertFileNotExists(`${chatlogsDir}/discard.md`);
           });
         });
       });
@@ -199,12 +199,12 @@ describe('main - KEEP 判定', () => {
       /** KEEP 判定のファイルがファイルシステムに残っていること。 */
       describe('Then: T-FL-E2E-03 - ファイルが残る', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([{ file: 'keep.md', decision: 'KEEP', confidence: 0.9, reason: 'valuable' }]),
@@ -219,15 +219,15 @@ describe('main - KEEP 判定', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: keep.md を chatlogDir に配置', () => {
+        describe('Given: keep.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/keep.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-03-01: ファイルが残っている', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/keep.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
         });
       });
@@ -312,12 +312,12 @@ describe('main - DISCARD + KEEP 混在', () => {
       /** DISCARD ファイルが削除され、KEEP ファイルがファイルシステムに残ること。 */
       describe('Then: T-FL-E2E-05 - DISCARD のみ削除、KEEP は残る', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([
@@ -335,22 +335,22 @@ describe('main - DISCARD + KEEP 混在', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: discard.md と keep.md を chatlogDir に配置', () => {
+        describe('Given: discard.md と keep.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/discard.md`, _makeValidContent());
-            await Deno.writeTextFile(`${chatlogDir}/keep.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/discard.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            await assertFileNotExists(`${chatlogDir}/discard.md`);
+            await assertFileNotExists(`${chatlogsDir}/discard.md`);
           });
 
           it('T-FL-E2E-05-02: keep.md が残っている', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/keep.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
         });
       });
@@ -452,12 +452,12 @@ describe('main - Claude CLI NotFound', () => {
       /** Claude CLI NotFound 時にファイルが全件 KEEP 扱いで残ること。 */
       describe('Then: T-FL-E2E-07 - ファイルが削除されない', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(makeNotFoundMock());
           loggerStub = makeLoggerStub();
         });
@@ -468,15 +468,15 @@ describe('main - Claude CLI NotFound', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: chat.md を chatlogDir に配置', () => {
+        describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/chat.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-07-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/chat.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
         });
       });
@@ -507,12 +507,12 @@ describe('main - confidence 閾値未満', () => {
       /** confidence < 0.7 の DISCARD ファイルがファイルシステムに残ること。 */
       describe('Then: T-FL-E2E-08 - ファイルが削除されない', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([{ file: 'low-conf.md', decision: 'DISCARD', confidence: 0.69, reason: 'uncertain' }]),
@@ -527,15 +527,15 @@ describe('main - confidence 閾値未満', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: low-conf.md を chatlogDir に配置', () => {
+        describe('Given: low-conf.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/low-conf.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/low-conf.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-08-01: confidence=0.69 の DISCARD ファイルが削除されずに残っている', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/low-conf.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/low-conf.md`), true);
           });
         });
       });
@@ -568,12 +568,12 @@ describe('main - Claude CLI 異常終了', () => {
       /** CLI 異常終了時にファイルが全件 KEEP 扱いで残ること。 */
       describe('Then: T-FL-E2E-09 - ファイルが削除されない', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(makeFailMock(1));
           loggerStub = makeLoggerStub();
         });
@@ -584,15 +584,15 @@ describe('main - Claude CLI 異常終了', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: chat.md を chatlogDir に配置', () => {
+        describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
-            await Deno.writeTextFile(`${chatlogDir}/chat.md`, _makeValidContent());
+            await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
           });
 
           it('T-FL-E2E-09-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
             await main(['claude', '2026-03', '--input', tempDir]);
 
-            assertEquals(await fileExists(`${chatlogDir}/chat.md`), true);
+            assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
         });
       });
