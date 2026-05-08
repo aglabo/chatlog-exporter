@@ -103,21 +103,21 @@ export const makePeriodDir = async (
 };
 
 /**
- * テスト用の一時ディレクトリを 1 期間分作成し、chatlogDir を返す。
+ * テスト用の一時ディレクトリを 1 期間分作成し、chatlogsDir を返す。
  *
  * E2E テスト向けの単一期間ヘルパー。`tempDir/agent/YYYY/YYYY-MM/` を作成し、
- * そのパスを `chatlogDir` として返す。
+ * そのパスを `chatlogsDir` として返す。
  *
  * @param agent - エージェント名（デフォルト: 'claude'）
  * @param period - 対象月（YYYY-MM 形式、デフォルト: '2026-03'）
- * @returns `{ tempDir, chatlogDir }` — `chatlogDir` = `tempDir/agent/YYYY/YYYY-MM/`
+ * @returns `{ tempDir, chatlogsDir }` — `chatlogsDir` = `tempDir/agent/YYYY/YYYY-MM/`
  */
 export const makeTestDirs = async (agent = 'claude', period = '2026-03'): Promise<{
   tempDir: string;
-  chatlogDir: string;
+  chatlogsDir: string;
 }> => {
   const tempDir = await Deno.makeTempDir();
-  const chatlogDir = `${tempDir}/${agent}/${periodToPath(period)}`;
-  await Deno.mkdir(chatlogDir, { recursive: true });
-  return { tempDir, chatlogDir };
+  const chatlogsDir = `${tempDir}/${agent}/${periodToPath(period)}`;
+  await Deno.mkdir(chatlogsDir, { recursive: true });
+  return { tempDir, chatlogsDir };
 };

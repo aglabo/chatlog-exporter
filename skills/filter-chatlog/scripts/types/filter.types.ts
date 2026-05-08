@@ -16,8 +16,10 @@ export interface FilterConfig {
   agent: string;
   /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
   period?: string;
-  /** チャットログが格納された入力ディレクトリのパス。 */
+  /** チャットログが格納された入力ディレクトリのパス (obsolete) */
   inputDir: string;
+  /** チャットログ基底ディレクトリのパス。`inputDir` の後継として利用予定。省略時は `undefined`。 */
+  chatlogsDir?: string;
 
   // flags
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */

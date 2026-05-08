@@ -43,10 +43,10 @@ describe('buildBatchPrompt', () => {
    */
   describe('Given: 単一の .md ファイルを渡す', () => {
     let tempDir: string;
-    let chatlogDir: string;
+    let chatlogsDir: string;
 
     beforeEach(async () => {
-      ({ tempDir, chatlogDir } = await makeTestDirs());
+      ({ tempDir, chatlogsDir } = await makeTestDirs());
     });
 
     afterEach(async () => {
@@ -57,7 +57,7 @@ describe('buildBatchPrompt', () => {
       /** フロントマターが除外され本文が抽出されることを検証する。 */
       describe('Then: [Normal] T-FL-BP-01 - フロントマターが除外され本文が抽出される', () => {
         it('T-FL-BP-01-01: [Normal] フロントマターの "title:" が出力に含まれない', async () => {
-          const file = `${chatlogDir}/chat.md`;
+          const file = `${chatlogsDir}/chat.md`;
           await Deno.writeTextFile(file, makeValidContent('テスト', '質問', '回答'));
 
           const result = await buildBatchPrompt([file]);
@@ -66,7 +66,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-01-02: [Normal] 本文テキスト "質問" が出力に含まれる', async () => {
-          const file = `${chatlogDir}/chat.md`;
+          const file = `${chatlogsDir}/chat.md`;
           await Deno.writeTextFile(file, makeValidContent('テスト', '質問', '回答'));
 
           const result = await buildBatchPrompt([file]);
@@ -75,7 +75,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-01-04: [Normal] ヘッダーが "=== FILE 1: <filename> ===" の形式で出力される', async () => {
-          const file = `${chatlogDir}/chat.md`;
+          const file = `${chatlogsDir}/chat.md`;
           await Deno.writeTextFile(file, makeValidContent('テスト', '質問', '回答'));
 
           const result = await buildBatchPrompt([file]);
@@ -84,7 +84,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-01-03: [Normal] サブディレクトリ内ファイルでもファイル名のみが抽出される', async () => {
-          const subDir = `${chatlogDir}/sub`;
+          const subDir = `${chatlogsDir}/sub`;
           await Deno.mkdir(subDir, { recursive: true });
           const file = `${subDir}/deep.md`;
           await Deno.writeTextFile(file, makeValidContent('テスト'));
@@ -101,7 +101,7 @@ describe('buildBatchPrompt', () => {
       /** フロントマターのみのファイルでヘッダーは出力され本文が空になることを検証する。 */
       describe('Then: [Edgecase] T-FL-BP-02 - フロントマターのみのファイルは本文が空になる', () => {
         it('T-FL-BP-02-01: [Edgecase] "=== FILE 1:" ヘッダーは出力される', async () => {
-          const file = `${chatlogDir}/empty.md`;
+          const file = `${chatlogsDir}/empty.md`;
           await Deno.writeTextFile(file, makeFrontmatter('空'));
 
           const result = await buildBatchPrompt([file]);
@@ -110,7 +110,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-02-02: [Edgecase] ヘッダーに続く本文が空になる', async () => {
-          const file = `${chatlogDir}/empty.md`;
+          const file = `${chatlogsDir}/empty.md`;
           await Deno.writeTextFile(file, makeFrontmatter('空'));
 
           const result = await buildBatchPrompt([file]);
@@ -125,7 +125,7 @@ describe('buildBatchPrompt', () => {
        */
       describe('Then: [Edgecase] T-FL-BP-03 - ターンマーカーのないファイルは本文が空になる', () => {
         it('T-FL-BP-03-01: [Edgecase] "=== FILE 1:" ヘッダーは出力される', async () => {
-          const file = `${chatlogDir}/plain.md`;
+          const file = `${chatlogsDir}/plain.md`;
           await Deno.writeTextFile(file, makePlainContent('生テキスト', 'これは会話形式でない生テキストです。'));
 
           const result = await buildBatchPrompt([file]);
@@ -134,7 +134,7 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-03-02: [Edgecase] ヘッダーに続く本文が空になる', async () => {
-          const file = `${chatlogDir}/plain.md`;
+          const file = `${chatlogsDir}/plain.md`;
           await Deno.writeTextFile(file, makePlainContent('生テキスト', 'これは会話形式でない生テキストです。'));
 
           const result = await buildBatchPrompt([file]);
@@ -147,7 +147,7 @@ describe('buildBatchPrompt', () => {
       describe('Then: [Edgecase] T-FL-BP-04 - 長大な本文は切り詰められる', () => {
         it('T-FL-BP-04-01: [Edgecase] 結果の長さが無制限に増大しない', async () => {
           const longText = 'x'.repeat(OVER_MAX_CHARS_LENGTH);
-          const file = `${chatlogDir}/long.md`;
+          const file = `${chatlogsDir}/long.md`;
           await Deno.writeTextFile(file, makeValidContent('Long', longText, '回答'));
 
           const result = await buildBatchPrompt([file]);
@@ -166,10 +166,10 @@ describe('buildBatchPrompt', () => {
    */
   describe('Given: 複数（2 件）の .md ファイルを渡す', () => {
     let tempDir: string;
-    let chatlogDir: string;
+    let chatlogsDir: string;
 
     beforeEach(async () => {
-      ({ tempDir, chatlogDir } = await makeTestDirs());
+      ({ tempDir, chatlogsDir } = await makeTestDirs());
     });
 
     afterEach(async () => {
@@ -180,8 +180,8 @@ describe('buildBatchPrompt', () => {
       /** 2 ファイルが `\n\n` 区切りで順番に結合されることを検証する。 */
       describe('Then: [Normal] T-FL-BP-05 - 2 ファイルが \\n\\n 区切りで結合される', () => {
         it('T-FL-BP-05-01: [Normal] FILE 1/2 のヘッダーにそれぞれのファイル名が対応して出力される', async () => {
-          const file1 = `${chatlogDir}/chat-a.md`;
-          const file2 = `${chatlogDir}/chat-b.md`;
+          const file1 = `${chatlogsDir}/chat-a.md`;
+          const file2 = `${chatlogsDir}/chat-b.md`;
           await Deno.writeTextFile(file1, makeValidContent('A', '質問A', '回答A'));
           await Deno.writeTextFile(file2, makeValidContent('B', '質問B', '回答B'));
 
@@ -192,8 +192,8 @@ describe('buildBatchPrompt', () => {
         });
 
         it('T-FL-BP-05-02: [Normal] FILE 2 ヘッダーの直前が \\n\\n で区切られる', async () => {
-          const file1 = `${chatlogDir}/chat-a.md`;
-          const file2 = `${chatlogDir}/chat-b.md`;
+          const file1 = `${chatlogsDir}/chat-a.md`;
+          const file2 = `${chatlogsDir}/chat-b.md`;
           await Deno.writeTextFile(file1, makeValidContent('A', '質問A', '回答A'));
           await Deno.writeTextFile(file2, makeValidContent('B', '質問B', '回答B'));
 
@@ -212,10 +212,10 @@ describe('buildBatchPrompt', () => {
    */
   describe(`Given: CHUNK_SIZE（${CHUNK_SIZE} 件）の .md ファイルを渡す`, () => {
     let tempDir: string;
-    let chatlogDir: string;
+    let chatlogsDir: string;
 
     beforeEach(async () => {
-      ({ tempDir, chatlogDir } = await makeTestDirs());
+      ({ tempDir, chatlogsDir } = await makeTestDirs());
     });
 
     afterEach(async () => {
@@ -228,7 +228,7 @@ describe('buildBatchPrompt', () => {
         it(`T-FL-BP-06-01: [Normal] "=== FILE ${CHUNK_SIZE}:" が含まれる`, async () => {
           const files: string[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
-            const file = `${chatlogDir}/chat-${i}.md`;
+            const file = `${chatlogsDir}/chat-${i}.md`;
             await Deno.writeTextFile(file, makeValidContent(`タイトル${i}`, `質問${i}`, `回答${i}`));
             files.push(file);
           }
@@ -241,7 +241,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-06-02: [Normal] すべての FILE ヘッダーが連続して含まれる', async () => {
           const files: string[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
-            const file = `${chatlogDir}/chat-${i}.md`;
+            const file = `${chatlogsDir}/chat-${i}.md`;
             await Deno.writeTextFile(file, makeValidContent(`タイトル${i}`, `質問${i}`, `回答${i}`));
             files.push(file);
           }
@@ -286,10 +286,10 @@ describe('buildBatchPrompt', () => {
    */
   describe('Given: 有効ファイルと存在しないファイルが混在する', () => {
     let tempDir: string;
-    let chatlogDir: string;
+    let chatlogsDir: string;
 
     beforeEach(async () => {
-      ({ tempDir, chatlogDir } = await makeTestDirs());
+      ({ tempDir, chatlogsDir } = await makeTestDirs());
     });
 
     afterEach(async () => {
@@ -300,7 +300,7 @@ describe('buildBatchPrompt', () => {
       /** `ChatlogError(FileDirNotFound)` が throw されることを検証する。 */
       describe('Then: [Error] T-FL-BP-08 - ChatlogError(FileDirNotFound) が throw される', () => {
         it('T-FL-BP-08-01: [Error] ChatlogError(FileDirNotFound) を throw する', async () => {
-          const validFile = `${chatlogDir}/valid.md`;
+          const validFile = `${chatlogsDir}/valid.md`;
           await Deno.writeTextFile(validFile, makeValidContent('有効'));
           const nonExistent = '/nonexistent/missing.md';
 

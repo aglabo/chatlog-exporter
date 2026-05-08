@@ -66,11 +66,11 @@ describe('main (prefilter) - dry-run モード', () => {
       /** ファイルが削除されず、stdout にノイズファイルのパスが出力されること。 */
       describe('Then: T-PF-E2E-01 - ファイルが削除されずパスが stdout に出力される', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
         });
 
@@ -80,7 +80,7 @@ describe('main (prefilter) - dry-run モード', () => {
         });
 
         it('T-PF-E2E-01-01: ファイルが削除されずに残り、stdout にパスが出力される', async () => {
-          const filePath = `${chatlogDir}/say-ok-and-nothing-else.md`;
+          const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, _makeValidContent());
 
           await main(['claude', '2026-03', '--dry-run', '--input', tempDir]);
@@ -118,11 +118,11 @@ describe('main (prefilter) - report モード', () => {
       /** `NOISE\t{reason}\t{path}` 形式でログ出力され、ファイルが削除されないこと。 */
       describe('Then: T-PF-E2E-02 - NOISE タブ区切り形式で出力、削除なし', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
         });
 
@@ -132,7 +132,7 @@ describe('main (prefilter) - report モード', () => {
         });
 
         it('T-PF-E2E-02-01: NOISE タブ区切り形式で出力され、ファイルが削除されずに残っている', async () => {
-          const filePath = `${chatlogDir}/say-ok-and-nothing-else.md`;
+          const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, _makeValidContent());
 
           await main(['claude', '2026-03', '--report', '--input', tempDir]);
@@ -172,11 +172,11 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
       /** ノイズファイルが削除され、正常ファイルはファイルシステムに残ること。 */
       describe('Then: T-PF-E2E-03 - ノイズは削除、正常は残る', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
         });
 
@@ -186,8 +186,8 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
         });
 
         it('T-PF-E2E-03-01: ノイズファイルが削除され、正常ファイルが残っている', async () => {
-          const noisePath = `${chatlogDir}/say-ok-and-nothing-else.md`;
-          const validPath = `${chatlogDir}/valid-chat.md`;
+          const noisePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
+          const validPath = `${chatlogsDir}/valid-chat.md`;
           await Deno.writeTextFile(noisePath, _makeValidContent());
           await Deno.writeTextFile(validPath, _makeValidContent());
 
@@ -225,11 +225,11 @@ describe('main (prefilter) - 全件 keep', () => {
       /** 全ファイルが残り、完了ログに `noise=0` が含まれること。 */
       describe('Then: T-PF-E2E-04 - 全ファイルが残っており keep=2 のログ', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
         });
 
@@ -239,8 +239,8 @@ describe('main (prefilter) - 全件 keep', () => {
         });
 
         it('T-PF-E2E-04-01: 全ファイルが削除されずに残り、完了ログに "noise=0" が含まれる', async () => {
-          const path1 = `${chatlogDir}/valid-1.md`;
-          const path2 = `${chatlogDir}/valid-2.md`;
+          const path1 = `${chatlogsDir}/valid-1.md`;
+          const path2 = `${chatlogsDir}/valid-2.md`;
           await Deno.writeTextFile(path1, _makeValidContent());
           await Deno.writeTextFile(path2, _makeValidContent());
 
@@ -328,14 +328,14 @@ describe('main (prefilter) - period 絞り込み', () => {
       /** 指定月（2026-03）のファイルが削除され、他月（2026-04）が残ること。 */
       describe('Then: T-PF-E2E-07 - 2026-03 のみ削除され 2026-04 は残る', () => {
         let tempDir: string;
-        let chatlogDir03: string;
-        let chatlogDir04: string;
+        let chatlogsDir03: string;
+        let chatlogsDir04: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir: chatlogDir03 } = await _makeTestDirs('claude', '2026-03'));
-          chatlogDir04 = `${tempDir}/claude/2026/2026-04`;
-          await Deno.mkdir(chatlogDir04, { recursive: true });
+          ({ tempDir, chatlogsDir: chatlogsDir03 } = await _makeTestDirs('claude', '2026-03'));
+          chatlogsDir04 = `${tempDir}/claude/2026/2026-04`;
+          await Deno.mkdir(chatlogsDir04, { recursive: true });
           loggerStub = makeLoggerStub();
         });
 
@@ -345,8 +345,8 @@ describe('main (prefilter) - period 絞り込み', () => {
         });
 
         it('T-PF-E2E-07-01: 2026-03 のノイズファイルが削除され、2026-04 のファイルは残っている', async () => {
-          const noisePath03 = `${chatlogDir03}/say-ok-and-nothing-else.md`;
-          const noisePath04 = `${chatlogDir04}/say-ok-and-nothing-else.md`;
+          const noisePath03 = `${chatlogsDir03}/say-ok-and-nothing-else.md`;
+          const noisePath04 = `${chatlogsDir04}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(noisePath03, _makeValidContent());
           await Deno.writeTextFile(noisePath04, _makeValidContent());
 
@@ -383,11 +383,11 @@ describe('main (prefilter) - report 完了ログ', () => {
       /** 完了ログに `report` キーワードが含まれること。 */
       describe('Then: T-PF-E2E-08 - 完了ログに "report" が含まれる', () => {
         let tempDir: string;
-        let chatlogDir: string;
+        let chatlogsDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, chatlogDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
         });
 
@@ -397,7 +397,7 @@ describe('main (prefilter) - report 完了ログ', () => {
         });
 
         it('T-PF-E2E-08-01: 完了ログに "report" が含まれる', async () => {
-          await Deno.writeTextFile(`${chatlogDir}/valid.md`, _makeValidContent());
+          await Deno.writeTextFile(`${chatlogsDir}/valid.md`, _makeValidContent());
 
           await main(['claude', '2026-03', '--report', '--input', tempDir]);
 

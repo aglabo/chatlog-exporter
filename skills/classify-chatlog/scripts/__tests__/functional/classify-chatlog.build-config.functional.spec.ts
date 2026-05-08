@@ -284,11 +284,11 @@ describe('buildConfig', () => {
   });
 
   describe('Given: parsed.inputDir が指定されている', () => {
-    describe('When: GlobalConfig に chatlogDir が設定されている', () => {
+    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
       describe('Then: T-CL-BC-20 - parsed.inputDir が最優先される', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogDir: /global/chatlog');
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
         it('T-CL-BC-20-01: parsed.inputDir=/custom/input → result.inputDir === /custom/input', () => {
           const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom/input' }, globalConfig);
@@ -299,26 +299,26 @@ describe('buildConfig', () => {
   });
 
   describe('Given: parsed.inputDir が未指定', () => {
-    describe('When: GlobalConfig に chatlogDir が設定されている', () => {
-      describe('Then: T-CL-BC-21 - GlobalConfig の chatlogDir が使われる', () => {
+    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
+      describe('Then: T-CL-BC-21 - GlobalConfig の chatlogsDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogDir: /global/chatlog');
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-CL-BC-21-01: inputDir 未指定, globalConfig.chatlogDir=/global/chatlog → result.inputDir === /global/chatlog', () => {
+        it('T-CL-BC-21-01: inputDir 未指定, globalConfig.chatlogsDir=/global/chatlog → result.inputDir === /global/chatlog', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.inputDir, '/global/chatlog');
         });
       });
     });
 
-    describe('When: GlobalConfig に chatlogDir が未登録（schema: {}）', () => {
+    describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       describe('Then: T-CL-BC-15 - DEFAULT_CLASSIFY_CONFIG.inputDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-CL-BC-15-01: inputDir 未指定, chatlogDir 未登録 → result.inputDir === DEFAULT_CLASSIFY_CONFIG.inputDir', () => {
+        it('T-CL-BC-15-01: inputDir 未指定, chatlogsDir 未登録 → result.inputDir === DEFAULT_CLASSIFY_CONFIG.inputDir', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.inputDir, DEFAULT_CLASSIFY_CONFIG.inputDir);
         });
