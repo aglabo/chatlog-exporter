@@ -19,7 +19,7 @@ import { runAI } from '../../../../../_scripts/libs/ai/run-ai.ts';
 import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 
 // constants
-import { SYSTEM_PROMPT } from '../../../filter-chatlog.ts';
+import { SYSTEM_PROMPT } from '../../../constants/filter.constants.ts';
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
