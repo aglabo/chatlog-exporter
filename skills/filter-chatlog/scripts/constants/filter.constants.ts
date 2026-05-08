@@ -18,6 +18,19 @@ import type { FilterConfig } from '../types/filter.types.ts';
 // filter-chatlog 固有定数
 // ─────────────────────────────────────────────
 
+/** DISCARD 判定に必要な最低信頼度スコア。 */
+export const DISCARD_THRESHOLD = 0.7;
+
+/** バッチプロンプトに含める本文の最大文字数。 */
+export const MAX_BODY_CHARS = 8000;
+
+/** Claude CLI に渡すシステムプロンプト。 */
+export const SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+[{"file":"<filename>","decision":"KEEP or DISCARD","confidence":0.0,"reason":"..."},...]
+
+KEEP: design decisions, reusable patterns, new concepts, architecture discussion
+DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
+
 /** parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
