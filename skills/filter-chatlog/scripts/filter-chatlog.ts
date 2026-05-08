@@ -35,6 +35,7 @@ import { DEFAULT_FILTER_CONFIG } from './constants/filter.constants.ts';
 // types
 import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 // libs
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { findMdFiles } from './libs/find-files.ts';
 import { prefilterFiles } from './libs/prefilter.ts';
 import { processChunk } from './libs/process-chunk.ts';
@@ -57,11 +58,18 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
 
 /**
  * コマンドライン引数を解析して ParsedConfig を返す。
+ * - `--input` の値はディレクトリパス形式（`/` を含む）でなければ `ChatlogError(InvalidArgs)` をスローする。
  * - `--chatlogs-dir` の値はディレクトリパス形式（`/` を含む）でなければ `ChatlogError(InvalidArgs)` をスローする。
  * - `chatlogsDir` が未指定の場合は `inputDir` の値をフォールバックとして設定する。
  */
 export const parseArgs = (args: string[]): ParsedConfig => {
   const _parsed = parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  if (_parsed.inputDir !== undefined && !isDirectoryArg(_parsed.inputDir)) {
+    throw new ChatlogError(
+      'InvalidArgs',
+      `--input にはディレクトリパスを指定してください: ${_parsed.inputDir}`,
+    );
+  }
   if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
     throw new ChatlogError(
       'InvalidArgs',
@@ -122,18 +130,19 @@ export const main = async (args?: string[]): Promise<void> => {
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    const agentDir = `${_config.chatlogsDir ?? _config.inputDir}/${_config.agent}`;
+    const _agentDir = resolveChatlogsDir(_config.chatlogsDir, _config.agent);
 
     // 入力ディレクトリ確認
-    if (!await dirExists(agentDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
+    if (!await dirExists(_agentDir)) {
+      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
     }
 
     logger.info(`対象 agent: ${_config.agent}`);
     if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
 
     // ファイル列挙
-    const allFiles = await findMdFiles(agentDir, _config.period);
+    const _searchDir = resolveChatlogsDir(_config.chatlogsDir, _config.agent, _config.period);
+    const allFiles = await findMdFiles(_searchDir);
 
     // 事前フィルタ
     const targetFiles = await prefilterFiles(allFiles);
