@@ -12,9 +12,19 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
-import { DISCARD_THRESHOLD, SYSTEM_PROMPT } from '../constants/filter.constants.ts';
 import type { ClaudeResult, Stats } from '../types/filter.types.ts';
 import { buildBatchPrompt } from './batch-prompt.ts';
+
+// ─────────────────────────────────────────────
+// 内部定数
+// ─────────────────────────────────────────────
+
+/** Claude CLI に渡すシステムプロンプト。filter-chatlog スキル固有。 */
+const _SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+[{"file":"<filename>","decision":"KEEP or DISCARD","confidence":0.0,"reason":"..."},...]
+
+KEEP: design decisions, reusable patterns, new concepts, architecture discussion
+DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 
 // ─────────────────────────────────────────────
 // チャンク処理
@@ -24,12 +34,13 @@ export const processChunk = async (
   chunkFiles: string[],
   dryRun: boolean,
   stats: Stats,
+  discardThreshold: number,
 ): Promise<void> => {
   const batchPrompt = await buildBatchPrompt(chunkFiles);
 
   let rawResult: string;
   try {
-    rawResult = await runAI(SYSTEM_PROMPT, batchPrompt);
+    rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt);
   } catch (e) {
     logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  error: ${e}`);
@@ -63,7 +74,7 @@ export const processChunk = async (
 
     const { decision, confidence, reason } = result;
 
-    if (decision === 'DISCARD' && confidence >= DISCARD_THRESHOLD) {
+    if (decision === 'DISCARD' && confidence >= discardThreshold) {
       if (dryRun) {
         logger.log(`[dry-run] DISCARD (conf=${confidence}): ${filePath}`);
         logger.info(`  reason: ${reason}`);
