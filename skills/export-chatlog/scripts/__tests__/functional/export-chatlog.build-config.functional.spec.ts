@@ -82,7 +82,7 @@ const _EMPTY_PARSED: ParsedConfig = {};
  *
  * ## 優先順位ルール
  * - `agent`     : parsed > globalConfig > defaults
- * - `outputDir` : parsed > globalConfig.chatlogDir > defaults
+ * - `outputDir` : parsed > globalConfig.chatlogsDir > defaults
  * - `baseDir`   : parsed のみ（GlobalConfig 連携なし）
  * - `inputDir`  : parsed のみ（GlobalConfig 連携なし）
  * - `period`    : parsed のみ
@@ -163,16 +163,16 @@ describe('buildConfig', () => {
    * `parsed.outputDir` がセットされている前提条件グループ。
    *
    * CLI 引数 `--output` で出力ディレクトリが明示されたケースを表す。
-   * `globalConfig.chatlogDir` より `parsed.outputDir` が優先されることを検証する。
+   * `globalConfig.chatlogsDir` より `parsed.outputDir` が優先されることを検証する。
    */
   describe('Given: parsed.outputDir が指定されている', () => {
-    /** `globalConfig` に `chatlogDir` が設定されているとき。 */
-    describe('When: GlobalConfig に chatlogDir が設定されている', () => {
-      /** `parsed.outputDir` が `globalConfig.chatlogDir` より優先されることを検証する。 */
+    /** `globalConfig` に `chatlogsDir` が設定されているとき。 */
+    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
+      /** `parsed.outputDir` が `globalConfig.chatlogsDir` より優先されることを検証する。 */
       describe('Then: T-EC-BC-04 - parsed.outputDir が優先される', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogDir: /global');
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
         });
         it('T-EC-BC-04-01: parsed.outputDir=/out → result.outputDir === /out', () => {
           const result = buildConfig({ ..._EMPTY_PARSED, outputDir: '/out' }, globalConfig);
@@ -186,34 +186,34 @@ describe('buildConfig', () => {
    * `parsed.outputDir` が未設定である前提条件グループ。
    *
    * CLI 引数 `--output` が省略されたケースを表す。
-   * `globalConfig.chatlogDir` が設定されていればそれを使い、
+   * `globalConfig.chatlogsDir` が設定されていればそれを使い、
    * なければ `DEFAULT_OUTPUT_DIR` にフォールバックすることを検証する。
    */
   describe('Given: parsed.outputDir が未指定', () => {
-    /** `globalConfig` に `chatlogDir` が設定されているとき。 */
-    describe('When: GlobalConfig に chatlogDir が設定されている', () => {
-      /** `globalConfig.chatlogDir` が採用されることを検証する。 */
-      describe('Then: T-EC-BC-05 - GlobalConfig の chatlogDir が使われる', () => {
+    /** `globalConfig` に `chatlogsDir` が設定されているとき。 */
+    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
+      /** `globalConfig.chatlogsDir` が採用されることを検証する。 */
+      describe('Then: T-EC-BC-05 - GlobalConfig の chatlogsDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogDir: /global/chatlog');
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-EC-BC-05-01: globalConfig.chatlogDir=/global/chatlog → result.outputDir === /global/chatlog', () => {
+        it('T-EC-BC-05-01: globalConfig.chatlogsDir=/global/chatlog → result.outputDir === /global/chatlog', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.outputDir, '/global/chatlog');
         });
       });
     });
 
-    /** `globalConfig` のスキーマに `chatlogDir` が登録されていないとき。 */
-    describe('When: GlobalConfig に chatlogDir が未登録（schema: {}）', () => {
+    /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
+    describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       /** `DEFAULT_OUTPUT_DIR` にフォールバックされることを検証する。 */
       describe('Then: T-EC-BC-06 - DEFAULT_OUTPUT_DIR が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-06-01: outputDir 未設定, chatlogDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
+        it("T-EC-BC-06-01: outputDir 未設定, chatlogsDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.outputDir, DEFAULT_OUTPUT_DIR);
         });
@@ -371,18 +371,18 @@ describe('buildConfig', () => {
    * `buildConfig` の第 3 引数 `defaults` が省略されている前提条件グループ。
    *
    * 省略時は内部で `DEFAULT_EXPORT_CONFIG` が使われる。
-   * `chatlogDir` も未登録の場合に `DEFAULT_OUTPUT_DIR` にフォールバックすることを検証する。
+   * `chatlogsDir` も未登録の場合に `DEFAULT_OUTPUT_DIR` にフォールバックすることを検証する。
    */
   describe('Given: defaults 引数が省略されている', () => {
-    /** `globalConfig` のスキーマに `chatlogDir` が登録されていないとき。 */
-    describe('When: GlobalConfig に chatlogDir が未登録（schema: {}）', () => {
+    /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
+    describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       /** `DEFAULT_OUTPUT_DIR` が採用されることを検証する。 */
       describe('Then: T-EC-BC-13 - DEFAULT_OUTPUT_DIR が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-13-01: defaults 省略, chatlogDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
+        it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.outputDir, DEFAULT_OUTPUT_DIR);
         });
@@ -394,18 +394,18 @@ describe('buildConfig', () => {
    * `defaults.outputDir` にカスタム値が指定されている前提条件グループ。
    *
    * `buildConfig` の第 3 引数でデフォルト値を上書きするケースを表す。
-   * `globalConfig` に `chatlogDir` が未登録の場合、`defaults.outputDir` が採用されることを検証する。
+   * `globalConfig` に `chatlogsDir` が未登録の場合、`defaults.outputDir` が採用されることを検証する。
    */
   describe('Given: defaults.outputDir=/custom が指定されている', () => {
-    /** `globalConfig` のスキーマに `chatlogDir` が登録されていないとき。 */
-    describe('When: GlobalConfig に chatlogDir が未登録（schema: {}）', () => {
+    /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
+    describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       /** `defaults.outputDir` が採用されることを検証する。 */
       describe('Then: T-EC-BC-14 - defaults.outputDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-14-01: defaults.outputDir=/custom, chatlogDir 未登録 → result.outputDir === /custom', () => {
+        it('T-EC-BC-14-01: defaults.outputDir=/custom, chatlogsDir 未登録 → result.outputDir === /custom', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig, {
             ...DEFAULT_EXPORT_CONFIG,
             outputDir: '/custom',
