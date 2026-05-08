@@ -29,106 +29,24 @@
  *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts --input ./temp/chatlog
  */
 
+import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
+import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
-
-// ─────────────────────────────────────────────
-// ノイズ判定パターン定義
-// ─────────────────────────────────────────────
-
-/** ファイル名に含まれていれば即除外 */
-export const NOISE_FILENAME_PATTERNS: RegExp[] = [
-  /you-are-a-topic-and-tag-extraction-assistant/,
-  /say-ok-and-nothing-else/,
-  /command-message-claude-idd-framework/,
-  /command-message-deckrd-deckrd/,
-  /command-message-deckrd-coder/,
-];
-
-/** User本文の先頭がこれにマッチすれば除外（`i` フラグで大文字小文字無視） */
-const NOISE_USER_PREFIX_PATTERNS: { pattern: RegExp; label: string }[] = [
-  // Git操作ログ（GIT LOGS / GIT DIFF / END DIFF）
-  { pattern: /^={3,}\s*git\s+(logs?|diff|diffs?)\s*={3,}/i, label: 'Git操作ログのみ' },
-
-  // スキル呼び出し（YAML先頭 ---\nname: で始まるもの）
-  { pattern: /^---\s*\nname\s*:/i, label: 'スキル呼び出し(YAML)' },
-
-  // idd-framework 定型APIプロンプト
-  {
-    pattern: /^以下のタイトルに対して、\d+-\d+文字程度の.*?説明を.*?生成してください/s,
-    label: '定型プロンプト(タイトル説明生成)',
-  },
-  {
-    pattern: /^以下の情報から、最適なcommit種別.*?json形式で返してください/is,
-    label: '定型プロンプト(commit/issue/branch判定)',
-  },
-  {
-    pattern: /^以下のjson形式パラメータから、github\s+issue下書きをmarkdown形式で生成してください/i,
-    label: '定型プロンプト(GitHub Issue生成)',
-  },
-  { pattern: /^based on the issue title\b/i, label: '定型プロンプト(branch名生成)' },
-  { pattern: /^translate the following text to english for use in/i, label: '定型プロンプト(英語翻訳)' },
-  { pattern: /^summarize the following.*?in \d+ words/i, label: '定型プロンプト(要約生成)' },
-
-  // deckrd 実装指示
-  { pattern: /^implement the following plan\b/i, label: 'deckrd実装指示' },
-  { pattern: /^以下のプランを実装/i, label: 'deckrd実装指示(日本語)' },
-
-  // プロンプトテスト系
-  { pattern: /^={3,}\s*prompt\s*={3,}/i, label: 'プロンプトテスト' },
-  { pattern: /^you are a (topic and tag extraction assistant|log curator)\b/i, label: 'システムプロンプト転写' },
-
-  // スラッシュコマンド転写
-  {
-    pattern: /^\/(export-log|filter-chatlog|commit|idd|deckrd|clear|help|set-frontmatter|classify-chatlog)\b/,
-    label: 'スラッシュコマンドのみ',
-  },
-];
-
-/** User本文の全体がこれにマッチすれば除外 */
-const NOISE_USER_EXACT_PATTERNS: { pattern: RegExp; label: string }[] = [
-  // Windowsパスのみ（1行）
-  { pattern: /^[A-Za-z]:\\[^\n]{0,300}$/, label: 'Windowsパスのみ' },
-  // Unixパスのみ（1行）
-  { pattern: /^(?:docs|temp|scripts|src|tests?|\.github)\/[^\n]{0,300}$/, label: 'Unixパスのみ' },
-];
-
-/** システムタグのみと判断するプレフィックス正規表現 */
-const _SYSTEM_TAG_PATTERN =
-  /^<(system-reminder|command-name|command-message|local-command-stdout|ide_opened_file|ide_selection)\b/;
-
-/** Assistantの応答が短すぎる場合の閾値（文字数） */
-export const MIN_ASSISTANT_CHARS = 100;
-
-// ─────────────────────────────────────────────
-// Frontmatter パーサー
-// ─────────────────────────────────────────────
-
-export const loadFrontmatter = (text: string): { meta: Record<string, string>; content: string } => {
-  const normalized = normalizeLine(text);
-  if (!normalized.startsWith('---\n')) { return { meta: {}, content: normalized }; }
-
-  const end = normalized.indexOf('\n---\n', 4);
-  if (end === -1) { return { meta: {}, content: normalized }; }
-
-  const fmText = normalized.slice(4, end);
-  const content = normalized.slice(end + 5);
-
-  const meta: Record<string, string> = {};
-  for (const line of fmText.split('\n')) {
-    const idx = line.indexOf(': ');
-    if (idx > 0 && !line.startsWith(' ')) {
-      meta[line.slice(0, idx).trim()] = line.slice(idx + 2).trim();
-    }
-  }
-  return { meta, content };
-};
+import { DEFAULT_PREFILTER_CONFIG, MIN_ASSISTANT_CHARS } from './constants/filter.constants.ts';
+import {
+  NOISE_FILENAME_PATTERNS,
+  NOISE_USER_EXACT_PATTERNS,
+  NOISE_USER_PREFIX_PATTERNS,
+  SYSTEM_TAG_PATTERN,
+} from './constants/patterns.constants.ts';
+import type { PrefilterConfig, PrefilterParsedConfig } from './types/prefilter.types.ts';
 
 // ─────────────────────────────────────────────
 // 個別判定ロジック
@@ -147,7 +65,7 @@ export const checkUserContent = (turns: Turn[]): string | null => {
   if (userTurns.length === 0) { return 'Userターンが存在しない'; }
 
   // 全Userターンがシステムタグのみ
-  if (userTurns.every((t) => _SYSTEM_TAG_PATTERN.test(t.text))) {
+  if (userTurns.every((t) => SYSTEM_TAG_PATTERN.test(t.text))) {
     return '全UserターンがシステムTagのみ';
   }
 
@@ -171,7 +89,7 @@ export const checkUserContent = (turns: Turn[]): string | null => {
     }
 
     // システムタグのみ
-    if (_SYSTEM_TAG_PATTERN.test(text)) { return 'UserがシステムTagのみ'; }
+    if (SYSTEM_TAG_PATTERN.test(text)) { return 'UserがシステムTagのみ'; }
   }
 
   return null;
@@ -199,11 +117,17 @@ export const classifyFile = (filename: string, text: string): { isNoise: boolean
   const filenameReason = checkFilename(filename);
   if (filenameReason) { return { isNoise: true, reason: filenameReason }; }
 
-  // 2. frontmatter + content 読み込み
-  const { content } = loadFrontmatter(text);
+  // 2. ChatlogEntry インスタンス生成（frontmatter + content 読み込み）
+  //    不正フォーマット（閉じ区切りなし）の場合は先頭の区切り行を除去して再生成する
+  let _entry: ChatlogEntry;
+  try {
+    _entry = new ChatlogEntry(text);
+  } catch {
+    _entry = new ChatlogEntry(text.replace(/^---\n/, ''));
+  }
 
   // 3. 会話ターン解析
-  const turns = parseConversation(content);
+  const turns = parseConversation(_entry.content);
 
   // 4. User本文チェック
   const userReason = checkUserContent(turns);
@@ -245,41 +169,54 @@ export const findMdFiles = async (baseDir: string, agent: string, period?: strin
 // 引数解析
 // ─────────────────────────────────────────────
 
-interface Args {
-  agent: string;
-  period?: string;
-  inputDir: string;
-  dryRun: boolean;
-  report: boolean;
-}
+export const buildConfig = (
+  parsed: PrefilterParsedConfig,
+  globalConfig: GlobalConfig,
+  defaults: PrefilterConfig = DEFAULT_PREFILTER_CONFIG,
+): PrefilterConfig => {
+  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? defaults.inputDir;
+  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
+  const { configFile: _configFile, ...rest } = parsed;
+  return {
+    ...defaults,
+    ...rest,
+    agent: _agent,
+    inputDir: _inputDir,
+    chatlogsDir: _chatlogsDir,
+  };
+};
 
-export const parseArgs = (args: string[]): Args => {
-  let agent = 'claude';
-  let period: string | undefined;
-  let inputDir = './temp/chatlog';
-  let dryRun = false;
-  let report = false;
+const _OPT_KEYS: Record<string, keyof PrefilterParsedConfig> = {
+  '--input': 'inputDir',
+  '--chatlogs-dir': 'chatlogsDir',
+  '--config': 'configFile',
+};
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--dry-run') {
-      dryRun = true;
-    } else if (arg === '--report') {
-      report = true;
-    } else if (arg === '--input' && i + 1 < args.length) {
-      inputDir = args[++i];
-    } else if (arg.startsWith('--input=')) {
-      inputDir = arg.slice('--input='.length);
-    } else if (arg.startsWith('-')) {
-      throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
-    } else if (/^\d{4}-\d{2}$/.test(arg)) {
-      period = arg;
-    } else {
-      agent = arg;
-    }
+const _OPT_FLAGS: Record<string, keyof PrefilterParsedConfig> = {
+  '--dry-run': 'dryRun',
+  '--report': 'report',
+};
+
+export const parseArgs = (args: string[]): PrefilterParsedConfig => {
+  const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as PrefilterParsedConfig;
+  if (_parsed.inputDir !== undefined && !isDirectoryArg(_parsed.inputDir)) {
+    throw new ChatlogError('InvalidArgs', `--input にはディレクトリパスを指定してください: ${_parsed.inputDir}`);
+  }
+  _parsed.chatlogsDir ??= _parsed.inputDir;
+  if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
+    throw new ChatlogError(
+      'InvalidArgs',
+      `--chatlogs-dir にはディレクトリパスを指定してください: ${_parsed.chatlogsDir}`,
+    );
   }
 
-  return { agent, period, inputDir, dryRun: dryRun || report, report };
+  _parsed.dryRun ??= (_parsed.dryRun ?? false) || (_parsed.report ?? false);
+  _parsed.report ??= false;
+  return {
+    ..._parsed,
+  };
 };
 
 // ─────────────────────────────────────────────
@@ -288,7 +225,9 @@ export const parseArgs = (args: string[]): Args => {
 
 export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
-    const { agent, period, inputDir, dryRun, report } = parseArgs(args);
+    const _parsed = parseArgs(args);
+    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const { agent, period, inputDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
 
     if (!await dirExists(inputDir)) {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${inputDir}`);
