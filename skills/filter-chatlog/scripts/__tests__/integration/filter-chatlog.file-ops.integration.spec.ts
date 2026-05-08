@@ -11,7 +11,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // test target
-import { buildBatchPrompt, findMdFiles, prefilterFiles } from '../../../../filter-chatlog/scripts/filter-chatlog.ts';
+import { buildBatchPrompt } from '../../../../filter-chatlog/scripts/libs/batch-prompt.ts';
+import { findMdFiles } from '../../../../filter-chatlog/scripts/libs/find-files.ts';
+import { prefilterFiles } from '../../../../filter-chatlog/scripts/libs/prefilter.ts';
 
 // ─── Helpers
 import { makeRepeatedContent } from '../_helpers/chatlog-fixtures.ts';
