@@ -812,6 +812,35 @@ describe('parseArgs (prefilter)', () => {
       });
     });
   });
+
+  // ─── T-PF-PA-12: --chatlogs-dir オプション ───────────────────────────────────
+
+  describe('Given: --chatlogs-dir オプション付き引数', () => {
+    describe('When: parseArgs(["--chatlogs-dir", "/path/to/chatlogs"]) を呼び出す', () => {
+      describe('Then: T-PF-PA-12 - chatlogsDir が設定される', () => {
+        it('T-PF-PA-12-01: chatlogsDir が "/path/to/chatlogs" になる', () => {
+          const result = parseArgs(['--chatlogs-dir', '/path/to/chatlogs']);
+
+          assertEquals(result.chatlogsDir, '/path/to/chatlogs');
+        });
+      });
+    });
+  });
+
+  // ─── T-PF-PA-13: --chatlogs-dir にパスでない値 ───────────────────────────────
+
+  describe('Given: --chatlogs-dir にディレクトリパスでない値', () => {
+    describe('When: parseArgs(["--chatlogs-dir", "notapath"]) を呼び出す', () => {
+      describe('Then: T-PF-PA-13 - ChatlogError(InvalidArgs) がスローされる', () => {
+        it('T-PF-PA-13-01: ChatlogError がスローされる', () => {
+          assertThrows(
+            () => parseArgs(['--chatlogs-dir', 'notapath']),
+            ChatlogError,
+          );
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
