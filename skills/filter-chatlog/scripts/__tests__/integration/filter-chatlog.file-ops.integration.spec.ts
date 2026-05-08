@@ -11,8 +11,8 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // test target
+import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
 import { buildBatchPrompt } from '../../../../filter-chatlog/scripts/libs/batch-prompt.ts';
-import { findMdFiles } from '../../../../filter-chatlog/scripts/libs/find-files.ts';
 import { prefilterFiles } from '../../../../filter-chatlog/scripts/libs/prefilter.ts';
 
 // ─── Helpers
@@ -58,7 +58,7 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
             _makeValidContent('Excluded'),
           );
 
-          const allFiles = await findMdFiles(tempDir);
+          const allFiles = await findFiles(tempDir);
           const errStub = stub(console, 'error', () => {});
           const passed = await prefilterFiles(allFiles);
           errStub.restore();
