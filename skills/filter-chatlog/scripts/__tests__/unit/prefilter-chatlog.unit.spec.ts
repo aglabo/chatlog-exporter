@@ -632,10 +632,10 @@ describe('parseArgs (prefilter)', () => {
           assertEquals(result.dryRun, false);
         });
 
-        it('T-PF-PA-01-03: inputDir が undefined になる', () => {
+        it('T-PF-PA-01-03: chatlogsDir が undefined になる', () => {
           const result = parseArgs([]);
 
-          assertEquals(result.inputDir, undefined);
+          assertEquals(result.chatlogsDir, undefined);
         });
 
         it('T-PF-PA-01-04: period が undefined になる', () => {
@@ -751,15 +751,15 @@ describe('parseArgs (prefilter)', () => {
     });
   });
 
-  // ─── T-PF-PA-08: --input <path> オプション ───────────────────────────────────
+  // ─── T-PF-PA-08: --input <path> オプション（chatlogsDir に吸収） ───────────────
 
   describe('Given: ["--input", "/path/to/input"] を渡す', () => {
     describe('When: parseArgs(["--input", "/path/to/input"]) を呼び出す', () => {
-      describe('Then: T-PF-PA-08 - inputDir=/path/to/input', () => {
-        it('T-PF-PA-08-01: inputDir が "/path/to/input" になる', () => {
+      describe('Then: T-PF-PA-08 - chatlogsDir=/path/to/input', () => {
+        it('T-PF-PA-08-01: chatlogsDir が "/path/to/input" になる', () => {
           const result = parseArgs(['--input', '/path/to/input']);
 
-          assertEquals(result.inputDir, '/path/to/input');
+          assertEquals(result.chatlogsDir, '/path/to/input');
         });
       });
     });
@@ -770,10 +770,10 @@ describe('parseArgs (prefilter)', () => {
   describe('Given: ["--input=/path/to/input"] を渡す', () => {
     describe('When: parseArgs(["--input=/path/to/input"]) を呼び出す', () => {
       describe('Then: T-PF-PA-09 - --input=value 形式のパース', () => {
-        it('T-PF-PA-09-01: inputDir が "/path/to/input" になる', () => {
+        it('T-PF-PA-09-01: chatlogsDir が "/path/to/input" になる', () => {
           const result = parseArgs(['--input=/path/to/input']);
 
-          assertEquals(result.inputDir, '/path/to/input');
+          assertEquals(result.chatlogsDir, '/path/to/input');
         });
       });
     });
@@ -791,7 +791,7 @@ describe('parseArgs (prefilter)', () => {
           assertEquals(result.period, '2026-03');
           assertEquals(result.report, true);
           assertEquals(result.dryRun, true);
-          assertEquals(result.inputDir, './in');
+          assertEquals(result.chatlogsDir, './in');
         });
       });
     });
@@ -898,8 +898,8 @@ describe('buildConfig', () => {
           assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).agent, 'claude');
         });
 
-        it('T-PF-BC-01-02: inputDir が "./chatlogs" になる', () => {
-          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).inputDir, './chatlogs');
+        it('T-PF-BC-01-02: chatlogsDir が "./chatlogs" になる', () => {
+          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).chatlogsDir, './chatlogs');
         });
 
         it('T-PF-BC-01-03: dryRun が false になる', () => {
@@ -937,23 +937,14 @@ describe('buildConfig', () => {
     });
   });
 
-  // ─── T-PF-BC-04: inputDir と chatlogsDir を指定 ──────────────────────────────
+  // ─── T-PF-BC-04: chatlogsDir を指定 ─────────────────────────────────────────
 
-  describe('Given: inputDir と chatlogsDir を指定した Args', () => {
-    describe('When: buildConfig({ inputDir: "/path", chatlogsDir: "/chat", ... }, globalConfig) を呼び出す', () => {
-      describe('Then: T-PF-BC-04 - 両フィールドが設定される', () => {
-        it('T-PF-BC-04-01: inputDir が "/path" になる', () => {
+  describe('Given: chatlogsDir を指定した Args', () => {
+    describe('When: buildConfig({ chatlogsDir: "/chat", ... }, globalConfig) を呼び出す', () => {
+      describe('Then: T-PF-BC-04 - chatlogsDir が設定される', () => {
+        it('T-PF-BC-04-01: chatlogsDir が "/chat" になる', () => {
           assertEquals(
-            buildConfig({ inputDir: '/path', chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig)
-              .inputDir,
-            '/path',
-          );
-        });
-
-        it('T-PF-BC-04-02: chatlogsDir が "/chat" になる', () => {
-          assertEquals(
-            buildConfig({ inputDir: '/path', chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig)
-              .chatlogsDir,
+            buildConfig({ chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig).chatlogsDir,
             '/chat',
           );
         });
@@ -967,14 +958,14 @@ describe('buildConfig', () => {
     describe('When: buildConfig({...}, globalConfig, customDefaults) を呼び出す', () => {
       describe('Then: T-PF-BC-05 - カスタムデフォルト値が適用される', () => {
         it('T-PF-BC-05-01: agent がカスタムデフォルト "chatgpt" になる', () => {
-          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
+          const _customDefaults = { agent: 'chatgpt', chatlogsDir: '/custom', dryRun: false, report: false };
           assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).agent, 'chatgpt');
         });
 
-        it('T-PF-BC-05-02: inputDir がカスタムデフォルト "/custom" になる', () => {
-          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
+        it('T-PF-BC-05-02: chatlogsDir がカスタムデフォルト "/custom" になる', () => {
+          const _customDefaults = { agent: 'chatgpt', chatlogsDir: '/custom', dryRun: false, report: false };
           assertEquals(
-            buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).inputDir,
+            buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).chatlogsDir,
             '/custom',
           );
         });
