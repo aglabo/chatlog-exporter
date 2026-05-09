@@ -6,11 +6,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// --- shared modules ---
-
-// classes
-import { globalConfig } from '../../classes/GlobalConfig.class.ts';
-
 // ─────────────────────────────────────────────
 // チャットログパス構築
 // ─────────────────────────────────────────────
@@ -44,17 +39,19 @@ export const agentPath = (agent: string, period?: string): string => {
 // チャットログディレクトリ解決
 // ─────────────────────────────────────────────
 
+export type ResolveChatlogsDirOptions = {
+  chatlogsDir?: string;
+  baseDir: string;
+  agent: string;
+  period?: string;
+};
+
 /**
- * `globalConfig` の `chatlogsDir` を参照してチャットログディレクトリを解決する。
+ * チャットログディレクトリを解決する。
  *
- * - `chatlogsDir` が設定済み → `chatlogsDir` をそのまま返す（agent/period は無視）
- * - `chatlogsDir` が未定義 → `DEFAULT_CHATLOG_DIR + "/" + agentPath(agent, period)` を返す
- *
- * @param agent - エージェント名
- * @param period - 期間文字列（YYYY または YYYY-MM）、省略可
- * @returns チャットログディレクトリのパス
+ * - `chatlogsDir` が指定済み → そのまま返す（agent/period は無視）
+ * - `chatlogsDir` が未定義 → `baseDir/agentPath(agent, period)` を返す
  */
-export const resolveChatlogsDir = (chatlogsDir: string | undefined, agent: string, period?: string): string => {
-  const _baseDir = globalConfig.get('chatlogsDir') as string;
-  return chatlogsDir ?? `${_baseDir}/${agentPath(agent, period)}`;
+export const resolveChatlogsDir = ({ chatlogsDir, baseDir, agent, period }: ResolveChatlogsDirOptions): string => {
+  return chatlogsDir ?? `${baseDir}/${agentPath(agent, period)}`;
 };
