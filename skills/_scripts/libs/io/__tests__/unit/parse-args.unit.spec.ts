@@ -23,6 +23,7 @@ type TestConfig = {
   agent?: string;
   period?: string;
   inputDir?: string;
+  chatlogsDir?: string;
   outputDir?: string;
   dryRun?: boolean;
   verbose?: boolean;
@@ -30,6 +31,7 @@ type TestConfig = {
 
 const OPT_KEYS: Record<string, keyof TestConfig> = {
   '--output': 'outputDir',
+  '--input': 'inputDir',
 };
 
 const OPT_FLAGS: Record<string, keyof TestConfig> = {
@@ -146,16 +148,16 @@ describe('parseArgsToConfig', () => {
 
   describe('Given: ディレクトリパスの位置引数', () => {
     describe('When: parseArgsToConfig(args) を呼び出す', () => {
-      describe('Then: T-PA-07 - inputDir に設定される', () => {
+      describe('Then: T-PA-07 - chatlogsDir に設定される', () => {
         const _cases: { id: string; input: string; expected: string }[] = [
           { id: 'T-PA-07-01', input: '/absolute/path', expected: '/absolute/path' },
           { id: 'T-PA-07-02', input: './relative/path', expected: './relative/path' },
           { id: 'T-PA-07-03', input: 'C:\\Windows\\path', expected: 'C:/Windows/path' },
         ];
         for (const { id, input, expected } of _cases) {
-          it(`${id}: "${input}" → inputDir が "${expected}" になる`, () => {
+          it(`${id}: "${input}" → chatlogsDir が "${expected}" になる`, () => {
             const result = parseArgsToConfig<TestConfig>([input], OPT_KEYS, OPT_FLAGS);
-            assertEquals(result.inputDir, expected);
+            assertEquals(result.chatlogsDir, expected);
           });
         }
       });
@@ -301,12 +303,116 @@ describe('parseArgsToConfig', () => {
 
   describe('Given: エージェント名を含むディレクトリパスの位置引数', () => {
     describe('When: parseArgsToConfig(["./claude"]) を呼び出す', () => {
-      describe('Then: T-PA-16 - ディレクトリパスとして inputDir に設定される', () => {
-        it('T-PA-16-01: "./claude" → agent ではなく inputDir が "./claude" になる', () => {
+      describe('Then: T-PA-16 - ディレクトリパスとして chatlogsDir に設定される', () => {
+        it('T-PA-16-01: "./claude" → agent ではなく chatlogsDir が "./claude" になる', () => {
           const result = parseArgsToConfig<TestConfig>(['./claude'], OPT_KEYS, OPT_FLAGS);
-          assertEquals(result.inputDir, './claude');
+          assertEquals(result.chatlogsDir, './claude');
           assertEquals(result.agent, undefined);
         });
+      });
+    });
+  });
+
+  // ─── T-PA-17: chatlogsDir 未定義時の inputDir フォールバック ──────────────
+
+  describe('Given: --input オプションのみ指定（位置引数ディレクトリなし）', () => {
+    describe('When: parseArgsToConfig(args) を呼び出す', () => {
+      describe('Then: T-PA-17 - chatlogsDir に inputDir の値がコピーされる', () => {
+        it('T-PA-17-01: --input /path → chatlogsDir が "/path" になる', () => {
+          const result = parseArgsToConfig<TestConfig>(['--input', '/path'], OPT_KEYS, OPT_FLAGS);
+          assertEquals(result.chatlogsDir, '/path');
+        });
+        it('T-PA-17-02: --input /path → inputDir も "/path" のまま', () => {
+          const result = parseArgsToConfig<TestConfig>(['--input', '/path'], OPT_KEYS, OPT_FLAGS);
+          assertEquals(result.inputDir, '/path');
+        });
+      });
+    });
+  });
+
+  describe('Given: --input と位置引数ディレクトリを同時に指定', () => {
+    describe('When: parseArgsToConfig(args) を呼び出す', () => {
+      describe('Then: T-PA-17-03 - 位置引数の chatlogsDir が優先される（フォールバック不発）', () => {
+        it('T-PA-17-03: --input /a /b → chatlogsDir が "/b" になる（位置引数優先）', () => {
+          const result = parseArgsToConfig<TestConfig>(['--input', '/a', '/b'], OPT_KEYS, OPT_FLAGS);
+          assertEquals(result.chatlogsDir, '/b');
+          assertEquals(result.inputDir, '/a');
+        });
+      });
+    });
+  });
+
+  // ─── T-PA-18: chatlogsDir 形式バリデーション ──────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `chatlogsDir` 形式バリデーションテスト。
+   *
+   * オプション経由で `chatlogsDir` に非ディレクトリ形式の値が設定された場合に
+   * `ChatlogError('InvalidArgs')` をスローすることを検証する。
+   *
+   * テスト ID 範囲: T-PA-18-01 〜 T-PA-18-02
+   */
+  describe('Given: --chatlogs-dir オプションに非ディレクトリ形式の値', () => {
+    type TestConfigWithChatlogsDir = TestConfig & { chatlogsDir?: string };
+    const _OPT_KEYS_WITH_CHATLOGS: Record<string, keyof TestConfigWithChatlogsDir> = {
+      '--output': 'outputDir',
+      '--input': 'inputDir',
+      '--chatlogs-dir': 'chatlogsDir',
+    };
+
+    /** 非ディレクトリ形式（スラッシュなし）の値を chatlogsDir に設定するケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-PA-18-01: --chatlogs-dir plain-value → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () =>
+            parseArgsToConfig<TestConfigWithChatlogsDir>(
+              ['--chatlogs-dir', 'plain-value'],
+              _OPT_KEYS_WITH_CHATLOGS,
+              OPT_FLAGS,
+            ),
+          ChatlogError,
+          'Invalid Args',
+        );
+      });
+    });
+
+    /** chatlogsDir が未設定の場合はスローしない。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-PA-18-02: chatlogsDir 未設定 → スローしない', () => {
+        const result = parseArgsToConfig<TestConfig>([], OPT_KEYS, OPT_FLAGS);
+        assertEquals(result.chatlogsDir, undefined);
+      });
+    });
+  });
+
+  // ─── T-PA-19: inputDir 形式バリデーション ────────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `inputDir` 形式バリデーションテスト。
+   *
+   * `--input` に非ディレクトリ形式の値が設定された場合に
+   * `ChatlogError('InvalidArgs')` をスローすることを検証する。
+   *
+   * テスト ID 範囲: T-PA-19-01 〜 T-PA-19-02
+   */
+  describe('Given: --input オプションに非ディレクトリ形式の値', () => {
+    /** 非ディレクトリ形式（スラッシュなし）の値を inputDir に設定するケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-PA-19-01: --input plain-value → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--input', 'plain-value'], OPT_KEYS, OPT_FLAGS),
+          ChatlogError,
+          'Invalid Args',
+        );
+      });
+    });
+
+    /** inputDir と chatlogsDir が同一値（フォールバック後）の場合は二重スローしない。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-PA-19-02: --input /valid/path → フォールバック後 chatlogsDir も設定されスローしない', () => {
+        const result = parseArgsToConfig<TestConfig>(['--input', '/valid/path'], OPT_KEYS, OPT_FLAGS);
+        assertEquals(result.inputDir, '/valid/path');
+        assertEquals(result.chatlogsDir, '/valid/path');
       });
     });
   });
