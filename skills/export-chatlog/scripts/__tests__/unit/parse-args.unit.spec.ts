@@ -71,11 +71,16 @@ describe('parseArgs', () => {
             expected: '/data/chatgpt-export',
           },
           { id: 'T-EC-PA-13-01', args: ['chatgpt'], field: 'agent', expected: 'chatgpt' },
-          { id: 'T-EC-PA-15-01', args: ['chatgpt', '/path/to/export'], field: 'inputDir', expected: '/path/to/export' },
+          {
+            id: 'T-EC-PA-15-01',
+            args: ['chatgpt', '/path/to/export'],
+            field: 'chatlogsDir',
+            expected: '/path/to/export',
+          },
           {
             id: 'T-EC-PA-15-04',
             args: ['chatgpt', 'C:\\Users\\foo\\export'],
-            field: 'inputDir',
+            field: 'chatlogsDir',
             expected: 'C:/Users/foo/export',
           },
         ];
@@ -148,23 +153,23 @@ describe('parseArgs', () => {
    * パス判定（/ または ドライブレター:/ で始まる）により正しく区別されることを確認する。
    */
   describe('Given: ["chatgpt", "2026-03", "/path/to/export"]', () => {
-    it('T-EC-PA-15-02: period と inputDir が同時に設定される', () => {
+    it('T-EC-PA-15-02: period と chatlogsDir が同時に設定される', () => {
       const result = parseArgs(['chatgpt', '2026-03', '/path/to/export']);
       assertEquals(result.period, '2026-03');
-      assertEquals(result.inputDir, '/path/to/export');
+      assertEquals(result.chatlogsDir, '/path/to/export');
     });
   });
 
   /**
-   * period と inputDir の順番を逆にした境界値ケース。
+   * period と chatlogsDir の順番を逆にした境界値ケース。
    * パスと期間文字列の順序に依存せず正しく解析されることを確認する。
    * 順序不問の解析仕様を明示的に検証する。
    */
   describe('Given: ["chatgpt", "/path/to/export", "2026-03"]（順番逆）', () => {
-    it('T-EC-PA-15-03: 順番が逆でも period と inputDir が正しく設定される', () => {
+    it('T-EC-PA-15-03: 順番が逆でも period と chatlogsDir が正しく設定される', () => {
       const result = parseArgs(['chatgpt', '/path/to/export', '2026-03']);
       assertEquals(result.period, '2026-03');
-      assertEquals(result.inputDir, '/path/to/export');
+      assertEquals(result.chatlogsDir, '/path/to/export');
     });
   });
 

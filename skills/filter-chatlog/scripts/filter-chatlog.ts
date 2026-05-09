@@ -25,7 +25,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // -- internal --
@@ -55,30 +55,8 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
   '--dry-run': 'dryRun',
 };
 
-/**
- * コマンドライン引数を解析して ParsedConfig を返す。
- * - `--input` の値はディレクトリパス形式（`/` を含む）でなければ `ChatlogError(InvalidArgs)` をスローする。
- * - `--chatlogs-dir` の値はディレクトリパス形式（`/` を含む）でなければ `ChatlogError(InvalidArgs)` をスローする。
- * - `chatlogsDir` が未指定の場合は `inputDir` の値をフォールバックとして設定する。
- */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  const _parsed = parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
-  if (_parsed.inputDir !== undefined && !isDirectoryArg(_parsed.inputDir)) {
-    throw new ChatlogError(
-      'InvalidArgs',
-      `--input にはディレクトリパスを指定してください: ${_parsed.inputDir}`,
-    );
-  }
-  if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
-    throw new ChatlogError(
-      'InvalidArgs',
-      `--chatlogs-dir にはディレクトリパスを指定してください: ${_parsed.chatlogsDir}`,
-    );
-  }
-  return {
-    ..._parsed,
-    chatlogsDir: _parsed.chatlogsDir ?? _parsed.inputDir,
-  };
+  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────

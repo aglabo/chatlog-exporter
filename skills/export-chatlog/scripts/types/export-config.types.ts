@@ -36,6 +36,8 @@ export interface ExportConfig {
   inputDir?: string;
   /** 出力先ディレクトリのベースパス。デフォルトは "./chatlogs" */
   outputDir: string;
+  /** チャットログ格納ディレクトリ。位置引数のディレクトリパスが設定される。 */
+  chatlogsDir?: string;
 }
 
 /**

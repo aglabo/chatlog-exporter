@@ -69,17 +69,8 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
   '--dry-run': 'dryRun',
 };
 
-/**
- * コマンドライン引数を解析して ParsedConfig を返す。
- * - `--model` が指定された場合はバリデーションを行い、不正なら `ChatlogError('InvalidArgs')` をスローする。
- * - モデルのデフォルト値解決は `main()` で GlobalConfig を取得した後に行う。
- */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  const _parsed = parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
-  if (_parsed.model !== undefined && !isValidModel(_parsed.model)) {
-    throw new ChatlogError('InvalidArgs', `不正なモデル名: ${_parsed.model}`);
-  }
-  return _parsed;
+  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────
@@ -90,7 +81,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ClassifyConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - model 優先順位: `parsed.model` > `globalConfig.get('model')` > `defaults.model`
- * - inputDir 優先順位: `parsed.inputDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
+ * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
  * - dicsDir 優先順位: `globalConfig.get('dicsDir')` > `defaults.dicsDir`
  * - projectsDic: `parsed.configFile` のディレクトリ + `/projects.dic`。未指定時は `defaults.projectsDic`。
  * - 不正なモデル名は `ChatlogError('InvalidArgs')` をスローする。
@@ -108,7 +99,7 @@ export function buildConfig(
   }
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _dicsDir = globalConfig.get('dicsDir') as string;
-  const _inputDir = parsed.inputDir ?? globalConfig.get('chatlogsDir') as string;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? globalConfig.get('chatlogsDir') as string;
   const _projectsDic = `${_dicsDir}/projects.dic`;
   const { configFile: _cf, ...rest } = parsed;
   return {
