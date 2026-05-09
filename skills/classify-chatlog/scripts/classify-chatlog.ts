@@ -28,7 +28,7 @@ import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 // instances
 import { logger } from '../../_scripts/libs/io/logger.ts';
 // constants
-import { DEFAULT_CHUNK_SIZE, DEFAULT_CONCURRENCY } from '../../_scripts/constants/defaults.constants.ts';
+
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
@@ -69,17 +69,8 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
   '--dry-run': 'dryRun',
 };
 
-/**
- * コマンドライン引数を解析して ParsedConfig を返す。
- * - `--model` が指定された場合はバリデーションを行い、不正なら `ChatlogError('InvalidArgs')` をスローする。
- * - モデルのデフォルト値解決は `main()` で GlobalConfig を取得した後に行う。
- */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  const _parsed = parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
-  if (_parsed.model !== undefined && !isValidModel(_parsed.model)) {
-    throw new ChatlogError('InvalidArgs', `不正なモデル名: ${_parsed.model}`);
-  }
-  return _parsed;
+  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────
@@ -90,7 +81,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ClassifyConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - model 優先順位: `parsed.model` > `globalConfig.get('model')` > `defaults.model`
- * - inputDir 優先順位: `parsed.inputDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
+ * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
  * - dicsDir 優先順位: `globalConfig.get('dicsDir')` > `defaults.dicsDir`
  * - projectsDic: `parsed.configFile` のディレクトリ + `/projects.dic`。未指定時は `defaults.projectsDic`。
  * - 不正なモデル名は `ChatlogError('InvalidArgs')` をスローする。
@@ -102,16 +93,14 @@ export function buildConfig(
   defaults?: ClassifyConfig,
 ): ClassifyConfig {
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
-  const _model = parsed.model ?? (globalConfig.get('model') as string | undefined) ?? _defaults.model;
+  const _model = parsed.model ?? globalConfig.get('model') as string;
   if (!isValidModel(_model)) {
     throw new ChatlogError('InvalidArgs', `不正なモデル名: ${_model}`);
   }
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
-  const _dicsDir = (globalConfig.get('dicsDir') as string | undefined) ?? _defaults.dicsDir;
-  const _inputDir = parsed.inputDir ?? (globalConfig.get('chatlogsDir') as string | undefined) ?? _defaults.inputDir;
-  const _projectsDic = parsed.configFile
-    ? `${getDirectory(parsed.configFile)}/projects.dic`
-    : _defaults.projectsDic;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _dicsDir = globalConfig.get('dicsDir') as string;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? globalConfig.get('chatlogsDir') as string;
+  const _projectsDic = `${_dicsDir}/projects.dic`;
   const { configFile: _cf, ...rest } = parsed;
   return {
     ..._defaults,
@@ -394,8 +383,8 @@ export const main = async (argv?: string[]): Promise<void> => {
     }
 
     // チャンク分割して並列処理
-    const _chunkSize = (_globalConfig.get('chunkSize') as number) ?? DEFAULT_CHUNK_SIZE;
-    const _concurrency = (_globalConfig.get('concurrency') as number) ?? DEFAULT_CONCURRENCY;
+    const _chunkSize = _globalConfig.get('chunkSize') as number;
+    const _concurrency = _globalConfig.get('concurrency') as number;
     await runChunked(
       targetMetas,
       _chunkSize,

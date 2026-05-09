@@ -15,15 +15,20 @@ export const isDirectoryArg = (arg: string): boolean => {
   return normalizePath(arg).includes('/');
 };
 
+// functions
+
 /**
  * CLI 引数を解析して Partial<T> を返す汎用パーサー。
  *
- * 位置引数の解釈は T が `period`/`agent`/`inputDir` を持つことを前提とする。
+ * 位置引数の解釈は T が `period`/`agent`/`chatlogsDir` を持つことを前提とする。
  * - `YYYY-MM` 形式 → `period`
  * - 既知エージェント名 → `agent`
- * - ディレクトリパス → `inputDir`
+ * - ディレクトリパス → `chatlogsDir`
+ *
+ * `chatlogsDir` が未設定かつ `inputDir`（`optKeys` 経由）が設定されている場合は
+ * `inputDir` の値を `chatlogsDir` にコピーする。
  */
-export const parseArgsToConfig = <T extends { period?: string; agent?: string; inputDir?: string }>(
+export const parseArgsToConfig = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
   args: string[],
   optKeys: Record<string, keyof T>,
   optFlags: Record<string, keyof T>,
@@ -33,7 +38,7 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; i
   const _validKeys = new Set<string>([
     'period',
     'agent',
-    'inputDir',
+    'chatlogsDir',
     ...Object.values(optKeys).map(String),
     ...Object.values(optFlags).map(String),
   ]);
@@ -80,11 +85,23 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; i
     } else if (isKnownAgent(arg)) {
       _set('agent', arg);
     } else if (isDirectoryArg(arg)) {
-      _set('inputDir', normalizePath(arg));
+      _set('chatlogsDir', normalizePath(arg));
     } else {
       throw new ChatlogError('InvalidArgs', `不明な引数: ${arg}`);
     }
   }
+
+  if (_config['inputDir'] !== undefined) {
+    const dir = normalizePath(_config['inputDir'] as string);
+    if (!isDirectoryArg(dir)) { throw new ChatlogError('InvalidArgs', `--input must be a directory : ${dir}`); }
+    _config['inputDir'] = dir;
+  }
+  if (_config['chatlogsDir'] !== undefined) {
+    const dir = normalizePath(_config['chatlogsDir'] as string);
+    if (!isDirectoryArg(dir)) { throw new ChatlogError('InvalidArgs', `--chatlogsDir must be a directory : ${dir}`); }
+    _config['chatlogsDir'] = dir;
+  }
+  _config['chatlogsDir'] ??= _config['inputDir'];
 
   return _config as Partial<T>;
 };

@@ -63,6 +63,8 @@ export interface ClassifyConfig {
   projectsDic?: string;
   /** claude CLI に渡すモデル名。 */
   model: string;
+  /** チャットログ格納ディレクトリ。位置引数のディレクトリパスが設定される。 */
+  chatlogsDir?: string;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`dicsDir` は GlobalConfig で管理するため含まない。 */

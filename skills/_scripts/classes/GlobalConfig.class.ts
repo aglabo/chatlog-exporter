@@ -18,7 +18,7 @@ import { parseNumber, parseString } from '../libs/text/string-utils.ts';
 import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
 // types
-import type { ConfigSchema, ConfigValues, SchemaValueType } from '../constants/schema.constants.ts';
+import type { ConfigSchema, ConfigValues, DefaultSchemaKey, SchemaValueType } from '../constants/schema.constants.ts';
 import type { CommandProvider, ReadTextFileProvider } from '../types/providers.types.ts';
 // classes
 import { ChatlogError } from './ChatlogError.class.ts';
@@ -26,7 +26,7 @@ import { ChatlogError } from './ChatlogError.class.ts';
 /**
  * グローバル設定シングルトン。スキーマ検証付き。
  * - `getInstance(options?)` でシングルトンインスタンスを取得する。既にインスタンスが存在する場合は既存のインスタンスを返す。
- * - `get(key: string): string | number | undefined` で値を取得する。スキーマにないキーまたは未設定の場合は `undefined` を返す。
+ * - `get(key: string): string | number` で値を取得する。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。
  * - `parseYaml(raw: Record<string, unknown>): Partial<ConfigValues>` で YAML パース結果を `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。
  * - テスト専用の `resetInstance()` メソッドでシングルトンインスタンスをリセットできる。プロダクションコードからは呼び出さないこと。
  */
@@ -44,6 +44,7 @@ export class GlobalConfig {
 
   /**
    * シングルトンインスタンスを返す。インスタンスが未生成の場合は `options` を使って新規生成する。
+   * - `yaml` が指定されていれば YAML 文字列を直接パースして `_fields` を上書きする（`configFile` より優先）。
    * - `configFile` が指定されていれば YAML を読み込んで `_fields` を上書きする（DEFAULT_VALUES + YAML 値）。
    * - ファイルが存在しない場合 (`FileDirNotFound`) はエラーを無視して `DEFAULT_VALUES` のまま返す。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
@@ -51,12 +52,19 @@ export class GlobalConfig {
   static async getInstance(options?: {
     schema?: ConfigSchema;
     configFile?: string;
+    yaml?: string;
     readTextFileProvider?: ReadTextFileProvider;
     commandProvider?: CommandProvider;
   }): Promise<GlobalConfig> {
     if (!GlobalConfig._instance) {
       GlobalConfig._instance = new GlobalConfig(options?.schema);
-      if (options?.configFile) {
+      if (options?.yaml !== undefined) {
+        if (options.yaml !== '') {
+          const _loaded = GlobalConfig._instance._parseYamlText(options.yaml);
+          GlobalConfig._instance._fields = { ...DEFAULT_VALUES, ..._loaded } as ConfigValues;
+        }
+        // 空文字列 → DEFAULT_VALUES のまま継続
+      } else if (options?.configFile) {
         try {
           const _loaded = await GlobalConfig._instance.loadConfigFile({
             configPath: options.configFile,
@@ -81,10 +89,30 @@ export class GlobalConfig {
     GlobalConfig._instance = undefined;
   }
 
-  /** `key` に対応する値を返す。スキーマにないキーまたは未設定の場合は `undefined` を返す。 */
-  get(key: string): string | number | undefined {
-    if (!(key in this._schema)) { return undefined; }
+  /** `key` に対応する値を返す。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。 */
+  get(key: DefaultSchemaKey): string | number {
     return this._fields[key];
+  }
+
+  /**
+   * YAML テキストを受け取り、`Partial<ConfigValues>` を返す。
+   * ルートがオブジェクトでない場合は `ChatlogError('InvalidYaml')` をスローする。
+   * 空文字列のチェックは呼び出し元の責務とする。
+   */
+  private _parseYamlText(text: string): Partial<ConfigValues> {
+    let _raw: unknown;
+    try {
+      _raw = parse(text);
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        throw new ChatlogError('InvalidYaml', `YAML 構文エラー: ${e.message}`);
+      }
+      throw e;
+    }
+    if (typeof _raw !== 'object' || _raw === null || Array.isArray(_raw)) {
+      throw new ChatlogError('InvalidYaml', `YAML ルートはオブジェクトである必要があります`);
+    }
+    return this.parseYaml(_raw as Record<string, unknown>);
   }
 
   /** YAML パース結果を `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。 */
@@ -129,21 +157,9 @@ export class GlobalConfig {
       }
       throw e;
     }
-    let _raw: unknown;
-    try {
-      _raw = parse(_text);
-    } catch (e) {
-      if (e instanceof SyntaxError) {
-        throw new ChatlogError('InvalidYaml', `YAML 構文エラー: ${e.message}`);
-      }
-      throw e;
-    }
-    if (typeof _raw !== 'object' || _raw === null || Array.isArray(_raw)) {
-      throw new ChatlogError('InvalidYaml', `YAML ルートはオブジェクトである必要があります`);
-    }
-    return this.parseYaml(_raw as Record<string, unknown>);
+    return this._parseYamlText(_text);
   }
 }
 
 /** アプリケーション共通の GlobalConfig インスタンス。 */
-export const globalConfig = await GlobalConfig.getInstance();
+// export const globalConfig = await GlobalConfig.getInstance();

@@ -386,32 +386,6 @@ describe('buildConfig', () => {
     });
   });
 
-  /**
-   * `defaults.outputDir` にカスタム値が指定されている前提条件グループ。
-   *
-   * `buildConfig` の第 3 引数でデフォルト値を上書きするケースを表す。
-   * `globalConfig` に `chatlogsDir` が未登録の場合、`defaults.outputDir` が採用されることを検証する。
-   */
-  describe('Given: defaults.outputDir=/custom が指定されている', () => {
-    /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
-    describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
-      /** `defaults.outputDir` が採用されることを検証する。 */
-      describe('Then: T-EC-BC-14 - defaults.outputDir が使われる', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-EC-BC-14-01: defaults.outputDir=/custom, chatlogsDir 未登録 → result.outputDir === /custom', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig, {
-            ...DEFAULT_EXPORT_CONFIG,
-            outputDir: '/custom',
-          });
-          assertEquals(result.outputDir, '/custom');
-        });
-      });
-    });
-  });
-
   // ─── configFile の ExportConfig 混入防止 ─────────────────────────────────────
 
   /**

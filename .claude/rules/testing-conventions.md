@@ -167,56 +167,72 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> { ... }
 const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.FileInfo);
 ```
 
-### 3-2. describe ブロックの JSDoc
+### 3-2. describe 構造とラベル規則
 
-| レベル        | JSDoc 種別 | 記載内容                                                         |
-| ------------- | ---------- | ---------------------------------------------------------------- |
-| TOP（関数名） | 複数行     | 関数の責務・テスト対象シナリオの概要・テスト ID 範囲・`@see`     |
-| Given         | 複数行     | 前提条件の意味・そのシナリオで検証する動作・フォールバック先など |
-| When          | 1行        | 呼び出す操作の簡潔な説明                                         |
-| Then          | 1行        | 期待結果の簡潔な説明                                             |
+テストは **4階層** を基本とする。Given は省略し、機能種別 → 分類 → ケースの順で整理する。
+
+| 階層                 | ラベル形式                                                   | JSDoc 種別 | 記載内容                                                    |
+| -------------------- | ------------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
+| TOP（クラス/関数名） | `'ClassName'` / `'functionName'`                             | 複数行     | 対象の責務・テスト ID 範囲・`@see`                          |
+| 機能種別             | `'methodName'` / `'featureName'`                             | 複数行     | 機能の責務・検証するシナリオの概要                          |
+| 分類                 | `'When: 正常系'` / `'When: 異常系'` / `'When: エッジケース'` | 1行        | 分類の意味（省略可）                                        |
+| ケース               | `it(...)`                                                    | —          | `[Normal]` / `[Error]` / `[Edge]` prefix + テスト ID + 説明 |
+
+#### 分類ラベル一覧
+
+| 分類         | `describe` ラベル      | `it` prefix |
+| ------------ | ---------------------- | ----------- |
+| 正常系       | `'When: 正常系'`       | `[Normal]`  |
+| 異常系       | `'When: 異常系'`       | `[Error]`   |
+| エッジケース | `'When: エッジケース'` | `[Edge]`    |
+
+分類が 1 種類しかない場合は `When:` ブロックを省略して `it` を直接置いてよい。
 
 **TOP レベルの例**
 
 ```typescript
 /**
- * `buildConfig` 関数の機能テストスイート。
+ * `GlobalConfig` クラスのユニットテストスイート。
  *
- * `buildConfig(parsed, globalConfig, defaults?)` は
- * `ParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `ExportConfig` を構築する。
+ * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * ## 優先順位ルール
- * - `agent`     : parsed > globalConfig > defaults
- * - `outputDir` : parsed > globalConfig.chatlogDir > defaults
- * - `baseDir`   : parsed のみ（GlobalConfig 連携なし）
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-67
  *
- * テスト ID 範囲: T-EC-BC-01 〜 T-EC-BC-14
- *
- * @see buildConfig
+ * @see GlobalConfig
  */
-describe('buildConfig', () => {
+describe('GlobalConfig', () => {
 ```
 
-**Given レベルの例**
+**機能種別レベルの例**
 
 ```typescript
 /**
- * `parsed.agent` がセットされている前提条件グループ。
+ * `getInstance` のシングルトン動作テスト。
  *
- * CLI 引数または呼び出しコードが明示的にエージェントを指定したケースを表す。
- * `globalConfig` に agent が設定されていても `parsed.agent` が優先されることを検証する。
+ * 初回取得・yaml/configFile オプション・既存インスタンスへの後続呼び出しを検証する。
  */
-describe('Given: parsed.agent が指定されている', () => {
+describe('getInstance', () => {
 ```
 
-**When / Then レベルの例**
+**When / it レベルの例**
 
 ```typescript
-/** `globalConfig` にも `agent` が設定されているとき。 */
-describe('When: GlobalConfig にも agent が設定されている', () => {
+/** 引数なしまたは有効なオプションを渡す正常ケース。 */
+describe('When: 正常系', () => {
+  it('[Normal] T-CLS-GC-01: 2 回の getInstance は同一参照を返す', ...);
+  it('[Normal] T-CLS-GC-61: yaml で chatlogsDir が設定される', ...);
+});
 
-/** `parsed.agent` が `globalConfig.agent` より優先されることを検証する。 */
-describe('Then: T-EC-BC-01 - parsed.agent が優先される', () => {
+/** 不正な入力でエラーがスローされるケース。 */
+describe('When: 異常系', () => {
+  it('[Error] T-CLS-GC-64: yaml が不正YAML構文 → ChatlogError(InvalidYaml)', ...);
+});
+
+/** 境界値・副作用・優先度など特殊なケース。 */
+describe('When: エッジケース', () => {
+  it('[Edge] T-CLS-GC-63: yaml が空文字列 → デフォルト値が使われる', ...);
+  it('[Edge] T-CLS-GC-65: 既存インスタンスがある場合 yaml オプションは無視される', ...);
+});
 ```
 
 ---

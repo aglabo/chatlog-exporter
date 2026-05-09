@@ -38,7 +38,7 @@ import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { agentPath } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
 import { DEFAULT_PREFILTER_CONFIG, MIN_ASSISTANT_CHARS } from './constants/filter.constants.ts';
 import {
@@ -159,9 +159,9 @@ export const buildConfig = (
   globalConfig: GlobalConfig,
   defaults: PrefilterConfig = DEFAULT_PREFILTER_CONFIG,
 ): PrefilterConfig => {
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
-  const _chatlogsDir = parsed.chatlogsDir ?? (globalConfig.get('chatlogsDir') as string | undefined)
-    ?? defaults.chatlogsDir;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
+  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
   const { configFile: _configFile, ...rest } = parsed;
   return {
     ...defaults,
@@ -184,13 +184,6 @@ const _OPT_FLAGS: Record<string, keyof PrefilterParsedConfig> = {
 
 export const parseArgs = (args: string[]): PrefilterParsedConfig => {
   const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as PrefilterParsedConfig;
-  if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
-    throw new ChatlogError(
-      'InvalidArgs',
-      `--chatlogs-dir にはディレクトリパスを指定してください: ${_parsed.chatlogsDir}`,
-    );
-  }
-
   _parsed.dryRun ??= (_parsed.dryRun ?? false) || (_parsed.report ?? false);
   _parsed.report ??= false;
   return {

@@ -38,6 +38,7 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // exists
 import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
@@ -54,12 +55,12 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   configFile: string;
   monthDir: string;
 }> {
-  const inputDir = await Deno.makeTempDir();
-  const configsDir = await Deno.makeTempDir();
+  const inputDir = normalizePath(await Deno.makeTempDir());
+  const configsDir = normalizePath(await Deno.makeTempDir());
   const configFile = `${configsDir}/config.yaml`;
   const monthDir = `${inputDir}/${agent}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
-  await Deno.writeTextFile(configFile, '{}\n');
+  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
   await Deno.writeTextFile(
     `${configsDir}/projects.dic`,
     'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
@@ -443,9 +444,9 @@ describe('main - InputNotFound エラー', () => {
         let exitStub: Stub;
 
         beforeEach(async () => {
-          configsDir = await Deno.makeTempDir();
+          configsDir = normalizePath(await Deno.makeTempDir());
           configFile = `${configsDir}/defaults.yaml`;
-          await Deno.writeTextFile(configFile, '{}\n');
+          await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\n',
