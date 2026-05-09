@@ -42,7 +42,6 @@ const _makeCodexDir = async (tempDir: string, period: string): Promise<string> =
  *
  * `findMdFiles(baseDir, agent, period?)` は `baseDir/agent/YYYY/YYYY-MM/` 構造から
  * .md ファイルをソート済みで列挙する。`period` 指定で対象月を絞り込む。
- * ネスト構造が存在しない場合は `baseDir/agent/YYYY-MM/` のフラット構造にフォールバックする。
  *
  * テスト ID 範囲: T-PF-FM-01 〜 T-PF-FM-07
  *
@@ -122,35 +121,6 @@ describe('findMdFiles (prefilter)', () => {
   });
 
   /**
-   * `YYYY/YYYY-MM/` ネスト構造がなく `agent/YYYY-MM/` のフラット構造の前提条件グループ。
-   *
-   * フラット構造にフォールバックし、ファイルが収集されることを検証する。
-   */
-  describe('Given: YYYY/YYYY-MM 構造がなく tempDir/claude/2026-03/ のフラット構造', () => {
-    /** findMdFiles(tempDir, "claude", "2026-03") を呼び出すとき。 */
-    describe('When: findMdFiles(tempDir, "claude", "2026-03") を呼び出す', () => {
-      /** フラット構造からも .md ファイルが返されることを検証する。 */
-      describe('Then: T-PF-FM-03 - フラット構造からも .md が返される', () => {
-        it('T-PF-FM-03-01: フラット構造でも .md ファイルが返される', async () => {
-          // フラット構造のみのテストのため、ネスト構造を持たない独自 tempDir を使用する
-          const flatBase = await Deno.makeTempDir();
-          try {
-            const flatDir = `${flatBase}/claude/2026-03`;
-            await Deno.mkdir(flatDir, { recursive: true });
-            await Deno.writeTextFile(`${flatDir}/chat.md`, '# Flat');
-
-            const result = await findMdFiles(flatBase, 'claude', '2026-03');
-
-            assertEquals(result.length, 1);
-          } finally {
-            await Deno.remove(flatBase, { recursive: true });
-          }
-        });
-      });
-    });
-  });
-
-  /**
    * 2026-03 と 2026-04 に各 1 件あり、`period` を指定しない前提条件グループ。
    *
    * `period` 未指定時は agent 配下の全ファイルが返されることを検証する。
@@ -183,7 +153,7 @@ describe('findMdFiles (prefilter)', () => {
       /** 空配列が返されることを検証する。 */
       describe('Then: T-PF-FM-05 - 空配列が返される（エラーなし）', () => {
         it('T-PF-FM-05-01: 空配列が返される', async () => {
-          const result = await findMdFiles(tempDir, 'claude');
+          const result = await findMdFiles(tempDir, 'codex');
 
           assertEquals(result.length, 0);
         });

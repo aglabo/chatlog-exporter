@@ -37,7 +37,7 @@ export const MIN_ASSISTANT_CHARS = 100;
 /** prefilter-chatlog の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
   agent: DEFAULT_AGENT,
-  inputDir: DEFAULT_CHATLOG_DIR,
+  chatlogsDir: DEFAULT_CHATLOG_DIR,
   dryRun: false,
   report: false,
 };

@@ -12,10 +12,8 @@ export interface PrefilterConfig {
   agent: string;
   /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
   period?: string;
-  /** チャットログが格納された入力ディレクトリのパス。 */
-  inputDir: string;
-  /** チャットログ基底ディレクトリのパス。省略時は `undefined`。 */
-  chatlogsDir?: string;
+  /** チャットログ基底ディレクトリのパス。 */
+  chatlogsDir: string;
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
   dryRun: boolean;
   /** `true` のときノイズファイル一覧をタブ区切りで出力する（`dryRun` も暗示）。 */
