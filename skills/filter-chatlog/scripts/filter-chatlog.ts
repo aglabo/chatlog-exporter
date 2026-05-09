@@ -89,7 +89,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * ParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - chatlogsDir 優先順位: `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
- * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
+ * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
  * - discardThreshold: `globalConfig.get('discardThreshold')` > `defaults.discardThreshold`
@@ -100,15 +100,15 @@ export const buildConfig = (
   globalConfig: GlobalConfig,
   defaults: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): FilterConfig => {
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
-  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? defaults.inputDir;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir;
   const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
-  const _chunkSize = parsed.chunkSize ?? (globalConfig.get('chunkSize') as number);
-  const _concurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number);
-  const _minCharCount = parsed.minCharCount ?? (globalConfig.get('minCharCount') as number);
-  const _minAssistantChars = parsed.minAssistantChars ?? (globalConfig.get('minAssistantChars') as number);
-  const _discardThreshold = (globalConfig.get('discardThreshold') as number) ?? defaults.discardThreshold;
+  const _chunkSize = parsed.chunkSize ?? globalConfig.get('chunkSize') as number;
+  const _concurrency = parsed.concurrency ?? globalConfig.get('concurrency') as number;
+  const _minCharCount = parsed.minCharCount ?? globalConfig.get('minCharCount') as number;
+  const _minAssistantChars = parsed.minAssistantChars ?? globalConfig.get('minAssistantChars') as number;
+  const _discardThreshold = globalConfig.get('discardThreshold') as number;
   const { configFile: _cf, ...rest } = parsed;
   return {
     ...defaults,
@@ -134,7 +134,12 @@ export const main = async (args?: string[]): Promise<void> => {
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    const _agentDir = resolveChatlogsDir(_config.chatlogsDir, _config.agent);
+    const _baseDir = _globalConfig.get('chatlogsDir') as string;
+    const _agentDir = resolveChatlogsDir({
+      chatlogsDir: _config.chatlogsDir,
+      baseDir: _baseDir,
+      agent: _config.agent,
+    });
 
     // 入力ディレクトリ確認
     if (!await dirExists(_agentDir)) {
@@ -145,7 +150,12 @@ export const main = async (args?: string[]): Promise<void> => {
     if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
 
     // ファイル列挙
-    const _searchDir = resolveChatlogsDir(_config.chatlogsDir, _config.agent, _config.period);
+    const _searchDir = resolveChatlogsDir({
+      chatlogsDir: _config.chatlogsDir,
+      baseDir: _baseDir,
+      agent: _config.agent,
+      period: _config.period,
+    });
     const allFiles = await findFiles(_searchDir);
 
     // 事前フィルタ
