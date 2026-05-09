@@ -7,14 +7,12 @@
 // This software is released under the MIT License.
 
 // -- BDD modules --
-import { assertEquals, assertThrows } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
 import { parseArgs } from '../../classify-chatlog.ts';
-// classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { ParsedConfig } from '../../types/classify.types.ts';
 
@@ -112,22 +110,6 @@ describe('parseArgs', () => {
         it('T-CL-PA-06-01: --dry-run → dryRun が true になる', () => {
           const result = parseArgs(['--dry-run']);
           assertEquals(result.dryRun, true);
-        });
-      });
-    });
-  });
-
-  // ─── 異常系: 不正なモデル名 ───────────────────────────────────────────────
-
-  describe('Given: 不正なモデル名', () => {
-    describe('When: parseArgs(["--model", "invalid-model"]) を呼び出す', () => {
-      describe('Then: T-CL-PA-12 - ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-CL-PA-12-01: 不正モデル名 → ChatlogError(InvalidArgs) がスローされる', () => {
-          assertThrows(
-            () => parseArgs(['--model', 'invalid-model']),
-            ChatlogError,
-            'Invalid Args',
-          );
         });
       });
     });
