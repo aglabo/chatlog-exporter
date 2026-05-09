@@ -36,6 +36,7 @@ import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
+import { agentPath } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
@@ -144,24 +145,8 @@ export const classifyFile = (filename: string, text: string): { isNoise: boolean
 // ファイル列挙
 // ─────────────────────────────────────────────
 
-const _resolveSearchDir = async (baseDir: string, agent: string, period?: string): Promise<string> => {
-  const _agentDir = `${baseDir}/${agent}`;
-
-  if (!period) {
-    return _agentDir;
-  }
-
-  const _yyyy = period.slice(0, 4);
-  // YYYY/YYYY-MM 構造（codex等）
-  const _withYear = `${_agentDir}/${_yyyy}/${period}`;
-  // YYYY-MM 直下構造（claude等）
-  const _flat = `${_agentDir}/${period}`;
-
-  return await dirExists(_withYear) ? _withYear : _flat;
-};
-
 export const findMdFiles = async (baseDir: string, agent: string, period?: string): Promise<string[]> => {
-  const _searchDir = await _resolveSearchDir(baseDir, agent, period);
+  const _searchDir = `${baseDir}/${agentPath(agent, period)}`;
   return findFilesLib(_searchDir);
 };
 
@@ -175,21 +160,19 @@ export const buildConfig = (
   defaults: PrefilterConfig = DEFAULT_PREFILTER_CONFIG,
 ): PrefilterConfig => {
   const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
-  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? defaults.inputDir;
-  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
+  const _chatlogsDir = parsed.chatlogsDir ?? (globalConfig.get('chatlogsDir') as string | undefined)
+    ?? defaults.chatlogsDir;
   const { configFile: _configFile, ...rest } = parsed;
   return {
     ...defaults,
     ...rest,
     agent: _agent,
-    inputDir: _inputDir,
     chatlogsDir: _chatlogsDir,
   };
 };
 
 const _OPT_KEYS: Record<string, keyof PrefilterParsedConfig> = {
-  '--input': 'inputDir',
+  '--input': 'chatlogsDir',
   '--chatlogs-dir': 'chatlogsDir',
   '--config': 'configFile',
 };
@@ -201,10 +184,6 @@ const _OPT_FLAGS: Record<string, keyof PrefilterParsedConfig> = {
 
 export const parseArgs = (args: string[]): PrefilterParsedConfig => {
   const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as PrefilterParsedConfig;
-  if (_parsed.inputDir !== undefined && !isDirectoryArg(_parsed.inputDir)) {
-    throw new ChatlogError('InvalidArgs', `--input にはディレクトリパスを指定してください: ${_parsed.inputDir}`);
-  }
-  _parsed.chatlogsDir ??= _parsed.inputDir;
   if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
     throw new ChatlogError(
       'InvalidArgs',
@@ -227,13 +206,13 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { agent, period, inputDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
+    const { agent, period, chatlogsDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
 
-    if (!await dirExists(inputDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${inputDir}`);
+    if (!await dirExists(chatlogsDir)) {
+      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${chatlogsDir}`);
     }
 
-    const files = await findMdFiles(inputDir, agent, period);
+    const files = await findMdFiles(chatlogsDir, agent, period);
     logger.info(`対象ファイル数: ${files.length}`);
     if (dryRun) {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
