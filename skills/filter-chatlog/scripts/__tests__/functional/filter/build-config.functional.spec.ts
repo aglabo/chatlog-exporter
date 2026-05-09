@@ -703,30 +703,4 @@ describe('buildConfig', () => {
       });
     });
   });
-
-  /**
-   * カスタム `defaults` が第3引数として渡されている前提条件グループ。
-   *
-   * `parsed` も `globalConfig` も値を持たない場合、`defaults` の値が使われることを検証する。
-   * これにより `defaults` パラメータがテスト注入用として機能していることを確認する。
-   */
-  describe('Given: カスタム defaults が渡されている', () => {
-    describe('When: buildConfig を呼び出す', () => {
-      /** `defaults` の agent・inputDir が parsed・globalConfig より低優先で使われることを検証する。 */
-      describe('Then: T-FL-BC-20 - defaults の値がフォールバックとして使われる', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-FL-BC-20-01: parsed.agent 未指定・globalConfig 未設定 → defaults.agent が使われる', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig, _CUSTOM_DEFAULTS);
-          assertEquals(result.agent, 'chatgpt');
-        });
-        it('T-FL-BC-20-02: parsed.inputDir 未指定・globalConfig 未設定 → defaults.inputDir が使われる', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig, _CUSTOM_DEFAULTS);
-          assertEquals(result.inputDir, '/custom-default');
-        });
-      });
-    });
-  });
 });

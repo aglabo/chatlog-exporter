@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Helpers
 import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
 
 // ─── Internal Helpers
 
@@ -22,6 +23,9 @@ const SCRIPT_PATH = new URL('../../classify-chatlog.ts', import.meta.url).pathna
 
 /** システムテスト用フィクスチャディレクトリの絶対パス。Windows ドライブレター正規化済み。 */
 const FIXTURE_SYSTEM_DATA = new URL('./fixtures', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+
+/** システムテスト用辞書フィクスチャの絶対パス。GlobalConfig の dicsDir として使用する。 */
+const FIXTURE_DICS_DIR = new URL('./fixtures/assets/dics', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
 
 /** `RUN_AI=1` 環境変数が設定されている場合に `true`。AI 呼び出しを伴うテストの実行制御に使用する。 */
 const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
@@ -63,20 +67,20 @@ const _runClassify = async (args: string[]): Promise<{ code: number; stdout: str
  */
 describe('[AI] main - 短文ファイルの misc 分類', { ignore: !_shouldRunAI }, () => {
   let inputDir: string;
-  let dicsDir: string;
+  let configFile: string;
   let monthDir: string;
 
   beforeEach(async () => {
     inputDir = await Deno.makeTempDir({ prefix: 'classify-short-test-' });
-    dicsDir = await Deno.makeTempDir({ prefix: 'classify-dics-test-' });
     monthDir = `${inputDir}/claude/2026-03`;
     await Deno.mkdir(monthDir, { recursive: true });
-    await Deno.writeTextFile(`${dicsDir}/projects.dic`, 'app1\napp2\n');
+
+    configFile = `${inputDir}/test-config.yaml`;
+    await Deno.writeTextFile(configFile, `dicsDir: "${normalizePath(FIXTURE_DICS_DIR)}"\n`);
   });
 
   afterEach(async () => {
     await Deno.remove(inputDir, { recursive: true });
-    await Deno.remove(dicsDir, { recursive: true });
   });
 
   /**
@@ -93,7 +97,7 @@ describe('[AI] main - 短文ファイルの misc 分類', { ignore: !_shouldRunA
           // フロントマターなし・50 文字未満 → Claude CLI を呼ばず misc へ直接分類
           await Deno.copyFile(`${FIXTURE_SYSTEM_DATA}/short/input.md`, `${monthDir}/test-file.md`);
 
-          const { code, stderr } = await _runClassify(['claude', '--input', inputDir, '--dics', dicsDir]);
+          const { code, stderr } = await _runClassify(['claude', '--input', inputDir, '--config', configFile]);
 
           assertEquals(code, 0);
 

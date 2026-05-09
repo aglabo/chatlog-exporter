@@ -28,7 +28,7 @@ import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 // instances
 import { logger } from '../../_scripts/libs/io/logger.ts';
 // constants
-import { DEFAULT_CHUNK_SIZE, DEFAULT_CONCURRENCY } from '../../_scripts/constants/defaults.constants.ts';
+
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
@@ -102,16 +102,14 @@ export function buildConfig(
   defaults?: ClassifyConfig,
 ): ClassifyConfig {
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
-  const _model = parsed.model ?? (globalConfig.get('model') as string | undefined) ?? _defaults.model;
+  const _model = parsed.model ?? globalConfig.get('model') as string;
   if (!isValidModel(_model)) {
     throw new ChatlogError('InvalidArgs', `不正なモデル名: ${_model}`);
   }
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
-  const _dicsDir = (globalConfig.get('dicsDir') as string | undefined) ?? _defaults.dicsDir;
-  const _inputDir = parsed.inputDir ?? (globalConfig.get('chatlogsDir') as string | undefined) ?? _defaults.inputDir;
-  const _projectsDic = parsed.configFile
-    ? `${getDirectory(parsed.configFile)}/projects.dic`
-    : _defaults.projectsDic;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _dicsDir = globalConfig.get('dicsDir') as string;
+  const _inputDir = parsed.inputDir ?? globalConfig.get('chatlogsDir') as string;
+  const _projectsDic = `${_dicsDir}/projects.dic`;
   const { configFile: _cf, ...rest } = parsed;
   return {
     ..._defaults,
@@ -394,8 +392,8 @@ export const main = async (argv?: string[]): Promise<void> => {
     }
 
     // チャンク分割して並列処理
-    const _chunkSize = (_globalConfig.get('chunkSize') as number) ?? DEFAULT_CHUNK_SIZE;
-    const _concurrency = (_globalConfig.get('concurrency') as number) ?? DEFAULT_CONCURRENCY;
+    const _chunkSize = _globalConfig.get('chunkSize') as number;
+    const _concurrency = _globalConfig.get('concurrency') as number;
     await runChunked(
       targetMetas,
       _chunkSize,

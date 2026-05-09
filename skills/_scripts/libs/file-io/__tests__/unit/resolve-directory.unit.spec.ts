@@ -10,14 +10,11 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-// stub
-import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { agentPath, periodToPath, resolveChatlogsDir } from '../../resolve-directory.ts';
-
-// ─── Helpers
-import { globalConfig } from '../../../../classes/GlobalConfig.class.ts';
+// types
+import type { ResolveChatlogsDirOptions } from '../../resolve-directory.ts';
 
 // ─── Tests
 
@@ -170,95 +167,54 @@ describe('agentPath', () => {
 /**
  * `resolveChatlogsDir` 関数のユニットテストスイート。
  *
- * `resolveChatlogsDir(chatlogsDir, agent, period?)` は `globalConfig.chatlogsDir` を参照して
- * チャットログディレクトリを解決する。
- * - `chatlogsDir` が定義済み → `chatlogsDir` をそのまま返す（agent/period は無視）
- * - `chatlogsDir` が未定義 → `globalConfig.chatlogsDir + "/" + agentPath(agent, period)` を返す
+ * `resolveChatlogsDir(options)` はチャットログディレクトリを解決する。
+ * - `chatlogsDir` 指定あり → そのまま返す（agent/period は無視）
+ * - `chatlogsDir` 未定義 → `baseDir/agentPath(agent, period)` を返す
  *
  * テスト ID 範囲: T-LIB-RD-03-01 〜 T-LIB-RD-03-04
  *
  * @see resolveChatlogsDir
  */
 describe('resolveChatlogsDir', () => {
-  /**
-   * `chatlogsDir` が定義済みの前提条件グループ。
-   *
-   * `chatlogsDir` が設定されているとき、agent/period は無視され `chatlogsDir` をそのまま返す。
-   */
-  describe('Given: chatlogsDir が定義済み', () => {
-    /** `resolveChatlogsDir("/chatlogs/claude", "claude")` を呼び出すとき。 */
-    describe('When: resolveChatlogsDir("/chatlogs/claude", "claude") を呼び出す', () => {
-      /** `chatlogsDir` をそのまま返すことを検証する。 */
-      describe('Then: T-LIB-RD-03-01 - chatlogsDir をそのまま返す', () => {
-        it('T-LIB-RD-03-01: chatlogsDir="/chatlogs/claude" → "/chatlogs/claude" を返す', () => {
-          const result = resolveChatlogsDir('/chatlogs/claude', 'claude');
-          assertEquals(result, '/chatlogs/claude');
-        });
-      });
+  /** 正常系ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-LIB-RD-03-01: chatlogsDir 指定あり → chatlogsDir をそのまま返す', () => {
+      const _opts: ResolveChatlogsDirOptions = {
+        chatlogsDir: '/explicit/chatlogs',
+        baseDir: '/custom/chatlogs',
+        agent: 'claude',
+      };
+      assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
+    });
+
+    it('[Normal] T-LIB-RD-03-02: chatlogsDir 未定義、period なし → baseDir/agent', () => {
+      const _opts: ResolveChatlogsDirOptions = {
+        baseDir: '/custom/chatlogs',
+        agent: 'claude',
+      };
+      assertEquals(resolveChatlogsDir(_opts), '/custom/chatlogs/claude');
+    });
+
+    it('[Normal] T-LIB-RD-03-03: chatlogsDir 未定義、period=YYYY-MM → baseDir/agent/YYYY/YYYY-MM', () => {
+      const _opts: ResolveChatlogsDirOptions = {
+        baseDir: '/custom/chatlogs',
+        agent: 'claude',
+        period: '2026-03',
+      };
+      assertEquals(resolveChatlogsDir(_opts), '/custom/chatlogs/claude/2026/2026-03');
     });
   });
 
-  /**
-   * `chatlogsDir` が未定義で `globalConfig.chatlogsDir` が設定されている前提条件グループ。
-   *
-   * `chatlogsDir` が未定義のとき `globalConfig.chatlogsDir/agent` を返すことを検証する。
-   */
-  describe('Given: chatlogsDir が未定義で globalConfig.chatlogsDir が "/custom/chatlogs"', () => {
-    /** `resolveChatlogsDir(undefined, "claude")` を呼び出すとき。 */
-    describe('When: resolveChatlogsDir(undefined, "claude") を呼び出す', () => {
-      /** `"/custom/chatlogs/claude"` が返ることを検証する。 */
-      describe('Then: T-LIB-RD-03-02 - globalConfig.chatlogsDir/agent を返す', () => {
-        it('T-LIB-RD-03-02: chatlogsDir=undefined, globalConfig="/custom/chatlogs" → "/custom/chatlogs/claude"', () => {
-          using _stub = stub(
-            globalConfig,
-            'get',
-            (key: string) => key === 'chatlogsDir' ? '/custom/chatlogs' : undefined,
-          );
-          const result = resolveChatlogsDir(undefined, 'claude');
-          assertEquals(result, '/custom/chatlogs/claude');
-        });
-      });
-    });
-  });
-
-  /**
-   * `chatlogsDir` が未定義で `period` が指定されている前提条件グループ。
-   *
-   * `period` が指定されているとき `globalConfig.chatlogsDir/agent/YYYY/YYYY-MM` を返すことを検証する。
-   */
-  describe('Given: chatlogsDir が未定義で period が "2026-03"', () => {
-    /** `resolveChatlogsDir(undefined, "claude", "2026-03")` を呼び出すとき。 */
-    describe('When: resolveChatlogsDir(undefined, "claude", "2026-03") を呼び出す', () => {
-      /** `"/custom/chatlogs/claude/2026/2026-03"` が返ることを検証する。 */
-      describe('Then: T-LIB-RD-03-03 - globalConfig.chatlogsDir/agent/YYYY/YYYY-MM を返す', () => {
-        it('T-LIB-RD-03-03: period="2026-03" → "/custom/chatlogs/claude/2026/2026-03" を返す', () => {
-          using _stub = stub(
-            globalConfig,
-            'get',
-            (key: string) => key === 'chatlogsDir' ? '/custom/chatlogs' : undefined,
-          );
-          const result = resolveChatlogsDir(undefined, 'claude', '2026-03');
-          assertEquals(result, '/custom/chatlogs/claude/2026/2026-03');
-        });
-      });
-    });
-  });
-
-  /**
-   * `chatlogsDir` が定義済みで `period` が指定されている前提条件グループ。
-   *
-   * `chatlogsDir` が設定済みのとき `period` は無視されて `chatlogsDir` をそのまま返す。
-   */
-  describe('Given: chatlogsDir が "/explicit" で period が "2026-03"', () => {
-    /** `resolveChatlogsDir("/explicit", "claude", "2026-03")` を呼び出すとき。 */
-    describe('When: resolveChatlogsDir("/explicit", "claude", "2026-03") を呼び出す', () => {
-      /** `"/explicit"` が返ることを検証する（period は無視）。 */
-      describe('Then: T-LIB-RD-03-04 - "/explicit" が返る（period 無視）', () => {
-        it('T-LIB-RD-03-04: chatlogsDir="/explicit", period="2026-03" → "/explicit" を返す', () => {
-          const result = resolveChatlogsDir('/explicit', 'claude', '2026-03');
-          assertEquals(result, '/explicit');
-        });
-      });
+  /** エッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-LIB-RD-03-04: chatlogsDir 指定あり + period 指定 → chatlogsDir をそのまま返す（period 無視）', () => {
+      const _opts: ResolveChatlogsDirOptions = {
+        chatlogsDir: '/explicit/chatlogs',
+        baseDir: '/custom/chatlogs',
+        agent: 'claude',
+        period: '2026-03',
+      };
+      assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
     });
   });
 });

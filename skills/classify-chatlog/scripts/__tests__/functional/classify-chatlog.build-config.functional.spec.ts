@@ -102,16 +102,11 @@ describe('buildConfig', () => {
       describe('Then: T-CL-BC-04 - ChatlogError(InvalidArgs) がスローされる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          // model キーを持たない空スキーマ → get('model') が undefined を返す
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+          globalConfig = await _makeGlobalConfig('model: invalid-model');
         });
-        it('T-CL-BC-04-01: globalConfig に model なし + defaults.model=invalid → ChatlogError(InvalidArgs)', () => {
+        it('T-CL-BC-04-01: globalConfig.model=invalid-model → ChatlogError(InvalidArgs)', () => {
           assertThrows(
-            () =>
-              buildConfig(_EMPTY_PARSED, globalConfig, {
-                ...DEFAULT_CLASSIFY_CONFIG,
-                model: 'invalid-model',
-              }),
+            () => buildConfig(_EMPTY_PARSED, globalConfig),
             ChatlogError,
           );
         });
@@ -357,34 +352,32 @@ describe('buildConfig', () => {
 
   // ─── projectsDic 導出 ────────────────────────────────────────────────────────
 
-  describe('Given: parsed.configFile が指定されている', () => {
+  describe('Given: GlobalConfig の dicsDir がデフォルト値', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-18 - configFile のディレクトリ + /projects.dic が使われる', () => {
+      describe('Then: T-CL-BC-18 - dicsDir/projects.dic が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance();
         });
-        it('T-CL-BC-18-01: configFile=/custom/config/config.yaml → projectsDic === /custom/config/projects.dic', () => {
-          const result = buildConfig(
-            { ..._EMPTY_PARSED, configFile: '/custom/config/config.yaml' },
-            globalConfig,
-          );
-          assertEquals(result.projectsDic, '/custom/config/projects.dic');
+        it('T-CL-BC-18-01: デフォルト dicsDir → projectsDic === ./assets/dics/projects.dic', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.projectsDic, `${globalConfig.get('dicsDir')}/projects.dic`);
         });
       });
     });
   });
 
-  describe('Given: parsed.configFile が未指定', () => {
+  describe('Given: GlobalConfig の dicsDir が yaml で上書きされている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-19 - DEFAULT_CLASSIFY_CONFIG.projectsDic が使われる', () => {
+      describe('Then: T-CL-BC-19 - 上書きされた dicsDir/projects.dic が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          GlobalConfig.resetInstance();
+          globalConfig = await GlobalConfig.getInstance({ yaml: 'dicsDir: /custom/dics' });
         });
-        it('T-CL-BC-19-01: configFile 未指定 → result.projectsDic === DEFAULT_CLASSIFY_CONFIG.projectsDic', () => {
+        it('T-CL-BC-19-01: dicsDir=/custom/dics → projectsDic === /custom/dics/projects.dic', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.projectsDic, DEFAULT_CLASSIFY_CONFIG.projectsDic);
+          assertEquals(result.projectsDic, '/custom/dics/projects.dic');
         });
       });
     });

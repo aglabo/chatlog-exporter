@@ -960,25 +960,4 @@ describe('buildConfig', () => {
       });
     });
   });
-
-  // ─── T-PF-BC-05: カスタムデフォルト値 ───────────────────────────────────────
-
-  describe('Given: カスタムデフォルト値を渡す', () => {
-    describe('When: buildConfig({...}, globalConfig, customDefaults) を呼び出す', () => {
-      describe('Then: T-PF-BC-05 - カスタムデフォルト値が適用される', () => {
-        it('T-PF-BC-05-01: agent がカスタムデフォルト "chatgpt" になる', () => {
-          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
-          assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).agent, 'chatgpt');
-        });
-
-        it('T-PF-BC-05-02: inputDir がカスタムデフォルト "/custom" になる', () => {
-          const _customDefaults = { agent: 'chatgpt', inputDir: '/custom', dryRun: false, report: false };
-          assertEquals(
-            buildConfig({ dryRun: false, report: false }, globalConfig, _customDefaults).inputDir,
-            '/custom',
-          );
-        });
-      });
-    });
-  });
 });
