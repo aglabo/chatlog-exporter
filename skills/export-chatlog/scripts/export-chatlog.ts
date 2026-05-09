@@ -78,8 +78,8 @@ export function buildConfig(
   defaults?: ExportConfig,
 ): ExportConfig {
   const _defaults = defaults ?? DEFAULT_EXPORT_CONFIG;
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? _defaults.agent;
-  const _outputDir = parsed.outputDir ?? (globalConfig.get('chatlogsDir') as string | undefined) ?? _defaults.outputDir;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _outputDir = parsed.outputDir ?? globalConfig.get('chatlogsDir') as string;
   const _baseDir = parsed.baseDir ?? _defaults.baseDir;
   const _inputDir = parsed.inputDir ?? _defaults.inputDir;
   const { configFile: _configFile, ...parsedRest } = parsed;
