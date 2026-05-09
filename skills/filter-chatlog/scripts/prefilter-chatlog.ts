@@ -37,7 +37,7 @@ import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-file
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { isDirectoryArg, parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
 import { DEFAULT_PREFILTER_CONFIG, MIN_ASSISTANT_CHARS } from './constants/filter.constants.ts';
 import {
@@ -201,17 +201,6 @@ const _OPT_FLAGS: Record<string, keyof PrefilterParsedConfig> = {
 
 export const parseArgs = (args: string[]): PrefilterParsedConfig => {
   const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as PrefilterParsedConfig;
-  if (_parsed.inputDir !== undefined && !isDirectoryArg(_parsed.inputDir)) {
-    throw new ChatlogError('InvalidArgs', `--input にはディレクトリパスを指定してください: ${_parsed.inputDir}`);
-  }
-  _parsed.chatlogsDir ??= _parsed.inputDir;
-  if (_parsed.chatlogsDir !== undefined && !isDirectoryArg(_parsed.chatlogsDir)) {
-    throw new ChatlogError(
-      'InvalidArgs',
-      `--chatlogs-dir にはディレクトリパスを指定してください: ${_parsed.chatlogsDir}`,
-    );
-  }
-
   _parsed.dryRun ??= (_parsed.dryRun ?? false) || (_parsed.report ?? false);
   _parsed.report ??= false;
   return {
