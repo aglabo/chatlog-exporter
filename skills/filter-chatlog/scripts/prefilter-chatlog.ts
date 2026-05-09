@@ -174,9 +174,9 @@ export const buildConfig = (
   globalConfig: GlobalConfig,
   defaults: PrefilterConfig = DEFAULT_PREFILTER_CONFIG,
 ): PrefilterConfig => {
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? defaults.agent;
-  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string | undefined;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir ?? defaults.inputDir;
+  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
+  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir;
   const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
   const { configFile: _configFile, ...rest } = parsed;
   return {
