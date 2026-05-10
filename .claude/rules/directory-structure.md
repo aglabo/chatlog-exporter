@@ -9,5 +9,6 @@
 | `skills/_scripts/types/`     | 共通型・インターフェース (`*.types.ts`) |
 | `skills/_scripts/constants/` | 共通定数 (`*.constants.ts`)             |
 | `skills/_scripts/libs/`      | 共通ユーティリティ関数                  |
+| `skills/_scripts/classes`    | 共通クラス                              |
 
 実装ファイルは `types/` や `constants/` から import し、re-export で後方互換を維持する。

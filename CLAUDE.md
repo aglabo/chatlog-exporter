@@ -55,6 +55,7 @@ assets/prompts/        # AI プロンプト
 
 @.claude/rules/coding-guidelines.md
 @.claude/rules/workflow.md
+@.claude/rules/bdd-cycle.md
 @.claude/rules/testing-conventions.md
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
