@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/path-utils.ts
+// src: skills/_scripts/libs/path-utils/path-utils.ts
 // @(#): パスユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -9,7 +9,7 @@
 // utils
 import { getProjectRootDir } from './dir-utils.ts';
 // types
-import type { ResolveConfigPathOptions } from '../../types/file-io.types.ts';
+import type { ResolveConfigPathOptions } from '../../types/path-utils.types.ts';
 import type { CommandProvider } from '../../types/providers.types.ts';
 
 // ─────────────────────────────────────────────

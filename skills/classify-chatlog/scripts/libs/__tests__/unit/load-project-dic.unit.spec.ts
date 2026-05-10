@@ -13,7 +13,7 @@ import { describe, it } from '@std/testing/bdd';
 // test target
 import { loadProjectDic } from '../../load-project-dic.ts';
 // types
-import type { ResolveConfigPathOptions } from '../../../../../_scripts/types/file-io.types.ts';
+import type { ResolveConfigPathOptions } from '../../../../../_scripts/types/path-utils.types.ts';
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classed
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';

@@ -7,9 +7,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { normalizePath } from '../../libs/file-io/path-utils.ts';
 import { fileExists } from '../../libs/file-ops/exists-utils.ts';
 import { findDirectories } from '../../libs/file-ops/find-entries.ts';
+import { normalizePath } from '../../libs/path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // 型定義

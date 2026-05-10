@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { normalizePath } from '../../../_scripts/libs/file-io/path-utils.ts';
+import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 export class ClassifyChatlogEntry extends ChatlogEntry {
   readonly filePath: string;

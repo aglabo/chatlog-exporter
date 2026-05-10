@@ -6,16 +6,21 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+// --- shared modules ---
+// functions
 import { isKnownAgent } from '../../constants/agents.constants.ts';
-import { normalizePath } from '../file-io/path-utils.ts';
+import { normalizePath } from '../path-utils/path-utils.ts';
+// classes
+import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
+// -- internal modules ---
+// functions
 /** 正規化後に `/` を含む場合 `true` を返す（CLI 位置引数のディレクトリパス判定）。 */
 export const isDirectoryArg = (arg: string): boolean => {
   return normalizePath(arg).includes('/');
 };
 
-// functions
+// --- Public API ---
 
 /**
  * CLI 引数を解析して Partial<T> を返す汎用パーサー。

@@ -37,9 +37,9 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 // classes
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // exists
-import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
 

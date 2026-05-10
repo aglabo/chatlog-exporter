@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/dir-utils.ts
+// src: skills/_scripts/libs/path-utils/dir-utils.ts
 // @(#): ディレクトリ取得ユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

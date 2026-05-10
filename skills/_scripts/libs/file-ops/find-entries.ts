@@ -11,7 +11,7 @@ import { expandGlob } from '@std/fs';
 
 // -- internal --
 import type { GlobProvider } from '../../types/providers.types.ts';
-import { normalizePath } from '../file-io/path-utils.ts';
+import { normalizePath } from '../path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // Internal utilities

@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/__tests__/file-io/unit/path-utils.unit.spec.ts
+// src: skills/_scripts/libs/path-utils/__tests__/unit/path-utils.unit.spec.ts
 // @(#): path-utils ユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

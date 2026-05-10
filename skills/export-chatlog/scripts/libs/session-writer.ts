@@ -8,7 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
-import { getDirectory } from '../../../_scripts/libs/file-io/path-utils.ts';
+import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
 import { quoteString } from '../../../_scripts/libs/text/string-utils.ts';
