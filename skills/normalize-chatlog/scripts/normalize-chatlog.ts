@@ -19,8 +19,10 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 // -- ai --
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
 
+// -- file-ops --
+import { backupOldPath } from '../../_scripts/libs/file-ops/backup-old-path.ts';
+
 // -- file-io --
-import { backupOldPath } from '../../_scripts/libs/file-io/backup-old-path.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
