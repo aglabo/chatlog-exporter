@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/__tests__/unit/exists-utils.unit.spec.ts
+// src: skills/_scripts/libs/file-ops/__tests__/unit/exists-utils.unit.spec.ts
 // @(#): exists-utils ユニットテスト
 //       対象: fileExists, fileOrDirExists, dirExists
 //
