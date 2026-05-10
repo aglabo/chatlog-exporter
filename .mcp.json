@@ -1,4 +1,18 @@
 {
   "mcpServers": {
+    "serena-mcp": {
+      "type": "stdio",
+      "command": "serena",
+      "args": [
+        "start-mcp-server"
+      ]
+    },
+    "cocoindex-code": {
+      "type": "stdio",
+      "command": "ccc",
+      "args": [
+        "mcp"
+      ]
+    }
   }
 }
