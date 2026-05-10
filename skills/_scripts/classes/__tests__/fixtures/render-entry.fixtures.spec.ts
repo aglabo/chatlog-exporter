@@ -21,9 +21,9 @@ import { ChatlogEntry } from '../../ChatlogEntry.class.ts';
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // type
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
-// exists
-import { fileExists } from '../../../libs/file-io/exists-utils.ts';
+// file libs
 import { readTextFile } from '../../../libs/file-io/read-utils.ts';
+import { fileExists } from '../../../libs/file-ops/exists-utils.ts';
 // -- error class --
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
