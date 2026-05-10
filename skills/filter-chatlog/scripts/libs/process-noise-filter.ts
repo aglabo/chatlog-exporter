@@ -6,9 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { normalizePath } from '../../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { classifyFile } from './classify-file.ts';
 
 // ─────────────────────────────────────────────
