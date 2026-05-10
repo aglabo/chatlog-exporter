@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/__tests__/unit/walk-files.unit.spec.ts
+// src: skills/_scripts/libs/file-ops/__tests__/unit/walk-files.unit.spec.ts
 // @(#): walk-files ユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
