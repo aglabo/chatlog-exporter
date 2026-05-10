@@ -10,10 +10,12 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { classifyFile, findMdFiles } from '../../prefilter-chatlog.ts';
+import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─── Helpers
+import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { resolveChatlogsDir } from '../../../../_scripts/libs/file-io/resolve-directory.ts';
 import { makeRepeatedContent } from '../_helpers/chatlog-fixtures.ts';
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
@@ -46,7 +48,8 @@ const _runPipeline = async (
   agent: string,
   period?: string,
 ): Promise<{ noise: number; keep: number }> => {
-  const files = await findMdFiles(baseDir, agent, period);
+  const _searchDir = resolveChatlogsDir({ baseDir, agent, period });
+  const files = await findFiles(_searchDir);
   let noise = 0;
   let keep = 0;
 
@@ -105,7 +108,7 @@ describe('findMdFiles → classifyFile パイプライン', () => {
           await _makeTestFile(`${tempDir}/claude/2026/2026-03/chat.md`, _makeValidContent());
           await _makeTestFile(`${tempDir}/claude/2026/2026-04/chat.md`, _makeValidContent());
 
-          const files = await findMdFiles(tempDir, 'claude', '2026-03');
+          const files = await findFiles(resolveChatlogsDir({ baseDir: tempDir, agent: 'claude', period: '2026-03' }));
 
           assertEquals(files.length, 1);
           assertEquals(files[0].includes('2026-03'), true);
@@ -115,7 +118,7 @@ describe('findMdFiles → classifyFile パイプライン', () => {
           await _makeTestFile(`${tempDir}/claude/2026/2026-03/chat.md`, _makeValidContent());
           await _makeTestFile(`${tempDir}/claude/2026/2026-04/chat.md`, _makeValidContent());
 
-          const files = await findMdFiles(tempDir, 'claude', '2026-03');
+          const files = await findFiles(resolveChatlogsDir({ baseDir: tempDir, agent: 'claude', period: '2026-03' }));
 
           assertEquals(files.some((f) => f.includes('2026-04')), false);
         });

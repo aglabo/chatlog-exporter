@@ -1,6 +1,6 @@
 // src: scripts/__tests__/unit/filter-chatlog.unit.spec.ts
 // @(#): filter-chatlog.ts のユニットテスト
-//       parseArgs / parseFrontmatterEntries / parseConversation / parseJsonArray /
+//       parseArgs / parseFrontmatterEntries / parseJsonArray /
 //       extractBodyText / isExcludedByFilename / isExcludedByContent
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -24,7 +24,6 @@ import type { ParsedConfig } from '../../types/filter.types.ts';
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
-import { parseConversation } from '../../../../_scripts/libs/text/markdown-utils.ts';
 
 // ─── Internal Helpers
 
@@ -340,99 +339,6 @@ describe('parseFrontmatterEntries', () => {
           const { content } = parseFrontmatterEntries(text);
 
           assertEquals(content, '');
-        });
-      });
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// parseConversation
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('parseConversation', () => {
-  // ─── T-FL-PC-01: User/Assistant ターン 1 件ずつ ────────────────────────────────
-
-  describe('Given: User と Assistant のターンが 1 件ずつあるテキスト', () => {
-    describe('When: parseConversation(body) を呼び出す', () => {
-      describe('Then: T-FL-PC-01 - 2 件のターンが返される', () => {
-        const body = '### User\nユーザーの質問\n\n### Assistant\nアシスタントの回答\n';
-
-        it('T-FL-PC-01-01: ターン数が 2 になる', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns.length, 2);
-        });
-
-        it('T-FL-PC-01-02: 最初のターンの role が "user" になる', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns[0].role, 'user');
-        });
-
-        it('T-FL-PC-01-03: 2 番目のターンの role が "assistant" になる', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns[1].role, 'assistant');
-        });
-
-        it('T-FL-PC-01-04: User ターンのテキストが正しく抽出される', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns[0].text, 'ユーザーの質問');
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PC-02: 複数ターン ────────────────────────────────────────────────
-
-  describe('Given: 3 ターンある本文', () => {
-    describe('When: parseConversation(body) を呼び出す', () => {
-      describe('Then: T-FL-PC-02 - 3 件のターンが返される', () => {
-        const body = ['### User', '質問1', '', '### Assistant', '回答1', '', '### User', '質問2'].join('\n');
-
-        it('T-FL-PC-02-01: ターン数が 3 になる', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns.length, 3);
-        });
-
-        it('T-FL-PC-02-02: 3 番目のターンの role が "user" になる', () => {
-          const turns = parseConversation(body);
-
-          assertEquals(turns[2].role, 'user');
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PC-03: ターンなし → 空配列 ──────────────────────────────────────
-
-  describe('Given: ターンヘッダーがないテキスト', () => {
-    describe('When: parseConversation(body) を呼び出す', () => {
-      describe('Then: T-FL-PC-03 - 空配列が返される', () => {
-        it('T-FL-PC-03-01: 空配列が返される', () => {
-          const body = 'ヘッダーのない本文テキスト';
-          const turns = parseConversation(body);
-
-          assertEquals(turns.length, 0);
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PC-04: テキストなしターン → 除外 ────────────────────────────────
-
-  describe('Given: テキストのないターンヘッダー', () => {
-    describe('When: parseConversation(body) を呼び出す', () => {
-      describe('Then: T-FL-PC-04 - 空テキストのターンは除外される', () => {
-        it('T-FL-PC-04-01: テキストなしのターンは含まれない', () => {
-          const body = '### User\n\n### Assistant\n回答あり\n';
-          const turns = parseConversation(body);
-
-          assertEquals(turns.length, 1);
-          assertEquals(turns[0].role, 'assistant');
         });
       });
     });

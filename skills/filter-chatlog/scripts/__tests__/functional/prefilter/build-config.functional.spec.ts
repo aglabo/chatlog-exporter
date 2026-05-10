@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildConfig } from '../../../prefilter-chatlog.ts';
+import { buildConfig } from '../../../config/prefilter-config.ts';
 // types
 import type { PrefilterConfig, PrefilterParsedConfig } from '../../../types/prefilter.types.ts';
 

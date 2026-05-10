@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyFile } from '../../../prefilter-chatlog.ts';
+import { classifyFile } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
 import { makeRepeatedContent } from '../../_helpers/chatlog-fixtures.ts';

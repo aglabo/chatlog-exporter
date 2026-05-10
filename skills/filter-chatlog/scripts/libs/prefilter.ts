@@ -7,10 +7,18 @@
 // https://opensource.org/licenses/MIT
 
 // ─── external ───
+import {
+  countChars,
+  getAssistantTurns,
+  getUserTurns,
+  hasUserTurn,
+  isSingleUserTurn,
+  parseConversation,
+  renderConversation,
+} from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
-import { parseConversation } from '../../../_scripts/libs/text/markdown-utils.ts';
 
 // ─── internal ───
 import { MAX_BODY_CHARS, MIN_ASSISTANT_CHARS_CONTENT, MIN_CHAR_COUNT } from '../constants/filter.constants.ts';
@@ -41,19 +49,17 @@ export const isExcludedByContent = (
     return { excluded: true, reason: `本文が短すぎる (${body.length} < ${minCharCount} 文字)` };
   }
 
-  const turns = parseConversation(body);
-  const userTurns = turns.filter((t) => t.role === 'user');
-  const assistantTurns = turns.filter((t) => t.role === 'assistant');
+  const _conv = parseConversation(body);
 
-  if (userTurns.length === 0) {
+  if (!hasUserTurn(_conv)) {
     return { excluded: true, reason: 'Userターンが存在しない' };
   }
 
-  if (userTurns.length === 1) {
-    if (isSystemOnlyMessage(userTurns[0].text)) {
+  if (isSingleUserTurn(_conv)) {
+    if (isSystemOnlyMessage(getUserTurns(_conv)[0].text)) {
       return { excluded: true, reason: 'Userメッセージがシステム/コマンドタグのみ' };
     }
-    const totalAssistantChars = assistantTurns.reduce((sum, t) => sum + t.text.length, 0);
+    const totalAssistantChars = countChars(getAssistantTurns(_conv));
     if (totalAssistantChars < minAssistantChars) {
       return {
         excluded: true,
@@ -65,14 +71,8 @@ export const isExcludedByContent = (
   return { excluded: false, reason: '' };
 };
 
-export const extractBodyText = (body: string, maxChars = MAX_BODY_CHARS): string => {
-  const turns = parseConversation(body);
-  const parts = turns.map((t) => {
-    const role = t.role === 'user' ? 'User' : 'Assistant';
-    return `### ${role}\n${t.text}`;
-  });
-  return parts.join('\n\n').slice(0, maxChars);
-};
+export const extractBodyText = (body: string, maxChars = MAX_BODY_CHARS): string =>
+  renderConversation(parseConversation(body), maxChars);
 
 /**
  * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
