@@ -32,6 +32,9 @@ export type StatSyncProvider = (path: string) => Deno.FileInfo;
 /** テキストファイルを読み込む関数の型。テスト用インジェクションに利用する。 */
 export type ReadTextFileProvider = (path: string) => Promise<string>;
 
+/** ファイルを削除する関数の型。テスト用インジェクションに利用する。 */
+export type RemoveProvider = (path: string) => Promise<void>;
+
 // ─────────────────────────────────────────────
 // ハッシュ生成系
 // ─────────────────────────────────────────────
