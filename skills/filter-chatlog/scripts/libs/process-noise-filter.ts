@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { classifyFile } from './classify-file.ts';
@@ -17,7 +18,7 @@ import { classifyFile } from './classify-file.ts';
 
 export const processNoiseFilterFiles = async (
   files: string[],
-  counts: { noise: number; keep: number; error: number },
+  stats: { noise: number; keep: number; error: number },
   options: { dryRun: boolean; report: boolean },
 ): Promise<void> => {
   const { dryRun, report } = options;
@@ -30,30 +31,30 @@ export const processNoiseFilterFiles = async (
       text = await readTextFile(filePath);
     } catch (e) {
       logger.error(`  error (${filename}): ${e}`);
-      counts.error++;
+      stats.error++;
       continue;
     }
 
     const { isNoise, reason } = classifyFile(filename, text);
 
     if (isNoise) {
-      counts.noise++;
       if (report) {
         logger.log(`NOISE\t${reason}\t${filePath}`);
+        stats.noise++;
       } else if (dryRun) {
         logger.log(filePath);
+        stats.noise++;
       } else {
-        try {
-          await Deno.remove(filePath);
+        if (await removeFile(filePath)) {
           logger.info(`deleted: ${filePath}`);
-        } catch (e) {
-          logger.error(`  削除失敗: ${filename}: ${e}`);
-          counts.error++;
-          counts.noise--;
+          stats.noise++;
+        } else {
+          logger.warn(`  Skipped (File not found): ${filename}`);
+          stats.error++;
         }
       }
     } else {
-      counts.keep++;
+      stats.keep++;
     }
   }
 };
