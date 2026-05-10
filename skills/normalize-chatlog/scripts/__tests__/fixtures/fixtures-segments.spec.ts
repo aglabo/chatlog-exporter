@@ -30,8 +30,8 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // exists
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
 import { segmentChatlog } from '../../normalize-chatlog.ts';
