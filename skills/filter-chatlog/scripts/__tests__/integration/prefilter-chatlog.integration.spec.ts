@@ -10,7 +10,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { classifyFile } from '../../prefilter-chatlog.ts';
+import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─── Helpers
 import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
