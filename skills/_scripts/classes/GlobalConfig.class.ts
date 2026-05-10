@@ -12,7 +12,7 @@ import { parse } from '@std/yaml';
 
 // --- local modules
 // libs
-import { resolveConfigPath } from '../libs/file-io/path-utils.ts';
+import { resolveConfigPath } from '../libs/path-utils/path-utils.ts';
 import { parseNumber, parseString } from '../libs/text/string-utils.ts';
 // constants
 import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
