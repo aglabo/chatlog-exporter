@@ -20,7 +20,7 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { main } from '../../normalize-chatlog.ts';
 
 // ─── 構造テスト ────────────────────────────────────────────────────────────────
