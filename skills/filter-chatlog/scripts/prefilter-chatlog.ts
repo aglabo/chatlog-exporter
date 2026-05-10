@@ -59,11 +59,11 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
     }
 
-    const counts = { noise: 0, keep: 0, error: 0 };
-    await processNoiseFilterFiles(files, counts, { dryRun, report });
+    const stats = { noise: 0, keep: 0, error: 0 };
+    await processNoiseFilterFiles(files, stats, { dryRun, report });
 
     const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';
-    logger.info(`\n完了${suffix}: noise=${counts.noise} keep=${counts.keep} error=${counts.error}`);
+    logger.info(`\n完了${suffix}: noise=${stats.noise} keep=${stats.keep} error=${stats.error}`);
   } catch (e) {
     if (e instanceof ChatlogError) {
       logger.error(e.message);
