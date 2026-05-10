@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { backupOldPath } from '../../backup-old-path.ts';
 
 // ─── Helpers
-import { fileExists, fileOrDirExists } from '../../../file-io/exists-utils.ts';
+import { fileExists, fileOrDirExists } from '../../exists-utils.ts';
 
 // ─── Tests
 
