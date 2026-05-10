@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import type { GlobProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─── local helpers ────────────────────────────────────────────────────────────
