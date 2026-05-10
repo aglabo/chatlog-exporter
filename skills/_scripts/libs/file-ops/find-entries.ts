@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/find-entries.ts
+// src: skills/_scripts/libs/file-ops/find-entries.ts
 // @(#): ディレクトリ一覧・ファイルエントリ収集ユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -11,7 +11,7 @@ import { expandGlob } from '@std/fs';
 
 // -- internal --
 import type { GlobProvider } from '../../types/providers.types.ts';
-import { normalizePath } from './path-utils.ts';
+import { normalizePath } from '../file-io/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // Internal utilities
