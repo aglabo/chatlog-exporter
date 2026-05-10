@@ -31,9 +31,9 @@
 
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
-import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
-import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
+import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
+import { findFiles as findFilesLib } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { buildConfig, parseArgs } from './config/prefilter-config.ts';
 import { processNoiseFilterFiles } from './libs/process-noise-filter.ts';

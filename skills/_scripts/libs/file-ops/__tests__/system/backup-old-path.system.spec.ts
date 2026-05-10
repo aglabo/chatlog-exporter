@@ -1,3 +1,8 @@
+// Copyright (c) 2026 atsushifx <http://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 // src: skills/_scripts/libs/file-ops/__tests__/system/backup-old-path.system.spec.ts
 // @(#): backupOldPath のシステムテスト（Deno ファイルシステム実使用、file-ops）
 //       対象: backupOldPath
@@ -15,7 +20,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { backupOldPath } from '../../backup-old-path.ts';
 
 // ─── Helpers
-import { fileExists, fileOrDirExists } from '../../../file-io/exists-utils.ts';
+import { fileExists, fileOrDirExists } from '../../exists-utils.ts';
 
 // ─── Tests
 

@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/unit/find-entries.unit.spec.ts
+// src: skills/_scripts/libs/file-ops/__tests__/unit/find-entries.unit.spec.ts
 // @(#): findDirectories / findEntries のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

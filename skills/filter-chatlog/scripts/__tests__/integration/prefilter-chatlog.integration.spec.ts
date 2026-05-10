@@ -13,9 +13,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─── Helpers
-import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { resolveChatlogsDir } from '../../../../_scripts/libs/file-io/resolve-directory.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { makeRepeatedContent } from '../_helpers/chatlog-fixtures.ts';
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';

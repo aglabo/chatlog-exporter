@@ -9,9 +9,9 @@
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
 import { homeDir } from '../../../_scripts/libs/file-io/dir-utils.ts';
-import { findDirectories, findEntries } from '../../../_scripts/libs/file-io/find-entries.ts';
 import { normalizePath } from '../../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { findDirectories, findEntries } from '../../../_scripts/libs/file-ops/find-entries.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────

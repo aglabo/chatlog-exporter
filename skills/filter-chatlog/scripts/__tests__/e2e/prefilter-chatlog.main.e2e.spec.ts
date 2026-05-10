@@ -26,7 +26,7 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { assertFileExists, assertFileNotExists } from '../_helpers/chatlog-asserts.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/chatlog-fixtures.ts';
 

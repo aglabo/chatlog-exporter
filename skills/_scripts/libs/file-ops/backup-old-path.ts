@@ -15,7 +15,7 @@
 
 // --- shared modules
 // functions
-import { fileExists } from '../file-io/exists-utils.ts';
+import { fileExists } from './exists-utils.ts';
 // types
 import type { ListDirProvider, StatProvider } from '../../types/providers.types.ts';
 // classes

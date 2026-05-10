@@ -17,10 +17,10 @@
 // -- external --
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
 import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
-import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
-import { findEntries } from '../../_scripts/libs/file-io/find-entries.ts';
 import { getDirectory } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
+import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
+import { findEntries } from '../../_scripts/libs/file-ops/find-entries.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';

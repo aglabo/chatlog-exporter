@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/exists-utils.ts
+// src: skills/_scripts/libs/file-ops/exists-utils.ts
 // @(#): ファイル・ディレクトリ存在チェックユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

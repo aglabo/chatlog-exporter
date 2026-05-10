@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/__tests__/functional/find-files.functional.spec.ts
+// src: skills/_scripts/libs/file-ops/__tests__/functional/find-files.functional.spec.ts
 // @(#): findFiles の機能テスト - 実ファイルシステムを使った検証
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
