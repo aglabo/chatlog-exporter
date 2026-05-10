@@ -19,8 +19,8 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // exists
-import { fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
 import {
