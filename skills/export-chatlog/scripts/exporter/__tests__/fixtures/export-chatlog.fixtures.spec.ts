@@ -25,8 +25,8 @@ import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-
 import type { IsFixtureDirProvider } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import type { PeriodRange } from '../../../types/filter.types.ts';
 // exists
-import { fileExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 
