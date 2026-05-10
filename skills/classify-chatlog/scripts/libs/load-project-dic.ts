@@ -10,8 +10,8 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // utils
-import { resolveConfigPath } from '../../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { resolveConfigPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { ProjectDicEntry } from '../types/classify.types.ts';
 // classes
