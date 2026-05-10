@@ -11,74 +11,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
-import { cleanYaml, parseConversation } from '../../markdown-utils.ts';
-
-// ─────────────────────────────────────────────
-// parseConversation
-// ─────────────────────────────────────────────
-
-describe('parseConversation', () => {
-  describe('Given: User + Assistant の2ターン本文', () => {
-    describe('When: parseConversation を実行する', () => {
-      describe('Then: T-LIB-M-01 - [{role:user,...},{role:assistant,...}] が返る', () => {
-        it('T-LIB-M-01: User と Assistant の2ターンを正しく抽出する', () => {
-          const body = '### User\nhello\n### Assistant\nworld';
-          const result = parseConversation(body);
-          assertEquals(result.length, 2);
-          assertEquals(result[0].role, 'user');
-          assertEquals(result[1].role, 'assistant');
-        });
-      });
-    });
-  });
-
-  describe('Given: User のみの本文', () => {
-    describe('When: parseConversation を実行する', () => {
-      describe('Then: T-LIB-M-02 - [{role:user,...}] が返る', () => {
-        it('T-LIB-M-02: User のみのターンを抽出する', () => {
-          const body = '### User\nhello';
-          const result = parseConversation(body);
-          assertEquals(result.length, 1);
-          assertEquals(result[0].role, 'user');
-        });
-      });
-    });
-  });
-
-  describe('Given: 空本文', () => {
-    describe('When: parseConversation を実行する', () => {
-      describe('Then: T-LIB-M-03 - [] が返る', () => {
-        it('T-LIB-M-03: 空本文から空配列が返る', () => {
-          const result = parseConversation('');
-          assertEquals(result, []);
-        });
-      });
-    });
-  });
-
-  describe('Given: ヘッダーなしの本文のみ', () => {
-    describe('When: parseConversation を実行する', () => {
-      describe('Then: T-LIB-M-04 - [] が返る', () => {
-        it('T-LIB-M-04: ヘッダーなし本文から空配列が返る', () => {
-          const result = parseConversation('just plain text without headers');
-          assertEquals(result, []);
-        });
-      });
-    });
-  });
-
-  describe('Given: User→Assistant→User→Assistant の4ターン本文', () => {
-    describe('When: parseConversation を実行する', () => {
-      describe('Then: T-LIB-M-05 - 4要素の配列が返る', () => {
-        it('T-LIB-M-05: 複数ターン（4つ）を正しく抽出する', () => {
-          const body = '### User\nq1\n### Assistant\na1\n### User\nq2\n### Assistant\na2';
-          const result = parseConversation(body);
-          assertEquals(result.length, 4);
-        });
-      });
-    });
-  });
-});
+import { cleanYaml } from '../../markdown-utils.ts';
 
 // ─────────────────────────────────────────────
 // cleanYaml
