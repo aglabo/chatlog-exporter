@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/walk-files.ts
+// src: skills/_scripts/libs/file-ops/walk-files.ts
 // @(#): ディレクトリ再帰走査ユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

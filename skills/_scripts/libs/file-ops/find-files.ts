@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/find-files.ts
+// src: skills/_scripts/libs/file-ops/find-files.ts
 // @(#): ファイル一覧取得共通ユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -9,7 +9,7 @@
 import { expandGlob } from '@std/fs';
 
 import type { GlobProvider } from '../../types/providers.types.ts';
-import { normalizePath } from './path-utils.ts';
+import { normalizePath } from '../file-io/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // 型定義

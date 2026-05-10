@@ -23,7 +23,7 @@ import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.
 // -- external --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
-import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
+import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
@@ -34,8 +34,8 @@ import { DEFAULT_FILTER_CONFIG } from './constants/filter.constants.ts';
 // types
 import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 // libs
-import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
+import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { prefilterFiles } from './libs/prefilter.ts';
 import { processChunk } from './libs/process-chunk.ts';
 

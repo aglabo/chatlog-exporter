@@ -20,8 +20,8 @@ import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.t
 // types
 import type { ClassifyStats } from '../../types/classify.types.ts';
 // exists
-import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── ヘルパー ────────────────────────────────────────────────────────────────
 

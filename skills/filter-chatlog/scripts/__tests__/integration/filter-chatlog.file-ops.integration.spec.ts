@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { buildBatchPrompt } from '../../../../filter-chatlog/scripts/libs/batch-prompt.ts';
 import { prefilterFiles } from '../../../../filter-chatlog/scripts/libs/prefilter.ts';
 

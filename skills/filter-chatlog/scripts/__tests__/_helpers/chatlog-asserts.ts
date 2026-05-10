@@ -11,7 +11,7 @@
 import { assert, assertFalse } from '@std/assert';
 
 // ─── Helpers
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 /**
  * 指定パスが通常ファイルとして存在することをアサートする。

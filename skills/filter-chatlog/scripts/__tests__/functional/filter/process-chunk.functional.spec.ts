@@ -31,7 +31,7 @@ import {
 import type { CommandMockHandle } from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makePeriodDir } from '../../_helpers/chatlog-fixtures.ts';
 // exists
-import { fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 

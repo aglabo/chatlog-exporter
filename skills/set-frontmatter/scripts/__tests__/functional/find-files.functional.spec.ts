@@ -10,7 +10,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-io/find-files.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 

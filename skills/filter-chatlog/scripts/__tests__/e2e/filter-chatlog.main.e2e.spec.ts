@@ -39,7 +39,7 @@ import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 import type { CommandMockHandle } from '../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../skills/_scripts/__tests__/helpers/logger-stub.ts';
 // e2e helpers
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { assertFileNotExists } from '../_helpers/chatlog-asserts.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/chatlog-fixtures.ts';
 

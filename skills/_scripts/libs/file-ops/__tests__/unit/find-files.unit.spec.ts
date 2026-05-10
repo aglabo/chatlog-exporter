@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/__tests__/unit/find-files.unit.spec.ts
+// src: skills/_scripts/libs/file-ops/__tests__/unit/find-files.unit.spec.ts
 // @(#): findFiles のユニットテスト - GlobProvider モックによる検証
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

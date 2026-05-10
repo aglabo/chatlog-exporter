@@ -17,9 +17,9 @@ import { parse as parseYaml } from '@std/yaml';
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // types
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
-// exists
-import { fileExists } from '../../../libs/file-io/exists-utils.ts';
+// file libs
 import { readTextFile } from '../../../libs/file-io/read-utils.ts';
+import { fileExists } from '../../../libs/file-ops/exists-utils.ts';
 
 // -- error class --
 import { ChatlogError } from '../../ChatlogError.class.ts';

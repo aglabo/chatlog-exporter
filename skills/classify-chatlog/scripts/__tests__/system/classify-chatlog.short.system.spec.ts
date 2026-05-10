@@ -12,8 +12,8 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Helpers
-import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
+import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 

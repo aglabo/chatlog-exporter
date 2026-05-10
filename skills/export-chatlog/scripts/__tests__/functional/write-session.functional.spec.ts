@@ -19,8 +19,8 @@ import { writeSession } from '../../libs/session-writer.ts';
 // types
 import type { ExportedSession } from '../../types/session.types.ts';
 // exists
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 

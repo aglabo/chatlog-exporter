@@ -15,7 +15,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { processChunk } from '../../classify-chatlog.ts';
 
 // utils
-import { findDirectories } from '../../../../_scripts/libs/file-io/find-entries.ts';
+import { findDirectories } from '../../../../_scripts/libs/file-ops/find-entries.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
 // classes
