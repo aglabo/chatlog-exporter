@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // -- test target --
 import { defaultIsFixtureDir, findFixtureDirs } from '../find-fixture-dirs.ts';
 // -- utils --
-import { normalizePath } from '../../../libs/file-io/path-utils.ts';
+import { normalizePath } from '../../../libs/path-utils/path-utils.ts';
 // -- types --
 import type { IsFixtureDirProvider } from '../find-fixture-dirs.ts';
 
