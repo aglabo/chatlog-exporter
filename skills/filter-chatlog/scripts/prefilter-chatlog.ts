@@ -32,14 +32,22 @@
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+import {
+  countChars,
+  getAssistantTurns,
+  getUserTurns,
+  hasUserTurn,
+  isSingleUserTurn,
+  parseConversation,
+} from '../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-io/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/file-io/path-utils.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
-import { agentPath } from '../../_scripts/libs/file-io/resolve-directory.ts';
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
-import { parseConversation, type Turn } from '../../_scripts/libs/text/markdown-utils.ts';
+import type { Conversation } from '../../_scripts/types/conversation.types.ts';
 import { DEFAULT_PREFILTER_CONFIG, MIN_ASSISTANT_CHARS } from './constants/filter.constants.ts';
 import {
   NOISE_FILENAME_PATTERNS,
@@ -61,23 +69,24 @@ export const checkFilename = (filename: string): string | null => {
   return null;
 };
 
-export const checkUserContent = (turns: Turn[]): string | null => {
-  const userTurns = turns.filter((t) => t.role === 'user');
-  if (userTurns.length === 0) { return 'Userターンが存在しない'; }
+export const checkUserContent = (turns: Conversation): string | null => {
+  if (!hasUserTurn(turns)) { return 'Userターンが存在しない'; }
+
+  const _userTurns = getUserTurns(turns);
 
   // 全Userターンがシステムタグのみ
-  if (userTurns.every((t) => SYSTEM_TAG_PATTERN.test(t.text))) {
+  if (_userTurns.every((t) => SYSTEM_TAG_PATTERN.test(t.text))) {
     return '全UserターンがシステムTagのみ';
   }
 
   // 全Userターンが /コマンドのみ
-  if (userTurns.every((t) => t.text.trim().split('\n').every((l) => l.trim().startsWith('/')))) {
+  if (_userTurns.every((t) => t.text.trim().split('\n').every((l) => l.trim().startsWith('/')))) {
     return '全Userターンが/コマンドのみ';
   }
 
   // 1ターンのみの詳細チェック
-  if (userTurns.length === 1) {
-    const text = userTurns[0].text;
+  if (isSingleUserTurn(turns)) {
+    const text = _userTurns[0].text;
 
     // 前方一致パターン
     for (const { pattern, label } of NOISE_USER_PREFIX_PATTERNS) {
@@ -96,14 +105,14 @@ export const checkUserContent = (turns: Turn[]): string | null => {
   return null;
 };
 
-export const checkAssistantContent = (turns: Turn[]): string | null => {
-  const userTurns = turns.filter((t) => t.role === 'user');
-  const assistantTurns = turns.filter((t) => t.role === 'assistant');
-
-  if (userTurns.length === 1 && assistantTurns.length > 0) {
-    const total = assistantTurns.reduce((sum, t) => sum + t.text.length, 0);
-    if (total < MIN_ASSISTANT_CHARS) {
-      return `Assistant応答が短すぎる (${total} < ${MIN_ASSISTANT_CHARS} 文字)`;
+export const checkAssistantContent = (turns: Conversation): string | null => {
+  if (isSingleUserTurn(turns)) {
+    const _assistantTurns = getAssistantTurns(turns);
+    if (_assistantTurns.length > 0) {
+      const total = countChars(_assistantTurns);
+      if (total < MIN_ASSISTANT_CHARS) {
+        return `Assistant応答が短すぎる (${total} < ${MIN_ASSISTANT_CHARS} 文字)`;
+      }
     }
   }
   return null;
@@ -145,8 +154,8 @@ export const classifyFile = (filename: string, text: string): { isNoise: boolean
 // ファイル列挙
 // ─────────────────────────────────────────────
 
-export const findMdFiles = async (baseDir: string, agent: string, period?: string): Promise<string[]> => {
-  const _searchDir = `${baseDir}/${agentPath(agent, period)}`;
+export const findMdFiles = (baseDir: string, agent: string, period?: string): Promise<string[]> => {
+  const _searchDir = resolveChatlogsDir({ baseDir, agent, period });
   return findFilesLib(_searchDir);
 };
 
