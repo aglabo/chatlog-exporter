@@ -1,4 +1,4 @@
-// src: skills/_scripts/libs/file-io/backup-old-path.ts
+// src: skills/_scripts/libs/file-ops/backup-old-path.ts
 // @(#): 既存ファイルを連番バックアップ (.old-NN.md) にリネームするユーティリティ
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -13,9 +13,9 @@
  * リネームする。outputPath が存在しない場合は何もしない。
  */
 
-// --- hared modules
+// --- shared modules
 // functions
-import { fileExists } from './exists-utils.ts';
+import { fileExists } from '../file-io/exists-utils.ts';
 // types
 import type { ListDirProvider, StatProvider } from '../../types/providers.types.ts';
 // classes

@@ -11,7 +11,7 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
   parserPreset: {
     parserOpts: {
-      headerPattern: /^(?:(merge) \(#(\d+)\): )?(\w*)(?:\(([^)]*)\))?!?: (.+)$/,
+      headerPattern: /^(?:(merge)\s+\(#(\d+)\): )?(\w*)(?:\(([^)]*)\))?!?: (.+)$/,
       headerCorrespondence: [
         'merge',
         'pr',
