@@ -52,48 +52,15 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${chatlogsDir}`);
     }
 
-    const files = await findMdFiles(chatlogsDir, agent, period);
+    const _searchDir = resolveChatlogsDir({ baseDir: chatlogsDir, agent, period });
+    const files = await findFilesLib(_searchDir);
     logger.info(`対象ファイル数: ${files.length}`);
     if (dryRun) {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
     }
 
     const counts = { noise: 0, keep: 0, error: 0 };
-
-    for (const filePath of files) {
-      const filename = normalizePath(filePath).split('/').pop()!;
-
-      let text: string;
-      try {
-        text = await readTextFile(filePath);
-      } catch (e) {
-        logger.error(`  error (${filename}): ${e}`);
-        counts.error++;
-        continue;
-      }
-
-      const { isNoise, reason } = classifyFile(filename, text);
-
-      if (isNoise) {
-        counts.noise++;
-        if (report) {
-          logger.log(`NOISE\t${reason}\t${filePath}`);
-        } else if (dryRun) {
-          logger.log(filePath);
-        } else {
-          try {
-            await Deno.remove(filePath);
-            logger.info(`deleted: ${filePath}`);
-          } catch (e) {
-            logger.error(`  削除失敗: ${filename}: ${e}`);
-            counts.error++;
-            counts.noise--;
-          }
-        }
-      } else {
-        counts.keep++;
-      }
-    }
+    await processNoiseFilterFiles(files, counts, { dryRun, report });
 
     const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';
     logger.info(`\n完了${suffix}: noise=${counts.noise} keep=${counts.keep} error=${counts.error}`);
