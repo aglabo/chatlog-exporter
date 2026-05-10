@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { processNoiseFilterFiles } from '../../../prefilter-chatlog.ts';
+import { processNoiseFilterFiles } from '../../../libs/process-noise-filter.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
