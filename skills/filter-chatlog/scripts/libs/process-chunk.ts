@@ -8,6 +8,7 @@
 
 // ─── external ───
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
+import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
@@ -82,12 +83,10 @@ export const processChunk = async (
       } else {
         logger.log(`DISCARD (conf=${confidence}): ${filePath}`);
         logger.info(`  reason: ${reason}`);
-        try {
-          await Deno.remove(filePath);
+        if (await removeFile(filePath)) {
           stats.discarded++;
-        } catch {
-          logger.error(`  削除失敗: ${filePath}`);
-          stats.error++;
+        } else {
+          logger.warn(`  skip (File not found):${filePath}`);
         }
       }
     } else {
