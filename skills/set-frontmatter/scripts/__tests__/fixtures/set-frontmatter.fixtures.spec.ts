@@ -20,8 +20,8 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { fileExists } from '../../../../_scripts/libs/file-io/exists-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
