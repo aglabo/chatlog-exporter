@@ -16,7 +16,7 @@ import { processNoiseFilterFiles } from '../../../libs/process-noise-filter.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { fileExists } from '../../../../../_scripts/libs/file-io/exists-utils.ts';
+import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // types
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
