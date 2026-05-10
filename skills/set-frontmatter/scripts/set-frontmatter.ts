@@ -26,9 +26,9 @@
 // -- external --
 import { parse as parseYaml } from '@std/yaml';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { dirExists } from '../../_scripts/libs/file-io/exists-utils.ts';
-import { findFiles } from '../../_scripts/libs/file-io/find-files.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
+import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
