@@ -1,5 +1,5 @@
-// src: scripts/__tests__/fixtures/classify-chatlog.fixtures.spec.ts
-// @(#): classify-chatlog fixturesテスト（実 claude CLI 使用）
+// src: scripts/__tests__/fixtures/classify-chatlogs.fixtures.spec.ts
+// @(#): classify-chatlogs fixturesテスト（実 claude CLI 使用）
 //       fixtures-data/ 下の各ディレクトリを再帰スキャンし
 //       input.md を実際の claude CLI で分類し、output.yaml の期待値と照合する
 //
@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // test target
-import { processChunk } from '../../classify-chatlog.ts';
+import { processChunk } from '../../classify-chatlogs.ts';
 
 // utils
 import { findDirectories } from '../../../../_scripts/libs/file-ops/find-entries.ts';
@@ -67,7 +67,7 @@ for (const _relPath of _fixtureDirs) {
   const _inputPath = `${_fixtureDir}/input.md`;
   const _expectedOutput = await _loadOutput(_fixtureDir);
 
-  describe(`processChunk — classify-chatlog/${_relPath}`, () => {
+  describe(`processChunk — classify-chatlogs/${_relPath}`, () => {
     describe(`Given: ${_relPath}/input.md と projects.dic`, () => {
       let _tempDir: string;
       let _stats: ClassifyStats;
