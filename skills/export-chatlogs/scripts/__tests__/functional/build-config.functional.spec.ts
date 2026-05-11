@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { buildConfig } from '../../export-chatlog.ts';
+import { buildConfig } from '../../export-chatlogs.ts';
 // classes
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
