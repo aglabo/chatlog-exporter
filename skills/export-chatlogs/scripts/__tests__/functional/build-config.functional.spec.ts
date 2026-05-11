@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/export-chatlog.build-config.functional.spec.ts
+// src: scripts/__tests__/functional/export-chatlogs.build-config.functional.spec.ts
 // @(#): buildConfig の機能テスト
 //       ParsedConfig + GlobalConfig + デフォルト値から ExportConfig を構築するロジック
 //
