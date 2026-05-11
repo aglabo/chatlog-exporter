@@ -1,5 +1,5 @@
-// src: scripts/__tests__/system/export-chatlog.main.system.spec.ts
-// @(#): export-chatlog main() のシステムテスト（実プロセス起動による終了コード検証）
+// src: scripts/__tests__/system/export-chatlogs.main.system.spec.ts
+// @(#): export-chatlogs main() のシステムテスト（実プロセス起動による終了コード検証）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -9,11 +9,11 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-/** テスト対象スクリプト `export-chatlog.ts` への絶対パス。サブプロセス起動時の引数として使用する。 */
-const SCRIPT_PATH = new URL('../../export-chatlog.ts', import.meta.url).pathname;
+/** テスト対象スクリプト `export-chatlogs.ts` への絶対パス。サブプロセス起動時の引数として使用する。 */
+const SCRIPT_PATH = new URL('../../export-chatlogs.ts', import.meta.url).pathname;
 
 /**
- * `export-chatlog.ts` を Deno サブプロセスとして起動し、終了コードを返す。
+ * `export-chatlogs.ts` を Deno サブプロセスとして起動し、終了コードを返す。
  * システムテストで実際のプロセス終了コードを検証するために使用する。
  */
 async function runExport(args: string[]): Promise<number> {
@@ -31,7 +31,7 @@ async function runExport(args: string[]): Promise<number> {
 /**
  * `main` 関数のシステムテストスイート（実プロセス起動）。
  *
- * export-chatlog をサブプロセスとして起動し、終了コードを検証する。
+ * export-chatlogs をサブプロセスとして起動し、終了コードを検証する。
  * 不明なオプション指定時に exit(1) で終了することをカバーする。
  *
  * @see main
@@ -43,8 +43,8 @@ describe('main - エラー終了コード', () => {
    * exit(1) で終了することをサブプロセス起動で確認する。
    */
   describe('Given: 不明なオプション "--unknown-flag" を指定', () => {
-    /** export-chatlog をサブプロセスで実行する */
-    describe('When: export-chatlog をサブプロセスで実行する', () => {
+    /** export-chatlogs をサブプロセスで実行する */
+    describe('When: export-chatlogs をサブプロセスで実行する', () => {
       /** T-EC-SYS-01: プロセスが終了コード 1 で終了する */
       describe('Then: T-EC-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-EC-SYS-01-01: 終了コードが 1 である', async () => {
