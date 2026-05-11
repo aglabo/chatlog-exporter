@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/classify-chatlog.ts
+// src: scripts/classify-chatlogs.ts
 // @(#): チャットログをプロジェクト別サブディレクトリに分類する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,10 +7,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 /**
- * classify_chatlog.ts — チャットログをプロジェクト別サブディレクトリに分類する
+ * classify-chatlogs.ts — チャットログをプロジェクト別サブディレクトリに分類する
  *
  * 使い方:
- *   deno run --allow-read --allow-run --allow-write classify_chatlog.ts \
+ *   deno run --allow-read --allow-run --allow-write classify-chatlogs.ts \
  *     [agent] [YYYY-MM] [--dry-run] [--config FILE] --input DIR
  */
 
@@ -310,7 +310,7 @@ export const processChunk = async (
 // ─────────────────────────────────────────────
 
 /**
- * classify-chatlog スクリプトのエントリポイント。
+ * classify-chatlogs スクリプトのエントリポイント。
  * - `--config` で指定された YAML を GlobalConfig に読み込み、model/chunkSize/concurrency のデフォルト値を解決する。
  * - `ChatlogError` はログに出力して `exit(1)` する。その他の例外は再スローする。
  */
