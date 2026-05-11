@@ -1,5 +1,5 @@
 # src: fixtures-data/projects.dic — テスト用プロジェクト辞書
-# @(#) classify-chatlog fixtures テスト用
+# @(#) classify-chatlogs fixtures テスト用
 #
 # 構造: key / （省略可能なプロパティ）
 # 本番辞書（assets/configs/projects.dic）と同じ YAML 形式
