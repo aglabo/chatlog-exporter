@@ -11,12 +11,12 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { parseArgs } from '../../../../export-chatlog/scripts/export-chatlog.ts';
+import { parseArgs } from '../../export-chatlogs.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // types
-import type { ParsedConfig } from '../../../../export-chatlog/scripts/types/export-config.types.ts';
+import type { ParsedConfig } from '../../types/export-config.types.ts';
 
 // ─── Tests
 
@@ -44,7 +44,7 @@ describe('parseArgs', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       /** 対応フィールドに期待値が設定されることを確認する。 */
       describe('Then: 対応フィールドに値が設定される', () => {
-        const _cases: { id: string; args: string[]; field: keyof ParsedConfig; expected: unknown }[] = [
+        const _cases: { id: string; args: string[]; field: keyof ParsedConfig & string; expected: unknown }[] = [
           { id: 'T-EC-PA-02-01', args: ['codex'], field: 'agent', expected: 'codex' },
           { id: 'T-EC-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
           { id: 'T-EC-PA-03-02', args: ['2026'], field: 'period', expected: '2026' },

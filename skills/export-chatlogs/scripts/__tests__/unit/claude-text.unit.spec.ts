@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import {
   extractClaudeAssistantText,
   extractClaudeUserText,
-} from '../../../../export-chatlog/scripts/exporter/claude-exporter.ts';
+} from '../../exporter/claude-exporter.ts';
 
 // ─── Tests
 
