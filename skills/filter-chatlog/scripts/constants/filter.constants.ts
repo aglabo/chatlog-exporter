@@ -8,7 +8,7 @@
 
 import {
   DEFAULT_AGENT,
-  DEFAULT_CHATLOG_DIR,
+  DEFAULT_CHATLOGS_DIR,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_CONCURRENCY,
 } from '../../../_scripts/constants/defaults.constants.ts';
@@ -37,7 +37,7 @@ export const MIN_ASSISTANT_CHARS = 100;
 /** prefilter-chatlog の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
   agent: DEFAULT_AGENT,
-  chatlogsDir: DEFAULT_CHATLOG_DIR,
+  chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
   report: false,
 };
@@ -45,7 +45,7 @@ export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
 /** filter-chatlog の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
-  inputDir: DEFAULT_CHATLOG_DIR,
+  inputDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
   // config.yaml only
   chunkSize: DEFAULT_CHUNK_SIZE,

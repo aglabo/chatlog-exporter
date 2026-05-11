@@ -8,7 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // constants
-import { DEFAULT_AGENT, DEFAULT_CHATLOG_DIR } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types
@@ -22,7 +22,7 @@ import type { ExportConfig } from '../types/export-config.types.ts';
  *
  * @see parseArgs
  */
-export const DEFAULT_OUTPUT_DIR = DEFAULT_CHATLOG_DIR;
+export const DEFAULT_OUTPUT_DIR = DEFAULT_CHATLOGS_DIR;
 
 /**
  * `parseArgs()` が引数なしで呼ばれた場合に返す `ExportConfig` のデフォルト値。
