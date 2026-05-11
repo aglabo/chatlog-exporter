@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env
-// src: scripts/export-chatlog.ts
+// src: scripts/export-chatlogs.ts
 // @(#): AIエージェントのセッション履歴をMarkdownにエクスポートする
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,10 +7,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 /**
- * export_chatlog.ts — AIエージェントのセッション履歴をMarkdownにエクスポートする
+ * export_chatlogs.ts — AIエージェントのセッション履歴をMarkdownにエクスポートする
  *
  * 使い方:
- *   deno run --allow-read --allow-write --allow-env export_chatlog.ts \
+ *   deno run --allow-read --allow-write --allow-env export_chatlogs.ts \
  *     [agent] [YYYY-MM|YYYY] [project] --output DIR
  *
  * 対応エージェント:
@@ -98,7 +98,7 @@ export function buildConfig(
 // ─────────────────────────────────────────────
 
 /**
- * export-chatlog スクリプトのエントリポイント。
+ * export-chatlogs スクリプトのエントリポイント。
  *
  * 処理フロー:
  * 1. `parseArgs()` で argv を解析して `ExportConfig` を取得
