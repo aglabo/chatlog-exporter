@@ -13,7 +13,7 @@ import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { parseClaudeSession } from '../../exporter/claude-exporter.ts';
+import { parseClaudeSession } from '../../libs/parse-claude-session.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
 
 // ─── Helpers
