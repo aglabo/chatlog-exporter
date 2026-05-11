@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlog.parseArgs.unit.spec.ts
+// src: scripts/__tests__/unit/classify-chatlogs.parseArgs.unit.spec.ts
 // @(#): parseArgs のユニットテスト
 //       classify 固有オプションのモデル名バリデーション
 
@@ -12,7 +12,7 @@ import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
-import { parseArgs } from '../../classify-chatlog.ts';
+import { parseArgs } from '../../classify-chatlogs.ts';
 // types
 import type { ParsedConfig } from '../../types/classify.types.ts';
 
