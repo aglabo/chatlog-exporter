@@ -5,7 +5,7 @@
 //       filter-chatlog の動作:
 //         入力: inputDir/agent/YYYY/YYYY-MM/*.md
 //         DISCARD 判定かつ confidence >= 0.7 のファイルを削除する
-//         (classify-chatlog と異なり、移動ではなく削除)
+//         (classify-chatlogs と異なり、移動ではなく削除)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 // This software is released under the MIT License.
