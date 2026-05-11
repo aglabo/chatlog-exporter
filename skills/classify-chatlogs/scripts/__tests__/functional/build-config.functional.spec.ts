@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/classify-chatlog.build-config.functional.spec.ts
+// src: scripts/__tests__/functional/classify-chatlogs.build-config.functional.spec.ts
 // @(#): buildConfig の機能テスト
 //       ParsedConfig + GlobalConfig + デフォルト値から ClassifyConfig を構築するロジック
 //
@@ -11,7 +11,7 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // --- Test target ---
-import { buildConfig } from '../../classify-chatlog.ts';
+import { buildConfig } from '../../classify-chatlogs.ts';
 
 // --- Helpers
 // constants
