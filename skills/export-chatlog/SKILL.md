@@ -113,5 +113,5 @@ chatlogs/
 ## 関連スキル
 
 - `/filter-chatlog` — 低価値ChatLogのフィルタリング（export-chatlog の後工程）
-- `/classify-chatlog` — プロジェクト別サブディレクトリへの分類
+- `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類
 - `/set-frontmatter` — フロントマター付加

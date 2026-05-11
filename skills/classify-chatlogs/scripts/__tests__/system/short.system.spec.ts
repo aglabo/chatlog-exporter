@@ -1,4 +1,4 @@
-// src: scripts/__tests__/system/classify-chatlog.short.system.spec.ts
+// src: scripts/__tests__/system/classify-chatlogs.short.system.spec.ts
 // @(#): 短文ファイル（<MIN_CLASSIFIABLE_LENGTH）→ misc 移動の実ファイルシステム検証
 //       対象: main
 //
@@ -18,8 +18,8 @@ import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.t
 // ─── Internal Helpers
 
 // constants
-/** テスト対象スクリプト `classify-chatlog.ts` の絶対パス。サブプロセス起動時に使用する。 */
-const SCRIPT_PATH = new URL('../../classify-chatlog.ts', import.meta.url).pathname;
+/** テスト対象スクリプト `classify-chatlogs.ts` の絶対パス。サブプロセス起動時に使用する。 */
+const SCRIPT_PATH = new URL('../../classify-chatlogs.ts', import.meta.url).pathname;
 
 /** システムテスト用フィクスチャディレクトリの絶対パス。Windows ドライブレター正規化済み。 */
 const FIXTURE_SYSTEM_DATA = new URL('./fixtures', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
@@ -32,9 +32,9 @@ const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
 // functions
 /**
- * classify-chatlog スクリプトをサブプロセスで実行し、終了コードと出力を返す。
+ * classify-chatlogs スクリプトをサブプロセスで実行し、終了コードと出力を返す。
  *
- * @param args - classify-chatlog に渡す引数リスト
+ * @param args - classify-chatlogs に渡す引数リスト
  * @returns `{ code, stdout, stderr }` — プロセス終了コードと各出力テキスト
  */
 const _runClassify = async (args: string[]): Promise<{ code: number; stdout: string; stderr: string }> => {
@@ -89,8 +89,8 @@ describe('[AI] main - 短文ファイルの misc 分類', { ignore: !_shouldRunA
    * Claude CLI を起動せず `misc/` へ直接分類されることを検証する。
    */
   describe('Given: 50 文字未満のコンテンツを持つ md ファイルを配置', () => {
-    /** classify-chatlog をサブプロセスで実行するとき。 */
-    describe('When: classify-chatlog をサブプロセスで実行する', () => {
+    /** classify-chatlogs をサブプロセスで実行するとき。 */
+    describe('When: classify-chatlogs をサブプロセスで実行する', () => {
       /** ファイルが misc/ に移動され、元のパスに存在しないことを検証する。 */
       describe('Then: T-CL-SYS-02 - ファイルが misc/ に移動される', () => {
         it('[AI] T-CL-SYS-02-01: misc/ にファイルが移動され、project フィールドが挿入される', async () => {

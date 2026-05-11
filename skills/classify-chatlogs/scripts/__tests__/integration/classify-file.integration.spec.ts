@@ -1,4 +1,4 @@
-// src: scripts/__tests__/integration/classify-chatlog.classify-file.integration.spec.ts
+// src: scripts/__tests__/integration/classify-chatlogs.classify-file.integration.spec.ts
 // @(#): classifyFile の統合テスト（正常移動・移動失敗 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -10,7 +10,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- Test target --
-import { classifyFile } from '../../classify-chatlog.ts';
+import { classifyFile } from '../../classify-chatlogs.ts';
 // stub
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // types for stubs

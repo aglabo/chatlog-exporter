@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlog.buildPrompt.unit.spec.ts
+// src: scripts/__tests__/unit/classify-chatlogs.buildPrompt.unit.spec.ts
 // @(#): buildClassifyPrompt / buildSystemPrompt のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -13,7 +13,7 @@ import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.t
 import {
   buildClassifyPrompt,
   buildSystemPrompt,
-} from '../../classify-chatlog.ts';
+} from '../../classify-chatlogs.ts';
 import { FALLBACK_PROJECT } from '../../constants/classify.constants.ts';
 import type { ProjectDicEntry } from '../../types/classify.types.ts';
 

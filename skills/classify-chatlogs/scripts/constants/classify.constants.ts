@@ -1,5 +1,5 @@
 // src: scripts/constants/classify.constants.ts
-// @(#): classify-chatlog スクリプト固有の定数
+// @(#): classify-chatlogs スクリプト固有の定数
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,7 +10,7 @@ import { DEFAULT_AGENT, DEFAULT_AI_MODEL } from '../../../_scripts/constants/def
 import type { ClassifyConfig } from '../types/classify.types.ts';
 
 // ─────────────────────────────────────────────
-// classify-chatlog 固有定数
+// classify-chatlogs 固有定数
 // ─────────────────────────────────────────────
 
 /** プロジェクトが特定できなかった場合に割り当てるフォールバックプロジェクト名。 */

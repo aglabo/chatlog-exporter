@@ -1,4 +1,4 @@
-// src: skills/classify-chatlog/scripts/classes/ClassifyChatlogEntry.class.ts
+// src: skills/classify-chatlogs/scripts/classes/ClassifyChatlogEntry.class.ts
 // @(#): 分類用チャットログエントリクラス
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

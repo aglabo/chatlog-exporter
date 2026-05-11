@@ -1,5 +1,5 @@
 // src: scripts/types/classify.types.ts
-// @(#): classify-chatlog スクリプト固有の型定義
+// @(#): classify-chatlogs スクリプト固有の型定義
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //

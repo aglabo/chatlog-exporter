@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/classify-chatlog.processChunk.functional.spec.ts
+// src: scripts/__tests__/functional/classify-chatlogs.processChunk.functional.spec.ts
 // @(#): processChunk の機能テスト
 //       runClaude + classifyFile の連携フロー（Deno.Command モック・dryRun=true）
 //
@@ -11,7 +11,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { processChunk } from '../../classify-chatlog.ts';
+import { processChunk } from '../../classify-chatlogs.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../../constants/classify.constants.ts';

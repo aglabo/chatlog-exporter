@@ -34,7 +34,7 @@ bash scripts/setup-dev-env.sh
 ```bash
 skills/
 ├── _scripts/          # 共通実装（types/, constants/, libs/）
-├── classify-chatlog/  # プロジェクト別分類
+├── classify-chatlogs/  # プロジェクト別分類
 ├── export-chatlog/    # ログエクスポート
 ├── filter-chatlog/    # ノイズフィルタ
 ├── normalize-chatlog/ # 形式正規化

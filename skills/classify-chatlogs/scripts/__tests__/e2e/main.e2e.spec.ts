@@ -1,8 +1,8 @@
-// src: scripts/__tests__/e2e/classify-chatlog.main.e2e.spec.ts
-// @(#): classify-chatlog main() の E2E テスト
+// src: scripts/__tests__/e2e/classify-chatlogs.main.e2e.spec.ts
+// @(#): classify-chatlogs main() の E2E テスト
 //       main() 経由でのファイル分類フロー（Deno.Command モック・実 tempdir）
 //
-//       classify-chatlog の動作:
+//       classify-chatlogs の動作:
 //         入力: inputDir/agent/YYYY-MM/*.md
 //         出力: ファイルを inputDir/agent/YYYY-MM/<project>/ サブディレクトリに移動
 //               (normalize-chatlog と異なり、別出力ディレクトリはない)
@@ -20,7 +20,7 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ---  Test target  ---
-import { main } from '../../classify-chatlog.ts';
+import { main } from '../../classify-chatlogs.ts';
 
 // --- Helpers
 // mocks

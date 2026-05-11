@@ -1,5 +1,5 @@
-// src: scripts/__tests__/system/classify-chatlog.main.system.spec.ts
-// @(#): classify-chatlog main() のシステムテスト（実プロセス起動による終了コード検証）
+// src: scripts/__tests__/system/classify-chatlogs.main.system.spec.ts
+// @(#): classify-chatlogs main() のシステムテスト（実プロセス起動による終了コード検証）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -8,7 +8,7 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-const SCRIPT_PATH = new URL('../../classify-chatlog.ts', import.meta.url).pathname;
+const SCRIPT_PATH = new URL('../../classify-chatlogs.ts', import.meta.url).pathname;
 
 async function runClassify(args: string[]): Promise<number> {
   const _cmd = new Deno.Command(Deno.execPath(), {
@@ -24,7 +24,7 @@ async function runClassify(args: string[]): Promise<number> {
 
 describe('main - エラー終了コード', () => {
   describe('Given: 不正なオプションを指定', () => {
-    describe('When: classify-chatlog をサブプロセスで実行する', () => {
+    describe('When: classify-chatlogs をサブプロセスで実行する', () => {
       describe('Then: T-CL-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-CL-SYS-01-01: 終了コードが 1 である', async () => {
           const code = await runClassify(['--unknown-option']);

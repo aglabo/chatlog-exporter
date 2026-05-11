@@ -240,8 +240,8 @@ describe('buildBaseGlob', () => {
   describe('Given: moduleName が "classify"', () => {
     describe('When: buildBaseGlob("classify") を呼び出す', () => {
       describe('Then: T-AT-BG-04 - モジュール固有のパスを返す', () => {
-        it('T-AT-BG-04-01: 戻り値が "**/classify-chatlog/**/__tests__" である', () => {
-          assertEquals(buildBaseGlob('classify'), '**/classify-chatlog/**/__tests__');
+        it('T-AT-BG-04-01: 戻り値が "**/classify-chatlogs/**/__tests__" である', () => {
+          assertEquals(buildBaseGlob('classify'), '**/classify-chatlogs/**/__tests__');
         });
       });
     });
@@ -295,8 +295,8 @@ describe('MODULE_GLOB_TABLE', () => {
         it('T-AT-GT-03: "scripts" エントリが "scripts/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['scripts'], 'scripts/**/__tests__');
         });
-        it('T-AT-GT-04: "classify" エントリが "**/classify-chatlog/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['classify'], '**/classify-chatlog/**/__tests__');
+        it('T-AT-GT-04: "classify" エントリが "**/classify-chatlogs/**/__tests__" である', () => {
+          assertEquals(MODULE_GLOB_TABLE['classify'], '**/classify-chatlogs/**/__tests__');
         });
         it('T-AT-GT-05: "export" エントリが "**/export-chatlog/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['export'], '**/export-chatlog/**/__tests__');
@@ -453,11 +453,11 @@ describe('buildArgsFromConfig', () => {
 
   describe('Given: testType="unit", moduleName="classify" の TesterConfig', () => {
     describe('When: buildArgsFromConfig(config) を呼び出す', () => {
-      describe('Then: T-AT-AC-03 - buildDenoArgs(["unit"], "**/classify-chatlog/**/__tests__") と同じ結果を返す', () => {
-        it('T-AT-AC-03-01: 結果が buildDenoArgs(["unit"], "**/classify-chatlog/**/__tests__") と一致する', () => {
+      describe('Then: T-AT-AC-03 - buildDenoArgs(["unit"], "**/classify-chatlogs/**/__tests__") と同じ結果を返す', () => {
+        it('T-AT-AC-03-01: 結果が buildDenoArgs(["unit"], "**/classify-chatlogs/**/__tests__") と一致する', () => {
           const config: TesterConfig = { testType: 'unit', moduleName: 'classify' };
           const result = buildArgsFromConfig(config);
-          const expected = buildDenoArgs(['unit'], '**/classify-chatlog/**/__tests__');
+          const expected = buildDenoArgs(['unit'], '**/classify-chatlogs/**/__tests__');
           assertEquals(result, expected);
         });
       });

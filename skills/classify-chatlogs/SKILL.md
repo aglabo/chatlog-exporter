@@ -1,15 +1,15 @@
 ---
-name: classify-chatlog
+name: classify-chatlogs
 description: >
   チャットログをプロジェクト別サブディレクトリに分類する。
-  /classify-chatlog で呼び出す。
+  /classify-chatlogs で呼び出す。
   Claude CLI でファイルのメタデータを解析し、プロジェクト名を推定してサブディレクトリに移動。
   フロントマターに project フィールドを付加する。
 argument-hint: "[agent] [YYYY-MM] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
-# classify-chatlog スキル
+# classify-chatlogs スキル
 
 `chatlogs/<agent>/` 配下のフラットなチャットログをプロジェクト別サブディレクトリに分類する。
 `assets/dics/projects.dic` の辞書を参照してプロジェクトを選定する。
@@ -37,11 +37,11 @@ allowed-tools: Bash, Glob
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/classify-chatlog/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/classify-chatlogs/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
 SKILL_DIR   = <SKILL.md が存在するディレクトリの絶対パス>
-SCRIPT_PATH = $SKILL_DIR/scripts/classify-chatlog.ts
+SCRIPT_PATH = $SKILL_DIR/scripts/classify-chatlogs.ts
 INPUT       = <cwd>/chatlogs
 DICS_DIR    = <cwd>/assets/dics
 ```
@@ -120,4 +120,4 @@ tags:
 
 - `/export-log` — ChatLog のエクスポート
 - `/filter-chatlog` — 低価値ChatLogのフィルタリング
-- `/set-frontmatter` — フロントマター付加（classify-chatlog の後工程として推奨）
+- `/set-frontmatter` — フロントマター付加（classify-chatlogs の後工程として推奨）
