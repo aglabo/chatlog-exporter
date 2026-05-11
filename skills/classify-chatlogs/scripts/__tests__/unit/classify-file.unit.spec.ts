@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlog.classify-file.unit.spec.ts
+// src: scripts/__tests__/unit/classify-chatlogs.classify-file.unit.spec.ts
 // @(#): classifyFile の単体テスト（dryRun=true 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -11,7 +11,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- Test target --
-import { classifyFile } from '../../classify-chatlog.ts';
+import { classifyFile } from '../../classify-chatlogs.ts';
 // stub
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
