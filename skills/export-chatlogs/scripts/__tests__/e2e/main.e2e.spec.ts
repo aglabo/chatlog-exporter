@@ -17,7 +17,7 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { main } from '../../../../export-chatlog/scripts/export-chatlog.ts';
+import { main } from '../../export-chatlogs.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
