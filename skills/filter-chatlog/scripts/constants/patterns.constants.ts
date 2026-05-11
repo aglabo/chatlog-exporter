@@ -85,7 +85,8 @@ export const NOISE_USER_PREFIX_PATTERNS: { pattern: RegExp; label: string }[] = 
 
   // スラッシュコマンド転写
   {
-    pattern: /^\/(export-log|filter-chatlog|commit|idd|deckrd|clear|help|set-frontmatter|classify-chatlog)\b/,
+    pattern:
+      /^\/(export-log|filter-chatlog|commit|idd|deckrd|clear|help|set-frontmatter|classify-chatlog|classify-chatlogs)\b/,
     label: 'スラッシュコマンドのみ',
   },
 ];
