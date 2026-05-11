@@ -11,11 +11,11 @@ import { assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildOutputPath } from '../../../../export-chatlog/scripts/libs/session-writer.ts';
+import { buildOutputPath } from '../../libs/session-writer.ts';
 
 // ─── Helpers
 // types
-import type { SessionMeta } from '../../../../export-chatlog/scripts/types/session.types.ts';
+import type { SessionMeta } from '../../types/session.types.ts';
 
 // ─── Internal Helpers
 
