@@ -13,11 +13,11 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { renderMarkdown } from '../../../../export-chatlog/scripts/libs/session-writer.ts';
+import { renderMarkdown } from '../../libs/session-writer.ts';
 
 // ─── Helpers
 // types
-import type { SessionMeta, Turn } from '../../../../export-chatlog/scripts/types/session.types.ts';
+import type { SessionMeta, Turn } from '../../types/session.types.ts';
 
 // ─── Internal Helpers
 
