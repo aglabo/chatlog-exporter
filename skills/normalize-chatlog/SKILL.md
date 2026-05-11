@@ -119,5 +119,5 @@ temp/normalize_logs/
 
 - `/export-chatlog` — ChatLog のエクスポート（normalize-chatlog の前工程）
 - `/filter-chatlog` — 低価値ChatLogのフィルタリング
-- `/classify-chatlog` — プロジェクト別サブディレクトリへの分類
+- `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類
 - `/set-frontmatter` — フロントマター付加
