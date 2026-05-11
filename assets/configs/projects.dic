@@ -2,7 +2,7 @@
 # @(#) プロジェクト分類用辞書
 #
 # 構造: key / def（AI判断用・キーを端的に定義する短文）/ category / desc（人間向け説明）/ rules（判断補助）
-# classify-chatlog スキルが Claude CLI に渡してプロジェクト分類に使用する
+# classify-chatlogs スキルが Claude CLI に渡してプロジェクト分類に使用する
 
 # ── ソフトウェア開発プロジェクト ─────────────────────────
 
@@ -154,7 +154,7 @@ chatlog-exporter:
   desc: AIエージェント（Claude, ChatGPT等）のセッション履歴をエクスポート・分類・編集し、Obsidianへのインポート用に整備するツール群
   rules:
     when:
-      - export-chatlog・classify-chatlog・filter-chatlog・normalize-chatlog・set-frontmatterスキルに関するログ
+      - export-chatlog・classify-chatlogs・filter-chatlog・normalize-chatlog・set-frontmatterスキルに関するログ
       - chatlog-exporterのスクリプト・型定義・テストに関するログ
 
 # ── ロールプレイ・創作 ───────────────────────────────────
