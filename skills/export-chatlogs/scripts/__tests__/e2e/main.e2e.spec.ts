@@ -1,5 +1,5 @@
 // src: scripts/__tests__/e2e/main.e2e.spec.ts
-// @(#): export-chatlog main() の E2E テスト
+// @(#): export-chatlogs main() の E2E テスト
 //       main() 経由でのセッションエクスポートフロー（実ファイルシステム使用）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -125,7 +125,7 @@ function _codexEntry(
  * @see parseArgs
  * @see parsePeriod
  */
-describe('main (export-chatlog)', () => {
+describe('main (export-chatlogs)', () => {
   let tempDir: string;
   let outputDir: string;
   let envStub: Stub<typeof Deno.env, [key: string], string | undefined>;
