@@ -11,7 +11,7 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { inPeriod, parsePeriod } from '../../../../export-chatlog/scripts/libs/period-filter.ts';
+import { inPeriod, parsePeriod } from '../../libs/period-filter.ts';
 
 // ─── Tests
 
