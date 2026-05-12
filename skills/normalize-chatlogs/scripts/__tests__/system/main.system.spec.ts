@@ -1,5 +1,5 @@
-// src: scripts/__tests__/system/normalize-chatlog.main.system.spec.ts
-// @(#): normalize-chatlog main() のシステムテスト（実プロセス起動による終了コード検証）
+// src: scripts/__tests__/system/normalize-chatlogs.main.system.spec.ts
+// @(#): normalize-chatlogs main() のシステムテスト（実プロセス起動による終了コード検証）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -8,7 +8,7 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-const SCRIPT_PATH = new URL('../../normalize-chatlog.ts', import.meta.url).pathname;
+const SCRIPT_PATH = new URL('../../normalize-chatlogs.ts', import.meta.url).pathname;
 
 async function runNormalize(args: string[]): Promise<number> {
   const _cmd = new Deno.Command(Deno.execPath(), {
@@ -24,7 +24,7 @@ async function runNormalize(args: string[]): Promise<number> {
 
 describe('main - エラー終了コード', () => {
   describe('Given: 存在しない --dir パスを指定', () => {
-    describe('When: normalize-chatlog をサブプロセスで実行する', () => {
+    describe('When: normalize-chatlogs をサブプロセスで実行する', () => {
       describe('Then: T-NC-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-NC-SYS-01-01: 終了コードが 1 である', async () => {
           const code = await runNormalize(['--dir', '/nonexistent/path']);
