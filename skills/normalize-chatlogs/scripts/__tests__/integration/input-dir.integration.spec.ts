@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/integration/normalize-chatlog.integration-inputDir.spec.ts
+// src: scripts/__tests__/integration/normalize-chatlogs.integration-inputDir.spec.ts
 // @(#): 実ファイルシステムを使った統合テスト
 //       対象: validateInputDir
 //       テスト種別: 正常系 / 異常系
@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // test target
 import {
   validateInputDir,
-} from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
 
 // ─── validateInputDir 統合テスト ──────────────────────────────────────────────
 
