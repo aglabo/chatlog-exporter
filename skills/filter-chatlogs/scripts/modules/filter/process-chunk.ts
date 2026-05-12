@@ -1,4 +1,4 @@
-// src: scripts/libs/process-chunk.ts
+// src: scripts/modules/filter/process-chunk.ts
 // @(#): チャンク単位の Claude 判定とファイル削除
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,14 +7,14 @@
 // https://opensource.org/licenses/MIT
 
 // ─── external ───
-import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
+import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
+import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
-import type { ClaudeResult, Stats } from '../types/filter.types.ts';
-import { buildBatchPrompt } from './batch-prompt.ts';
+import { buildBatchPrompt } from '../../libs/batch-prompt.ts';
+import type { ClaudeResult, Stats } from '../../types/filter.types.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
