@@ -39,7 +39,7 @@ const _SPECIAL_GLOB_TABLE = {
 // スキルモジュール: 短縮名 → フルモジュール名
 const _SKILL_MODULES = {
   'classify': 'classify-chatlogs',
-  'export': 'export-chatlog',
+  'export': 'export-chatlogs',
   'filter': 'filter-chatlog',
   'normalize': 'normalize-chatlog',
   'set': 'set-frontmatter',

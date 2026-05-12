@@ -1,8 +1,8 @@
 ---
-name: export-chatlog
+name: export-chatlogs
 description: >
   AIエージェントのセッション履歴をノイズ除外してMarkdownにエクスポートする。
-  /export-chatlog で呼び出す。
+  /export-chatlogs で呼び出す。
   システムログ・短文肯定応答（「y」「はい」「ok」等）・ツール使用記録を除外し、
   指定エージェント・期間・プロジェクトの実質的な会話のみを書き出す。
   対応エージェント: claude（デフォルト）, codex, chatgpt
@@ -12,7 +12,7 @@ allowed-tools: Bash, Glob
 
 <!-- cspell:words sessionid -->
 
-# export-chatlog スキル
+# export-chatlogs スキル
 
 AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートする。
 
@@ -39,11 +39,11 @@ AIエージェントのセッション履歴をノイズ除外して Markdown �
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/commands/export-chatlog.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/commands/export-chatlogs.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR   = <export-chatlog.md が存在するディレクトリの絶対パス>
-SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlog.ts
+SKILL_DIR   = <export-chatlogs.md が存在するディレクトリの絶対パス>
+SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlogs.ts
 OUTPUT      = <cwd>/chatlogs
 ```
 
@@ -112,6 +112,6 @@ chatlogs/
 
 ## 関連スキル
 
-- `/filter-chatlog` — 低価値ChatLogのフィルタリング（export-chatlog の後工程）
+- `/filter-chatlog` — 低価値ChatLogのフィルタリング（export-chatlogs の後工程）
 - `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類
 - `/set-frontmatter` — フロントマター付加

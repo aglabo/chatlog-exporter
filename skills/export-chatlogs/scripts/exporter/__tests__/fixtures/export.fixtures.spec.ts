@@ -1,5 +1,5 @@
-// src: skills/export-chatlog/scripts/exporter/__tests__/fixtures/export-chatlog.fixtures.spec.ts
-// @(#): export-chatlog fixtures テスト（実 JSONL パーサー使用）
+// src: skills/export-chatlogs/scripts/exporter/__tests__/fixtures/export.fixtures.spec.ts
+// @(#): export-chatlogs fixtures テスト（実 JSONL パーサー使用）
 //       fixtures-data/ 下の各ディレクトリを findFixtureDirs でスキャンし
 //       input.jsonl を parseClaudeSession / parseCodexSession でパースして
 //       output.yaml の期待値と照合する
