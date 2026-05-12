@@ -41,7 +41,7 @@ const _SKILL_MODULES = {
   'classify': 'classify-chatlogs',
   'export': 'export-chatlogs',
   'filter': 'filter-chatlogs',
-  'normalize': 'normalize-chatlog',
+  'normalize': 'normalize-chatlogs',
   'set': 'set-frontmatter',
 } as const;
 
