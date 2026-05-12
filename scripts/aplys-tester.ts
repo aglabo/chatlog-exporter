@@ -40,7 +40,7 @@ const _SPECIAL_GLOB_TABLE = {
 const _SKILL_MODULES = {
   'classify': 'classify-chatlogs',
   'export': 'export-chatlogs',
-  'filter': 'filter-chatlog',
+  'filter': 'filter-chatlogs',
   'normalize': 'normalize-chatlog',
   'set': 'set-frontmatter',
 } as const;
