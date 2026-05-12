@@ -250,8 +250,8 @@ describe('buildBaseGlob', () => {
   describe('Given: moduleName が "export"', () => {
     describe('When: buildBaseGlob("export") を呼び出す', () => {
       describe('Then: T-AT-BG-05 - モジュール固有のパスを返す', () => {
-        it('T-AT-BG-05-01: 戻り値が "**/export-chatlog/**/__tests__" である', () => {
-          assertEquals(buildBaseGlob('export'), '**/export-chatlog/**/__tests__');
+        it('T-AT-BG-05-01: 戻り値が "**/export-chatlogs/**/__tests__" である', () => {
+          assertEquals(buildBaseGlob('export'), '**/export-chatlogs/**/__tests__');
         });
       });
     });
@@ -298,8 +298,8 @@ describe('MODULE_GLOB_TABLE', () => {
         it('T-AT-GT-04: "classify" エントリが "**/classify-chatlogs/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['classify'], '**/classify-chatlogs/**/__tests__');
         });
-        it('T-AT-GT-05: "export" エントリが "**/export-chatlog/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['export'], '**/export-chatlog/**/__tests__');
+        it('T-AT-GT-05: "export" エントリが "**/export-chatlogs/**/__tests__" である', () => {
+          assertEquals(MODULE_GLOB_TABLE['export'], '**/export-chatlogs/**/__tests__');
         });
         it('T-AT-GT-06: "filter" エントリが "**/filter-chatlog/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['filter'], '**/filter-chatlog/**/__tests__');
