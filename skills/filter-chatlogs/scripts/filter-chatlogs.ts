@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/filter-chatlog.ts
+// src: scripts/filter-chatlogs.ts
 // @(#): チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,10 +7,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 /**
- * filter_chatlog.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
+ * filter-chatlogs.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
  *
  * 使い方:
- *   deno run --allow-read --allow-run filter_chatlog.ts [YYYY-MM] [--dry-run] [--input DIR]
+ *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--input DIR]
  */
 
 // ─────────────────────────────────────────────
@@ -30,7 +30,7 @@ import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // -- internal --
 // constants
-import { DEFAULT_FILTER_CONFIG } from './constants/filter.constants.ts';
+import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
 // types
 import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 // libs
