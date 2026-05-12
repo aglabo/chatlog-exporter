@@ -1,4 +1,4 @@
-// src: scripts/normalize-chatlog.ts
+// src: scripts/normalize-chatlogs.ts
 // @(#): チャットログを AI でトピック別セグメントに分割し、フロントマター付き Markdown として出力する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -64,7 +64,7 @@ export type ParsedArgs = {
 };
 
 /**
- * {@link segmentChatlog} が AI から受け取る 1 トピックセグメント。
+ * {@link segmentChatlogs} が AI から受け取る 1 トピックセグメント。
  *
  * AI は chatlog の内容を複数のトピックに分割し、各トピックをこの形式で返す。
  */
@@ -101,7 +101,7 @@ export type ResolveResult =
 /** 並列タスク数のデフォルト値。{@link parseArgs} の初期値として使用する。 */
 const _DEFAULT_CONCURRENCY = 4;
 
-/** {@link segmentChatlog} が返すセグメントの上限数。 */
+/** {@link segmentChatlogs} が返すセグメントの上限数。 */
 const _MAX_SEGMENTS = 10;
 
 /** セグメントファイルの本文セクションを示す Markdown 見出し。 */
@@ -301,7 +301,7 @@ export const runAI = async (model: string, systemPrompt: string, userPrompt: str
  * @returns Promise resolving to an array of {@link Segment} objects, or `null`
  *          if the AI call fails or the response cannot be parsed as a JSON array
  */
-export const segmentChatlog = async (filePath: string, content: string): Promise<Segment[] | null> => {
+export const segmentChatlogs = async (filePath: string, content: string): Promise<Segment[] | null> => {
   const systemPrompt = 'You are a chatlog analyst. Split the given chatlog into topic-based segments. '
     + 'Return ONLY a JSON array where each element has exactly three string fields: '
     + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
@@ -317,7 +317,7 @@ export const segmentChatlog = async (filePath: string, content: string): Promise
     raw = await runAI('claude-sonnet-4-6', systemPrompt, userPrompt);
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlog: timed out — ${filePath}`);
+      logger.warn(`segmentChatlogs: timed out — ${filePath}`);
     }
     return null;
   }
@@ -338,7 +338,7 @@ export const segmentChatlog = async (filePath: string, content: string): Promise
  *
  * Behavior:
  * 1. `dryRun=true` → log and return without writing.
- * 2. `outputPath` contains `temp/chatlog/` → throw Error (R-010 guard).
+ * 2. `outputPath` contains `chatlogs/` → throw Error (R-010 guard).
  * 3. `outputPath` already exists → backup via `_backupOldPath` (rename to `<basename>.old-NN.md`, first available slot 01–99), then write new file, `stats.success++`.
  * 4. Write to `outputPath + ".tmp"`, then rename to `outputPath`, `stats.success++`.
  *
@@ -359,7 +359,7 @@ export const writeOutput = async (
     return;
   }
 
-  if (outputPath.includes('temp/chatlog/')) {
+  if (outputPath.includes('chatlogs/')) {
     throw new ChatlogError('ForbiddenOutput', `writing to input directory is forbidden: ${outputPath}`);
   }
 
@@ -395,7 +395,7 @@ export const reportResults = (stats: Stats): void => {
  * Resolution order:
  * 1. If `args.dir` is provided, return `{ ok: true, dir: args.dir }`.
  * 2. If `args.agent` and `args.yearMonth` are provided, construct
- *    `temp/chatlog/<agent>/<year>/<yearMonth>` and return `{ ok: true, dir: ... }`.
+ *    `chatlogs/<agent>/<year>/<yearMonth>` and return `{ ok: true, dir: ... }`.
  * 3. Otherwise return `{ ok: false, error: ... }`.
  *
  * @param args - Object with optional `dir`, `agent`, and `yearMonth` fields
@@ -409,7 +409,7 @@ export const resolveInputDir = (
   }
   if (args.agent !== undefined && args.yearMonth !== undefined) {
     const year = args.yearMonth.slice(0, 4);
-    return { ok: true, dir: `temp/chatlog/${args.agent}/${year}/${args.yearMonth}` };
+    return { ok: true, dir: `chatlogs/${args.agent}/${year}/${args.yearMonth}` };
   }
   return { ok: false, error: '--dir or (--agent and --year-month) must be specified' };
 };
@@ -432,7 +432,7 @@ export const validateInputDir = (
 /**
  * Resolves the output directory from an input directory path.
  *
- * If inputDir matches the chatlog format `temp/chatlog/<agent>/<year>/<yearMonth>`,
+ * If inputDir matches the chatlog format `chatlogs/<agent>/<year>/<yearMonth>`,
  * the output is `<outputBase>/<agent>/<year>/<yearMonth>/<project>`.
  * Otherwise (arbitrary path), the output is `<outputBase>/<project>`.
  * If project is undefined or empty string, "misc" is used.
@@ -444,7 +444,7 @@ export const validateInputDir = (
  */
 export const resolveOutputDir = (inputDir: string, outputBase: string, project: string | undefined): string => {
   const effectiveProject = project || 'misc';
-  const chatlogMatch = inputDir.match(/temp\/chatlog\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})(?:\/|$)/);
+  const chatlogMatch = inputDir.match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})(?:\/|$)/);
   if (chatlogMatch) {
     const [, agent, year, yearMonth] = chatlogMatch;
     return `${outputBase}/${agent}/${year}/${yearMonth}/${effectiveProject}`;
@@ -519,10 +519,10 @@ export const parseArgs = (argv: string[]): ParsedArgs => {
 const _DEFAULT_OUTPUT_DIR = 'temp/normalize_logs';
 
 /**
- * Orchestrates the full normalize-chatlog pipeline.
+ * Orchestrates the full normalize-chatlogs pipeline.
  *
  * Flow: parseArgs → resolveInputDir → findFiles → withConcurrency(per-file:
- *   segmentChatlog → generateSegmentFile + attachFrontmatter + writeOutput) → reportResults
+ *   segmentChatlogs → generateSegmentFile + attachFrontmatter + writeOutput) → reportResults
  *
  * @param argv   - CLI argument array; defaults to `Deno.args` when omitted
  * @param hashFn - Optional hash generator for output file names (injectable for testing)
@@ -547,7 +547,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
       const content = await readTextFile(filePath);
       const { meta: sourceMeta } = parseFrontmatterEntries(content);
 
-      const segments = await segmentChatlog(filePath, content);
+      const segments = await segmentChatlogs(filePath, content);
       if (segments === null) {
         stats.fail++;
         return;
