@@ -11,7 +11,7 @@ allowed-tools: Bash, Glob
 
 # set-frontmatter スキル
 
-`temp/chatlog/<agent>/` 配下のChatLog Markdownに、AIが生成したフロントマターを並列付加・上書きする。
+`temp/chatlogs/<agent>/` 配下のChatLog Markdownに、AIが生成したフロントマターを並列付加・上書きする。
 `assets/dics/` の辞書ファイルを参照して category / topics / tags を選定する。
 
 ## 前提条件
@@ -43,7 +43,7 @@ allowed-tools: Bash, Glob
 
 例:
 
-- `/set-frontmatter temp/chatlog/claude/2026-03/voift` → そのパスのみ処理
+- `/set-frontmatter temp/chatlogs/claude/2026-03/voift` → そのパスのみ処理
 - `/set-frontmatter dev-tooling 2026-03` → claude/dev-tooling/2026-03
 - `/set-frontmatter chatgpt dev-tooling 2026-03` → chatgpt/dev-tooling/2026-03
 - `/set-frontmatter deckrd --dry-run` → claude/deckrd 全年月 (dry-run)
@@ -62,7 +62,7 @@ DICS_DIR    = <cwd>/temp/dics
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
-CHATLOG_BASE="$REPO_ROOT/temp/chatlog"
+CHATLOGS_BASE="$REPO_ROOT/temp/chatlogs"
 DICS_DIR="$REPO_ROOT/assets/dics"
 AGENT="claude"   # デフォルト
 PROJECT=""
@@ -73,14 +73,14 @@ TARGET_DIR=""
 
 # $ARGUMENTS を解析:
 # 1. "--dry-run" → DRY_RUN_FLAG
-# 2. 各引数の \ を / に正規化する (例: temp\chatlog\... → temp/chatlog/...)
+# 2. 各引数の \ を / に正規化する (例: temp\chatlogs\... → temp/chatlogs/...)
 # 3. 正規化後に / を含む → PATH_MODE=true
 # 4. "^[0-9]{4}-[0-9]{2}$" → YEAR_MONTH
 # 5. "claude" or "chatgpt" → AGENT
 # 6. それ以外最初の値 → PROJECT
 
 # PATH_MODE 判定例:
-# "temp\chatlog\claude\2026-03\voift" → 正規化 → "temp/chatlog/claude/2026-03/voift" → / を含む → PATH_MODE=true
+# "temp\chatlogs\claude\2026-03\voift" → 正規化 → "temp/chatlogs/claude/2026-03/voift" → / を含む → PATH_MODE=true
 # "C:\Users\foo\bar" → 正規化 → "C:/Users/foo/bar" → / を含む → PATH_MODE=true
 
 # TARGET_DIR の決定:
@@ -89,8 +89,8 @@ TARGET_DIR=""
 #   - 相対パス → TARGET_DIR="$REPO_ROOT/$FIRST_ARG"
 #   単一ディレクトリとしてスクリプトを実行
 # PATH_MODE false の場合:
-#   YEAR_MONTH あり: $CHATLOG_BASE/$AGENT/$YEAR_MONTH/$PROJECT
-#   YEAR_MONTH なし: find で $CHATLOG_BASE/$AGENT 配下の $PROJECT ディレクトリを列挙
+#   YEAR_MONTH あり: $CHATLOGS_BASE/$AGENT/$YEAR_MONTH/$PROJECT
+#   YEAR_MONTH なし: find で $CHATLOGS_BASE/$AGENT 配下の $PROJECT ディレクトリを列挙
 ```
 
 ## ステップ3: スクリプト実行
@@ -110,7 +110,7 @@ deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" \
   $DRY_RUN_FLAG
 
 # YEAR_MONTH が未指定の場合 (全年月):
-find "$CHATLOG_BASE/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
+find "$CHATLOGS_BASE/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
   echo "=== Processing: $dir ==="
   deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" \
     "$dir" \
@@ -158,4 +158,4 @@ tags:
 ## 関連スキル
 
 - `/export-log` — ChatLog のエクスポート
-- `/filter-chatlog` — 低価値ChatLogのフィルタリング (set-frontmatter の前工程)
+- `/filter-chatlogs` — 低価値ChatLogのフィルタリング (set-frontmatter の前工程)
