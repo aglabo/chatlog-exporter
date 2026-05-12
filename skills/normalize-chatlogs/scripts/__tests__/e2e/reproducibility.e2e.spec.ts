@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/e2e/normalize-chatlog-reproducibility.e2e.spec.ts
+// src: scripts/__tests__/e2e/normalize-chatlogs-reproducibility.e2e.spec.ts
 // @(#): main() の再現性検証 E2E テスト
 //       再実行時のスキップ動作 (R-011) と入力ファイル不変保証 (R-010) を確認する
 //
@@ -27,8 +27,8 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 // test target
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import { main } from '../../normalize-chatlog.ts';
-import type { HashProvider } from '../../normalize-chatlog.ts';
+import { main } from '../../normalize-chatlogs.ts';
+import type { HashProvider } from '../../normalize-chatlogs.ts';
 
 // ─── 再現性テスト ──────────────────────────────────────────────────────────────
 
