@@ -1,3 +1,7 @@
+// Copyright (c) 2026 atsushifx <http://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 // src: scripts/__tests__/functional/prefilter/noise-filter.functional.spec.ts
 // @(#): prefilter-chatlogs.ts の機能テスト
 //       対象: processNoiseFilterFiles — filelist ループ処理（分類→削除/dry-run/report）
