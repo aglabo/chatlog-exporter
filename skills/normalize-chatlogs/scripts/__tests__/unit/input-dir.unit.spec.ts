@@ -41,12 +41,12 @@ describe('resolveInputDir', () => {
 
   // ─── T-02: --agent + --yearMonth 指定 ─────────────────────────────────────
 
-  /** 正常系: temp/chatlog/<agent>/<year>/<yearMonth> のパスが返る */
+  /** 正常系: chatlogs/<agent>/<year>/<yearMonth> のパスが返る */
   describe('Given: --agent と --yearMonth が指定される', () => {
-    it('Then: [正常] - { ok: true, dir: "temp/chatlog/<agent>/<year>/<yearMonth>" } を返す', () => {
+    it('Then: [正常] - { ok: true, dir: "chatlogs/<agent>/<year>/<yearMonth>" } を返す', () => {
       const result = resolveInputDir({ agent: 'claude', yearMonth: '2026-03' });
 
-      assertEquals(result, { ok: true, dir: 'temp/chatlog/claude/2026/2026-03' });
+      assertEquals(result, { ok: true, dir: 'chatlogs/claude/2026/2026-03' });
     });
   });
 
