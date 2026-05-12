@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.input-dir.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.input-dir.unit.spec.ts
 // @(#): 入力ディレクトリ解決のユニットテスト
 //       対象: resolveInputDir, validateInputDir
 //       テスト種別: 正常系 / 異常系 / エッジケース
@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import {
   resolveInputDir,
   validateInputDir,
-} from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
 
 // ─── Helpers
 // types
