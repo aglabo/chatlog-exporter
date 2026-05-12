@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/unit/normalize-chatlog.side-effects.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.side-effects.unit.spec.ts
 // @(#): 副作用のある関数のユニットテスト
 //       対象: reportResults (console.log への出力),
 //             runAI (Deno.Command によるサブプロセス起動)
@@ -25,8 +25,8 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import {
   reportResults,
   runAI,
-} from '../../normalize-chatlog.ts';
-import type { Stats } from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
+import type { Stats } from '../../normalize-chatlogs.ts';
 
 // ─── reportResults tests ──────────────────────────────────────────────────────
 

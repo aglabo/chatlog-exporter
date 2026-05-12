@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/e2e/normalize-chatlog-io.e2e.spec.ts
+// src: scripts/__tests__/e2e/normalize-chatlogs-io.e2e.spec.ts
 // @(#): main() の I/O 検証 E2E テスト
 //       ファイル生成・ディレクトリ解決（--dir / --agent --year-month）・エラー終了を確認する
 //
@@ -27,8 +27,8 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 // test target
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
-import { main } from '../../normalize-chatlog.ts';
-import type { HashProvider } from '../../normalize-chatlog.ts';
+import { main } from '../../normalize-chatlogs.ts';
+import type { HashProvider } from '../../normalize-chatlogs.ts';
 
 // ─── I/O テスト ────────────────────────────────────────────────────────────────
 
@@ -86,16 +86,19 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-02-01: --agent --year-month によるパス解決 ────────────────────────
+  // ─── T-15-02-01: --dir によるパス解決（chatlogs 形式ディレクトリ） ───────────
 
-  /** 正常系: --agent/--year-month で temp/chatlog/<agent>/<year>/<year-month>/ を解決して処理する */
-  describe('Given: --agent claude --year-month 2026-03 と対応パスが存在する', () => {
-    const AGENT_DIR = 'temp/chatlog/claude/2026/2026-03';
+  /** 正常系: --dir で chatlogs/<agent>/<year>/<year-month>/ を指定して処理する */
+  describe('Given: --dir で chatlogs/claude/2026/2026-03 と対応パスが存在する', () => {
+    let tmpRoot: string;
+    let AGENT_DIR: string;
     let outputDir: string;
     let commandHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
 
     before(async () => {
+      tmpRoot = await Deno.makeTempDir();
+      AGENT_DIR = `${tmpRoot}/chatlogs/claude/2026/2026-03`;
       await Deno.mkdir(AGENT_DIR, { recursive: true });
       await Deno.writeTextFile(
         `${AGENT_DIR}/sample.md`,
@@ -104,7 +107,7 @@ describe('main - I/O', () => {
     });
 
     after(async () => {
-      await Deno.remove('temp/chatlog/claude/2026', { recursive: true });
+      await Deno.remove(tmpRoot, { recursive: true });
     });
 
     beforeEach(async () => {
@@ -125,10 +128,10 @@ describe('main - I/O', () => {
       await Deno.remove(outputDir, { recursive: true });
     });
 
-    describe('When: main(["--agent","claude","--year-month","2026-03","--output",outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-02-01 - temp/chatlog/<agent>/<year>/<year-month>/ から入力を解決してファイルを処理する', () => {
-        it('T-15-02-01-01: temp/chatlog/claude/2026/2026-03/ 内のファイルが処理されて出力が生成される', async () => {
-          await main(['--agent', 'claude', '--year-month', '2026-03', '--output', outputDir]);
+    describe('When: main(["--dir", AGENT_DIR, "--output", outputDir]) を呼び出す', () => {
+      describe('Then: Task T-15-02-01 - chatlogs/<agent>/<year>/<year-month>/ から入力を解決してファイルを処理する', () => {
+        it('T-15-02-01-01: chatlogs/claude/2026/2026-03/ 内のファイルが処理されて出力が生成される', async () => {
+          await main(['--dir', AGENT_DIR, '--output', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
         });
@@ -136,17 +139,20 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-05: chatlog形式入力パスに応じた出力パス構造 ────────────────────────
+  // ─── T-15-05: chatlogs形式入力パスに応じた出力パス構造 ──────────────────────
 
-  /** 正常系: chatlog形式の入力パス (temp/chatlog/<agent>/<yyyy>/<yyyy-mm>) に対して
+  /** 正常系: chatlogs形式の入力パス (chatlogs/<agent>/<yyyy>/<yyyy-mm>) に対して
    *  出力が normalized-logs/<agent>/<yyyy>/<yyyy-mm>/<project>/ 以下に生成される */
-  describe('Given: chatlog形式ディレクトリ (temp/chatlog/claude/2026/2026-04) と project フロントマターを持つ MD ファイル', () => {
-    const CHATLOG_INPUT_DIR = 'temp/chatlog/claude/2026/2026-04';
+  describe('Given: chatlogs形式ディレクトリ (chatlogs/claude/2026/2026-04) と project フロントマターを持つ MD ファイル', () => {
+    let tmpRoot: string;
+    let CHATLOG_INPUT_DIR: string;
     let outputBase: string;
     let commandHandle: CommandMockHandle;
     let logSilencer: LogSilencer;
 
     before(async () => {
+      tmpRoot = await Deno.makeTempDir();
+      CHATLOG_INPUT_DIR = `${tmpRoot}/chatlogs/claude/2026/2026-04`;
       await Deno.mkdir(CHATLOG_INPUT_DIR, { recursive: true });
       await Deno.writeTextFile(
         `${CHATLOG_INPUT_DIR}/chat.md`,
@@ -155,7 +161,7 @@ describe('main - I/O', () => {
     });
 
     after(async () => {
-      await Deno.remove('temp/chatlog/claude/2026', { recursive: true });
+      await Deno.remove(tmpRoot, { recursive: true });
     });
 
     beforeEach(async () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/fixtures/normalize-chatlog.fixtures-markdown.spec.ts
+// src: scripts/__tests__/fixtures/normalize-chatlogs.fixtures-markdown.spec.ts
 // @(#): ファイル駆動fixturesテスト（markdown 本文検証）
 //       対象: generateSegmentFile() — fixtures-data/runai-markdown/ 下の各ディレクトリを自動スキャンし
 //             同一ディレクトリの input.md を入力、output-<N>.md の START_BODY_HEADING 以降を期待本文として照合する
@@ -19,8 +19,8 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
-import { generateSegmentFile, segmentChatlog, START_BODY_HEADING } from '../../normalize-chatlog.ts';
-import type { Segment } from '../../normalize-chatlog.ts';
+import { generateSegmentFile, segmentChatlogs, START_BODY_HEADING } from '../../normalize-chatlogs.ts';
+import type { Segment } from '../../normalize-chatlogs.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
@@ -121,7 +121,7 @@ for (const _dirName of _fixtureDirs) {
         _mockHandle = installCommandMock(makeSuccessMock(_stdout));
 
         const _inputContent = await readTextFile(_inputPath);
-        const _result = await segmentChatlog(_inputPath, _inputContent);
+        const _result = await segmentChatlogs(_inputPath, _inputContent);
         _segments = _result ?? [];
       });
 

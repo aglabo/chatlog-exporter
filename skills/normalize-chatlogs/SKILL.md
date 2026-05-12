@@ -1,15 +1,15 @@
 ---
-name: normalize-chatlog
+name: normalize-chatlogs
 description: >
   チャットログMarkdownをAI（Claude CLI）でトピック別セグメントに分割し、
   フロントマター付きMarkdownとして出力する。
-  /normalize-chatlog で呼び出す。
+  /normalize-chatlogs で呼び出す。
   入力ファイルのフロントマターを引き継ぎつつ、title/log_id/summaryをAIが生成する。
 argument-hint: "<agent> <YYYY-MM> | <path> [--output <dir>] [--concurrency <n>] [--model <model>] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
-# normalize-chatlog スキル
+# normalize-chatlogs スキル
 
 チャットログMarkdownをAI（Claude CLI）でトピック別セグメントに分割して正規化する。
 各セグメントはフロントマター付きMarkdownとして出力され、既存ファイルはアトミックに上書き（`.old-NN.md` バックアップ）される。
@@ -47,11 +47,11 @@ SKILL.md 側でフラグ（`--agent`, `--year-month`）に変換してから渡�
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/normalize-chatlog/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/normalize-chatlogs/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
 SKILL_DIR   = <SKILL.md が存在するディレクトリの絶対パス>
-SCRIPT_PATH = $SKILL_DIR/scripts/normalize-chatlog.ts
+SCRIPT_PATH = $SKILL_DIR/scripts/normalize-chatlogs.ts
 ```
 
 ## ステップ2: スクリプト実行
@@ -94,7 +94,7 @@ deno run --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変�
 
 ## 出力ディレクトリ構造
 
-入力が `temp/chatlog/<agent>/<year>/<yearMonth>` 形式の場合:
+入力が `chatlogs/<agent>/<year>/<yearMonth>` 形式の場合:
 
 ```bash
 temp/normalize_logs/

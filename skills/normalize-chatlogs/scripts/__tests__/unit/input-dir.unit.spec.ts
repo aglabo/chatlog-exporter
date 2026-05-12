@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.input-dir.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.input-dir.unit.spec.ts
 // @(#): 入力ディレクトリ解決のユニットテスト
 //       対象: resolveInputDir, validateInputDir
 //       テスト種別: 正常系 / 異常系 / エッジケース
@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import {
   resolveInputDir,
   validateInputDir,
-} from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
 
 // ─── Helpers
 // types
@@ -41,12 +41,12 @@ describe('resolveInputDir', () => {
 
   // ─── T-02: --agent + --yearMonth 指定 ─────────────────────────────────────
 
-  /** 正常系: temp/chatlog/<agent>/<year>/<yearMonth> のパスが返る */
+  /** 正常系: chatlogs/<agent>/<year>/<yearMonth> のパスが返る */
   describe('Given: --agent と --yearMonth が指定される', () => {
-    it('Then: [正常] - { ok: true, dir: "temp/chatlog/<agent>/<year>/<yearMonth>" } を返す', () => {
+    it('Then: [正常] - { ok: true, dir: "chatlogs/<agent>/<year>/<yearMonth>" } を返す', () => {
       const result = resolveInputDir({ agent: 'claude', yearMonth: '2026-03' });
 
-      assertEquals(result, { ok: true, dir: 'temp/chatlog/claude/2026/2026-03' });
+      assertEquals(result, { ok: true, dir: 'chatlogs/claude/2026/2026-03' });
     });
   });
 

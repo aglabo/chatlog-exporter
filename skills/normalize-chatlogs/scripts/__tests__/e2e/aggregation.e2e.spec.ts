@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/e2e/normalize-chatlog-aggregation.e2e.spec.ts
+// src: scripts/__tests__/e2e/normalize-chatlogs-aggregation.e2e.spec.ts
 // @(#): main() の集計検証 E2E テスト
 //       success / skip / fail カウントが reportResults に正しく反映されることを確認する
 //
@@ -24,7 +24,7 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
 // test target
-import { main } from '../../normalize-chatlog.ts';
+import { main } from '../../normalize-chatlogs.ts';
 
 // ─── 集計テスト ────────────────────────────────────────────────────────────────
 

@@ -434,8 +434,8 @@ describe('isDirectoryArg', () => {
   describe('Given: スラッシュを含む相対パス', () => {
     describe('When: isDirectoryArg を実行する', () => {
       describe('Then: T-LIB-U-11-02 - true が返る', () => {
-        it('T-LIB-U-11-02: ./temp/chatlog はディレクトリ引数として認識される', () => {
-          assertEquals(isDirectoryArg('./temp/chatlog'), true);
+        it('T-LIB-U-11-02: ./chatlogs はディレクトリ引数として認識される', () => {
+          assertEquals(isDirectoryArg('./chatlogs'), true);
         });
       });
     });

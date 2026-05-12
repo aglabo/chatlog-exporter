@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.file-gen.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.file-gen.unit.spec.ts
 // @(#): ファイル生成・並列制御のユニットテスト
 //       対象: withConcurrency, generateOutputFileName, generateSegmentFile, attachFrontmatter
 //
@@ -21,7 +21,7 @@ import {
   generateOutputFileName,
   generateSegmentFile,
   START_BODY_HEADING,
-} from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
 
 // ─── withConcurrency tests ─────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ describe('generateOutputFileName', () => {
   /** 正常系: `<baseName>-<XX>-<hash7>.md` 形式のファイル名を返す */
   describe('Given: 標準的な chatlog ファイルパスと index', () => {
     it('T-06-01-01: index=0 のとき <baseName>-01-<hash7>.md 形式のファイル名を返す', async () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 0);
 
@@ -125,7 +125,7 @@ describe('generateOutputFileName', () => {
     });
 
     it('T-06-01-02: index=1 のとき連番が "02" になる', async () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 1);
 
@@ -133,7 +133,7 @@ describe('generateOutputFileName', () => {
     });
 
     it('T-06-01-03: index=9 のとき連番が "10" になる', async () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 9);
 
@@ -154,7 +154,7 @@ describe('generateOutputFileName', () => {
       ];
 
       try {
-        const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+        const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
         const first = await generateOutputFileName(filePath, 0);
         const second = await generateOutputFileName(filePath, 0);
@@ -172,7 +172,7 @@ describe('generateOutputFileName', () => {
     it('T-06-03-01: スタブなしで 2 回呼ぶと異なるファイル名が生成される', async () => {
       cryptoStub!.restore();
       cryptoStub = null;
-      const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const first = await generateOutputFileName(filePath, 0);
       const second = await generateOutputFileName(filePath, 0);
@@ -186,7 +186,7 @@ describe('generateOutputFileName', () => {
   /** 正常系: 末尾ハッシュ付きのソースファイルでもベース名が正しく抽出される */
   describe('Given: 末尾に -XXXXXXX ハッシュを含むソースファイルパス', () => {
     it('T-06-04-01: ソースの末尾ハッシュを除去したベース名で出力名を生成する', async () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
 
       const result = await generateOutputFileName(filePath, 0);
 
