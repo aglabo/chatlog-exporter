@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write
-// src: scripts/prefilter-chatlog.ts
+// src: scripts/prefilter-chatlogs.ts
 // @(#): チャットログの高速事前フィルタスクリプト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,7 +7,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 /**
- * prefilter_chatlog.ts — チャットログの高速事前フィルタスクリプト
+ * prefilter-chatlogs.ts — チャットログの高速事前フィルタスクリプト
  *
  * Claude API呼び出し前に、正規表現・テキストパターンで
  * 明らかなノイズファイルを削除候補として絞り込む。
@@ -22,11 +22,11 @@
  *   7. 短すぎる応答      : Assistantが100文字未満（1ターン限定）
  *
  * 使い方:
- *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts
- *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts codex 2026-01
- *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts --dry-run
- *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts --report
- *   deno run --allow-read --allow-write scripts/prefilter_chatlog.ts --input ./temp/chatlog
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts codex 2026-01
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --dry-run
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --report
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --input ./temp/chatlogs
  */
 
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
@@ -36,7 +36,7 @@ import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { buildConfig, parseArgs } from './config/prefilter-config.ts';
-import { processNoiseFilterFiles } from './libs/process-noise-filter.ts';
+import { processNoiseFilterFiles } from './libs/noise-filter.ts';
 
 // ─────────────────────────────────────────────
 // メイン
