@@ -1,0 +1,4 @@
+# filter-chatlogs システムテスト期待値
+# コマンド実行のみで学習価値なし → DISCARD が期待される
+expected_decision: DISCARD
+confidence_min: 0.5
