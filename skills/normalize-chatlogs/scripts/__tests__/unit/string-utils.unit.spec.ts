@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.string-utils.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.string-utils.unit.spec.ts
 // @(#): 文字列処理関数のユニットテスト
 //       対象: cleanYaml, parseFrontmatterEntries, extractBaseName, parseJsonArray
 //
@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 import { cleanYaml } from '../../../../_scripts/libs/text/markdown-utils.ts';
-import { extractBaseName } from '../../normalize-chatlog.ts';
+import { extractBaseName } from '../../normalize-chatlogs.ts';
 
 // ─── cleanYaml tests ──────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ describe('extractBaseName', () => {
   /** 正常系: ディレクトリ・.md 拡張子・末尾 7 桁ハッシュを除去する */
   describe('Given: ディレクトリパスと .md 拡張子を含むファイルパス', () => {
     it('T-05-01-01: ディレクトリと .md 拡張子を除去したファイル名を返す', () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/test-file.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = extractBaseName(filePath);
 
@@ -161,7 +161,7 @@ describe('extractBaseName', () => {
     });
 
     it('T-05-01-02: 末尾の -XXXXXXX (7桁 hex) を除去する', () => {
-      const filePath = 'temp/chatlog/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
+      const filePath = 'chatlogs/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
 
       const result = extractBaseName(filePath);
 

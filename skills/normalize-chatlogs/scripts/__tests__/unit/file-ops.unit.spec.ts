@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/normalize-chatlog.file-ops.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.file-ops.unit.spec.ts
 // @(#): ファイル操作関数のユニットテスト
-//       対象: writeOutput, segmentChatlog
+//       対象: writeOutput, segmentChatlogs
 //       (collectMdFiles/findFiles は _scripts/libs/find-files.ts に移管済み)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -24,10 +24,10 @@ import { fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils
 
 // test target
 import {
-  segmentChatlog,
+  segmentChatlogs,
   writeOutput,
-} from '../../normalize-chatlog.ts';
-import type { Stats } from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
+import type { Stats } from '../../normalize-chatlogs.ts';
 
 // ─── writeOutput tests ───────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ describe('writeOutput', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = await Deno.makeTempDir({ prefix: 'normalize-chatlog-test-' });
+    tmpDir = await Deno.makeTempDir({ prefix: 'normalize-chatlogs-test-' });
   });
 
   afterEach(async () => {
@@ -100,11 +100,11 @@ describe('writeOutput', () => {
     });
   });
 
-  /** 異常系: R-010 ガード — outputPath に temp/chatlog/ が含まれるとき Error をスロー */
+  /** 異常系: R-010 ガード — outputPath に chatlogs/ が含まれるとき Error をスロー */
   describe('[異常] R-010 Guard Cases', () => {
-    it('T-WO-04-01: outputPath に temp/chatlog/ が含まれるとき Error をスロー', async () => {
+    it('T-WO-04-01: outputPath に chatlogs/ が含まれるとき Error をスロー', async () => {
       // arrange
-      const outputPath = 'temp/chatlog/agent/2026/2026-01/output.md';
+      const outputPath = 'chatlogs/agent/2026/2026-01/output.md';
       const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act & assert
@@ -117,13 +117,13 @@ describe('writeOutput', () => {
   });
 });
 
-// ─── segmentChatlog tests ─────────────────────────────────────────────────────
+// ─── segmentChatlogs tests ─────────────────────────────────────────────────────
 
 /**
- * segmentChatlog のユニットテスト。
+ * segmentChatlogs のユニットテスト。
  * Deno.Command をモックして AI 呼び出しを制御する。
  */
-describe('segmentChatlog', () => {
+describe('segmentChatlogs', () => {
   let mockHandle: CommandMockHandle;
 
   afterEach(() => {
@@ -144,7 +144,7 @@ describe('segmentChatlog', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
-      const result = await segmentChatlog('test.md', 'content');
+      const result = await segmentChatlogs('test.md', 'content');
 
       // assert
       assertEquals(result, segments);
@@ -158,7 +158,7 @@ describe('segmentChatlog', () => {
       mockHandle = installCommandMock(makeFailMock(1));
 
       // act
-      const result = await segmentChatlog('test.md', 'content');
+      const result = await segmentChatlogs('test.md', 'content');
 
       // assert
       assertEquals(result, null);
@@ -170,7 +170,7 @@ describe('segmentChatlog', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
-      const result = await segmentChatlog('test.md', 'content');
+      const result = await segmentChatlogs('test.md', 'content');
 
       // assert
       assertEquals(result, null);
@@ -190,7 +190,7 @@ describe('segmentChatlog', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
-      const result = await segmentChatlog('test.md', 'content');
+      const result = await segmentChatlogs('test.md', 'content');
 
       // assert
       assertEquals(result?.length, 10);

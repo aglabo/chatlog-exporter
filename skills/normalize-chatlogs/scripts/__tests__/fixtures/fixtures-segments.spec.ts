@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/fixtures/normalize-chatlog.fixtures-segments.spec.ts
+// src: scripts/__tests__/fixtures/normalize-chatlogs.fixtures-segments.spec.ts
 // @(#): ファイル駆動fixturesテスト
-//       対象: segmentChatlog() — fixtures-data/runai-segments/ 下の各ディレクトリを再帰スキャンし
+//       対象: segmentChatlogs() — fixtures-data/runai-segments/ 下の各ディレクトリを再帰スキャンし
 //             input.md を入力、output.yaml の count を期待セグメント数として照合する
 //       責務: セグメント数のみ検証する
 //             セグメントフィールド・markdown 生成・フロントマター検証は別テストで行う
@@ -34,8 +34,8 @@ import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
-import { segmentChatlog } from '../../normalize-chatlog.ts';
-import type { Segment } from '../../normalize-chatlog.ts';
+import { segmentChatlogs } from '../../normalize-chatlogs.ts';
+import type { Segment } from '../../normalize-chatlogs.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ for (const _relPath of _fixtureDirs) {
   const _inputPath = `${_fixtureDir}/input.md`;
   const _output = await _loadOutput(_fixtureDir);
 
-  describe(`segmentChatlog — runai-segments/${_relPath}`, () => {
+  describe(`segmentChatlogs — runai-segments/${_relPath}`, () => {
     if (_output.kind === 'success') {
       describe(`Given: ${_relPath}/input.md と output.yaml (count: ${_output.count})`, () => {
         let _segments: Segment[];
@@ -127,7 +127,7 @@ for (const _relPath of _fixtureDirs) {
           _mockHandle = installCommandMock(_buildMock(_output));
 
           const _inputContent = await readTextFile(_inputPath);
-          const _result = await segmentChatlog(_inputPath, _inputContent);
+          const _result = await segmentChatlogs(_inputPath, _inputContent);
           _segments = _result ?? [];
         });
 
@@ -135,7 +135,7 @@ for (const _relPath of _fixtureDirs) {
           _mockHandle.restore();
         });
 
-        describe('When: segmentChatlog(inputPath, content) を呼び出す', () => {
+        describe('When: segmentChatlogs(inputPath, content) を呼び出す', () => {
           it(`SF-${_relPath}-count: セグメント数が output.yaml の count と一致する`, () => {
             assertEquals(_segments.length, _output.count);
           });
@@ -150,15 +150,15 @@ for (const _relPath of _fixtureDirs) {
           _mockHandle = installCommandMock(_buildMock(_output));
 
           const _inputContent = await readTextFile(_inputPath);
-          _result = await segmentChatlog(_inputPath, _inputContent);
+          _result = await segmentChatlogs(_inputPath, _inputContent);
         });
 
         afterEach(() => {
           _mockHandle.restore();
         });
 
-        describe('When: segmentChatlog(inputPath, content) を呼び出す', () => {
-          it(`SF-${_relPath}-error: segmentChatlog が null を返す`, () => {
+        describe('When: segmentChatlogs(inputPath, content) を呼び出す', () => {
+          it(`SF-${_relPath}-error: segmentChatlogs が null を返す`, () => {
             assertEquals(_result, null);
           });
         });

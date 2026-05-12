@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/e2e/normalize-chatlog-output-structure.e2e.spec.ts
+// src: scripts/__tests__/e2e/normalize-chatlogs-output-structure.e2e.spec.ts
 // @(#): main() の出力ファイル構造検証 E2E テスト
 //       YAML frontmatter と ## Summary セクションの存在を確認する
 //
@@ -21,7 +21,7 @@ import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/out
 
 // test target
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import { main } from '../../normalize-chatlog.ts';
+import { main } from '../../normalize-chatlogs.ts';
 
 // ─── 構造テスト ────────────────────────────────────────────────────────────────
 

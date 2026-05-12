@@ -1,11 +1,11 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/fixtures/normalize-chatlog.fixtures-frontmatter.spec.ts
+// src: scripts/__tests__/fixtures/normalize-chatlogs.fixtures-frontmatter.spec.ts
 // @(#): ファイル駆動fixturesテスト（フロントマター検証）
 //       対象: attachFrontmatter() — fixtures-data/runai-frontmatter/ 下の各ディレクトリを自動スキャンし
 //             同一ディレクトリの input.md を入力、output-<N>.md を期待フロントマターとして各フィールドを照合する
 //       責務: フロントマターフィールド（title / summary）の完全一致のみ検証する
 //             log_id は generateOutputFileName() が生成するランダム値を含むため、このテストでは検証しない
-//             log_id の生成ルールは normalize-chatlog.file-gen.unit.spec.ts で検証する
+//             log_id の生成ルールは normalize-chatlogs.file-gen.unit.spec.ts で検証する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -24,9 +24,9 @@ import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_script
 import {
   attachFrontmatter,
   generateSegmentFile,
-  segmentChatlog,
-} from '../../normalize-chatlog.ts';
-import type { Segment } from '../../normalize-chatlog.ts';
+  segmentChatlogs,
+} from '../../normalize-chatlogs.ts';
+import type { Segment } from '../../normalize-chatlogs.ts';
 
 // ─── フロントマター検証対象フィールド ────────────────────────────────────────
 
@@ -143,7 +143,7 @@ for (const _dirName of _fixtureDirs) {
 
         const _inputContent = await readTextFile(_inputPath);
         _sourceMeta = parseFrontmatter(_inputContent).meta;
-        const _result = await segmentChatlog(_inputPath, _inputContent);
+        const _result = await segmentChatlogs(_inputPath, _inputContent);
         _segments = _result ?? [];
       });
 

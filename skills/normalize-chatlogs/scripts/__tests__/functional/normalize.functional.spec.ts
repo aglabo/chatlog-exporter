@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/functional/normalize-chatlog.functional.spec.ts
+// src: scripts/__tests__/functional/normalize-chatlogs.functional.spec.ts
 // @(#): 複数関数を組み合わせた機能テスト
-//       対象: segmentChatlog (runAI モック経由),
+//       対象: segmentChatlogs (runAI モック経由),
 //             writeOutput (Deno.stat/rename モック, _backupOldPath を内部利用)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -23,22 +23,22 @@ import {
 
 // test target
 import {
-  segmentChatlog,
+  segmentChatlogs,
   writeOutput,
-} from '../../normalize-chatlog.ts';
-import type { Stats } from '../../normalize-chatlog.ts';
+} from '../../normalize-chatlogs.ts';
+import type { Stats } from '../../normalize-chatlogs.ts';
 
-// ─── segmentChatlog tests ─────────────────────────────────────────────────────
+// ─── segmentChatlogs tests ─────────────────────────────────────────────────────
 
 /**
- * segmentChatlog のユニットテスト。
+ * segmentChatlogs のユニットテスト。
  * チャットログコンテンツを AI に渡してセグメント配列 `{title, summary, body}[]` を取得する関数の
  * 正常系・エラー耐性・上限制御を検証する。
  */
-describe('segmentChatlog', () => {
+describe('segmentChatlogs', () => {
   /** 正常系: runAI が有効な JSON 配列を返したときセグメント配列を返す */
   describe('Given: runAI が有効な JSON セグメント配列を返す', () => {
-    describe('When: segmentChatlog(filePath, content) を呼び出す', () => {
+    describe('When: segmentChatlogs(filePath, content) を呼び出す', () => {
       /**
        * Task T-09-01: 正常なセグメント配列の返却。
        * セグメントが正しく配列として返され、runAI がちょうど1回呼ばれることを確認する。
@@ -60,7 +60,7 @@ describe('segmentChatlog', () => {
           const mock = makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments)));
           (Deno as unknown as Record<string, unknown>).Command = mock;
 
-          const result = await segmentChatlog('path/to/file.md', 'some chat content');
+          const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals(Array.isArray(result), true);
           assertEquals((result as unknown[]).length >= 2, true);
@@ -78,7 +78,7 @@ describe('segmentChatlog', () => {
           const mock = makeCountingMock(JSON.stringify(segments), counter);
           (Deno as unknown as Record<string, unknown>).Command = mock;
 
-          await segmentChatlog('path/to/file.md', 'some chat content');
+          await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals(counter.calls, 1);
         });
@@ -88,7 +88,7 @@ describe('segmentChatlog', () => {
 
   /** 異常系: runAI がエラーまたは非 JSON を返した場合は null を返す */
   describe('Given: runAI がエラーをスローする', () => {
-    describe('When: segmentChatlog(filePath, content) を呼び出す', () => {
+    describe('When: segmentChatlogs(filePath, content) を呼び出す', () => {
       /**
        * Task T-09-02: エラー時の null 返却。
        * runAI がエラーをスロー、または非 JSON を返した場合に null が返ることを確認する。
@@ -105,7 +105,7 @@ describe('segmentChatlog', () => {
         it('T-09-02-01: null を返す', async () => {
           (Deno as unknown as Record<string, unknown>).Command = makeFailMock(1);
 
-          const result = await segmentChatlog('path/to/file.md', 'some chat content');
+          const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals(result, null);
         });
@@ -114,7 +114,7 @@ describe('segmentChatlog', () => {
           const mock = makeSuccessMock(new TextEncoder().encode('not json'));
           (Deno as unknown as Record<string, unknown>).Command = mock;
 
-          const result = await segmentChatlog('path/to/file.md', 'some chat content');
+          const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals(result, null);
         });
@@ -124,7 +124,7 @@ describe('segmentChatlog', () => {
 
   /** 正常系: セグメント数が上限 (10件) を超えた場合は最初の10件のみ返す */
   describe('Given: runAI が 15件のセグメントを返す', () => {
-    describe('When: segmentChatlog(filePath, content) を呼び出す', () => {
+    describe('When: segmentChatlogs(filePath, content) を呼び出す', () => {
       /**
        * Task T-09-03: セグメント数の上限適用。
        * runAI が10件を超えるセグメントを返した場合、最初の10件のみに絞られることを確認する。
@@ -147,7 +147,7 @@ describe('segmentChatlog', () => {
           const mock = makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments)));
           (Deno as unknown as Record<string, unknown>).Command = mock;
 
-          const result = await segmentChatlog('path/to/file.md', 'some chat content');
+          const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals((result as unknown[]).length, 10);
         });
@@ -293,14 +293,14 @@ describe('writeOutput', () => {
     });
   });
 
-  /** 異常系: R-010 ガード — temp/chatlog/ 配下への書き込みはエラーをスローする */
+  /** 異常系: R-010 ガード — chatlogs/ 配下への書き込みはエラーをスローする */
   describe('[異常] Error Cases', () => {
-    describe('Given: temp/chatlog/ 配下の入力パスを出力先に指定する', () => {
+    describe('Given: chatlogs/ 配下の入力パスを出力先に指定する', () => {
       describe('When: writeOutput(inputPath, content, false, stats) を呼び出す', () => {
         describe('Then: Task T-13-04 - R-010 ガードによるエラー', () => {
-          it('T-13-04-01: temp/chatlog/ 配下のパスへの書き込みが行われない (R-010)', async () => {
+          it('T-13-04-01: chatlogs/ 配下のパスへの書き込みが行われない (R-010)', async () => {
             const stats: Stats = { success: 0, skip: 0, fail: 0 };
-            const inputPath = 'temp/chatlog/claude/2026/2026-03/sample.md';
+            const inputPath = 'chatlogs/claude/2026/2026-03/sample.md';
 
             await assertRejects(
               async () => {

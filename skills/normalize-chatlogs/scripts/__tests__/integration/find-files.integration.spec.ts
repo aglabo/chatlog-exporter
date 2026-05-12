@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write
-// src: scripts/__tests__/integration/normalize-chatlog-findMd.integration.spec.ts
+// src: scripts/__tests__/integration/normalize-chatlogs-findMd.integration.spec.ts
 // @(#): findFiles の統合テスト - 実ファイルシステムを使った検証
 //       対象: findFiles (skills/_scripts/libs/find-files.ts)
 //       テスト種別: 正常系 / 異常系 / エッジケース

@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.cli-args.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.cli-args.unit.spec.ts
 // @(#): CLI引数・出力ディレクトリ解決のユニットテスト
 //       対象: parseArgs, resolveOutputDir
 //
@@ -11,7 +11,7 @@ import { describe, it } from '@std/testing/bdd';
 
 // test target
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { parseArgs } from '../../normalize-chatlog.ts';
+import { parseArgs } from '../../normalize-chatlogs.ts';
 
 type ParsedArgs = ReturnType<typeof parseArgs>;
 
@@ -85,16 +85,16 @@ describe('parseArgs', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: T-08-04 - dir フィールドにスラッシュ正規化されたパスが設定される', () => {
         const _pathCases: { id: string; args: string[]; expected: string }[] = [
-          { id: 'T-08-04-01', args: ['--dir', 'temp\\chatlog\\claude'], expected: 'temp/chatlog/claude' },
+          { id: 'T-08-04-01', args: ['--dir', 'chatlogs\\claude'], expected: 'chatlogs/claude' },
           {
             id: 'T-08-04-02',
-            args: ['temp/chatlog/claude/2026/2026-03'],
-            expected: 'temp/chatlog/claude/2026/2026-03',
+            args: ['chatlogs/claude/2026/2026-03'],
+            expected: 'chatlogs/claude/2026/2026-03',
           },
           {
             id: 'T-08-04-03',
-            args: ['temp\\chatlog\\claude\\2026\\2026-03'],
-            expected: 'temp/chatlog/claude/2026/2026-03',
+            args: ['chatlogs\\claude\\2026\\2026-03'],
+            expected: 'chatlogs/claude/2026/2026-03',
           },
         ];
         for (const { id, args, expected } of _pathCases) {
