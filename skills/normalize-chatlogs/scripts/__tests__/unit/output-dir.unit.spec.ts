@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/normalize-chatlog.output-dir.unit.spec.ts
+// src: scripts/__tests__/unit/normalize-chatlogs.output-dir.unit.spec.ts
 // @(#): 出力ディレクトリ解決のユニットテスト
 //       対象: resolveOutputDir
 //       テスト種別: 正常系 / 異常系 / エッジケース
@@ -12,22 +12,22 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
-import { resolveOutputDir } from '../../normalize-chatlog.ts';
+import { resolveOutputDir } from '../../normalize-chatlogs.ts';
 
 // ─── resolveOutputDir 単体テスト ──────────────────────────────────────────────
 
 /**
  * resolveOutputDir の単体テスト。
- * chatlog 形式パスのミラー構造と任意パスのフォールバックを検証する。
+ * chatlogs 形式パスのミラー構造と任意パスのフォールバックを検証する。
  */
 describe('resolveOutputDir', () => {
-  // ─── T-20-01: chatlog 形式 → agent/year/yearMonth がミラーされる ──────────
+  // ─── T-20-01: chatlogs 形式 → agent/year/yearMonth がミラーされる ──────────
 
   /** 正常系: agent/year/yearMonth が outputBase 配下にミラーされ project が末尾に付く */
-  describe('Given: inputDir が chatlog 形式 "temp/chatlog/<agent>/<year>/<yearMonth>"', () => {
+  describe('Given: inputDir が chatlogs 形式 "chatlogs/<agent>/<year>/<yearMonth>"', () => {
     it('Then: [正常] - <outputBase>/<agent>/<year>/<yearMonth>/<project> を返す', () => {
       const result = resolveOutputDir(
-        'temp/chatlog/claude/2026/2026-03',
+        'chatlogs/claude/2026/2026-03',
         '/out',
         'my-app',
       );
@@ -36,13 +36,13 @@ describe('resolveOutputDir', () => {
     });
   });
 
-  // ─── T-20-02: chatlog 形式 + project なし → misc フォールバック ─────────
+  // ─── T-20-02: chatlogs 形式 + project なし → misc フォールバック ─────────
 
   /** エッジケース: project 未指定時は "misc" がフォールバックとして使われる */
-  describe('Given: inputDir が chatlog 形式で project が undefined', () => {
+  describe('Given: inputDir が chatlogs 形式で project が undefined', () => {
     it('Then: [エッジケース] - <outputBase>/<agent>/<year>/<yearMonth>/misc を返す', () => {
       const result = resolveOutputDir(
-        'temp/chatlog/gemini/2025/2025-12',
+        'chatlogs/gemini/2025/2025-12',
         '/out',
         undefined,
       );
@@ -51,13 +51,13 @@ describe('resolveOutputDir', () => {
     });
   });
 
-  // ─── T-20-03: chatlog 形式 + project 空文字 → misc フォールバック ────────
+  // ─── T-20-03: chatlogs 形式 + project 空文字 → misc フォールバック ────────
 
   /** エッジケース: project が空文字列の場合も "misc" にフォールバックする */
-  describe('Given: inputDir が chatlog 形式で project が空文字列', () => {
+  describe('Given: inputDir が chatlogs 形式で project が空文字列', () => {
     it('Then: [エッジケース] - <outputBase>/<agent>/<year>/<yearMonth>/misc を返す', () => {
       const result = resolveOutputDir(
-        'temp/chatlog/claude/2026/2026-04',
+        'chatlogs/claude/2026/2026-04',
         '/out',
         '',
       );
@@ -68,8 +68,8 @@ describe('resolveOutputDir', () => {
 
   // ─── T-20-04: 任意パス → <outputBase>/<project> ──────────────────────────
 
-  /** 正常系: chatlog 形式でない場合は <outputBase>/<project> が返る */
-  describe('Given: inputDir が任意パス（chatlog 形式でない）', () => {
+  /** 正常系: chatlogs 形式でない場合は <outputBase>/<project> が返る */
+  describe('Given: inputDir が任意パス（chatlogs 形式でない）', () => {
     it('Then: [正常] - <outputBase>/<project> を返す', () => {
       const result = resolveOutputDir(
         '/home/user/chatlogs',
@@ -83,7 +83,7 @@ describe('resolveOutputDir', () => {
 
   // ─── T-20-05: 任意パス + project なし → misc フォールバック ─────────────
 
-  /** エッジケース: chatlog 形式でなく project も未指定の場合は <outputBase>/misc */
+  /** エッジケース: chatlogs 形式でなく project も未指定の場合は <outputBase>/misc */
   describe('Given: inputDir が任意パスで project が undefined', () => {
     it('Then: [エッジケース] - <outputBase>/misc を返す', () => {
       const result = resolveOutputDir(
@@ -102,7 +102,7 @@ describe('resolveOutputDir', () => {
   describe('Given: inputDir の agent が "chatgpt"', () => {
     it('Then: [正常] - 出力パスに "chatgpt" が含まれる', () => {
       const result = resolveOutputDir(
-        'temp/chatlog/chatgpt/2026/2026-01',
+        'chatlogs/chatgpt/2026/2026-01',
         '/out',
         'proj',
       );
@@ -117,7 +117,7 @@ describe('resolveOutputDir', () => {
   describe('Given: inputDir の yearMonth が "2025-11"', () => {
     it('Then: [正常] - 出力パスに "2025/2025-11" が含まれる', () => {
       const result = resolveOutputDir(
-        'temp/chatlog/claude/2025/2025-11',
+        'chatlogs/claude/2025/2025-11',
         '/normalized',
         'blog',
       );
