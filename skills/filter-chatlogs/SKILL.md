@@ -1,9 +1,9 @@
 ---
-name: filter-chatlog
+name: filter-chatlogs
 description: >
   エクスポート済みチャットログMarkdownをclaude CLIで一括バッチ判定し、
   再利用価値の低いファイル（DISCARD）を削除する。
-  /filter-chatlog で呼び出す。
+  /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
 argument-hint: "[prefilter|filter] [agent] [YYYY-MM [project]] [--dry-run]"
 allowed-tools: Bash, Glob
@@ -11,7 +11,7 @@ allowed-tools: Bash, Glob
 
 <!-- cspell:words aplys -->
 
-# filter-chatlog スキル
+# filter-chatlogs スキル
 
 エクスポート済みチャットログをclaude CLIで品質判定してフィルタリングする。
 複数ファイルをチャンク単位（10件）でバッチ判定し、低価値ファイルを削除する。
@@ -31,7 +31,7 @@ allowed-tools: Bash, Glob
 
 **filter モードの引数解析**（サブコマンドを除いた残りの引数に適用）:
 
-- 引数なし → `temp/chatlog/claude/` 全体を処理（デフォルト agent: `claude`）
+- 引数なし → `temp/chatlogs/claude/` 全体を処理（デフォルト agent: `claude`）
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
 - `YYYY-MM`（例: `2026-03`）→ `claude` agent・指定月のみ
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
@@ -40,7 +40,7 @@ allowed-tools: Bash, Glob
 
 **prefilter モードの引数解析**（`prefilter` トークンを除いた残りの引数に適用）:
 
-- 引数なし → `temp/chatlog/claude/` 全体を処理
+- 引数なし → `temp/chatlogs/claude/` 全体を処理
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
 - `--dry-run` → 削除せず、ノイズ候補のパスを標準出力に表示
@@ -48,13 +48,13 @@ allowed-tools: Bash, Glob
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/commands/filter-chatlog.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/commands/filter-chatlogs.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR      = <filter-chatlog.md が存在するディレクトリの絶対パス>
-SCRIPT_PATH    = $SKILL_DIR/scripts/filter-chatlog.ts
-PREFILTER_PATH = $SKILL_DIR/scripts/prefilter-chatlog.ts
-INPUT          = <cwd>/temp/chatlog
+SKILL_DIR      = <filter-chatlogs.md が存在するディレクトリの絶対パス>
+SCRIPT_PATH    = $SKILL_DIR/scripts/filter-chatlogs.ts
+PREFILTER_PATH = $SKILL_DIR/scripts/prefilter-chatlogs.ts
+INPUT          = <cwd>/temp/chatlogs
 ```
 
 ## ステップ2: スクリプト実行
