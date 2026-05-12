@@ -304,8 +304,8 @@ describe('MODULE_GLOB_TABLE', () => {
         it('T-AT-GT-06: "filter" エントリが "**/filter-chatlogs/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['filter'], '**/filter-chatlogs/**/__tests__');
         });
-        it('T-AT-GT-07: "normalize" エントリが "**/normalize-chatlog/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['normalize'], '**/normalize-chatlog/**/__tests__');
+        it('T-AT-GT-07: "normalize" エントリが "**/normalize-chatlogs/**/__tests__" である', () => {
+          assertEquals(MODULE_GLOB_TABLE['normalize'], '**/normalize-chatlogs/**/__tests__');
         });
         it('T-AT-GT-08: "set" エントリが "**/set-frontmatter/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['set'], '**/set-frontmatter/**/__tests__');
