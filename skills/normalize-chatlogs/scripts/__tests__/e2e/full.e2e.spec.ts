@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
-// src: scripts/__tests__/e2e/normalize-chatlog-full.e2e.spec.ts
-// @(#): normalize-chatlog の統合 E2E テスト
+// src: scripts/__tests__/e2e/normalize-chatlogs-full.e2e.spec.ts
+// @(#): normalize-chatlogs の統合 E2E テスト
 //       IO / aggregation / structure / reproducibility を一括検証する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -23,16 +23,16 @@ import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/out
 // test target
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import { main } from '../../normalize-chatlog.ts';
-import type { HashProvider } from '../../normalize-chatlog.ts';
+import { main } from '../../normalize-chatlogs.ts';
+import type { HashProvider } from '../../normalize-chatlogs.ts';
 
 // ─── full E2E ─────────────────────────────────────────────────────────────────
 
 /**
  * IO / aggregation / structure / reproducibility を一括で検証する統合 E2E テスト。
- * 実際の使用シナリオに近い状況で normalize-chatlog のエンドツーエンド動作を確認する。
+ * 実際の使用シナリオに近い状況で normalize-chatlogs のエンドツーエンド動作を確認する。
  */
-describe('normalize-chatlog - full E2E', () => {
+describe('normalize-chatlogs - full E2E', () => {
   // ─── IO: ファイル生成とカウント ────────────────────────────────────────────────
 
   describe('IO: 複数 MD ファイルから出力ファイルが生成される', () => {
