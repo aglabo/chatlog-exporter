@@ -31,7 +31,7 @@ import type { CommandProvider } from '../../../../../_scripts/types/providers.ty
  *
  * デフォルト値・agent/period/フラグ/オプション形式・エラーケースを検証する。
  *
- * テスト ID 範囲: T-PF-PA-01 〜 T-PF-PA-13
+ * テスト ID 範囲: T-PF-PA-01 〜 T-PF-PA-14
  *
  * @see parseArgs
  */
@@ -96,22 +96,22 @@ describe('parseArgs (prefilter)', () => {
       assertEquals(result.dryRun, true);
     });
 
-    it('[Normal] T-PF-PA-08-01: chatlogsDir が "/path/to/input" になる', () => {
-      assertEquals(parseArgs(['--input', '/path/to/input']).chatlogsDir, '/path/to/input');
-    });
-
-    it('[Normal] T-PF-PA-09-01: --input=value 形式のパース', () => {
-      assertEquals(parseArgs(['--input=/path/to/input']).chatlogsDir, '/path/to/input');
-    });
-
     it('[Normal] T-PF-PA-10-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['codex', '2026-03', '--report', '--input', './in']);
+      const result = parseArgs(['codex', '2026-03', '--report', '--base-dir', '/path/to/base']);
 
       assertEquals(result.agent, 'codex');
       assertEquals(result.period, '2026-03');
       assertEquals(result.report, true);
       assertEquals(result.dryRun, true);
-      assertEquals(result.chatlogsDir, './in');
+      assertEquals(result.baseDir, '/path/to/base');
+    });
+
+    it('[Normal] T-PF-PA-14-01: baseDir が "/path/to/base" になる', () => {
+      assertEquals(parseArgs(['--base-dir', '/path/to/base']).baseDir, '/path/to/base');
+    });
+
+    it('[Normal] T-PF-PA-14-02: --base-dir=value 形式のパース', () => {
+      assertEquals(parseArgs(['--base-dir=/path/to/base']).baseDir, '/path/to/base');
     });
 
     it('[Normal] T-PF-PA-12-01: chatlogsDir が "/path/to/chatlogs" になる', () => {
@@ -124,6 +124,14 @@ describe('parseArgs (prefilter)', () => {
     it('[Error] T-PF-PA-11-01: ChatlogError(InvalidArgs) がスローされる', () => {
       assertThrows(
         () => parseArgs(['--unknown']),
+        ChatlogError,
+        'Invalid Args',
+      );
+    });
+
+    it('[Error] T-PF-PA-11-02: --input を渡すと ChatlogError(InvalidArgs) がスローされる', () => {
+      assertThrows(
+        () => parseArgs(['--input', '/path/to/input']),
         ChatlogError,
         'Invalid Args',
       );
