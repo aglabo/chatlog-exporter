@@ -10,7 +10,7 @@
  * filter-chatlogs.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
  *
  * 使い方:
- *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--input DIR]
+ *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--base-dir DIR]
  */
 
 // ─────────────────────────────────────────────
@@ -37,7 +37,7 @@ import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { prefilterFiles } from './libs/prefilter.ts';
-import { processChunk } from './libs/process-chunk.ts';
+import { processChunk } from './modules/filter/process-chunk.ts';
 
 // ─────────────────────────────────────────────
 // 引数解析
@@ -45,7 +45,7 @@ import { processChunk } from './libs/process-chunk.ts';
 
 /** `--option value` 形式のオプションと ParsedConfig キーのマッピング。 */
 const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
-  '--input': 'inputDir',
+  '--base-dir': 'baseDir',
   '--config': 'configFile',
   '--chatlogs-dir': 'chatlogsDir',
 };
@@ -66,8 +66,8 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - chatlogsDir 優先順位: `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
- * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
+ * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')`
+ * - chatlogsDir 優先順位: `parsed.chatlogsDir`（直接指定のみ、未指定なら `undefined`）
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
  * - discardThreshold: `globalConfig.get('discardThreshold')` > `defaults.discardThreshold`
@@ -80,8 +80,8 @@ export const buildConfig = (
 ): FilterConfig => {
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _globalChatlogDir;
-  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
+  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
+  const _chatlogsDir = parsed.chatlogsDir;
   const _chunkSize = parsed.chunkSize ?? globalConfig.get('chunkSize') as number;
   const _concurrency = parsed.concurrency ?? globalConfig.get('concurrency') as number;
   const _minCharCount = parsed.minCharCount ?? globalConfig.get('minCharCount') as number;
@@ -92,7 +92,7 @@ export const buildConfig = (
     ...defaults,
     ...rest,
     agent: _agent,
-    inputDir: _inputDir,
+    baseDir: _baseDir,
     chatlogsDir: _chatlogsDir,
     chunkSize: _chunkSize,
     concurrency: _concurrency,
@@ -112,7 +112,7 @@ export const main = async (args?: string[]): Promise<void> => {
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    const _baseDir = _globalConfig.get('chatlogsDir') as string;
+    const _baseDir = _config.baseDir ?? _globalConfig.get('chatlogsDir') as string;
     const _agentDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
       baseDir: _baseDir,
