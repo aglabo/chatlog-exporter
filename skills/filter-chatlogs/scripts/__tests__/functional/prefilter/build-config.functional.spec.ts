@@ -86,7 +86,7 @@ const _CUSTOM_DEFAULTS: PrefilterConfig = {
  * - `report`     : parsed > defaults (false)
  * - `configFile` は PrefilterConfig に存在しないため結果に含まれない
  *
- * テスト ID 範囲: T-PF-BC-06 〜 T-PF-BC-15
+ * テスト ID 範囲: T-PF-BC-06 〜 T-PF-BC-16
  *
  * @see buildConfig
  */
@@ -208,6 +208,50 @@ describe('buildConfig (prefilter functional)', () => {
         it('T-PF-BC-11: chatlogsDir 未設定 → result.chatlogsDir === DEFAULT_PREFILTER_CONFIG.chatlogsDir', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
           assertEquals(result.chatlogsDir, DEFAULT_PREFILTER_CONFIG.chatlogsDir);
+        });
+      });
+    });
+  });
+
+  // ─── baseDir 優先順位 ─────────────────────────────────────────────────────────
+
+  /**
+   * `parsed.baseDir` がセットされている前提条件グループ。
+   *
+   * `parsed.baseDir` が GlobalConfig.chatlogsDir より優先されることを検証する。
+   */
+  describe('Given: parsed.baseDir が指定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** `parsed.baseDir` が最優先されることを検証する。 */
+      describe('Then: T-PF-BC-16 - parsed.baseDir が優先される', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+        });
+        it('T-PF-BC-16-01: parsed.baseDir=/custom → result.baseDir === /custom', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/custom' }, globalConfig);
+          assertEquals(result.baseDir, '/custom');
+        });
+      });
+    });
+  });
+
+  /**
+   * `parsed.baseDir` が未指定の前提条件グループ。
+   *
+   * GlobalConfig.chatlogsDir が baseDir にフォールバックすることを検証する。
+   */
+  describe('Given: parsed.baseDir が未指定', () => {
+    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
+      /** GlobalConfig.chatlogsDir が baseDir になることを検証する。 */
+      describe('Then: T-PF-BC-16-02 - GlobalConfig の chatlogsDir が baseDir になる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+        });
+        it('T-PF-BC-16-02: globalConfig.chatlogsDir=/global → result.baseDir === /global', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.baseDir, '/global');
         });
       });
     });
