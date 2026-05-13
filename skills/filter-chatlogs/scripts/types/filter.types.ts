@@ -16,9 +16,9 @@ export interface FilterConfig {
   agent: string;
   /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
   period?: string;
-  /** チャットログが格納された入力ディレクトリのパス (obsolete) */
-  inputDir: string;
-  /** チャットログ基底ディレクトリのパス。`inputDir` の後継として利用予定。省略時は `undefined`。 */
+  /** チャットログ基底ディレクトリのパス。GlobalConfig の chatlogsDir を CLI で上書きする。省略時は `undefined`。 */
+  baseDir?: string;
+  /** チャットログ最終探索パス直接指定。省略時は `undefined`。 */
   chatlogsDir?: string;
 
   // flags
