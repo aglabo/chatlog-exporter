@@ -20,14 +20,14 @@ const runFilter = async (args: string[]): Promise<number> => {
   return code;
 };
 
-// ─── T-FL-SYS-01: 存在しない inputDir → exit(1) ──────────────────────────────
+// ─── T-FL-SYS-01: 存在しない baseDir → exit(1) ──────────────────────────────
 
 describe('main - エラー終了コード', () => {
-  describe('Given: 存在しない inputDir を指定', () => {
+  describe('Given: 存在しない baseDir を指定', () => {
     describe('When: filter-chatlogs をサブプロセスで実行する', () => {
       describe('Then: T-FL-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-FL-SYS-01-01: 終了コードが 1 である', async () => {
-          const code = await runFilter(['claude', '--input', '/nonexistent/path']);
+          const code = await runFilter(['claude', '--base-dir', '/nonexistent/path']);
           assertEquals(code, 1);
         });
       });
