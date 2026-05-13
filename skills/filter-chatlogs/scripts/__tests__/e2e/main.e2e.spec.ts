@@ -105,7 +105,7 @@ describe('main - dry-run モード', () => {
           });
 
           it('T-FL-E2E-01-01: ファイルが削除されずに残り "[dry-run]" がログに出力される', async () => {
-            await main(['claude', '2026-03', '--dry-run', '--input', tempDir]);
+            await main(['claude', '2026-03', '--dry-run', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
             assertEquals(loggerStub.logLogs.some((l) => l.includes('[dry-run]')), true);
@@ -166,7 +166,7 @@ describe('main - DISCARD 判定', () => {
           });
 
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             await assertFileNotExists(`${chatlogsDir}/discard.md`);
           });
@@ -225,7 +225,7 @@ describe('main - KEEP 判定', () => {
           });
 
           it('T-FL-E2E-03-01: ファイルが残っている', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
@@ -279,7 +279,7 @@ describe('main - 対象ファイルなし', () => {
         });
 
         it('T-FL-E2E-04-01: "対象ファイルなし" がログに出力される', async () => {
-          await main(['claude', '2026-03', '--input', tempDir]);
+          await main(['claude', '2026-03', '--base-dir', tempDir]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes(LOGGER_HEADER.NO_FILE_FOUND)), true);
         });
@@ -342,13 +342,13 @@ describe('main - DISCARD + KEEP 混在', () => {
           });
 
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             await assertFileNotExists(`${chatlogsDir}/discard.md`);
           });
 
           it('T-FL-E2E-05-02: keep.md が残っている', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
@@ -411,13 +411,13 @@ describe('main - period 絞り込み', () => {
           });
 
           it('T-FL-E2E-06-01: 指定月 (2026-03) のファイルが削除される', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-06-02: 他の月 (2026-04) のファイルは残っている', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${tempDir}/claude/2026/2026-04/april.md`), true);
           });
@@ -474,7 +474,7 @@ describe('main - Claude CLI NotFound', () => {
           });
 
           it('T-FL-E2E-07-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
@@ -533,7 +533,7 @@ describe('main - confidence 閾値未満', () => {
           });
 
           it('T-FL-E2E-08-01: confidence=0.69 の DISCARD ファイルが削除されずに残っている', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/low-conf.md`), true);
           });
@@ -590,7 +590,7 @@ describe('main - Claude CLI 異常終了', () => {
           });
 
           it('T-FL-E2E-09-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
-            await main(['claude', '2026-03', '--input', tempDir]);
+            await main(['claude', '2026-03', '--base-dir', tempDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
@@ -618,8 +618,8 @@ describe('main - period 未指定', () => {
    * period 未指定時は全月のファイルが処理対象となり、両月のファイルが削除されることを確認する。
    */
   describe('Given: 複数月に DISCARD ファイルが存在し period 未指定', () => {
-    /** `main(["claude", "--input", tempDir])` を period なしで呼び出すとき。 */
-    describe('When: main(["claude", "--input", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--base-dir", tempDir])` を period なしで呼び出すとき。 */
+    describe('When: main(["claude", "--base-dir", tempDir]) を呼び出す', () => {
       /** 両月のファイルが削除対象になること。 */
       describe('Then: T-FL-E2E-10 - 全月のファイルが処理される', () => {
         let tempDir: string;
@@ -655,13 +655,13 @@ describe('main - period 未指定', () => {
           });
 
           it('T-FL-E2E-10-01: 2026-03 のファイルが削除される', async () => {
-            await main(['claude', '--input', tempDir]);
+            await main(['claude', '--base-dir', tempDir]);
 
             await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-10-02: 2026-04 のファイルが削除される', async () => {
-            await main(['claude', '--input', tempDir]);
+            await main(['claude', '--base-dir', tempDir]);
 
             await assertFileNotExists(`${tempDir}/claude/2026/2026-04/april.md`);
           });
