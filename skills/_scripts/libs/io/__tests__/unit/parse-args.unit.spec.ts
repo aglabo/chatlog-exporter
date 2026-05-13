@@ -22,7 +22,6 @@ import { isDirectoryArg, parseArgsToConfig } from '../../parse-args.ts';
 type TestConfig = {
   agent?: string;
   period?: string;
-  inputDir?: string;
   chatlogsDir?: string;
   outputDir?: string;
   dryRun?: boolean;
@@ -31,7 +30,6 @@ type TestConfig = {
 
 const OPT_KEYS: Record<string, keyof TestConfig> = {
   '--output': 'outputDir',
-  '--input': 'inputDir',
 };
 
 const OPT_FLAGS: Record<string, keyof TestConfig> = {
@@ -48,7 +46,6 @@ describe('parseArgsToConfig', () => {
         const _cases: { id: string; field: keyof TestConfig }[] = [
           { id: 'T-PA-01-01', field: 'agent' },
           { id: 'T-PA-01-02', field: 'period' },
-          { id: 'T-PA-01-03', field: 'inputDir' },
           { id: 'T-PA-01-04', field: 'outputDir' },
           { id: 'T-PA-01-05', field: 'dryRun' },
           { id: 'T-PA-01-06', field: 'verbose' },
@@ -313,35 +310,6 @@ describe('parseArgsToConfig', () => {
     });
   });
 
-  // ─── T-PA-17: chatlogsDir 未定義時の inputDir フォールバック ──────────────
-
-  describe('Given: --input オプションのみ指定（位置引数ディレクトリなし）', () => {
-    describe('When: parseArgsToConfig(args) を呼び出す', () => {
-      describe('Then: T-PA-17 - chatlogsDir に inputDir の値がコピーされる', () => {
-        it('T-PA-17-01: --input /path → chatlogsDir が "/path" になる', () => {
-          const result = parseArgsToConfig<TestConfig>(['--input', '/path'], OPT_KEYS, OPT_FLAGS);
-          assertEquals(result.chatlogsDir, '/path');
-        });
-        it('T-PA-17-02: --input /path → inputDir も "/path" のまま', () => {
-          const result = parseArgsToConfig<TestConfig>(['--input', '/path'], OPT_KEYS, OPT_FLAGS);
-          assertEquals(result.inputDir, '/path');
-        });
-      });
-    });
-  });
-
-  describe('Given: --input と位置引数ディレクトリを同時に指定', () => {
-    describe('When: parseArgsToConfig(args) を呼び出す', () => {
-      describe('Then: T-PA-17-03 - 位置引数の chatlogsDir が優先される（フォールバック不発）', () => {
-        it('T-PA-17-03: --input /a /b → chatlogsDir が "/b" になる（位置引数優先）', () => {
-          const result = parseArgsToConfig<TestConfig>(['--input', '/a', '/b'], OPT_KEYS, OPT_FLAGS);
-          assertEquals(result.chatlogsDir, '/b');
-          assertEquals(result.inputDir, '/a');
-        });
-      });
-    });
-  });
-
   // ─── T-PA-18: chatlogsDir 形式バリデーション ──────────────────────────────
 
   /**
@@ -356,7 +324,6 @@ describe('parseArgsToConfig', () => {
     type TestConfigWithChatlogsDir = TestConfig & { chatlogsDir?: string };
     const _OPT_KEYS_WITH_CHATLOGS: Record<string, keyof TestConfigWithChatlogsDir> = {
       '--output': 'outputDir',
-      '--input': 'inputDir',
       '--chatlogs-dir': 'chatlogsDir',
     };
 
@@ -381,38 +348,6 @@ describe('parseArgsToConfig', () => {
       it('[Edge] T-PA-18-02: chatlogsDir 未設定 → スローしない', () => {
         const result = parseArgsToConfig<TestConfig>([], OPT_KEYS, OPT_FLAGS);
         assertEquals(result.chatlogsDir, undefined);
-      });
-    });
-  });
-
-  // ─── T-PA-19: inputDir 形式バリデーション ────────────────────────────────
-
-  /**
-   * `parseArgsToConfig` の `inputDir` 形式バリデーションテスト。
-   *
-   * `--input` に非ディレクトリ形式の値が設定された場合に
-   * `ChatlogError('InvalidArgs')` をスローすることを検証する。
-   *
-   * テスト ID 範囲: T-PA-19-01 〜 T-PA-19-02
-   */
-  describe('Given: --input オプションに非ディレクトリ形式の値', () => {
-    /** 非ディレクトリ形式（スラッシュなし）の値を inputDir に設定するケース。 */
-    describe('When: 異常系', () => {
-      it('[Error] T-PA-19-01: --input plain-value → ChatlogError(InvalidArgs) がスローされる', () => {
-        assertThrows(
-          () => parseArgsToConfig<TestConfig>(['--input', 'plain-value'], OPT_KEYS, OPT_FLAGS),
-          ChatlogError,
-          'Invalid Args',
-        );
-      });
-    });
-
-    /** inputDir と chatlogsDir が同一値（フォールバック後）の場合は二重スローしない。 */
-    describe('When: エッジケース', () => {
-      it('[Edge] T-PA-19-02: --input /valid/path → フォールバック後 chatlogsDir も設定されスローしない', () => {
-        const result = parseArgsToConfig<TestConfig>(['--input', '/valid/path'], OPT_KEYS, OPT_FLAGS);
-        assertEquals(result.inputDir, '/valid/path');
-        assertEquals(result.chatlogsDir, '/valid/path');
       });
     });
   });
