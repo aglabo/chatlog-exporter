@@ -1,4 +1,4 @@
-// src: scripts/libs/noise-filter.ts
+// src: scripts/modules/prefilter/process-noise-files.ts
 // @(#): ノイズファイルのリスト処理（分類・削除・dry-run・report）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -6,17 +6,17 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { classifyFile } from './classify-file.ts';
+import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
+import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─────────────────────────────────────────────
 // ファイルリスト処理
 // ─────────────────────────────────────────────
 
-export const processNoiseFilterFiles = async (
+export const processNoiseFiles = async (
   files: string[],
   stats: { noise: number; keep: number; error: number },
   options: { dryRun: boolean; report: boolean },

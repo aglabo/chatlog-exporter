@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/filter/process-chunk.functional.spec.ts
+// src: scripts/modules/filter/__tests__/functional/process-chunk.functional.spec.ts
 // @(#): processChunk の機能テスト
 //       Deno.Command モック + 実 tempdir を使用したチャンク処理の検証
 //
@@ -14,9 +14,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { processChunk } from '../../../libs/process-chunk.ts';
+import { processChunk } from '../../process-chunk.ts';
 // types
-import type { Stats } from '../../../types/filter.types.ts';
+import type { Stats } from '../../../../types/filter.types.ts';
 
 // ─── Helpers
 import {
@@ -24,13 +24,13 @@ import {
   makeFailMock,
   makeNotFoundMock,
   makeSuccessMock,
-} from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
-import { DEFAULT_VALUES } from '../../../../../../skills/_scripts/constants/schema.constants.ts';
+} from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { DEFAULT_VALUES } from '../../../../../../_scripts/constants/schema.constants.ts';
 // types
-import type { CommandMockHandle } from '../../../../../../skills/_scripts/__tests__/helpers/deno-command-mock.ts';
-import { makePeriodDir } from '../../_helpers/fixtures.ts';
+import type { CommandMockHandle } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 // exists
-import { fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { fileExists, fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 

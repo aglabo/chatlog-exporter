@@ -36,7 +36,7 @@ import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles as findFilesLib } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { buildConfig, parseArgs } from './config/prefilter-config.ts';
-import { processNoiseFilterFiles } from './libs/noise-filter.ts';
+import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
 
 // ─────────────────────────────────────────────
 // メイン
@@ -46,13 +46,18 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { agent, period, chatlogsDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
+    const { agent, period, baseDir, chatlogsDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
+    const _searchDir = resolveChatlogsDir({
+      chatlogsDir: _parsed.chatlogsDir,
+      baseDir: baseDir ?? chatlogsDir,
+      agent,
+      period,
+    });
 
-    if (!await dirExists(chatlogsDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${chatlogsDir}`);
+    if (!await dirExists(_searchDir)) {
+      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_searchDir}`);
     }
 
-    const _searchDir = resolveChatlogsDir({ baseDir: chatlogsDir, agent, period });
     const files = await findFilesLib(_searchDir);
     logger.info(`対象ファイル数: ${files.length}`);
     if (dryRun) {
@@ -60,7 +65,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     }
 
     const stats = { noise: 0, keep: 0, error: 0 };
-    await processNoiseFilterFiles(files, stats, { dryRun, report });
+    await processNoiseFiles(files, stats, { dryRun, report });
 
     const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';
     logger.info(`\n完了${suffix}: noise=${stats.noise} keep=${stats.keep} error=${stats.error}`);

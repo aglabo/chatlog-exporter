@@ -6,10 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import {
-  DEFAULT_AGENT,
-  DEFAULT_CHATLOGS_DIR,
-} from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
 import type { FilterConfig } from '../types/filter.types.ts';
 import type { PrefilterConfig } from '../types/prefilter.types.ts';
@@ -35,7 +32,6 @@ export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
 /** filter-chatlogs の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
-  inputDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
   // config.yaml only
   chunkSize: DEFAULT_VALUES.chunkSize as number,

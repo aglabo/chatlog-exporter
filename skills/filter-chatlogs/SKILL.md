@@ -31,7 +31,7 @@ allowed-tools: Bash, Glob
 
 **filter モードの引数解析**（サブコマンドを除いた残りの引数に適用）:
 
-- 引数なし → `temp/chatlogs/claude/` 全体を処理（デフォルト agent: `claude`）
+- 引数なし → `chatlogs/claude/` 全体を処理（デフォルト agent: `claude`）
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
 - `YYYY-MM`（例: `2026-03`）→ `claude` agent・指定月のみ
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
@@ -40,9 +40,10 @@ allowed-tools: Bash, Glob
 
 **prefilter モードの引数解析**（`prefilter` トークンを除いた残りの引数に適用）:
 
-- 引数なし → `temp/chatlogs/claude/` 全体を処理
+- 引数なし → `chatlogs/claude/` 全体を処理
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
+- `path`（例: `chatlogs\claude\2026\2026-04`）→ 指定パスをそのまま渡す（agent/period の代わり）
 - `--dry-run` → 削除せず、ノイズ候補のパスを標準出力に表示
 - `--report` → ノイズ理由付きで報告（`NOISE\t理由\tパス` 形式）
 
@@ -54,7 +55,6 @@ Glob ツールで `**/commands/filter-chatlogs.md` を検索し、そのディ�
 SKILL_DIR      = <filter-chatlogs.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH    = $SKILL_DIR/scripts/filter-chatlogs.ts
 PREFILTER_PATH = $SKILL_DIR/scripts/prefilter-chatlogs.ts
-INPUT          = <cwd>/temp/chatlogs
 ```
 
 ## ステップ2: スクリプト実行
@@ -63,17 +63,18 @@ INPUT          = <cwd>/temp/chatlogs
 
 ### prefilter サブコマンドの場合
 
-先頭トークンが `prefilter` であれば、残りの引数 `$REST_ARGS` を使い以下を実行:
+先頭トークンが `prefilter` であれば、残りの引数 `$REST_ARGS` をそのまま渡す:
 
 ```bash
-deno run --allow-read --allow-write "$PREFILTER_PATH" $REST_ARGS --input "$INPUT"
+deno run --allow-read --allow-write "$PREFILTER_PATH" $REST_ARGS
 ```
 
-引数からオプションを組み立てるルール（`$REST_ARGS` 部分）:
+引数からオプションを組み立てるルール（`--input` は**追加しない**）:
 
-- 引数なし → `deno run --allow-read --allow-write "$PREFILTER_PATH" --input "$INPUT"`
-- `agent` のみ → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt --input "$INPUT"`
-- `agent YYYY-MM` → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt 2026-03 --input "$INPUT"`
+- 引数なし → `deno run --allow-read --allow-write "$PREFILTER_PATH"`
+- `agent` のみ → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt`
+- `agent YYYY-MM` → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt 2026-03`
+- `path`（パス区切り含む）→ `deno run --allow-read --allow-write "$PREFILTER_PATH" chatlogs/claude/2026/2026-04`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--report` を含む → 末尾に `--report` を追加
 
@@ -90,19 +91,19 @@ deno run --allow-read --allow-write "$PREFILTER_PATH" $REST_ARGS --input "$INPUT
 ### filter サブコマンドまたはサブコマンドなしの場合
 
 先頭トークンが `filter` なら除去し、それ以外（サブコマンドなし）はそのまま `$ARGS` として使用する。
-解決した `SCRIPT_PATH` と `INPUT` を使い、Bash で実行する:
+解決した `SCRIPT_PATH` を使い、Bash で実行する（`--input` は**追加しない**）:
 
 ```bash
-deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" $ARGS --input "$INPUT"
+deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" $ARGS
 ```
 
 引数からオプションを組み立てるルール:
 
-- 引数なし → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" --input "$INPUT"`
-- `agent` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt --input "$INPUT"`
-- `YYYY-MM` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" 2026-03 --input "$INPUT"`
-- `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03 --input "$INPUT"`
-- `agent YYYY-MM project` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03 aplys --input "$INPUT"`
+- 引数なし → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH"`
+- `agent` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt`
+- `YYYY-MM` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" 2026-03`
+- `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03`
+- `agent YYYY-MM project` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03 aplys`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 
 スクリプトは以下の基準でKEEP/DISCARDを判定し、DISCARDかつ confidence >= 0.7 のファイルを削除する:

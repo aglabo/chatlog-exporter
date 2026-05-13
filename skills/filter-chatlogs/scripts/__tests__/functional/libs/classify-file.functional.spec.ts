@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/prefilter/classify-file.functional.spec.ts
+// src: scripts/__tests__/functional/libs/classify-file.functional.spec.ts
 // @(#): prefilter-chatlogs.ts の機能テスト
 //       対象: classifyFile
 //
