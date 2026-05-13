@@ -67,7 +67,6 @@ const _EMPTY_PARSED: ParsedConfig = {};
 const _CUSTOM_DEFAULTS: FilterConfig = {
   ...DEFAULT_FILTER_CONFIG,
   agent: 'chatgpt',
-  inputDir: '/custom-default',
 };
 
 // ─── Tests
@@ -80,7 +79,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  *
  * ## 優先順位ルール
  * - `agent`    : parsed > globalConfig > defaults
- * - `inputDir` : parsed > globalConfig.chatlogsDir > defaults
+ * - `baseDir`  : parsed > globalConfig.chatlogsDir
  * - `dryRun`   : parsed > defaults (false)
  * - `period`   : parsed のみ（GlobalConfig 連携なし）
  * - `configFile` は FilterConfig に存在しないため結果に含まれない
@@ -88,7 +87,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `chunkSize`   : parsed > globalConfig.chunkSize > defaults
  * - `concurrency` : parsed > globalConfig.concurrency > defaults
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-16
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-31
  *
  * @see buildConfig
  */
@@ -157,59 +156,45 @@ describe('buildConfig', () => {
     });
   });
 
-  // ─── inputDir 優先順位 ───────────────────────────────────────────────────────
+  // ─── baseDir 優先順位 ───────────────────────────────────────────────────────
 
   /**
-   * `parsed.inputDir` がセットされている前提条件グループ。
+   * `parsed.baseDir` がセットされている前提条件グループ。
    *
-   * `parsed.inputDir` が GlobalConfig/defaults より優先されることを検証する。
+   * `parsed.baseDir` が GlobalConfig.chatlogsDir より優先されることを検証する。
    */
-  describe('Given: parsed.inputDir が指定されている', () => {
-    describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.inputDir` が最優先されることを検証する。 */
-      describe('Then: T-FL-BC-04 - parsed.inputDir が優先される', () => {
+  describe('Given: parsed.baseDir が指定されている', () => {
+    describe('When: GlobalConfig にも chatlogsDir が設定されている', () => {
+      /** `parsed.baseDir` が最優先されることを検証する。 */
+      describe('Then: T-FL-BC-30 - parsed.baseDir が優先される', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-FL-BC-04: parsed.inputDir=/custom → result.inputDir === /custom', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom' }, globalConfig);
-          assertEquals(result.inputDir, '/custom');
+        it('T-FL-BC-30: parsed.baseDir=/custom → result.baseDir === /custom', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/custom' }, globalConfig);
+          assertEquals(result.baseDir, '/custom');
         });
       });
     });
   });
 
   /**
-   * `parsed.inputDir` が未指定の前提条件グループ。
+   * `parsed.baseDir` が未指定の前提条件グループ。
    *
-   * GlobalConfig.chatlogsDir がある場合はその値が、ない場合はデフォルト値が使われることを検証する。
+   * GlobalConfig.chatlogsDir がある場合はその値が使われることを検証する。
    */
-  describe('Given: parsed.inputDir が未指定', () => {
+  describe('Given: parsed.baseDir が未指定', () => {
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
-      /** GlobalConfig.chatlogsDir が使われることを検証する。 */
-      describe('Then: T-FL-BC-05 - GlobalConfig の chatlogsDir が使われる', () => {
+      /** GlobalConfig.chatlogsDir が baseDir に使われることを検証する。 */
+      describe('Then: T-FL-BC-31 - GlobalConfig の chatlogsDir が baseDir に使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-FL-BC-05: globalConfig.chatlogsDir=/global → result.inputDir === /global', () => {
+        it('T-FL-BC-31: globalConfig.chatlogsDir=/global → result.baseDir === /global', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.inputDir, '/global');
-        });
-      });
-    });
-
-    describe('When: GlobalConfig に chatlogsDir が設定されていない', () => {
-      /** DEFAULT_FILTER_CONFIG.inputDir が使われることを検証する。 */
-      describe('Then: T-FL-BC-06 - DEFAULT_FILTER_CONFIG.inputDir が使われる', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-FL-BC-06: inputDir 未設定 → result.inputDir === DEFAULT_FILTER_CONFIG.inputDir', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.inputDir, DEFAULT_FILTER_CONFIG.inputDir);
+          assertEquals(result.baseDir, '/global');
         });
       });
     });
@@ -614,67 +599,6 @@ describe('buildConfig', () => {
             globalConfig,
           );
           assertEquals('configFile' in result, false);
-        });
-      });
-    });
-  });
-
-  // ─── chatlogsDir の解決と inputDir へのフォールバック ───────────────────────
-
-  /**
-   * `parsed.chatlogsDir` が `inputDir` のフォールバックとして機能し、かつ結果に保持されることを検証するグループ。
-   *
-   * `parsed.inputDir` が未指定のとき `parsed.chatlogsDir` が `inputDir` に使われる。
-   * 同時に `chatlogsDir` も結果に含まれることを検証する。
-   * 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.chatlogsDir` > `defaults.inputDir`
-   */
-  describe('Given: parsed.inputDir が未指定で parsed.chatlogsDir が指定されている', () => {
-    describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.chatlogsDir` が `inputDir` として使われ、結果に `chatlogsDir` が含まれることを検証する。 */
-      describe('Then: T-FL-BC-17 - parsed.chatlogsDir が inputDir に使われ、結果に保持される', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
-        });
-        it('T-FL-BC-17-01: parsed.chatlogsDir=/base → result.inputDir === /base', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, chatlogsDir: '/base' }, globalConfig);
-          assertEquals(result.inputDir, '/base');
-        });
-        it('T-FL-BC-17-02: parsed.chatlogsDir=/base → result.chatlogsDir === /base', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, chatlogsDir: '/base' }, globalConfig);
-          assertEquals(result.chatlogsDir, '/base');
-        });
-      });
-    });
-  });
-
-  /**
-   * `parsed.inputDir` と `parsed.chatlogsDir` の両方が指定された前提条件グループ。
-   *
-   * `parsed.inputDir`（`--input`）が `parsed.chatlogsDir`（`--chatlogs-dir`）より優先されることを検証する。
-   * `chatlogsDir` は結果にそのまま保持される。
-   */
-  describe('Given: parsed.inputDir と parsed.chatlogsDir の両方が指定されている', () => {
-    describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.inputDir` が優先され、`chatlogsDir` も保持されることを検証する。 */
-      describe('Then: T-FL-BC-18 - parsed.inputDir が parsed.chatlogsDir より優先され、chatlogsDir は保持される', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-FL-BC-18-01: inputDir=/custom, chatlogsDir=/base → result.inputDir === /custom', () => {
-          const result = buildConfig(
-            { ..._EMPTY_PARSED, inputDir: '/custom', chatlogsDir: '/base' },
-            globalConfig,
-          );
-          assertEquals(result.inputDir, '/custom');
-        });
-        it('T-FL-BC-18-02: inputDir=/custom, chatlogsDir=/base → result.chatlogsDir === /base', () => {
-          const result = buildConfig(
-            { ..._EMPTY_PARSED, inputDir: '/custom', chatlogsDir: '/base' },
-            globalConfig,
-          );
-          assertEquals(result.chatlogsDir, '/base');
         });
       });
     });
