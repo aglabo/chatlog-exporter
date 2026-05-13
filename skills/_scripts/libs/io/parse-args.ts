@@ -29,9 +29,6 @@ export const isDirectoryArg = (arg: string): boolean => {
  * - `YYYY-MM` 形式 → `period`
  * - 既知エージェント名 → `agent`
  * - ディレクトリパス → `chatlogsDir`
- *
- * `chatlogsDir` が未設定かつ `inputDir`（`optKeys` 経由）が設定されている場合は
- * `inputDir` の値を `chatlogsDir` にコピーする。
  */
 export const parseArgsToConfig = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
   args: string[],
@@ -96,17 +93,16 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; c
     }
   }
 
-  if (_config['inputDir'] !== undefined) {
-    const dir = normalizePath(_config['inputDir'] as string);
-    if (!isDirectoryArg(dir)) { throw new ChatlogError('InvalidArgs', `--input must be a directory : ${dir}`); }
-    _config['inputDir'] = dir;
+  if (_config['baseDir'] !== undefined) {
+    const dir = normalizePath(_config['baseDir'] as string);
+    if (!isDirectoryArg(dir)) { throw new ChatlogError('InvalidArgs', `--base-dir must be a directory : ${dir}`); }
+    _config['baseDir'] = dir;
   }
   if (_config['chatlogsDir'] !== undefined) {
     const dir = normalizePath(_config['chatlogsDir'] as string);
     if (!isDirectoryArg(dir)) { throw new ChatlogError('InvalidArgs', `--chatlogsDir must be a directory : ${dir}`); }
     _config['chatlogsDir'] = dir;
   }
-  _config['chatlogsDir'] ??= _config['inputDir'];
 
   return _config as Partial<T>;
 };
