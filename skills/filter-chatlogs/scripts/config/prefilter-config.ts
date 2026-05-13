@@ -22,18 +22,20 @@ export const buildConfig = (
 ): PrefilterConfig => {
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
+  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
+  const _chatlogsDir = parsed.chatlogsDir ?? _baseDir;
   const { configFile: _configFile, ...rest } = parsed;
   return {
     ...defaults,
     ...rest,
     agent: _agent,
+    baseDir: _baseDir,
     chatlogsDir: _chatlogsDir,
   };
 };
 
 const _OPT_KEYS: Record<string, keyof PrefilterParsedConfig> = {
-  '--input': 'chatlogsDir',
+  '--base-dir': 'baseDir',
   '--chatlogs-dir': 'chatlogsDir',
   '--config': 'configFile',
 };
