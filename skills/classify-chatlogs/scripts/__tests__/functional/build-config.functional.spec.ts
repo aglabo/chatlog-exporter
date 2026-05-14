@@ -110,6 +110,13 @@ describe('buildConfig', () => {
             ChatlogError,
           );
         });
+        it('T-CL-BC-04-02: err.subindex === "ModelName"', () => {
+          const err = assertThrows(
+            () => buildConfig(_EMPTY_PARSED, globalConfig),
+            ChatlogError,
+          );
+          assertEquals(err.subindex, 'ModelName');
+        });
       });
     });
   });

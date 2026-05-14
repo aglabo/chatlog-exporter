@@ -235,6 +235,17 @@ describe('loadProjectDic', () => {
       assertEquals(err instanceof ChatlogError, true);
       assertEquals((err as ChatlogError).kind, 'InvalidYaml');
     });
+
+    it('T-CL-LPD-16-03: throw された ChatlogError の subindex が "ProjectsDic" になる', async () => {
+      const err = await loadProjectDic(
+        'assets/configs/projects.dic',
+        _resolveToFixture,
+        _readInvalidYaml,
+      ).catch((e) => e);
+
+      assertEquals(err instanceof ChatlogError, true);
+      assertEquals((err as ChatlogError).subindex, 'ProjectsDic');
+    });
   });
 
   // ─── エッジケース ─────────────────────────────────────────────────────────
