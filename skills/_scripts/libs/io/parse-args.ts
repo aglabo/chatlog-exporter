@@ -62,7 +62,7 @@ const _setByType = (
   // flag は rawValue 不要。rawValue が渡された場合はエラー
   if (entry.type === 'flag') {
     if (rawValue !== undefined) {
-      return new ChatlogError('InvalidArgs', `フラグに値は指定できません: ${entry.option}`);
+      return new ChatlogError('InvalidArgs', 'FlagCannotSetValue', `フラグに値は指定できません: ${entry.option}`);
     }
     config[entry.field] = true;
     return null;
@@ -70,58 +70,62 @@ const _setByType = (
   switch (entry.type) {
     case 'string':
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'NullValue', `値が空です: ${entry.option}`);
       }
       config[entry.field] = rawValue;
       return null;
     case 'agent':
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'NullValue', `値が空です: ${entry.option}`);
       }
       if (!isKnownAgent(rawValue)) {
-        return new ChatlogError('InvalidArgs', `不明なエージェント: ${rawValue}`);
+        return new ChatlogError('InvalidArgs', 'UnknownAgent', `不明なエージェント: ${rawValue}`);
       }
       config[entry.field] = rawValue;
       return null;
     case 'integer': {
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'NullValue', `値が空です: ${entry.option}`);
       }
       const _n = parseInt(rawValue, 10);
       if (isNaN(_n)) {
-        return new ChatlogError('InvalidArgs', `整数ではありません: ${rawValue}`);
+        return new ChatlogError('InvalidArgs', 'IsNotInteger', `整数ではありません: ${rawValue}`);
       }
       config[entry.field] = _n;
       return null;
     }
     case 'number': {
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'NullValue', `値が空です: ${entry.option}`);
       }
       const _n = parseFloat(rawValue);
       if (isNaN(_n)) {
-        return new ChatlogError('InvalidArgs', `数値ではありません: ${rawValue}`);
+        return new ChatlogError('InvalidArgs', 'IsNotNumber', `数値ではありません: ${rawValue}`);
       }
       config[entry.field] = _n;
       return null;
     }
     case 'period': {
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'NullValue', `値が空です: ${entry.option}`);
       }
       if (!isArgPeriod(rawValue)) {
-        return new ChatlogError('InvalidArgs', `期間形式ではありません（YYYY または YYYY-MM）: ${rawValue}`);
+        return new ChatlogError(
+          'InvalidArgs',
+          'IsNotPeriod',
+          `期間形式ではありません（YYYY または YYYY-MM）: ${rawValue}`,
+        );
       }
       config[entry.field] = rawValue;
       return null;
     }
     case 'directory': {
       if (rawValue === undefined || rawValue === '') {
-        return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
+        return new ChatlogError('InvalidArgs', 'Value', `値が空です: ${entry.option}`);
       }
       const _dir = normalizePath(rawValue);
       if (!isArgDirectory(_dir)) {
-        return new ChatlogError('InvalidArgs', `ディレクトリ形式ではありません: ${rawValue}`);
+        return new ChatlogError('InvalidArgs', 'IsNotDirectory', `ディレクトリ形式ではありません: ${rawValue}`);
       }
       config[entry.field] = _dir;
       return null;
@@ -196,7 +200,7 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; c
       const _entry = _schemaMap.get(_option);
 
       if (_entry === undefined) {
-        throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
+        throw new ChatlogError('InvalidArgs', 'UnknownOption', `不明なオプション: ${arg}`);
       }
 
       const err = _setByType(_config, _entry, _rawValue);
@@ -216,7 +220,7 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; c
       const err = _setByType(_config, _schemaMap.get('chatlogsDir')!, arg);
       if (err) { throw err; }
     } else {
-      throw new ChatlogError('InvalidArgs', `不明な引数: ${arg}`);
+      throw new ChatlogError('InvalidArgs', 'UnknownPositionalParameter', `不明な引数: ${arg}`);
     }
   }
 
