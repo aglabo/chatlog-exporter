@@ -27,6 +27,7 @@ import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
+import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // -- internal --
 // constants
@@ -43,20 +44,16 @@ import { processChunk } from './modules/filter/process-chunk.ts';
 // 引数解析
 // ─────────────────────────────────────────────
 
-/** `--option value` 形式のオプションと ParsedConfig キーのマッピング。 */
-const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
-  '--base-dir': 'baseDir',
-  '--config': 'configFile',
-  '--chatlogs-dir': 'chatlogsDir',
-};
-
-/** `--flag` 形式（値なし）のオプションと ParsedConfig キーのマッピング。 */
-const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
-  '--dry-run': 'dryRun',
-};
+/** filter-chatlogs の引数スキーマ。 */
+const _SCHEMA: ArgsSchema = [
+  { option: '--base-dir', field: 'baseDir', type: 'directory' },
+  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
+  { option: '--dry-run', field: 'dryRun', type: 'flag' },
+];
 
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────
