@@ -23,7 +23,6 @@ import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.
 // -- external --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
-import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
@@ -37,6 +36,7 @@ import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
 // libs
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
+import { validateChatlogsDir } from './libs/common-utils.ts';
 import { prefilterFiles } from './libs/prefilter.ts';
 import { processChunk } from './modules/filter/process-chunk.ts';
 
@@ -110,27 +110,20 @@ export const main = async (args?: string[]): Promise<void> => {
     const _config = buildConfig(_parsed, _globalConfig);
 
     const _baseDir = _config.baseDir ?? _globalConfig.get('chatlogsDir') as string;
-    const _agentDir = resolveChatlogsDir({
-      chatlogsDir: _config.chatlogsDir,
-      baseDir: _baseDir,
-      agent: _config.agent,
-    });
-
-    // 入力ディレクトリ確認
-    if (!await dirExists(_agentDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
-    }
-
-    logger.info(`対象 agent: ${_config.agent}`);
-    if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
-
-    // ファイル列挙
     const _searchDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
       baseDir: _baseDir,
       agent: _config.agent,
       period: _config.period,
     });
+
+    // 入力ディレクトリ確認
+    await validateChatlogsDir(_searchDir);
+
+    logger.info(`対象 agent: ${_config.agent}`);
+    if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
+
+    // ファイル列挙
     const allFiles = await findFiles(_searchDir);
 
     // 事前フィルタ
