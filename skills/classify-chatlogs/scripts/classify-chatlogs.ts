@@ -25,6 +25,7 @@ import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getDirectory } from '../../_scripts/libs/path-utils/path-utils.ts';
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
+import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 // instances
 import { logger } from '../../_scripts/libs/io/logger.ts';
 // constants
@@ -57,20 +58,16 @@ import type {
 // 引数解析
 // ─────────────────────────────────────────────
 
-/** `--option value` 形式のオプションと ParsedConfig キーのマッピング。 */
-const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
-  '--input': 'inputDir',
-  '--model': 'model',
-  '--config': 'configFile',
-};
-
-/** `--flag` 形式（値なし）のオプションと ParsedConfig キーのマッピング。 */
-const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {
-  '--dry-run': 'dryRun',
-};
+/** classify-chatlogs の引数スキーマ。 */
+const _SCHEMA: ArgsSchema = [
+  { option: '--input', field: 'inputDir', type: 'string' },
+  { option: '--model', field: 'model', type: 'string' },
+  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--dry-run', field: 'dryRun', type: 'flag' },
+];
 
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────
