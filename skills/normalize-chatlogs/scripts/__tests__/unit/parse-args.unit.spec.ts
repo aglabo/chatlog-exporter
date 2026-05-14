@@ -116,5 +116,15 @@ describe('parseArgs', () => {
         'Invalid Args',
       );
     });
+
+    it('T-08-03-02: err.subindex が "Option" になる', () => {
+      let err: unknown;
+      try {
+        parseArgs(['--unknown']);
+      } catch (e) {
+        err = e;
+      }
+      assertEquals((err as ChatlogError).subindex, 'Option');
+    });
   });
 });
