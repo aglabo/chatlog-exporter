@@ -235,6 +235,15 @@ describe('parseArgsToConfig', () => {
             'Invalid Args',
           );
         });
+
+        it('T-PA-09-01-sub: err.subindex が "Option" になる', () => {
+          const err = assertThrows(
+            () => parseArgsToConfig<TestConfig>(['--unknown'], TEST_SCHEMA),
+            ChatlogError,
+          );
+          assertEquals(err.kind, 'InvalidArgs');
+          assertEquals(err.subindex, 'UnknownOption');
+        });
       });
     });
   });
@@ -250,6 +259,15 @@ describe('parseArgsToConfig', () => {
             ChatlogError,
             'Invalid Args',
           );
+        });
+
+        it('T-PA-10-01-sub: err.subindex が "Positional" になる', () => {
+          const err = assertThrows(
+            () => parseArgsToConfig<TestConfig>(['unknown-arg'], TEST_SCHEMA),
+            ChatlogError,
+          );
+          assertEquals(err.kind, 'InvalidArgs');
+          assertEquals(err.subindex, 'UnknownPositionalParameter');
         });
       });
     });
@@ -267,6 +285,15 @@ describe('parseArgsToConfig', () => {
             'Invalid Args',
           );
         });
+
+        it('T-PA-11-01-sub: err.subindex が "Value" になる', () => {
+          const err = assertThrows(
+            () => parseArgsToConfig<TestConfig>(['--output'], TEST_SCHEMA),
+            ChatlogError,
+          );
+          assertEquals(err.kind, 'InvalidArgs');
+          assertEquals(err.subindex, 'NullValue');
+        });
       });
     });
   });
@@ -283,6 +310,15 @@ describe('parseArgsToConfig', () => {
             'Invalid Args',
           );
         });
+
+        it('T-PA-12-01-sub: err.subindex が "Value" になる', () => {
+          const err = assertThrows(
+            () => parseArgsToConfig<TestConfig>(['--output='], TEST_SCHEMA),
+            ChatlogError,
+          );
+          assertEquals(err.kind, 'InvalidArgs');
+          assertEquals(err.subindex, 'NullValue');
+        });
       });
     });
   });
@@ -298,6 +334,15 @@ describe('parseArgsToConfig', () => {
             ChatlogError,
             'Invalid Args',
           );
+        });
+
+        it('T-PA-13-01-sub: err.subindex が "Flag" になる', () => {
+          const err = assertThrows(
+            () => parseArgsToConfig<TestConfig>(['--dry-run=true'], TEST_SCHEMA),
+            ChatlogError,
+          );
+          assertEquals(err.kind, 'InvalidArgs');
+          assertEquals(err.subindex, 'FlagCannotSetValue');
         });
       });
     });
@@ -375,6 +420,15 @@ describe('parseArgsToConfig', () => {
           'Invalid Args',
         );
       });
+
+      it('[Error] T-PA-17-01-sub: err.subindex が "Period" になる', () => {
+        const err = assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--period', 'invalid-format'], _SCHEMA_WITH_PERIOD),
+          ChatlogError,
+        );
+        assertEquals(err.kind, 'InvalidArgs');
+        assertEquals(err.subindex, 'IsNotPeriod');
+      });
     });
 
     describe('When: 正常系', () => {
@@ -418,6 +472,15 @@ describe('parseArgsToConfig', () => {
           'Invalid Args',
         );
       });
+
+      it('[Error] T-PA-18-01-sub: err.subindex が "Directory" になる', () => {
+        const err = assertThrows(
+          () => parseArgsToConfig<TestConfigWithChatlogsDir>(['--chatlogs-dir', 'plain-value'], _SCHEMA_WITH_CHATLOGS),
+          ChatlogError,
+        );
+        assertEquals(err.kind, 'InvalidArgs');
+        assertEquals(err.subindex, 'IsNotDirectory');
+      });
     });
 
     /** chatlogsDir が未設定の場合はスローしない。 */
@@ -453,6 +516,15 @@ describe('parseArgsToConfig', () => {
           'Invalid Args',
         );
       });
+
+      it('[Error] T-PA-19-01-sub: err.subindex が "Agent" になる', () => {
+        const err = assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--agent', 'unknown-bot'], _SCHEMA_WITH_AGENT),
+          ChatlogError,
+        );
+        assertEquals(err.kind, 'InvalidArgs');
+        assertEquals(err.subindex, 'UnknownAgent');
+      });
     });
   });
 
@@ -480,6 +552,15 @@ describe('parseArgsToConfig', () => {
           'Invalid Args',
         );
       });
+
+      it('[Error] T-PA-20-01-sub: err.subindex が "Integer" になる', () => {
+        const err = assertThrows(
+          () => parseArgsToConfig<TestConfig & { limit?: string }>(['--limit', 'abc'], _SCHEMA_WITH_INTEGER),
+          ChatlogError,
+        );
+        assertEquals(err.kind, 'InvalidArgs');
+        assertEquals(err.subindex, 'IsNotInteger');
+      });
     });
   });
 
@@ -506,6 +587,15 @@ describe('parseArgsToConfig', () => {
           ChatlogError,
           'Invalid Args',
         );
+      });
+
+      it('[Error] T-PA-21-01-sub: err.subindex が "Number" になる', () => {
+        const err = assertThrows(
+          () => parseArgsToConfig<TestConfig & { ratio?: string }>(['--ratio', 'xyz'], _SCHEMA_WITH_NUMBER),
+          ChatlogError,
+        );
+        assertEquals(err.kind, 'InvalidArgs');
+        assertEquals(err.subindex, 'IsNotNumber');
       });
     });
   });
