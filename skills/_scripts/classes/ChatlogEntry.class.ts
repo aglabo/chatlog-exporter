@@ -36,7 +36,7 @@ export class ChatlogEntry {
     }
     const _closeIdx = _lines.indexOf(FRONTMATTER_DELIMITER, 1);
     if (_closeIdx === -1) {
-      throw new ChatlogError('InvalidFormat', 'frontmatter block is not closed');
+      throw new ChatlogError('InvalidFormat', 'Frontmatter', 'frontmatter block is not closed');
     }
     if (_closeIdx === _lines.length - 1) {
       return { frontmatter: '', content: this._normalizeContent(_lines.join('\n')) };
