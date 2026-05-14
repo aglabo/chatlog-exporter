@@ -8,8 +8,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertRejects } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+// types
+import type { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 
 // ─── Test target
 import { backupOldPath } from '../../backup-old-path.ts';
@@ -56,11 +58,12 @@ describe('backupOldPath', () => {
         };
 
         // act & assert
-        await assertRejects(
+        const _err = await assertRejects(
           () => backupOldPath(outputPath, fakeListDir, _fakeStatExists),
           Error,
           'too many backups',
-        );
+        ) as ChatlogError;
+        assertEquals(_err.subindex, 'OutputPath');
       });
     });
 
