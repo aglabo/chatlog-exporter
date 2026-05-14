@@ -115,7 +115,7 @@ export const loadProjectDic = async (
     _parsed = parseYaml(text);
   } catch (e) {
     if (e instanceof SyntaxError) {
-      throw new ChatlogError('InvalidYaml', `YAML 構文エラー: ${e.message}`);
+      throw new ChatlogError('InvalidYaml', 'ProjectsDic', `YAML 構文エラー: ${e.message}`);
     }
     throw e;
   }
