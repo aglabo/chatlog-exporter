@@ -51,12 +51,12 @@ export const getProjectRootDir = async (
     _output = await _cmd.output();
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
-      throw new ChatlogError('GitNotFound', 'git command not found');
+      throw new ChatlogError('GitNotFound', 'GitCmd', 'git command not found');
     }
     throw e;
   }
   if (!_output.success) {
-    throw new ChatlogError('NotInGitRepo', `git exited with code ${_output.code}`);
+    throw new ChatlogError('NotInGitRepo', 'GitCmd', `git exited with code ${_output.code}`);
   }
   const _raw = new TextDecoder().decode(_output.stdout);
   return normalizePath(_raw.trim());
