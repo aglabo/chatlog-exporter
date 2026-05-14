@@ -111,11 +111,12 @@ describe('Given: git が未インストールの環境でプロジェクトル�
     describe('Then: T-LIB-U-13-03 - ChatlogError(GitNotFound) が throw される', () => {
       it('T-LIB-U-13-03: makeNotFoundMock() → ChatlogError(GitNotFound) が reject される', async () => {
         const _mock = makeNotFoundMock();
-        await assertRejects(
+        const _err = await assertRejects(
           () => getProjectRootDir(_mock),
           ChatlogError,
           'Git Not Found',
-        );
+        ) as ChatlogError;
+        assertEquals(_err.subindex, 'GitCmd');
       });
     });
   });
@@ -126,11 +127,12 @@ describe('Given: Git リポジトリ外でプロジェクトルートを取得�
     describe('Then: T-LIB-U-13-04 - ChatlogError(NotInGitRepo) が throw される', () => {
       it('T-LIB-U-13-04: makeFailMock(128) → ChatlogError(NotInGitRepo) が reject される', async () => {
         const _mock = makeFailMock(128);
-        await assertRejects(
+        const _err = await assertRejects(
           () => getProjectRootDir(_mock),
           ChatlogError,
           'Not In Git Repository',
-        );
+        ) as ChatlogError;
+        assertEquals(_err.subindex, 'GitCmd');
       });
     });
   });
