@@ -82,6 +82,16 @@ describe('renderPrompt', () => {
             'Invalid Args',
           );
         });
+
+        it('T-SF-RP-05-02: err.subindex が "VarName" になる', () => {
+          let err: unknown;
+          try {
+            renderPrompt('${BadName}', { BadName: 'val' });
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).subindex, 'VarName');
+        });
       });
     });
   });
@@ -97,6 +107,16 @@ describe('renderPrompt', () => {
             ChatlogError,
             'Invalid Args',
           );
+        });
+
+        it('T-SF-RP-06-02: err.subindex が "VarName" になる', () => {
+          let err: unknown;
+          try {
+            renderPrompt('${missing}', {});
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).subindex, 'VarName');
         });
       });
     });
