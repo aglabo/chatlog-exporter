@@ -360,7 +360,7 @@ export const writeOutput = async (
   }
 
   if (outputPath.includes('chatlogs/')) {
-    throw new ChatlogError('ForbiddenOutput', `writing to input directory is forbidden: ${outputPath}`);
+    throw new ChatlogError('ForbiddenOutput', 'OutputPath', `writing to input directory is forbidden: ${outputPath}`);
   }
 
   await backupOldPath(outputPath, listDir);
@@ -504,7 +504,7 @@ export const parseArgs = (argv: string[]): ParsedArgs => {
           // Positional path argument: already normalized, assign to dir
           result.dir = normalized;
         } else {
-          throw new ChatlogError('InvalidArgs', `unknown option: ${arg}`);
+          throw new ChatlogError('InvalidArgs', 'Option', `unknown option: ${arg}`);
         }
       }
     }
@@ -532,10 +532,10 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
     const args = parseArgs(argv ?? Deno.args);
     const resolved = resolveInputDir(args);
     if (!resolved.ok) {
-      throw new ChatlogError('InputNotFound', resolved.error);
+      throw new ChatlogError('InputNotFound', 'InputDir', resolved.error);
     }
     if (!validateInputDir(resolved.dir)) {
-      throw new ChatlogError('InputNotFound', `directory not found: ${resolved.dir}`);
+      throw new ChatlogError('InputNotFound', 'InputDir', `directory not found: ${resolved.dir}`);
     }
     const inputDir = resolved.dir;
     const outputBase = args.output ?? _DEFAULT_OUTPUT_DIR;
