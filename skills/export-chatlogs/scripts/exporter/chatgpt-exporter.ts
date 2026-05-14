@@ -306,7 +306,11 @@ export const exportChatGPT = async (
 ): Promise<ExportResult> => {
   const inputDir = config.inputDir ?? config.baseDir;
   if (!inputDir) {
-    throw new ChatlogError('MissingArg', 'ChatGPT エクスポートには --input/--base でディレクトリを指定してください');
+    throw new ChatlogError(
+      'MissingArg',
+      'InputDir',
+      'ChatGPT エクスポートには --input/--base でディレクトリを指定してください',
+    );
   }
 
   const range = parsePeriod(config.period);

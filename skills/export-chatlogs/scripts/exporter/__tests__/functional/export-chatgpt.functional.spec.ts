@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { exportChatGPT } from '../../chatgpt-exporter.ts';
+// chatlog error
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Helpers
 // types
@@ -229,19 +231,36 @@ describe('exportChatGPT', () => {
   describe('Given: config.baseDir が undefined', () => {
     /** `exportChatGPT` を呼び出したときにエラーがスローされることを検証する。 */
     describe('When: exportChatGPT(config) を呼び出す', () => {
-      it('T-EC-GE-04: エラーをスローする', async () => {
+      it('T-EC-GE-04-01: ChatlogError がスローされる', async () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           outputDir,
           baseDir: undefined,
           period: undefined,
         };
+        await assertRejects(() => exportChatGPT(config), ChatlogError);
+      });
 
-        await assertRejects(
-          () => exportChatGPT(config),
-          Error,
-          'ChatGPT エクスポートには --input/--base でディレクトリを指定してください',
-        );
+      it('T-EC-GE-04-02: throw された ChatlogError の kind が MissingArg である', async () => {
+        const config: ExportConfig = {
+          agent: 'chatgpt',
+          outputDir,
+          baseDir: undefined,
+          period: undefined,
+        };
+        const err = await exportChatGPT(config).catch((e) => e);
+        assertEquals((err as ChatlogError).kind, 'MissingArg');
+      });
+
+      it('T-EC-GE-04-03: throw された ChatlogError の subindex が "InputDir" になる', async () => {
+        const config: ExportConfig = {
+          agent: 'chatgpt',
+          outputDir,
+          baseDir: undefined,
+          period: undefined,
+        };
+        const err = await exportChatGPT(config).catch((e) => e);
+        assertEquals((err as ChatlogError).subindex, 'InputDir');
       });
     });
   });
