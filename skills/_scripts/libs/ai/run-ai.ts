@@ -28,6 +28,7 @@ export const runAI = async (
   if (!isValidModel(_options.model)) {
     throw new ChatlogError(
       'UnknownModel',
+      'ModelName',
       `"${_options.model}" is not valid. Valid models: opus, sonnet, haiku (or full IDs)`,
     );
   }
@@ -62,12 +63,12 @@ export const runAI = async (
     await _writer.close();
     const _output = await _process.output();
     if (!_output.success) {
-      throw new ChatlogError('CliError', `claude exited with code ${_output.code}`);
+      throw new ChatlogError('CliError', 'ClaudeCmd', `claude exited with code ${_output.code}`);
     }
     return new TextDecoder().decode(_output.stdout).trim();
   } catch (e) {
     if (_controller.signal.aborted) {
-      throw new ChatlogError('TimedOut', `claude timed out after ${_options.timeoutMs}ms`);
+      throw new ChatlogError('TimedOut', 'ClaudeCmd', `claude timed out after ${_options.timeoutMs}ms`);
     }
     throw e;
   } finally {
