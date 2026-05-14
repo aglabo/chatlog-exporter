@@ -384,8 +384,9 @@ describe('GlobalConfig', () => {
               readTextFileProvider: _notFoundRead,
             }),
           ChatlogError,
-        );
+        ) as ChatlogError;
         assertEquals(_err.kind, 'FileDirNotFound');
+        assertEquals(_err.subindex, 'ConfigFile');
       });
 
       it('[Error] T-CLS-GC-35: 不正な YAML 文字列 → ChatlogError の kind が InvalidYaml で reject', async () => {
@@ -397,8 +398,9 @@ describe('GlobalConfig', () => {
               readTextFileProvider: _makeReadOk('key: [unclosed'),
             }),
           ChatlogError,
-        );
+        ) as ChatlogError;
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'YamlSyntax');
       });
 
       it('[Error] T-CLS-GC-36: YAML ルートがスカラー（文字列） → ChatlogError の kind が InvalidYaml で reject', async () => {
@@ -410,8 +412,9 @@ describe('GlobalConfig', () => {
               readTextFileProvider: _makeReadOk('just a string\n'),
             }),
           ChatlogError,
-        );
+        ) as ChatlogError;
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'YamlRoot');
       });
 
       it('[Error] T-CLS-GC-37: スキーマ違反キー → ChatlogError の kind が InvalidYaml で reject', async () => {
@@ -423,8 +426,9 @@ describe('GlobalConfig', () => {
               readTextFileProvider: _makeReadOk('unknownKey: someValue\n'),
             }),
           ChatlogError,
-        );
+        ) as ChatlogError;
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'YamlKey');
       });
     });
   });
