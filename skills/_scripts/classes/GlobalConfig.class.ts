@@ -105,12 +105,12 @@ export class GlobalConfig {
       _raw = parse(text);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        throw new ChatlogError('InvalidYaml', `YAML 構文エラー: ${e.message}`);
+        throw new ChatlogError('InvalidYaml', 'YamlSyntax', `YAML 構文エラー: ${e.message}`);
       }
       throw e;
     }
     if (typeof _raw !== 'object' || _raw === null || Array.isArray(_raw)) {
-      throw new ChatlogError('InvalidYaml', `YAML ルートはオブジェクトである必要があります`);
+      throw new ChatlogError('InvalidYaml', 'YamlRoot', `YAML ルートはオブジェクトである必要があります`);
     }
     return this.parseYaml(_raw as Record<string, unknown>);
   }
@@ -119,7 +119,7 @@ export class GlobalConfig {
   parseYaml(raw: Record<string, unknown>): Partial<ConfigValues> {
     for (const key of Object.keys(raw)) {
       if (!(key in this._schema)) {
-        throw new ChatlogError('InvalidYaml', `不明なキー: ${key}`);
+        throw new ChatlogError('InvalidYaml', 'YamlKey', `不明なキー: ${key}`);
       }
     }
     const _result: Partial<ConfigValues> = {};
@@ -153,7 +153,11 @@ export class GlobalConfig {
       _text = await _readTextFile(_resolved);
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) {
-        throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
+        throw new ChatlogError(
+          'FileDirNotFound',
+          'ConfigFile',
+          `設定ファイル/ディレクトリが見つかりません: ${_resolved}`,
+        );
       }
       throw e;
     }
