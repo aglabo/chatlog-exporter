@@ -8,6 +8,7 @@
 
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 import { DEFAULT_PREFILTER_CONFIG } from '../constants/common.constants.ts';
 import type { PrefilterConfig, PrefilterParsedConfig } from '../types/prefilter.types.ts';
 
@@ -34,19 +35,17 @@ export const buildConfig = (
   };
 };
 
-const _OPT_KEYS: Record<string, keyof PrefilterParsedConfig> = {
-  '--base-dir': 'baseDir',
-  '--chatlogs-dir': 'chatlogsDir',
-  '--config': 'configFile',
-};
-
-const _OPT_FLAGS: Record<string, keyof PrefilterParsedConfig> = {
-  '--dry-run': 'dryRun',
-  '--report': 'report',
-};
+/** prefilter-chatlogs の引数スキーマ。 */
+const _SCHEMA: ArgsSchema = [
+  { option: '--base-dir', field: 'baseDir', type: 'directory' },
+  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
+  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--dry-run', field: 'dryRun', type: 'flag' },
+  { option: '--report', field: 'report', type: 'flag' },
+];
 
 export const parseArgs = (args: string[]): PrefilterParsedConfig => {
-  const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as PrefilterParsedConfig;
+  const _parsed = parseArgsToConfig<PrefilterParsedConfig>(args, _SCHEMA) as PrefilterParsedConfig;
   _parsed.dryRun ??= (_parsed.dryRun ?? false) || (_parsed.report ?? false);
   _parsed.report ??= false;
   return {
