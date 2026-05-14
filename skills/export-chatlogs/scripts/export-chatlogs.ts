@@ -26,6 +26,7 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // libs
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // exporters
@@ -41,14 +42,13 @@ import type { ExportConfig, ParsedConfig } from './types/export-config.types.ts'
 // 引数解析
 // ─────────────────────────────────────────────
 
-const _OPT_KEYS: Record<string, keyof ParsedConfig> = {
-  '--output': 'outputDir',
-  '--base': 'baseDir',
-  '--input': 'inputDir',
-  '--config': 'configFile',
-};
-
-const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {};
+/** export-chatlogs の引数スキーマ。 */
+const _SCHEMA: ArgsSchema = [
+  { option: '--output', field: 'outputDir', type: 'string' },
+  { option: '--base', field: 'baseDir', type: 'directory' },
+  { option: '--input', field: 'inputDir', type: 'string' },
+  { option: '--config', field: 'configFile', type: 'string' },
+];
 
 /**
  * CLI 引数配列を解析して `ParsedConfig` を返す。
@@ -57,7 +57,7 @@ const _OPT_FLAGS: Record<string, keyof ParsedConfig> = {};
  * @returns 解析済みの `ParsedConfig`
  */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _OPT_KEYS, _OPT_FLAGS) as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
 };
 
 // ─────────────────────────────────────────────
