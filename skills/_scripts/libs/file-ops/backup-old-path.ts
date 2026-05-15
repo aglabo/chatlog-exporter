@@ -87,7 +87,7 @@ export const backupOldPath = async (
 
   const _files = await listDir(dir);
   const next = _findNextSlot(_files, baseName);
-  if (next > 99) { throw new ChatlogError('TooManyBackups', `too many backups for: ${outputPath}`); }
+  if (next > 99) { throw new ChatlogError('TooManyBackups', 'IndexOverflow', `too many backups for: ${outputPath}`); }
 
   const idx = String(next).padStart(2, '0');
   await Deno.rename(outputPath, `${base}.old-${idx}.md`);
