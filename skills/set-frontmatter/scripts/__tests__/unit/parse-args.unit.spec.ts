@@ -83,9 +83,9 @@ describe('parseArgs', () => {
   describe('Given: 不正な引数', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: ChatlogError(InvalidArgs) がスローされる', () => {
-        const _errorCases: { id: string; args: string[]; label: string }[] = [
-          { id: 'T-SF-PA-10-01', args: [], label: 'targetDir なし（空配列）' },
-          { id: 'T-SF-PA-11-01', args: ['/path', '--unknown'], label: '未知オプション' },
+        const _errorCases: { id: string; args: string[]; label: string; subindex: string }[] = [
+          { id: 'T-SF-PA-10-01', args: [], label: 'targetDir なし（空配列）', subindex: 'NotSpecified' },
+          { id: 'T-SF-PA-11-01', args: ['/path', '--unknown'], label: '未知オプション', subindex: 'UnknownOption' },
         ];
         for (const { id, args, label } of _errorCases) {
           it(`${id}: ${label} → ChatlogError(InvalidArgs) がスローされる`, () => {
