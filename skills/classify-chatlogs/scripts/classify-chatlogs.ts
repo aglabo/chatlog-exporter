@@ -92,7 +92,7 @@ export function buildConfig(
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
   const _model = parsed.model ?? globalConfig.get('model') as string;
   if (!isValidModel(_model)) {
-    throw new ChatlogError('InvalidArgs', `不正なモデル名: ${_model}`);
+    throw new ChatlogError('InvalidArgs', 'InvalidModel', `不正なモデル名: ${_model}`);
   }
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _dicsDir = globalConfig.get('dicsDir') as string;
@@ -320,7 +320,7 @@ export const main = async (argv?: string[]): Promise<void> => {
     // 入力ディレクトリ確認
     const agentDir = `${_config.inputDir}/${_config.agent}`;
     if (!await dirExists(agentDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
+      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
     }
 
     // プロジェクト辞書読み込み
