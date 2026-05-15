@@ -210,31 +210,18 @@ describe('ChatlogEntry', () => {
    * 不正な frontmatter 入力で ChatlogError をスローすることを検証する。
    */
   describe('コンストラクタ 異常系', () => {
-    const _errorCases: {
-      id: string;
-      label: string;
-      input: string;
-      kind: string;
-    }[] = [
-      {
-        id: 'T-CLS-CE-13',
-        label: '閉じ --- なし入力では InvalidFormat を throw する',
-        input: '---\ntitle: Hello\nno closing separator',
-        kind: 'InvalidFormat',
-      },
-      {
-        id: 'T-CLS-CE-14',
-        label: 'YAML パース失敗時は InvalidYaml を throw する',
-        input: '---\n: invalid: yaml: {\n---\nbody',
-        kind: 'InvalidYaml',
-      },
-    ];
+    it(`T-CLS-CE-13: 閉じ --- なし入力では InvalidFormat を throw し subindex が NotClosed になる`, () => {
+      const _err = assertThrows(
+        () => new ChatlogEntry('---\ntitle: Hello\nno closing separator'),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'InvalidFormat');
+      assertEquals(_err.subindex, 'NotClosed');
+    });
 
-    for (const tc of _errorCases) {
-      it(`${tc.id}: ${tc.label}`, () => {
-        const err = assertThrows(() => new ChatlogEntry(tc.input), ChatlogError);
-        assertEquals(err.kind, tc.kind);
-      });
-    }
+    it(`T-CLS-CE-14: YAML パース失敗時は InvalidYaml を throw する`, () => {
+      const err = assertThrows(() => new ChatlogEntry('---\n: invalid: yaml: {\n---\nbody'), ChatlogError);
+      assertEquals(err.kind, 'InvalidYaml');
+    });
   });
 });

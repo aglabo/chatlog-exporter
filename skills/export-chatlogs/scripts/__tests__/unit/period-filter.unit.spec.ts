@@ -13,6 +13,9 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { inPeriod, parsePeriod } from '../../libs/period-filter.ts';
 
+// ─── Helpers
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+
 // ─── Tests
 
 /**
@@ -101,8 +104,28 @@ describe('parsePeriod', () => {
     describe('When: parsePeriod("invalid") を呼び出す', () => {
       /** T-EC-PF-01: Error をスローする */
       describe('Then: T-EC-PF-01 - Error をスローする', () => {
-        it('T-EC-PF-01-06: Error がスローされる', () => {
-          assertThrows(() => parsePeriod('invalid'), Error);
+        it('T-EC-PF-01-06: ChatlogError がスローされる', () => {
+          assertThrows(() => parsePeriod('invalid'), ChatlogError);
+        });
+
+        it('T-EC-PF-01-07: throw された ChatlogError の kind が InvalidPeriod である', () => {
+          let err: unknown;
+          try {
+            parsePeriod('invalid');
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).kind, 'InvalidPeriod');
+        });
+
+        it('T-EC-PF-01-08: throw された ChatlogError の subindex が "InvalidFormat" になる', () => {
+          let err: unknown;
+          try {
+            parsePeriod('invalid');
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).subindex, 'InvalidFormat');
         });
       });
     });

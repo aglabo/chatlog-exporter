@@ -110,6 +110,7 @@ describe('readTextFile', () => {
             ChatlogError,
           );
           assertEquals((err as ChatlogError).kind, 'FileDirNotFound');
+          assertEquals((err as ChatlogError).subindex, 'NotFound');
         });
       });
     });

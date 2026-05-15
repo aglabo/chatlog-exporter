@@ -138,13 +138,14 @@ export const main = async (argv?: string[]): Promise<void> => {
         if (!config.inputDir && !config.baseDir) {
           throw new ChatlogError(
             'InvalidArgs',
+            'NotSpecified',
             'chatgpt エージェントには入力ディレクトリを指定してください (位置引数または --input)',
           );
         }
         result = await exportChatGPT(config);
         break;
       default:
-        throw new ChatlogError('InvalidArgs', `未対応のエージェント: ${agent}`);
+        throw new ChatlogError('InvalidArgs', 'UnsupportedAgent', `未対応のエージェント: ${agent}`);
     }
 
     for (const outPath of result.outputPaths) {

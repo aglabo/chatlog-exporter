@@ -23,6 +23,7 @@ import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import {
   segmentChatlogs,
   writeOutput,
@@ -113,6 +114,18 @@ describe('writeOutput', () => {
         Error,
         'Forbidden Output',
       );
+    });
+
+    it('T-WO-04-02: throw された ChatlogError の subindex が "ForbiddenPath" になる', async () => {
+      // arrange
+      const outputPath = 'chatlogs/agent/2026/2026-01/output.md';
+      const stats: Stats = { success: 0, skip: 0, fail: 0 };
+
+      // act
+      const err = await writeOutput(outputPath, 'content', false, stats).catch((e) => e);
+
+      // assert
+      assertEquals((err as ChatlogError).subindex, 'ForbiddenPath');
     });
   });
 });

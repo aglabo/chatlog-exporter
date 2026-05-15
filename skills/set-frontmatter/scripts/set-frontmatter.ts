@@ -229,10 +229,10 @@ export const loadDics = async (dicsDir: string): Promise<Dics> => {
 export const renderPrompt = (template: string, vars: Record<string, string>): string => {
   return template.replace(/\$\{([^}]+)\}/g, (_match, name: string) => {
     if (!/^[a-z_]+$/.test(name)) {
-      throw new ChatlogError('InvalidArgs', `不正な変数名 "${name}" — 英小文字と "_" のみ使用可能`);
+      throw new ChatlogError('InvalidArgs', 'InvalidSyntax', `不正な変数名 "${name}" — 英小文字と "_" のみ使用可能`);
     }
     if (!(name in vars)) {
-      throw new ChatlogError('InvalidArgs', `未定義の変数 "${name}"`);
+      throw new ChatlogError('InvalidArgs', 'NotDefined', `未定義の変数 "${name}"`);
     }
     return vars[name];
   });
@@ -310,7 +310,7 @@ export const runClaude = async (systemPrompt: string, userPrompt: string): Promi
   await writer.write(new TextEncoder().encode(userPrompt));
   await writer.close();
   const output = await process.output();
-  if (!output.success) { throw new ChatlogError('CliError', `claude CLI エラー (code=${output.code})`); }
+  if (!output.success) { throw new ChatlogError('CliError', 'ExitFailure', `claude CLI エラー (code=${output.code})`); }
   return new TextDecoder().decode(output.stdout).trim();
 };
 
@@ -540,12 +540,13 @@ export const parseArgs = (args: string[]): Args => {
     } else if (!arg.startsWith('-')) {
       targetDir = arg;
     } else {
-      throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
+      throw new ChatlogError('InvalidArgs', 'UnknownOption', `不明なオプション: ${arg}`);
     }
   }
   if (!targetDir) {
     throw new ChatlogError(
       'InvalidArgs',
+      'NotSpecified',
       'Usage: set_frontmatter.ts <target_dir> [--dry-run] [--no-review] [--concurrency N] [--dics DIR]',
     );
   }
@@ -561,7 +562,7 @@ export const main = async (args: string[]): Promise<void> => {
     const { targetDir, dicsDir, dryRun, review, concurrency } = parseArgs(args);
 
     if (!await dirExists(targetDir)) {
-      throw new ChatlogError('InputNotFound', `ディレクトリが見つかりません: ${targetDir}`);
+      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${targetDir}`);
     }
 
     const dics = await loadDics(dicsDir);

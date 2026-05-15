@@ -399,6 +399,7 @@ describe('GlobalConfig', () => {
           ChatlogError,
         );
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'YamlSyntaxError');
       });
 
       it('[Error] T-CLS-GC-36: YAML ルートがスカラー（文字列） → ChatlogError の kind が InvalidYaml で reject', async () => {
@@ -412,6 +413,7 @@ describe('GlobalConfig', () => {
           ChatlogError,
         );
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'NotObject');
       });
 
       it('[Error] T-CLS-GC-37: スキーマ違反キー → ChatlogError の kind が InvalidYaml で reject', async () => {
@@ -425,6 +427,7 @@ describe('GlobalConfig', () => {
           ChatlogError,
         );
         assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'UnknownKey');
       });
     });
   });

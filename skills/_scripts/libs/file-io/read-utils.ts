@@ -34,7 +34,7 @@ export const readTextFile = async (
     return normalizeLine(await readProvider(path));
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
-      throw new ChatlogError('FileDirNotFound', path);
+      throw new ChatlogError('FileDirNotFound', 'NotFound', path);
     }
     throw e;
   }

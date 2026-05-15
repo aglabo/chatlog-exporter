@@ -105,12 +105,12 @@ export class GlobalConfig {
       _raw = parse(text);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        throw new ChatlogError('InvalidYaml', `YAML 構文エラー: ${e.message}`);
+        throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', `YAML 構文エラー: ${e.message}`);
       }
       throw e;
     }
     if (typeof _raw !== 'object' || _raw === null || Array.isArray(_raw)) {
-      throw new ChatlogError('InvalidYaml', `YAML ルートはオブジェクトである必要があります`);
+      throw new ChatlogError('InvalidYaml', 'NotObject', `YAML ルートはオブジェクトである必要があります`);
     }
     return this.parseYaml(_raw as Record<string, unknown>);
   }
@@ -119,7 +119,7 @@ export class GlobalConfig {
   parseYaml(raw: Record<string, unknown>): Partial<ConfigValues> {
     for (const key of Object.keys(raw)) {
       if (!(key in this._schema)) {
-        throw new ChatlogError('InvalidYaml', `不明なキー: ${key}`);
+        throw new ChatlogError('InvalidYaml', 'UnknownKey', `不明なキー: ${key}`);
       }
     }
     const _result: Partial<ConfigValues> = {};
