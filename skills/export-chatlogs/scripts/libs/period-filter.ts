@@ -39,7 +39,11 @@ export const parsePeriod = (period: string | undefined): PeriodRange => {
     const end = new Date(year + 1, 0, 1).getTime();
     return { startMs: start, endMs: end };
   }
-  throw new ChatlogError('InvalidPeriod', `期間の形式が不正です（例: 2026-03 または 2026）: ${period}`);
+  throw new ChatlogError(
+    'InvalidPeriod',
+    'InvalidFormat',
+    `期間の形式が不正です（例: 2026-03 または 2026）: ${period}`,
+  );
 };
 
 /** ISO8601 タイムスタンプが指定した期間範囲内にあるかを判定する。 */
