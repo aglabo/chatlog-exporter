@@ -221,42 +221,49 @@ describe('ChatlogFrontmatter', () => {
         label: '[異常] "---" で始まらない非空文字列は InvalidFormat',
         input: 'title: Hello',
         kind: 'InvalidFormat',
+        subindex: 'DoesNotStart',
       },
       {
         id: 'T-CLS-CF-31',
         label: '[異常] 閉じ区切り記号のない frontmatter 文字列は InvalidFormat',
         input: '---\ntitle: Hello',
         kind: 'InvalidFormat',
+        subindex: 'NotClosed',
       },
       {
         id: 'T-CLS-CF-32',
         label: '[異常] YAML 構文エラーのある frontmatter 文字列は InvalidYaml',
         input: '---\nfoo: : bad\n---\n',
         kind: 'InvalidYaml',
+        subindex: 'YamlSyntaxError',
       },
       {
         id: 'T-CLS-CF-33',
         label: '[異常] YAML が配列の frontmatter 文字列は InvalidFormat',
         input: '---\n- a\n- b\n---\n',
         kind: 'InvalidFormat',
+        subindex: 'YamlNotMapping',
       },
       {
         id: 'T-CLS-CF-34',
         label: '[異常] YAML がスカラーの frontmatter 文字列は InvalidFormat',
         input: '---\nhello\n---\n',
         kind: 'InvalidFormat',
+        subindex: 'YamlNotMapping',
       },
       {
         id: 'T-CLS-CF-35',
         label: '[エッジケース] 開き区切り記号のみの文字列は InvalidFormat',
         input: '---\n',
         kind: 'InvalidFormat',
+        subindex: 'NotClosed',
       },
       {
         id: 'T-CLS-CF-36',
         label: '[エッジケース] YAML が null の frontmatter 文字列は InvalidFormat',
         input: '---\nnull\n---\n',
         kind: 'InvalidFormat',
+        subindex: 'YamlNotMapping',
       },
     ];
 
@@ -266,5 +273,18 @@ describe('ChatlogFrontmatter', () => {
         assertEquals(err.kind, tc.kind);
       });
     }
+  });
+
+  /**
+   * @description toFrontmatter() メソッドの異常系ユニットテスト。
+   * fieldOrder が空の場合に ChatlogError がスローされることを検証する。
+   */
+  describe('toFrontmatter() - 異常系', () => {
+    it('T-CLS-CF-41: [異常] fieldOrder が空配列のとき InvalidArgs(IsEmpty) をスローする', () => {
+      const fm = new ChatlogFrontmatter('');
+      const err = assertThrows(() => fm.toFrontmatter([]), ChatlogError);
+      assertEquals(err.kind, 'InvalidArgs');
+      assertEquals(err.subindex, 'IsEmpty');
+    });
   });
 });
