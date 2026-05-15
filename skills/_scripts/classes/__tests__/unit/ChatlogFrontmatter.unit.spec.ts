@@ -215,7 +215,7 @@ describe('ChatlogFrontmatter', () => {
    * 不正フォーマット・YAML 構文エラーで ChatlogError がスローされることを検証する。
    */
   describe('コンストラクタ - 文字列入力 異常系', () => {
-    const _invalidInputCases: { id: string; label: string; input: string; kind: string }[] = [
+    const _invalidInputCases: { id: string; label: string; input: string; kind: string; subindex: string }[] = [
       {
         id: 'T-CLS-CF-30',
         label: '[異常] "---" で始まらない非空文字列は InvalidFormat',
