@@ -36,8 +36,8 @@ function _makeValidSession(): ExportedSession {
       firstUserText: 'コードレビューをお願いします',
     },
     turns: [
-      { role: 'user', text: 'コードレビューをお願いします' },
-      { role: 'assistant', text: 'コードを確認しました。' },
+      { role: 'user', content: 'コードレビューをお願いします' },
+      { role: 'assistant', content: 'コードを確認しました。' },
     ],
   };
 }
