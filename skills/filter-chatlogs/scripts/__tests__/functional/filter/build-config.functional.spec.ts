@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { buildConfig } from '../../../filter-chatlogs.ts';
 // types
-import type { FilterConfig, ParsedConfig } from '../../../types/filter.types.ts';
+import type { FilterConfig, FilterParsedConfig } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 // constants
@@ -60,8 +60,8 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   });
 };
 
-/** 空の ParsedConfig。 */
-const _EMPTY_PARSED: ParsedConfig = {};
+/** 空の FilterParsedConfig。 */
+const _EMPTY_PARSED: FilterParsedConfig = {};
 
 /** `DEFAULT_FILTER_CONFIG` と異なる値を持つカスタムデフォルト設定。`defaults` パラメータの注入テストに使用する。 */
 const _CUSTOM_DEFAULTS: FilterConfig = {
@@ -75,7 +75,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * `buildConfig` 関数の機能テストスイート。
  *
  * `buildConfig(parsed, globalConfig, defaults?)` は
- * `ParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `FilterConfig` を構築する。
+ * `FilterParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `FilterConfig` を構築する。
  *
  * ## 優先順位ルール
  * - `agent`    : parsed > globalConfig > defaults
