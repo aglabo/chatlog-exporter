@@ -8,20 +8,24 @@
 
 // cspell:words conv
 
+// constants
+import { ConversationRole } from '../../types/conversation-role.const.types.ts';
 // types
 import type { Conversation, Turn } from '../../types/conversation.types.ts';
 
 /** Conversation から role=user のターンのみ返す。 */
-export const getUserTurns = (conv: Conversation): readonly Turn[] => conv.filter((t) => t.role === 'user');
+export const getUserTurns = (conv: Conversation): readonly Turn[] =>
+  conv.filter((t) => t.role === ConversationRole.user);
 
 /** Conversation から role=assistant のターンのみ返す。 */
-export const getAssistantTurns = (conv: Conversation): readonly Turn[] => conv.filter((t) => t.role === 'assistant');
+export const getAssistantTurns = (conv: Conversation): readonly Turn[] =>
+  conv.filter((t) => t.role === ConversationRole.assistant);
 
 /** Turn[] の content の合計文字数を返す。空配列のとき 0。 */
 export const countChars = (turns: readonly Turn[]): number => turns.reduce((sum, t) => sum + t.content.length, 0);
 
 /** Conversation に user ターンが 1 件以上あれば true。 */
-export const hasUserTurn = (conv: Conversation): boolean => conv.some((t) => t.role === 'user');
+export const hasUserTurn = (conv: Conversation): boolean => conv.some((t) => t.role === ConversationRole.user);
 
 /** User ターンがちょうど 1 件のとき true。 */
 export const isSingleUserTurn = (conv: Conversation): boolean => getUserTurns(conv).length === 1;
@@ -33,7 +37,7 @@ export const parseConversation = (body: string): Conversation => {
   const matches = [...body.matchAll(pattern)];
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
-    const role = m[1].toLowerCase() as 'user' | 'assistant';
+    const role = m[1].toLowerCase() as ConversationRole;
     const start = m.index! + m[0].length;
     const end = i + 1 < matches.length ? matches[i + 1].index! : body.length;
     const text = body.slice(start, end).trim();
@@ -51,7 +55,7 @@ export const parseConversation = (body: string): Conversation => {
  */
 export const renderConversation = (conv: Conversation, maxChars?: number): string => {
   const _parts = conv.map((t) => {
-    const role = t.role === 'user' ? 'User' : 'Assistant';
+    const role = t.role === ConversationRole.user ? 'User' : 'Assistant';
     return `### ${role}\n${t.content}`;
   });
   const _body = _parts.join('\n\n');
