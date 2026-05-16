@@ -56,8 +56,8 @@ function _makeSession(sessionId: string, project: string): ExportedSession {
       firstUserText: 'テスト用のメッセージです',
     },
     turns: [
-      { role: 'user', text: 'テスト用のメッセージです' },
-      { role: 'assistant', text: 'テスト用の応答です。' },
+      { role: 'user', content: 'テスト用のメッセージです' },
+      { role: 'assistant', content: 'テスト用の応答です。' },
     ],
   };
 }
