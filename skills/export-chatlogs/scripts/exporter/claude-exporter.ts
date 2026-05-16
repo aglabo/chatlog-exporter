@@ -13,6 +13,8 @@ import { findDirectories, findEntries } from '../../../_scripts/libs/file-ops/fi
 import { homeDir } from '../../../_scripts/libs/path-utils/dir-utils.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
+// constants
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
@@ -163,7 +165,7 @@ export const parseClaudeSession = async (
       if (e.isMeta) { continue; }
       const text = extractClaudeUserText(e.message?.content);
       if (!text || isSkippable(text)) { continue; }
-      turns.push({ role: 'user', content: text });
+      turns.push({ role: ConversationRole.user, content: text });
       lastAssistantMsgId = '';
     } else if (e.type === 'assistant') {
       if (e.isMeta) { continue; }
@@ -173,7 +175,7 @@ export const parseClaudeSession = async (
       if (msgId && msgId === lastAssistantMsgId && lastAssistantIdx >= 0) {
         turns[lastAssistantIdx].content += text;
       } else {
-        turns.push({ role: 'assistant', content: text });
+        turns.push({ role: ConversationRole.assistant, content: text });
         lastAssistantIdx = turns.length - 1;
         lastAssistantMsgId = msgId;
       }
