@@ -15,6 +15,8 @@ import { describe, it } from '@std/testing/bdd';
 import { _matchConversationPattern } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
+// constants
+import { ConversationRole } from '../../../../../_scripts/types/conversation-role.const.types.ts';
 // types
 import type { Conversation } from '../../../../../_scripts/types/conversation.types.ts';
 import type { NoiseConversationPattern } from '../../../types/patterns.types.ts';
@@ -25,21 +27,21 @@ import type { NoiseConversationPattern } from '../../../types/patterns.types.ts'
 /** user エントリのみを持つパターン定義。`/commit` で始まる user テキストにマッチする。 */
 const _userOnlyPatterns: NoiseConversationPattern[] = [{
   label: 'userのみパターン',
-  entries: [{ target: 'user', pattern: /^\/commit\b/ }],
+  entries: [{ target: ConversationRole.user, pattern: /^\/commit\b/ }],
 }];
 
 /** assistant エントリのみを持つパターン定義。大文字小文字無視で `ok` と完全一致する。 */
 const _assistantOnlyPatterns: NoiseConversationPattern[] = [{
   label: 'assistantのみパターン',
-  entries: [{ target: 'assistant', pattern: /^ok$/i }],
+  entries: [{ target: ConversationRole.assistant, pattern: /^ok$/i }],
 }];
 
 /** user + assistant 両エントリを持つパターン定義。両方が一致した場合にのみマッチする。 */
 const _bothPatterns: NoiseConversationPattern[] = [{
   label: '両方パターン',
   entries: [
-    { target: 'user', pattern: /^\/commit\b/ },
-    { target: 'assistant', pattern: /^ok$/i },
+    { target: ConversationRole.user, pattern: /^\/commit\b/ },
+    { target: ConversationRole.assistant, pattern: /^ok$/i },
   ],
 }];
 
@@ -51,7 +53,7 @@ const _emptyEntryPatterns: NoiseConversationPattern[] = [{
 
 // functions
 /** ロール・テキストペアから Conversation を生成するヘルパー。 */
-const _makeConversation = (turns: Array<{ role: 'user' | 'assistant'; content: string }>): Conversation => turns;
+const _makeConversation = (turns: Array<{ role: ConversationRole; content: string }>): Conversation => turns;
 
 // ─── Tests
 
