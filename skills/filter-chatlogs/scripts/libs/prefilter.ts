@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:ignore conv
+
 // ─── external ───
 import {
   countChars,
@@ -25,7 +27,7 @@ import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts'
 import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
 import { EXCLUDE_FILENAME_PATTERNS_STR, SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 // types
-import type { Stats } from '../types/filter.types.ts';
+import type { FilterStats } from '../types/filter.types.ts';
 
 // ─────────────────────────────────────────────
 // 事前フィルタ関数
@@ -88,7 +90,7 @@ export const prefilterFiles = async (
   files: string[],
   minCharCount = DEFAULT_VALUES.minCharCount as number,
   minAssistantChars = DEFAULT_VALUES.minAssistantChars as number,
-  stats?: Stats,
+  stats?: FilterStats,
 ): Promise<string[]> => {
   const passed: string[] = [];
   let skipped = 0;
