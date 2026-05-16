@@ -492,6 +492,26 @@ describe('checkAssistantContent', () => {
 
       assertEquals(result, null);
     });
+
+    it('[Edge] T-PF-AC-10-01: assistant が MIN_ASSISTANT_CHARS - 1（99文字）の場合 → null でない（reason を返す）', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS - 1) },
+      ]);
+      const result = checkAssistantContent(turns);
+
+      assertNotEquals(result, null);
+    });
+
+    it('[Edge] T-PF-AC-10-02: reason に `99`（文字数）が含まれる', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS - 1) },
+      ]);
+      const result = checkAssistantContent(turns);
+
+      assertEquals(result!.includes(`${MIN_ASSISTANT_CHARS - 1}`), true);
+    });
   });
 });
 
@@ -610,6 +630,16 @@ describe('checkConversationPattern', () => {
 
       assertEquals(result, null);
     });
+
+    it("[Edge] T-PF-CV-04-01: User ターンの content が空文字列 `''` → null を返す", () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '' },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkConversationPattern(turns);
+
+      assertEquals(result, null);
+    });
   });
 });
 
@@ -723,6 +753,32 @@ describe('checkPromptContent', () => {
         { role: 'user', content: 'Based on the issue title, generate a branch name' },
         { role: 'assistant', content: '回答1' },
         { role: 'user', content: '通常の質問' },
+      ]);
+      const result = checkPromptContent(turns);
+
+      assertEquals(result, null);
+    });
+
+    it('[Edge] T-PF-PM-04-01: タイトル説明生成プロンプトが先頭でない → null（先頭でないので不一致）', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content: '前置テキスト\n以下のタイトルに対して、50-100文字程度の簡潔な説明を生成してください',
+        },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkPromptContent(turns);
+
+      assertEquals(result, null);
+    });
+
+    it('[Edge] T-PF-PM-04-02: システムプロンプト転写が先頭でない → null（先頭でないので不一致）', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content: 'なお、you are a topic and tag extraction assistant として機能します',
+        },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
