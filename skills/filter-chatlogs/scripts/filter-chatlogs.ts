@@ -33,7 +33,7 @@ import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
 // types
-import type { FilterConfig, ParsedConfig } from './types/filter.types.ts';
+import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 // libs
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
@@ -52,8 +52,8 @@ const _SCHEMA: ArgsSchema = [
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
 ];
 
-export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
+export const parseArgs = (args: string[]): FilterParsedConfig => {
+  return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA) as FilterParsedConfig;
 };
 
 // ─────────────────────────────────────────────
@@ -61,7 +61,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 // ─────────────────────────────────────────────
 
 /**
- * ParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
+ * FilterParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')`
  * - chatlogsDir 優先順位: `parsed.chatlogsDir`（直接指定のみ、未指定なら `undefined`）
@@ -71,7 +71,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * - `configFile` は FilterConfig に存在しないため結果に含まれない。
  */
 export const buildConfig = (
-  parsed: ParsedConfig,
+  parsed: FilterParsedConfig,
   globalConfig: GlobalConfig,
   defaults: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): FilterConfig => {

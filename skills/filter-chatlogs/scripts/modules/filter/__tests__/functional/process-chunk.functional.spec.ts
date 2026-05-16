@@ -16,7 +16,7 @@ import { stub } from '@std/testing/mock';
 // ─── Test target
 import { processChunk } from '../../process-chunk.ts';
 // types
-import type { Stats } from '../../../../types/filter.types.ts';
+import type { FilterStats } from '../../../../types/filter.types.ts';
 
 // ─── Helpers
 import {
@@ -62,11 +62,11 @@ describe('processChunk', () => {
   let commandHandle: CommandMockHandle;
 
   /**
-   * 初期値がすべて 0 の `Stats` オブジェクトを生成する。
+   * 初期値がすべて 0 の `FilterStats` オブジェクトを生成する。
    *
-   * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の Stats
+   * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の FilterStats
    */
-  function _makeStats(): Stats {
+  function _makeStats(): FilterStats {
     return { kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 };
   }
 

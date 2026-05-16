@@ -16,7 +16,7 @@ import { stub } from '@std/testing/mock';
 // ─── Test target
 import { prefilterFiles } from '../../../libs/prefilter.ts';
 // types
-import type { Stats } from '../../../types/filter.types.ts';
+import type { FilterStats } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 import { makePeriodDir, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
@@ -26,11 +26,11 @@ import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 // ─── Internal Helpers
 
 /**
- * テスト用の初期化済み `Stats` オブジェクトを返す。
+ * テスト用の初期化済み `FilterStats` オブジェクトを返す。
  *
- * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の Stats
+ * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の FilterStats
  */
-const _makeStats = (): Stats => ({ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 });
+const _makeStats = (): FilterStats => ({ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 });
 
 // ─── Tests
 
