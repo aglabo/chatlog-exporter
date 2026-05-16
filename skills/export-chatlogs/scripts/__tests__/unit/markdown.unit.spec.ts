@@ -38,8 +38,8 @@ function _makeMeta(overrides: Partial<SessionMeta> = {}): SessionMeta {
 
 /** 最小構成の会話ターン配列。user + assistant 各1件からなり、基本的な Markdown 出力テストに使用する。 */
 const _basicTurns: Turn[] = [
-  { role: 'user', text: 'ユーザーの質問' },
-  { role: 'assistant', text: 'AIの回答' },
+  { role: 'user', content: 'ユーザーの質問' },
+  { role: 'assistant', content: 'AIの回答' },
 ];
 
 // ─── Tests
@@ -123,7 +123,7 @@ describe('renderMarkdown', () => {
         });
 
         it('T-EC-RM-02-04: ターン内の3連続改行が2連続改行に正規化される', () => {
-          const turns: Turn[] = [{ role: 'user', text: 'line1\n\n\nline2' }];
+          const turns: Turn[] = [{ role: 'user', content: 'line1\n\n\nline2' }];
           const result = renderMarkdown(_makeMeta(), turns);
           assertEquals(result.includes('\n\n\n'), false);
         });
