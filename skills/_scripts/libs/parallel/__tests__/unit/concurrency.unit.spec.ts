@@ -71,6 +71,68 @@ describe('withConcurrency', () => {
       });
     });
   });
+
+  describe('Given: 遅いタスクと速いタスクが混在する', () => {
+    describe('When: withConcurrency を実行する', () => {
+      describe('Then: T-LIB-C-14 - 完了順に関わらず入力順で結果が返る', () => {
+        it('T-LIB-C-14-01: 遅いタスク(index=0)が先頭にあっても結果配列は入力順', async () => {
+          const _order: number[] = [];
+          const _tasks = [
+            async () => {
+              await new Promise((r) => setTimeout(r, 20));
+              _order.push(0);
+              return 'slow';
+            },
+            async () => {
+              _order.push(1);
+              return 'fast1';
+            },
+            async () => {
+              _order.push(2);
+              return 'fast2';
+            },
+          ];
+          const _results = await withConcurrency(_tasks, 3);
+          assertEquals(_results, ['slow', 'fast1', 'fast2']);
+        });
+      });
+    });
+  });
+
+  describe('Given: 複数のタスクが reject する', () => {
+    describe('When: withConcurrency を実行する', () => {
+      describe('Then: T-LIB-C-15 - いずれかの reject が伝播する', () => {
+        it('T-LIB-C-15-01: 複数タスクが reject するとき Promise が reject される', async () => {
+          const _tasks = [
+            () => Promise.reject(new Error('fail-1')),
+            () => Promise.reject(new Error('fail-2')),
+            () => Promise.resolve('ok'),
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=1（順序実行）', () => {
+    describe('When: withConcurrency を実行する', () => {
+      describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
+        it('T-LIB-C-16-01: limit=1 でも結果配列が入力順序と一致する', async () => {
+          const _executed: number[] = [];
+          const _tasks = [1, 2, 3].map((n) => async () => {
+            _executed.push(n);
+            return n * 10;
+          });
+          const _results = await withConcurrency(_tasks, 1);
+          assertEquals(_results, [10, 20, 30]);
+          assertEquals(_executed, [1, 2, 3]);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -213,6 +275,23 @@ describe('runChunked', () => {
           assertEquals(_received.length, 1);
           assertEquals(_received[0], [1, 2, 3]);
           assertEquals(_results, [3]);
+        });
+      });
+    });
+  });
+
+  describe('Given: chunkSize=1（1要素/chunk）', () => {
+    describe('When: runChunked を実行する', () => {
+      describe('Then: T-LIB-C-17 - items.length 個のチャンクが生成される', () => {
+        it('T-LIB-C-17-01: items 3個 chunkSize=1 → fn が3回呼ばれ各チャンクは1要素', async () => {
+          const _received: number[][] = [];
+          const _fn = (chunk: number[]): Promise<number> => {
+            _received.push([...chunk]);
+            return Promise.resolve(chunk[0]);
+          };
+          const _results = await runChunked([10, 20, 30], 1, _fn, 2);
+          assertEquals(_received, [[10], [20], [30]]);
+          assertEquals(_results, [10, 20, 30]);
         });
       });
     });
