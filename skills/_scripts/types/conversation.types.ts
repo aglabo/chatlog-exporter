@@ -6,10 +6,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/** 会話の1ターンを表す。role は発話者、text は発話内容。 */
+/** 会話の1ターンを表す。role は発話者、content は発話内容。 */
 export interface Turn {
   role: 'user' | 'assistant';
-  text: string;
+  content: string;
 }
 
 /** Turn の読み取り専用配列。会話全体を表す。 */
