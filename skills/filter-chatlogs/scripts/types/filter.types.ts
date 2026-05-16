@@ -39,7 +39,7 @@ export interface FilterConfig {
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
-export type ParsedConfig = Partial<FilterConfig> & {
+export type FilterParsedConfig = Partial<FilterConfig> & {
   /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
   configFile?: string;
 };
@@ -57,7 +57,7 @@ export interface ClaudeResult {
 }
 
 /** バッチ処理全体の処理統計。 */
-export interface Stats {
+export interface FilterStats {
   kept: number;
   discarded: number;
   skipped: number;
