@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+
 /** ConversationEntry の制御値を一元管理するオブジェクト定数。 */
 export const ENTRY_CONTROL = {
   SKIP: 'skip',
@@ -16,13 +18,13 @@ export type EntryControl = typeof ENTRY_CONTROL[keyof typeof ENTRY_CONTROL];
 
 /** パターンマッチングエントリ（pattern 必須、control なし）。 */
 export type MatchEntry = {
-  target: 'user' | 'assistant';
+  target: ConversationRole;
   pattern: RegExp;
 };
 
 /** 会話エントリの判定対象・パターンを定義する型。 */
 export type ConversationEntry = {
-  target: 'user' | 'assistant';
+  target: ConversationRole;
   pattern?: RegExp;
   control?: EntryControl;
 };
