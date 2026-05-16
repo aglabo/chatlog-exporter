@@ -14,7 +14,7 @@ import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
 import { buildBatchPrompt } from '../../libs/batch-prompt.ts';
-import type { ClaudeResult, Stats } from '../../types/filter.types.ts';
+import type { ClaudeResult, FilterStats } from '../../types/filter.types.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
@@ -34,7 +34,7 @@ DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 export const processChunk = async (
   chunkFiles: string[],
   dryRun: boolean,
-  stats: Stats,
+  stats: FilterStats,
   discardThreshold: number,
 ): Promise<void> => {
   const batchPrompt = await buildBatchPrompt(chunkFiles);
