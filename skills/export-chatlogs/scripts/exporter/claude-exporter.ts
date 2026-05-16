@@ -162,7 +162,7 @@ export const parseClaudeSession = async (
       if (e.isMeta) { continue; }
       const text = extractClaudeUserText(e.message?.content);
       if (!text || isSkippable(text)) { continue; }
-      turns.push({ role: 'user', text });
+      turns.push({ role: 'user', content: text });
       lastAssistantMsgId = '';
     } else if (e.type === 'assistant') {
       if (e.isMeta) { continue; }
@@ -170,9 +170,9 @@ export const parseClaudeSession = async (
       const text = extractClaudeAssistantText(e.message?.content);
       if (!text) { continue; }
       if (msgId && msgId === lastAssistantMsgId && lastAssistantIdx >= 0) {
-        turns[lastAssistantIdx].text += text;
+        turns[lastAssistantIdx].content += text;
       } else {
-        turns.push({ role: 'assistant', text });
+        turns.push({ role: 'assistant', content: text });
         lastAssistantIdx = turns.length - 1;
         lastAssistantMsgId = msgId;
       }

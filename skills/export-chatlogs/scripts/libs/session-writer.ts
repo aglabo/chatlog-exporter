@@ -49,7 +49,7 @@ export const renderMarkdown = (meta: SessionMeta, turns: Turn[]): string => {
     const label = turn.role === 'user' ? 'User' : 'Assistant';
     _lines.push(`### ${label}`);
     _lines.push('');
-    _lines.push(turn.text.trim().replace(/\n{3,}/g, '\n\n'));
+    _lines.push(turn.content.trim().replace(/\n{3,}/g, '\n\n'));
     _lines.push('');
   }
   return _lines.join('\n');

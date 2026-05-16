@@ -128,14 +128,14 @@ describe('checkFilename', () => {
  */
 describe('checkUserContent', () => {
   /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
-  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; text: string }>): Turn[] {
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
     return turns;
   }
 
   /** User ターンが存在しないケース・全ターンがシステムタグ・コマンドのみのケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-PF-UC-01-01: "Userターンが存在しない" を含む reason を返す', () => {
-      const turns = _makeTurns([{ role: 'assistant', text: '回答' }]);
+      const turns = _makeTurns([{ role: 'assistant', content: '回答' }]);
       const result = checkUserContent(turns);
 
       assertNotEquals(result, null);
@@ -144,8 +144,8 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-02-01: 単一 User ターンで <system-reminder> のみ → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '<system-reminder>システムメッセージ</system-reminder>' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '<system-reminder>システムメッセージ</system-reminder>' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkUserContent(turns);
 
@@ -154,9 +154,9 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-02-02: 複数 User ターン全てが <system-reminder> → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '<system-reminder>msg1</system-reminder>' },
-        { role: 'assistant', text: '回答' },
-        { role: 'user', text: '<command-name>cmd</command-name>' },
+        { role: 'user', content: '<system-reminder>msg1</system-reminder>' },
+        { role: 'assistant', content: '回答' },
+        { role: 'user', content: '<command-name>cmd</command-name>' },
       ]);
       const result = checkUserContent(turns);
 
@@ -165,8 +165,8 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-03-01: 単一 User ターンで /commit のみ → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '/commit' },
-        { role: 'assistant', text: '了解しました' },
+        { role: 'user', content: '/commit' },
+        { role: 'assistant', content: '了解しました' },
       ]);
       const result = checkUserContent(turns);
 
@@ -175,9 +175,9 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-03-02: 複数 User ターン全てが /コマンド → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '/commit' },
-        { role: 'assistant', text: '回答1' },
-        { role: 'user', text: '/export-log' },
+        { role: 'user', content: '/commit' },
+        { role: 'assistant', content: '回答1' },
+        { role: 'user', content: '/export-log' },
       ]);
       const result = checkUserContent(turns);
 
@@ -186,8 +186,8 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-03-04: 単一 User ターンで /filter-chatlogs のみ → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '/filter-chatlogs' },
-        { role: 'assistant', text: '了解しました' },
+        { role: 'user', content: '/filter-chatlogs' },
+        { role: 'assistant', content: '了解しました' },
       ]);
       const result = checkUserContent(turns);
 
@@ -196,8 +196,8 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-06-01: "C:\\\\Users\\\\foo\\\\bar.md" → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'C:\\Users\\foo\\bar.md' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'C:\\Users\\foo\\bar.md' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkUserContent(turns);
 
@@ -206,8 +206,8 @@ describe('checkUserContent', () => {
 
     it('[Error] T-PF-UC-06-02: "docs/readme.md" → reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'docs/readme.md' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'docs/readme.md' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkUserContent(turns);
 
@@ -219,8 +219,8 @@ describe('checkUserContent', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-PF-UC-08-01: 通常テキストの単一 User ターン → null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'この機能の設計についてどう思いますか？' },
-        { role: 'assistant', text: '良い設計だと思います。' },
+        { role: 'user', content: 'この機能の設計についてどう思いますか？' },
+        { role: 'assistant', content: '良い設計だと思います。' },
       ]);
       const result = checkUserContent(turns);
 
@@ -229,10 +229,10 @@ describe('checkUserContent', () => {
 
     it('[Normal] T-PF-UC-08-02: 複数の通常 User ターン → null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問1' },
-        { role: 'assistant', text: '回答1' },
-        { role: 'user', text: '質問2' },
-        { role: 'assistant', text: '回答2' },
+        { role: 'user', content: '質問1' },
+        { role: 'assistant', content: '回答1' },
+        { role: 'user', content: '質問2' },
+        { role: 'assistant', content: '回答2' },
       ]);
       const result = checkUserContent(turns);
 
@@ -244,9 +244,9 @@ describe('checkUserContent', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-PF-UC-02-03: 1ターン目はシステムタグ、2ターン目は通常テキスト → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '<system-reminder>msg</system-reminder>' },
-        { role: 'assistant', text: '回答' },
-        { role: 'user', text: '通常の質問テキスト' },
+        { role: 'user', content: '<system-reminder>msg</system-reminder>' },
+        { role: 'assistant', content: '回答' },
+        { role: 'user', content: '通常の質問テキスト' },
       ]);
       const result = checkUserContent(turns);
 
@@ -255,9 +255,9 @@ describe('checkUserContent', () => {
 
     it('[Edge] T-PF-UC-03-03: 1ターン目は /コマンド、2ターン目は通常テキスト → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '/commit' },
-        { role: 'assistant', text: '回答' },
-        { role: 'user', text: '通常の質問テキスト' },
+        { role: 'user', content: '/commit' },
+        { role: 'assistant', content: '回答' },
+        { role: 'user', content: '通常の質問テキスト' },
       ]);
       const result = checkUserContent(turns);
 
@@ -266,9 +266,9 @@ describe('checkUserContent', () => {
 
     it('[Edge] T-PF-UC-05-01: 複数 User ターンでは prefix パターンが適用されず null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '=== GIT LOGS ===\ngit log --oneline' },
-        { role: 'assistant', text: '回答1' },
-        { role: 'user', text: '通常の質問' },
+        { role: 'user', content: '=== GIT LOGS ===\ngit log --oneline' },
+        { role: 'assistant', content: '回答1' },
+        { role: 'user', content: '通常の質問' },
       ]);
       const result = checkUserContent(turns);
 
@@ -277,9 +277,9 @@ describe('checkUserContent', () => {
 
     it('[Edge] T-PF-UC-07-01: 複数 User ターンでは exact パターンが適用されず null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'C:\\Users\\foo\\bar.md' },
-        { role: 'assistant', text: '回答' },
-        { role: 'user', text: '通常の質問' },
+        { role: 'user', content: 'C:\\Users\\foo\\bar.md' },
+        { role: 'assistant', content: '回答' },
+        { role: 'user', content: '通常の質問' },
       ]);
       const result = checkUserContent(turns);
 
@@ -303,7 +303,7 @@ describe('checkUserContent', () => {
  */
 describe('checkAssistantContent', () => {
   /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
-  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; text: string }>): Turn[] {
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
     return turns;
   }
 
@@ -311,8 +311,8 @@ describe('checkAssistantContent', () => {
   describe('When: パターンマッチ', () => {
     it('[Error] T-PF-AC-06-01: assistant="ok" → reason に "Assistant定型肯定応答のみ" が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'なんかやって' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: 'なんかやって' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -322,8 +322,8 @@ describe('checkAssistantContent', () => {
 
     it('[Error] T-PF-AC-06-02: assistant="了解" → reason に "Assistant定型肯定応答のみ" が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'なんかやって' },
-        { role: 'assistant', text: '了解' },
+        { role: 'user', content: 'なんかやって' },
+        { role: 'assistant', content: '了解' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -333,8 +333,8 @@ describe('checkAssistantContent', () => {
 
     it('[Error] T-PF-AC-07-01: assistant=\'{"key":"value"}\' のみ → reason に "AssistantがJSONのみ返却" が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'JSONを返して' },
-        { role: 'assistant', text: '{"key":"value"}' },
+        { role: 'user', content: 'JSONを返して' },
+        { role: 'assistant', content: '{"key":"value"}' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -344,8 +344,8 @@ describe('checkAssistantContent', () => {
 
     it('[Error] T-PF-AC-08-01: assistant="```typescript\\nconst x=1;\\n```" のみ → reason に "Assistantがコードブロックのみ" が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'コードを書いて' },
-        { role: 'assistant', text: '```typescript\nconst x=1;\n```' },
+        { role: 'user', content: 'コードを書いて' },
+        { role: 'assistant', content: '```typescript\nconst x=1;\n```' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -358,8 +358,8 @@ describe('checkAssistantContent', () => {
   describe('When: 異常系', () => {
     it('[Error] T-PF-AC-01-01: null でない reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: '短い' },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: '短い' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -368,8 +368,8 @@ describe('checkAssistantContent', () => {
 
     it('[Error] T-PF-AC-01-02: reason に文字数情報が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: '短い' },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: '短い' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -378,9 +378,9 @@ describe('checkAssistantContent', () => {
 
     it('[Error] T-PF-AC-05-01: 各 40 文字 × 2 件（合計 80 < 100）→ reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: 'a'.repeat(40) },
-        { role: 'assistant', text: 'b'.repeat(40) },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(40) },
+        { role: 'assistant', content: 'b'.repeat(40) },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -392,8 +392,8 @@ describe('checkAssistantContent', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-PF-AC-02-01: ちょうど MIN_ASSISTANT_CHARS 文字 → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: 'a'.repeat(MIN_ASSISTANT_CHARS) },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS) },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -402,8 +402,8 @@ describe('checkAssistantContent', () => {
 
     it('[Normal] T-PF-AC-02-02: MIN_ASSISTANT_CHARS より多い文字数 → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: 'a'.repeat(MIN_ASSISTANT_CHARS + 50) },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS + 50) },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -411,7 +411,7 @@ describe('checkAssistantContent', () => {
     });
 
     it('[Normal] T-PF-AC-03-01: User=1 + Assistant なし → null', () => {
-      const turns = _makeTurns([{ role: 'user', text: '質問のみ' }]);
+      const turns = _makeTurns([{ role: 'user', content: '質問のみ' }]);
       const result = checkAssistantContent(turns);
 
       assertEquals(result, null);
@@ -419,9 +419,9 @@ describe('checkAssistantContent', () => {
 
     it('[Normal] T-PF-AC-05-02: 各 60 文字 × 2 件（合計 120 >= 100）→ null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問' },
-        { role: 'assistant', text: 'a'.repeat(60) },
-        { role: 'assistant', text: 'b'.repeat(60) },
+        { role: 'user', content: '質問' },
+        { role: 'assistant', content: 'a'.repeat(60) },
+        { role: 'assistant', content: 'b'.repeat(60) },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -433,12 +433,12 @@ describe('checkAssistantContent', () => {
   describe('When: エッジケース', () => {
     it('[Error] T-PF-AC-09-01: PR生成作業ログ(CTRL_SKIP + 実質内容ターン) → reason に "PR生成作業ログ" が含まれる', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'PRドラフトを作成して' },
-        { role: 'assistant', text: 'PRドラフトを生成します。まず現在のブランチの状態を確認します。' },
-        { role: 'assistant', text: 'PRドラフトが生成されました。内容を確認します。' },
+        { role: 'user', content: 'PRドラフトを作成して' },
+        { role: 'assistant', content: 'PRドラフトを生成します。まず現在のブランチの状態を確認します。' },
+        { role: 'assistant', content: 'PRドラフトが生成されました。内容を確認します。' },
         {
           role: 'assistant',
-          text:
+          content:
             'PRドラフトが生成されました。\n**生成されたPRドラフト** (`temp/idd/pr/pr_current_draft.md`):\n詳細内容...',
         },
       ]);
@@ -450,9 +450,9 @@ describe('checkAssistantContent', () => {
 
     it('[Edge] T-PF-AC-08-02: User=2ターン + assistant="ok" → null（isSingleUserTurnゲート外のためスキップ）', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問1' },
-        { role: 'assistant', text: 'ok' },
-        { role: 'user', text: '質問2' },
+        { role: 'user', content: '質問1' },
+        { role: 'assistant', content: 'ok' },
+        { role: 'user', content: '質問2' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -461,9 +461,9 @@ describe('checkAssistantContent', () => {
 
     it('[Edge] T-PF-AC-08-02: User=2ターン + assistant="ok" → null（isSingleUserTurnゲート外のためスキップ）', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問1' },
-        { role: 'assistant', text: 'ok' },
-        { role: 'user', text: '質問2' },
+        { role: 'user', content: '質問1' },
+        { role: 'assistant', content: 'ok' },
+        { role: 'user', content: '質問2' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -472,9 +472,9 @@ describe('checkAssistantContent', () => {
 
     it('[Edge] T-PF-AC-04-01: User=2, Assistant 短い → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問1' },
-        { role: 'assistant', text: '短い' },
-        { role: 'user', text: '質問2' },
+        { role: 'user', content: '質問1' },
+        { role: 'assistant', content: '短い' },
+        { role: 'user', content: '質問2' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -483,10 +483,10 @@ describe('checkAssistantContent', () => {
 
     it('[Edge] T-PF-AC-04-02: User=3, Assistant 1 文字 → null', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '質問1' },
-        { role: 'user', text: '質問2' },
-        { role: 'user', text: '質問3' },
-        { role: 'assistant', text: 'a' },
+        { role: 'user', content: '質問1' },
+        { role: 'user', content: '質問2' },
+        { role: 'user', content: '質問3' },
+        { role: 'assistant', content: 'a' },
       ]);
       const result = checkAssistantContent(turns);
 
@@ -511,7 +511,7 @@ describe('checkAssistantContent', () => {
  */
 describe('checkConversationPattern', () => {
   /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
-  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; text: string }>): Turn[] {
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
     return turns;
   }
 
@@ -519,8 +519,8 @@ describe('checkConversationPattern', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-PF-CV-01-01: "=== GIT LOGS ===" で始まる → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '=== GIT LOGS ===\ngit log --oneline' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '=== GIT LOGS ===\ngit log --oneline' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -529,8 +529,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-02: "---\\nname: skill" で始まる → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '---\nname: commit-message-generator\n---' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '---\nname: commit-message-generator\n---' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -539,8 +539,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-03: "Implement the following plan" で始まる → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'Implement the following plan:\n1. step one' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'Implement the following plan:\n1. step one' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -549,8 +549,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-04: "以下のプランを実装" で始まる → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '以下のプランを実装してください' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '以下のプランを実装してください' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -559,8 +559,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-05: "=== PROMPT ===" で始まる → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '=== PROMPT ===\nsome prompt text' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '=== PROMPT ===\nsome prompt text' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -569,8 +569,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-06: Git操作ログ(User) + 短い応答(Assistant) → null でない reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '=== GIT LOGS ===\ngit log --oneline' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: '=== GIT LOGS ===\ngit log --oneline' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -579,8 +579,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-01-07: スキル呼び出し(User) + 短い応答(Assistant) → null でない reason を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '---\nname: commit-message-generator\n---' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: '---\nname: commit-message-generator\n---' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -589,8 +589,8 @@ describe('checkConversationPattern', () => {
 
     it('[Normal] T-PF-CV-02-01: 通常テキスト → null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'この機能の設計についてどう思いますか？' },
-        { role: 'assistant', text: '良い設計だと思います。' },
+        { role: 'user', content: 'この機能の設計についてどう思いますか？' },
+        { role: 'assistant', content: '良い設計だと思います。' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -602,9 +602,9 @@ describe('checkConversationPattern', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-PF-CV-03-01: 複数 User ターンでは適用されず null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '=== GIT LOGS ===\ngit log' },
-        { role: 'assistant', text: '回答1' },
-        { role: 'user', text: '通常の質問' },
+        { role: 'user', content: '=== GIT LOGS ===\ngit log' },
+        { role: 'assistant', content: '回答1' },
+        { role: 'user', content: '通常の質問' },
       ]);
       const result = checkConversationPattern(turns);
 
@@ -629,7 +629,7 @@ describe('checkConversationPattern', () => {
  */
 describe('checkPromptContent', () => {
   /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
-  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; text: string }>): Turn[] {
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
     return turns;
   }
 
@@ -637,8 +637,8 @@ describe('checkPromptContent', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-PF-PM-01-01: タイトル説明生成プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '以下のタイトルに対して、50-100文字程度の簡潔な説明を日本語で生成してください' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '以下のタイトルに対して、50-100文字程度の簡潔な説明を日本語で生成してください' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -647,8 +647,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-02: commit/issue/branch 判定プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '以下の情報から、最適なcommit種別を判定し、json形式で返してください' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '以下の情報から、最適なcommit種別を判定し、json形式で返してください' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -657,8 +657,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-03: GitHub Issue 生成プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: '以下のjson形式パラメータから、github issue下書きをmarkdown形式で生成してください' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: '以下のjson形式パラメータから、github issue下書きをmarkdown形式で生成してください' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -667,8 +667,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-04: branch 名生成プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'Based on the issue title, generate a branch name' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'Based on the issue title, generate a branch name' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -677,8 +677,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-05: 英語翻訳プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'Translate the following text to english for use in pull request' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'Translate the following text to english for use in pull request' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -687,8 +687,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-06: 要約生成プロンプト → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'Summarize the following text in 100 words' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'Summarize the following text in 100 words' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -697,8 +697,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-01-07: システムプロンプト転写 → null でない reason', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'You are a topic and tag extraction assistant. Your task is ...' },
-        { role: 'assistant', text: '回答' },
+        { role: 'user', content: 'You are a topic and tag extraction assistant. Your task is ...' },
+        { role: 'assistant', content: '回答' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -707,8 +707,8 @@ describe('checkPromptContent', () => {
 
     it('[Normal] T-PF-PM-02-01: 通常テキスト → null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'この機能の設計についてどう思いますか？' },
-        { role: 'assistant', text: '良い設計だと思います。' },
+        { role: 'user', content: 'この機能の設計についてどう思いますか？' },
+        { role: 'assistant', content: '良い設計だと思います。' },
       ]);
       const result = checkPromptContent(turns);
 
@@ -720,9 +720,9 @@ describe('checkPromptContent', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-PF-PM-03-01: 複数 User ターンでは適用されず null を返す', () => {
       const turns = _makeTurns([
-        { role: 'user', text: 'Based on the issue title, generate a branch name' },
-        { role: 'assistant', text: '回答1' },
-        { role: 'user', text: '通常の質問' },
+        { role: 'user', content: 'Based on the issue title, generate a branch name' },
+        { role: 'assistant', content: '回答1' },
+        { role: 'user', content: '通常の質問' },
       ]);
       const result = checkPromptContent(turns);
 

@@ -17,8 +17,8 @@ export const getUserTurns = (conv: Conversation): readonly Turn[] => conv.filter
 /** Conversation から role=assistant のターンのみ返す。 */
 export const getAssistantTurns = (conv: Conversation): readonly Turn[] => conv.filter((t) => t.role === 'assistant');
 
-/** Turn[] の text の合計文字数を返す。空配列のとき 0。 */
-export const countChars = (turns: readonly Turn[]): number => turns.reduce((sum, t) => sum + t.text.length, 0);
+/** Turn[] の content の合計文字数を返す。空配列のとき 0。 */
+export const countChars = (turns: readonly Turn[]): number => turns.reduce((sum, t) => sum + t.content.length, 0);
 
 /** Conversation に user ターンが 1 件以上あれば true。 */
 export const hasUserTurn = (conv: Conversation): boolean => conv.some((t) => t.role === 'user');
@@ -37,7 +37,7 @@ export const parseConversation = (body: string): Conversation => {
     const start = m.index! + m[0].length;
     const end = i + 1 < matches.length ? matches[i + 1].index! : body.length;
     const text = body.slice(start, end).trim();
-    if (text) { _turns.push({ role, text }); }
+    if (text) { _turns.push({ role, content: text }); }
   }
   return _turns;
 };
@@ -52,7 +52,7 @@ export const parseConversation = (body: string): Conversation => {
 export const renderConversation = (conv: Conversation, maxChars?: number): string => {
   const _parts = conv.map((t) => {
     const role = t.role === 'user' ? 'User' : 'Assistant';
-    return `### ${role}\n${t.text}`;
+    return `### ${role}\n${t.content}`;
   });
   const _body = _parts.join('\n\n');
   return maxChars !== undefined ? _body.slice(0, maxChars) : _body;

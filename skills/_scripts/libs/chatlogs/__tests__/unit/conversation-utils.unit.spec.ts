@@ -29,10 +29,10 @@ import type { Conversation } from '../../../../types/conversation.types.ts';
 // ─── Internal Helpers
 
 // constants
-const _USER_TURN = { role: 'user' as const, text: 'Hello' };
-const _ASSISTANT_TURN = { role: 'assistant' as const, text: 'Hi there' };
-const _MIXED: Conversation = [_USER_TURN, _ASSISTANT_TURN, { role: 'user' as const, text: 'Bye' }];
-const _ONLY_USER: Conversation = [_USER_TURN, { role: 'user' as const, text: 'Another' }];
+const _USER_TURN = { role: 'user' as const, content: 'Hello' };
+const _ASSISTANT_TURN = { role: 'assistant' as const, content: 'Hi there' };
+const _MIXED: Conversation = [_USER_TURN, _ASSISTANT_TURN, { role: 'user' as const, content: 'Bye' }];
+const _ONLY_USER: Conversation = [_USER_TURN, { role: 'user' as const, content: 'Another' }];
 const _ONLY_ASSISTANT: Conversation = [_ASSISTANT_TURN];
 const _EMPTY: Conversation = [];
 const _SINGLE_USER: Conversation = [_USER_TURN];
@@ -116,19 +116,19 @@ describe('conversation-utils', () => {
   /**
    * `countChars` のテスト。
    *
-   * Turn[] の text 合計文字数を返すことを検証する。
+   * Turn[] の content 合計文字数を返すことを検証する。
    */
   describe('countChars', () => {
     /** 通常のターン配列のケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-SC-CU-08: 複数ターン → text.length の合計を返す', () => {
+      it('[Normal] T-SC-CU-08: 複数ターン → content.length の合計を返す', () => {
         const turns = [_USER_TURN, _ASSISTANT_TURN];
-        const expected = _USER_TURN.text.length + _ASSISTANT_TURN.text.length;
+        const expected = _USER_TURN.content.length + _ASSISTANT_TURN.content.length;
         assertEquals(countChars(turns), expected);
       });
 
-      it('[Normal] T-SC-CU-09: 1 ターン → その text.length を返す', () => {
-        assertEquals(countChars([_USER_TURN]), _USER_TURN.text.length);
+      it('[Normal] T-SC-CU-09: 1 ターン → その content.length を返す', () => {
+        assertEquals(countChars([_USER_TURN]), _USER_TURN.content.length);
       });
     });
 
@@ -201,11 +201,11 @@ describe('conversation-utils', () => {
       it('[Normal] T-SC-CU-17: user + assistant → Markdown セクションに変換する', () => {
         const conv: Conversation = [_USER_TURN, _ASSISTANT_TURN];
         const result = renderConversation(conv);
-        assertEquals(result, `### User\n${_USER_TURN.text}\n\n### Assistant\n${_ASSISTANT_TURN.text}`);
+        assertEquals(result, `### User\n${_USER_TURN.content}\n\n### Assistant\n${_ASSISTANT_TURN.content}`);
       });
 
       it('[Normal] T-SC-CU-18: maxChars 指定 → 指定文字数で切り詰める', () => {
-        const conv: Conversation = [{ role: 'user', text: 'ABCDEFGHIJ' }];
+        const conv: Conversation = [{ role: 'user', content: 'ABCDEFGHIJ' }];
         const result = renderConversation(conv, 10);
         assertEquals(result.length, 10);
       });
@@ -224,7 +224,7 @@ describe('conversation-utils', () => {
       });
 
       it('[Edge] T-SC-CU-21: maxChars 未指定 → 全文を返す（切り詰めなし）', () => {
-        const conv: Conversation = [{ role: 'user', text: 'Hello World' }];
+        const conv: Conversation = [{ role: 'user', content: 'Hello World' }];
         const result = renderConversation(conv);
         assertEquals(result, '### User\nHello World');
       });

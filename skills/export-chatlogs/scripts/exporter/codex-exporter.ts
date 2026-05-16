@@ -133,13 +133,13 @@ export const parseCodexSession = async (
       )
     ) { continue; }
 
-    turns.push({ role: role as 'user' | 'assistant', text: cleaned });
+    turns.push({ role: role as 'user' | 'assistant', content: cleaned });
   }
 
   // 意味あるユーザーターンがなければスキップ
   const firstUserTurn = turns.find((t) => t.role === 'user');
   if (!firstUserTurn) { return null; }
-  if (isSkippableSession(firstUserTurn.text)) { return null; }
+  if (isSkippableSession(firstUserTurn.content)) { return null; }
 
   const date = isoToDate(sessionTimestamp);
   const meta: SessionMeta = {
@@ -147,7 +147,7 @@ export const parseCodexSession = async (
     date,
     project,
     slug: '',
-    firstUserText: firstUserTurn.text,
+    firstUserText: firstUserTurn.content,
   };
 
   return { meta, turns };

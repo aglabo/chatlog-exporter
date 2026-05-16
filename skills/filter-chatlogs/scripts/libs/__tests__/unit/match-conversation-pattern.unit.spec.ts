@@ -51,7 +51,7 @@ const _emptyEntryPatterns: NoiseConversationPattern[] = [{
 
 // functions
 /** ロール・テキストペアから Conversation を生成するヘルパー。 */
-const _makeConversation = (turns: Array<{ role: 'user' | 'assistant'; text: string }>): Conversation => turns;
+const _makeConversation = (turns: Array<{ role: 'user' | 'assistant'; content: string }>): Conversation => turns;
 
 // ─── Tests
 
@@ -74,8 +74,8 @@ describe('_matchConversationPattern', () => {
     /** user エントリのみのパターンで user がマッチする場合。 */
     it('[Normal] T-PF-MP-01-01: user エントリのみパターン、user+assistant の会話 → user がマッチすれば label を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '/commit fix bug' },
-        { role: 'assistant', text: '任意のassistantテキスト' },
+        { role: 'user', content: '/commit fix bug' },
+        { role: 'assistant', content: '任意のassistantテキスト' },
       ]);
       const result = _matchConversationPattern(conversation, _userOnlyPatterns);
 
@@ -85,8 +85,8 @@ describe('_matchConversationPattern', () => {
     /** assistant エントリのみのパターンで assistant がマッチする場合。 */
     it('[Normal] T-PF-MP-01-02: assistant エントリのみパターン、user+assistant の会話 → assistant がマッチすれば label を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '任意のuserテキスト' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: '任意のuserテキスト' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = _matchConversationPattern(conversation, _assistantOnlyPatterns);
 
@@ -96,8 +96,8 @@ describe('_matchConversationPattern', () => {
     /** user + assistant 両方のパターンで両方マッチする場合。 */
     it('[Normal] T-PF-MP-02-01: user+assistant 両方パターン、user+assistant の会話 → 両方マッチで label を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '/commit fix bug' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: '/commit fix bug' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
@@ -107,8 +107,8 @@ describe('_matchConversationPattern', () => {
     /** 全パターン不一致の場合。 */
     it('[Normal] T-PF-MP-03-01: 全パターン不一致 → null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '通常のテキスト' },
-        { role: 'assistant', text: '通常の応答' },
+        { role: 'user', content: '通常のテキスト' },
+        { role: 'assistant', content: '通常の応答' },
       ]);
       const result = _matchConversationPattern(conversation, _userOnlyPatterns);
 
@@ -125,8 +125,8 @@ describe('_matchConversationPattern', () => {
     /** user のみマッチして assistant はマッチしない場合。 */
     it('[Error] T-PF-MP-04-01: user+assistant 両方パターンで user のみマッチ → null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '/commit fix bug' },
-        { role: 'assistant', text: '了解しました' },
+        { role: 'user', content: '/commit fix bug' },
+        { role: 'assistant', content: '了解しました' },
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
@@ -136,8 +136,8 @@ describe('_matchConversationPattern', () => {
     /** assistant のみマッチして user はマッチしない場合。 */
     it('[Error] T-PF-MP-04-02: user+assistant 両方パターンで assistant のみマッチ → null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: 'hello' },
-        { role: 'assistant', text: 'ok' },
+        { role: 'user', content: 'hello' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
@@ -154,7 +154,7 @@ describe('_matchConversationPattern', () => {
     /** assistant ターンなし、user エントリのみパターンの場合。 */
     it('[Edge] T-PF-MP-05-01: assistant ターンなし、user エントリのみパターン → user がマッチすれば label を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '/commit fix bug' },
+        { role: 'user', content: '/commit fix bug' },
       ]);
       const result = _matchConversationPattern(conversation, _userOnlyPatterns);
 
@@ -164,7 +164,7 @@ describe('_matchConversationPattern', () => {
     /** assistant ターンなし、assistant エントリを含むパターンの場合。 */
     it('[Edge] T-PF-MP-05-02: assistant ターンなし、assistant エントリを含むパターン → スキップして null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '/commit fix bug' },
+        { role: 'user', content: '/commit fix bug' },
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
@@ -174,8 +174,8 @@ describe('_matchConversationPattern', () => {
     /** entries が空のパターンの場合。 */
     it('[Edge] T-PF-MP-05-03: entries が空のパターン → null を返す（常マッチしない）', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '任意のuserテキスト' },
-        { role: 'assistant', text: '任意のassistantテキスト' },
+        { role: 'user', content: '任意のuserテキスト' },
+        { role: 'assistant', content: '任意のassistantテキスト' },
       ]);
       const result = _matchConversationPattern(conversation, _emptyEntryPatterns);
 
@@ -185,8 +185,8 @@ describe('_matchConversationPattern', () => {
     /** patterns が空配列の場合。 */
     it('[Edge] T-PF-MP-05-04: patterns が空配列 → null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'user', text: '任意のuserテキスト' },
-        { role: 'assistant', text: '任意のassistantテキスト' },
+        { role: 'user', content: '任意のuserテキスト' },
+        { role: 'assistant', content: '任意のassistantテキスト' },
       ]);
       const result = _matchConversationPattern(conversation, []);
 
@@ -196,7 +196,7 @@ describe('_matchConversationPattern', () => {
     /** 最初のターンが assistant（user ターンなし）の場合。 */
     it('[Edge] T-PF-MP-06-01: 最初のターンが assistant（user ターンなし）→ null を返す', () => {
       const conversation = _makeConversation([
-        { role: 'assistant', text: 'ok' },
+        { role: 'assistant', content: 'ok' },
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 

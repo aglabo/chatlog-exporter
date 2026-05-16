@@ -38,8 +38,8 @@ function _makeSession(overrides: Partial<ExportedSession> = {}): ExportedSession
       firstUserText: 'What is TDD?',
     },
     turns: [
-      { role: 'user', text: 'What is TDD?' },
-      { role: 'assistant', text: 'TDD stands for Test-Driven Development.' },
+      { role: 'user', content: 'What is TDD?' },
+      { role: 'assistant', content: 'TDD stands for Test-Driven Development.' },
     ],
     ...overrides,
   };

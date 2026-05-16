@@ -305,9 +305,9 @@ describe('parseClaudeSession', () => {
           assertEquals(result!.turns.length, 2);
         });
 
-        it('T-EC-PC-06-02: turns[1].text に "前半" と "後半" が両方含まれる', async () => {
+        it('T-EC-PC-06-02: turns[1].content に "前半" と "後半" が両方含まれる', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);
-          const assistantText = result!.turns[1].text;
+          const assistantText = result!.turns[1].content;
           assertEquals(assistantText.includes('前半'), true);
           assertEquals(assistantText.includes('後半'), true);
         });
