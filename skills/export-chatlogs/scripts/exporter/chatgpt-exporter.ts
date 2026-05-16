@@ -21,11 +21,12 @@ import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
 // types
+import type { Turn } from '../../../_scripts/types/conversation.types.ts';
 import type { ExportConfig } from '../types/export-config.types.ts';
 import type { ExportResult } from '../types/export-result.types.ts';
 import type { FileResult } from '../types/file-result.types.ts';
 import type { PeriodRange } from '../types/filter.types.ts';
-import type { ExportedSession, SessionMeta, Turn } from '../types/session.types.ts';
+import type { ExportedSession, SessionMeta } from '../types/session.types.ts';
 import type { ChatGPTConversation, ChatGPTMappingNode, ChatGPTMessage } from './types/chatgpt-entry.types.ts';
 import type {
   FindFilesProvider,
