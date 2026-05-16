@@ -20,6 +20,7 @@ import {
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── internal ───
@@ -96,7 +97,7 @@ export const prefilterFiles = async (
   let skipped = 0;
 
   for (const filePath of files) {
-    const filename = filePath.split(/[/\\]/).pop()!;
+    const filename = getFilename(filePath);
 
     if (isExcludedByFilename(filename)) {
       logger.info(`  skipped (ファイル名パターン): ${filename}`);

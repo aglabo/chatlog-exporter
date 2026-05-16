@@ -509,6 +509,87 @@ describe('parseArgsToConfig', () => {
       });
     });
   });
+
+  // ─── T-PA-23: integer 型オプションの正常解析 ──────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `integer` 型オプション正常解析テスト。
+   *
+   * `--chunk-size` オプションに整数値を渡した場合に数値として設定されることを検証する。
+   *
+   * テスト ID 範囲: T-PA-23-01 〜 T-PA-23-02
+   */
+  describe('Given: --chunk-size オプションに整数値', () => {
+    /** integer 型エントリを含むテスト用スキーマ。 */
+    const _SCHEMA_INT: ArgsSchema = [
+      { option: '--chunk-size', field: 'chunkSize', type: 'integer' },
+    ];
+
+    type TestConfigWithChunkSize = TestConfig & { chunkSize?: number };
+
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-23-01: --chunk-size 5 → chunkSize が 5 になる', () => {
+        const result = parseArgsToConfig<TestConfigWithChunkSize>(['--chunk-size', '5'], _SCHEMA_INT);
+        assertEquals(result.chunkSize, 5);
+      });
+      it('[Normal] T-PA-23-02: --chunk-size 0 → chunkSize が 0 になる', () => {
+        const result = parseArgsToConfig<TestConfigWithChunkSize>(['--chunk-size', '0'], _SCHEMA_INT);
+        assertEquals(result.chunkSize, 0);
+      });
+    });
+  });
+
+  // ─── T-PA-24: number 型オプションの正常解析 ──────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `number` 型オプション正常解析テスト。
+   *
+   * `--threshold` オプションに浮動小数点値を渡した場合に数値として設定されることを検証する。
+   *
+   * テスト ID 範囲: T-PA-24-01
+   */
+  describe('Given: --threshold オプションに浮動小数点値', () => {
+    /** number 型エントリを含むテスト用スキーマ。 */
+    const _SCHEMA_NUM: ArgsSchema = [
+      { option: '--threshold', field: 'threshold', type: 'number' },
+    ];
+
+    type TestConfigWithThreshold = TestConfig & { threshold?: number };
+
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-24-01: --threshold 0.8 → threshold が 0.8 になる', () => {
+        const result = parseArgsToConfig<TestConfigWithThreshold>(['--threshold', '0.8'], _SCHEMA_NUM);
+        assertEquals(result.threshold, 0.8);
+      });
+    });
+  });
+
+  // ─── T-PA-25: agent 型オプションの正常解析 ──────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `agent` 型オプション正常解析テスト。
+   *
+   * `--agent` オプションに既知エージェント名を渡した場合に正常にセットされることを検証する。
+   *
+   * テスト ID 範囲: T-PA-25-01 〜 T-PA-25-02
+   */
+  describe('Given: --agent オプションに既知エージェント名', () => {
+    /** agent 型エントリを含むテスト用スキーマ。 */
+    const _SCHEMA_AGENT: ArgsSchema = [
+      { option: '--agent', field: 'agent', type: 'agent' },
+    ];
+
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-25-01: --agent claude → agent が "claude" になる', () => {
+        const result = parseArgsToConfig<TestConfig>(['--agent', 'claude'], _SCHEMA_AGENT);
+        assertEquals(result.agent, 'claude');
+      });
+      it('[Normal] T-PA-25-02: --agent chatgpt → agent が "chatgpt" になる', () => {
+        const result = parseArgsToConfig<TestConfig>(['--agent', 'chatgpt'], _SCHEMA_AGENT);
+        assertEquals(result.agent, 'chatgpt');
+      });
+    });
+  });
 });
 
 // ─── isArgDirectory ──────────────────────────────────────────────────────────

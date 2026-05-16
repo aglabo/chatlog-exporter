@@ -16,7 +16,7 @@ import {
   parseConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
-import type { Conversation } from '../../../_scripts/types/conversation.types.ts';
+import type { Conversation, Turn } from '../../../_scripts/types/conversation.types.ts';
 import { MIN_ASSISTANT_CHARS } from '../constants/common.constants.ts';
 import {
   NOISE_ASSISTANT_PATTERNS,
@@ -49,6 +49,24 @@ const _matchUserPattern = (text: string, patterns: NoiseConversationPattern[]): 
   return null;
 };
 
+const _entryMatches = (e: ConversationEntry, text: string): boolean =>
+  'control' in e && e.control === ENTRY_CONTROL.SKIP
+    ? true
+    : e.pattern !== undefined && e.pattern.test(text);
+
+const _userEntriesMatch = (entries: ConversationEntry[], userText: string): boolean => {
+  const _matchEntries = entries.filter((e) => e.target === ConversationRole.user).filter(_isMatchEntry);
+  return _matchEntries.length === 0 || _matchEntries.every((e) => e.pattern!.test(userText));
+};
+
+const _assistantEntriesMatch = (entries: ConversationEntry[], assistantTurns: readonly Turn[]): boolean => {
+  const _assistantEntries = entries.filter((e) => e.target === ConversationRole.assistant);
+  return _assistantEntries.length === 0 || (
+    _assistantEntries.length <= assistantTurns.length
+    && _assistantEntries.every((e, i) => _entryMatches(e, assistantTurns[i].content))
+  );
+};
+
 const _matchConversationPattern = (
   conversation: Conversation,
   patterns: NoiseConversationPattern[],
@@ -63,22 +81,14 @@ const _matchConversationPattern = (
     return _matchUserPattern(_userText, _userOnlyPatterns);
   }
 
-  const _entryMatches = (e: ConversationEntry, text: string): boolean =>
-    'control' in e && e.control === ENTRY_CONTROL.SKIP
-      ? true
-      : e.pattern !== undefined && e.pattern.test(text);
-
   for (const { label, entries } of patterns) {
-    const _assistantEntries = entries.filter((e) => e.target === ConversationRole.assistant);
-    const _userEntries = entries.filter((e) => e.target === ConversationRole.user).filter(_isMatchEntry);
-    if (_userEntries.length === 0 && _assistantEntries.length === 0) { continue; }
+    const _hasUserEntries = entries.some((e) => e.target === ConversationRole.user && _isMatchEntry(e));
+    const _hasAssistantEntries = entries.some((e) => e.target === ConversationRole.assistant);
+    if (!_hasUserEntries && !_hasAssistantEntries) { continue; }
 
-    const _userMatch = _userEntries.length === 0 || _userEntries.every((e) => e.pattern!.test(_userText));
-    const _assistantMatch = _assistantEntries.length === 0 || (
-      _assistantEntries.length <= _assistantTurns.length
-      && _assistantEntries.every((e, i) => _entryMatches(e, _assistantTurns[i].content))
-    );
-    if (_userMatch && _assistantMatch) { return label; }
+    if (_userEntriesMatch(entries, _userText) && _assistantEntriesMatch(entries, _assistantTurns)) {
+      return label;
+    }
   }
   return null;
 };

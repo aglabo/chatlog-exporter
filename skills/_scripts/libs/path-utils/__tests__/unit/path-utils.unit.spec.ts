@@ -13,7 +13,7 @@ import { describe, it } from '@std/testing/bdd';
 // -- test target --
 import {
   getDirectory,
-  getFileName,
+  getFilename,
   isAbsolutePath,
   normalizePath,
   resolveConfigPath,
@@ -152,55 +152,55 @@ describe('getDirectory', () => {
 });
 
 // ─────────────────────────────────────────────
-// getFileName
+// getFilename
 // ─────────────────────────────────────────────
 
-describe('getFileName', () => {
+describe('getFilename', () => {
   describe('Given: Unix パス /home/user/file.md', () => {
-    describe('When: getFileName を実行する', () => {
+    describe('When: getFilename を実行する', () => {
       describe('Then: T-LIB-U-09-01 - file.md が返る', () => {
         it('T-LIB-U-09-01: Unix パスからファイル名が返る', () => {
-          assertEquals(getFileName('/home/user/file.md'), 'file.md');
+          assertEquals(getFilename('/home/user/file.md'), 'file.md');
         });
       });
     });
   });
 
   describe('Given: Windows バックスラッシュパス C:\\Users\\foo\\file.md', () => {
-    describe('When: getFileName を実行する', () => {
+    describe('When: getFilename を実行する', () => {
       describe('Then: T-LIB-U-09-02 - file.md が返る', () => {
         it('T-LIB-U-09-02: Windows バックスラッシュパスからファイル名が返る', () => {
-          assertEquals(getFileName('C:\\Users\\foo\\file.md'), 'file.md');
+          assertEquals(getFilename('C:\\Users\\foo\\file.md'), 'file.md');
         });
       });
     });
   });
 
   describe('Given: 混在パス C:\\dir/sub\\file.md', () => {
-    describe('When: getFileName を実行する', () => {
+    describe('When: getFilename を実行する', () => {
       describe('Then: T-LIB-U-09-03 - file.md が返る', () => {
         it('T-LIB-U-09-03: 混在パスからファイル名が返る', () => {
-          assertEquals(getFileName('C:\\dir/sub\\file.md'), 'file.md');
+          assertEquals(getFilename('C:\\dir/sub\\file.md'), 'file.md');
         });
       });
     });
   });
 
   describe('Given: セパレータなし file.md', () => {
-    describe('When: getFileName を実行する', () => {
+    describe('When: getFilename を実行する', () => {
       describe('Then: T-LIB-U-09-04 - file.md が返る', () => {
         it('T-LIB-U-09-04: セパレータなしパスからファイル名がそのまま返る', () => {
-          assertEquals(getFileName('file.md'), 'file.md');
+          assertEquals(getFilename('file.md'), 'file.md');
         });
       });
     });
   });
 
   describe('Given: 空文字列', () => {
-    describe('When: getFileName を実行する', () => {
+    describe('When: getFilename を実行する', () => {
       describe('Then: T-LIB-U-09-05 - 空文字列が返る', () => {
         it('T-LIB-U-09-05: 空文字列から空文字列が返る', () => {
-          assertEquals(getFileName(''), '');
+          assertEquals(getFilename(''), '');
         });
       });
     });

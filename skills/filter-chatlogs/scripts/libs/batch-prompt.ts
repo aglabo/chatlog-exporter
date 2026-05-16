@@ -8,6 +8,7 @@
 
 // ─── external ───
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── internal ───
@@ -23,7 +24,7 @@ export const buildBatchPrompt = async (files: string[]): Promise<string> => {
 
   for (let i = 0; i < files.length; i++) {
     const filePath = files[i];
-    const filename = filePath.split(/[/\\]/).pop()!;
+    const filename = getFilename(filePath);
     const text = await readTextFile(filePath);
     const { content } = parseFrontmatterEntries(text);
     const bodyText = extractBodyText(content, MAX_BODY_CHARS);

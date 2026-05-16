@@ -37,7 +37,7 @@ export const getDirectory = (path: string): string => {
 };
 
 /** ファイルパスからファイル名部分を返す。 */
-export const getFileName = (path: string): string => {
+export const getFilename = (path: string): string => {
   return normalizePath(path).split('/').pop() ?? '';
 };
 

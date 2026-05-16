@@ -9,7 +9,7 @@
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─────────────────────────────────────────────
@@ -24,7 +24,7 @@ export const processNoiseFiles = async (
   const { dryRun, report } = options;
 
   for (const filePath of files) {
-    const filename = normalizePath(filePath).split('/').pop()!;
+    const filename = getFilename(filePath);
 
     let text: string;
     try {

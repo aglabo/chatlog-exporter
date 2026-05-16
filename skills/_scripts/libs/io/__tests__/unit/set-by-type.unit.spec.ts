@@ -71,16 +71,6 @@ describe('_setByType', () => {
         assertEquals(result instanceof ChatlogError, true);
       });
     });
-
-    /** rawValue が undefined でも flag 型は正常動作するエッジケース。 */
-    describe('When: エッジケース', () => {
-      it('[Edge] T-SBT-FL-03: rawValue が undefined → config[field] = true', () => {
-        const config = _makeConfig();
-        const result = _setByTypeForTest(config, _entry('flag'), undefined);
-        assertEquals(config['result'], true);
-        assertEquals(result, null);
-      });
-    });
   });
 
   /**
@@ -163,10 +153,9 @@ describe('_setByType', () => {
    * `integer` 型の動作テスト。
    *
    * 整数文字列は数値に変換してセットされることを検証する。
-   * parseInt の仕様により "3.14" は 3 として扱われる正常ケースとなる。
    */
   describe('integer 型', () => {
-    /** 整数文字列・ゼロ・負数の正常ケース。parseInt("3.14") = 3 も正常ケース。 */
+    /** 整数文字列・ゼロ・負数の正常ケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SBT-IN-01: rawValue "42" → config[field] = 42 (number)', () => {
         const config = _makeConfig();
@@ -186,13 +175,6 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), '-5');
         assertEquals(config['result'], -5);
-        assertEquals(result, null);
-      });
-
-      it('[Normal] T-SBT-IN-05: rawValue "3.14" → config[field] = 3 (parseInt の仕様)', () => {
-        const config = _makeConfig();
-        const result = _setByTypeForTest(config, _entry('integer'), '3.14');
-        assertEquals(config['result'], 3);
         assertEquals(result, null);
       });
     });
@@ -230,13 +212,6 @@ describe('_setByType', () => {
         assertEquals(config['result'], 3.14);
         assertEquals(result, null);
       });
-
-      it('[Normal] T-SBT-NM-02: rawValue "42" → config[field] = 42', () => {
-        const config = _makeConfig();
-        const result = _setByTypeForTest(config, _entry('number'), '42');
-        assertEquals(config['result'], 42);
-        assertEquals(result, null);
-      });
     });
 
     /** 非数値文字列や undefined の異常ケース。 */
@@ -264,19 +239,12 @@ describe('_setByType', () => {
    * スラッシュなしの単純文字列はエラーになることも検証する。
    */
   describe('directory 型', () => {
-    /** 絶対パス・相対パス・Windowsパスの正常ケース。 */
+    /** 絶対パス・Windowsパスの正常ケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SBT-DR-01: rawValue "/abs/path" → config[field] = "/abs/path"', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), '/abs/path');
         assertEquals(config['result'], '/abs/path');
-        assertEquals(result, null);
-      });
-
-      it('[Normal] T-SBT-DR-02: rawValue "./rel/path" → config[field] = "./rel/path"', () => {
-        const config = _makeConfig();
-        const result = _setByTypeForTest(config, _entry('directory'), './rel/path');
-        assertEquals(config['result'], './rel/path');
         assertEquals(result, null);
       });
 

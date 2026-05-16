@@ -60,7 +60,7 @@ const _notFoundRead: ReadTextFileProvider = () => Promise.reject(new Deno.errors
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-66
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-72
  *
  * @see GlobalConfig
  */
@@ -124,6 +124,40 @@ describe('GlobalConfig', () => {
         assertEquals(_config.get('chatlogsDir'), '/tmp/yaml-wins');
         assertEquals(_called.flag, false);
       });
+
+      it('[Normal] T-CLS-GC-67: デフォルト値の全フィールドを get() で確認する', async () => {
+        const _config = await GlobalConfig.getInstance();
+        assertEquals(_config.get('agent'), 'claude');
+        assertEquals(_config.get('chatlogsDir'), './chatlogs');
+        assertEquals(_config.get('model'), 'sonnet');
+        assertEquals(_config.get('timeoutMs'), 120000);
+        assertEquals(_config.get('chunkSize'), 10);
+        assertEquals(_config.get('concurrency'), 4);
+      });
+
+      it('[Normal] T-CLS-GC-68: yaml で複数フィールドを指定すると get() で反映が確認できる', async () => {
+        const _config = await GlobalConfig.getInstance({ yaml: 'agent: chatgpt\nchatlogsDir: /tmp/logs\n' });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertEquals(_config.get('chatlogsDir'), '/tmp/logs');
+      });
+
+      it('[Normal] T-CLS-GC-69: configFile 経由でフィールドが反映され get() で確認できる', async () => {
+        const _config = await GlobalConfig.getInstance({
+          configFile: '/mock/config.yaml',
+          readTextFileProvider: _makeReadOk('agent: chatgpt\ntimeoutMs: 30000\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertEquals(_config.get('timeoutMs'), 30000);
+      });
+
+      it('[Normal] T-CLS-GC-70: yaml と configFile 両方指定時、yaml の agent が get() で反映される', async () => {
+        const _config = await GlobalConfig.getInstance({
+          yaml: 'agent: chatgpt\n',
+          configFile: '/mock/config.yaml',
+          readTextFileProvider: _makeReadOk('agent: claude\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+      });
     });
 
     /** 不正な YAML でエラーがスローされるケース。 */
@@ -146,6 +180,24 @@ describe('GlobalConfig', () => {
           ChatlogError,
         );
         assertEquals(_err.kind, 'InvalidYaml');
+      });
+
+      it('[Error] T-CLS-GC-71: yaml に未知キーがあると ChatlogError(InvalidYaml/UnknownKey) で reject される', async () => {
+        const _err = await assertRejects(
+          () => GlobalConfig.getInstance({ yaml: 'unknownKey: value\n' }),
+          ChatlogError,
+        );
+        assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'UnknownKey');
+      });
+
+      it('[Error] T-CLS-GC-72: yaml のルートがスカラー値のとき ChatlogError(InvalidYaml/NotObject) で reject される', async () => {
+        const _err = await assertRejects(
+          () => GlobalConfig.getInstance({ yaml: 'just-a-string\n' }),
+          ChatlogError,
+        );
+        assertEquals(_err.kind, 'InvalidYaml');
+        assertEquals(_err.subindex, 'NotObject');
       });
     });
 

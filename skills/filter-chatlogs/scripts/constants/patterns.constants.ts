@@ -25,34 +25,27 @@ export const SYSTEM_TAG_PREFIXES: string[] = [
   '---\n',
 ] as const;
 
-/** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */
-export const EXCLUDE_FILENAME_PATTERNS_STR: string[] = [
+/** ファイル名ノイズ判定の基本パターン文字列一覧（非公開）。派生定数の共通ソース。 */
+const _BASE_FILENAME_PATTERNS: string[] = [
   'you-are-a-topic-and-tag-extraction-assistant',
   'say-ok-and-nothing-else',
   'command-message-claude-idd-framework',
   'command-message-deckrd-deckrd',
-] as const;
+  'command-message-deckrd-coder',
+];
+
+/** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */
+export const EXCLUDE_FILENAME_PATTERNS_STR: string[] = [..._BASE_FILENAME_PATTERNS];
 
 /** 除外対象ファイル名パターン（正規表現、`test` 判定用）。 */
-export const EXCLUDE_FILENAME_PATTERNS_RE: RegExp[] = [
-  /you-are-a-topic-and-tag-extraction-assistant/i,
-  /say-ok-and-nothing-else/i,
-  /command-message-claude-idd-framework/i,
-  /command-message-deckrd-deckrd/i,
-] as const;
+export const EXCLUDE_FILENAME_PATTERNS_RE: RegExp[] = _BASE_FILENAME_PATTERNS.map((p) => new RegExp(p, 'i'));
 
 // ─────────────────────────────────────────────
 // prefilter-chatlogs ノイズ判定パターン
 // ─────────────────────────────────────────────
 
 /** prefilter-chatlogs のファイル名除外正規表現パターン一覧。 */
-export const NOISE_FILENAME_PATTERNS: RegExp[] = [
-  /you-are-a-topic-and-tag-extraction-assistant/,
-  /say-ok-and-nothing-else/,
-  /command-message-claude-idd-framework/,
-  /command-message-deckrd-deckrd/,
-  /command-message-deckrd-coder/,
-];
+export const NOISE_FILENAME_PATTERNS: RegExp[] = _BASE_FILENAME_PATTERNS.map((p) => new RegExp(p));
 
 /** chatlog-exporter スラッシュコマンドパターン。checkUserContent() で使用。 */
 export const NOISE_USER_PATTERNS_CHATLOG: NoiseConversationPattern[] = [

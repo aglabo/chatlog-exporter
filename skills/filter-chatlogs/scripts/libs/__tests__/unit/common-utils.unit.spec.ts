@@ -28,6 +28,8 @@ const _existsStatProvider: StatProvider = (_path: string) => Promise.resolve({ i
 const _notFoundStatProvider: StatProvider = (_path: string) => {
   throw new Deno.errors.NotFound('not found');
 };
+/** ファイルパスを指定した場合の StatProvider（isDirectory: false）。 */
+const _fileStatProvider: StatProvider = (_path: string) => Promise.resolve({ isDirectory: false } as Deno.FileInfo);
 
 // ─── Tests
 
@@ -60,6 +62,24 @@ describe('validateChatlogsDir', () => {
     it('[Error] T-FL-VCD-02-02: 存在しないディレクトリ → subindex が ChatlogsDir', async () => {
       const err = await assertRejects(
         () => validateChatlogsDir('/nonexistent/dir', _notFoundStatProvider),
+        ChatlogError,
+      );
+      assertEquals((err as ChatlogError).subindex, 'NotFound');
+    });
+  });
+
+  /** ファイルパスを指定した場合のエッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FL-VCD-03-01: ファイルパスを指定 → ChatlogError がスローされる', async () => {
+      await assertRejects(
+        () => validateChatlogsDir('/some/file.ts', _fileStatProvider),
+        ChatlogError,
+      );
+    });
+
+    it('[Edge] T-FL-VCD-03-02: ファイルパスを指定 → subindex が `NotFound` であること', async () => {
+      const err = await assertRejects(
+        () => validateChatlogsDir('/some/file.ts', _fileStatProvider),
         ChatlogError,
       );
       assertEquals((err as ChatlogError).subindex, 'NotFound');

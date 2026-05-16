@@ -10,6 +10,7 @@
 import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
@@ -46,7 +47,7 @@ export const processChunk = async (
     logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  error: ${e}`);
     for (const f of chunkFiles) {
-      logger.info(`  kept (claude error): ${f.split(/[/\\]/).pop()}`);
+      logger.info(`  kept (claude error): ${getFilename(f)}`);
       stats.kept++;
     }
     return;
@@ -57,14 +58,14 @@ export const processChunk = async (
     logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
     for (const f of chunkFiles) {
-      logger.info(`  kept (parse error): ${f.split(/[/\\]/).pop()}`);
+      logger.info(`  kept (parse error): ${getFilename(f)}`);
       stats.kept++;
     }
     return;
   }
 
   for (const filePath of chunkFiles) {
-    const filename = filePath.split(/[/\\]/).pop()!;
+    const filename = getFilename(filePath);
     const result = parsed.find((r) => r.file === filename);
 
     if (!result) {
