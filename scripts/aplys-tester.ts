@@ -88,6 +88,7 @@ export function buildDenoArgs(targetTypes: ValidType[], baseGlob: string, useAi 
   const needsEnv = useAi || targetTypes.some((t) => TYPES_REQUIRING_ENV.has(t));
   return [
     'test',
+    '--parallel',
     '--allow-read',
     '--allow-write',
     ...(needsRun ? ['--allow-run'] : []),
