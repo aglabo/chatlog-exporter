@@ -31,6 +31,16 @@ const _notFoundProvider: ReadTextFileProvider = (_path: string) =>
 const _permissionDeniedProvider: ReadTextFileProvider = (_path: string) =>
   Promise.reject(new Deno.errors.PermissionDenied('permission denied'));
 
+/** 空文字列を返す読み込みプロバイダ。空ファイルを模倣する。 */
+const _emptyProvider: ReadTextFileProvider = (_path: string) => Promise.resolve('');
+
+/** `Deno.errors.IsADirectory` を throw する読み込みプロバイダ。 */
+const _isDirProvider: ReadTextFileProvider = (_path: string) =>
+  Promise.reject(new Deno.errors.IsADirectory('is a directory'));
+
+/** CRLF と LF が混在するテキストを返す読み込みプロバイダ。 */
+const _mixedProvider: ReadTextFileProvider = (_path: string) => Promise.resolve('line1\r\nline2\nline3\r\n');
+
 // ─── Tests
 
 /**
@@ -40,7 +50,7 @@ const _permissionDeniedProvider: ReadTextFileProvider = (_path: string) =>
  * ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw し、
  * その他のエラー（PermissionDenied 等）はそのまま再 throw する。
  *
- * テスト ID 範囲: T-LIB-U-RF-01 〜 T-LIB-U-RF-04
+ * テスト ID 範囲: T-LIB-U-RF-01 〜 T-LIB-U-RF-07
  *
  * @see readTextFile
  */
@@ -131,6 +141,62 @@ describe('readTextFile', () => {
             () => readTextFile('/restricted/path.md', _permissionDeniedProvider),
             Deno.errors.PermissionDenied,
           );
+        });
+      });
+    });
+  });
+
+  /**
+   * 空ファイルを読む前提条件グループ。
+   *
+   * content が空文字列のとき空文字列がそのまま返ることを検証する。
+   */
+  describe('Given: 空ファイルを読む', () => {
+    /** readTextFile を実行するとき。 */
+    describe('When: readTextFile を実行する', () => {
+      /** 空文字列が返ることを検証する。 */
+      describe('Then: T-LIB-U-RF-05 - 空文字列が返る', () => {
+        it('T-LIB-U-RF-05: 空ファイルを読み込むと空文字列が返る', async () => {
+          const _result = await readTextFile('/any/path.md', _emptyProvider);
+          assertEquals(_result, '');
+        });
+      });
+    });
+  });
+
+  /**
+   * IsADirectory エラーが発生する前提条件グループ。
+   *
+   * `Deno.errors.IsADirectory` はそのまま再 throw されることを検証する。
+   */
+  describe('Given: IsADirectory エラーが発生する', () => {
+    /** readTextFile を実行するとき。 */
+    describe('When: readTextFile を実行する', () => {
+      /** `Deno.errors.IsADirectory` がそのまま再スローされることを検証する。 */
+      describe('Then: T-LIB-U-RF-06 - IsADirectory がそのまま再スローされる', () => {
+        it('T-LIB-U-RF-06: Deno.errors.IsADirectory はそのまま再スローされる', async () => {
+          await assertRejects(
+            () => readTextFile('/some/dir/', _isDirProvider),
+            Deno.errors.IsADirectory,
+          );
+        });
+      });
+    });
+  });
+
+  /**
+   * CRLF と LF が混在するテキストを渡す前提条件グループ。
+   *
+   * すべての CRLF が LF に正規化されることを検証する。
+   */
+  describe('Given: CRLF と LF が混在するテキスト', () => {
+    /** readTextFile を実行するとき。 */
+    describe('When: readTextFile を実行する', () => {
+      /** LF に統一された文字列が返ることを検証する。 */
+      describe('Then: T-LIB-U-RF-07 - LF に統一された文字列が返る', () => {
+        it('T-LIB-U-RF-07: CRLF と LF が混在するテキストは LF に統一される', async () => {
+          const _result = await readTextFile('/any/path.md', _mixedProvider);
+          assertEquals(_result, 'line1\nline2\nline3\n');
         });
       });
     });
