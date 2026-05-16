@@ -89,4 +89,63 @@ describe('parseJsonArray', () => {
       });
     });
   });
+
+  describe('Given: JSON 値内にエスケープ括弧 "[...]" を含む配列文字列', () => {
+    describe('When: parseJsonArray を実行する', () => {
+      describe('Then: T-LIB-J-08 - 外側の配列がパースできる', () => {
+        it('[Edge] T-LIB-J-08: JSON 値内に "[...]" が含まれていても外側の配列がパースできる', () => {
+          const _raw = '[{"text":"[escaped bracket]","value":1}]';
+          const _result = parseJsonArray<{ text: string; value: number }>(_raw);
+          assertEquals(_result !== null, true);
+          assertEquals(_result![0].text, '[escaped bracket]');
+          assertEquals(_result![0].value, 1);
+        });
+      });
+    });
+  });
+
+  describe('Given: 改行・インデントを含む整形済み JSON 配列文字列', () => {
+    describe('When: parseJsonArray を実行する', () => {
+      describe('Then: T-LIB-J-09 - 2件の配列が返る', () => {
+        it('[Normal] T-LIB-J-09: 改行・インデントを含む整形済み JSON 配列がパースできる', () => {
+          const _raw = '[\n  {"key": "value1"},\n  {"key": "value2"}\n]';
+          const _result = parseJsonArray<{ key: string }>(_raw);
+          assertEquals(_result !== null, true);
+          assertEquals(_result!.length, 2);
+          assertEquals(_result![0].key, 'value1');
+          assertEquals(_result![1].key, 'value2');
+        });
+      });
+    });
+  });
+
+  describe('Given: 前後に説明テキストがある整形済み JSON 配列文字列', () => {
+    describe('When: parseJsonArray を実行する', () => {
+      describe('Then: T-LIB-J-10 - 配列がパースできる', () => {
+        it('[Edge] T-LIB-J-10: 前後にテキストがある整形済み JSON 配列がパースできる', () => {
+          const _raw = 'Here is the result:\n[\n  {"file":"a.md","decision":"KEEP"}\n]\nDone.';
+          const _result = parseJsonArray<{ file: string; decision: string }>(_raw);
+          assertEquals(_result !== null, true);
+          assertEquals(_result![0].file, 'a.md');
+        });
+      });
+    });
+  });
+
+  describe('Given: 数値・null・boolean を含む混在配列文字列', () => {
+    describe('When: parseJsonArray を実行する', () => {
+      describe('Then: T-LIB-J-11 - 4件の混在配列が返る', () => {
+        it('[Normal] T-LIB-J-11: 数値・null・boolean を含む配列がパースできる', () => {
+          const _raw = '[1, null, true, "str"]';
+          const _result = parseJsonArray<unknown>(_raw);
+          assertEquals(_result !== null, true);
+          assertEquals(_result!.length, 4);
+          assertEquals(_result![0], 1);
+          assertEquals(_result![1], null);
+          assertEquals(_result![2], true);
+          assertEquals(_result![3], 'str');
+        });
+      });
+    });
+  });
 });
