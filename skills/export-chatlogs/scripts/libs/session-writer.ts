@@ -15,7 +15,8 @@ import { quoteString } from '../../../_scripts/libs/text/string-utils.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types
-import type { ExportedSession, SessionMeta, Turn } from '../types/session.types.ts';
+import type { Turn } from '../../../_scripts/types/conversation.types.ts';
+import type { ExportedSession, SessionMeta } from '../types/session.types.ts';
 
 /** セッションの Markdown ファイル出力パスを生成する。 */
 export const buildOutputPath = (

@@ -17,7 +17,8 @@ import { renderMarkdown } from '../../libs/session-writer.ts';
 
 // ─── Helpers
 // types
-import type { SessionMeta, Turn } from '../../types/session.types.ts';
+import type { Turn } from '../../../../_scripts/types/conversation.types.ts';
+import type { SessionMeta } from '../../types/session.types.ts';
 
 // ─── Internal Helpers
 
