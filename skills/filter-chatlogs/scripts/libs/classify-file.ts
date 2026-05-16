@@ -54,7 +54,7 @@ const _matchConversationPattern = (
 ): string | null => {
   const _userTurns = getUserTurns(conversation);
   if (_userTurns.length === 0) { return null; }
-  const _userText = _userTurns[0].text;
+  const _userText = _userTurns[0].content;
 
   const _assistantTurns = getAssistantTurns(conversation);
   if (_assistantTurns.length === 0) {
@@ -75,7 +75,7 @@ const _matchConversationPattern = (
     const _userMatch = _userEntries.length === 0 || _userEntries.every((e) => e.pattern!.test(_userText));
     const _assistantMatch = _assistantEntries.length === 0 || (
       _assistantEntries.length <= _assistantTurns.length
-      && _assistantEntries.every((e, i) => _entryMatches(e, _assistantTurns[i].text))
+      && _assistantEntries.every((e, i) => _entryMatches(e, _assistantTurns[i].content))
     );
     if (_userMatch && _assistantMatch) { return label; }
   }
@@ -96,18 +96,18 @@ export const checkUserContent = (conversation: Conversation): string | null => {
   const _userTurns = getUserTurns(conversation);
 
   // 全Userターンがシステムタグのみ
-  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.text))) {
+  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.content))) {
     return '全UserターンがシステムTagのみ';
   }
 
   // 全Userターンが /コマンドのみ
-  if (_userTurns.every((t) => t.text.trim().split('\n').every((l) => l.trim().startsWith('/')))) {
+  if (_userTurns.every((t) => t.content.trim().split('\n').every((l: string) => l.trim().startsWith('/')))) {
     return '全Userターンが/コマンドのみ';
   }
 
   // 1ターンのみの詳細チェック
   if (isSingleUserTurn(conversation)) {
-    const text = _userTurns[0].text;
+    const text = _userTurns[0].content;
 
     const _patternReason = _matchUserPattern(text, NOISE_USER_PATTERNS);
     if (_patternReason) { return _patternReason; }
@@ -121,13 +121,13 @@ export const checkUserContent = (conversation: Conversation): string | null => {
 
 export const checkConversationPattern = (conversation: Conversation): string | null => {
   if (!isSingleUserTurn(conversation)) { return null; }
-  const text = getUserTurns(conversation)[0].text;
+  const text = getUserTurns(conversation)[0].content;
   return _matchUserPattern(text, NOISE_CONVERSATION_PATTERNS);
 };
 
 export const checkPromptContent = (conversation: Conversation): string | null => {
   if (!isSingleUserTurn(conversation)) { return null; }
-  const text = getUserTurns(conversation)[0].text;
+  const text = getUserTurns(conversation)[0].content;
   return _matchUserPattern(text, NOISE_PROMPT_PATTERNS);
 };
 
