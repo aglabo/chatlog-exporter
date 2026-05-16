@@ -15,6 +15,7 @@ import {
   isSingleUserTurn,
   parseConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 import type { Conversation } from '../../../_scripts/types/conversation.types.ts';
 import { MIN_ASSISTANT_CHARS } from '../constants/common.constants.ts';
 import {
@@ -41,7 +42,7 @@ const _isMatchEntry = (e: ConversationEntry): e is MatchEntry => !('control' in 
 
 const _matchUserPattern = (text: string, patterns: NoiseConversationPattern[]): string | null => {
   for (const { label, entries } of patterns) {
-    const _userEntries = entries.filter((e) => e.target === 'user').filter(_isMatchEntry);
+    const _userEntries = entries.filter((e) => e.target === ConversationRole.user).filter(_isMatchEntry);
     if (_userEntries.length === 0) { continue; }
     if (_userEntries.every((e) => e.pattern.test(text))) { return label; }
   }
@@ -58,7 +59,7 @@ const _matchConversationPattern = (
 
   const _assistantTurns = getAssistantTurns(conversation);
   if (_assistantTurns.length === 0) {
-    const _userOnlyPatterns = patterns.filter((p) => !p.entries.some((e) => e.target === 'assistant'));
+    const _userOnlyPatterns = patterns.filter((p) => !p.entries.some((e) => e.target === ConversationRole.assistant));
     return _matchUserPattern(_userText, _userOnlyPatterns);
   }
 
@@ -68,8 +69,8 @@ const _matchConversationPattern = (
       : e.pattern !== undefined && e.pattern.test(text);
 
   for (const { label, entries } of patterns) {
-    const _assistantEntries = entries.filter((e) => e.target === 'assistant');
-    const _userEntries = entries.filter((e) => e.target === 'user').filter(_isMatchEntry);
+    const _assistantEntries = entries.filter((e) => e.target === ConversationRole.assistant);
+    const _userEntries = entries.filter((e) => e.target === ConversationRole.user).filter(_isMatchEntry);
     if (_userEntries.length === 0 && _assistantEntries.length === 0) { continue; }
 
     const _userMatch = _userEntries.length === 0 || _userEntries.every((e) => e.pattern!.test(_userText));

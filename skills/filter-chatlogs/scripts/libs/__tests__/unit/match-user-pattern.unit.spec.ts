@@ -15,6 +15,8 @@ import { describe, it } from '@std/testing/bdd';
 import { _matchUserPattern } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
+// constants
+import { ConversationRole } from '../../../../../_scripts/types/conversation-role.const.types.ts';
 // types
 import type { NoiseConversationPattern } from '../../../types/patterns.types.ts';
 
@@ -24,33 +26,33 @@ import type { NoiseConversationPattern } from '../../../types/patterns.types.ts'
 /** user エントリのみを持つ単一パターン定義。`/commit` で始まる user テキストにマッチする。 */
 const _userOnlyPattern: NoiseConversationPattern[] = [{
   label: 'userのみパターン',
-  entries: [{ target: 'user', pattern: /^\/commit\b/ }],
+  entries: [{ target: ConversationRole.user, pattern: /^\/commit\b/ }],
 }];
 
 /** 複数パターンを持つ定義。最初のパターンは `/commit`、2番目は `hello` にマッチする。 */
 const _multiPatterns: NoiseConversationPattern[] = [
   {
     label: '最初のパターン',
-    entries: [{ target: 'user', pattern: /^\/commit\b/ }],
+    entries: [{ target: ConversationRole.user, pattern: /^\/commit\b/ }],
   },
   {
     label: '2番目のパターン',
-    entries: [{ target: 'user', pattern: /^hello\b/ }],
+    entries: [{ target: ConversationRole.user, pattern: /^hello\b/ }],
   },
 ];
 
 /** assistant エントリのみを持つパターン定義。user エントリが存在しないためスキップされる。 */
 const _assistantOnlyPattern: NoiseConversationPattern[] = [{
   label: 'assistantのみパターン',
-  entries: [{ target: 'assistant', pattern: /^ok$/i }],
+  entries: [{ target: ConversationRole.assistant, pattern: /^ok$/i }],
 }];
 
 /** user エントリと assistant エントリを持つ混在パターン定義。user 条件のみ評価される。 */
 const _mixedPattern: NoiseConversationPattern[] = [{
   label: '混在パターン',
   entries: [
-    { target: 'user', pattern: /^\/commit\b/ },
-    { target: 'assistant', pattern: /^ok$/i },
+    { target: ConversationRole.user, pattern: /^\/commit\b/ },
+    { target: ConversationRole.assistant, pattern: /^ok$/i },
   ],
 }];
 
@@ -58,8 +60,8 @@ const _mixedPattern: NoiseConversationPattern[] = [{
 const _multiEntryPattern: NoiseConversationPattern[] = [{
   label: 'ANDパターン',
   entries: [
-    { target: 'user', pattern: /fix/ },
-    { target: 'user', pattern: /bug/ },
+    { target: ConversationRole.user, pattern: /fix/ },
+    { target: ConversationRole.user, pattern: /bug/ },
   ],
 }];
 

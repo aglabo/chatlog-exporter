@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 import { ENTRY_CONTROL } from '../types/patterns.types.ts';
 import type { NoiseConversationPattern } from '../types/patterns.types.ts';
 
@@ -58,7 +59,7 @@ export const NOISE_USER_PATTERNS_CHATLOG: NoiseConversationPattern[] = [
   {
     label: 'chatlog-exporterコマンドのみ',
     entries: [{
-      target: 'user',
+      target: ConversationRole.user,
       pattern: /^\/(export-log|export-chatlogs|filter-chatlogs|set-frontmatter|classify-chatlogs|normalize-chatlogs)\b/,
     }],
   },
@@ -69,7 +70,7 @@ export const NOISE_USER_PATTERNS_EXTERNAL: NoiseConversationPattern[] = [
   {
     label: '外部システムコマンドのみ',
     entries: [{
-      target: 'user',
+      target: ConversationRole.user,
       pattern: /^\/(deckrd|idd)\b/,
     }],
   },
@@ -80,7 +81,7 @@ export const NOISE_USER_PATTERNS_GENERIC: NoiseConversationPattern[] = [
   {
     label: '汎用スラッシュコマンドのみ',
     entries: [{
-      target: 'user',
+      target: ConversationRole.user,
       pattern: /^\/(commit|clear|help)\b/,
     }],
   },
@@ -93,11 +94,11 @@ export const NOISE_USER_PATTERNS: NoiseConversationPattern[] = [
   ...NOISE_USER_PATTERNS_GENERIC,
   {
     label: 'Windowsパスのみ',
-    entries: [{ target: 'user', pattern: /^[A-Za-z]:\\[^\n]{0,300}$/ }],
+    entries: [{ target: ConversationRole.user, pattern: /^[A-Za-z]:\\[^\n]{0,300}$/ }],
   },
   {
     label: 'Unixパスのみ',
-    entries: [{ target: 'user', pattern: /^(?:docs|temp|scripts|src|tests?|\.github)\/[^\n]{0,300}$/ }],
+    entries: [{ target: ConversationRole.user, pattern: /^(?:docs|temp|scripts|src|tests?|\.github)\/[^\n]{0,300}$/ }],
   },
 ];
 
@@ -105,23 +106,23 @@ export const NOISE_USER_PATTERNS: NoiseConversationPattern[] = [
 export const NOISE_CONVERSATION_PATTERNS: NoiseConversationPattern[] = [
   {
     label: 'Git操作ログのみ',
-    entries: [{ target: 'user', pattern: /^={3,}\s*git\s+(logs?|diff|diffs?)\s*={3,}/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^={3,}\s*git\s+(logs?|diff|diffs?)\s*={3,}/i }],
   },
   {
     label: 'スキル呼び出し(YAML)',
-    entries: [{ target: 'user', pattern: /^---\s*\nname\s*:/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^---\s*\nname\s*:/i }],
   },
   {
     label: 'deckrd実装指示',
-    entries: [{ target: 'user', pattern: /^implement the following plan\b/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^implement the following plan\b/i }],
   },
   {
     label: 'deckrd実装指示(日本語)',
-    entries: [{ target: 'user', pattern: /^以下のプランを実装/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^以下のプランを実装/i }],
   },
   {
     label: 'プロンプトテスト',
-    entries: [{ target: 'user', pattern: /^={3,}\s*prompt\s*={3,}/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^={3,}\s*prompt\s*={3,}/i }],
   },
 ];
 
@@ -129,35 +130,41 @@ export const NOISE_CONVERSATION_PATTERNS: NoiseConversationPattern[] = [
 export const NOISE_PROMPT_PATTERNS: NoiseConversationPattern[] = [
   {
     label: '定型プロンプト(タイトル説明生成)',
-    entries: [{ target: 'user', pattern: /^以下のタイトルに対して、\d+-\d+文字程度の.*?説明を.*?生成してください/s }],
+    entries: [{
+      target: ConversationRole.user,
+      pattern: /^以下のタイトルに対して、\d+-\d+文字程度の.*?説明を.*?生成してください/s,
+    }],
   },
   {
     label: '定型プロンプト(commit/issue/branch判定)',
-    entries: [{ target: 'user', pattern: /^以下の情報から、最適なcommit種別.*?json形式で返してください/is }],
+    entries: [{
+      target: ConversationRole.user,
+      pattern: /^以下の情報から、最適なcommit種別.*?json形式で返してください/is,
+    }],
   },
   {
     label: '定型プロンプト(GitHub Issue生成)',
     entries: [{
-      target: 'user',
+      target: ConversationRole.user,
       pattern: /^以下のjson形式パラメータから、github\s+issue下書きをmarkdown形式で生成してください/i,
     }],
   },
   {
     label: '定型プロンプト(branch名生成)',
-    entries: [{ target: 'user', pattern: /^based on the issue title\b/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^based on the issue title\b/i }],
   },
   {
     label: '定型プロンプト(英語翻訳)',
-    entries: [{ target: 'user', pattern: /^translate the following text to english for use in/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^translate the following text to english for use in/i }],
   },
   {
     label: '定型プロンプト(要約生成)',
-    entries: [{ target: 'user', pattern: /^summarize the following.*?in \d+ words/i }],
+    entries: [{ target: ConversationRole.user, pattern: /^summarize the following.*?in \d+ words/i }],
   },
   {
     label: 'システムプロンプト転写',
     entries: [{
-      target: 'user',
+      target: ConversationRole.user,
       pattern: /^you are a (topic and tag extraction assistant|log curator)\b/i,
     }],
   },
@@ -172,30 +179,30 @@ export const NOISE_ASSISTANT_PATTERNS: NoiseConversationPattern[] = [
   {
     label: 'Assistant定型肯定応答のみ',
     entries: [{
-      target: 'assistant',
+      target: ConversationRole.assistant,
       pattern: /^(ok|okay|了解|はい|yes|done|sure|承知しました|かしこまりました)[\s。.!！]*$/i,
     }],
   },
   {
     label: 'AssistantがJSONのみ返却',
     entries: [{
-      target: 'assistant',
+      target: ConversationRole.assistant,
       pattern: /^\s*[\[{][\s\S]*[\]}]\s*$/,
     }],
   },
   {
     label: 'Assistantがコードブロックのみ',
     entries: [{
-      target: 'assistant',
+      target: ConversationRole.assistant,
       pattern: /^```[\w]*\n[\s\S]*\n```\s*$/,
     }],
   },
   {
     label: 'PR生成作業ログ',
     entries: [
-      { target: 'assistant', control: ENTRY_CONTROL.SKIP },
-      { target: 'assistant', control: ENTRY_CONTROL.SKIP },
-      { target: 'assistant', pattern: /\*\*生成されたPRドラフト\*\*/ },
+      { target: ConversationRole.assistant, control: ENTRY_CONTROL.SKIP },
+      { target: ConversationRole.assistant, control: ENTRY_CONTROL.SKIP },
+      { target: ConversationRole.assistant, pattern: /\*\*生成されたPRドラフト\*\*/ },
     ],
   },
 ];
