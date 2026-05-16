@@ -6,19 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/**
- * 会話の1ターンを表す。役割（user/assistant）と発話内容を持つ。
- *
- * `parseClaudeSession` および `parseCodexSession` が JSONL エントリから生成し、
- * `renderMarkdown` が Markdown の `### User` / `### Assistant` セクションとして出力する。
- * スキップ対象テキスト（短文肯定・システムメッセージ等）は含まれない。
- */
-export interface Turn {
-  /** 発話者の役割。"user" または "assistant" */
-  role: 'user' | 'assistant';
-  /** 発話の内容。スキップ対象テキストは含まれない */
-  content: string;
-}
+import type { Turn } from '../../../_scripts/types/conversation.types.ts';
 
 /**
  * エクスポートセッションのメタ情報。
