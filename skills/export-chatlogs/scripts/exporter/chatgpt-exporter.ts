@@ -151,20 +151,20 @@ export const parseChatGPTConversation = (
     const text = extractChatGPTText(msg);
     if (!text) { continue; }
     if (role === 'user' && isSkippable(text)) { continue; }
-    turns.push({ role: role as 'user' | 'assistant', text });
+    turns.push({ role: role as 'user' | 'assistant', content: text });
   }
 
   // 有効な user ターンが0件 → null
   const firstUserTurn = turns.find((t) => t.role === 'user');
   if (!firstUserTurn) { return null; }
-  if (isSkippableSession(firstUserTurn.text)) { return null; }
+  if (isSkippableSession(firstUserTurn.content)) { return null; }
 
   const meta: SessionMeta = {
     sessionId: conv.conversation_id,
     date: isoToDate(isoTimestamp),
     project: conv.title,
     slug: '',
-    firstUserText: firstUserTurn.text,
+    firstUserText: firstUserTurn.content,
   };
 
   return { meta, turns };
