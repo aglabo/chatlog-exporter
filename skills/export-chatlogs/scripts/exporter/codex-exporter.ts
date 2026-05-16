@@ -13,6 +13,8 @@ import { findEntries } from '../../../_scripts/libs/file-ops/find-entries.ts';
 import { homeDir } from '../../../_scripts/libs/path-utils/dir-utils.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
+// constants
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
@@ -109,10 +111,10 @@ export const parseCodexSession = async (
   for (const e of entries) {
     if (e.type !== 'response_item') { continue; }
     const role = e.payload.role;
-    if (role !== 'user' && role !== 'assistant') { continue; }
+    if (role !== ConversationRole.user && role !== ConversationRole.assistant) { continue; }
 
     const content = e.payload.content ?? [];
-    const textType = role === 'user' ? 'input_text' : 'output_text';
+    const textType = role === ConversationRole.user ? 'input_text' : 'output_text';
     const parts: string[] = [];
     for (const c of content) {
       if (c.type === textType && c.text) {
@@ -121,24 +123,24 @@ export const parseCodexSession = async (
     }
     const text = parts.join('\n').trim();
     if (!text) { continue; }
-    const cleaned = role === 'user' ? stripUserInstructions(text) : text;
+    const cleaned = role === ConversationRole.user ? stripUserInstructions(text) : text;
     if (!cleaned) { continue; }
-    if (role === 'user' && isSkippable(cleaned)) { continue; }
+    if (role === ConversationRole.user && isSkippable(cleaned)) { continue; }
 
     // user の AGENTS.md/permissions/environment_context は除外
     if (
-      role === 'user' && (
+      role === ConversationRole.user && (
         cleaned.startsWith('# AGENTS.md instructions')
         || cleaned.startsWith('<permissions instructions>')
         || cleaned.startsWith('<environment_context>')
       )
     ) { continue; }
 
-    turns.push({ role: role as 'user' | 'assistant', content: cleaned });
+    turns.push({ role: role as ConversationRole, content: cleaned });
   }
 
   // 意味あるユーザーターンがなければスキップ
-  const firstUserTurn = turns.find((t) => t.role === 'user');
+  const firstUserTurn = turns.find((t) => t.role === ConversationRole.user);
   if (!firstUserTurn) { return null; }
   if (isSkippableSession(firstUserTurn.content)) { return null; }
 
