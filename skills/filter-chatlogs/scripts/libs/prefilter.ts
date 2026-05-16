@@ -59,7 +59,7 @@ export const isExcludedByContent = (
   }
 
   if (isSingleUserTurn(_conv)) {
-    if (isSystemOnlyMessage(getUserTurns(_conv)[0].text)) {
+    if (isSystemOnlyMessage(getUserTurns(_conv)[0].content)) {
       return { excluded: true, reason: 'Userメッセージがシステム/コマンドタグのみ' };
     }
     const totalAssistantChars = countChars(getAssistantTurns(_conv));
