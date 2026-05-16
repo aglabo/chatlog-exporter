@@ -33,7 +33,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles as findFilesLib } from '../../_scripts/libs/file-ops/find-files.ts';
+import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { buildConfig, parseArgs } from './config/prefilter-config.ts';
 import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
@@ -58,7 +58,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
       throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_searchDir}`);
     }
 
-    const files = await findFilesLib(_searchDir);
+    const files = await findFiles(_searchDir);
     logger.info(`対象ファイル数: ${files.length}`);
     if (dryRun) {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
