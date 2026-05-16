@@ -18,7 +18,7 @@ import { parseArgs } from '../../../filter-chatlogs.ts';
 import { extractBodyText, isExcludedByContent, isExcludedByFilename } from '../../../libs/prefilter.ts';
 // types
 import type { ClaudeResult } from '../../../types/filter.types.ts';
-import type { ParsedConfig } from '../../../types/filter.types.ts';
+import type { FilterParsedConfig } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
@@ -28,7 +28,7 @@ import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts'
 // ─── Internal Helpers
 
 // types
-type Args = ParsedConfig;
+type Args = FilterParsedConfig;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseArgs
