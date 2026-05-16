@@ -1,7 +1,7 @@
 // src: scripts/__tests__/unit/filter/filter.unit.spec.ts
 // @(#): filter-chatlogs.ts のユニットテスト
 //       parseArgs / parseFrontmatterEntries / parseJsonArray /
-//       extractBodyText / isExcludedByFilename / isExcludedByContent
+//       extractConversation / isExcludedByFilename / isExcludedByContent
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -15,13 +15,16 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { parseArgs } from '../../../filter-chatlogs.ts';
 // functions
-import { extractBodyText, isExcludedByContent, isExcludedByFilename } from '../../../libs/prefilter.ts';
+import { extractConversation } from '../../../libs/common-utils.ts';
+import { isExcludedByContent, isExcludedByFilename } from '../../../libs/prefilter.ts';
 // types
 import type { ClaudeResult } from '../../../types/filter.types.ts';
 import type { FilterParsedConfig } from '../../../types/filter.types.ts';
 
 // ─── Helpers
+// classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+// functions
 import { parseFrontmatterEntries } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 
@@ -452,31 +455,31 @@ describe('parseJsonArray', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// extractBodyText
+// extractConversation
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('extractBodyText', () => {
+describe('extractConversation', () => {
   // ─── T-FL-EB-01: 通常会話 → User/Assistant フォーマット ──────────────────────
 
   describe('Given: User と Assistant ターンを含む本文', () => {
-    describe('When: extractBodyText(body) を呼び出す', () => {
+    describe('When: extractConversation(body) を呼び出す', () => {
       describe('Then: T-FL-EB-01 - ### User / ### Assistant フォーマットで返される', () => {
         const body = '### User\nユーザーの質問\n\n### Assistant\nアシスタントの回答\n';
 
         it('T-FL-EB-01-01: "### User" を含む', () => {
-          const result = extractBodyText(body);
+          const result = extractConversation(body);
 
           assertStringIncludes(result, '### User');
         });
 
         it('T-FL-EB-01-02: "### Assistant" を含む', () => {
-          const result = extractBodyText(body);
+          const result = extractConversation(body);
 
           assertStringIncludes(result, '### Assistant');
         });
 
         it('T-FL-EB-01-03: ユーザーのテキストが含まれる', () => {
-          const result = extractBodyText(body);
+          const result = extractConversation(body);
 
           assertStringIncludes(result, 'ユーザーの質問');
         });
@@ -487,20 +490,20 @@ describe('extractBodyText', () => {
   // ─── T-FL-EB-02: maxChars 切り詰め ──────────────────────────────────────────
 
   describe('Given: maxChars より長い本文', () => {
-    describe('When: extractBodyText(body, maxChars) を呼び出す', () => {
+    describe('When: extractConversation(body, maxChars) を呼び出す', () => {
       describe('Then: T-FL-EB-02 - maxChars 文字以内に切り詰められる', () => {
         it('T-FL-EB-02-01: 結果の長さが maxChars 以下になる', () => {
           const longText = 'x'.repeat(500);
           const body = `### User\n${longText}\n`;
           const maxChars = 100;
-          const result = extractBodyText(body, maxChars);
+          const result = extractConversation(body, maxChars);
 
           assertEquals(result.length <= maxChars, true);
         });
 
         it('T-FL-EB-02-02: maxChars=10 でも結果が返される', () => {
           const body = '### User\n質問テキスト\n\n### Assistant\n回答テキスト\n';
-          const result = extractBodyText(body, 10);
+          const result = extractConversation(body, 10);
 
           assertEquals(result.length <= 10, true);
         });
@@ -511,11 +514,11 @@ describe('extractBodyText', () => {
   // ─── T-FL-EB-03: ターンなし → 空文字列 ─────────────────────────────────────
 
   describe('Given: ターンヘッダーがない本文', () => {
-    describe('When: extractBodyText(body) を呼び出す', () => {
+    describe('When: extractConversation(body) を呼び出す', () => {
       describe('Then: T-FL-EB-03 - 空文字列が返される', () => {
         it('T-FL-EB-03-01: ターンなし → 空文字列', () => {
           const body = 'ヘッダーのない本文テキスト';
-          const result = extractBodyText(body);
+          const result = extractConversation(body);
 
           assertEquals(result, '');
         });
