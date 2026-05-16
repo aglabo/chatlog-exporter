@@ -12,6 +12,8 @@ import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
 import { quoteString } from '../../../_scripts/libs/text/string-utils.ts';
+// constants
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types
@@ -47,7 +49,7 @@ export const renderMarkdown = (meta: SessionMeta, turns: Turn[]): string => {
   _lines.push('## 会話ログ');
   _lines.push('');
   for (const turn of turns) {
-    const label = turn.role === 'user' ? 'User' : 'Assistant';
+    const label = turn.role === ConversationRole.user ? 'User' : 'Assistant';
     _lines.push(`### ${label}`);
     _lines.push('');
     _lines.push(turn.content.trim().replace(/\n{3,}/g, '\n\n'));
