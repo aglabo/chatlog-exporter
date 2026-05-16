@@ -14,6 +14,8 @@ import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // libs
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
+// constants
+import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
@@ -148,15 +150,15 @@ export const parseChatGPTConversation = (
   const turns: Turn[] = [];
   for (const msg of messages) {
     const role = msg.author.role;
-    if (role !== 'user' && role !== 'assistant') { continue; }
+    if (role !== ConversationRole.user && role !== ConversationRole.assistant) { continue; }
     const text = extractChatGPTText(msg);
     if (!text) { continue; }
-    if (role === 'user' && isSkippable(text)) { continue; }
-    turns.push({ role: role as 'user' | 'assistant', content: text });
+    if (role === ConversationRole.user && isSkippable(text)) { continue; }
+    turns.push({ role: role as ConversationRole, content: text });
   }
 
   // 有効な user ターンが0件 → null
-  const firstUserTurn = turns.find((t) => t.role === 'user');
+  const firstUserTurn = turns.find((t) => t.role === ConversationRole.user);
   if (!firstUserTurn) { return null; }
   if (isSkippableSession(firstUserTurn.content)) { return null; }
 
