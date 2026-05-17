@@ -13,6 +13,7 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
+import { assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';
@@ -124,7 +125,7 @@ describe('parseClaudeSession', () => {
           it(`SF-EC-claude-${_testId}: セッション情報が期待値と一致する`, async () => {
             const result = await parseClaudeSession(inputPath, ALL_PERIOD);
             if (isEdge) {
-              assertEquals(result, null);
+              assertNull(result);
             } else {
               assertEquals(result?.meta.sessionId, expected!.sessionId);
               assertEquals(result?.meta.date, expected!.date);
@@ -169,7 +170,7 @@ describe('parseCodexSession', () => {
           it(`SF-EC-codex-${_testId}: セッション情報が期待値と一致する`, async () => {
             const result = await parseCodexSession(inputPath, ALL_PERIOD);
             if (isEdge) {
-              assertEquals(result, null);
+              assertNull(result);
             } else {
               assertEquals(result?.meta.sessionId, expected!.sessionId);
               assertEquals(result?.meta.date, expected!.date);
