@@ -10,6 +10,7 @@
 // Deno Test module
 import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test helpers
 import {
@@ -174,7 +175,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs('test.md', 'content');
 
       // assert
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('T-SC-03-01: AI が JSON でない文字列を返すとき null を返す', async () => {
@@ -186,7 +187,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs('test.md', 'content');
 
       // assert
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
