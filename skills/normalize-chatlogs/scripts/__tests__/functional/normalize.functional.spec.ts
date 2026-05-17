@@ -13,6 +13,7 @@ import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import type { Stub } from '@std/testing/mock';
 import { stub } from '@std/testing/mock';
+import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test helpers
 import {
@@ -107,7 +108,7 @@ describe('segmentChatlogs', () => {
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
-          assertEquals(result, null);
+          assertNull(result);
         });
 
         it('T-09-02-02: runAI が "not json" を返す場合に null を返す', async () => {
@@ -116,7 +117,7 @@ describe('segmentChatlogs', () => {
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
