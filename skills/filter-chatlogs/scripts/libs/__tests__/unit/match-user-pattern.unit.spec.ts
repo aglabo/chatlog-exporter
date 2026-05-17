@@ -10,6 +10,7 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { _matchUserPattern } from '../../../libs/classify-file.ts';
@@ -102,7 +103,7 @@ describe('_matchUserPattern', () => {
     it('[Normal] T-PF-UP-02-01: 全パターン不一致 → null を返す', () => {
       const result = _matchUserPattern('通常のテキスト', _userOnlyPattern);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -116,7 +117,7 @@ describe('_matchUserPattern', () => {
     it('[Error] T-PF-UP-03-01: パターンに user 以外（assistant）の target のみ → スキップされ null を返す', () => {
       const result = _matchUserPattern('ok', _assistantOnlyPattern);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -137,14 +138,14 @@ describe('_matchUserPattern', () => {
     it('[Edge] T-PF-UP-04-02: 複数 user エントリ（AND 条件）→ 一部不一致 → null を返す', () => {
       const result = _matchUserPattern('fix error in code', _multiEntryPattern);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** 空の patterns 配列の場合。 */
     it('[Edge] T-PF-UP-04-03: 空の patterns 配列 → null を返す', () => {
       const result = _matchUserPattern('/commit fix bug', []);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** user + assistant 混在エントリ → assistant エントリは無視され user 条件のみ評価される場合。 */

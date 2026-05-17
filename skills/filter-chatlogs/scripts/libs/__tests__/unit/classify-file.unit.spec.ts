@@ -8,8 +8,9 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import {
@@ -52,43 +53,43 @@ describe('checkFilename', () => {
     it('[Normal] T-PF-CF-01-01: you-are-a-topic-and-tag-extraction-assistant.md → null でない', () => {
       const result = checkFilename('you-are-a-topic-and-tag-extraction-assistant.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-01-02: say-ok-and-nothing-else.md → null でない', () => {
       const result = checkFilename('say-ok-and-nothing-else.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-01-03: command-message-claude-idd-framework.md → null でない', () => {
       const result = checkFilename('command-message-claude-idd-framework.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-01-04: command-message-deckrd-deckrd.md → null でない', () => {
       const result = checkFilename('command-message-deckrd-deckrd.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-01-05: command-message-deckrd-coder.md → null でない', () => {
       const result = checkFilename('command-message-deckrd-coder.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-02-01: "my-chat-log.md" → null', () => {
       const result = checkFilename('my-chat-log.md');
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Normal] T-PF-CF-02-02: 空文字列 "" → null', () => {
       const result = checkFilename('');
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -97,13 +98,13 @@ describe('checkFilename', () => {
     it('[Edge] T-PF-CF-03-01: "Say-Ok-And-Nothing-Else.md" → null でない', () => {
       const result = checkFilename('Say-Ok-And-Nothing-Else.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Edge] T-PF-CF-03-02: "SAY-OK-AND-NOTHING-ELSE.md" → null でない', () => {
       const result = checkFilename('SAY-OK-AND-NOTHING-ELSE.md');
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Edge] T-PF-CF-04-01: reason に "ファイル名パターン:" が含まれる', () => {
@@ -139,7 +140,7 @@ describe('checkUserContent', () => {
       const turns = _makeTurns([{ role: 'assistant', content: '回答' }]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('Userターンが存在しない'), true);
     });
 
@@ -150,7 +151,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-02-02: 複数 User ターン全てが <system-reminder> → reason を返す', () => {
@@ -161,7 +162,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-03-01: 単一 User ターンで /commit のみ → reason を返す', () => {
@@ -171,7 +172,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-03-02: 複数 User ターン全てが /コマンド → reason を返す', () => {
@@ -182,7 +183,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-03-04: 単一 User ターンで /filter-chatlogs のみ → reason を返す', () => {
@@ -192,7 +193,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-06-01: "C:\\\\Users\\\\foo\\\\bar.md" → reason を返す', () => {
@@ -202,7 +203,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-UC-06-02: "docs/readme.md" → reason を返す', () => {
@@ -212,7 +213,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
   });
 
@@ -225,7 +226,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Normal] T-PF-UC-08-02: 複数の通常 User ターン → null を返す', () => {
@@ -237,7 +238,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -251,7 +252,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-UC-03-03: 1ターン目は /コマンド、2ターン目は通常テキスト → null', () => {
@@ -262,7 +263,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-UC-05-01: 複数 User ターンでは prefix パターンが適用されず null を返す', () => {
@@ -273,7 +274,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-UC-07-01: 複数 User ターンでは exact パターンが適用されず null を返す', () => {
@@ -284,7 +285,7 @@ describe('checkUserContent', () => {
       ]);
       const result = checkUserContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 });
@@ -317,7 +318,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('Assistant定型肯定応答のみ'), true);
     });
 
@@ -328,7 +329,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('Assistant定型肯定応答のみ'), true);
     });
 
@@ -339,7 +340,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('AssistantがJSONのみ返却'), true);
     });
 
@@ -350,7 +351,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('Assistantがコードブロックのみ'), true);
     });
   });
@@ -364,7 +365,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Error] T-PF-AC-01-02: reason に文字数情報が含まれる', () => {
@@ -385,7 +386,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
   });
 
@@ -398,7 +399,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Normal] T-PF-AC-02-02: MIN_ASSISTANT_CHARS より多い文字数 → null', () => {
@@ -408,14 +409,14 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Normal] T-PF-AC-03-01: User=1 + Assistant なし → null', () => {
       const turns = _makeTurns([{ role: 'user', content: '質問のみ' }]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Normal] T-PF-AC-05-02: 各 60 文字 × 2 件（合計 120 >= 100）→ null', () => {
@@ -426,7 +427,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -445,7 +446,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
       assertEquals(result!.includes('PR生成作業ログ'), true);
     });
 
@@ -457,7 +458,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-AC-08-02: User=2ターン + assistant="ok" → null（isSingleUserTurnゲート外のためスキップ）', () => {
@@ -468,7 +469,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-AC-04-01: User=2, Assistant 短い → null', () => {
@@ -479,7 +480,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-AC-04-02: User=3, Assistant 1 文字 → null', () => {
@@ -491,7 +492,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-AC-10-01: assistant が MIN_ASSISTANT_CHARS - 1（99文字）の場合 → null でない（reason を返す）', () => {
@@ -501,7 +502,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Edge] T-PF-AC-10-02: reason に `99`（文字数）が含まれる', () => {
@@ -545,7 +546,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-02: "---\\nname: skill" で始まる → null でない reason', () => {
@@ -555,7 +556,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-03: "Implement the following plan" で始まる → null でない reason', () => {
@@ -565,7 +566,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-04: "以下のプランを実装" で始まる → null でない reason', () => {
@@ -575,7 +576,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-05: "=== PROMPT ===" で始まる → null でない reason', () => {
@@ -585,7 +586,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-06: Git操作ログ(User) + 短い応答(Assistant) → null でない reason を返す', () => {
@@ -595,7 +596,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-01-07: スキル呼び出し(User) + 短い応答(Assistant) → null でない reason を返す', () => {
@@ -605,7 +606,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-CV-02-01: 通常テキスト → null を返す', () => {
@@ -615,7 +616,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -629,7 +630,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it("[Edge] T-PF-CV-04-01: User ターンの content が空文字列 `''` → null を返す", () => {
@@ -639,7 +640,7 @@ describe('checkConversationPattern', () => {
       ]);
       const result = checkConversationPattern(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 });
@@ -673,7 +674,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-02: commit/issue/branch 判定プロンプト → null でない reason', () => {
@@ -683,7 +684,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-03: GitHub Issue 生成プロンプト → null でない reason', () => {
@@ -693,7 +694,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-04: branch 名生成プロンプト → null でない reason', () => {
@@ -703,7 +704,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-05: 英語翻訳プロンプト → null でない reason', () => {
@@ -713,7 +714,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-06: 要約生成プロンプト → null でない reason', () => {
@@ -723,7 +724,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-01-07: システムプロンプト転写 → null でない reason', () => {
@@ -733,7 +734,21 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertNotEquals(result, null);
+      assertNotNull(result);
+    });
+
+    it('[Normal] T-PF-PM-01-08: filter-chatlogs判定プロンプト → null でない reason', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content:
+            'Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.\n[{"file":"...","decision":"KEEP or DISCARD",...}]',
+        },
+        { role: 'assistant', content: '[{"file":"input.md","decision":"DISCARD","confidence":0.97,"reason":"..."}]' },
+      ]);
+      const result = checkPromptContent(turns);
+
+      assertNotNull(result);
     });
 
     it('[Normal] T-PF-PM-02-01: 通常テキスト → null を返す', () => {
@@ -743,13 +758,13 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
-  /** 複数 User ターン時に 1ターン限定ルールが無効化されるケース。 */
+  /** 複数 User ターン時も最初のターンがパターン一致すれば検出されるケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-PF-PM-03-01: 複数 User ターンでは適用されず null を返す', () => {
+    it('[Edge] T-PF-PM-03-01: 複数 User ターンでも最初のターンがパターン一致 → null でない reason', () => {
       const turns = _makeTurns([
         { role: 'user', content: 'Based on the issue title, generate a branch name' },
         { role: 'assistant', content: '回答1' },
@@ -757,7 +772,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertEquals(result, null);
+      assertNotNull(result);
     });
 
     it('[Edge] T-PF-PM-04-01: タイトル説明生成プロンプトが先頭でない → null（先頭でないので不一致）', () => {
@@ -770,7 +785,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('[Edge] T-PF-PM-04-02: システムプロンプト転写が先頭でない → null（先頭でないので不一致）', () => {
@@ -783,7 +798,7 @@ describe('checkPromptContent', () => {
       ]);
       const result = checkPromptContent(turns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 });

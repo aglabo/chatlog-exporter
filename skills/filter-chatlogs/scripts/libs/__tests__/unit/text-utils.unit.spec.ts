@@ -8,8 +8,9 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Helpers
 // functions
@@ -99,7 +100,7 @@ describe('parseJsonArray', () => {
           const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
           const result = parseJsonArray(raw);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
 
         it('T-FL-PJ-01-02: 配列の最初の要素の file が "a.md" になる', () => {
@@ -139,7 +140,7 @@ describe('parseJsonArray', () => {
           const raw = `前置テキスト\n${JSON.stringify(arr)}\n後置テキスト`;
           const result = parseJsonArray(raw);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
 
         it('T-FL-PJ-02-02: マークダウンコードブロック内の JSON → null でない', () => {
@@ -147,7 +148,7 @@ describe('parseJsonArray', () => {
           const raw = `\`\`\`json\n${JSON.stringify(arr)}\n\`\`\``;
           const result = parseJsonArray(raw);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
       });
     });
@@ -163,7 +164,7 @@ describe('parseJsonArray', () => {
           const raw = `some text ${JSON.stringify(arr)} more text`;
           const result = parseJsonArray(raw);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
       });
     });
@@ -177,19 +178,19 @@ describe('parseJsonArray', () => {
         it('T-FL-PJ-04-01: 完全に無効なテキスト → null', () => {
           const result = parseJsonArray('これはJSONではありません');
 
-          assertEquals(result, null);
+          assertNull(result);
         });
 
         it('T-FL-PJ-04-02: 空文字列 → null', () => {
           const result = parseJsonArray('');
 
-          assertEquals(result, null);
+          assertNull(result);
         });
 
         it('T-FL-PJ-04-03: 空の配列 → null（length=0 の場合は null 扱い）', () => {
           const result = parseJsonArray('[]');
 
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });

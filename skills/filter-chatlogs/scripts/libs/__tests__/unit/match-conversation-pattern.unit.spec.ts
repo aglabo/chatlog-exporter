@@ -10,6 +10,7 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { _matchConversationPattern } from '../../../libs/classify-file.ts';
@@ -114,7 +115,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _userOnlyPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -132,7 +133,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** assistant のみマッチして user はマッチしない場合。 */
@@ -143,7 +144,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 
@@ -170,7 +171,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** entries が空のパターンの場合。 */
@@ -181,7 +182,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _emptyEntryPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** patterns が空配列の場合。 */
@@ -192,7 +193,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, []);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     /** 最初のターンが assistant（user ターンなし）の場合。 */
@@ -202,7 +203,7 @@ describe('_matchConversationPattern', () => {
       ]);
       const result = _matchConversationPattern(conversation, _bothPatterns);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 });

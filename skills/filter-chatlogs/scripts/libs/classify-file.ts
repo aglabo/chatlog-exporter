@@ -146,9 +146,9 @@ export const checkConversationPattern = (conversation: Conversation): string | n
 };
 
 export const checkPromptContent = (conversation: Conversation): string | null => {
-  if (!isSingleUserTurn(conversation)) { return null; }
-  const text = getUserTurns(conversation)[0].content;
-  return _matchUserPattern(text, NOISE_PROMPT_PATTERNS);
+  const _userTurns = getUserTurns(conversation);
+  if (_userTurns.length === 0) { return null; }
+  return _matchUserPattern(_userTurns[0].content, NOISE_PROMPT_PATTERNS);
 };
 
 export const checkAssistantContent = (conversation: Conversation): string | null => {

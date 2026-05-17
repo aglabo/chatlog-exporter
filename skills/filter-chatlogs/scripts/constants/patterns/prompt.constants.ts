@@ -56,4 +56,11 @@ export const NOISE_PROMPT_PATTERNS: NoiseConversationPattern[] = [
       pattern: /^you are a (topic and tag extraction assistant|log curator)\b/i,
     }],
   },
+  {
+    label: 'filter-chatlogs判定プロンプト',
+    entries: [{
+      target: ConversationRole.user,
+      pattern: /^output only a json array\.\s*no markdown,\s*no explanation/i,
+    }],
+  },
 ];

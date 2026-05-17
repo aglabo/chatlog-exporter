@@ -7,8 +7,9 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../testing/assert.ts';
 
 // -- test target --
 import { isoToDate, isoToLocalDayMs, isoToMs } from '../../date-utils.ts';
@@ -23,7 +24,7 @@ describe('isoToLocalDayMs', () => {
       describe('Then: T-LIB-D-01 - number を返す', () => {
         it('T-LIB-D-01-01: 有効な ISO 文字列は number を返し null でない', () => {
           const result = isoToLocalDayMs('2026-04-20T10:30:00Z');
-          assertNotEquals(result, null);
+          assertNotNull(result);
           assertEquals(typeof result, 'number');
         });
       });
@@ -36,7 +37,7 @@ describe('isoToLocalDayMs', () => {
         it('T-LIB-D-02-01: isoToLocalDayMs の結果から逆算した日付が isoToDate と一致する', () => {
           const iso = '2026-04-20T00:00:00Z';
           const ms = isoToLocalDayMs(iso);
-          assertNotEquals(ms, null);
+          assertNotNull(ms);
           const d = new Date(ms as number);
           const reconstructed = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${
             String(d.getDate()).padStart(2, '0')
@@ -51,7 +52,7 @@ describe('isoToLocalDayMs', () => {
     describe('When: isoToLocalDayMs を実行する', () => {
       describe('Then: T-LIB-D-03 - null を返す', () => {
         it('T-LIB-D-03-01: "invalid" は null を返す', () => {
-          assertEquals(isoToLocalDayMs('invalid'), null);
+          assertNull(isoToLocalDayMs('invalid'));
         });
       });
     });
@@ -61,7 +62,7 @@ describe('isoToLocalDayMs', () => {
     describe('When: isoToLocalDayMs を実行する', () => {
       describe('Then: T-LIB-D-04 - null を返す', () => {
         it('T-LIB-D-04-01: 空文字列は null を返す', () => {
-          assertEquals(isoToLocalDayMs(''), null);
+          assertNull(isoToLocalDayMs(''));
         });
       });
     });

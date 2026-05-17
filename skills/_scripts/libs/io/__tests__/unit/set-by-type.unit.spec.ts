@@ -8,8 +8,9 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../testing/assert.ts';
 
 // ─── Test target
 import { _setByTypeForTest } from '../../parse-args.ts';
@@ -58,7 +59,7 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('flag'), undefined);
         assertEquals(config['result'], true);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -67,7 +68,7 @@ describe('_setByType', () => {
       it('[Error] T-SBT-FL-02: rawValue あり → ChatlogError を返す', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('flag'), 'ignored');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -86,7 +87,7 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('string'), 'hello');
         assertEquals(config['result'], 'hello');
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -95,14 +96,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-ST-02: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('string'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-ST-03: rawValue "" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('string'), '');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -120,14 +121,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), 'claude');
         assertEquals(config['result'], 'claude');
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Normal] T-SBT-AG-02: rawValue "chatgpt" → config[field] = "chatgpt"', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), 'chatgpt');
         assertEquals(config['result'], 'chatgpt');
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -136,14 +137,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-AG-03: rawValue "unknown-bot" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), 'unknown-bot');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-AG-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -161,21 +162,21 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), '42');
         assertEquals(config['result'], 42);
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Normal] T-SBT-IN-02: rawValue "0" → config[field] = 0', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), '0');
         assertEquals(config['result'], 0);
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Normal] T-SBT-IN-03: rawValue "-5" → config[field] = -5', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), '-5');
         assertEquals(config['result'], -5);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -184,14 +185,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-IN-04: rawValue "abc" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), 'abc');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-IN-06: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -210,7 +211,7 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('number'), '3.14');
         assertEquals(config['result'], 3.14);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -219,14 +220,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-NM-03: rawValue "xyz" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('number'), 'xyz');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-NM-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('number'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -245,14 +246,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), '/abs/path');
         assertEquals(config['result'], '/abs/path');
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Normal] T-SBT-DR-03: rawValue "C:\\\\Windows\\\\path" → config[field] = "C:/Windows/path" (正規化)', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), 'C:\\Windows\\path');
         assertEquals(config['result'], 'C:/Windows/path');
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -261,14 +262,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-DR-04: rawValue "plain" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), 'plain');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-DR-05: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -288,14 +289,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '2026-03');
         assertEquals(config['result'], '2026-03');
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Normal] T-SBT-PR-02: rawValue "2026" → config[field] = "2026"', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '2026');
         assertEquals(config['result'], '2026');
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
 
@@ -304,14 +305,14 @@ describe('_setByType', () => {
       it('[Error] T-SBT-PR-03: rawValue "invalid" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), 'invalid');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
 
       it('[Error] T-SBT-PR-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), undefined);
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });
@@ -322,13 +323,13 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '2026-13');
         assertEquals(config['result'], '2026-13');
-        assertEquals(result, null);
+        assertNull(result);
       });
 
       it('[Edge] T-SBT-PR-06: rawValue "" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '');
-        assertNotEquals(result, null);
+        assertNotNull(result);
         assertEquals(result instanceof ChatlogError, true);
       });
     });

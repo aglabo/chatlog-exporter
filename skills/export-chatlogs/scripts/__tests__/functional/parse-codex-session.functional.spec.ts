@@ -9,8 +9,9 @@
 // cspell:words sess
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { parseCodexSession } from '../../exporter/codex-exporter.ts';
@@ -108,7 +109,7 @@ describe('parseCodexSession', () => {
       describe('Then: T-EC-PX-01 - 正常にパースされる', () => {
         it('T-EC-PX-01-01: null でない ExportedSession を返す', async () => {
           const result = await parseCodexSession(filePath, ALL_PERIOD);
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
 
         it('T-EC-PX-01-02: meta.sessionId が "codex-sess-0001"', async () => {
@@ -176,7 +177,7 @@ describe('parseCodexSession', () => {
       describe('Then: T-EC-PX-02 - null を返す', () => {
         it('T-EC-PX-02-01: null を返す', async () => {
           const result = await parseCodexSession(filePath, ALL_PERIOD);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -226,7 +227,7 @@ describe('parseCodexSession', () => {
       describe('Then: T-EC-PX-03 - null を返す', () => {
         it('T-EC-PX-03-01: null を返す', async () => {
           const result = await parseCodexSession(filePath, marchRange);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -306,7 +307,7 @@ describe('parseCodexSession', () => {
       describe('Then: T-EC-PX-06 - null を返す', () => {
         it('T-EC-PX-06-01: null を返す', async () => {
           const result = await parseCodexSession(`${tempDir}/no-such-file.jsonl`, ALL_PERIOD);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
