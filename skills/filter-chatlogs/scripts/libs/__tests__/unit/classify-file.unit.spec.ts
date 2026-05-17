@@ -80,6 +80,12 @@ describe('checkFilename', () => {
       assertNotNull(result);
     });
 
+    it('[Normal] T-PF-CF-01-06: pr-temp-idd-pr-pr-current-draft-md-*.md → null でない', () => {
+      const result = checkFilename('pr-temp-idd-pr-pr-current-draft-md-abc.md');
+
+      assertNotNull(result);
+    });
+
     it('[Normal] T-PF-CF-02-01: "my-chat-log.md" → null', () => {
       const result = checkFilename('my-chat-log.md');
 
