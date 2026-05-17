@@ -59,4 +59,10 @@ export const NOISE_ASSISTANT_PATTERNS: NoiseConversationPattern[] = [
       { target: ConversationRole.assistant, pattern: /\*\*生成されたPRドラフト\*\*/ },
     ],
   },
+  {
+    label: 'PRドラフト生成作業ログ',
+    entries: [
+      { target: ConversationRole.assistant, pattern: /^PRドラフトを生成/ },
+    ],
+  },
 ];
