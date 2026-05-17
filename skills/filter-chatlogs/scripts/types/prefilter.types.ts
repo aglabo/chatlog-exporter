@@ -26,3 +26,13 @@ export interface PrefilterConfig {
 export type PrefilterParsedConfig = Partial<PrefilterConfig> & {
   configFile?: string;
 };
+
+/** prefilter 処理の統計情報。 */
+export interface PrefilterStats {
+  /** ノイズと判定し処理（削除 or 表示）したファイル数。 */
+  noise: number;
+  /** ノイズなしと判定し保持したファイル数。 */
+  keep: number;
+  /** 読み取りエラーや削除失敗が発生したファイル数。 */
+  error: number;
+}

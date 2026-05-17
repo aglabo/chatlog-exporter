@@ -14,6 +14,8 @@ import { logger } from '../../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── internal ───
+// types
+import type { PrefilterStats } from '../../types/prefilter.types.ts';
 // functions
 import { classifyFile } from '../../libs/classify-file.ts';
 
@@ -23,7 +25,7 @@ import { classifyFile } from '../../libs/classify-file.ts';
 
 export const processNoiseFiles = async (
   files: string[],
-  stats: { noise: number; keep: number; error: number },
+  stats: PrefilterStats,
   options: { dryRun: boolean; report: boolean },
 ): Promise<void> => {
   const { dryRun, report } = options;
