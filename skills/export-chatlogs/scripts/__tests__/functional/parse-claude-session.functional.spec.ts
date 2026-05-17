@@ -9,8 +9,9 @@
 // cspell:words sess
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { parseClaudeSession } from '../../exporter/claude-exporter.ts';
@@ -103,7 +104,7 @@ describe('parseClaudeSession', () => {
       describe('Then: T-EC-PC-01 - 正常にパースされる', () => {
         it('T-EC-PC-01-01: null でない ExportedSession を返す', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);
-          assertNotEquals(result, null);
+          assertNotNull(result);
         });
 
         it('T-EC-PC-01-02: meta.sessionId が "sess-0001-0001-0001-0001"', async () => {
@@ -189,7 +190,7 @@ describe('parseClaudeSession', () => {
       describe('Then: T-EC-PC-02 - null を返す', () => {
         it('T-EC-PC-02-01: null を返す', async () => {
           const result = await parseClaudeSession(filePath, ALL_PERIOD);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -233,7 +234,7 @@ describe('parseClaudeSession', () => {
       describe('Then: T-EC-PC-03 - null を返す', () => {
         it('T-EC-PC-03-01: null を返す', async () => {
           const result = await parseClaudeSession(filePath, marchRange);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -252,7 +253,7 @@ describe('parseClaudeSession', () => {
       describe('Then: T-EC-PC-05 - null を返す', () => {
         it('T-EC-PC-05-01: null を返す', async () => {
           const result = await parseClaudeSession(`${tempDir}/no-such-file.jsonl`, ALL_PERIOD);
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
