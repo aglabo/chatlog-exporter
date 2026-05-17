@@ -9,6 +9,7 @@
 // Deno Test module
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test target
 import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
@@ -248,7 +249,7 @@ describe('parseJsonArray', () => {
 
       const result = parseJsonArray(rawPlain);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
 
     it('T-10-03-02: 空文字列でスローされずに null が返される', () => {
@@ -256,7 +257,7 @@ describe('parseJsonArray', () => {
 
       const result = parseJsonArray(rawEmpty);
 
-      assertEquals(result, null);
+      assertNull(result);
     });
   });
 });
