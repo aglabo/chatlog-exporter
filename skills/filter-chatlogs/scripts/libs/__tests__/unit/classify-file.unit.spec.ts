@@ -21,6 +21,7 @@ import {
 } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
+// constants
 import { MIN_ASSISTANT_CHARS } from '../../../constants/common.constants.ts';
 import {
   NOISE_USER_PATTERNS_CHATLOG,

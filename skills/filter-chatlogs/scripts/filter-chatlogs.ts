@@ -17,28 +17,30 @@
 // import
 // ─────────────────────────────────────────────
 
-// -- constants --
-import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
-
-// -- external --
+// ─── shared ───
+// classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+// functions
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
+// constants
+import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
+// types
 import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 
-// -- internal --
+// ─── internal ───
+// functions
+import { prefilterFiles } from './libs/prefilter.ts';
+import { processChunk } from './modules/filter/process-chunk.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
 // types
 import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
-// libs
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
-import { prefilterFiles } from './libs/prefilter.ts';
-import { processChunk } from './modules/filter/process-chunk.ts';
 
 // ─────────────────────────────────────────────
 // 引数解析

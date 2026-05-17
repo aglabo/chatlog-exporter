@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/config/prefilter-config.unit.spec.ts
+// src: scripts/configs/__tests__/unit/prefilter-config.unit.spec.ts
 // @(#): prefilter-config.ts のユニットテスト
 //       対象: parseArgs / buildConfig
 //
@@ -12,7 +12,7 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildConfig, parseArgs } from '../../../config/prefilter-config.ts';
+import { buildConfig, parseArgs } from '../../../configs/prefilter-config.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';

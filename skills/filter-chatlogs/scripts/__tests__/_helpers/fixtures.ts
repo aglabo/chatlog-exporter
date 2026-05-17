@@ -7,6 +7,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Helpers
+// functions
 import { agentPath } from '../../../../_scripts/libs/file-io/resolve-directory.ts';
 
 /**

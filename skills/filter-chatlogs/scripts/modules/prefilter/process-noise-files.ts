@@ -6,10 +6,15 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── shared ───
+// functions
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+
+// ─── internal ───
+// functions
 import { classifyFile } from '../../libs/classify-file.ts';
 
 // ─────────────────────────────────────────────

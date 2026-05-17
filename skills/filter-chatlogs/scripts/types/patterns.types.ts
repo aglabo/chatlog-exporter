@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── shared ───
+// types
 import type { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 /** ConversationEntry の制御値を一元管理するオブジェクト定数。 */

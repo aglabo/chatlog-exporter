@@ -8,7 +8,8 @@
 
 // cspell:ignore conv
 
-// ─── external ───
+// ─── shared ───
+// functions
 import {
   countChars,
   getAssistantTurns,
@@ -16,17 +17,20 @@ import {
   hasUserTurn,
   isSingleUserTurn,
   parseConversation,
-  renderConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+// constants
+import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
 
 // ─── internal ───
-import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
-import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
-import { EXCLUDE_FILENAME_PATTERNS_STR, SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
+// functions
+import { checkFilename } from './classify-file.ts';
+import { extractConversation } from './common-utils.ts';
+// constants
+import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 // types
 import type { FilterStats } from '../types/filter.types.ts';
 
@@ -34,16 +38,43 @@ import type { FilterStats } from '../types/filter.types.ts';
 // 事前フィルタ関数
 // ─────────────────────────────────────────────
 
+/**
+ * テキストがシステム/コマンドタグのみで構成されているかどうかを判定する。
+ *
+ * `SYSTEM_TAG_PREFIXES` に登録されたプレフィックスで始まる場合に `true` を返す。
+ *
+ * @param text - 判定対象のテキスト
+ * @returns システム/コマンドタグのみなら `true`
+ */
 export const isSystemOnlyMessage = (text: string): boolean => {
   const stripped = text.trim();
   return SYSTEM_TAG_PREFIXES.some((prefix) => stripped.startsWith(prefix));
 };
 
-export const isExcludedByFilename = (filename: string): boolean => {
-  const lower = filename.toLowerCase();
-  return EXCLUDE_FILENAME_PATTERNS_STR.some((pat) => lower.includes(pat));
-};
+/**
+ * ファイル名がノイズ判定パターンに一致するかどうかを判定する。
+ *
+ * `checkFilename` が非 `null` を返した場合に除外対象と見なす。
+ *
+ * @param filename - 判定対象のファイル名（パスではなくファイル名部分）
+ * @returns 除外対象なら `true`
+ */
+export const isExcludedByFilename = (filename: string): boolean => checkFilename(filename) !== null;
 
+/**
+ * 本文テキストをファイル内容チェックで除外するかどうかを判定し、理由を返す。
+ *
+ * 以下の順に評価し、いずれかに該当すれば除外:
+ * 1. 本文が `minCharCount` 文字未満
+ * 2. User ターンが存在しない
+ * 3. User ターンが 1 件のとき、User メッセージがシステム/コマンドタグのみ
+ * 4. User ターンが 1 件のとき、Assistant 応答の合計文字数が `minAssistantChars` 未満
+ *
+ * @param body - 判定対象の本文テキスト（frontmatter を除いたコンテンツ部分）
+ * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_VALUES.minCharCount`）
+ * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_VALUES.minAssistantChars`）
+ * @returns `excluded: true` の場合は除外対象。`reason` に除外理由を格納する。
+ */
 export const isExcludedByContent = (
   body: string,
   minCharCount = DEFAULT_VALUES.minCharCount as number,
@@ -74,9 +105,6 @@ export const isExcludedByContent = (
 
   return { excluded: false, reason: '' };
 };
-
-export const extractBodyText = (body: string, maxChars = MAX_BODY_CHARS): string =>
-  renderConversation(parseConversation(body), maxChars);
 
 /**
  * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
@@ -126,7 +154,7 @@ export const prefilterFiles = async (
       continue;
     }
 
-    const bodyText = extractBodyText(content);
+    const bodyText = extractConversation(content);
     if (!bodyText.trim()) {
       skipped++;
       continue;

@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Helpers
+// constants
 import { MAX_BODY_CHARS } from '../../constants/common.constants.ts';
 
 /** filter-chatlogs の KEEP 判定を通過する最小テキスト長（文字数）。 */

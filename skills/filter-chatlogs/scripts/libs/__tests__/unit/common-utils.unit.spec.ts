@@ -1,6 +1,6 @@
 // src: skills/filter-chatlogs/scripts/libs/__tests__/unit/common-utils.unit.spec.ts
 // @(#): common-utils ユニットテスト
-//       対象: validateChatlogsDir
+//       対象: validateChatlogsDir / extractConversation
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -8,11 +8,11 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertRejects } from '@std/assert';
+import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { validateChatlogsDir } from '../../common-utils.ts';
+import { extractConversation, validateChatlogsDir } from '../../common-utils.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
@@ -83,6 +83,75 @@ describe('validateChatlogsDir', () => {
         ChatlogError,
       );
       assertEquals((err as ChatlogError).subindex, 'NotFound');
+    });
+  });
+});
+
+describe('extractConversation', () => {
+  // ─── T-FL-EB-01: 通常会話 → User/Assistant フォーマット ──────────────────────
+
+  describe('Given: User と Assistant ターンを含む本文', () => {
+    describe('When: extractConversation(body) を呼び出す', () => {
+      describe('Then: T-FL-EB-01 - ### User / ### Assistant フォーマットで返される', () => {
+        const body = '### User\nユーザーの質問\n\n### Assistant\nアシスタントの回答\n';
+
+        it('T-FL-EB-01-01: "### User" を含む', () => {
+          const result = extractConversation(body);
+
+          assertStringIncludes(result, '### User');
+        });
+
+        it('T-FL-EB-01-02: "### Assistant" を含む', () => {
+          const result = extractConversation(body);
+
+          assertStringIncludes(result, '### Assistant');
+        });
+
+        it('T-FL-EB-01-03: ユーザーのテキストが含まれる', () => {
+          const result = extractConversation(body);
+
+          assertStringIncludes(result, 'ユーザーの質問');
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-EB-02: maxChars 切り詰め ──────────────────────────────────────────
+
+  describe('Given: maxChars より長い本文', () => {
+    describe('When: extractConversation(body, maxChars) を呼び出す', () => {
+      describe('Then: T-FL-EB-02 - maxChars 文字以内に切り詰められる', () => {
+        it('T-FL-EB-02-01: 結果の長さが maxChars 以下になる', () => {
+          const longText = 'x'.repeat(500);
+          const body = `### User\n${longText}\n`;
+          const maxChars = 100;
+          const result = extractConversation(body, maxChars);
+
+          assertEquals(result.length <= maxChars, true);
+        });
+
+        it('T-FL-EB-02-02: maxChars=10 でも結果が返される', () => {
+          const body = '### User\n質問テキスト\n\n### Assistant\n回答テキスト\n';
+          const result = extractConversation(body, 10);
+
+          assertEquals(result.length <= 10, true);
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-EB-03: ターンなし → 空文字列 ─────────────────────────────────────
+
+  describe('Given: ターンヘッダーがない本文', () => {
+    describe('When: extractConversation(body) を呼び出す', () => {
+      describe('Then: T-FL-EB-03 - 空文字列が返される', () => {
+        it('T-FL-EB-03-01: ターンなし → 空文字列', () => {
+          const body = 'ヘッダーのない本文テキスト';
+          const result = extractConversation(body);
+
+          assertEquals(result, '');
+        });
+      });
     });
   });
 });

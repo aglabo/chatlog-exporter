@@ -6,7 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+// ─── shared ───
+// functions
 import {
   countChars,
   getAssistantTurns,
@@ -15,8 +16,15 @@ import {
   isSingleUserTurn,
   parseConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
+// constants
 import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+// types
 import type { Conversation, Turn } from '../../../_scripts/types/conversation.types.ts';
+// classes
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+
+// ─── internal ───
+// constants
 import { MIN_ASSISTANT_CHARS } from '../constants/common.constants.ts';
 import {
   NOISE_ASSISTANT_PATTERNS,
@@ -26,6 +34,7 @@ import {
   NOISE_USER_PATTERNS,
   SYSTEM_TAG_REGEX,
 } from '../constants/patterns.constants.ts';
+// types
 import { ENTRY_CONTROL } from '../types/patterns.types.ts';
 import type {
   ConversationEntry,

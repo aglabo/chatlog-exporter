@@ -29,13 +29,19 @@
  *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --input ./temp/chatlogs
  */
 
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+// ─── shared ───
+// functions
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { buildConfig, parseArgs } from './config/prefilter-config.ts';
+// classes
+import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+
+// ─── internal ───
+// functions
+import { buildConfig, parseArgs } from './configs/prefilter-config.ts';
 import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
 
 // ─────────────────────────────────────────────

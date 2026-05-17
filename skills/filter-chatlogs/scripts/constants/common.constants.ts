@@ -6,8 +6,13 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── shared ───
+// constants
 import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
+
+// ─── internal ───
+// types
 import type { FilterConfig } from '../types/filter.types.ts';
 import type { PrefilterConfig } from '../types/prefilter.types.ts';
 
