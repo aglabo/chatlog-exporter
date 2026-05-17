@@ -6,8 +6,9 @@
 //
 // This software is released under the MIT License.
 
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test target
 import { loadFrontmatterFileMeta, MAX_BODY_CHARS } from '../../set-frontmatter.ts';
@@ -48,7 +49,7 @@ describe('loadFrontmatterFileMeta', () => {
 
           const result = await loadFrontmatterFileMeta(filePath);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
           assertEquals(result!.sessionId, 'sess-001');
         });
 
@@ -103,7 +104,7 @@ describe('loadFrontmatterFileMeta', () => {
 
           const result = await loadFrontmatterFileMeta(filePath);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
           assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
         });
 
@@ -131,7 +132,7 @@ describe('loadFrontmatterFileMeta', () => {
 
           const result = await loadFrontmatterFileMeta(filePath);
 
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -145,7 +146,7 @@ describe('loadFrontmatterFileMeta', () => {
         it('T-SF-LFM-04-01: null が返る', async () => {
           const result = await loadFrontmatterFileMeta(`${tempDir}/nonexistent.md`);
 
-          assertEquals(result, null);
+          assertNull(result);
         });
       });
     });
@@ -162,7 +163,7 @@ describe('loadFrontmatterFileMeta', () => {
 
           const result = await loadFrontmatterFileMeta(filePath);
 
-          assertNotEquals(result, null);
+          assertNotNull(result);
           assertEquals(result!.sessionId, '');
         });
 
