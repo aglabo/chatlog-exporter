@@ -40,7 +40,7 @@ describe('classify.constants', () => {
         const _defaultCases: { id: string; field: keyof typeof DEFAULT_CLASSIFY_CONFIG; expected: unknown }[] = [
           { id: 'T-CL-CONST-01-01', field: 'agent', expected: DEFAULT_AGENT },
           { id: 'T-CL-CONST-01-02', field: 'dryRun', expected: false },
-          { id: 'T-CL-CONST-01-03', field: 'inputDir', expected: './chatlogs' },
+          { id: 'T-CL-CONST-01-03', field: 'baseDir', expected: './chatlogs' },
           { id: 'T-CL-CONST-01-04', field: 'dicsDir', expected: './assets/dics' },
           { id: 'T-CL-CONST-01-05', field: 'model', expected: DEFAULT_AI_MODEL },
         ];

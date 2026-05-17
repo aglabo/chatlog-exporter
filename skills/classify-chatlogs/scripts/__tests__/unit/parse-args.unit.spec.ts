@@ -23,7 +23,7 @@ describe('parseArgs', () => {
     describe('When: parseArgs([]) を呼び出す', () => {
       describe('Then: T-CL-PA-01 - 各フィールドが undefined になる', () => {
         const _cases: Array<[string, keyof ParsedConfig]> = [
-          ['T-CL-PA-01-01: inputDir → undefined', 'inputDir'],
+          ['T-CL-PA-01-01: baseDir → undefined', 'baseDir'],
           ['T-CL-PA-01-02: configFile → undefined', 'configFile'],
           ['T-CL-PA-01-03: dryRun → undefined', 'dryRun'],
         ];
@@ -37,19 +37,46 @@ describe('parseArgs', () => {
     });
   });
 
-  // ─── T-CL-PA-02: --input オプション ─────────────────────────────────────────
+  // ─── T-CL-PA-02: --base-dir オプション ─────────────────────────────────────
 
-  describe('Given: --input または --input=VALUE', () => {
+  describe('Given: --base-dir または --base-dir=VALUE', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-CL-PA-02 - inputDir に値が設定される', () => {
+      describe('Then: T-CL-PA-02 - baseDir に値が設定される', () => {
         const _cases: Array<[string, string[], string]> = [
-          ['T-CL-PA-02-01: --input VALUE → inputDir が設定される', ['--input', '/data/chatlog'], '/data/chatlog'],
-          ['T-CL-PA-02-02: --input=VALUE → inputDir が設定される', ['--input=/data/chatlog'], '/data/chatlog'],
+          ['T-CL-PA-02-01: --base-dir VALUE → baseDir が設定される', ['--base-dir', '/data/chatlog'], '/data/chatlog'],
+          ['T-CL-PA-02-02: --base-dir=VALUE → baseDir が設定される', ['--base-dir=/data/chatlog'], '/data/chatlog'],
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
             const result = parseArgs(args);
-            assertEquals(result.inputDir, expected);
+            assertEquals(result.baseDir, expected);
+          });
+        }
+      });
+    });
+  });
+
+  // ─── T-CL-PA-07: --chatlogs-dir オプション ──────────────────────────────────
+
+  describe('Given: --chatlogs-dir または --chatlogs-dir=VALUE', () => {
+    describe('When: parseArgs(args) を呼び出す', () => {
+      describe('Then: T-CL-PA-07 - chatlogsDir に値が設定される', () => {
+        const _cases: Array<[string, string[], string]> = [
+          [
+            'T-CL-PA-07-01: --chatlogs-dir VALUE → chatlogsDir が設定される',
+            ['--chatlogs-dir', '/data/chatlog/claude/2026/2026-04'],
+            '/data/chatlog/claude/2026/2026-04',
+          ],
+          [
+            'T-CL-PA-07-02: --chatlogs-dir=VALUE → chatlogsDir が設定される',
+            ['--chatlogs-dir=/data/chatlog/claude/2026/2026-04'],
+            '/data/chatlog/claude/2026/2026-04',
+          ],
+        ];
+        for (const [id, args, expected] of _cases) {
+          it(id, () => {
+            const result = parseArgs(args);
+            assertEquals(result.chatlogsDir, expected);
           });
         }
       });

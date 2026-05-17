@@ -26,7 +26,7 @@ import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/lib
 // ─── ヘルパー ────────────────────────────────────────────────────────────────
 
 function _makeStats(): ClassifyStats {
-  return { moved: 0, skipped: 0, error: 0 };
+  return { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
 }
 
 // ─── classifyFile ─────────────────────────────────────────────────────────────

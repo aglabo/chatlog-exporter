@@ -35,9 +35,11 @@ export interface ClassifyResult {
 
 /** 処理全体の集計カウンター。`main` 関数が完了時に出力する。 */
 export interface ClassifyStats {
-  /** 移動（または dry-run での移動予定）件数。 */
+  /** AI を呼び出さずに移動した件数（フロントマター設定済み移動 + too-short fallback）。 */
   moved: number;
-  /** 既にプロジェクト設定済みでスキップした件数。 */
+  /** AI を呼び出して分類・移動した件数（成功・失敗・パース失敗いずれも含む）。 */
+  movedByAI: number;
+  /** 既にプロジェクト設定済みかつ対応ディレクトリ内でスキップした件数。 */
   skipped: number;
   /** 読み込み・移動に失敗した件数。 */
   error: number;
@@ -55,8 +57,8 @@ export interface ClassifyConfig {
   period?: string;
   /** `true` のときファイルを移動せず分類結果のみ表示する。 */
   dryRun: boolean;
-  /** チャットログが格納された入力ディレクトリのパス。 */
-  inputDir: string;
+  /** チャットログが格納されたベースディレクトリのパス。 */
+  baseDir: string;
   /** `projects.dic` が置かれた辞書ディレクトリのパス。 */
   dicsDir: string;
   /** プロジェクト辞書ファイルのパス。省略時は DEFAULT_PROJECTS_DIC_PATH。 */

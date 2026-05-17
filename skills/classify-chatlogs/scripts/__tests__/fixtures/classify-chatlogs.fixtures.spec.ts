@@ -76,7 +76,7 @@ for (const _relPath of _fixtureDirs) {
 
       beforeEach(async () => {
         _tempDir = await Deno.makeTempDir();
-        _stats = { moved: 0, skipped: 0, error: 0 };
+        _stats = { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
         _inputContent = await readTextFile(_inputPath);
 
         // input.md を tempdir にコピー

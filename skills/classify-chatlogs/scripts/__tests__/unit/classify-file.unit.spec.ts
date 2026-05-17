@@ -28,7 +28,7 @@ function _makeClassifyChatlogEntry(filename: string): ClassifyChatlogEntry {
 }
 
 function _makeStats(): ClassifyStats {
-  return { moved: 0, skipped: 0, error: 0 };
+  return { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
 }
 
 // ─── classifyFile ─────────────────────────────────────────────────────────────
@@ -82,6 +82,40 @@ describe('classifyFile', () => {
 
           const _allInfo = loggerStub.infoLogs.join('\n');
           assertStringIncludes(_allInfo, '→ app1/');
+        });
+      });
+    });
+  });
+
+  describe('Given: byAI=true の呼び出し', () => {
+    describe('When: classifyFile(fileMeta, "app1", true, stats, true) を呼び出す (dryRun=true)', () => {
+      describe('Then: T-CL-CF-02 - stats.movedByAI がインクリメントされ stats.moved は変化しない', () => {
+        let loggerStub: LoggerStub;
+
+        beforeEach(() => {
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(() => {
+          loggerStub.restore();
+        });
+
+        it('T-CL-CF-02-01: byAI=true + dryRun=true → stats.movedByAI === 1', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, 'app1', true, stats, true);
+
+          assertEquals(stats.movedByAI, 1);
+        });
+
+        it('T-CL-CF-02-02: byAI=true + dryRun=true → stats.moved === 0', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, 'app1', true, stats, true);
+
+          assertEquals(stats.moved, 0);
         });
       });
     });

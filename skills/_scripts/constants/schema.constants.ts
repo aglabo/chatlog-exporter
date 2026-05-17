@@ -35,6 +35,8 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   discardThreshold: 'number',
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: 'string',
+  /** プロジェクト分類辞書ファイルのパス。classify-chatlogs が使用する。 */
+  projectsDic: 'string',
   /** プロンプトテンプレートが置かれたディレクトリのパス。 */
   promptsDir: 'string',
   /** チャットログの入出力ディレクトリのパス。 */
@@ -69,6 +71,8 @@ export const DEFAULT_VALUES: ConfigValues = {
   concurrency: 4,
   /** デフォルト辞書ディレクトリ */
   dicsDir: './assets/dics',
+  /** デフォルトプロジェクト辞書パス */
+  projectsDic: './assets/configs/projects.dic',
   /** デフォルトプロンプトディレクトリ */
   promptsDir: './assets/prompts',
   /** デフォルトチャットログディレクトリ */

@@ -116,11 +116,12 @@ export const main = async (args?: string[]): Promise<void> => {
       chatlogsDir: _config.chatlogsDir,
       baseDir: _baseDir,
       agent: _config.agent,
+      period: _config.period,
     });
 
     // 入力ディレクトリ確認
     if (!await dirExists(_agentDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
+      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
     }
 
     logger.info(`対象 agent: ${_config.agent}`);

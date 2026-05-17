@@ -39,7 +39,7 @@ function _makeClassifyChatlogEntry(filename: string, entryText?: string): Classi
 }
 
 function _makeStats(): ClassifyStats {
-  return { moved: 0, skipped: 0, error: 0 };
+  return { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
 }
 
 // ─── T-CL-PC-01: 正常分類 → stats.moved インクリメント ───────────────────────
@@ -68,14 +68,14 @@ describe('processChunk', () => {
           loggerStub.restore();
         });
 
-        it('T-CL-PC-01-01: stats.moved が 1 になる', async () => {
+        it('T-CL-PC-01-01: stats.movedByAI が 1 になる', async () => {
           const metas = [_makeClassifyChatlogEntry('a.md')];
           const stats = _makeStats();
           const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
           await processChunk(metas, projects, true, stats, model);
 
-          assertEquals(stats.moved, 1);
+          assertEquals(stats.movedByAI, 1);
         });
 
         it('T-CL-PC-01-02: stats.error が 0 のまま', async () => {
@@ -139,14 +139,14 @@ describe('processChunk', () => {
           loggerStub.restore();
         });
 
-        it('T-CL-PC-02-01: stats.moved が ファイル数（2）になる', async () => {
+        it('T-CL-PC-02-01: stats.movedByAI が ファイル数（2）になる', async () => {
           const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
           const stats = _makeStats();
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           await processChunk(metas, projects, true, stats, model);
 
-          assertEquals(stats.moved, 2);
+          assertEquals(stats.movedByAI, 2);
         });
 
         it('T-CL-PC-02-02: stats.error が 0 のまま（fallback 処理成功）', async () => {
@@ -198,14 +198,14 @@ describe('processChunk', () => {
           loggerStub.restore();
         });
 
-        it('T-CL-PC-03-01: stats.moved が 1 になる', async () => {
+        it('T-CL-PC-03-01: stats.movedByAI が 1 になる', async () => {
           const metas = [_makeClassifyChatlogEntry('a.md')];
           const stats = _makeStats();
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           await processChunk(metas, projects, true, stats, model);
 
-          assertEquals(stats.moved, 1);
+          assertEquals(stats.movedByAI, 1);
         });
 
         it('T-CL-PC-03-02: stats.error が 0 のまま', async () => {
@@ -400,14 +400,14 @@ describe('processChunk', () => {
           loggerStub.restore();
         });
 
-        it('T-CL-PC-04-01: stats.moved が 1 になる（FALLBACK_PROJECT で移動）', async () => {
+        it('T-CL-PC-04-01: stats.movedByAI が 1 になる（FALLBACK_PROJECT で移動）', async () => {
           const metas = [_makeClassifyChatlogEntry('a.md')];
           const stats = _makeStats();
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           await processChunk(metas, projects, true, stats, model);
 
-          assertEquals(stats.moved, 1);
+          assertEquals(stats.movedByAI, 1);
         });
 
         it('T-CL-PC-04-02: [dry-run] ログが infoLogs に記録される', async () => {
