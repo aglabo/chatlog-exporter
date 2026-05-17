@@ -7,6 +7,7 @@
 
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test target
 import { loadClassifyFileMeta } from '../../classify-chatlogs.ts';
@@ -94,7 +95,7 @@ describe('loadClassifyFileMeta', () => {
         it('T-CL-LFM-02-01: null が返される（例外なし）', async () => {
           const meta = await loadClassifyFileMeta('/nonexistent/file.md');
 
-          assertEquals(meta, null);
+          assertNull(meta);
         });
       });
     });
@@ -192,7 +193,7 @@ describe('loadClassifyFileMeta', () => {
 
           const meta = await loadClassifyFileMeta(filePath);
 
-          assertEquals(meta, null);
+          assertNull(meta);
         });
       });
     });
@@ -209,7 +210,7 @@ describe('loadClassifyFileMeta', () => {
 
           const meta = await loadClassifyFileMeta(filePath);
 
-          assertEquals(meta, null);
+          assertNull(meta);
         });
       });
     });
