@@ -11,13 +11,14 @@
  *
  * 使い方:
  *   deno run --allow-read --allow-run --allow-write classify-chatlogs.ts \
- *     [agent] [YYYY-MM] [--dry-run] [--config FILE] --input DIR
+ *     [agent] [YYYY-MM] [--dry-run] [--config FILE] [--base-dir DIR] [--chatlogs-dir DIR]
  */
 
 // -- external --
 import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
 import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findEntries } from '../../_scripts/libs/file-ops/find-entries.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
@@ -60,7 +61,8 @@ import type {
 
 /** classify-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgsSchema = [
-  { option: '--input', field: 'inputDir', type: 'string' },
+  { option: '--base-dir', field: 'baseDir', type: 'directory' },
+  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
   { option: '--model', field: 'model', type: 'string' },
   { option: '--config', field: 'configFile', type: 'string' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
@@ -78,9 +80,10 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ClassifyConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - model 優先順位: `parsed.model` > `globalConfig.get('model')` > `defaults.model`
- * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')` > `defaults.inputDir`
+ * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')` > `defaults.baseDir`
+ * - chatlogsDir: `parsed.chatlogsDir`（指定時のみ設定される）
  * - dicsDir 優先順位: `globalConfig.get('dicsDir')` > `defaults.dicsDir`
- * - projectsDic: `parsed.configFile` のディレクトリ + `/projects.dic`。未指定時は `defaults.projectsDic`。
+ * - projectsDic 優先順位: `globalConfig.get('projectsDic')` > `defaults.projectsDic`（`dicsDir` とは独立）
  * - 不正なモデル名は `ChatlogError('InvalidArgs')` をスローする。
  * - `configFile` は ClassifyConfig に存在しないため結果に含まれない。
  */
@@ -96,8 +99,10 @@ export function buildConfig(
   }
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _dicsDir = globalConfig.get('dicsDir') as string;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? globalConfig.get('chatlogsDir') as string;
-  const _projectsDic = `${_dicsDir}/projects.dic`;
+  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
+  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
+  const _chatlogsDir = parsed.chatlogsDir;
+  const _projectsDic = globalConfig.get('projectsDic') as string;
   const { configFile: _cf, ...rest } = parsed;
   return {
     ..._defaults,
@@ -106,7 +111,8 @@ export function buildConfig(
     model: _model,
     dicsDir: _dicsDir,
     projectsDic: _projectsDic,
-    inputDir: _inputDir,
+    baseDir: _baseDir,
+    chatlogsDir: _chatlogsDir,
   };
 }
 
@@ -134,7 +140,8 @@ export const loadClassifyFileMeta = async (filePath: string): Promise<ClassifyCh
 
 /**
  * 1ファイルを指定プロジェクトのサブディレクトリへ移動し、フロントマターを更新する。
- * - `dryRun` が `true` の場合は移動せずログのみ出力して `stats.moved` をインクリメントする。
+ * - `dryRun` が `true` の場合は移動せずログのみ出力してカウンターをインクリメントする。
+ * - `byAI` が `true` の場合は `stats.movedByAI`、`false` の場合は `stats.moved` をインクリメントする。
  * - 移動エラーは `stats.error` をインクリメントしてログに記録する（スローしない）。
  */
 export const classifyFile = async (
@@ -142,6 +149,7 @@ export const classifyFile = async (
   project: string,
   dryRun: boolean,
   stats: ClassifyStats,
+  byAI: boolean = false,
 ): Promise<void> => {
   const srcPath = fileMeta.filePath;
   const srcDir = getDirectory(srcPath);
@@ -150,7 +158,8 @@ export const classifyFile = async (
 
   if (dryRun) {
     logger.info(`[dry-run] ${fileMeta.filename} → ${project}/`);
-    stats.moved++;
+    if (byAI) { stats.movedByAI++; }
+    else { stats.moved++; }
     return;
   }
 
@@ -163,7 +172,8 @@ export const classifyFile = async (
     await Deno.writeTextFile(dstPath, normalizeLine(newText));
 
     logger.info(`moved: ${fileMeta.filename} → ${project}/`);
-    stats.moved++;
+    if (byAI) { stats.movedByAI++; }
+    else { stats.moved++; }
   } catch (e) {
     logger.error(`  移動失敗: ${fileMeta.filename}: ${e}`);
     stats.error++;
@@ -262,7 +272,7 @@ export const processChunk = async (
     if (!hasMeta && fullLength < MIN_CLASSIFIABLE_LENGTH) {
       logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
       logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
-      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats);
+      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats, false);
     } else {
       classifiable.push(f);
     }
@@ -279,7 +289,7 @@ export const processChunk = async (
     logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
     logger.warn(`  error: ${e}`);
     for (const f of classifiable) {
-      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats);
+      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats, true);
     }
     return;
   }
@@ -289,7 +299,7 @@ export const processChunk = async (
     logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
     for (const f of classifiable) {
-      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats);
+      await classifyFile(f, FALLBACK_PROJECT, dryRun, stats, true);
     }
     return;
   }
@@ -298,7 +308,7 @@ export const processChunk = async (
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    await classifyFile(fileMeta, project, dryRun, stats);
+    await classifyFile(fileMeta, project, dryRun, stats, true);
   }
 };
 
@@ -318,9 +328,14 @@ export const main = async (argv?: string[]): Promise<void> => {
     const _config = buildConfig(_parsed, _globalConfig);
 
     // 入力ディレクトリ確認
-    const agentDir = `${_config.inputDir}/${_config.agent}`;
-    if (!await dirExists(agentDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${agentDir}`);
+    const _agentDir = resolveChatlogsDir({
+      chatlogsDir: _config.chatlogsDir,
+      baseDir: _config.baseDir,
+      agent: _config.agent,
+      period: _config.period,
+    });
+    if (!await dirExists(_agentDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
     }
 
     // プロジェクト辞書読み込み
@@ -336,20 +351,25 @@ export const main = async (argv?: string[]): Promise<void> => {
     logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
 
     // ファイル列挙
+    const _searchDir = resolveChatlogsDir({
+      chatlogsDir: _config.chatlogsDir,
+      baseDir: _config.baseDir,
+      agent: _config.agent,
+      period: _config.period,
+    });
     const allFiles = await findEntries(
-      [agentDir],
+      [_searchDir],
       '.md',
-      _config.period ? { include: [_config.period] } : undefined,
     );
     if (allFiles.length === 0) {
       logger.info('対象ファイルなし');
-      logger.info('完了: moved=0 skipped=0 error=0');
+      logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
       return;
     }
 
     // メタデータ読み込みとスキップ判定
     const targetMetas: ClassifyChatlogEntry[] = [];
-    const stats: ClassifyStats = { moved: 0, skipped: 0, error: 0 };
+    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
 
     for (const filePath of allFiles) {
       const meta = await loadClassifyFileMeta(filePath);
@@ -375,7 +395,9 @@ export const main = async (argv?: string[]): Promise<void> => {
     logger.info(`\n対象ファイル数: ${targetMetas.length} (スキップ: ${stats.skipped})`);
 
     if (targetMetas.length === 0) {
-      logger.info(`\n完了: moved=${stats.moved} skipped=${stats.skipped} error=${stats.error}`);
+      logger.info(
+        `\n完了: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
+      );
       return;
     }
 
@@ -392,7 +414,7 @@ export const main = async (argv?: string[]): Promise<void> => {
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
-      `\n完了${drySuffix}: moved=${stats.moved} skipped=${stats.skipped} error=${stats.error}`,
+      `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
