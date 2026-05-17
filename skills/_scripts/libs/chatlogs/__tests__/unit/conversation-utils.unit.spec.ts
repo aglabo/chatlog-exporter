@@ -23,16 +23,18 @@ import {
   isSingleUserTurn,
   renderConversation,
 } from '../../conversation-utils.ts';
+// constants
+import { ConversationRole } from '../../../../types/conversation-role.const.types.ts';
 // types
 import type { Conversation } from '../../../../types/conversation.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-const _USER_TURN = { role: 'user' as const, content: 'Hello' };
-const _ASSISTANT_TURN = { role: 'assistant' as const, content: 'Hi there' };
-const _MIXED: Conversation = [_USER_TURN, _ASSISTANT_TURN, { role: 'user' as const, content: 'Bye' }];
-const _ONLY_USER: Conversation = [_USER_TURN, { role: 'user' as const, content: 'Another' }];
+const _USER_TURN = { role: ConversationRole.user, content: 'Hello' };
+const _ASSISTANT_TURN = { role: ConversationRole.assistant, content: 'Hi there' };
+const _MIXED: Conversation = [_USER_TURN, _ASSISTANT_TURN, { role: ConversationRole.user, content: 'Bye' }];
+const _ONLY_USER: Conversation = [_USER_TURN, { role: ConversationRole.user, content: 'Another' }];
 const _ONLY_ASSISTANT: Conversation = [_ASSISTANT_TURN];
 const _EMPTY: Conversation = [];
 const _SINGLE_USER: Conversation = [_USER_TURN];
@@ -205,7 +207,7 @@ describe('conversation-utils', () => {
       });
 
       it('[Normal] T-SC-CU-18: maxChars 指定 → 指定文字数で切り詰める', () => {
-        const conv: Conversation = [{ role: 'user', content: 'ABCDEFGHIJ' }];
+        const conv: Conversation = [{ role: ConversationRole.user, content: 'ABCDEFGHIJ' }];
         const result = renderConversation(conv, 10);
         assertEquals(result.length, 10);
       });
@@ -224,7 +226,7 @@ describe('conversation-utils', () => {
       });
 
       it('[Edge] T-SC-CU-21: maxChars 未指定 → 全文を返す（切り詰めなし）', () => {
-        const conv: Conversation = [{ role: 'user', content: 'Hello World' }];
+        const conv: Conversation = [{ role: ConversationRole.user, content: 'Hello World' }];
         const result = renderConversation(conv);
         assertEquals(result, '### User\nHello World');
       });
