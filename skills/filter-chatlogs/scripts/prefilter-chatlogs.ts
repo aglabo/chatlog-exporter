@@ -40,6 +40,8 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── internal ───
+// types
+import type { PrefilterStats } from './types/prefilter.types.ts';
 // functions
 import { buildConfig, parseArgs } from './configs/prefilter-config.ts';
 import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
@@ -70,7 +72,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
     }
 
-    const stats = { noise: 0, keep: 0, error: 0 };
+    const stats: PrefilterStats = { noise: 0, keep: 0, error: 0 };
     await processNoiseFiles(files, stats, { dryRun, report });
 
     const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';
