@@ -155,7 +155,7 @@ describe('buildConfig', () => {
 
   // ─── parsed フィールドの上書き ───────────────────────────────────────────────
 
-  describe('Given: parsed に dryRun=true, inputDir が指定されている', () => {
+  describe('Given: parsed に dryRun=true, baseDir が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-07 - parsed フィールドがデフォルトを上書きする', () => {
         let globalConfig: GlobalConfig;
@@ -163,9 +163,9 @@ describe('buildConfig', () => {
           globalConfig = await GlobalConfig.getInstance();
         });
         it('T-CL-BC-07-01: parsed.dryRun=true → result.dryRun === true', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, dryRun: true, inputDir: '/custom/input' }, globalConfig);
+          const result = buildConfig({ ..._EMPTY_PARSED, dryRun: true, baseDir: '/custom/input' }, globalConfig);
           assertEquals(result.dryRun, true);
-          assertEquals(result.inputDir, '/custom/input');
+          assertEquals(result.baseDir, '/custom/input');
         });
       });
     });
@@ -265,61 +265,78 @@ describe('buildConfig', () => {
     });
   });
 
-  // ─── inputDir 優先順位 ───────────────────────────────────────────────────────
+  // ─── baseDir 優先順位 ────────────────────────────────────────────────────────
 
-  describe('Given: parsed.inputDir が指定されている', () => {
+  describe('Given: parsed.baseDir が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-14 - result.inputDir === parsed.inputDir', () => {
+      describe('Then: T-CL-BC-14 - result.baseDir === parsed.baseDir', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance();
         });
-        it('T-CL-BC-14-01: parsed.inputDir=/custom/input → result.inputDir === /custom/input', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom/input' }, globalConfig);
-          assertEquals(result.inputDir, '/custom/input');
+        it('T-CL-BC-14-01: parsed.baseDir=/custom/input → result.baseDir === /custom/input', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/custom/input' }, globalConfig);
+          assertEquals(result.baseDir, '/custom/input');
         });
       });
     });
   });
 
-  describe('Given: parsed.inputDir が指定されている', () => {
+  describe('Given: parsed.baseDir が指定されている', () => {
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
-      describe('Then: T-CL-BC-20 - parsed.inputDir が最優先される', () => {
+      describe('Then: T-CL-BC-20 - parsed.baseDir が最優先される', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-CL-BC-20-01: parsed.inputDir=/custom/input → result.inputDir === /custom/input', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom/input' }, globalConfig);
-          assertEquals(result.inputDir, '/custom/input');
+        it('T-CL-BC-20-01: parsed.baseDir=/custom/input → result.baseDir === /custom/input', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/custom/input' }, globalConfig);
+          assertEquals(result.baseDir, '/custom/input');
         });
       });
     });
   });
 
-  describe('Given: parsed.inputDir が未指定', () => {
+  describe('Given: parsed.baseDir が未指定', () => {
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
       describe('Then: T-CL-BC-21 - GlobalConfig の chatlogsDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-CL-BC-21-01: inputDir 未指定, globalConfig.chatlogsDir=/global/chatlog → result.inputDir === /global/chatlog', () => {
+        it('T-CL-BC-21-01: baseDir 未指定, globalConfig.chatlogsDir=/global/chatlog → result.baseDir === /global/chatlog', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.inputDir, '/global/chatlog');
+          assertEquals(result.baseDir, '/global/chatlog');
         });
       });
     });
 
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
-      describe('Then: T-CL-BC-15 - DEFAULT_CLASSIFY_CONFIG.inputDir が使われる', () => {
+      describe('Then: T-CL-BC-15 - DEFAULT_CLASSIFY_CONFIG.baseDir が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-CL-BC-15-01: inputDir 未指定, chatlogsDir 未登録 → result.inputDir === DEFAULT_CLASSIFY_CONFIG.inputDir', () => {
+        it('T-CL-BC-15-01: baseDir 未指定, chatlogsDir 未登録 → result.baseDir === DEFAULT_CLASSIFY_CONFIG.baseDir', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.inputDir, DEFAULT_CLASSIFY_CONFIG.inputDir);
+          assertEquals(result.baseDir, DEFAULT_CLASSIFY_CONFIG.baseDir);
+        });
+      });
+    });
+  });
+
+  // ─── chatlogsDir フィールド ──────────────────────────────────────────────────
+
+  describe('Given: parsed.chatlogsDir が指定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-22 - result.chatlogsDir に設定される', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await GlobalConfig.getInstance();
+        });
+        it('T-CL-BC-22-01: parsed.chatlogsDir=/data/claude/2026/2026-04 → result.chatlogsDir === /data/claude/2026/2026-04', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, chatlogsDir: '/data/claude/2026/2026-04' }, globalConfig);
+          assertEquals(result.chatlogsDir, '/data/claude/2026/2026-04');
         });
       });
     });
@@ -359,16 +376,16 @@ describe('buildConfig', () => {
 
   // ─── projectsDic 導出 ────────────────────────────────────────────────────────
 
-  describe('Given: GlobalConfig の dicsDir がデフォルト値', () => {
+  describe('Given: GlobalConfig に projectsDic が設定されていない', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-18 - dicsDir/projects.dic が使われる', () => {
+      describe('Then: T-CL-BC-18 - GlobalConfig のデフォルト projectsDic が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance();
         });
-        it('T-CL-BC-18-01: デフォルト dicsDir → projectsDic === ./assets/dics/projects.dic', () => {
+        it('T-CL-BC-18-01: projectsDic 未設定 → result.projectsDic === globalConfig.get("projectsDic")', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.projectsDic, `${globalConfig.get('dicsDir')}/projects.dic`);
+          assertEquals(result.projectsDic, globalConfig.get('projectsDic'));
         });
       });
     });
@@ -376,15 +393,37 @@ describe('buildConfig', () => {
 
   describe('Given: GlobalConfig の dicsDir が yaml で上書きされている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-19 - 上書きされた dicsDir/projects.dic が使われる', () => {
+      describe('Then: T-CL-BC-19 - dicsDir を変えても projectsDic は独立して変わらない', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           GlobalConfig.resetInstance();
           globalConfig = await GlobalConfig.getInstance({ yaml: 'dicsDir: /custom/dics' });
         });
-        it('T-CL-BC-19-01: dicsDir=/custom/dics → projectsDic === /custom/dics/projects.dic', () => {
+        it('T-CL-BC-19-01: dicsDir=/custom/dics → projectsDic === globalConfig.get("projectsDic")（dicsDir に依存しない）', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.projectsDic, '/custom/dics/projects.dic');
+          assertEquals(result.projectsDic, globalConfig.get('projectsDic'));
+        });
+      });
+    });
+  });
+
+  describe('Given: GlobalConfig に projectsDic が yaml で設定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-23 - GlobalConfig の projectsDic が使われる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          GlobalConfig.resetInstance();
+          globalConfig = await GlobalConfig.getInstance({ yaml: 'projectsDic: /custom/projects.dic' });
+        });
+        it('T-CL-BC-23-01: projectsDic=/custom/projects.dic → result.projectsDic === /custom/projects.dic', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.projectsDic, '/custom/projects.dic');
+        });
+        it('T-CL-BC-23-02: projectsDic 未設定 → result.projectsDic === ./assets/configs/projects.dic', async () => {
+          GlobalConfig.resetInstance();
+          const gc = await GlobalConfig.getInstance();
+          const result = buildConfig(_EMPTY_PARSED, gc);
+          assertEquals(result.projectsDic, './assets/configs/projects.dic');
         });
       });
     });
