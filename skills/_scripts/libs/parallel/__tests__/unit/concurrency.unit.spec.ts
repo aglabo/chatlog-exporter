@@ -83,13 +83,13 @@ describe('withConcurrency', () => {
               _order.push(0);
               return 'slow';
             },
-            async () => {
+            () => {
               _order.push(1);
-              return 'fast1';
+              return Promise.resolve('fast1');
             },
-            async () => {
+            () => {
               _order.push(2);
-              return 'fast2';
+              return Promise.resolve('fast2');
             },
           ];
           const _results = await withConcurrency(_tasks, 3);
@@ -122,9 +122,9 @@ describe('withConcurrency', () => {
       describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
         it('T-LIB-C-16-01: limit=1 でも結果配列が入力順序と一致する', async () => {
           const _executed: number[] = [];
-          const _tasks = [1, 2, 3].map((n) => async () => {
+          const _tasks = [1, 2, 3].map((n) => () => {
             _executed.push(n);
-            return n * 10;
+            return Promise.resolve(n * 10);
           });
           const _results = await withConcurrency(_tasks, 1);
           assertEquals(_results, [10, 20, 30]);
