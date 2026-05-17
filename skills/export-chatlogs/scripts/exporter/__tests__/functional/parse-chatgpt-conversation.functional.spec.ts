@@ -14,8 +14,9 @@
 // テスト内で await は不要。型として sync であることを明示する。
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNotNull, assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
 
 // ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';
@@ -103,7 +104,7 @@ describe('parseChatGPTConversation', () => {
       it('T-EC-GP-01-01: null でない ExportedSession を返す', () => {
         const conv = _makeNormalConv();
         const result = parseChatGPTConversation(conv, ALL_PERIOD);
-        assertNotEquals(result, null);
+        assertNotNull(result);
       });
 
       // ─── T-EC-GP-01-02: meta.sessionId === conv.conversation_id ──────────
@@ -166,7 +167,7 @@ describe('parseChatGPTConversation', () => {
           current_node: 'user-1',
         };
         const result = parseChatGPTConversation(conv, ALL_PERIOD);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
   });
@@ -187,7 +188,7 @@ describe('parseChatGPTConversation', () => {
         // create_time は 2025-03-14 頃（2026-03 期間外）
         const conv = _makeNormalConv();
         const result = parseChatGPTConversation(conv, marchRange);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
   });
@@ -235,7 +236,7 @@ describe('parseChatGPTConversation', () => {
           // current_node を意図的に省略
         };
         const result = parseChatGPTConversation(conv, ALL_PERIOD);
-        assertNotEquals(result, null);
+        assertNotNull(result);
       });
     });
   });
@@ -275,7 +276,7 @@ describe('parseChatGPTConversation', () => {
           // current_node を意図的に省略
         };
         const result = parseChatGPTConversation(conv, ALL_PERIOD);
-        assertEquals(result, null);
+        assertNull(result);
       });
     });
   });
