@@ -9,6 +9,7 @@
 // -- BDD modules --
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { assertNull } from '../../../testing/assert.ts';
 
 // -- test target --
 import { parseJsonArray } from '../../json-utils.ts';
@@ -52,7 +53,7 @@ describe('parseJsonArray', () => {
     describe('When: parseJsonArray を実行する', () => {
       describe('Then: T-LIB-J-04 - null が返る', () => {
         it('T-LIB-J-04: 空文字列は null を返す', () => {
-          assertEquals(parseJsonArray(''), null);
+          assertNull(parseJsonArray(''));
         });
       });
     });
@@ -62,7 +63,7 @@ describe('parseJsonArray', () => {
     describe('When: parseJsonArray を実行する', () => {
       describe('Then: T-LIB-J-05 - null が返る', () => {
         it('T-LIB-J-05: 配列を含まない文字列は null を返す', () => {
-          assertEquals(parseJsonArray('no array here'), null);
+          assertNull(parseJsonArray('no array here'));
         });
       });
     });
@@ -84,7 +85,7 @@ describe('parseJsonArray', () => {
     describe('When: parseJsonArray を実行する', () => {
       describe('Then: T-LIB-J-07 - null が返る', () => {
         it('T-LIB-J-07: 空配列は null を返す（length > 0 条件）', () => {
-          assertEquals(parseJsonArray('[]'), null);
+          assertNull(parseJsonArray('[]'));
         });
       });
     });
@@ -141,7 +142,7 @@ describe('parseJsonArray', () => {
           assertEquals(_result !== null, true);
           assertEquals(_result!.length, 4);
           assertEquals(_result![0], 1);
-          assertEquals(_result![1], null);
+          assertNull(_result![1]);
           assertEquals(_result![2], true);
           assertEquals(_result![3], 'str');
         });
