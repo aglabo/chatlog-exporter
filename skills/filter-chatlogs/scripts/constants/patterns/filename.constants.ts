@@ -24,6 +24,7 @@ const _BASE_FILENAME_PATTERNS: string[] = [
   'command-message-claude-idd-framework',
   'command-message-deckrd-deckrd',
   'command-message-deckrd-coder',
+  'pr-temp-idd-pr',
 ];
 
 /** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */
