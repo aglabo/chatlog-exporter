@@ -736,6 +736,20 @@ describe('checkPromptContent', () => {
       assertNotEquals(result, null);
     });
 
+    it('[Normal] T-PF-PM-01-08: filter-chatlogs判定プロンプト → null でない reason', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content:
+            'Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.\n[{"file":"...","decision":"KEEP or DISCARD",...}]',
+        },
+        { role: 'assistant', content: '[{"file":"input.md","decision":"DISCARD","confidence":0.97,"reason":"..."}]' },
+      ]);
+      const result = checkPromptContent(turns);
+
+      assertNotEquals(result, null);
+    });
+
     it('[Normal] T-PF-PM-02-01: 通常テキスト → null を返す', () => {
       const turns = _makeTurns([
         { role: 'user', content: 'この機能の設計についてどう思いますか？' },
