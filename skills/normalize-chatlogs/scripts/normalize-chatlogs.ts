@@ -17,7 +17,7 @@ import type { ListDirProvider, StatSyncProvider } from '../../_scripts/types/pro
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 
 // -- ai --
-import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
+import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
 
 // -- file-ops --
 import { backupOldPath } from '../../_scripts/libs/file-ops/backup-old-path.ts';
@@ -245,51 +245,6 @@ export const attachFrontmatter = (
 // ─── AI Execution ─────────────────────────────────────────────────────────────
 
 /**
- * Runs the Claude CLI with the given model, system and user prompts.
- *
- * @param model - The model ID or alias to use (e.g. "claude-sonnet-4-6" or "sonnet")
- * @param systemPrompt - The system prompt passed via `-p` argument
- * @param userPrompt - The user prompt written to stdin
- * @returns Promise resolving to the trimmed stdout text from Claude CLI
- * @throws Error if `model` is not a recognized Claude Code model ID or alias
- * @throws Error if Claude CLI exits with a non-zero code
- * @throws Propagates spawn errors (e.g., command not found) naturally
- */
-export const runAI = async (model: string, systemPrompt: string, userPrompt: string): Promise<string> => {
-  if (!isValidModel(model)) {
-    throw new Error(`Unknown model: "${model}". Valid models: opus, sonnet, haiku (or full IDs)`);
-  }
-  const cmd = new Deno.Command('claude', {
-    args: [
-      '-p',
-      '--system-prompt',
-      systemPrompt,
-      '--output-format',
-      'text',
-      '--permission-mode',
-      'acceptEdits',
-      '--strict-mcp-config',
-      '--mcp-config',
-      '{"mcpServers":{}}',
-      '--model',
-      model,
-    ],
-    stdin: 'piped',
-    stdout: 'piped',
-    stderr: 'null',
-  });
-  const process = cmd.spawn();
-  const writer = process.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(userPrompt));
-  await writer.close();
-  const output = await process.output();
-  if (!output.success) {
-    throw new Error(`claude exited with code ${output.code}`);
-  }
-  return new TextDecoder().decode(output.stdout).trim();
-};
-
-/**
  * Splits a chatlog into topic-based segments by calling the Claude AI.
  *
  * Sends the chatlog content to Claude with a system prompt requesting a JSON
@@ -314,7 +269,7 @@ export const segmentChatlogs = async (filePath: string, content: string): Promis
 
   let raw: string;
   try {
-    raw = await runAI('claude-sonnet-4-6', systemPrompt, userPrompt);
+    raw = await runAI(systemPrompt, userPrompt, { model: 'claude-sonnet-4-6' });
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
       logger.warn(`segmentChatlogs: timed out — ${filePath}`);
