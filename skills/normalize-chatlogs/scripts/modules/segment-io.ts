@@ -8,31 +8,33 @@
 
 // ─── shared modules ───────────────────────────────────────────────────────────
 
-// -- classes --
+// types
+import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
+
+// classes
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogFrontmatter } from '../../../_scripts/classes/ChatlogFrontmatter.class.ts';
 
-// -- types --
-import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
-
-// -- ai --
+// functions
+// --- ai ---
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
-// -- io --
+// --- io ---
 import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 
-// -- text --
+// --- text ---
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
-// -- local types --
+// ─── internasl modules
+// types
 import type { Segment } from '../types/normalize.types.ts';
 
-// -- local constants --
+// constants
 import { MAX_SEGMENTS } from '../constants/normalize.constants.ts';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+// ─── local
+// constants
 /** セグメントファイルの本文セクションを示す Markdown 見出し。 */
 export const START_BODY_HEADING = '## Excerpt';
 
@@ -50,8 +52,6 @@ const _ATTACH_FIELD_ORDER = [
   'topics',
   'tags',
 ];
-
-// ─── ID Generation ────────────────────────────────────────────────────────────
 
 /**
  * Extracts the base name (without extension and trailing hash) from a file path.
