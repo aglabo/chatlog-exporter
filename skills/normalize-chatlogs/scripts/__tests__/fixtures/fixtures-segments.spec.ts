@@ -35,8 +35,8 @@ import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
-import { segmentChatlogs } from '../../normalize-chatlogs.ts';
-import type { Segment } from '../../normalize-chatlogs.ts';
+import { segmentChatlogs } from '../../modules/segment-io.ts';
+import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 

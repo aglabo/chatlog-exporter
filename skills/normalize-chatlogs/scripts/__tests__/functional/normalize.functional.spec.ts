@@ -23,11 +23,9 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // test target
-import {
-  segmentChatlogs,
-  writeOutput,
-} from '../../normalize-chatlogs.ts';
-import type { Stats } from '../../normalize-chatlogs.ts';
+import { writeOutput } from '../../modules/file-io.ts';
+import { segmentChatlogs } from '../../modules/segment-io.ts';
+import type { Stats } from '../../types/normalize.types.ts';
 
 // ─── segmentChatlogs tests ─────────────────────────────────────────────────────
 

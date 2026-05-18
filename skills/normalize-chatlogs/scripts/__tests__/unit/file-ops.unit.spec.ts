@@ -25,11 +25,9 @@ import { fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils
 
 // test target
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import {
-  segmentChatlogs,
-  writeOutput,
-} from '../../normalize-chatlogs.ts';
-import type { Stats } from '../../normalize-chatlogs.ts';
+import { writeOutput } from '../../modules/file-io.ts';
+import { segmentChatlogs } from '../../modules/segment-io.ts';
+import type { Stats } from '../../types/normalize.types.ts';
 
 // ─── writeOutput tests ───────────────────────────────────────────────────────
 
