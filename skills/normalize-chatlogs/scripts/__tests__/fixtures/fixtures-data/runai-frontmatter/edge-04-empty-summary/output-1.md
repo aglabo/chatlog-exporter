@@ -5,5 +5,4 @@ project: test-project
 slug: empty-summary-test
 title: サマリーなしテスト
 log_id: input-01-abc1234
-summary:
 ---
