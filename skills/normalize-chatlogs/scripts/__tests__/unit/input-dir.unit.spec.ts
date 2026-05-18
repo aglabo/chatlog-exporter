@@ -33,7 +33,7 @@ describe('resolveInputDir', () => {
   /** 正常系: --dir 指定時に { ok: true, dir: <指定値> } が返る */
   describe('Given: --dir オプションが指定される', () => {
     it('Then: [正常] - { ok: true, dir: <指定値> } を返す', () => {
-      const result = resolveInputDir({ dir: '/some/path' });
+      const result = resolveInputDir({ chatlogsDir: '/some/path' });
 
       assertEquals(result, { ok: true, dir: '/some/path' });
     });
@@ -41,10 +41,10 @@ describe('resolveInputDir', () => {
 
   // ─── T-02: --agent + --yearMonth 指定 ─────────────────────────────────────
 
-  /** 正常系: chatlogs/<agent>/<year>/<yearMonth> のパスが返る */
-  describe('Given: --agent と --yearMonth が指定される', () => {
-    it('Then: [正常] - { ok: true, dir: "chatlogs/<agent>/<year>/<yearMonth>" } を返す', () => {
-      const result = resolveInputDir({ agent: 'claude', yearMonth: '2026-03' });
+  /** 正常系: chatlogs/<agent>/<year>/<period> のパスが返る */
+  describe('Given: --agent と --period が指定される', () => {
+    it('Then: [正常] - { ok: true, dir: "chatlogs/<agent>/<year>/<period>" } を返す', () => {
+      const result = resolveInputDir({ agent: 'claude', period: '2026-03' });
 
       assertEquals(result, { ok: true, dir: 'chatlogs/claude/2026/2026-03' });
     });
@@ -52,10 +52,10 @@ describe('resolveInputDir', () => {
 
   // ─── T-03: --dir と --agent/--yearMonth の優先順位 ────────────────────────
 
-  /** エッジケース: --dir が --agent/--yearMonth より優先される */
-  describe('Given: --dir と --agent/--yearMonth が両方指定される', () => {
+  /** エッジケース: --dir が --agent/--period より優先される */
+  describe('Given: --dir と --agent/--period が両方指定される', () => {
     it('Then: [エッジケース] - --dir が優先されて { ok: true, dir: <dir値> } を返す', () => {
-      const result = resolveInputDir({ dir: '/explicit/dir', agent: 'claude', yearMonth: '2026-03' });
+      const result = resolveInputDir({ chatlogsDir: '/explicit/dir', agent: 'claude', period: '2026-03' });
 
       assertEquals(result, { ok: true, dir: '/explicit/dir' });
     });
@@ -70,21 +70,21 @@ describe('resolveInputDir', () => {
 
       assertEquals(result, {
         ok: false,
-        error: '--dir or (--agent and --year-month) must be specified',
+        error: '--chatlogs-dir or (--agent and --period) must be specified',
       });
     });
   });
 
   // ─── T-05: --agent のみ指定（yearMonth なし） ─────────────────────────────
 
-  /** 異常系: --yearMonth が欠けているため { ok: false, error: ... } が返る */
-  describe('Given: --agent のみ指定（--yearMonth なし）', () => {
+  /** 異常系: --period が欠けているため { ok: false, error: ... } が返る */
+  describe('Given: --agent のみ指定（--period なし）', () => {
     it('Then: [異常] - { ok: false, error: エラーメッセージ } を返す', () => {
       const result = resolveInputDir({ agent: 'claude' });
 
       assertEquals(result, {
         ok: false,
-        error: '--dir or (--agent and --year-month) must be specified',
+        error: '--chatlogs-dir or (--agent and --period) must be specified',
       });
     });
   });
@@ -92,23 +92,23 @@ describe('resolveInputDir', () => {
   // ─── T-06: --yearMonth のみ指定（agent なし） ─────────────────────────────
 
   /** 異常系: --agent が欠けているため { ok: false, error: ... } が返る */
-  describe('Given: --yearMonth のみ指定（--agent なし）', () => {
+  describe('Given: --period のみ指定（--agent なし）', () => {
     it('Then: [異常] - { ok: false, error: エラーメッセージ } を返す', () => {
-      const result = resolveInputDir({ yearMonth: '2026-03' });
+      const result = resolveInputDir({ period: '2026-03' });
 
       assertEquals(result, {
         ok: false,
-        error: '--dir or (--agent and --year-month) must be specified',
+        error: '--chatlogs-dir or (--agent and --period) must be specified',
       });
     });
   });
 
   // ─── T-07: yearMonth から year の正しい抽出 ───────────────────────────────
 
-  /** エッジケース: yearMonth の先頭4文字が year として抽出されパスに反映される */
-  describe('Given: yearMonth="2026-03" が指定される', () => {
+  /** エッジケース: period の先頭4文字が year として抽出されパスに反映される */
+  describe('Given: period="2026-03" が指定される', () => {
     it('Then: [エッジケース] - dir パスに "2026/2026-03" が含まれる', () => {
-      const result = resolveInputDir({ agent: 'claude', yearMonth: '2026-03' });
+      const result = resolveInputDir({ agent: 'claude', period: '2026-03' });
 
       if (!result.ok) { throw new Error('Expected ok: true'); }
       assertEquals(result.dir.includes('2026/2026-03'), true);

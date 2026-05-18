@@ -7,28 +7,33 @@
 //
 // This software is released under the MIT License.
 
-// Deno Test module
+// ───  Deno Test module
 import { assertEquals, assertMatch } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── Test target
+import { main } from '../../normalize-chatlogs.ts';
 
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// ─── helpers ──────────────────────────────────────────────────────────────────
+// mock
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
+// stub
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+
+// functions
 import {
   makeTempDirs,
   removeTempDirs,
   silenceLog,
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
-// test target
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import { main } from '../../normalize-chatlogs.ts';
-import type { HashProvider } from '../../normalize-chatlogs.ts';
+
+// types
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─── 再現性テスト ──────────────────────────────────────────────────────────────
 
@@ -77,13 +82,13 @@ describe('main - reproducibility', () => {
           const fixedHash: HashProvider = () => '0000000';
 
           // First run: creates output
-          await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
           // Reset log capture for second run
           loggerStub.infoLogs.splice(0);
 
           // Second run: should backup existing file and rewrite
-          await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
 
@@ -129,7 +134,7 @@ describe('main - reproducibility', () => {
     describe('When: main() が完了する', () => {
       describe('Then: Task T-15-04-03 - 実行全体を通じて入力ファイルが変更されない', () => {
         it('T-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const afterContent = await readTextFile(`${inputDir}/input.md`);
           assertEquals(afterContent, inputContent);

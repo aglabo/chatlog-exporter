@@ -70,7 +70,7 @@ describe('main - output structure', () => {
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-01-01-02 - 各出力ファイルが YAML frontmatter を含む', () => {
         it('T-15-01-01-02-01: 各出力ファイルが ---\\n で始まる YAML frontmatter と ## Summary セクションを含む', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           await assertAllOutputFiles(files);
@@ -114,7 +114,7 @@ describe('main - output structure', () => {
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: 入力の project フィールドが出力 frontmatter に伝播される', () => {
         it('出力ファイルの frontmatter に project: my-project が含まれる', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           await assertAllOutputFiles(files, {

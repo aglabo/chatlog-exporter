@@ -1,46 +1,46 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
 // src: scripts/__tests__/e2e/normalize-chatlogs-io.e2e.spec.ts
 // @(#): main() の I/O 検証 E2E テスト
-//       ファイル生成・ディレクトリ解決（--dir / --agent --year-month）・エラー終了を確認する
+//       ファイル生成・ディレクトリ解決（--chatlogs-dir / --agent --year-month）・エラー終了を確認する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 
-// Deno Test module
+// ─── Deno Test module
 import { assertEquals, assertMatch } from '@std/assert';
 import { after, afterEach, before, beforeEach, describe, it } from '@std/testing/bdd';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── test target ───────────────────────────────────────────────────────────────
+import { main } from '../../normalize-chatlogs.ts';
 
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// ─── helpers ──────────────────────────────────────────────────────────────────
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import {
   makeTempDirs,
   removeTempDirs,
   silenceLog,
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
-// test target
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
-import { main } from '../../normalize-chatlogs.ts';
-import type { HashProvider } from '../../normalize-chatlogs.ts';
+// type
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─── I/O テスト ────────────────────────────────────────────────────────────────
 
 /**
  * ファイル生成・ディレクトリ解決・エラー終了の I/O 検証。
- * --dir / --agent --year-month によるパス解決と出力ファイル生成を確認する。
+ * --chatlogs-dir / --agent --year-month によるパス解決と出力ファイル生成を確認する。
  */
 describe('main - I/O', () => {
-  // ─── T-15-01-01: --dir によるファイル生成 ───────────────────────────────────
+  // ─── T-15-01-01: --chatlogs-dir によるファイル生成 ───────────────────────────────────
 
-  /** 正常系: --dir で指定したディレクトリの MD ファイルを処理してセグメント出力ファイルを生成する */
-  describe('Given: マルチトピック MD ファイルが存在するディレクトリを --dir で指定する', () => {
+  /** 正常系: --chatlogs-dir で指定したディレクトリの MD ファイルを処理してセグメント出力ファイルを生成する */
+  describe('Given: マルチトピック MD ファイルが存在するディレクトリを --chatlogs-dir で指定する', () => {
     let inputDir: string;
     let outputDir: string;
     let commandHandle: CommandMockHandle;
@@ -74,10 +74,10 @@ describe('main - I/O', () => {
       await removeTempDirs(inputDir, outputDir);
     });
 
-    describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-01-01 - 収集した全 MD ファイルを処理してセグメント出力ファイルを生成する', () => {
         it('T-15-01-01-01: outputDir 配下に 2 件以上のセグメント出力ファイルが生成される', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           assertEquals(files.length >= 2, true);
@@ -86,10 +86,10 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-02-01: --dir によるパス解決（chatlogs 形式ディレクトリ） ───────────
+  // ─── T-15-02-01: --chatlogs-dir によるパス解決（chatlogs 形式ディレクトリ） ───────────
 
-  /** 正常系: --dir で chatlogs/<agent>/<year>/<year-month>/ を指定して処理する */
-  describe('Given: --dir で chatlogs/claude/2026/2026-03 と対応パスが存在する', () => {
+  /** 正常系: --chatlogs-dir で chatlogs/<agent>/<year>/<year-month>/ を指定して処理する */
+  describe('Given: --chatlogs-dir で chatlogs/claude/2026/2026-03 と対応パスが存在する', () => {
     let tmpRoot: string;
     let AGENT_DIR: string;
     let outputDir: string;
@@ -128,10 +128,10 @@ describe('main - I/O', () => {
       await Deno.remove(outputDir, { recursive: true });
     });
 
-    describe('When: main(["--dir", AGENT_DIR, "--output", outputDir]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", AGENT_DIR, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-02-01 - chatlogs/<agent>/<year>/<year-month>/ から入力を解決してファイルを処理する', () => {
         it('T-15-02-01-01: chatlogs/claude/2026/2026-03/ 内のファイルが処理されて出力が生成される', async () => {
-          await main(['--dir', AGENT_DIR, '--output', outputDir]);
+          await main(['--chatlogs-dir', AGENT_DIR, '--normalize-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
         });
@@ -182,11 +182,11 @@ describe('main - I/O', () => {
       await Deno.remove(outputBase, { recursive: true });
     });
 
-    describe('When: main(["--dir", CHATLOG_INPUT_DIR, "--output", outputBase]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", CHATLOG_INPUT_DIR, "--output", outputBase]) を呼び出す', () => {
       describe('Then: Task T-15-05-01 - 出力が <outputBase>/claude/2026/2026-04/my-app/ 以下に生成される', () => {
         it('T-15-05-01-01: 出力ファイルのパスが <outputBase>/claude/2026/2026-04/my-app/ を含む', async () => {
           const fixedHash: HashProvider = () => 'abc1234';
-          await main(['--dir', CHATLOG_INPUT_DIR, '--output', outputBase], fixedHash);
+          await main(['--chatlogs-dir', CHATLOG_INPUT_DIR, '--normalize-dir', outputBase], fixedHash);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
@@ -230,11 +230,11 @@ describe('main - I/O', () => {
       await removeTempDirs(inputDir, outputBase);
     });
 
-    describe('When: main(["--dir", inputDir, "--output", outputBase]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
       describe('Then: Task T-15-06-01 - 出力が <outputBase>/custom-project/ 以下に生成される', () => {
         it('T-15-06-01-01: 出力ファイルのパスが <outputBase>/custom-project/ を含む', async () => {
           const fixedHash: HashProvider = () => 'def5678';
-          await main(['--dir', inputDir, '--output', outputBase], fixedHash);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputBase], fixedHash);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
@@ -277,10 +277,10 @@ describe('main - I/O', () => {
       await removeTempDirs(inputDir, outputBase);
     });
 
-    describe('When: main(["--dir", inputDir, "--output", outputBase]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
       describe('Then: Task T-15-07-01 - project なし時は misc サブディレクトリに出力される', () => {
         it('T-15-07-01-01: 出力ファイルのパスが <outputBase>/misc/ を含む', async () => {
-          await main(['--dir', inputDir, '--output', outputBase]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputBase]);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
@@ -324,10 +324,10 @@ describe('main - I/O', () => {
       await removeTempDirs(inputDir, outputDir);
     });
 
-    describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
+    describe('When: main(["--chatlogs-dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-04-04 - 単一トピックの MD ファイルから出力ファイルが正確に 1 件生成される', () => {
         it('T-15-04-04-01: outputDir 配下に正確に 1 件の .md ファイルが生成される', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           assertEquals(files.length, 1);

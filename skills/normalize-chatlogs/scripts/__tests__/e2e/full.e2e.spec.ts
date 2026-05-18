@@ -11,20 +11,21 @@
 import { assertEquals, assertMatch } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// test target
+import { main } from '../../normalize-chatlogs.ts';
 
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// ─── helpers ──────────────────────────────────────────────────────────────────
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
-
-// test target
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import { main } from '../../normalize-chatlogs.ts';
-import type { HashProvider } from '../../normalize-chatlogs.ts';
+
+// type
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─── full E2E ─────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ describe('normalize-chatlogs - full E2E', () => {
     });
 
     it('T-FULL-01: 3 件の入力から 3 件以上の出力ファイルが生成され success=3 がレポートされる', async () => {
-      await main(['--dir', inputDir, '--output', outputDir]);
+      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
       // IO: 出力ファイルが生成されている
       const files = await findFiles(outputDir);
@@ -116,7 +117,7 @@ describe('normalize-chatlogs - full E2E', () => {
     });
 
     it('T-FULL-02: 出力ファイルが YAML frontmatter・## Summary・project フィールドを含む', async () => {
-      await main(['--dir', inputDir, '--output', outputDir]);
+      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
       const files = await findFiles(outputDir);
       assertEquals(files.length >= 1, true);
@@ -161,11 +162,11 @@ describe('normalize-chatlogs - full E2E', () => {
       const fixedHash: HashProvider = () => '0000000';
 
       // 1 回目: 出力ファイルを生成
-      await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
       // 2 回目: バックアップを生成
       loggerStub.infoLogs.splice(0);
-      await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
       // reproducibility: 2 回目も success=1
       assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);

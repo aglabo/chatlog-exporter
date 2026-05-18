@@ -1,130 +1,190 @@
-// src: scripts/__tests__/unit/normalize-chatlogs.cli-args.unit.spec.ts
-// @(#): CLI引数・出力ディレクトリ解決のユニットテスト
-//       対象: parseArgs, resolveOutputDir
+// src: skills/normalize-chatlogs/scripts/__tests__/unit/parse-args.unit.spec.ts
+// @(#): parseArgs のユニットテスト
+//       対象: parseArgs
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
+// ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { parseArgs } from '../../normalize-chatlogs.ts';
+// ─── Test target
+import { parseArgs } from '../../modules/normalize-config.ts';
+// types
+import type { NormalizeParsedConfig } from '../../types/normalize.types.ts';
 
-type ParsedArgs = ReturnType<typeof parseArgs>;
+// ─── Internal Helpers
 
+// types
+type _ParsedField = keyof NormalizeParsedConfig;
+
+// ─── Tests
+
+/**
+ * `parseArgs` のユニットテストスイート。
+ *
+ * CLI 引数から NormalizeParsedConfig への変換を検証する。
+ * parseArgs は全フィールドを undefined として返し、デフォルト値は buildConfig で適用する。
+ *
+ * テスト ID 範囲: T-NC-PA-01 〜 T-NC-PA-10
+ *
+ * @see parseArgs
+ */
 describe('parseArgs', () => {
-  // ─── T-08-01: デフォルト値 ────────────────────────────────────────────────────
+  /**
+   * 空配列を渡したとき、全フィールドが undefined になることを検証する。
+   * デフォルト値（dryRun=false, concurrency=4）は buildConfig の責務。
+   */
+  describe('When: 正常系', () => {
+    describe('Given: オプションなしの空配列', () => {
+      describe('When: parseArgs([]) を呼び出す', () => {
+        describe('Then: T-NC-PA-01 - 全フィールドが undefined になる', () => {
+          const _defaultCases: { id: string; field: _ParsedField }[] = [
+            { id: 'T-NC-PA-01-01', field: 'chatlogsDir' },
+            { id: 'T-NC-PA-01-02', field: 'agent' },
+            { id: 'T-NC-PA-01-03', field: 'period' },
+            { id: 'T-NC-PA-01-04', field: 'dryRun' },
+            { id: 'T-NC-PA-01-05', field: 'concurrency' },
+            { id: 'T-NC-PA-01-06', field: 'normalizeDir' },
+            { id: 'T-NC-PA-01-07', field: 'configFile' },
+            { id: 'T-NC-PA-01-08', field: 'baseDir' },
+          ];
+          for (const { id, field } of _defaultCases) {
+            it(`${id}: ${field} が undefined になる`, () => {
+              assertEquals(parseArgs([])[field], undefined);
+            });
+          }
+        });
+      });
+    });
 
-  describe('Given: オプションなしの空配列', () => {
-    describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-08-02 - デフォルト値が適用される', () => {
-        const _defaultCases: { id: string; field: keyof ParsedArgs; expected: unknown }[] = [
-          { id: 'T-08-02-01', field: 'concurrency', expected: 4 },
-          { id: 'T-08-02-02', field: 'dryRun', expected: false },
-        ];
-        for (const { id, field, expected } of _defaultCases) {
-          it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
-            assertEquals(parseArgs([])[field], expected);
-          });
-        }
+    describe('Given: 各種オプション', () => {
+      describe('When: parseArgs(args) を呼び出す', () => {
+        describe('Then: 対応フィールドに値が設定される', () => {
+          const _cases: { id: string; args: string[]; field: _ParsedField; expected: unknown }[] = [
+            {
+              id: 'T-NC-PA-02-01',
+              args: ['--chatlogs-dir', '/some/path'],
+              field: 'chatlogsDir',
+              expected: '/some/path',
+            },
+            { id: 'T-NC-PA-03-01', args: ['--agent', 'claude'], field: 'agent', expected: 'claude' },
+            { id: 'T-NC-PA-04-01', args: ['--period', '2026-03'], field: 'period', expected: '2026-03' },
+            { id: 'T-NC-PA-05-01', args: ['--dry-run'], field: 'dryRun', expected: true },
+            { id: 'T-NC-PA-06-01', args: ['--concurrency', '8'], field: 'concurrency', expected: 8 },
+            { id: 'T-NC-PA-07-01', args: ['--normalize-dir', './out'], field: 'normalizeDir', expected: './out' },
+            {
+              id: 'T-NC-PA-11-01',
+              args: ['--config', './config.yaml'],
+              field: 'configFile',
+              expected: './config.yaml',
+            },
+            { id: 'T-NC-PA-12-01', args: ['--base-dir', './base'], field: 'baseDir', expected: './base' },
+          ];
+          for (const { id, args, field, expected } of _cases) {
+            it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
+              assertEquals(parseArgs(args)[field], expected);
+            });
+          }
+        });
+      });
+    });
+
+    describe('Given: パス引数（positional）', () => {
+      describe('When: parseArgs(args) を呼び出す', () => {
+        describe('Then: T-NC-PA-08 - 位置引数が適切なフィールドに設定される', () => {
+          const _pathCases: { id: string; args: string[]; field: _ParsedField; expected: unknown }[] = [
+            { id: 'T-NC-PA-08-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
+            { id: 'T-NC-PA-08-02', args: ['claude'], field: 'agent', expected: 'claude' },
+            {
+              id: 'T-NC-PA-08-03',
+              args: ['chatlogs/claude/2026/2026-03'],
+              field: 'chatlogsDir',
+              expected: 'chatlogs/claude/2026/2026-03',
+            },
+            {
+              id: 'T-NC-PA-08-04',
+              args: ['chatlogs\\claude\\2026\\2026-03'],
+              field: 'chatlogsDir',
+              expected: 'chatlogs/claude/2026/2026-03',
+            },
+          ];
+          for (const { id, args, field, expected } of _pathCases) {
+            it(`${id}: ${field} が "${expected}" になる`, () => {
+              assertEquals(parseArgs(args)[field], expected);
+            });
+          }
+        });
+      });
+    });
+
+    describe('Given: --chatlogs-dir のバックスラッシュ', () => {
+      it('T-NC-PA-02-02: --chatlogs-dir chatlogs\\claude → chatlogsDir = "chatlogs/claude"', () => {
+        assertEquals(parseArgs(['--chatlogs-dir', 'chatlogs\\claude']).chatlogsDir, 'chatlogs/claude');
+      });
+    });
+
+    describe('Given: 全オプションを組み合わせた引数', () => {
+      it('T-NC-PA-09-01: 全フィールドが正しく解析される', () => {
+        const result = parseArgs([
+          '--chatlogs-dir',
+          '/some/path',
+          '--base-dir',
+          './base',
+          '--agent',
+          'claude',
+          '--period',
+          '2026-03',
+          '--config',
+          './config.yaml',
+          '--dry-run',
+          '--concurrency',
+          '8',
+          '--normalize-dir',
+          './out',
+        ]);
+        assertEquals(result.chatlogsDir, '/some/path');
+        assertEquals(result.baseDir, './base');
+        assertEquals(result.agent, 'claude');
+        assertEquals(result.period, '2026-03');
+        assertEquals(result.configFile, './config.yaml');
+        assertEquals(result.dryRun, true);
+        assertEquals(result.concurrency, 8);
+        assertEquals(result.normalizeDir, './out');
       });
     });
   });
 
-  // ─── T-08-01: 単一・複数オプション ───────────────────────────────────────────
-
-  describe('Given: 各種オプション', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: 対応フィールドに値が設定される', () => {
-        const _cases: { id: string; args: string[]; field: keyof ParsedArgs; expected: unknown }[] = [
-          { id: 'T-08-01-01', args: ['--dir', '/some/path'], field: 'dir', expected: '/some/path' },
-          { id: 'T-08-01-02a', args: ['--agent', 'claude'], field: 'agent', expected: 'claude' },
-          { id: 'T-08-01-02b', args: ['--year-month', '2026-03'], field: 'yearMonth', expected: '2026-03' },
-          { id: 'T-08-01-02c', args: ['--dry-run'], field: 'dryRun', expected: true },
-          { id: 'T-08-01-02d', args: ['--concurrency', '8'], field: 'concurrency', expected: 8 },
-          { id: 'T-08-01-02e', args: ['--output', './out'], field: 'output', expected: './out' },
-        ];
-        for (const { id, args, field, expected } of _cases) {
-          it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
-            assertEquals(parseArgs(args)[field], expected);
-          });
-        }
+  describe('When: 異常系', () => {
+    describe('Given: 未知のオプション', () => {
+      it('T-NC-PA-10-01: ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgs(['--unknown']),
+          Error,
+          'Invalid Args',
+        );
       });
     });
-  });
 
-  // ─── T-08-01: 複数オプション組み合わせ ───────────────────────────────────────
-
-  describe('Given: 全オプションを組み合わせた引数', () => {
-    it('T-08-01-02: 全フィールドが正しく解析される', () => {
-      const result = parseArgs([
-        '--agent',
-        'claude',
-        '--year-month',
-        '2026-03',
-        '--dry-run',
-        '--concurrency',
-        '8',
-        '--output',
-        './out',
-      ]);
-      assertEquals(result.agent, 'claude');
-      assertEquals(result.yearMonth, '2026-03');
-      assertEquals(result.dryRun, true);
-      assertEquals(result.concurrency, 8);
-      assertEquals(result.output, './out');
-    });
-  });
-
-  // ─── T-08-04: パス正規化と自動 --dir 判定 ────────────────────────────────────
-
-  describe('Given: パス引数', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-08-04 - dir フィールドにスラッシュ正規化されたパスが設定される', () => {
-        const _pathCases: { id: string; args: string[]; expected: string }[] = [
-          { id: 'T-08-04-01', args: ['--dir', 'chatlogs\\claude'], expected: 'chatlogs/claude' },
-          {
-            id: 'T-08-04-02',
-            args: ['chatlogs/claude/2026/2026-03'],
-            expected: 'chatlogs/claude/2026/2026-03',
-          },
-          {
-            id: 'T-08-04-03',
-            args: ['chatlogs\\claude\\2026\\2026-03'],
-            expected: 'chatlogs/claude/2026/2026-03',
-          },
-        ];
-        for (const { id, args, expected } of _pathCases) {
-          it(`${id}: dir が "${expected}" になる`, () => {
-            assertEquals(parseArgs(args).dir, expected);
-          });
-        }
+    describe('Given: 未知のエージェント名', () => {
+      it('T-NC-PA-10-02: --agent notexist → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgs(['--agent', 'notexist']),
+          Error,
+        );
       });
     });
-  });
 
-  // ─── 異常系: ChatlogError がスローされる ──────────────────────────────────────
-
-  describe('Given: 未知のオプション', () => {
-    it('T-08-03-01: ChatlogError(InvalidArgs) がスローされる', () => {
-      assertThrows(
-        () => parseArgs(['--unknown']),
-        ChatlogError,
-        'Invalid Args',
-      );
-    });
-
-    it('T-08-03-02: err.subindex が "UnknownOption" になる', () => {
-      let err: unknown;
-      try {
-        parseArgs(['--unknown']);
-      } catch (e) {
-        err = e;
-      }
-      assertEquals((err as ChatlogError).subindex, 'UnknownOption');
+    describe('Given: 非整数の concurrency', () => {
+      it('T-NC-PA-10-03: --concurrency abc → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgs(['--concurrency', 'abc']),
+          Error,
+        );
+      });
     });
   });
 });

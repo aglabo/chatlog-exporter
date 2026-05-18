@@ -10,14 +10,14 @@
 // shared modules
 // ─────────────────────────────────────────────
 
-// types
-import type { ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
-
-// classes
+// -- classes --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 
+// -- types --
+import type { HashProvider, ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
+
 // -- ai --
-import { isValidModel } from '../../_scripts/libs/ai/model-utils.ts';
+import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
 
 // -- file-ops --
 import { backupOldPath } from '../../_scripts/libs/file-ops/backup-old-path.ts';
@@ -26,10 +26,12 @@ import { backupOldPath } from '../../_scripts/libs/file-ops/backup-old-path.ts';
 import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
-import { normalizePath } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // -- io --
+import { DEFAULT_NORMALIZE_DIR } from '../../_scripts/constants/defaults.constants.ts';
+import { generateHash } from '../../_scripts/libs/io/hash.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
+import { MAX_SEGMENTS } from './constants/normalize.constants.ts';
 
 // -- parallel --
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
@@ -39,29 +41,6 @@ import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-ut
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 import { quoteString } from '../../_scripts/libs/text/string-utils.ts';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/**
- * CLI 引数を解析した結果を格納する構造体。
- *
- * `dir` または `agent`+`yearMonth` の組み合わせで入力ディレクトリを指定する。
- * どちらも省略された場合は {@link resolveInputDir} がエラーを返す。
- */
-export type ParsedArgs = {
-  /** 入力ディレクトリの絶対・相対パス（`--dir` で指定）。 */
-  dir?: string;
-  /** エージェント名（`--agent` で指定）。`yearMonth` と組み合わせて入力パスを構築する。 */
-  agent?: string;
-  /** 年月文字列（`--year-month` で指定）。`YYYY-MM` 形式。 */
-  yearMonth?: string;
-  /** ドライランフラグ。`true` のときディスク書き込みを行わない。 */
-  dryRun: boolean;
-  /** 最大並列タスク数。デフォルト: {@link _DEFAULT_CONCURRENCY}。 */
-  concurrency: number;
-  /** 出力ベースディレクトリ（`--output` で指定）。省略時は {@link _DEFAULT_OUTPUT_DIR}。 */
-  output?: string;
-};
 
 /**
  * {@link segmentChatlogs} が AI から受け取る 1 トピックセグメント。
@@ -98,14 +77,11 @@ export type ResolveResult =
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** 並列タスク数のデフォルト値。{@link parseArgs} の初期値として使用する。 */
-const _DEFAULT_CONCURRENCY = 4;
-
-/** {@link segmentChatlogs} が返すセグメントの上限数。 */
-const _MAX_SEGMENTS = 10;
-
 /** セグメントファイルの本文セクションを示す Markdown 見出し。 */
 export const START_BODY_HEADING = '## Excerpt';
+
+// -- modules --
+import { buildConfig, parseArgs } from './modules/normalize-config.ts';
 
 // ─── ID Generation ────────────────────────────────────────────────────────────
 
@@ -126,49 +102,13 @@ export const extractBaseName = (filePath: string): string => {
   return withoutExt.replace(/-[0-9a-f]{7}$/, '');
 };
 
-/** 7 文字の 16 進数ハッシュ文字列を生成する関数の型。テスト用インジェクションに利用する。 */
-export type HashProvider = () => string;
-
-/**
- * `baseName` とセグメントインデックス `xx` から 7 文字の SHA-256 ハッシュを生成する。
- *
- * 入力文字列: `<baseName>-<xx>-<timestamp12>-<random8>`
- * - `timestamp12`: `YYYYMMDDHHmmss` 形式の 12 桁文字列
- * - `random8`: 4 バイトの乱数を 16 進数 8 文字に変換した文字列
- *
- * @param baseName - ソースファイルの拡張子なし・ハッシュなしのベース名
- * @param xx       - ゼロ埋め 2 桁のセグメントインデックス文字列（例: `"01"`）
- * @returns SHA-256 ダイジェストの先頭 7 文字（16 進数）
- */
-const _computeHash7 = async (baseName: string, xx: string): Promise<string> => {
-  const now = new Date();
-  const timestamp12 = [
-    String(now.getFullYear()),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-    String(now.getSeconds()).padStart(2, '0'),
-  ].join('');
-
-  const randomBytes = new Uint8Array(4);
-  crypto.getRandomValues(randomBytes);
-  const random8 = Array.from(randomBytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-
-  const raw = `${baseName}-${xx}-${timestamp12}-${random8}`;
-  const encoded = new TextEncoder().encode(raw);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 7);
-};
-
 /**
  * Generates an output file name for a segment.
  *
  * Format: `<baseName>-<XX>-<hash7>.md`
  * - baseName: source file name without extension and without trailing hash
  * - XX: zero-padded two-digit sequential index (01-based)
- * - hash7: result of `hashFn` if provided, otherwise SHA-256-based (see `_computeHash7`)
+ * - hash7: result of `hashFn` if provided, otherwise {@link generateHash}(baseName, { length: 7 })
  *
  * @param filePath - Path to the source chatlog file
  * @param index    - Zero-based segment index (displayed as 1-based two-digit number)
@@ -182,7 +122,7 @@ export const generateOutputFileName = async (
 ): Promise<string> => {
   const baseName = extractBaseName(filePath);
   const xx = String(index + 1).padStart(2, '0');
-  const hash7 = hashFn ? hashFn() : await _computeHash7(baseName, xx);
+  const hash7 = hashFn ? hashFn() : await generateHash(baseName, { length: 7 });
   return `${baseName}-${xx}-${hash7}.md`;
 };
 
@@ -245,51 +185,6 @@ export const attachFrontmatter = (
 // ─── AI Execution ─────────────────────────────────────────────────────────────
 
 /**
- * Runs the Claude CLI with the given model, system and user prompts.
- *
- * @param model - The model ID or alias to use (e.g. "claude-sonnet-4-6" or "sonnet")
- * @param systemPrompt - The system prompt passed via `-p` argument
- * @param userPrompt - The user prompt written to stdin
- * @returns Promise resolving to the trimmed stdout text from Claude CLI
- * @throws Error if `model` is not a recognized Claude Code model ID or alias
- * @throws Error if Claude CLI exits with a non-zero code
- * @throws Propagates spawn errors (e.g., command not found) naturally
- */
-export const runAI = async (model: string, systemPrompt: string, userPrompt: string): Promise<string> => {
-  if (!isValidModel(model)) {
-    throw new Error(`Unknown model: "${model}". Valid models: opus, sonnet, haiku (or full IDs)`);
-  }
-  const cmd = new Deno.Command('claude', {
-    args: [
-      '-p',
-      '--system-prompt',
-      systemPrompt,
-      '--output-format',
-      'text',
-      '--permission-mode',
-      'acceptEdits',
-      '--strict-mcp-config',
-      '--mcp-config',
-      '{"mcpServers":{}}',
-      '--model',
-      model,
-    ],
-    stdin: 'piped',
-    stdout: 'piped',
-    stderr: 'null',
-  });
-  const process = cmd.spawn();
-  const writer = process.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(userPrompt));
-  await writer.close();
-  const output = await process.output();
-  if (!output.success) {
-    throw new Error(`claude exited with code ${output.code}`);
-  }
-  return new TextDecoder().decode(output.stdout).trim();
-};
-
-/**
  * Splits a chatlog into topic-based segments by calling the Claude AI.
  *
  * Sends the chatlog content to Claude with a system prompt requesting a JSON
@@ -314,7 +209,7 @@ export const segmentChatlogs = async (filePath: string, content: string): Promis
 
   let raw: string;
   try {
-    raw = await runAI('claude-sonnet-4-6', systemPrompt, userPrompt);
+    raw = await runAI(systemPrompt, userPrompt, { model: 'claude-sonnet-4-6' });
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
       logger.warn(`segmentChatlogs: timed out — ${filePath}`);
@@ -328,7 +223,7 @@ export const segmentChatlogs = async (filePath: string, content: string): Promis
   }
 
   const segments = parsed as Segment[];
-  return segments.slice(0, _MAX_SEGMENTS);
+  return segments.slice(0, MAX_SEGMENTS);
 };
 
 // ─── File Operations ──────────────────────────────────────────────────────────
@@ -397,25 +292,25 @@ export const reportResults = (stats: Stats): void => {
  * Resolves the input directory based on provided args (pure function, no FS side effects).
  *
  * Resolution order:
- * 1. If `args.dir` is provided, return `{ ok: true, dir: args.dir }`.
- * 2. If `args.agent` and `args.yearMonth` are provided, construct
- *    `chatlogs/<agent>/<year>/<yearMonth>` and return `{ ok: true, dir: ... }`.
+ * 1. If `args.chatlogsDir` is provided, return `{ ok: true, dir: args.chatlogsDir }`.
+ * 2. If `args.agent` and `args.period` are provided, construct
+ *    `chatlogs/<agent>/<year>/<period>` and return `{ ok: true, dir: ... }`.
  * 3. Otherwise return `{ ok: false, error: ... }`.
  *
- * @param args - Object with optional `dir`, `agent`, and `yearMonth` fields
+ * @param args - Object with optional `chatlogsDir`, `agent`, and `period` fields
  * @returns ResolveResult: `{ ok: true, dir }` on success, `{ ok: false, error }` on failure
  */
 export const resolveInputDir = (
-  args: { dir?: string; agent?: string; yearMonth?: string },
+  args: { chatlogsDir?: string; agent?: string; period?: string },
 ): ResolveResult => {
-  if (args.dir !== undefined) {
-    return { ok: true, dir: args.dir };
+  if (args.chatlogsDir !== undefined) {
+    return { ok: true, dir: args.chatlogsDir };
   }
-  if (args.agent !== undefined && args.yearMonth !== undefined) {
-    const year = args.yearMonth.slice(0, 4);
-    return { ok: true, dir: `chatlogs/${args.agent}/${year}/${args.yearMonth}` };
+  if (args.agent !== undefined && args.period !== undefined) {
+    const year = args.period.slice(0, 4);
+    return { ok: true, dir: `chatlogs/${args.agent}/${year}/${args.period}` };
   }
-  return { ok: false, error: '--dir or (--agent and --year-month) must be specified' };
+  return { ok: false, error: '--chatlogs-dir or (--agent and --period) must be specified' };
 };
 
 /**
@@ -456,71 +351,7 @@ export const resolveOutputDir = (inputDir: string, outputBase: string, project: 
   return `${outputBase}/${effectiveProject}`;
 };
 
-// ─── Argument Parsing ─────────────────────────────────────────────────────────
-
-/**
- * Parses CLI arguments into a structured options object.
- *
- * Supported flags:
- *   --dir <path>           Input directory path (backslashes normalized to `/`)
- *   --agent <name>         Agent name (e.g. "claude")
- *   --year-month <YYYY-MM> Year-month string (mapped to `yearMonth`)
- *   --dry-run              Dry-run mode flag (default: false)
- *   --concurrency <n>      Max concurrent tasks (default: 4)
- *   --output <path>        Output path
- *
- * Positional arguments:
- *   Any non-flag argument containing `/` or `\` is treated as a directory
- *   path and automatically assigned to `dir` after path normalization.
- *
- * Unknown flags cause a `console.error` message followed by `Deno.exit(1)`.
- *
- * @param argv - Array of CLI argument strings
- * @returns Parsed options as a {@link ParsedArgs} object
- */
-export const parseArgs = (argv: string[]): ParsedArgs => {
-  const result: ParsedArgs = { concurrency: _DEFAULT_CONCURRENCY, dryRun: false };
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    switch (arg) {
-      case '--dir':
-        result.dir = normalizePath(argv[++i]);
-        break;
-      case '--agent':
-        result.agent = argv[++i];
-        break;
-      case '--year-month':
-        result.yearMonth = argv[++i];
-        break;
-      case '--dry-run':
-        result.dryRun = true;
-        break;
-      case '--concurrency':
-        result.concurrency = Number(argv[++i]);
-        break;
-      case '--output':
-        result.output = argv[++i];
-        break;
-      default: {
-        const normalized = normalizePath(arg);
-        if (!normalized.startsWith('--') && normalized.includes('/')) {
-          // Positional path argument: already normalized, assign to dir
-          result.dir = normalized;
-        } else {
-          throw new ChatlogError('InvalidArgs', 'UnknownOption', `unknown option: ${arg}`);
-        }
-      }
-    }
-  }
-
-  return result;
-};
-
 // ─── Main Orchestration ───────────────────────────────────────────────────────
-
-/** Default output directory for normalized segment files. */
-const _DEFAULT_OUTPUT_DIR = 'temp/normalize_logs';
 
 /**
  * Orchestrates the full normalize-chatlogs pipeline.
@@ -533,8 +364,9 @@ const _DEFAULT_OUTPUT_DIR = 'temp/normalize_logs';
  */
 export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void> => {
   try {
-    const args = parseArgs(argv ?? Deno.args);
-    const resolved = resolveInputDir(args);
+    const _parsed = parseArgs(argv ?? Deno.args);
+    const config = buildConfig(_parsed);
+    const resolved = resolveInputDir(config);
     if (!resolved.ok) {
       throw new ChatlogError('InputNotFound', 'ResolutionFailed', resolved.error);
     }
@@ -542,7 +374,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
       throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${resolved.dir}`);
     }
     const inputDir = resolved.dir;
-    const outputBase = args.output ?? _DEFAULT_OUTPUT_DIR;
+    const outputBase = config.normalizeDir ?? DEFAULT_NORMALIZE_DIR;
 
     const mdFiles = await findFiles(inputDir);
     const stats: Stats = { success: 0, skip: 0, fail: 0 };
@@ -571,9 +403,9 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
           summary: segment.summary,
         });
         const outputPath = `${outputDir}/${outputFileName}`;
-        await writeOutput(outputPath, fullContent, args.dryRun, stats);
+        await writeOutput(outputPath, fullContent, config.dryRun, stats);
       }
-    }, args.concurrency);
+    }, config.concurrency);
 
     reportResults(stats);
   } catch (e) {

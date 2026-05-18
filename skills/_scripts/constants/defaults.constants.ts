@@ -22,6 +22,9 @@ export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
 /** config.yaml の chatlogsDir に対応するデフォルトのチャットログ出力ディレクトリ。 */
 export const DEFAULT_CHATLOGS_DIR = './chatlogs';
 
+/** normalize-chatlogs が出力するセグメントのデフォルトベースディレクトリ。 */
+export const DEFAULT_NORMALIZE_DIR = 'temp/normalize_logs';
+
 // ─────────────────────────────────────────────
 // エージェント
 // ─────────────────────────────────────────────
