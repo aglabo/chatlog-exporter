@@ -7,17 +7,15 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// ─────────────────────────────────────────────
-// shared modules
-// ─────────────────────────────────────────────
-
-// -- classes --
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-
-// -- types --
+// ─── shared modules───────────────────────────
+// types
 import type { ListDirProvider } from '../../../_scripts/types/providers.types.ts';
 
-// -- file-ops --
+// classes
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+
+// functions
+// -- file operations --
 import { backupOldPath } from '../../../_scripts/libs/file-ops/backup-old-path.ts';
 
 // -- io --
@@ -26,10 +24,11 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 // -- text --
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 
-// -- local types --
+// ─── internasl modules───────────────────────────
+// types
 import type { Stats } from '../types/normalize.types.ts';
 
-// ─── File Operations ──────────────────────────────────────────────────────────
+// ─── Functions
 
 /**
  * Writes `content` to `outputPath` using a tmp-then-rename atomic pattern.
