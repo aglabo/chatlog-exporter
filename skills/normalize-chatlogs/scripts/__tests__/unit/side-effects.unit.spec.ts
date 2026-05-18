@@ -17,10 +17,10 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 // test target
 import {
   reportResults,
-} from '../../normalize-chatlogs.ts';
+} from '../../modules/file-io.ts';
 
 // types
-import type { Stats } from '../../normalize-chatlogs.ts';
+import type { Stats } from '../../types/normalize.types.ts';
 
 // ─── reportResults tests ──────────────────────────────────────────────────────
 
