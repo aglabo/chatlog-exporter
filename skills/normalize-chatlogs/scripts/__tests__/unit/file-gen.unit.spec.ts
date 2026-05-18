@@ -15,13 +15,14 @@ import type { Stub } from '@std/testing/mock';
 import { stub } from '@std/testing/mock';
 
 // test target
+import { ChatlogFrontmatter } from '../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
 import { withConcurrency } from '../../../../_scripts/libs/parallel/concurrency.ts';
 import {
   attachFrontmatter,
   generateOutputFileName,
   generateSegmentFile,
   START_BODY_HEADING,
-} from '../../normalize-chatlogs.ts';
+} from '../../modules/segment-io.ts';
 
 // ─── withConcurrency tests ─────────────────────────────────────────────────────
 
@@ -242,70 +243,74 @@ describe('generateSegmentFile', () => {
 
 /**
  * attachFrontmatter のユニットテスト。
- * sourceMeta とセグメントメタデータを合成して `---` デリミタ付きフロントマターを
+ * ChatlogFrontmatter インスタンスとセグメントメタデータを合成して `---` デリミタ付きフロントマターを
  * コンテンツの先頭に付加する関数の正常系・エッジケースを検証する。
  */
 describe('attachFrontmatter', () => {
-  /** 正常系: sourceMeta の project フィールドを引き継ぎ、AI 生成フィールドを付加する */
-  describe('Given: project を含む sourceMeta と title・log_id・summary を含む segmentMeta', () => {
-    it("T-12-01-01: 出力フロントマターに project: 'ci-platform' が含まれる", () => {
-      const sourceMeta = { project: 'ci-platform', date: '2026-03-01' };
+  /** 正常系: frontmatter の project フィールドを引き継ぎ、AI 生成フィールドを付加する */
+  describe('Given: project を含む ChatlogFrontmatter と title・log_id・summary を含む segmentMeta', () => {
+    it('T-12-01-01: 出力フロントマターに project: "ci-platform" が含まれる', () => {
+      const fm = new ChatlogFrontmatter('');
+      fm.set('project', 'ci-platform');
+      fm.set('date', '2026-03-01');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234', summary: 'CI fix' };
       const content = '## Summary\nFix CI';
 
-      const result = attachFrontmatter(content, sourceMeta, segmentMeta);
+      const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes("project: 'ci-platform'"), true);
+      assertEquals(result.includes('project: "ci-platform"'), true);
     });
 
     it('T-12-01-02: 出力フロントマターに title・log_id・summary が含まれる', () => {
-      const sourceMeta = { project: 'ci-platform' };
+      const fm = new ChatlogFrontmatter('');
+      fm.set('project', 'ci-platform');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234', summary: 'CI fix' };
       const content = '## Summary\nFix CI';
 
-      const result = attachFrontmatter(content, sourceMeta, segmentMeta);
+      const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes("title: 'Fix CI'"), true);
-      assertEquals(result.includes("log_id: 'abc1234'"), true);
-      assertEquals(result.includes("summary: 'CI fix'"), true);
+      assertEquals(result.includes('title: "Fix CI"'), true);
+      assertEquals(result.includes('log_id: "abc1234"'), true);
+      assertEquals(result.includes('summary: "CI fix"'), true);
     });
   });
 
-  /** エッジケース: sourceMeta が空の場合は AI 生成フィールドのみを含む */
-  describe('Given: 空の sourceMeta と title・log_id・summary を含む segmentMeta', () => {
+  /** エッジケース: frontmatter が空の場合は AI 生成フィールドのみを含む */
+  describe('Given: 空の ChatlogFrontmatter と title・log_id・summary を含む segmentMeta', () => {
     it('T-12-02-01: 出力フロントマターが AI 生成フィールド（title・log_id・summary）のみを含む', () => {
-      const sourceMeta = {};
+      const fm = new ChatlogFrontmatter('');
       const segmentMeta = { title: 'Topic', log_id: 'aaabbbb', summary: 'Summary' };
       const content = '## Summary\nTopic content';
 
-      const result = attachFrontmatter(content, sourceMeta, segmentMeta);
+      const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes("title: 'Topic'"), true);
-      assertEquals(result.includes("log_id: 'aaabbbb'"), true);
-      assertEquals(result.includes("summary: 'Summary'"), true);
+      assertEquals(result.includes('title: "Topic"'), true);
+      assertEquals(result.includes('log_id: "aaabbbb"'), true);
+      assertEquals(result.includes('summary: "Summary"'), true);
       assertEquals(result.includes('project:'), false);
     });
   });
 
   /** 正常系: 出力が `---` デリミタで囲まれた有効な Markdown フロントマターになる */
-  describe('Given: 任意の sourceMeta と segmentMeta', () => {
+  describe('Given: 任意の ChatlogFrontmatter と segmentMeta', () => {
     it('T-12-03-01: 出力が `---\\n` で始まりフロントマターブロックが `\\n---\\n` で終わる', () => {
-      const sourceMeta = { project: 'test' };
+      const fm = new ChatlogFrontmatter('');
+      fm.set('project', 'test');
       const segmentMeta = { title: 'T', log_id: 'x', summary: 'S' };
       const content = '## Summary\ntext';
 
-      const result = attachFrontmatter(content, sourceMeta, segmentMeta);
+      const result = attachFrontmatter(content, fm, segmentMeta);
 
       assertEquals(result.startsWith('---\n'), true);
       assertEquals(result.includes('\n---\n'), true);
     });
 
     it('T-12-03-02: コンテンツボディがフロントマターブロックの後に重複なく続く', () => {
-      const sourceMeta = {};
+      const fm = new ChatlogFrontmatter('');
       const segmentMeta = { title: 'T', log_id: 'x', summary: 'S' };
       const content = '## Summary\ntext';
 
-      const result = attachFrontmatter(content, sourceMeta, segmentMeta);
+      const result = attachFrontmatter(content, fm, segmentMeta);
 
       const contentOccurrences = result.split('## Summary\ntext').length - 1;
       assertEquals(contentOccurrences, 1);
