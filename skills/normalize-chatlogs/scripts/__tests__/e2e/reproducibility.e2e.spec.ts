@@ -77,13 +77,13 @@ describe('main - reproducibility', () => {
           const fixedHash: HashProvider = () => '0000000';
 
           // First run: creates output
-          await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
           // Reset log capture for second run
           loggerStub.infoLogs.splice(0);
 
           // Second run: should backup existing file and rewrite
-          await main(['--dir', inputDir, '--output', outputDir], fixedHash);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
 
@@ -129,7 +129,7 @@ describe('main - reproducibility', () => {
     describe('When: main() が完了する', () => {
       describe('Then: Task T-15-04-03 - 実行全体を通じて入力ファイルが変更されない', () => {
         it('T-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           const afterContent = await readTextFile(`${inputDir}/input.md`);
           assertEquals(afterContent, inputContent);
