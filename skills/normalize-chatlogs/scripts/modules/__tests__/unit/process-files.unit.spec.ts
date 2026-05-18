@@ -22,8 +22,7 @@ import {
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // types
-import type { Stats } from '../../../normalize-chatlogs.ts';
-import type { NormalizeConfig } from '../../../types/normalize.types.ts';
+import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
 
 // ─── Internal Helpers
 
