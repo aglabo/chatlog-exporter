@@ -15,7 +15,7 @@ import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 import { cleanYaml } from '../../../../_scripts/libs/text/markdown-utils.ts';
-import { extractBaseName } from '../../normalize-chatlogs.ts';
+import { extractBaseName } from '../../modules/segment-io.ts';
 
 // ─── cleanYaml tests ──────────────────────────────────────────────────────────
 
