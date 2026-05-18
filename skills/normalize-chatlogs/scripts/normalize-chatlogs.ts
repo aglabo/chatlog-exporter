@@ -10,12 +10,6 @@
 // shared modules
 // ─────────────────────────────────────────────
 
-// types
-import type { ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
-
-// classes
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-
 // -- ai --
 import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
 
@@ -29,6 +23,7 @@ import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // -- io --
+import { generateHash } from '../../_scripts/libs/io/hash.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 
 // -- parallel --
@@ -39,6 +34,12 @@ import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-ut
 import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 import { quoteString } from '../../_scripts/libs/text/string-utils.ts';
+
+// types
+import type { HashProvider, ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
+
+// classes
+import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,49 +127,13 @@ export const extractBaseName = (filePath: string): string => {
   return withoutExt.replace(/-[0-9a-f]{7}$/, '');
 };
 
-/** 7 文字の 16 進数ハッシュ文字列を生成する関数の型。テスト用インジェクションに利用する。 */
-export type HashProvider = () => string;
-
-/**
- * `baseName` とセグメントインデックス `xx` から 7 文字の SHA-256 ハッシュを生成する。
- *
- * 入力文字列: `<baseName>-<xx>-<timestamp12>-<random8>`
- * - `timestamp12`: `YYYYMMDDHHmmss` 形式の 12 桁文字列
- * - `random8`: 4 バイトの乱数を 16 進数 8 文字に変換した文字列
- *
- * @param baseName - ソースファイルの拡張子なし・ハッシュなしのベース名
- * @param xx       - ゼロ埋め 2 桁のセグメントインデックス文字列（例: `"01"`）
- * @returns SHA-256 ダイジェストの先頭 7 文字（16 進数）
- */
-const _computeHash7 = async (baseName: string, xx: string): Promise<string> => {
-  const now = new Date();
-  const timestamp12 = [
-    String(now.getFullYear()),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-    String(now.getSeconds()).padStart(2, '0'),
-  ].join('');
-
-  const randomBytes = new Uint8Array(4);
-  crypto.getRandomValues(randomBytes);
-  const random8 = Array.from(randomBytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-
-  const raw = `${baseName}-${xx}-${timestamp12}-${random8}`;
-  const encoded = new TextEncoder().encode(raw);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 7);
-};
-
 /**
  * Generates an output file name for a segment.
  *
  * Format: `<baseName>-<XX>-<hash7>.md`
  * - baseName: source file name without extension and without trailing hash
  * - XX: zero-padded two-digit sequential index (01-based)
- * - hash7: result of `hashFn` if provided, otherwise SHA-256-based (see `_computeHash7`)
+ * - hash7: result of `hashFn` if provided, otherwise {@link generateHash}(baseName, { length: 7 })
  *
  * @param filePath - Path to the source chatlog file
  * @param index    - Zero-based segment index (displayed as 1-based two-digit number)
@@ -182,7 +147,7 @@ export const generateOutputFileName = async (
 ): Promise<string> => {
   const baseName = extractBaseName(filePath);
   const xx = String(index + 1).padStart(2, '0');
-  const hash7 = hashFn ? hashFn() : await _computeHash7(baseName, xx);
+  const hash7 = hashFn ? hashFn() : await generateHash(baseName, { length: 7 });
   return `${baseName}-${xx}-${hash7}.md`;
 };
 

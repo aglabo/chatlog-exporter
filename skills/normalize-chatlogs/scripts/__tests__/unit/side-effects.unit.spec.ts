@@ -8,17 +8,23 @@
 // This software is released under the MIT License.
 
 // Deno Test module
-import { assertEquals, assertMatch, assertNotEquals } from '@std/assert';
+import { assertMatch, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test helpers
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
 // test target
 import {
   reportResults,
 } from '../../normalize-chatlogs.ts';
+
+// test helpers
+// stub
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+
+// types
 import type { Stats } from '../../normalize-chatlogs.ts';
 
 // ─── reportResults tests ──────────────────────────────────────────────────────
