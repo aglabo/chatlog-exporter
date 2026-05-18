@@ -7,28 +7,28 @@
 //
 // This software is released under the MIT License.
 
-// Deno Test module
+// ─── Deno Test module
 import { assertEquals, assertMatch } from '@std/assert';
 import { after, afterEach, before, beforeEach, describe, it } from '@std/testing/bdd';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── test target ───────────────────────────────────────────────────────────────
+import { main } from '../../normalize-chatlogs.ts';
 
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// ─── helpers ──────────────────────────────────────────────────────────────────
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import {
   makeTempDirs,
   removeTempDirs,
   silenceLog,
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
-// test target
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
-import { main } from '../../normalize-chatlogs.ts';
-import type { HashProvider } from '../../normalize-chatlogs.ts';
+// type
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
 
 // ─── I/O テスト ────────────────────────────────────────────────────────────────
 

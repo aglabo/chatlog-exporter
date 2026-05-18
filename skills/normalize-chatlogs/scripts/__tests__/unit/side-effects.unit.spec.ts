@@ -14,11 +14,17 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // test helpers
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
 // test target
 import {
   reportResults,
 } from '../../normalize-chatlogs.ts';
+
+// test helpers
+// stub
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+
+// types
 import type { Stats } from '../../normalize-chatlogs.ts';
 
 // ─── reportResults tests ──────────────────────────────────────────────────────
