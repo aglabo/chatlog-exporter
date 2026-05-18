@@ -19,8 +19,8 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
-import { generateSegmentFile, segmentChatlogs, START_BODY_HEADING } from '../../normalize-chatlogs.ts';
-import type { Segment } from '../../normalize-chatlogs.ts';
+import { generateSegmentFile, segmentChatlogs, START_BODY_HEADING } from '../../modules/segment-io.ts';
+import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 

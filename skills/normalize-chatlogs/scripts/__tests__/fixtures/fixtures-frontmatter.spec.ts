@@ -20,13 +20,14 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
+import { ChatlogFrontmatter } from '../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
 import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import {
   attachFrontmatter,
   generateSegmentFile,
   segmentChatlogs,
-} from '../../normalize-chatlogs.ts';
-import type { Segment } from '../../normalize-chatlogs.ts';
+} from '../../modules/segment-io.ts';
+import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── フロントマター検証対象フィールド ────────────────────────────────────────
 
@@ -60,13 +61,21 @@ async function _loadOutputSegment(filePath: string): Promise<Segment> {
  * Segment と sourceMeta から attachFrontmatter + generateSegmentFile で
  * フロントマター付き出力テキストを生成する。
  * log_id は検証対象外のためダミー値を使用する。
+ *
+ * @param segment - テスト対象セグメント
+ * @param sourceMeta - ソースファイルのフロントマターフィールド
+ * @returns フロントマター付き Markdown 文字列
  */
 function _buildOutput(
   segment: Segment,
   sourceMeta: Record<string, string | string[]>,
 ): string {
   const segmentContent = generateSegmentFile(segment);
-  return attachFrontmatter(segmentContent, sourceMeta, {
+  const fm = new ChatlogFrontmatter('');
+  for (const [key, value] of Object.entries(sourceMeta)) {
+    fm.set(key, value);
+  }
+  return attachFrontmatter(segmentContent, fm, {
     title: segment.title,
     log_id: 'dummy',
     summary: segment.summary,
