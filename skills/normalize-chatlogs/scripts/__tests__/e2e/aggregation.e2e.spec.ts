@@ -70,7 +70,7 @@ describe('main - aggregation', () => {
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-01-02 - withConcurrency を使ってファイルを並列処理する', () => {
         it('T-15-01-02-01: 全 4 件が処理されて結果レポートに success=4 が含まれる', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=4/);
         });
@@ -114,7 +114,7 @@ describe('main - aggregation', () => {
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-03-02 - 1 ファイルの AI 呼び出し失敗でも残りファイルの処理を継続する', () => {
         it('T-15-03-02-01: success=2 かつ fail=1 がレポートに含まれる', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=2/);
           assertMatch([...loggerStub.infoLogs, ...loggerStub.warnLogs].join('\n'), /fail=1/);
@@ -148,7 +148,7 @@ describe('main - aggregation', () => {
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-04-01 - 空ディレクトリでも完了し 0 件レポートを出力する', () => {
         it('T-15-04-01-01: success=0, skip=0, fail=0 がレポートに含まれる', async () => {
-          await main(['--dir', inputDir, '--output', outputDir]);
+          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=0.*skip=0.*fail=0/);
         });
