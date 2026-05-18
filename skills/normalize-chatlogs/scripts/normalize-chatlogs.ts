@@ -14,349 +14,36 @@
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 
 // -- types --
-import type { HashProvider, ListDirProvider, StatSyncProvider } from '../../_scripts/types/providers.types.ts';
+import type { HashProvider } from '../../_scripts/types/providers.types.ts';
 
-// -- ai --
-import { runAI } from '../../_scripts/libs/ai/run-ai.ts';
-
-// -- file-ops --
-import { backupOldPath } from '../../_scripts/libs/file-ops/backup-old-path.ts';
+// -- constants --
+import {
+  DEFAULT_AGENT,
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_NORMALIZE_DIR,
+} from '../../_scripts/constants/defaults.constants.ts';
 
 // -- file-io --
-import { readTextFile } from '../../_scripts/libs/file-io/read-utils.ts';
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 
 // -- io --
-import { DEFAULT_NORMALIZE_DIR } from '../../_scripts/constants/defaults.constants.ts';
-import { generateHash } from '../../_scripts/libs/io/hash.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { MAX_SEGMENTS } from './constants/normalize.constants.ts';
-
-// -- parallel --
-import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
-
-// -- text --
-import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
-import { parseJsonArray } from '../../_scripts/libs/text/json-utils.ts';
-import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
-import { quoteString } from '../../_scripts/libs/text/string-utils.ts';
-
-/**
- * {@link segmentChatlogs} が AI から受け取る 1 トピックセグメント。
- *
- * AI は chatlog の内容を複数のトピックに分割し、各トピックをこの形式で返す。
- */
-export type Segment = {
-  /** セグメントの短いトピックタイトル。 */
-  title: string;
-  /** セグメントの 1 文要約。 */
-  summary: string;
-  /** セグメントの会話本文（元テキストをそのままコピー）。 */
-  content: string;
-};
-
-/**
- * バッチ処理結果の集計カウンター。{@link writeOutput} が直接更新する。
- */
-export type Stats = {
-  /** 正常に書き込まれたファイル数。 */
-  success: number;
-  /** スキップされたファイル数。 */
-  skip: number;
-  /** 失敗したファイル数（AI エラー・書き込みエラー等）。 */
-  fail: number;
-};
-
-/**
- * {@link resolveInputDir} の戻り値。解決成功または失敗のいずれかを表す判別共用体。
- */
-export type ResolveResult =
-  | { ok: true; dir: string }
-  | { ok: false; error: string };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/** セグメントファイルの本文セクションを示す Markdown 見出し。 */
-export const START_BODY_HEADING = '## Excerpt';
 
 // -- modules --
+import { reportResults } from './modules/file-io.ts';
 import { buildConfig, parseArgs } from './modules/normalize-config.ts';
+import { processFiles } from './modules/process-files.ts';
 
-// ─── ID Generation ────────────────────────────────────────────────────────────
-
-/**
- * Extracts the base name (without extension and trailing hash) from a file path.
- *
- * Strips the directory, `.md` extension, and any trailing `-<7hex>` hash suffix.
- * For example: `path/to/2026-03-11-1-api-a4a84394.md` → `2026-03-11-1-api`
- * (hash removal applies when the suffix matches `-[0-9a-f]{7}$` pattern)
- *
- * @param filePath - Path to the source chatlog file
- * @returns Base name without extension and without trailing `-XXXXXXX` hash segment
- */
-export const extractBaseName = (filePath: string): string => {
-  const fileName = filePath.split('/').pop() ?? filePath;
-  const withoutExt = fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName;
-  // Remove trailing -<7hex> hash if present
-  return withoutExt.replace(/-[0-9a-f]{7}$/, '');
-};
-
-/**
- * Generates an output file name for a segment.
- *
- * Format: `<baseName>-<XX>-<hash7>.md`
- * - baseName: source file name without extension and without trailing hash
- * - XX: zero-padded two-digit sequential index (01-based)
- * - hash7: result of `hashFn` if provided, otherwise {@link generateHash}(baseName, { length: 7 })
- *
- * @param filePath - Path to the source chatlog file
- * @param index    - Zero-based segment index (displayed as 1-based two-digit number)
- * @param hashFn   - Optional hash generator (injectable for testing)
- * @returns Promise resolving to the output file name (including `.md` extension)
- */
-export const generateOutputFileName = async (
-  filePath: string,
-  index: number,
-  hashFn?: HashProvider,
-): Promise<string> => {
-  const baseName = extractBaseName(filePath);
-  const xx = String(index + 1).padStart(2, '0');
-  const hash7 = hashFn ? hashFn() : await generateHash(baseName, { length: 7 });
-  return `${baseName}-${xx}-${hash7}.md`;
-};
-
-// ─── Segment File Generation ──────────────────────────────────────────────────
-
-/**
- * Generates a Markdown string from a {@link Segment} object.
- *
- * Output structure:
- * ```markdown
- * ## Summary
- * {segment.summary}
- *
- * ## Excerpt
- * {segment.body}
- * ```
- *
- * Both section headings (`## Summary` and `## Excerpt`) are always emitted,
- * even when `summary` or `body` are empty strings.
- *
- * @param segment - The segment to render
- * @returns Markdown string containing the Summary and Excerpt sections
- */
-export const generateSegmentFile = (segment: Segment): string => {
-  return `## Summary\n\n${segment.summary}\n\n${START_BODY_HEADING}\n\n${segment.content}`;
-};
-
-/**
- * Attaches a YAML frontmatter block to the given Markdown content.
- *
- * Merges fields from `sourceMeta` (propagated from the source file's frontmatter)
- * with AI-generated fields in `segmentMeta`, then prepends the resulting
- * `---\n...\n---\n` block to `content`.
- *
- * @param content - The Markdown body to attach frontmatter to
- * @param sourceMeta - Fields propagated from the source file (e.g. `project`)
- * @param segmentMeta - AI-generated fields (`title`, `log_id`, `summary`)
- * @returns Markdown string with frontmatter prepended
- */
-export const attachFrontmatter = (
-  content: string,
-  sourceMeta: Record<string, string | string[]>,
-  segmentMeta: { title: string; log_id: string; summary: string },
-): string => {
-  const fields: string[] = [];
-  for (const [key, value] of Object.entries(sourceMeta)) {
-    if (Array.isArray(value)) {
-      fields.push(`${key}:`);
-      value.forEach((v) => fields.push(`  - ${v}`));
-    } else {
-      fields.push(`${key}: ${quoteString(value as string)}`);
-    }
-  }
-  fields.push(`title: ${quoteString(segmentMeta.title)}`);
-  fields.push(`log_id: ${quoteString(segmentMeta.log_id)}`);
-  fields.push(`summary: ${quoteString(segmentMeta.summary)}`);
-  return `---\n${fields.join('\n')}\n---\n\n${content}`;
-};
-
-// ─── AI Execution ─────────────────────────────────────────────────────────────
-
-/**
- * Splits a chatlog into topic-based segments by calling the Claude AI.
- *
- * Sends the chatlog content to Claude with a system prompt requesting a JSON
- * array of segments. Each segment has `title`, `summary`, and `body` fields.
- * At most {@link MAX_SEGMENTS} segments are returned.
- *
- * @param filePath - Path to the chatlog file (used for context in the prompt)
- * @param content  - Full text content of the chatlog file
- * @returns Promise resolving to an array of {@link Segment} objects, or `null`
- *          if the AI call fails or the response cannot be parsed as a JSON array
- */
-export const segmentChatlogs = async (filePath: string, content: string): Promise<Segment[] | null> => {
-  const systemPrompt = 'You are a chatlog analyst. Split the given chatlog into topic-based segments. '
-    + 'Return ONLY a JSON array where each element has exactly three string fields: '
-    + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
-    + 'For "content": copy the relevant conversation verbatim — do NOT rewrite, paraphrase, or reformat. '
-    + 'Preserve all original line breaks, blank lines, code blocks, and list formatting exactly as they appear. '
-    + 'Preserve ### User and ### Assistant headings to distinguish speakers. '
-    + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
-
-  const userPrompt = `File: ${filePath}\n\n${content}`;
-
-  let raw: string;
-  try {
-    raw = await runAI(systemPrompt, userPrompt, { model: 'claude-sonnet-4-6' });
-  } catch (e) {
-    if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlogs: timed out — ${filePath}`);
-    }
-    return null;
-  }
-
-  const parsed = parseJsonArray(raw);
-  if (parsed === null) {
-    return null;
-  }
-
-  const segments = parsed as Segment[];
-  return segments.slice(0, MAX_SEGMENTS);
-};
-
-// ─── File Operations ──────────────────────────────────────────────────────────
-
-/**
- * Writes `content` to `outputPath` using a tmp-then-rename atomic pattern.
- *
- * Behavior:
- * 1. `dryRun=true` → log and return without writing.
- * 2. `outputPath` contains `chatlogs/` → throw Error (R-010 guard).
- * 3. `outputPath` already exists → backup via `_backupOldPath` (rename to `<basename>.old-NN.md`, first available slot 01–99), then write new file, `stats.success++`.
- * 4. Write to `outputPath + ".tmp"`, then rename to `outputPath`, `stats.success++`.
- *
- * @param outputPath - Destination file path
- * @param content    - Text content to write
- * @param dryRun     - When true, no disk writes are performed
- * @param stats      - Mutable counters updated in place
- */
-export const writeOutput = async (
-  outputPath: string,
-  content: string,
-  dryRun: boolean,
-  stats: Stats,
-  listDir: ListDirProvider = (dir) => Array.fromAsync(Deno.readDir(dir), (e) => e.name),
-): Promise<void> => {
-  if (dryRun) {
-    logger.info(`[dry-run] would write: ${outputPath}`);
-    return;
-  }
-
-  if (outputPath.includes('chatlogs/')) {
-    throw new ChatlogError(
-      'ForbiddenOutput',
-      'ForbiddenPath',
-      `writing to input directory is forbidden: ${outputPath}`,
-    );
-  }
-
-  await backupOldPath(outputPath, listDir);
-
-  const tmpPath = outputPath + '.tmp';
-  await Deno.writeTextFile(tmpPath, normalizeLine(content));
-  await Deno.rename(tmpPath, outputPath);
-  stats.success++;
-};
-
-/**
- * Outputs a summary report of batch processing results to stdout.
- *
- * Format: `Results: success=<n>, skip=<n>, fail=<n>`
- * When `stats.fail > 0`, an additional warning line is emitted to surface
- * the failure count explicitly.
- *
- * @param stats - Counters collected across a batch run
- */
-export const reportResults = (stats: Stats): void => {
-  logger.info(`Results: success=${stats.success}, skip=${stats.skip}, fail=${stats.fail}`);
-  if (stats.fail > 0) {
-    logger.warn(`WARNING: ${stats.fail} file(s) failed`);
-  }
-};
-
-// ─── Directory Resolution ─────────────────────────────────────────────────────
-
-/**
- * Resolves the input directory based on provided args (pure function, no FS side effects).
- *
- * Resolution order:
- * 1. If `args.chatlogsDir` is provided, return `{ ok: true, dir: args.chatlogsDir }`.
- * 2. If `args.agent` and `args.period` are provided, construct
- *    `chatlogs/<agent>/<year>/<period>` and return `{ ok: true, dir: ... }`.
- * 3. Otherwise return `{ ok: false, error: ... }`.
- *
- * @param args - Object with optional `chatlogsDir`, `agent`, and `period` fields
- * @returns ResolveResult: `{ ok: true, dir }` on success, `{ ok: false, error }` on failure
- */
-export const resolveInputDir = (
-  args: { chatlogsDir?: string; agent?: string; period?: string },
-): ResolveResult => {
-  if (args.chatlogsDir !== undefined) {
-    return { ok: true, dir: args.chatlogsDir };
-  }
-  if (args.agent !== undefined && args.period !== undefined) {
-    const year = args.period.slice(0, 4);
-    return { ok: true, dir: `chatlogs/${args.agent}/${year}/${args.period}` };
-  }
-  return { ok: false, error: '--chatlogs-dir or (--agent and --period) must be specified' };
-};
-
-/**
- * Validates that `dir` exists as a directory on the filesystem.
- *
- * @param dir          - The directory path to check
- * @param statProvider - Injectable sync stat function; defaults to `Deno.statSync`
- * @returns `true` if the path is an existing directory, `false` if not found
- * @throws For errors other than `NotFound` (e.g. `PermissionDenied`)
- */
-export const validateInputDir = (
-  dir: string,
-  statProvider?: StatSyncProvider,
-): boolean => {
-  return dirExistsSync(dir, statProvider);
-};
-
-/**
- * Resolves the output directory from an input directory path.
- *
- * If inputDir matches the chatlog format `chatlogs/<agent>/<year>/<yearMonth>`,
- * the output is `<outputBase>/<agent>/<year>/<yearMonth>/<project>`.
- * Otherwise (arbitrary path), the output is `<outputBase>/<project>`.
- * If project is undefined or empty string, "misc" is used.
- *
- * @param inputDir   - The resolved input directory path
- * @param outputBase - The base output directory
- * @param project    - Optional project name
- * @returns The resolved output directory path
- */
-export const resolveOutputDir = (inputDir: string, outputBase: string, project: string | undefined): string => {
-  const effectiveProject = project || 'misc';
-  const chatlogMatch = inputDir.match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})(?:\/|$)/);
-  if (chatlogMatch) {
-    const [, agent, year, yearMonth] = chatlogMatch;
-    return `${outputBase}/${agent}/${year}/${yearMonth}/${effectiveProject}`;
-  }
-  return `${outputBase}/${effectiveProject}`;
-};
+// -- local types --
+import type { Stats } from './types/normalize.types.ts';
 
 // ─── Main Orchestration ───────────────────────────────────────────────────────
 
 /**
  * Orchestrates the full normalize-chatlogs pipeline.
  *
- * Flow: parseArgs → resolveInputDir → findFiles → withConcurrency(per-file:
+ * Flow: parseArgs → resolveChatlogsDir → findFiles → withConcurrency(per-file:
  *   segmentChatlogs → generateSegmentFile + attachFrontmatter + writeOutput) → reportResults
  *
  * @param argv   - CLI argument array; defaults to `Deno.args` when omitted
@@ -366,47 +53,19 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   try {
     const _parsed = parseArgs(argv ?? Deno.args);
     const config = buildConfig(_parsed);
-    const resolved = resolveInputDir(config);
-    if (!resolved.ok) {
-      throw new ChatlogError('InputNotFound', 'ResolutionFailed', resolved.error);
+    const inputDir = resolveChatlogsDir({
+      chatlogsDir: config.chatlogsDir,
+      baseDir: config.baseDir ?? DEFAULT_CHATLOGS_DIR,
+      agent: config.agent ?? DEFAULT_AGENT,
+      period: config.period,
+    });
+    if (!dirExistsSync(inputDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
     }
-    if (!validateInputDir(resolved.dir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${resolved.dir}`);
-    }
-    const inputDir = resolved.dir;
     const outputBase = config.normalizeDir ?? DEFAULT_NORMALIZE_DIR;
 
-    const mdFiles = await findFiles(inputDir);
     const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-    await runConcurrent(mdFiles, async (filePath) => {
-      const content = await readTextFile(filePath);
-      const { meta: sourceMeta } = parseFrontmatterEntries(content);
-
-      const segments = await segmentChatlogs(filePath, content);
-      if (segments === null) {
-        stats.fail++;
-        return;
-      }
-
-      const _project = typeof sourceMeta['project'] === 'string' ? sourceMeta['project'] : undefined;
-      const outputDir = resolveOutputDir(inputDir, outputBase, _project);
-      await Deno.mkdir(outputDir, { recursive: true });
-
-      for (let i = 0; i < segments.length; i++) {
-        const segment = segments[i];
-        const outputFileName = await generateOutputFileName(filePath, i, hashFn);
-        const segmentContent = generateSegmentFile(segment);
-        const fullContent = attachFrontmatter(segmentContent, sourceMeta, {
-          title: segment.title,
-          log_id: outputFileName.replace(/\.md$/, ''),
-          summary: segment.summary,
-        });
-        const outputPath = `${outputDir}/${outputFileName}`;
-        await writeOutput(outputPath, fullContent, config.dryRun, stats);
-      }
-    }, config.concurrency);
-
+    await processFiles(inputDir, outputBase, config, stats, hashFn);
     reportResults(stats);
   } catch (e) {
     if (e instanceof ChatlogError) {
