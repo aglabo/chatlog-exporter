@@ -63,6 +63,7 @@ import type {
 const _SCHEMA: ArgsSchema = [
   { option: '--base-dir', field: 'baseDir', type: 'directory' },
   { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
+  { option: '--period', field: 'period', type: 'period' },
   { option: '--model', field: 'model', type: 'string' },
   { option: '--config', field: 'configFile', type: 'string' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },

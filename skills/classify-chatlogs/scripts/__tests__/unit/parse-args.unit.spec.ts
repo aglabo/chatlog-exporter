@@ -7,12 +7,14 @@
 // This software is released under the MIT License.
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
 import { parseArgs } from '../../classify-chatlogs.ts';
+// classes
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { ParsedConfig } from '../../types/classify.types.ts';
 
@@ -156,6 +158,51 @@ describe('parseArgs', () => {
           const result = parseArgs(['--model', 'sonnet']);
           assertEquals(result.model, 'sonnet');
         });
+      });
+    });
+  });
+
+  // ─── T-CL-PA-08: --period オプション ────────────────────────────────────────
+
+  describe('Given: --period オプション', () => {
+    describe('When: parseArgs(args) を呼び出す', () => {
+      describe('Then: T-CL-PA-08 - period に値が設定される、または不正値でエラー', () => {
+        it('T-CL-PA-08-01: --period VALUE → period が設定される', () => {
+          const result = parseArgs(['--period', '2026-04']);
+          assertEquals(result.period, '2026-04');
+        });
+
+        it('T-CL-PA-08-02: --period=VALUE → period が設定される', () => {
+          const result = parseArgs(['--period=2026']);
+          assertEquals(result.period, '2026');
+        });
+
+        it('T-CL-PA-08-03: --period 不正形式 → ChatlogError がスローされる', () => {
+          assertThrows(
+            () => parseArgs(['--period', 'invalid-format']),
+            ChatlogError,
+          );
+        });
+      });
+    });
+  });
+
+  // ─── T-CL-PA-03: period 位置引数 ────────────────────────────────────────────
+
+  describe('Given: YYYY-MM または YYYY 形式の位置引数', () => {
+    describe('When: parseArgs(args) を呼び出す', () => {
+      describe('Then: T-CL-PA-03 - period に値が設定される', () => {
+        const _cases: Array<[string, string[], string | undefined]> = [
+          ['T-CL-PA-03-01: YYYY-MM 形式 → period が設定される', ['2026-04'], '2026-04'],
+          ['T-CL-PA-03-02: YYYY 形式 → period が設定される', ['2026'], '2026'],
+          ['T-CL-PA-03-03: 引数なし → period が undefined になる', [], undefined],
+        ];
+        for (const [id, args, expected] of _cases) {
+          it(id, () => {
+            const result = parseArgs(args);
+            assertEquals(result.period, expected);
+          });
+        }
       });
     });
   });
