@@ -93,6 +93,22 @@ describe('normalizePath', () => {
       });
     });
   });
+
+  describe('Given: 末尾スラッシュ付きパス', () => {
+    describe('When: normalizePath を実行する', () => {
+      describe('Then: T-LIB-U-06 - 末尾スラッシュが除去される', () => {
+        it('T-LIB-U-06-01: /home/user/ の末尾スラッシュが除去される', () => {
+          assertEquals(normalizePath('/home/user/'), '/home/user');
+        });
+        it('T-LIB-U-06-02: C:\\Users\\foo\\ の末尾スラッシュが除去される', () => {
+          assertEquals(normalizePath('C:\\Users\\foo\\'), 'C:/Users/foo');
+        });
+        it('T-LIB-U-06-03: 末尾に複数スラッシュがある場合も除去される', () => {
+          assertEquals(normalizePath('/home/user///'), '/home/user');
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -437,8 +453,8 @@ describe('resolveConfigPath', () => {
 
   describe('Given: configPath が空文字列', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-07 - プロジェクトルートにスラッシュを付けて返る', () => {
-        it('T-LIB-U-14-07: configPath="" のとき /home/user/project/ が返る', async () => {
+      describe('Then: T-LIB-U-14-07 - プロジェクトルートが末尾スラッシュなしで返る', () => {
+        it('T-LIB-U-14-07: configPath="" のとき /home/user/project が返る', async () => {
           const _enc = new TextEncoder();
           const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
@@ -447,7 +463,7 @@ describe('resolveConfigPath', () => {
               configPath: '',
               commandProvider: _mock as unknown as CommandProvider,
             }),
-            '/home/user/project/',
+            '/home/user/project',
           );
         });
       });
@@ -491,8 +507,8 @@ describe('resolveConfigPath', () => {
 
   describe('Given: configPath に末尾スラッシュ付き相対ディレクトリパスを指定する', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-10 - 末尾スラッシュを保持してプロジェクトルートと結合されて返る', () => {
-        it('T-LIB-U-14-10: 末尾スラッシュ付き相対ディレクトリパスは末尾スラッシュを保持して返る', async () => {
+      describe('Then: T-LIB-U-14-10 - 末尾スラッシュが除去されてプロジェクトルートと結合されて返る', () => {
+        it('T-LIB-U-14-10: 末尾スラッシュ付き相対ディレクトリパスは末尾スラッシュが除去されて返る', async () => {
           const _enc = new TextEncoder();
           const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
@@ -501,7 +517,7 @@ describe('resolveConfigPath', () => {
               configPath: 'assets/dics/',
               commandProvider: _mock as unknown as CommandProvider,
             }),
-            '/home/user/project/assets/dics/',
+            '/home/user/project/assets/dics',
           );
         });
       });
