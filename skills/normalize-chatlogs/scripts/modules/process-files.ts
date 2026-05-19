@@ -8,16 +8,19 @@
 // https://opensource.org/licenses/MIT
 
 // --- shared
-// classes
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // functions
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // types
 import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
+
+// classes
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // --- internal modules
 import { writeOutput } from './file-io.ts';
@@ -74,6 +77,39 @@ export const processFiles = async (
   stats: Stats,
   hashFn?: HashProvider,
 ): Promise<void> => {
+  // 1. inputDir 存在確認
+  try {
+    const _inputStat = await Deno.stat(inputDir);
+    if (!_inputStat.isDirectory) {
+      throw new ChatlogError('InputNotFound', 'InputDir', `inputDir is not a directory: ${inputDir}`);
+    }
+  } catch (e) {
+    if (e instanceof ChatlogError) { throw e; }
+    throw new ChatlogError('InputNotFound', 'InputDir', `inputDir not found: ${inputDir}`);
+  }
+
+  // 2. outputBase 存在確認
+  try {
+    const _outputStat = await Deno.stat(outputBase);
+    if (!_outputStat.isDirectory) {
+      throw new ChatlogError('FileDirNotFound', 'OutputBase', `outputBase is not a directory: ${outputBase}`);
+    }
+  } catch (e) {
+    if (e instanceof ChatlogError) { throw e; }
+    throw new ChatlogError('FileDirNotFound', 'OutputBase', `outputBase not found: ${outputBase}`);
+  }
+
+  // 3. containment チェック（outputBase が inputDir 配下でないこと）
+  const _normalizedInput = normalizePath(inputDir).replace(/\/?$/, '/');
+  const _normalizedOutput = normalizePath(outputBase).replace(/\/?$/, '/');
+  if (_normalizedOutput.startsWith(_normalizedInput)) {
+    throw new ChatlogError(
+      'ForbiddenOutput',
+      'OutputInsideInput',
+      `outputBase must not be inside inputDir: ${outputBase}`,
+    );
+  }
+
   const mdFiles = await findFiles(inputDir);
   await runConcurrent(mdFiles, async (filePath) => {
     const _text = await readTextFile(filePath);
