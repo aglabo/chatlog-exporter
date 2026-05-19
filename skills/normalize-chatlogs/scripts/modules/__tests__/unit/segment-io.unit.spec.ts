@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/modules/__tests__/unit/segment-io.unit.spec.ts
 // @(#): segment-io モジュールのユニットテスト
-//       対象: extractBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, segmentChatlogs
+//       対象: extractBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, segmentChatlogs, segmentChatlogsBatch
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -24,6 +24,7 @@ import {
   generateOutputFileName,
   generateSegmentFile,
   segmentChatlogs,
+  segmentChatlogsBatch,
   START_BODY_HEADING,
 } from '../../segment-io.ts';
 
@@ -38,6 +39,8 @@ import {
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // classes
 import { ChatlogFrontmatter } from '../../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
+// constants
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Tests
 
@@ -378,6 +381,41 @@ describe('segmentChatlogs', () => {
     });
   });
 
+  /** model オプションを指定・省略したときの Deno.Command args 検証ケース。 */
+  describe('When: 正常系 — model 指定', () => {
+    it('[Normal] T-SC-05-01: model を明示指定したとき Deno.Command args に --model <指定モデル> が含まれる', async () => {
+      // arrange
+      const segments = [{ title: 'Topic 1', summary: 'Summary 1', content: 'Body 1' }];
+      const stdout = new TextEncoder().encode(JSON.stringify(segments));
+      const capturedArgs: { value: string[] } = { value: [] };
+      mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
+
+      // act
+      await segmentChatlogs('test.md', 'content', { model: 'claude-sonnet-4-6' });
+
+      // assert
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertNotEquals(modelIndex, -1);
+      assertEquals(capturedArgs.value[modelIndex + 1], 'claude-sonnet-4-6');
+    });
+
+    it('[Normal] T-SC-05-02: model を省略したとき Deno.Command args に --model DEFAULT_AI_MODEL が含まれる', async () => {
+      // arrange
+      const segments = [{ title: 'Topic 1', summary: 'Summary 1', content: 'Body 1' }];
+      const stdout = new TextEncoder().encode(JSON.stringify(segments));
+      const capturedArgs: { value: string[] } = { value: [] };
+      mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
+
+      // act
+      await segmentChatlogs('test.md', 'content');
+
+      // assert
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertNotEquals(modelIndex, -1);
+      assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
+    });
+  });
+
   /** AI がエラー終了または非 JSON を返す異常ケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-SC-02-01: AI が非ゼロ exit code で終了するとき null を返す', async () => {
@@ -423,6 +461,115 @@ describe('segmentChatlogs', () => {
       assertEquals(result?.length, 10);
       assertEquals(result?.[0].title, 'Topic 1');
       assertEquals(result?.[9].title, 'Topic 10');
+    });
+  });
+});
+
+// ─── segmentChatlogsBatch tests ───────────────────────────────────────────────
+
+/**
+ * `segmentChatlogsBatch` のユニットテストスイート。
+ *
+ * 複数ファイルをまとめて1回のAI呼び出しでセグメント分割する関数の
+ * 正常系・異常系・エッジケースを検証する。
+ *
+ * テスト ID 範囲: T-SCB-01-01 〜 T-SCB-04-01
+ *
+ * @see segmentChatlogsBatch
+ */
+describe('segmentChatlogsBatch', () => {
+  let mockHandle: CommandMockHandle;
+
+  afterEach(() => {
+    if (mockHandle) { mockHandle.restore(); }
+  });
+
+  describe('When: 正常系', () => {
+    it('[Normal] T-SCB-01-01: 2ファイル入力でAIが有効なJSONを返すとき各ファイルのSegment[]をMapで返す', async () => {
+      // arrange
+      const inputs = [
+        { filePath: 'a.md', content: 'content a' },
+        { filePath: 'b.md', content: 'content b' },
+      ];
+      const aiResult = [
+        { filePath: 'a.md', segments: [{ title: 'T1', summary: 'S1', content: 'C1' }] },
+        { filePath: 'b.md', segments: [{ title: 'T2', summary: 'S2', content: 'C2' }] },
+      ];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', content: 'C1' }]);
+      assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', content: 'C2' }]);
+    });
+  });
+
+  describe('When: 異常系', () => {
+    it('[Error] T-SCB-02-01: AIが非ゼロ exit のとき全ファイルが null の Map を返す', async () => {
+      // arrange
+      const inputs = [
+        { filePath: 'a.md', content: 'content a' },
+        { filePath: 'b.md', content: 'content b' },
+      ];
+      mockHandle = installCommandMock(makeFailMock(1));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertNull(result.get('a.md'));
+      assertNull(result.get('b.md'));
+    });
+
+    it('[Error] T-SCB-02-02: AIが不正JSONを返すとき全ファイルが null の Map を返す', async () => {
+      // arrange
+      const inputs = [{ filePath: 'a.md', content: 'content a' }];
+      const stdout = new TextEncoder().encode('not valid json');
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertNull(result.get('a.md'));
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SCB-03-01: 1ファイル入力でも正常動作する', async () => {
+      // arrange
+      const inputs = [{ filePath: 'solo.md', content: 'solo content' }];
+      const aiResult = [
+        { filePath: 'solo.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] },
+      ];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertEquals(result.get('solo.md'), [{ title: 'T', summary: 'S', content: 'C' }]);
+    });
+
+    it('[Edge] T-SCB-04-01: AIが返す filePath が inputs にない場合無視され、inputs にある filePath は null になる', async () => {
+      // arrange
+      const inputs = [{ filePath: 'known.md', content: 'content' }];
+      const aiResult = [
+        { filePath: 'unknown.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] },
+      ];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertNull(result.get('known.md'));
+      assertEquals(result.has('unknown.md'), false);
     });
   });
 });
