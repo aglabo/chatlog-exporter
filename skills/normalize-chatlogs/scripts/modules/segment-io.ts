@@ -19,6 +19,9 @@ import { ChatlogFrontmatter } from '../../../_scripts/classes/ChatlogFrontmatter
 // --- ai ---
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
+// constants
+import { DEFAULT_AI_MODEL } from '../../../_scripts/constants/defaults.constants.ts';
+
 // --- io ---
 import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
@@ -155,7 +158,11 @@ export const attachFrontmatter = (
  * @returns Promise resolving to an array of {@link Segment} objects, or `null`
  *          if the AI call fails or the response cannot be parsed as a JSON array
  */
-export const segmentChatlogs = async (filePath: string, content: string): Promise<Segment[] | null> => {
+export const segmentChatlogs = async (
+  filePath: string,
+  content: string,
+  options?: { model?: string },
+): Promise<Segment[] | null> => {
   const systemPrompt = 'You are a chatlog analyst. Split the given chatlog into topic-based segments. '
     + 'Return ONLY a JSON array where each element has exactly three string fields: '
     + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
@@ -168,7 +175,7 @@ export const segmentChatlogs = async (filePath: string, content: string): Promis
 
   let raw: string;
   try {
-    raw = await runAI(systemPrompt, userPrompt, { model: 'claude-sonnet-4-6' });
+    raw = await runAI(systemPrompt, userPrompt, { model: options?.model ?? DEFAULT_AI_MODEL });
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
       logger.warn(`segmentChatlogs: timed out — ${filePath}`);
@@ -183,4 +190,73 @@ export const segmentChatlogs = async (filePath: string, content: string): Promis
 
   const segments = parsed as Segment[];
   return segments.slice(0, MAX_SEGMENTS);
+};
+
+// ─── Batch AI Execution ───────────────────────────────────────────────────────
+
+/** バッチ処理用の入力1件。 */
+type ChatlogInput = {
+  filePath: string;
+  content: string;
+};
+
+/**
+ * Splits multiple chatlogs into topic-based segments in a single AI call.
+ *
+ * Sends all inputs to Claude as a combined prompt and returns a Map from
+ * filePath to its segments. Returns null for any filePath that the AI did not
+ * return results for, or if the AI call fails entirely.
+ *
+ * @param inputs   - Array of `{ filePath, content }` to segment
+ * @param options  - Optional AI options (model)
+ * @returns Map from filePath to Segment[] or null
+ */
+export const segmentChatlogsBatch = async (
+  inputs: ChatlogInput[],
+  options?: { model?: string },
+): Promise<Map<string, Segment[] | null>> => {
+  const _nullMap = (): Map<string, Segment[] | null> => {
+    const m = new Map<string, Segment[] | null>();
+    for (const { filePath } of inputs) { m.set(filePath, null); }
+    return m;
+  };
+
+  const systemPrompt = 'You are a chatlog analyst. Split each given chatlog into topic-based segments. '
+    + 'Return ONLY a JSON array where each element has exactly two fields: '
+    + '"filePath" (the file path as given) and "segments" (array of segment objects). '
+    + 'Each segment object has exactly three string fields: '
+    + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
+    + 'For "content": copy the relevant conversation verbatim — do NOT rewrite, paraphrase, or reformat. '
+    + 'Preserve all original line breaks, blank lines, code blocks, and list formatting exactly as they appear. '
+    + 'Preserve ### User and ### Assistant headings to distinguish speakers. '
+    + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
+
+  const userPrompt = inputs
+    .map(({ filePath, content }, i) => `File ${i + 1}: ${filePath}\n${content}`)
+    .join('\n\n---\n\n');
+
+  let _raw: string;
+  try {
+    _raw = await runAI(systemPrompt, userPrompt, { model: options?.model ?? DEFAULT_AI_MODEL });
+  } catch (e) {
+    if (e instanceof ChatlogError && e.kind === 'TimedOut') {
+      logger.warn(`segmentChatlogsBatch: timed out`);
+    }
+    return _nullMap();
+  }
+
+  const _parsed = parseJsonArray(_raw);
+  if (_parsed === null) { return _nullMap(); }
+
+  const _validPaths = new Set(inputs.map((i) => i.filePath));
+  const _result = new Map<string, Segment[] | null>();
+  for (const { filePath } of inputs) { _result.set(filePath, null); }
+
+  for (const entry of _parsed as Array<{ filePath: string; segments: Segment[] }>) {
+    if (!_validPaths.has(entry.filePath)) { continue; }
+    const _segments = Array.isArray(entry.segments) ? entry.segments : [];
+    _result.set(entry.filePath, _segments.slice(0, MAX_SEGMENTS));
+  }
+
+  return _result;
 };
