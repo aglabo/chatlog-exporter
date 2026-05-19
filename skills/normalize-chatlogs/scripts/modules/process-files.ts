@@ -10,6 +10,7 @@
 // --- shared
 // functions
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { dirExists } from '../../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -28,32 +29,50 @@ import {
   attachFrontmatter,
   generateOutputFileName,
   generateSegmentFile,
-  segmentChatlogs,
+  segmentChatlogsBatch,
 } from './segment-io.ts';
 
-// ─── Directory Resolution ─────────────────────────────────────────────────────
+// constants
+import { BATCH_SIZE } from '../constants/normalize.constants.ts';
 
 /**
- * Resolves the output directory from an input directory path.
+ * Extracts the `<agent>/<yyyy>/<yyyy-mm>` path segment from a file path.
  *
- * If inputDir matches the chatlog format `chatlogs/<agent>/<year>/<yearMonth>`,
- * the output is `<outputBase>/<agent>/<year>/<yearMonth>/<project>`.
- * Otherwise (arbitrary path), the output is `<outputBase>/<project>`.
- * If project is undefined or empty string, "misc" is used.
+ * Matches the `chatlogs/<agent>/<yyyy>/<yyyy-mm>` pattern and returns
+ * `<agent>/<yyyy>/<yyyy-mm>`. Returns `''` if the pattern is not found.
  *
- * @param inputDir   - The resolved input directory path
- * @param outputBase - The base output directory
- * @param project    - Optional project name
- * @returns The resolved output directory path
+ * @param filePath - Path to the source chatlog file
+ * @returns Path segment like `'claude/2026/2026-04'`, or `''`
  */
-const _resolveOutputDir = (inputDir: string, outputBase: string, project: string | undefined): string => {
-  const effectiveProject = project || 'misc';
-  const chatlogMatch = inputDir.match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})(?:\/|$)/);
-  if (chatlogMatch) {
-    const [, agent, year, yearMonth] = chatlogMatch;
-    return `${outputBase}/${agent}/${year}/${yearMonth}/${effectiveProject}`;
+export const extractChatlogPath = (filePath: string): string => {
+  const match = filePath.match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
+  if (match) {
+    const [, agent, year, yearMonth] = match;
+    return `${agent}/${year}/${yearMonth}`;
   }
-  return `${outputBase}/${effectiveProject}`;
+  return '';
+};
+
+/**
+ * Resolves the output directory for a single file.
+ *
+ * Combines {@link extractChatlogPath} with the project name to build the full output path.
+ * If `filePath` contains `chatlogs/<agent>/<yyyy>/<yyyy-mm>`, returns
+ * `<outputBase>/<agent>/<yyyy>/<yyyy-mm>/<project>`.
+ * Otherwise returns `<outputBase>/<project>`.
+ * Falls back to `'misc'` when `project` is undefined.
+ *
+ * @param outputBase - Base output directory (normalized)
+ * @param filePath   - Path to the source chatlog file
+ * @param project    - Project name from frontmatter, or undefined
+ * @returns Resolved output directory path
+ */
+export const resolveOutputDir = (outputBase: string, filePath: string, project: string | undefined): string => {
+  const chatlogPath = extractChatlogPath(normalizePath(filePath));
+  const effectiveProject = project ?? 'misc';
+  return chatlogPath
+    ? `${outputBase}/${chatlogPath}/${effectiveProject}`
+    : `${outputBase}/${effectiveProject}`;
 };
 
 /**
@@ -73,70 +92,75 @@ const _resolveOutputDir = (inputDir: string, outputBase: string, project: string
 export const processFiles = async (
   inputDir: string,
   outputBase: string,
-  config: Pick<NormalizeConfig, 'dryRun' | 'concurrency'>,
+  config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'>,
   stats: Stats,
   hashFn?: HashProvider,
 ): Promise<void> => {
+  // 0. パス正規化
+  const _inputDir = normalizePath(inputDir);
+  const _outputBase = normalizePath(outputBase);
+
   // 1. inputDir 存在確認
-  try {
-    const _inputStat = await Deno.stat(inputDir);
-    if (!_inputStat.isDirectory) {
-      throw new ChatlogError('InputNotFound', 'InputDir', `inputDir is not a directory: ${inputDir}`);
-    }
-  } catch (e) {
-    if (e instanceof ChatlogError) { throw e; }
-    throw new ChatlogError('InputNotFound', 'InputDir', `inputDir not found: ${inputDir}`);
+  if (!await dirExists(_inputDir)) {
+    throw new ChatlogError('InputNotFound', 'InputDir', `inputDir not found or not a directory: ${_inputDir}`);
   }
 
-  // 2. outputBase 存在確認
-  try {
-    const _outputStat = await Deno.stat(outputBase);
-    if (!_outputStat.isDirectory) {
-      throw new ChatlogError('FileDirNotFound', 'OutputBase', `outputBase is not a directory: ${outputBase}`);
-    }
-  } catch (e) {
-    if (e instanceof ChatlogError) { throw e; }
-    throw new ChatlogError('FileDirNotFound', 'OutputBase', `outputBase not found: ${outputBase}`);
+  // 2. outputBase 作成・存在確認
+  await Deno.mkdir(_outputBase, { recursive: true });
+  if (!await dirExists(_outputBase)) {
+    throw new ChatlogError('FileDirNotFound', 'OutputBase', `outputBase could not be created: ${_outputBase}`);
   }
 
   // 3. containment チェック（outputBase が inputDir 配下でないこと）
-  const _normalizedInput = normalizePath(inputDir).replace(/\/?$/, '/');
-  const _normalizedOutput = normalizePath(outputBase).replace(/\/?$/, '/');
-  if (_normalizedOutput.startsWith(_normalizedInput)) {
+  if (_outputBase.startsWith(_inputDir + '/') || _outputBase === _inputDir) {
     throw new ChatlogError(
       'ForbiddenOutput',
       'OutputInsideInput',
-      `outputBase must not be inside inputDir: ${outputBase}`,
+      `outputBase must not be inside inputDir: ${_outputBase}`,
     );
   }
 
-  const mdFiles = await findFiles(inputDir);
-  await runConcurrent(mdFiles, async (filePath) => {
-    const _text = await readTextFile(filePath);
-    const _entry = new ChatlogEntry(_text);
+  const mdFiles = await findFiles(_inputDir);
 
-    const segments = await segmentChatlogs(filePath, _text);
-    if (segments === null) {
-      stats.fail++;
-      return;
-    }
+  const _chunks: string[][] = [];
+  for (let i = 0; i < mdFiles.length; i += BATCH_SIZE) {
+    _chunks.push(mdFiles.slice(i, i + BATCH_SIZE));
+  }
 
-    const _projectVal = _entry.frontmatter.get('project');
-    const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
-    const outputDir = _resolveOutputDir(inputDir, outputBase, _project);
-    await Deno.mkdir(outputDir, { recursive: true });
+  await runConcurrent(_chunks, async (chunk) => {
+    const _inputs = await Promise.all(
+      chunk.map(async (filePath) => {
+        const content = await readTextFile(filePath);
+        return { filePath, content };
+      }),
+    );
 
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      const outputFileName = await generateOutputFileName(filePath, i, hashFn);
-      const segmentContent = generateSegmentFile(segment);
-      const fullContent = attachFrontmatter(segmentContent, _entry.frontmatter, {
-        title: segment.title,
-        log_id: outputFileName.replace(/\.md$/, ''),
-        summary: segment.summary,
-      });
-      const outputPath = `${outputDir}/${outputFileName}`;
-      await writeOutput(outputPath, fullContent, config.dryRun, stats);
+    const _resultMap = await segmentChatlogsBatch(_inputs, { model: config.model });
+
+    for (const { filePath, content } of _inputs) {
+      const segments = _resultMap.get(filePath) ?? null;
+      if (segments === null) {
+        stats.fail++;
+        continue;
+      }
+
+      const _entry = new ChatlogEntry(content);
+      const _projectVal = _entry.frontmatter.get('project');
+      const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
+      const outputDir = resolveOutputDir(_outputBase, filePath, _project);
+      await Deno.mkdir(outputDir, { recursive: true });
+
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const outputFileName = await generateOutputFileName(filePath, i, hashFn);
+        const segmentContent = generateSegmentFile(segment);
+        const fullContent = attachFrontmatter(segmentContent, _entry.frontmatter, {
+          title: segment.title,
+          log_id: outputFileName.replace(/\.md$/, ''),
+          summary: segment.summary,
+        });
+        await writeOutput(`${outputDir}/${outputFileName}`, fullContent, config.dryRun, stats);
+      }
     }
   }, config.concurrency);
 };
