@@ -26,9 +26,9 @@ const _DEFAULT_COMMAND_PROVIDER = Deno.Command as unknown as CommandProvider;
 // パス正規化
 // ─────────────────────────────────────────────
 
-/** パス区切り文字をスラッシュに統一し、URL pathname 形式（/C:/...）を修正する。 */
+/** パス区切り文字をスラッシュに統一し、URL pathname 形式（/C:/...）を修正し、末尾スラッシュを除去する。 */
 export const normalizePath = (path: string): string => {
-  return path.replaceAll('\\', '/').replace(/^\/([A-Za-z]:)/, '$1');
+  return path.replaceAll('\\', '/').replace(/^\/([A-Za-z]:)/, '$1').replace(/(.)\/+$/, '$1');
 };
 
 /** ファイルパスからディレクトリ部分を返す（末尾スラッシュなし）。 */
