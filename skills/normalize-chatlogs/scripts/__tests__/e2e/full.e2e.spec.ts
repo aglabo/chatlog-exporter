@@ -21,6 +21,7 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // type
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -58,8 +59,13 @@ describe('normalize-chatlogs - full E2E', () => {
         '---\nproject: my-project\n---\n### User\nWhat is linting?\n\n### AI\nLinting checks code style.',
       );
 
+      const pathA = normalizePath(`${inputDir}/chat-a.md`);
+      const pathB = normalizePath(`${inputDir}/chat-b.md`);
+      const pathC = normalizePath(`${inputDir}/chat-c.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary of topic', body: '### User\nQuestion' },
+        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', content: '### User\nCI' }] },
+        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', content: '### User\nDeploy' }] },
+        { filePath: pathC, segments: [{ title: 'Topic C', summary: 'Summary C', content: '### User\nLint' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -101,8 +107,12 @@ describe('normalize-chatlogs - full E2E', () => {
         '---\nproject: structured-project\n---\n### User\nExplain TDD.\n\n### AI\nTDD means writing tests first.',
       );
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'TDD Explanation', summary: 'Overview of TDD', body: '### User\nExplain TDD.' },
+        {
+          filePath: chatPath,
+          segments: [{ title: 'TDD Explanation', summary: 'Overview of TDD', content: '### User\nExplain TDD.' }],
+        },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -143,8 +153,12 @@ describe('normalize-chatlogs - full E2E', () => {
 
       await Deno.writeTextFile(`${inputDir}/chat.md`, inputContent);
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Reproducibility', summary: 'Test run', body: '### User\nTest.' },
+        {
+          filePath: chatPath,
+          segments: [{ title: 'Reproducibility', summary: 'Test run', content: '### User\nTest.' }],
+        },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
