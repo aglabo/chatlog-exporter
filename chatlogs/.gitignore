@@ -14,3 +14,11 @@
 
 # track git settings
 !.git*
+!**/.git*
+
+# directory keeper
+!**/.keep
+
+
+# track normalize logs
+!normalizelogs
