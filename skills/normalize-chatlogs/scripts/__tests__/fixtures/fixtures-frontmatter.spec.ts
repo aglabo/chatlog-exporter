@@ -20,7 +20,7 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
-import { ChatlogFrontmatter } from '../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import {
   attachFrontmatter,
@@ -58,24 +58,20 @@ async function _loadOutputSegment(filePath: string): Promise<Segment> {
 }
 
 /**
- * Segment と sourceMeta から attachFrontmatter + generateSegmentFile で
+ * Segment と ChatlogEntry から attachFrontmatter + generateSegmentFile で
  * フロントマター付き出力テキストを生成する。
  * log_id は検証対象外のためダミー値を使用する。
  *
  * @param segment - テスト対象セグメント
- * @param sourceMeta - ソースファイルのフロントマターフィールド
+ * @param entry - ソースファイルの ChatlogEntry（フロントマターを保持）
  * @returns フロントマター付き Markdown 文字列
  */
 function _buildOutput(
   segment: Segment,
-  sourceMeta: Record<string, string | string[]>,
+  entry: ChatlogEntry,
 ): string {
   const segmentContent = generateSegmentFile(segment);
-  const fm = new ChatlogFrontmatter('');
-  for (const [key, value] of Object.entries(sourceMeta)) {
-    fm.set(key, value);
-  }
-  return attachFrontmatter(segmentContent, fm, {
+  return attachFrontmatter(segmentContent, entry.frontmatter, {
     title: segment.title,
     log_id: 'dummy',
     summary: segment.summary,
@@ -138,7 +134,7 @@ for (const _dirName of _fixtureDirs) {
       let _segments: Segment[];
       let _expectedSegments: Segment[];
       let _fixtureContents: string[];
-      let _sourceMeta: Record<string, string | string[]>;
+      let _entry: ChatlogEntry;
       let _mockHandle: ReturnType<typeof installCommandMock>;
 
       beforeEach(async () => {
@@ -151,7 +147,7 @@ for (const _dirName of _fixtureDirs) {
         _mockHandle = installCommandMock(makeSuccessMock(_stdout));
 
         const _inputContent = await readTextFile(_inputPath);
-        _sourceMeta = parseFrontmatter(_inputContent).meta;
+        _entry = new ChatlogEntry(_inputContent);
         const _result = await segmentChatlogs(_inputPath, _inputContent);
         _segments = _result ?? [];
       });
@@ -160,14 +156,14 @@ for (const _dirName of _fixtureDirs) {
         _mockHandle.restore();
       });
 
-      describe('When: attachFrontmatter(generateSegmentFile(segment), sourceMeta, segmentMeta) を呼び出す', () => {
+      describe('When: attachFrontmatter(generateSegmentFile(segment), entry, segmentMeta) を呼び出す', () => {
         for (let _i = 0; _i < _outputFiles.length; _i++) {
           const _idx = _i;
           const _n = _idx + 1;
 
           for (const _key of FRONTMATTER_KEYS) {
             it(`SFF-${_dirName}-${_n}-${_key}: フロントマターの ${_key} が output-${_n} と一致する`, () => {
-              const _actual = _buildOutput(_segments[_idx], _sourceMeta);
+              const _actual = _buildOutput(_segments[_idx], _entry);
               const { meta: _actualMeta } = parseFrontmatter(_actual);
               const { meta: _expectedMeta } = parseFrontmatter(_fixtureContents[_idx]);
               assertEquals(_actualMeta[_key], _expectedMeta[_key]);

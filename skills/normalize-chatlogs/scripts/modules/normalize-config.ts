@@ -13,14 +13,19 @@ import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 
 // types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
-import type { NormalizeConfig, NormalizeParsedConfig } from '../types/normalize.types.ts';
 
 // constants
 import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
-import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- internal
+// types
+import type { NormalizeConfig, NormalizeParsedConfig } from '../types/normalize.types.ts';
 
+// constants
+import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
+
+// --- local
+// constants
 const _SCHEMA: ArgsSchema = [
   { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
   { option: '--base-dir', field: 'baseDir', type: 'directory' },

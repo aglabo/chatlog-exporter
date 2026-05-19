@@ -19,7 +19,7 @@ import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
 
-// --- normalize-chatlogs modules
+// --- internal modules
 import { writeOutput } from './file-io.ts';
 import {
   attachFrontmatter,

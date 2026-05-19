@@ -38,9 +38,9 @@ export async function assertOutputFile(
   if (options?.expectFrontmatterField) {
     const { key, value } = options.expectFrontmatterField;
     assertEquals(
-      content.includes(`${key}: '${value}'`),
+      content.includes(`${key}: "${value}"`),
       true,
-      `${filePath}: frontmatter に ${key}: '${value}' が必要`,
+      `${filePath}: frontmatter に ${key}: "${value}" が必要`,
     );
   }
 }
