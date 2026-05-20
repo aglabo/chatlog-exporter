@@ -19,8 +19,6 @@ import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logge
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
-// classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { Stats } from '../../../types/normalize.types.ts';
 
@@ -31,7 +29,7 @@ import type { Stats } from '../../../types/normalize.types.ts';
  *
  * Deno.makeTempDir を使ってテンポラリディレクトリにファイルを書き込む実際のファイル操作テスト。
  *
- * テスト ID 範囲: T-WO-01-01 〜 T-WO-04-02
+ * テスト ID 範囲: T-WO-01-01 〜 T-WO-03-01
  *
  * @see writeOutput
  */
@@ -100,31 +98,23 @@ describe('writeOutput', () => {
     });
   });
 
-  /** 異常系: R-010 ガード — outputPath に chatlogs/ が含まれるとき Error をスロー */
-  describe('[異常] R-010 Guard Cases', () => {
-    it('T-WO-04-01: outputPath に chatlogs/ が含まれるとき Error をスロー', async () => {
+  /** 異常系: バックアップスロットが全て埋まっているとき Error をスローする */
+  describe('[異常] Backup limit Cases', () => {
+    it('T-WO-04-01: バックアップスロット(01〜99)が全て埋まっているとき Error をスローする', async () => {
       // arrange
-      const outputPath = 'chatlogs/agent/2026/2026-01/output.md';
+      const outputPath = `${tmpDir}/output.md`;
+      await Deno.writeTextFile(outputPath, 'existing');
+      for (let i = 1; i <= 99; i++) {
+        await Deno.writeTextFile(`${tmpDir}/output.old-${String(i).padStart(2, '0')}.md`, '');
+      }
       const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act & assert
       await assertRejects(
         () => writeOutput(outputPath, 'content', false, stats),
         Error,
-        'Forbidden Output',
+        'too many backups',
       );
-    });
-
-    it('T-WO-04-02: throw された ChatlogError の subindex が "ForbiddenPath" になる', async () => {
-      // arrange
-      const outputPath = 'chatlogs/agent/2026/2026-01/output.md';
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-      // act
-      const err = await writeOutput(outputPath, 'content', false, stats).catch((e) => e);
-
-      // assert
-      assertEquals((err as ChatlogError).subindex, 'ForbiddenPath');
     });
   });
 });
