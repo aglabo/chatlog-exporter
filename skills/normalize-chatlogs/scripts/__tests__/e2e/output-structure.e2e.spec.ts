@@ -18,6 +18,7 @@ import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/hel
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // test target
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
@@ -52,8 +53,11 @@ describe('main - output structure', () => {
         '---\nproject: test\n---\n### User\nFix CI\n\n### AI\nSure',
       );
 
+      const pathA = normalizePath(`${inputDir}/chat-a.md`);
+      const pathB = normalizePath(`${inputDir}/chat-b.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic A', summary: 'Summary A', body: '### User\nHello' },
+        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', content: '### User\nHello' }] },
+        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', content: '### User\nFix CI' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -96,8 +100,12 @@ describe('main - output structure', () => {
         '---\nproject: my-project\n---\n### User\nHello\n\n### AI\nHi',
       );
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Greeting', summary: 'A greeting exchange', body: '### User\nHello' },
+        {
+          filePath: chatPath,
+          segments: [{ title: 'Greeting', summary: 'A greeting exchange', content: '### User\nHello' }],
+        },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),

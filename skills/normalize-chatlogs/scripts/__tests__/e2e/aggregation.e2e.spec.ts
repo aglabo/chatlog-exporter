@@ -16,12 +16,13 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
-  makeSelectiveFailMock,
+  makeFailMock,
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // test target
 import { main } from '../../normalize-chatlogs.ts';
@@ -52,11 +53,15 @@ describe('main - aggregation', () => {
         );
       }
 
-      const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
-      ]);
+      // Build batch responses for all 4 files — they are processed as 1 batch (BATCH_SIZE=4)
+      const batchResponse = JSON.stringify(
+        Array.from({ length: 4 }, (_, i) => ({
+          filePath: normalizePath(`${inputDir}/chat-${i + 1}.md`),
+          segments: [{ title: `Topic ${i + 1}`, summary: `Summary ${i + 1}`, content: `Body ${i + 1}` }],
+        })),
+      );
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeSuccessMock(new TextEncoder().encode(batchResponse)),
       );
       loggerStub = makeLoggerStub();
     });
@@ -78,10 +83,15 @@ describe('main - aggregation', () => {
     });
   });
 
-  // ─── T-15-03-02: 部分失敗時の集計 ───────────────────────────────────────────
+  // ─── T-15-03-02: バッチ全体失敗時の集計 ────────────────────────────────────
 
-  /** 異常系: 3 件のうち 1 件が AI エラー → success=2, fail=1 */
-  describe('Given: 3 件の MD ファイルのうち 1 件が AI エラーを起こす', () => {
+  /**
+   * 異常系: AI がバッチ全体で exit 失敗 → 全 3 ファイルが fail に集計される。
+   *
+   * 注: バッチ処理 (BATCH_SIZE=4) では 3 ファイルが 1 回の AI 呼び出しで処理される。
+   * AI 呼び出し自体が失敗した場合、バッチ内の全ファイルが fail としてカウントされる。
+   */
+  describe('Given: 3 件の MD ファイルのうち AI がバッチ全体で失敗する', () => {
     let inputDir: string;
     let outputDir: string;
     let commandHandle: CommandMockHandle;
@@ -97,11 +107,7 @@ describe('main - aggregation', () => {
         );
       }
 
-      const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
-      ]);
-      const successBytes = new TextEncoder().encode(segmentResponse);
-      commandHandle = installCommandMock(makeSelectiveFailMock(3, successBytes));
+      commandHandle = installCommandMock(makeFailMock(1));
       loggerStub = makeLoggerStub();
     });
 
@@ -112,12 +118,11 @@ describe('main - aggregation', () => {
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-03-02 - 1 ファイルの AI 呼び出し失敗でも残りファイルの処理を継続する', () => {
-        it('T-15-03-02-01: success=2 かつ fail=1 がレポートに含まれる', async () => {
+      describe('Then: Task T-15-03-02 - AI バッチ呼び出し失敗でバッチ内全ファイルが fail にカウントされる', () => {
+        it('T-15-03-02-01: fail=3 がレポートに含まれる', async () => {
           await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
 
-          assertMatch(loggerStub.infoLogs.join('\n'), /success=2/);
-          assertMatch([...loggerStub.infoLogs, ...loggerStub.warnLogs].join('\n'), /fail=1/);
+          assertMatch([...loggerStub.infoLogs, ...loggerStub.warnLogs].join('\n'), /fail=3/);
         });
       });
     });

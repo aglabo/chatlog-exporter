@@ -21,6 +21,19 @@ export type Segment = {
 };
 
 /**
+ * バッチ処理でセグメント分割された1ファイル分の結果。
+ * `filePath` と事前計算済みの `outputDir` を保持する。
+ */
+export type SegmentedFile = {
+  /** 入力ファイルパス（outputFileName生成に使用）。 */
+  filePath: string;
+  /** resolveOutputDir で事前計算済みの出力ディレクトリ。 */
+  outputDir: string;
+  /** AIが生成したセグメント配列。 */
+  segments: Segment[];
+};
+
+/**
  * バッチ処理結果の集計カウンター。{@link writeOutput} が直接更新する。
  */
 export type Stats = {
@@ -37,6 +50,7 @@ export interface NormalizeConfig {
   baseDir?: string;
   agent?: string;
   period?: string;
+  model?: string;
   dryRun: boolean;
   concurrency: number;
   normalizeDir?: string;

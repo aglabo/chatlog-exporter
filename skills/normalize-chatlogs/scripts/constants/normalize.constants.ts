@@ -16,3 +16,6 @@ export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
 };
 
 export const MAX_SEGMENTS = 10;
+
+/** 1回のAI呼び出しで処理するファイル数の上限。 */
+export const BATCH_SIZE = 4;

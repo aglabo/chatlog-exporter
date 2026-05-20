@@ -28,6 +28,7 @@ import {
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -60,8 +61,9 @@ describe('main - reproducibility', () => {
         '### User\nHello\n\n### AI\nHi',
       );
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -116,8 +118,9 @@ describe('main - reproducibility', () => {
 
       await Deno.writeTextFile(`${inputDir}/input.md`, inputContent);
 
+      const inputPath = normalizePath(`${inputDir}/input.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: inputPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),

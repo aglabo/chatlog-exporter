@@ -59,8 +59,11 @@ describe('main - I/O', () => {
         '---\nproject: test\n---\n### User\nFix CI\n\n### AI\nSure',
       );
 
+      const pathA = normalizePath(`${inputDir}/chat-a.md`);
+      const pathB = normalizePath(`${inputDir}/chat-b.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic A', summary: 'Summary A', body: '### User\nHello' },
+        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', content: '### User\nHello' }] },
+        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', content: '### User\nFix CI' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -113,8 +116,9 @@ describe('main - I/O', () => {
     beforeEach(async () => {
       outputDir = await Deno.makeTempDir();
 
+      const samplePath = normalizePath(`${AGENT_DIR}/sample.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: samplePath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -167,8 +171,9 @@ describe('main - I/O', () => {
     beforeEach(async () => {
       outputBase = await Deno.makeTempDir();
 
+      const chatPath = normalizePath(`${CHATLOG_INPUT_DIR}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -215,8 +220,9 @@ describe('main - I/O', () => {
         '---\nproject: custom-project\n---\n### User\nHello\n\n### AI\nHi',
       );
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -262,8 +268,9 @@ describe('main - I/O', () => {
         '### User\nHello\n\n### AI\nHi',
       );
 
+      const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Topic', summary: 'Summary', body: 'Body' },
+        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -309,8 +316,12 @@ describe('main - I/O', () => {
       );
 
       // AI returns exactly 1 segment
+      const singlePath = normalizePath(`${inputDir}/single-topic.md`);
       const segmentResponse = JSON.stringify([
-        { title: 'Fix CI', summary: 'Fix CI pipeline', body: '### User\nHow do I fix CI?' },
+        {
+          filePath: singlePath,
+          segments: [{ title: 'Fix CI', summary: 'Fix CI pipeline', content: '### User\nHow do I fix CI?' }],
+        },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
