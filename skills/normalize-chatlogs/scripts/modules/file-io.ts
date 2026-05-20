@@ -9,10 +9,7 @@
 
 // ─── shared modules───────────────────────────
 // types
-import type { ListDirProvider } from '../../../_scripts/types/providers.types.ts';
-
-// classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
 
 // functions
 // -- file operations --
@@ -35,9 +32,8 @@ import type { Stats } from '../types/normalize.types.ts';
  *
  * Behavior:
  * 1. `dryRun=true` → log and return without writing.
- * 2. `outputPath` contains `chatlogs/` → throw Error (R-010 guard).
- * 3. `outputPath` already exists → backup via `backupOldPath` (rename to `<basename>.old-NN.md`, first available slot 01–99), then write new file, `stats.success++`.
- * 4. Write to `outputPath + ".tmp"`, then rename to `outputPath`, `stats.success++`.
+ * 2. `outputPath` already exists → backup via `backupOldPath` (rename to `<basename>.old-NN.md`, first available slot 01–99), then write new file, `stats.success++`.
+ * 3. Write to `outputPath + ".tmp"`, then rename to `outputPath`, `stats.success++`.
  *
  * @param outputPath - Destination file path
  * @param content    - Text content to write
@@ -49,22 +45,14 @@ export const writeOutput = async (
   content: string,
   dryRun: boolean,
   stats: Stats,
-  listDir: ListDirProvider = (dir) => Array.fromAsync(Deno.readDir(dir), (e) => e.name),
+  glob?: GlobProvider,
 ): Promise<void> => {
   if (dryRun) {
     logger.info(`[dry-run] would write: ${outputPath}`);
     return;
   }
 
-  if (outputPath.includes('chatlogs/')) {
-    throw new ChatlogError(
-      'ForbiddenOutput',
-      'ForbiddenPath',
-      `writing to input directory is forbidden: ${outputPath}`,
-    );
-  }
-
-  await backupOldPath(outputPath, listDir);
+  await backupOldPath(outputPath, glob);
 
   const tmpPath = outputPath + '.tmp';
   await Deno.writeTextFile(tmpPath, normalizeLine(content));

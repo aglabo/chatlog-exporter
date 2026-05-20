@@ -1,18 +1,15 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
 // src: scripts/__tests__/functional/normalize-chatlogs.functional.spec.ts
 // @(#): 複数関数を組み合わせた機能テスト
-//       対象: segmentChatlogs (runAI モック経由),
-//             writeOutput (Deno.stat/rename モック, _backupOldPath を内部利用)
+//       対象: segmentChatlogs (runAI モック経由)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 
 // Deno Test module
-import { assertEquals, assertRejects } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import type { Stub } from '@std/testing/mock';
-import { stub } from '@std/testing/mock';
 import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
 
 // test helpers
@@ -23,9 +20,7 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // test target
-import { writeOutput } from '../../modules/file-io.ts';
 import { segmentChatlogs } from '../../modules/segment-io.ts';
-import type { Stats } from '../../types/normalize.types.ts';
 
 // ─── segmentChatlogs tests ─────────────────────────────────────────────────────
 
@@ -149,186 +144,6 @@ describe('segmentChatlogs', () => {
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
           assertEquals((result as unknown[]).length, 10);
-        });
-      });
-    });
-  });
-});
-
-// ─── writeOutput tests ────────────────────────────────────────────────────────
-
-// ─── Internal Helpers
-
-/** ファイルとして存在することを示す `stat` スタブ返し値。`fileExists` が `true` を返す前提条件に使用する。 */
-const _existingFileStat = () => Promise.resolve({ isFile: true } as Deno.FileInfo);
-
-/**
- * writeOutput の機能テスト。
- * Deno.stat / Deno.rename / Deno.writeTextFile をモック化し、
- * ファイル書き込み、既存ファイルのリネーム、ドライランモードを検証する。
- */
-describe('writeOutput', () => {
-  let statStub: Stub | null = null;
-  let renameStub: Stub | null = null;
-  let writeTextFileStub: Stub | null = null;
-
-  afterEach(() => {
-    statStub?.restore();
-    statStub = null;
-    renameStub?.restore();
-    renameStub = null;
-    writeTextFileStub?.restore();
-    writeTextFileStub = null;
-  });
-
-  /** 正常系: 存在しない出力パスにアトミックにファイルを書き込む */
-  describe('Given: 存在しない出力パスと dryRun=false', () => {
-    describe('When: writeOutput を呼び出す', () => {
-      describe('Then: Task T-13-01 - アトミックなファイル書き込み', () => {
-        it('T-13-01-01: stats.success がインクリメントされる', async () => {
-          // stat → NotFound (ファイル未存在)
-          statStub = stub(Deno, 'stat', () => Promise.reject(new Deno.errors.NotFound('not found')));
-          const writtenPaths: string[] = [];
-          writeTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
-            writtenPaths.push(String(path));
-            return Promise.resolve();
-          });
-          renameStub = stub(Deno, 'rename', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          await writeOutput('output/entry.md', 'content', false, stats);
-
-          assertEquals(stats.success, 1);
-          // .tmp ファイルに書いて rename するアトミック書き込みを確認
-          assertEquals(writtenPaths.includes('output/entry.md.tmp'), true);
-        });
-
-        it('T-13-01-02: .tmp パスに書き込んでから outputPath にリネームする', async () => {
-          statStub = stub(Deno, 'stat', () => Promise.reject(new Deno.errors.NotFound('not found')));
-          const writtenPaths: string[] = [];
-          writeTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
-            writtenPaths.push(String(path));
-            return Promise.resolve();
-          });
-          const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
-            renamedArgs.push([String(from), String(to)]);
-            return Promise.resolve();
-          });
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          await writeOutput('output/entry.md', 'content', false, stats);
-
-          assertEquals(writtenPaths[0], 'output/entry.md.tmp');
-          assertEquals(renamedArgs[renamedArgs.length - 1], ['output/entry.md.tmp', 'output/entry.md']);
-        });
-      });
-    });
-  });
-
-  /** 正常系: すでに存在するファイルを .old-01.md にリネームしてから新規書き込みする */
-  describe('Given: すでに存在する出力パス', () => {
-    describe('When: writeOutput を呼び出す', () => {
-      describe('Then: Task T-13-02 - 既存ファイルのリネームと新規書き込み', () => {
-        it('T-13-02-01: 既存ファイルを .old-01.md にリネームしてから書き込む', async () => {
-          statStub = stub(Deno, 'stat', _existingFileStat);
-          const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
-            renamedArgs.push([String(from), String(to)]);
-            return Promise.resolve();
-          });
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          // バックアップファイルなし → old-01.md に
-          await writeOutput('output/existing.md', 'new content', false, stats, () => Promise.resolve([]));
-
-          // 1回目のリネームが既存ファイル → old-01.md であること
-          assertEquals(renamedArgs[0], ['output/existing.md', 'output/existing.old-01.md']);
-          assertEquals(stats.success, 1);
-          assertEquals(stats.skip, 0);
-        });
-
-        it('T-13-02-02: .old-01.md が既にある場合は .old-02.md にリネームする', async () => {
-          statStub = stub(Deno, 'stat', _existingFileStat);
-          const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
-            renamedArgs.push([String(from), String(to)]);
-            return Promise.resolve();
-          });
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          // old-01.md が既存 → old-02.md に
-          await writeOutput(
-            'output/existing.md',
-            'new content',
-            false,
-            stats,
-            () => Promise.resolve(['existing.old-01.md']),
-          );
-
-          assertEquals(renamedArgs[0], ['output/existing.md', 'output/existing.old-02.md']);
-          assertEquals(stats.success, 1);
-        });
-      });
-    });
-  });
-
-  /** 正常系: dryRun=true のときファイル操作を行わない */
-  describe('Given: dryRun=true', () => {
-    describe('When: writeOutput を呼び出す', () => {
-      describe('Then: Task T-13-03 - ドライランモード', () => {
-        it('T-13-03-01: Deno.writeTextFile が呼ばれず stats.success が 0 のまま', async () => {
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          await writeOutput('output/dry.md', '## Summary\nbody', true, stats);
-
-          assertEquals((writeTextFileStub as unknown as { calls: unknown[] }).calls.length, 0);
-          assertEquals(stats.success, 0);
-        });
-      });
-    });
-  });
-
-  /** 異常系: R-010 ガード — chatlogs/ 配下への書き込みはエラーをスローする */
-  describe('[異常] Error Cases', () => {
-    describe('Given: chatlogs/ 配下の入力パスを出力先に指定する', () => {
-      describe('When: writeOutput(inputPath, content, false, stats) を呼び出す', () => {
-        describe('Then: Task T-13-04 - R-010 ガードによるエラー', () => {
-          it('T-13-04-01: chatlogs/ 配下のパスへの書き込みが行われない (R-010)', async () => {
-            const stats: Stats = { success: 0, skip: 0, fail: 0 };
-            const inputPath = 'chatlogs/claude/2026/2026-03/sample.md';
-
-            await assertRejects(
-              async () => {
-                await writeOutput(inputPath, 'overwrite', false, stats);
-              },
-              Error,
-              'Forbidden Output',
-            );
-          });
-        });
-      });
-    });
-
-    /** 異常系: バックアップスロット 01〜99 がすべて埋まっている場合は Error をスローする */
-    describe('Given: outputPath と old-01〜old-99 が全て存在する', () => {
-      describe('When: writeOutput を呼び出す', () => {
-        describe('Then: Task T-13-05 - バックアップスロット上限超過で Error をスローする', () => {
-          it('T-13-05-01: "too many backups" エラーをスローする', async () => {
-            statStub = stub(Deno, 'stat', _existingFileStat);
-            renameStub = stub(Deno, 'rename', () => Promise.resolve());
-            const allSlots = Array.from({ length: 99 }, (_, i) => `entry.old-${String(i + 1).padStart(2, '0')}.md`);
-            const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-            await assertRejects(
-              () => writeOutput('output/entry.md', 'content', false, stats, () => Promise.resolve(allSlots)),
-              Error,
-              'too many backups',
-            );
-          });
         });
       });
     });

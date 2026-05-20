@@ -6,6 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// functions
+import { normalizePath } from '../path-utils/path-utils.ts';
+
 // ─────────────────────────────────────────────
 // チャットログパス構築
 // ─────────────────────────────────────────────
@@ -54,4 +57,26 @@ export type ResolveChatlogsDirOptions = {
  */
 export const resolveChatlogsDir = ({ chatlogsDir, baseDir, agent, period }: ResolveChatlogsDirOptions): string => {
   return chatlogsDir ?? `${baseDir}/${agentPath(agent, period)}`;
+};
+
+// ─────────────────────────────────────────────
+// チャットログパス抽出
+// ─────────────────────────────────────────────
+
+/**
+ * Extracts the `<agent>/<yyyy>/<yyyy-mm>` path segment from a file path.
+ *
+ * Normalizes the path, then matches the `chatlogs/<agent>/<yyyy>/<yyyy-mm>`
+ * pattern and returns `<agent>/<yyyy>/<yyyy-mm>`. Returns `''` if the pattern is not found.
+ *
+ * @param filePath - Path to the source chatlog file
+ * @returns Path segment like `'claude/2026/2026-04'`, or `''`
+ */
+export const extractChatlogPath = (filePath: string): string => {
+  const match = normalizePath(filePath).match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
+  if (match) {
+    const [, agent, year, yearMonth] = match;
+    return `${agent}/${year}/${yearMonth}`;
+  }
+  return '';
 };

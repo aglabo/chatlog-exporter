@@ -12,6 +12,7 @@ import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import {
+  getBasename,
   getDirectory,
   getFilename,
   isAbsolutePath,
@@ -338,6 +339,142 @@ describe('isAbsolutePath', () => {
       describe('Then: T-LIB-U-12-15 - true が返る', () => {
         it('T-LIB-U-12-15: /C:/Users/foo は絶対パスと判定される（URL pathname 形式が正しく処理される）', () => {
           assertEquals(isAbsolutePath('/C:/Users/foo'), true);
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// getBasename
+// ─────────────────────────────────────────────
+
+describe('getBasename', () => {
+  describe('Given: Unix パス /foo/bar/baz.md', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-01 - baz が返る', () => {
+        it('[Normal] T-LIB-U-15-01: Unix パスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('/foo/bar/baz.md'), 'baz');
+        });
+      });
+    });
+  });
+
+  describe('Given: Windows バックスラッシュパス C:\\Users\\foo\\file.txt', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-02 - file が返る', () => {
+        it('[Normal] T-LIB-U-15-02: Windows バックスラッシュパスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('C:\\Users\\foo\\file.txt'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: Windows スラッシュパス C:/Users/foo/file.txt', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-03 - file が返る', () => {
+        it('[Normal] T-LIB-U-15-03: Windows スラッシュパスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('C:/Users/foo/file.txt'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: セパレータなし file.md', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-04 - file が返る', () => {
+        it('[Normal] T-LIB-U-15-04: セパレータなしパスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('file.md'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: document.pdf', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-05 - document が返る', () => {
+        it('[Normal] T-LIB-U-15-05: document.pdf から拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('document.pdf'), 'document');
+        });
+      });
+    });
+  });
+
+  describe('Given: 複数拡張子 file.tar.gz', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-06 - file.tar が返る', () => {
+        it('[Edge] T-LIB-U-15-06: 複数拡張子のパスから最後の拡張子のみ除去される', () => {
+          assertEquals(getBasename('file.tar.gz'), 'file.tar');
+        });
+      });
+    });
+  });
+
+  describe('Given: ドットファイル .hidden', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-07 - .hidden が返る', () => {
+        it('[Edge] T-LIB-U-15-07: ドットファイルは拡張子なしと見なされてそのまま返る', () => {
+          assertEquals(getBasename('.hidden'), '.hidden');
+        });
+      });
+    });
+  });
+
+  describe('Given: フルパス内のドットファイル /path/to/.gitignore', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-08 - .gitignore が返る', () => {
+        it('[Edge] T-LIB-U-15-08: フルパス内のドットファイルはそのまま返る', () => {
+          assertEquals(getBasename('/path/to/.gitignore'), '.gitignore');
+        });
+      });
+    });
+  });
+
+  describe('Given: 拡張子なし file', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-09 - file が返る', () => {
+        it('[Edge] T-LIB-U-15-09: 拡張子なしファイル名はそのまま返る', () => {
+          assertEquals(getBasename('file'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: 空文字列', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-10 - 空文字列が返る', () => {
+        it('[Edge] T-LIB-U-15-10: 空文字列から空文字列が返る', () => {
+          assertEquals(getBasename(''), '');
+        });
+      });
+    });
+  });
+
+  describe('Given: URL pathname 形式 /C:/Users/foo/file.txt', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-11 - file が返る', () => {
+        it('[Edge] T-LIB-U-15-11: URL pathname 形式のパスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('/C:/Users/foo/file.txt'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: 混在セパレータパス C:\\dir/sub\\file.md', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-12 - file が返る', () => {
+        it('[Edge] T-LIB-U-15-12: 混在セパレータパスから拡張子なしファイル名が返る', () => {
+          assertEquals(getBasename('C:\\dir/sub\\file.md'), 'file');
+        });
+      });
+    });
+  });
+
+  describe('Given: 末尾スラッシュ付きパス /foo/bar/', () => {
+    describe('When: getBasename を実行する', () => {
+      describe('Then: T-LIB-U-15-13 - bar が返る', () => {
+        it('[Edge] T-LIB-U-15-13: 末尾スラッシュ付きパスから正しいファイル名が返る', () => {
+          assertEquals(getBasename('/foo/bar/'), 'bar');
         });
       });
     });

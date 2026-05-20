@@ -41,6 +41,14 @@ export const getFilename = (path: string): string => {
   return normalizePath(path).split('/').pop() ?? '';
 };
 
+/** ファイルパスから拡張子を除いたファイル名（basename）を返す。ドットファイル（.hidden）は拡張子なしと見なす。 */
+export const getBasename = (path: string): string => {
+  const _filename = getFilename(path);
+  const _dot = _filename.lastIndexOf('.');
+  if (_dot <= 0) { return _filename; }
+  return _filename.slice(0, _dot);
+};
+
 // ─────────────────────────────────────────────
 // パス判定
 // ─────────────────────────────────────────────

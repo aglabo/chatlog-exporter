@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/modules/process-files.ts
 // @(#): findFiles〜runConcurrent ブロックの processFiles 関数モジュール
-//       対象: processFiles
+//       対象: processFiles, resolveOutputDir
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,6 +10,7 @@
 // --- shared
 // functions
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { extractChatlogPath } from '../../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
@@ -24,51 +25,21 @@ import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // --- internal modules
-import { writeOutput } from './file-io.ts';
-import {
-  attachFrontmatter,
-  generateOutputFileName,
-  generateSegmentFile,
-  segmentChatlogsBatch,
-} from './segment-io.ts';
+import { segmentChatlogsBatch, writeSegmentToFile } from './segment-io.ts';
 
 // constants
 import { BATCH_SIZE } from '../constants/normalize.constants.ts';
 
 /**
- * Extracts the `<agent>/<yyyy>/<yyyy-mm>` path segment from a file path.
+ * Resolves the output directory for a single chatlog file.
  *
- * Matches the `chatlogs/<agent>/<yyyy>/<yyyy-mm>` pattern and returns
- * `<agent>/<yyyy>/<yyyy-mm>`. Returns `''` if the pattern is not found.
- *
- * @param filePath - Path to the source chatlog file
- * @returns Path segment like `'claude/2026/2026-04'`, or `''`
- */
-export const extractChatlogPath = (filePath: string): string => {
-  const match = filePath.match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
-  if (match) {
-    const [, agent, year, yearMonth] = match;
-    return `${agent}/${year}/${yearMonth}`;
-  }
-  return '';
-};
-
-/**
- * Resolves the output directory for a single file.
- *
- * Combines {@link extractChatlogPath} with the project name to build the full output path.
  * If `filePath` contains `chatlogs/<agent>/<yyyy>/<yyyy-mm>`, returns
  * `<outputBase>/<agent>/<yyyy>/<yyyy-mm>/<project>`.
  * Otherwise returns `<outputBase>/<project>`.
  * Falls back to `'misc'` when `project` is undefined.
- *
- * @param outputBase - Base output directory (normalized)
- * @param filePath   - Path to the source chatlog file
- * @param project    - Project name from frontmatter, or undefined
- * @returns Resolved output directory path
  */
-export const resolveOutputDir = (outputBase: string, filePath: string, project: string | undefined): string => {
-  const chatlogPath = extractChatlogPath(normalizePath(filePath));
+export const resolveOutputDir = (outputBase: string, filePath: string, project?: string): string => {
+  const chatlogPath = extractChatlogPath(filePath);
   const effectiveProject = project ?? 'misc';
   return chatlogPath
     ? `${outputBase}/${chatlogPath}/${effectiveProject}`
@@ -151,15 +122,16 @@ export const processFiles = async (
       await Deno.mkdir(outputDir, { recursive: true });
 
       for (let i = 0; i < segments.length; i++) {
-        const segment = segments[i];
-        const outputFileName = await generateOutputFileName(filePath, i, hashFn);
-        const segmentContent = generateSegmentFile(segment);
-        const fullContent = attachFrontmatter(segmentContent, _entry.frontmatter, {
-          title: segment.title,
-          log_id: outputFileName.replace(/\.md$/, ''),
-          summary: segment.summary,
-        });
-        await writeOutput(`${outputDir}/${outputFileName}`, fullContent, config.dryRun, stats);
+        await writeSegmentToFile(
+          outputDir,
+          filePath,
+          i,
+          segments[i],
+          _entry.frontmatter,
+          config.dryRun,
+          stats,
+          hashFn,
+        );
       }
     }
   }, config.concurrency);

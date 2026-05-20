@@ -1,6 +1,6 @@
 // src: skills/_scripts/libs/file-io/__tests__/unit/resolve-directory.unit.spec.ts
 // @(#): resolve-directory.ts のユニットテスト
-//       対象: periodToPath, agentPath, resolveChatlogsDir
+//       対象: periodToPath, agentPath, resolveChatlogsDir, extractChatlogPath
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,7 +12,12 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { agentPath, periodToPath, resolveChatlogsDir } from '../../resolve-directory.ts';
+import {
+  agentPath,
+  extractChatlogPath,
+  periodToPath,
+  resolveChatlogsDir,
+} from '../../resolve-directory.ts';
 // types
 import type { ResolveChatlogsDirOptions } from '../../resolve-directory.ts';
 
@@ -215,6 +220,60 @@ describe('resolveChatlogsDir', () => {
         period: '2026-03',
       };
       assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
+    });
+  });
+});
+
+/**
+ * `extractChatlogPath` 関数のユニットテストスイート。
+ *
+ * ファイルパスから chatlogs/<agent>/<yyyy>/<yyyy-mm> セグメントを抽出する
+ * 純粋関数の正常系・エッジケースを検証する。内部で normalizePath を呼ぶため
+ * Windows バックスラッシュ区切りパスも正しく処理する。
+ *
+ * テスト ID 範囲: T-ECP-01-01 〜 T-ECP-03-02
+ *
+ * @see extractChatlogPath
+ */
+describe('extractChatlogPath', () => {
+  /** chatlogs/<agent>/<yyyy>/<yyyy-mm> を含む正常ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-ECP-01-01: chatlogs/claude/2026/2026-04 を含むパスから claude/2026/2026-04 を返す', () => {
+      assertEquals(extractChatlogPath('W:/chatlogs/claude/2026/2026-04/chat.md'), 'claude/2026/2026-04');
+    });
+
+    it('[Normal] T-ECP-01-02: chatlogs/gpt/2025/2025-12 を含むパスから gpt/2025/2025-12 を返す', () => {
+      assertEquals(extractChatlogPath('/home/user/chatlogs/gpt/2025/2025-12/session.md'), 'gpt/2025/2025-12');
+    });
+
+    it('[Normal] T-ECP-01-03: 月が異なる同エージェントのパスも正しく返す', () => {
+      assertEquals(extractChatlogPath('/chatlogs/claude/2026/2026-03/file.md'), 'claude/2026/2026-03');
+    });
+
+    it('[Normal] T-ECP-01-04: バックスラッシュ区切りパスも正規化して claude/2026/2026-04 を返す', () => {
+      assertEquals(extractChatlogPath('W:\\chatlogs\\claude\\2026\\2026-04\\chat.md'), 'claude/2026/2026-04');
+    });
+  });
+
+  /** chatlogs形式を含まないパスは空文字列を返す正常ケース。 */
+  describe('When: chatlogs形式パスを含まないファイルパス', () => {
+    it('[Normal] T-ECP-02-01: 任意パスのとき空文字列を返す', () => {
+      assertEquals(extractChatlogPath('/tmp/arbitrary/chat.md'), '');
+    });
+
+    it('[Normal] T-ECP-02-02: chatlogs/<agent>/<yyyy> のみ（月なし）のとき空文字列を返す', () => {
+      assertEquals(extractChatlogPath('/chatlogs/claude/2026/file.md'), '');
+    });
+  });
+
+  /** エッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-ECP-03-01: ファイル名のみのとき空文字列を返す', () => {
+      assertEquals(extractChatlogPath('chat.md'), '');
+    });
+
+    it('[Edge] T-ECP-03-02: chatlogs直下にファイルがある（agent/yyyy/yyyy-mmなし）とき空文字列を返す', () => {
+      assertEquals(extractChatlogPath('/chatlogs/chat.md'), '');
     });
   });
 });
