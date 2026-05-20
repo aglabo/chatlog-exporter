@@ -74,8 +74,8 @@ describe('buildConfig', () => {
     describe('Given: 空の parsed', () => {
       describe('When: buildConfig({}) を呼び出す', () => {
         describe('Then: T-NC-BC-04 - normalizeDir のデフォルト値が適用される', () => {
-          it('T-NC-BC-04-01: normalizeDir が "temp/normalize_logs" になる', () => {
-            assertEquals(buildConfig({}).normalizeDir, 'temp/normalize_logs');
+          it('T-NC-BC-04-01: normalizeDir が "./chatlogs/normalizelogs" になる', () => {
+            assertEquals(buildConfig({}).normalizeDir, './chatlogs/normalizelogs');
           });
         });
       });
