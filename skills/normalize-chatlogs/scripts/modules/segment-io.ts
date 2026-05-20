@@ -310,6 +310,7 @@ export const writeSegmentToFile = async (
       `writing to input file is forbidden: ${outputPath}`,
     );
   }
-  await writeOutput(outputPath, fullContent, dryRun, stats);
+  const written = await writeOutput(outputPath, fullContent, dryRun);
+  if (written) { stats.success++; }
   return outputPath;
 };
