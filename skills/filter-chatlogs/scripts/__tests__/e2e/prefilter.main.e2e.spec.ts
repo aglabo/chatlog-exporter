@@ -27,8 +27,8 @@ import type { CommandProvider } from '../../../../_scripts/types/providers.types
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
+import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { assertFileExists, assertFileNotExists } from '../_helpers/asserts.ts';
 import { makePeriodDir, makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
 
 // ─── Internal Helpers
@@ -232,7 +232,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
 
           await main(['claude', '2026-03', '--base-dir', tempDir]);
 
-          await assertFileNotExists(noisePath);
+          await assertFileNotExist(noisePath);
           assertEquals(await fileExists(validPath), true);
         });
       });
@@ -286,8 +286,8 @@ describe('main (prefilter) - 全件 keep', () => {
 
           await main(['claude', '2026-03', '--base-dir', tempDir]);
 
-          await assertFileExists(path1);
-          await assertFileExists(path2);
+          await assertFileExist(path1);
+          await assertFileExist(path2);
           assertEquals(loggerStub.infoLogs.some((line) => line.includes('noise=0')), true);
         });
       });
@@ -397,7 +397,7 @@ describe('main (prefilter) - period 絞り込み', () => {
 
           await main(['claude', '2026-03']);
 
-          await assertFileNotExists(noisePath03);
+          await assertFileNotExist(noisePath03);
           assertEquals(await fileExists(noisePath04), true);
         });
       });
