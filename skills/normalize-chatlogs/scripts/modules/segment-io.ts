@@ -1,5 +1,6 @@
 // src: scripts/modules/segment-io.ts
-// @(#): セグメント分割・ファイル生成・フロントマター付与に関する関数群
+// @(#): セグメント分割・ファイル生成・フロントマター付与・ファイル書き出しに関する関数群
+//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, segmentChatlogs, segmentChatlogsBatch, _writeSegmentToFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -29,12 +30,18 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 // --- text ---
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
+// --- path ---
+import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+
 // ─── internasl modules
 // types
-import type { Segment } from '../types/normalize.types.ts';
+import type { Segment, Stats } from '../types/normalize.types.ts';
 
 // constants
 import { MAX_SEGMENTS } from '../constants/normalize.constants.ts';
+
+// functions
+import { writeOutput } from './file-io.ts';
 
 // ─── local
 // constants
@@ -66,11 +73,9 @@ const _ATTACH_FIELD_ORDER = [
  * @param filePath - Path to the source chatlog file
  * @returns Base name without extension and without trailing `-XXXXXXX` hash segment
  */
-export const extractBaseName = (filePath: string): string => {
-  const fileName = filePath.split('/').pop() ?? filePath;
-  const withoutExt = fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName;
-  // Remove trailing -<7hex> hash if present
-  return withoutExt.replace(/-[0-9a-f]{7}$/, '');
+export const extractSegmentBaseName = (filePath: string): string => {
+  // Remove directory and extension via getBasename, then strip trailing -<7hex> hash if present
+  return getBasename(filePath).replace(/-[0-9a-f]{7}$/, '');
 };
 
 /**
@@ -91,7 +96,7 @@ export const generateOutputFileName = async (
   index: number,
   hashFn?: HashProvider,
 ): Promise<string> => {
-  const baseName = extractBaseName(filePath);
+  const baseName = extractSegmentBaseName(filePath);
   const xx = String(index + 1).padStart(2, '0');
   const hash7 = hashFn ? hashFn() : await generateHash(baseName, { length: 7 });
   return `${baseName}-${xx}-${hash7}.md`;
@@ -259,4 +264,52 @@ export const segmentChatlogsBatch = async (
   }
 
   return _result;
+};
+
+// ─── Segment File Write ───────────────────────────────────────────────────────
+
+/**
+ * Writes a single segment to an output file.
+ *
+ * Generates the output file name from `filePath` and `index`, builds the full Markdown content
+ * with frontmatter attached, then delegates to {@link writeOutput} (which handles dryRun,
+ * atomic write via tmp-rename, and backup of existing files).
+ *
+ * @param outputDir  - Directory in which the output file is written
+ * @param filePath   - Source chatlog file path (used to derive the output file name)
+ * @param index      - Zero-based segment index (used to derive the output file name)
+ * @param segment    - Segment data (title, summary, content)
+ * @param frontmatter - ChatlogFrontmatter instance from the source file
+ * @param dryRun     - When true, no disk writes are performed
+ * @param stats      - Mutable counters updated in place
+ * @param hashFn     - Optional hash generator for output file names (injectable for testing)
+ * @returns The absolute path of the written output file
+ */
+export const writeSegmentToFile = async (
+  outputDir: string,
+  filePath: string,
+  index: number,
+  segment: { title: string; summary: string; content: string },
+  frontmatter: ChatlogFrontmatter,
+  dryRun: boolean,
+  stats: Stats,
+  hashFn?: HashProvider,
+): Promise<string> => {
+  const outputFileName = await generateOutputFileName(filePath, index, hashFn);
+  const segmentContent = generateSegmentFile(segment);
+  const fullContent = attachFrontmatter(segmentContent, frontmatter, {
+    title: segment.title,
+    log_id: getBasename(outputFileName),
+    summary: segment.summary,
+  });
+  const outputPath = `${outputDir}/${outputFileName}`;
+  if (outputPath.includes(filePath)) {
+    throw new ChatlogError(
+      'ForbiddenOutput',
+      'OverwriteInput',
+      `writing to input file is forbidden: ${outputPath}`,
+    );
+  }
+  await writeOutput(outputPath, fullContent, dryRun, stats);
+  return outputPath;
 };
