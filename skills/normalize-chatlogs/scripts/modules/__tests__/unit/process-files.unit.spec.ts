@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/modules/__tests__/unit/process-files.unit.spec.ts
 // @(#): processFiles のユニットテスト
-//       対象: processFiles
+//       対象: processFiles, resolveOutputDir
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -41,7 +41,7 @@ const _CONFIG: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
  *
  * AI 呼び出し（segmentChatlogs）をモックして stats の更新と dryRun 動作を検証する。
  *
- * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-04
+ * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-04, T-PF-VAL-01 〜 T-PF-VAL-05
  *
  * @see processFiles
  */
