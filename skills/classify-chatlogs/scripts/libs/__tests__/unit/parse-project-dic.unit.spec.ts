@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- Test target --
@@ -82,7 +82,7 @@ describe('_parseProjectDic', () => {
         it('T-CL-PPD-06-01: result["app1"] が存在する', () => {
           const result = _parseProjectDic({ app1: { def: 'Test project 1' } });
 
-          assertEquals('app1' in result, true);
+          assert('app1' in result);
         });
 
         it('T-CL-PPD-06-02: result["app1"]["def"] が "Test project 1"', () => {
@@ -102,13 +102,13 @@ describe('_parseProjectDic', () => {
         it('T-CL-PPD-07-01: result に app1 キーが存在する', () => {
           const result = _parseProjectDic({ app1: { def: 'A' }, app2: { def: 'B' } });
 
-          assertEquals('app1' in result, true);
+          assert('app1' in result);
         });
 
         it('T-CL-PPD-07-02: result に app2 キーが存在する', () => {
           const result = _parseProjectDic({ app1: { def: 'A' }, app2: { def: 'B' } });
 
-          assertEquals('app2' in result, true);
+          assert('app2' in result);
         });
 
         it('T-CL-PPD-07-03: result のキー数が 2 である', () => {
@@ -154,7 +154,7 @@ describe('_parseProjectDic', () => {
         it('T-CL-PPD-09-01: result["app1"] が存在する', () => {
           const result = _parseProjectDic({ app1: null });
 
-          assertEquals('app1' in result, true);
+          assert('app1' in result);
         });
 
         it('T-CL-PPD-09-02: result["app1"] が空オブジェクト', () => {
@@ -180,13 +180,13 @@ describe('_parseProjectDic', () => {
         it('T-CL-PPD-10-02: result["app1"] に "count" キーが存在しない', () => {
           const result = _parseProjectDic({ app1: { def: 'ok', count: 42, active: true } });
 
-          assertEquals('count' in result['app1'], false);
+          assertFalse('count' in result['app1']);
         });
 
         it('T-CL-PPD-10-03: result["app1"] に "active" キーが存在しない', () => {
           const result = _parseProjectDic({ app1: { def: 'ok', count: 42, active: true } });
 
-          assertEquals('active' in result['app1'], false);
+          assertFalse('active' in result['app1']);
         });
       });
     });
@@ -200,7 +200,7 @@ describe('_parseProjectDic', () => {
         it('T-CL-PPD-11-01: result に misc キーが存在する', () => {
           const result = _parseProjectDic({ app1: { def: 'A' }, misc: { def: 'Misc' } });
 
-          assertEquals('misc' in result, true);
+          assert('misc' in result);
         });
 
         it('T-CL-PPD-11-02: result["misc"]["def"] が "Misc"', () => {
