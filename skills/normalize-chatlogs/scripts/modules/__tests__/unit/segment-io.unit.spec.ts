@@ -10,7 +10,7 @@
 // cspell:words aaabbbb
 
 // ─── BDD modules
-import { assertEquals, assertFalse, assertMatch, assertNotEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertMatch, assertNotEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
@@ -30,7 +30,7 @@ import {
 } from '../../segment-io.ts';
 
 // ─── Helpers
-import { assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
+import { assertFileExist, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 // mock helpers
 import {
   installCommandMock,
@@ -240,7 +240,7 @@ describe('generateSegmentFile', () => {
 
       const result = generateSegmentFile(seg);
 
-      assertEquals(result.includes('## Summary\n\nFix CI pipeline'), true);
+      assert(result.includes('## Summary\n\nFix CI pipeline'));
     });
 
     it('[Normal] T-11-01-02: 返却文字列に START_BODY_HEADING + "\\n### User\\nHow do I..." が含まれる', () => {
@@ -248,7 +248,7 @@ describe('generateSegmentFile', () => {
 
       const result = generateSegmentFile(seg);
 
-      assertEquals(result.includes(START_BODY_HEADING + '\n\n### User\nHow do I...'), true);
+      assert(result.includes(START_BODY_HEADING + '\n\n### User\nHow do I...'));
     });
   });
 
@@ -259,8 +259,8 @@ describe('generateSegmentFile', () => {
 
       const result = generateSegmentFile(seg);
 
-      assertEquals(result.includes('## Summary'), true);
-      assertEquals(result.includes(START_BODY_HEADING), true);
+      assert(result.includes('## Summary'));
+      assert(result.includes(START_BODY_HEADING));
     });
   });
 });
@@ -289,7 +289,7 @@ describe('attachFrontmatter', () => {
 
       const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes('project: "ci-platform"'), true);
+      assert(result.includes('project: "ci-platform"'));
     });
 
     it('[Normal] T-12-01-02: 出力フロントマターに title・log_id・summary が含まれる', () => {
@@ -300,9 +300,9 @@ describe('attachFrontmatter', () => {
 
       const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes('title: "Fix CI"'), true);
-      assertEquals(result.includes('log_id: "abc1234"'), true);
-      assertEquals(result.includes('summary: "CI fix"'), true);
+      assert(result.includes('title: "Fix CI"'));
+      assert(result.includes('log_id: "abc1234"'));
+      assert(result.includes('summary: "CI fix"'));
     });
 
     it('[Normal] T-12-03-01: 出力が `---\\n` で始まりフロントマターブロックが `\\n---\\n` で終わる', () => {
@@ -313,8 +313,8 @@ describe('attachFrontmatter', () => {
 
       const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.startsWith('---\n'), true);
-      assertEquals(result.includes('\n---\n'), true);
+      assert(result.startsWith('---\n'));
+      assert(result.includes('\n---\n'));
     });
 
     it('[Normal] T-12-03-02: コンテンツボディがフロントマターブロックの後に重複なく続く', () => {
@@ -338,10 +338,10 @@ describe('attachFrontmatter', () => {
 
       const result = attachFrontmatter(content, fm, segmentMeta);
 
-      assertEquals(result.includes('title: "Topic"'), true);
-      assertEquals(result.includes('log_id: "aaabbbb"'), true);
-      assertEquals(result.includes('summary: "Summary"'), true);
-      assertEquals(result.includes('project:'), false);
+      assert(result.includes('title: "Topic"'));
+      assert(result.includes('log_id: "aaabbbb"'));
+      assert(result.includes('summary: "Summary"'));
+      assertFalse(result.includes('project:'));
     });
   });
 });
@@ -574,7 +574,7 @@ describe('segmentChatlogsBatch', () => {
 
       // assert
       assertNull(result.get('known.md'));
-      assertEquals(result.has('unknown.md'), false);
+      assertFalse(result.has('unknown.md'));
     });
   });
 });
@@ -617,8 +617,7 @@ describe('writeSegmentToFile', () => {
       // assert
       assertEquals(stats.success, 1);
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
-      const stat = await Deno.stat(expectedFile);
-      assertEquals(stat.isFile, true);
+      await assertFileExist(expectedFile);
     });
 
     it('[Normal] T-SIO-WS-02: 既存ファイルがある場合 .old-01.md にバックアップされ新ファイルが書かれる', async () => {
@@ -639,10 +638,8 @@ describe('writeSegmentToFile', () => {
       // assert
       assertEquals(stats.success, 1);
       const backupFile = `${outputDir}/sample-01-testhash.old-01.md`;
-      const backupStat = await Deno.stat(backupFile);
-      assertEquals(backupStat.isFile, true);
-      const newStat = await Deno.stat(expectedFile);
-      assertEquals(newStat.isFile, true);
+      await assertFileExist(backupFile);
+      await assertFileExist(expectedFile);
     });
 
     it('[Normal] T-SIO-WS-04: 返されたパスが元の filePath とは異なる（入力ファイルを上書きしていない）', async () => {
@@ -728,8 +725,7 @@ describe('writeSegmentToFile', () => {
 
       // assert
       const backup99 = `${outputDir}/sample-01-testhash.old-99.md`;
-      const backupStat = await Deno.stat(backup99);
-      assertEquals(backupStat.isFile, true);
+      await assertFileExist(backup99);
       assertEquals(stats.success, 1);
     });
 
