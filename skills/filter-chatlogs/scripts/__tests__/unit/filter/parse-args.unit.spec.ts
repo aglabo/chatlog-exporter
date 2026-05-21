@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -77,7 +77,7 @@ describe('parseArgs', () => {
       const result = parseArgs(['claude', '2026-03', '--dry-run', '--base-dir', '/base']);
       assertEquals(result.agent, 'claude');
       assertEquals(result.period, '2026-03');
-      assertEquals(result.dryRun, true);
+      assert(result.dryRun);
       assertEquals(result.baseDir, '/base');
     });
   });
@@ -149,7 +149,7 @@ describe('parseArgs', () => {
           const result = parseArgs(['claude', '2026-03', '--dry-run', '--chatlogs-dir', '/base']);
           assertEquals(result.agent, 'claude');
           assertEquals(result.period, '2026-03');
-          assertEquals(result.dryRun, true);
+          assert(result.dryRun);
           assertEquals(result.chatlogsDir, '/base');
         });
         it('T-FL-PA-13-02: chatlogsDir=/base のとき baseDir が undefined', () => {
