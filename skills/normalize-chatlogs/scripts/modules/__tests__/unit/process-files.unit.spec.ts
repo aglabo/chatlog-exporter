@@ -17,6 +17,7 @@ import { processFiles } from '../../process-files.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Helpers
+import { assertDirExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 import {
   installCommandMock,
   makeFailMock,
@@ -153,8 +154,7 @@ describe('processFiles', () => {
       await processFiles(tmpDir, nonExistentBase, _CONFIG, stats);
 
       // assert — outputBase が作成されている
-      const stat = await Deno.stat(nonExistentBase);
-      assertEquals(stat.isDirectory, true);
+      await assertDirExist(nonExistentBase);
       assertEquals(stats, { success: 0, skip: 0, fail: 0 });
     });
 
