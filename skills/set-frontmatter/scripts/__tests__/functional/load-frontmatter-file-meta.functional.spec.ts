@@ -8,7 +8,7 @@
 
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../_scripts/libs/testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test target
 import { loadFrontmatterFileMeta, MAX_BODY_CHARS } from '../../set-frontmatter.ts';
