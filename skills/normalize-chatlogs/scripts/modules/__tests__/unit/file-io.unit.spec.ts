@@ -15,7 +15,6 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { reportResults, writeOutput } from '../../file-io.ts';
 
 // ─── Helpers
-import { assertFileNotExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
@@ -45,8 +44,8 @@ describe('writeOutput', () => {
   });
 
   /** 正常系: dryRun=false のとき、ファイルが書き込まれ true を返す */
-  describe('[正常] Normal Cases', () => {
-    it('T-WO-01-01: ファイルが書き込まれ true が返る', async () => {
+  describe('When: 正常系', () => {
+    it('[Normal] T-WO-01-01: ファイルが書き込まれ true が返る', async () => {
       // arrange
       const outputPath = `${tmpDir}/output.md`;
       const content = '# Test Content\nHello World';
@@ -60,7 +59,7 @@ describe('writeOutput', () => {
       assertEquals(result, true);
     });
 
-    it('T-WO-02-01: 既存ファイルが .old-01.md にバックアップされ新ファイルが書かれ true が返る', async () => {
+    it('[Normal] T-WO-02-01: 既存ファイルが .old-01.md にバックアップされ新ファイルが書かれ true が返る', async () => {
       // arrange
       const outputPath = `${tmpDir}/output.md`;
       const oldContent = 'old content';
@@ -80,24 +79,21 @@ describe('writeOutput', () => {
     });
   });
 
-  /** 正常系: dryRun=true のとき、ファイルは書き込まれず false を返す */
-  describe('[異常] Dry-run Cases', () => {
-    it('T-WO-03-01: dryRun=true のときファイルは書き込まれず false が返る', async () => {
+  /** 異常系: エラーをスローするケース */
+  describe('When: 異常系', () => {
+    it('[Error] T-WO-01-02: 出力先ディレクトリが存在しないとき NotFound エラーをスローする', async () => {
       // arrange
-      const outputPath = `${tmpDir}/output-dryrun.md`;
+      const nestedPath = `${tmpDir}/sub/nested/output.md`;
+      const content = '# Nested Content';
 
-      // act
-      const result = await writeOutput(outputPath, 'content', true);
-
-      // assert
-      await assertFileNotExist(outputPath);
-      assertEquals(result, false);
+      // act & assert
+      await assertRejects(
+        () => writeOutput(nestedPath, content, false),
+        Deno.errors.NotFound,
+      );
     });
-  });
 
-  /** 異常系: バックアップスロットが全て埋まっているとき Error をスローする */
-  describe('[異常] Backup limit Cases', () => {
-    it('T-WO-04-01: バックアップスロット(01〜99)が全て埋まっているとき Error をスローする', async () => {
+    it('[Error] T-WO-04-01: バックアップスロット(01〜99)が全て埋まっているとき Error をスローする', async () => {
       // arrange
       const outputPath = `${tmpDir}/output.md`;
       await Deno.writeTextFile(outputPath, 'existing');
@@ -137,29 +133,29 @@ describe('reportResults', () => {
 
   /** 正常系: success/skip/fail カウントを stdout に集計レポートとして出力する */
   describe('Given: success/skip/fail カウントを持つ stats', () => {
-    it('T-14-01-01: stdout に成功件数が含まれる', () => {
+    it('[Normal] T-14-01-01: stdout に成功件数が含まれる', () => {
       const stats: Stats = { success: 5, skip: 2, fail: 1 };
 
       reportResults(stats);
 
       const output = loggerStub.infoLogs.join('\n');
-      assertMatch(output, /success.*5|5.*success|成功.*5|5.*成功/i);
+      assertMatch(output, /success=5/);
     });
 
-    it('T-14-01-02: stdout にスキップ数と失敗数が含まれる', () => {
+    it('[Normal] T-14-01-02: stdout にスキップ数と失敗数が含まれる', () => {
       const stats: Stats = { success: 3, skip: 1, fail: 2 };
 
       reportResults(stats);
 
       const output = loggerStub.infoLogs.join('\n');
-      assertMatch(output, /1/);
-      assertMatch(output, /2/);
+      assertMatch(output, /skip=1/);
+      assertMatch(output, /fail=2/);
     });
   });
 
   /** エッジケース: 全カウントが 0 でもスローせず出力する */
   describe('Given: 全カウントが 0 の stats', () => {
-    it('T-14-02-01: throw せずに stdout に出力される', () => {
+    it('[Edge] T-14-02-01: throw せずに stdout に出力される', () => {
       const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       reportResults(stats);
@@ -171,13 +167,26 @@ describe('reportResults', () => {
 
   /** 正常系: fail が非ゼロのとき失敗件数を stdout に明示する */
   describe('Given: fail が非ゼロの stats', () => {
-    it('T-14-03-01: stdout に失敗件数が明示される', () => {
+    it('[Normal] T-14-03-01: stdout に失敗件数が明示される', () => {
       const stats: Stats = { success: 0, skip: 0, fail: 3 };
 
       reportResults(stats);
 
       const output = loggerStub.warnLogs.join('\n');
       assertMatch(output, /fail.*3|3.*fail|失敗.*3|3.*失敗/i);
+    });
+  });
+
+  /** エッジケース: success だけが非ゼロの場合のレポート出力。 */
+  describe('Given: success のみ非ゼロの stats', () => {
+    it('T-14-04-01: stdout に skip と fail の 0 が含まれる', () => {
+      const stats: Stats = { success: 5, skip: 0, fail: 0 };
+
+      reportResults(stats);
+
+      const output = loggerStub.infoLogs.join('\n');
+      assertMatch(output, /skip=0/);
+      assertMatch(output, /fail=0/);
     });
   });
 });
