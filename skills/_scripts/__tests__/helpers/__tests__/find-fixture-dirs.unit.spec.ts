@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -46,7 +46,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_tempDir);
 
       // assert
-      assertEquals(_result, true);
+      assert(_result);
     });
   });
 
@@ -57,7 +57,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_tempDir);
 
       // assert
-      assertEquals(_result, false);
+      assertFalse(_result);
     });
   });
 
@@ -71,7 +71,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_dir);
 
       // assert
-      assertEquals(_result, false);
+      assertFalse(_result);
     });
   });
 });
@@ -139,7 +139,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_tempDir);
 
       // assert
-      assertEquals(_result, true);
+      assert(_result);
     });
   });
 
@@ -149,7 +149,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_tempDir);
 
       // assert
-      assertEquals(_result, false);
+      assertFalse(_result);
     });
   });
 
@@ -162,7 +162,7 @@ describe('Given: defaultIsFixtureDir', () => {
       const _result = await defaultIsFixtureDir(_dir);
 
       // assert
-      assertEquals(_result, false);
+      assertFalse(_result);
     });
   });
 });
@@ -227,7 +227,7 @@ describe('Given: findFixtureDirs', () => {
       const _result = await findFixtureDirs(_tempDir, _isFixtureDir);
 
       // assert
-      assertEquals(_result.includes(_target), true);
+      assert(_result.includes(_target));
     });
   });
 
@@ -245,7 +245,7 @@ describe('Given: findFixtureDirs', () => {
       const _result = await findFixtureDirs(_tempDir, _isFixtureDir);
 
       // assert
-      assertEquals(_result.includes(_target), true);
+      assert(_result.includes(_target));
     });
   });
 
@@ -262,7 +262,7 @@ describe('Given: findFixtureDirs', () => {
       const _result = await findFixtureDirs(_tempDir, _isFixtureDir);
 
       // assert
-      assertEquals(_result.includes(_excluded), false);
+      assertFalse(_result.includes(_excluded));
     });
   });
 
@@ -323,8 +323,8 @@ describe('Given: findFixtureDirs', () => {
       const _result = await findFixtureDirs(_tempDir, _isFixtureDir);
 
       // assert: _parent は収集されるが child は収集されない
-      assertEquals(_result.includes(_parent), true);
-      assertEquals(_result.includes(_child), false);
+      assert(_result.includes(_parent));
+      assertFalse(_result.includes(_child));
     });
   });
 
