@@ -9,7 +9,7 @@
 // cspell:words sess
 
 // ─── BDD modules
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assertFalse, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -92,7 +92,7 @@ describe('renderMarkdown', () => {
 
         it('T-EC-RM-01-06: slug が空の場合 "slug:" 行が含まれない', () => {
           const result = renderMarkdown(_makeMeta({ slug: '' }), _basicTurns);
-          assertEquals(result.includes('slug:'), false);
+          assertFalse(result.includes('slug:'));
         });
       });
     });
@@ -126,7 +126,7 @@ describe('renderMarkdown', () => {
         it('T-EC-RM-02-04: ターン内の3連続改行が2連続改行に正規化される', () => {
           const turns: Turn[] = [{ role: 'user', content: 'line1\n\n\nline2' }];
           const result = renderMarkdown(_makeMeta(), turns);
-          assertEquals(result.includes('\n\n\n'), false);
+          assertFalse(result.includes('\n\n\n'));
         });
 
         it('T-EC-RM-02-05: 空ターン配列でも "## 会話ログ" セクションが含まれる', () => {
