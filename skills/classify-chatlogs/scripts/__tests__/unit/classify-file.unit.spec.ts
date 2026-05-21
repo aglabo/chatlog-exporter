@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- Test target --
@@ -71,7 +71,7 @@ describe('classifyFile', () => {
 
           await classifyFile(fileMeta, 'app1', true, stats);
 
-          assertEquals(loggerStub.infoLogs.some((msg) => msg.includes('[dry-run]')), true);
+          assert(loggerStub.infoLogs.some((msg) => msg.includes('[dry-run]')));
         });
 
         it('T-CL-CF-01-04: infoLogs に "→ app1/" が含まれる', async () => {
