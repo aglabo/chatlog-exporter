@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -66,7 +66,7 @@ describe('findFiles', () => {
 
           const _result = await findFiles('/mock/root', { glob: _glob });
 
-          assertEquals(_result.every((p) => p.startsWith('/mock/root/')), true);
+          assert(_result.every((p) => p.startsWith('/mock/root/')));
         });
       });
     });
@@ -112,10 +112,7 @@ describe('findFiles', () => {
 
           const _result = await findFiles('/mock', { glob: _glob });
 
-          assertEquals(
-            _result.every((p) => !p.endsWith('/sub1') && !p.endsWith('/sub2')),
-            true,
-          );
+          assert(_result.every((p) => !p.endsWith('/sub1') && !p.endsWith('/sub2')));
         });
       });
     });
@@ -166,10 +163,7 @@ describe('findFiles', () => {
 
           const _result = await findFiles('/mock/dir', { glob: _glob });
 
-          assertEquals(
-            _result.some((p) => p.endsWith('.txt') || p.endsWith('.yaml') || p.endsWith('.json')),
-            false,
-          );
+          assertFalse(_result.some((p) => p.endsWith('.txt') || p.endsWith('.yaml') || p.endsWith('.json')));
         });
       });
     });
@@ -241,7 +235,7 @@ describe('findFiles', () => {
 
           const _result = await findFiles('/mock', { ext: '.txt', glob: _glob });
 
-          assertEquals(_result.every((p) => p.endsWith('.txt')), true);
+          assert(_result.every((p) => p.endsWith('.txt')));
         });
       });
     });
