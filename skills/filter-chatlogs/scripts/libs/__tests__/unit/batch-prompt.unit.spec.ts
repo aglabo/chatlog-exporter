@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertMatch, assertRejects } from '@std/assert';
+import { assertEquals, assertFalse, assertMatch, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -131,8 +131,8 @@ describe('buildBatchPrompt', () => {
       const result = await buildBatchPrompt([path]);
 
       // frontmatter のキーが出力に含まれないことを確認する
-      assertEquals(result.includes('title: Test'), false);
-      assertEquals(result.includes('date: 2026-01-01'), false);
+      assertFalse(result.includes('title: Test'));
+      assertFalse(result.includes('date: 2026-01-01'));
     });
   });
 
