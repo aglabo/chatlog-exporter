@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -78,7 +78,7 @@ describe('parseConversation', () => {
       // 空の User ターンは除外され、Assistant と後続の User のみ残る
       // 空コンテンツターンが除外されていることを確認
       for (const turn of _result) {
-        assertEquals(turn.content.trim().length > 0, true);
+        assert(turn.content.trim().length > 0);
       }
     });
 
@@ -86,7 +86,7 @@ describe('parseConversation', () => {
       // parseConversation と renderConversation を組み合わせた境界値
       const _turns = parseConversation('### User\n' + 'a'.repeat(200) + '\n### Assistant\n' + 'b'.repeat(200));
       const _rendered = renderConversation(_turns, 100);
-      assertEquals(_rendered.length <= 100, true);
+      assert(_rendered.length <= 100);
     });
   });
 });
