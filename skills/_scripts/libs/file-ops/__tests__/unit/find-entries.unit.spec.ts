@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { afterAll, beforeAll, describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -186,7 +186,7 @@ describe('findEntries', () => {
             include: ['2026-03'],
           });
 
-          assertEquals(_result[0].includes('2026-03'), true);
+          assert(_result[0].includes('2026-03'));
         });
       });
     });
