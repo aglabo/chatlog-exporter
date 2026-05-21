@@ -17,8 +17,8 @@
 // This software is released under the MIT License.
 
 // Deno Test module
-import { assertEquals } from '@std/assert';
-import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { assertEquals, assertExists, assertMatch } from '@std/assert';
+import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
@@ -30,13 +30,12 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 // exists
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // test target
 import { segmentChatlogs } from '../../modules/segment-io.ts';
-import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
@@ -77,93 +76,81 @@ function _buildMock(output: FixtureOutput): DenoCommandLike {
         return makeFailMock(1);
     }
   }
-  const _mockSegments = Array.from({ length: output.count }, () => ({
-    title: '',
-    summary: '',
-    content: '',
+  const _mockSegments = Array.from({ length: output.count }, (_, i) => ({
+    title: `title-${i}`,
+    summary: `summary-${i}`,
+    content: `content-${i}`,
   }));
   return makeSuccessMock(new TextEncoder().encode(JSON.stringify(_mockSegments)));
 }
 
-/**
- * rootDir 以下を再帰スキャンし、input.md を持つディレクトリのパスを収集して返す。
- * 戻り値は rootDir からの相対パス (例: "fallback/chatlog-01-empty-body")。
- */
-async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
-  const dirs: string[] = [];
-
-  async function _walk(dir: string, rel: string): Promise<void> {
-    for await (const entry of Deno.readDir(dir)) {
-      if (!entry.isDirectory) { continue; }
-      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-      const childAbs = `${dir}/${entry.name}`;
-      if (await fileExists(`${childAbs}/input.md`)) {
-        dirs.push(childRel);
-      } else {
-        await _walk(childAbs, childRel);
-      }
-    }
-  }
-
-  await _walk(rootDir, '');
-  return dirs.sort();
-}
-
 // ─── ファイル駆動 fixtures tests ──────────────────────────────────────────────
 
-const _fixtureDirs = await _collectFixtureDirs(RUNAI_FIXTURES_DIR);
+const _fixtureDirs = await findFixtureDirs(RUNAI_FIXTURES_DIR);
+const _fixtureEntries = await Promise.all(
+  _fixtureDirs.map(async (_relPath) => {
+    const _fixtureDir = `${RUNAI_FIXTURES_DIR}/${_relPath}`;
+    const _output = await _loadOutput(_fixtureDir);
+    return { _relPath, _fixtureDir, _output };
+  }),
+);
 
-for (const _relPath of _fixtureDirs) {
-  const _fixtureDir = `${RUNAI_FIXTURES_DIR}/${_relPath}`;
-  const _inputPath = `${_fixtureDir}/input.md`;
-  const _output = await _loadOutput(_fixtureDir);
+describe('segmentChatlogs — runai-segments', () => {
+  describe('Given: runai-segments/* の各 fixture', () => {
+    describe('When: 正常系', () => {
+      for (const { _relPath, _fixtureDir, _output } of _fixtureEntries) {
+        if (_output.kind !== 'success') { continue; }
 
-  describe(`segmentChatlogs — runai-segments/${_relPath}`, () => {
-    if (_output.kind === 'success') {
-      describe(`Given: ${_relPath}/input.md と output.yaml (count: ${_output.count})`, () => {
-        let _segments: Segment[];
-        let _mockHandle: ReturnType<typeof installCommandMock>;
+        const _inputPath = `${_fixtureDir}/input.md`;
 
-        beforeEach(async () => {
-          _mockHandle = installCommandMock(_buildMock(_output));
-
-          const _inputContent = await readTextFile(_inputPath);
-          const _result = await segmentChatlogs(_inputPath, _inputContent);
-          _segments = _result ?? [];
-        });
-
-        afterEach(() => {
-          _mockHandle.restore();
-        });
-
-        describe('When: segmentChatlogs(inputPath, content) を呼び出す', () => {
-          it(`SF-${_relPath}-count: セグメント数が output.yaml の count と一致する`, () => {
+        it(`SF-${_relPath}-count: セグメント数が output.yaml の count と一致する`, async () => {
+          const _mockHandle = installCommandMock(_buildMock(_output));
+          try {
+            const _inputContent = await readTextFile(_inputPath);
+            const _result = await segmentChatlogs(_inputPath, _inputContent);
+            const _segments = _result ?? [];
             assertEquals(_segments.length, _output.count);
-          });
-        });
-      });
-    } else {
-      describe(`Given: ${_relPath}/input.md と output.yaml (error: ${_output.error})`, () => {
-        let _result: Segment[] | null;
-        let _mockHandle: ReturnType<typeof installCommandMock>;
-
-        beforeEach(async () => {
-          _mockHandle = installCommandMock(_buildMock(_output));
-
-          const _inputContent = await readTextFile(_inputPath);
-          _result = await segmentChatlogs(_inputPath, _inputContent);
+          } finally {
+            _mockHandle.restore();
+          }
         });
 
-        afterEach(() => {
-          _mockHandle.restore();
+        it(`SF-${_relPath}-structure: 各セグメントが title/summary/content フィールドを持つ`, async () => {
+          const _mockHandle = installCommandMock(_buildMock(_output));
+          try {
+            const _inputContent = await readTextFile(_inputPath);
+            const _result = await segmentChatlogs(_inputPath, _inputContent);
+            const _segments = _result ?? [];
+            for (const seg of _segments) {
+              assertExists(seg.title);
+              assertExists(seg.summary);
+              assertExists(seg.content);
+              assertMatch(seg.title, /^title-\d+$/);
+            }
+          } finally {
+            _mockHandle.restore();
+          }
         });
+      }
+    });
 
-        describe('When: segmentChatlogs(inputPath, content) を呼び出す', () => {
-          it(`SF-${_relPath}-error: segmentChatlogs が null を返す`, () => {
+    describe('When: 異常系', () => {
+      for (const { _relPath, _fixtureDir, _output } of _fixtureEntries) {
+        if (_output.kind !== 'error') { continue; }
+
+        const _inputPath = `${_fixtureDir}/input.md`;
+
+        it(`SF-${_relPath}-error: segmentChatlogs が null を返す`, async () => {
+          const _mockHandle = installCommandMock(_buildMock(_output));
+          try {
+            const _inputContent = await readTextFile(_inputPath);
+            const _result = await segmentChatlogs(_inputPath, _inputContent);
             assertNull(_result);
-          });
+          } finally {
+            _mockHandle.restore();
+          }
         });
-      });
-    }
+      }
+    });
   });
-}
+});
