@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -233,17 +233,17 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-01 - true が返る', () => {
         it('T-LIB-U-12-01: /home/user は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('/home/user'), true);
+          assert(isAbsolutePath('/home/user'));
         });
       });
       describe('Then: T-LIB-U-12-02 - true が返る', () => {
         it('T-LIB-U-12-02: /etc/config は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('/etc/config'), true);
+          assert(isAbsolutePath('/etc/config'));
         });
       });
       describe('Then: T-LIB-U-12-03 - true が返る', () => {
         it('T-LIB-U-12-03: / は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('/'), true);
+          assert(isAbsolutePath('/'));
         });
       });
     });
@@ -253,17 +253,17 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-04 - false が返る', () => {
         it('T-LIB-U-12-04: relative/path は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath('relative/path'), false);
+          assertFalse(isAbsolutePath('relative/path'));
         });
       });
       describe('Then: T-LIB-U-12-05 - false が返る', () => {
         it('T-LIB-U-12-05: ./relative は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath('./relative'), false);
+          assertFalse(isAbsolutePath('./relative'));
         });
       });
       describe('Then: T-LIB-U-12-06 - false が返る', () => {
         it('T-LIB-U-12-06: ../parent は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath('../parent'), false);
+          assertFalse(isAbsolutePath('../parent'));
         });
       });
     });
@@ -273,7 +273,7 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-07 - false が返る', () => {
         it('T-LIB-U-12-07: 空文字列は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath(''), false);
+          assertFalse(isAbsolutePath(''));
         });
       });
     });
@@ -283,17 +283,17 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-08 - true が返る', () => {
         it('T-LIB-U-12-08: C:\\Users\\foo は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('C:\\Users\\foo'), true);
+          assert(isAbsolutePath('C:\\Users\\foo'));
         });
       });
       describe('Then: T-LIB-U-12-09 - true が返る', () => {
         it('T-LIB-U-12-09: D:/data は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('D:/data'), true);
+          assert(isAbsolutePath('D:/data'));
         });
       });
       describe('Then: T-LIB-U-12-10 - true が返る', () => {
         it('T-LIB-U-12-10: c:/path は絶対パスと判定される（小文字ドライブレター）', () => {
-          assertEquals(isAbsolutePath('c:/path'), true);
+          assert(isAbsolutePath('c:/path'));
         });
       });
     });
@@ -303,7 +303,7 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-11 - false が返る', () => {
         it('T-LIB-U-12-11: C:foo は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath('C:foo'), false);
+          assertFalse(isAbsolutePath('C:foo'));
         });
       });
     });
@@ -313,12 +313,12 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-12 - true が返る', () => {
         it('T-LIB-U-12-12: \\\\server\\share は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('\\\\server\\share'), true);
+          assert(isAbsolutePath('\\\\server\\share'));
         });
       });
       describe('Then: T-LIB-U-12-13 - true が返る', () => {
         it('T-LIB-U-12-13: //server/share は絶対パスと判定される', () => {
-          assertEquals(isAbsolutePath('//server/share'), true);
+          assert(isAbsolutePath('//server/share'));
         });
       });
     });
@@ -328,7 +328,7 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-14 - false が返る', () => {
         it('T-LIB-U-12-14: file.md は絶対パスではないと判定される', () => {
-          assertEquals(isAbsolutePath('file.md'), false);
+          assertFalse(isAbsolutePath('file.md'));
         });
       });
     });
@@ -338,7 +338,7 @@ describe('isAbsolutePath', () => {
     describe('When: isAbsolutePath を実行する', () => {
       describe('Then: T-LIB-U-12-15 - true が返る', () => {
         it('T-LIB-U-12-15: /C:/Users/foo は絶対パスと判定される（URL pathname 形式が正しく処理される）', () => {
-          assertEquals(isAbsolutePath('/C:/Users/foo'), true);
+          assert(isAbsolutePath('/C:/Users/foo'));
         });
       });
     });
