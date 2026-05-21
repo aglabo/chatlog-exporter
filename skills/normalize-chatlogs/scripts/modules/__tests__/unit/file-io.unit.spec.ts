@@ -15,10 +15,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { reportResults, writeOutput } from '../../file-io.ts';
 
 // ─── Helpers
+import { assertFileNotExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // types
 import type { Stats } from '../../../types/normalize.types.ts';
 
@@ -90,7 +90,7 @@ describe('writeOutput', () => {
       const result = await writeOutput(outputPath, 'content', true);
 
       // assert
-      assertEquals(await fileOrDirExists(outputPath), false);
+      await assertFileNotExist(outputPath);
       assertEquals(result, false);
     });
   });
