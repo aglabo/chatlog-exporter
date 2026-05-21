@@ -7,7 +7,7 @@
 // This software is released under the MIT License.
 
 // -- BDD modules --
-import { assertEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
@@ -138,7 +138,7 @@ describe('parseArgs', () => {
       describe('Then: T-CL-PA-06 - dryRun が true になる', () => {
         it('T-CL-PA-06-01: --dry-run → dryRun が true になる', () => {
           const result = parseArgs(['--dry-run']);
-          assertEquals(result.dryRun, true);
+          assert(result.dryRun);
         });
       });
     });
