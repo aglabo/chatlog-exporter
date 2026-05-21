@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -127,14 +127,14 @@ describe('extractConversation', () => {
           const maxChars = 100;
           const result = extractConversation(body, maxChars);
 
-          assertEquals(result.length <= maxChars, true);
+          assert(result.length <= maxChars);
         });
 
         it('T-FL-EB-02-02: maxChars=10 でも結果が返される', () => {
           const body = '### User\n質問テキスト\n\n### Assistant\n回答テキスト\n';
           const result = extractConversation(body, 10);
 
-          assertEquals(result.length <= 10, true);
+          assert(result.length <= 10);
         });
       });
     });
