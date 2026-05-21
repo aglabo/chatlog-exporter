@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD Framework --
-import { assertEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
@@ -60,25 +60,25 @@ describe('loadProjectDic', () => {
     it('T-CL-LPD-03-01: 非空オブジェクトが返される', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals(Object.keys(_projects).length > 0, true);
+      assert(Object.keys(_projects).length > 0);
     });
 
     it('T-CL-LPD-03-02: misc が含まれる', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals('misc' in _projects, true);
+      assert('misc' in _projects);
     });
 
     it('T-CL-LPD-03-03: 空文字列キーが含まれない', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals('' in _projects, false);
+      assertFalse('' in _projects);
     });
 
     it('T-CL-LPD-03-04: app1 が含まれる（YAML トップレベルキーとして認識される）', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals('app1' in _projects, true);
+      assert('app1' in _projects);
     });
 
     // ネストキー除外をパラメータテーブルで検証
@@ -91,7 +91,7 @@ describe('loadProjectDic', () => {
       it(`T-CL-LPD-03-05: "${key}" を名前とするキーが含まれない（ネストキーは除外される）`, async () => {
         const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-        assertEquals(key in _projects, false);
+        assertFalse(key in _projects);
       });
     }
 
@@ -113,7 +113,7 @@ describe('loadProjectDic', () => {
     it('T-CL-LPD-04-01: resolveProvider 経由で読み込まれた辞書に app1 が含まれる', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals('app1' in _projects, true);
+      assert('app1' in _projects);
     });
 
     // T-CL-LPD-06: 引数なし → resolveProvider に configPath=undefined / defaultPath が渡る
@@ -158,7 +158,7 @@ describe('loadProjectDic', () => {
     it('T-CL-LPD-09-01: misc キーが存在する', async () => {
       const _projects = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture);
 
-      assertEquals('misc' in _projects, true);
+      assert('misc' in _projects);
     });
 
     it('T-CL-LPD-09-02: misc が 1 つのみ含まれる（重複なし）', async () => {
@@ -207,7 +207,7 @@ describe('loadProjectDic', () => {
       it(`${label}-02: throw された ChatlogError の kind が ${expectedKind} である`, async () => {
         const err = await loadProjectDic('assets/configs/projects.dic', resolveProvider).catch((e) => e);
 
-        assertEquals(err instanceof ChatlogError, true);
+        assert(err instanceof ChatlogError);
         assertEquals((err as ChatlogError).kind, expectedKind);
       });
     }
@@ -232,7 +232,7 @@ describe('loadProjectDic', () => {
       const err = await loadProjectDic('assets/configs/projects.dic', _resolveToFixture, _readInvalidYaml)
         .catch((e) => e);
 
-      assertEquals(err instanceof ChatlogError, true);
+      assert(err instanceof ChatlogError);
       assertEquals((err as ChatlogError).kind, 'InvalidYaml');
     });
 
@@ -243,7 +243,7 @@ describe('loadProjectDic', () => {
         _readInvalidYaml,
       ).catch((e) => e);
 
-      assertEquals(err instanceof ChatlogError, true);
+      assert(err instanceof ChatlogError);
       assertEquals((err as ChatlogError).subindex, 'YamlSyntaxError');
     });
   });
@@ -259,7 +259,7 @@ describe('loadProjectDic', () => {
         _readNoMisc,
       );
 
-      assertEquals('misc' in _projects, true);
+      assert('misc' in _projects);
     });
 
     it('T-CL-LPD-10-02: misc が辞書にないとき misc が 1 つのみ含まれる', async () => {
@@ -290,8 +290,8 @@ describe('loadProjectDic', () => {
         _readNoMisc,
       );
 
-      assertEquals('app1' in _projects, true);
-      assertEquals('app2' in _projects, true);
+      assert('app1' in _projects);
+      assert('app2' in _projects);
     });
 
     // T-CL-LPD-13: misc は常に末尾に配置される
@@ -319,7 +319,7 @@ describe('loadProjectDic', () => {
         _readNonStringProp,
       );
 
-      assertEquals('count' in (_projects['app1'] ?? {}), false);
+      assertFalse('count' in (_projects['app1'] ?? {}));
     });
 
     it('T-CL-LPD-14-02: 文字列プロパティ値はプロジェクトメタデータに含まれる', async () => {
