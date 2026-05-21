@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.ts';
 
 // -- test target --
 import { isoToDate, isoToLocalDayMs, isoToMs } from '../../date-utils.ts';
@@ -79,7 +79,7 @@ describe('isoToDate', () => {
       describe('Then: T-LIB-D-05 - YYYY-MM-DD 形式の文字列を返す', () => {
         it('T-LIB-D-05-01: 有効な ISO 文字列は YYYY-MM-DD 形式を返す', () => {
           const result = isoToDate('2026-04-20T10:30:00Z');
-          assertEquals(/^\d{4}-\d{2}-\d{2}$/.test(result), true);
+          assert(/^\d{4}-\d{2}-\d{2}$/.test(result));
         });
       });
     });
@@ -141,7 +141,7 @@ describe('isoToMs', () => {
     describe('When: isoToMs を実行する', () => {
       describe('Then: T-LIB-D-10 - NaN を返す', () => {
         it('T-LIB-D-10-01: "invalid" は NaN を返す', () => {
-          assertEquals(isNaN(isoToMs('invalid')), true);
+          assert(isNaN(isoToMs('invalid')));
         });
       });
     });
@@ -151,7 +151,7 @@ describe('isoToMs', () => {
     describe('When: isoToMs を実行する', () => {
       describe('Then: T-LIB-D-11 - NaN を返す', () => {
         it('T-LIB-D-11-01: 空文字列は NaN を返す', () => {
-          assertEquals(isNaN(isoToMs('')), true);
+          assert(isNaN(isoToMs('')));
         });
       });
     });
