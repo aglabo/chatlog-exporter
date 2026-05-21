@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.ts';
 
 // -- test target --
 import { parseJsonArray } from '../../json-utils.ts';
@@ -74,7 +74,7 @@ describe('parseJsonArray', () => {
       describe('Then: T-LIB-J-06 - 2件の配列が返る', () => {
         it('T-LIB-J-06: greedy マッチで複数オブジェクトを含む配列を返す', () => {
           const result = parseJsonArray('result: [{"a":1},{"a":2}] end');
-          assertEquals(Array.isArray(result), true);
+          assert(Array.isArray(result));
           assertEquals((result as unknown[]).length, 2);
         });
       });
@@ -97,7 +97,7 @@ describe('parseJsonArray', () => {
         it('[Edge] T-LIB-J-08: JSON 値内に "[...]" が含まれていても外側の配列がパースできる', () => {
           const _raw = '[{"text":"[escaped bracket]","value":1}]';
           const _result = parseJsonArray<{ text: string; value: number }>(_raw);
-          assertEquals(_result !== null, true);
+          assertNotNull(_result);
           assertEquals(_result![0].text, '[escaped bracket]');
           assertEquals(_result![0].value, 1);
         });
@@ -111,7 +111,7 @@ describe('parseJsonArray', () => {
         it('[Normal] T-LIB-J-09: 改行・インデントを含む整形済み JSON 配列がパースできる', () => {
           const _raw = '[\n  {"key": "value1"},\n  {"key": "value2"}\n]';
           const _result = parseJsonArray<{ key: string }>(_raw);
-          assertEquals(_result !== null, true);
+          assertNotNull(_result);
           assertEquals(_result!.length, 2);
           assertEquals(_result![0].key, 'value1');
           assertEquals(_result![1].key, 'value2');
@@ -126,7 +126,7 @@ describe('parseJsonArray', () => {
         it('[Edge] T-LIB-J-10: 前後にテキストがある整形済み JSON 配列がパースできる', () => {
           const _raw = 'Here is the result:\n[\n  {"file":"a.md","decision":"KEEP"}\n]\nDone.';
           const _result = parseJsonArray<{ file: string; decision: string }>(_raw);
-          assertEquals(_result !== null, true);
+          assertNotNull(_result);
           assertEquals(_result![0].file, 'a.md');
         });
       });
@@ -139,11 +139,11 @@ describe('parseJsonArray', () => {
         it('[Normal] T-LIB-J-11: 数値・null・boolean を含む配列がパースできる', () => {
           const _raw = '[1, null, true, "str"]';
           const _result = parseJsonArray<unknown>(_raw);
-          assertEquals(_result !== null, true);
+          assertNotNull(_result);
           assertEquals(_result!.length, 4);
           assertEquals(_result![0], 1);
           assertNull(_result![1]);
-          assertEquals(_result![2], true);
+          assert(_result![2]);
           assertEquals(_result![3], 'str');
         });
       });

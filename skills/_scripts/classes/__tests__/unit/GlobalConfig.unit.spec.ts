@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from '@std/assert';
+import { assertEquals, assertFalse, assertRejects, assertStrictEquals, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -122,7 +122,7 @@ describe('GlobalConfig', () => {
           readTextFileProvider: _trackingRead,
         });
         assertEquals(_config.get('chatlogsDir'), '/tmp/yaml-wins');
-        assertEquals(_called.flag, false);
+        assertFalse(_called.flag);
       });
 
       it('[Normal] T-CLS-GC-67: デフォルト値の全フィールドを get() で確認する', async () => {

@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 
-import { assertEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
@@ -71,8 +71,8 @@ describe('parseArgs', () => {
     it('T-SF-PA-09-01: 全フィールドが正しく解析される', () => {
       const result = parseArgs(['/path/to/dir', '--dry-run', '--no-review', '--dics', '/dics', '--concurrency', '2']);
       assertEquals(result.targetDir, '/path/to/dir');
-      assertEquals(result.dryRun, true);
-      assertEquals(result.review, false);
+      assert(result.dryRun);
+      assertFalse(result.review);
       assertEquals(result.dicsDir, '/dics');
       assertEquals(result.concurrency, 2);
     });

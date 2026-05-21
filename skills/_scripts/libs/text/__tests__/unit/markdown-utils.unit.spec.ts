@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -73,8 +73,8 @@ describe('cleanYaml', () => {
       describe('Then: T-LIB-M-11 - type: 行以降のみ返る', () => {
         it('T-LIB-M-11: firstField が "type" のとき type: 行から始まる', () => {
           const result = cleanYaml('前文\ntype: research\ncategory: development', 'type');
-          assertEquals(result.startsWith('type: research'), true);
-          assertEquals(result.includes('category: development'), true);
+          assert(result.startsWith('type: research'));
+          assert(result.includes('category: development'));
         });
       });
     });
@@ -86,8 +86,8 @@ describe('cleanYaml', () => {
         it('T-LIB-M-12: コードフェンスと前文テキストが除去されて title: 行から始まる', () => {
           const raw = '以下の YAML を出力します:\n```yaml\ntitle: テスト\nsummary: 概要\n```\n以上です。';
           const result = cleanYaml(raw, 'title');
-          assertEquals(result.startsWith('title: テスト'), true);
-          assertEquals(result.includes('```'), false);
+          assert(result.startsWith('title: テスト'));
+          assertFalse(result.includes('```'));
         });
       });
     });

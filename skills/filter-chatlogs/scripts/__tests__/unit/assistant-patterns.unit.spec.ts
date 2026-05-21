@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -43,7 +43,7 @@ describe('NOISE_ASSISTANT_PATTERNS', () => {
         '[Normal] T-FL-AP-01: "PRドラフトを生成するため、まずブランチの変更内容を確認します。" がパターンに一致する',
         () => {
           const text = 'PRドラフトを生成するため、まずブランチの変更内容を確認します。';
-          assertEquals(_entry?.pattern?.test(text), true);
+          assert(_entry?.pattern?.test(text));
         },
       );
 
@@ -51,7 +51,7 @@ describe('NOISE_ASSISTANT_PATTERNS', () => {
         '[Normal] T-FL-AP-02: "PRドラフトを生成します。pr-generatorエージェントに委譲します。" がパターンに一致する',
         () => {
           const text = 'PRドラフトを生成します。pr-generatorエージェントに委譲します。';
-          assertEquals(_entry?.pattern?.test(text), true);
+          assert(_entry?.pattern?.test(text));
         },
       );
     });
@@ -62,7 +62,7 @@ describe('NOISE_ASSISTANT_PATTERNS', () => {
         '[Error] T-FL-AP-03: "PRドラフトが生成されました。" はパターンに一致しない',
         () => {
           const text = 'PRドラフトが生成されました。';
-          assertEquals(_entry?.pattern?.test(text), false);
+          assertFalse(_entry?.pattern?.test(text));
         },
       );
 
@@ -70,7 +70,7 @@ describe('NOISE_ASSISTANT_PATTERNS', () => {
         '[Error] T-FL-AP-04: "**生成されたPRドラフト**" はパターンに一致しない',
         () => {
           const text = '**生成されたPRドラフト**';
-          assertEquals(_entry?.pattern?.test(text), false);
+          assertFalse(_entry?.pattern?.test(text));
         },
       );
     });

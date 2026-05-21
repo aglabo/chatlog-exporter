@@ -8,9 +8,9 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import {
@@ -116,7 +116,7 @@ describe('checkFilename', () => {
     it('[Edge] T-PF-CF-04-01: reason に "ファイル名パターン:" が含まれる', () => {
       const result = checkFilename('say-ok-and-nothing-else.md');
 
-      assertEquals(result!.includes('ファイル名パターン:'), true);
+      assert(result!.includes('ファイル名パターン:'));
     });
   });
 });
@@ -147,7 +147,7 @@ describe('checkUserContent', () => {
       const result = checkUserContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('Userターンが存在しない'), true);
+      assert(result!.includes('Userターンが存在しない'));
     });
 
     it('[Error] T-PF-UC-02-01: 単一 User ターンで <system-reminder> のみ → reason を返す', () => {
@@ -325,7 +325,7 @@ describe('checkAssistantContent', () => {
       const result = checkAssistantContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('Assistant定型肯定応答のみ'), true);
+      assert(result!.includes('Assistant定型肯定応答のみ'));
     });
 
     it('[Error] T-PF-AC-06-02: assistant="了解" → reason に "Assistant定型肯定応答のみ" が含まれる', () => {
@@ -336,7 +336,7 @@ describe('checkAssistantContent', () => {
       const result = checkAssistantContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('Assistant定型肯定応答のみ'), true);
+      assert(result!.includes('Assistant定型肯定応答のみ'));
     });
 
     it('[Error] T-PF-AC-07-01: assistant=\'{"key":"value"}\' のみ → reason に "AssistantがJSONのみ返却" が含まれる', () => {
@@ -347,7 +347,7 @@ describe('checkAssistantContent', () => {
       const result = checkAssistantContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('AssistantがJSONのみ返却'), true);
+      assert(result!.includes('AssistantがJSONのみ返却'));
     });
 
     it('[Error] T-PF-AC-08-01: assistant="```typescript\\nconst x=1;\\n```" のみ → reason に "Assistantがコードブロックのみ" が含まれる', () => {
@@ -358,7 +358,7 @@ describe('checkAssistantContent', () => {
       const result = checkAssistantContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('Assistantがコードブロックのみ'), true);
+      assert(result!.includes('Assistantがコードブロックのみ'));
     });
   });
 
@@ -381,7 +381,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result!.includes(`${MIN_ASSISTANT_CHARS}`), true);
+      assert(result!.includes(`${MIN_ASSISTANT_CHARS}`));
     });
 
     it('[Error] T-PF-AC-05-01: 各 40 文字 × 2 件（合計 80 < 100）→ reason を返す', () => {
@@ -453,7 +453,7 @@ describe('checkAssistantContent', () => {
       const result = checkAssistantContent(turns);
 
       assertNotNull(result);
-      assertEquals(result!.includes('PR生成作業ログ'), true);
+      assert(result!.includes('PR生成作業ログ'));
     });
 
     it('[Edge] T-PF-AC-08-02: User=2ターン + assistant="ok" → null（isSingleUserTurnゲート外のためスキップ）', () => {
@@ -518,7 +518,7 @@ describe('checkAssistantContent', () => {
       ]);
       const result = checkAssistantContent(turns);
 
-      assertEquals(result!.includes(`${MIN_ASSISTANT_CHARS - 1}`), true);
+      assert(result!.includes(`${MIN_ASSISTANT_CHARS - 1}`));
     });
   });
 });
@@ -829,11 +829,11 @@ describe('NOISE_USER_PATTERNS - スラッシュコマンドパターン', () => 
   /** 新スキル名がパターンにマッチするケース。 */
   describe('When: 正常系', () => {
     it('[Normal] T-PF-NP-01-01: /filter-chatlogs（新スキル名）→ パターンにマッチする', () => {
-      assertEquals(_chatlogPattern.entries[0].pattern!.test('/filter-chatlogs'), true);
+      assert(_chatlogPattern.entries[0].pattern!.test('/filter-chatlogs'));
     });
 
     it('[Normal] T-PF-NP-01-02: /export-chatlogs → パターンにマッチする', () => {
-      assertEquals(_chatlogPattern.entries[0].pattern!.test('/export-chatlogs'), true);
+      assert(_chatlogPattern.entries[0].pattern!.test('/export-chatlogs'));
     });
   });
 });
@@ -859,27 +859,27 @@ describe('NOISE_USER_PATTERNS_CHATLOG', () => {
     });
 
     it('[Normal] T-PF-NP-02-02: /export-chatlogs → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/export-chatlogs'), true);
+      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/export-chatlogs'));
     });
 
     it('[Normal] T-PF-NP-02-03: /filter-chatlogs → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/filter-chatlogs'), true);
+      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/filter-chatlogs'));
     });
 
     it('[Normal] T-PF-NP-02-04: /set-frontmatter → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/set-frontmatter'), true);
+      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/set-frontmatter'));
     });
 
     it('[Normal] T-PF-NP-02-05: /classify-chatlogs → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/classify-chatlogs'), true);
+      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/classify-chatlogs'));
     });
 
     it('[Normal] T-PF-NP-02-06: /normalize-chatlogs → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/normalize-chatlogs'), true);
+      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/normalize-chatlogs'));
     });
 
     it('[Normal] T-PF-NP-02-07: /unknown-command → マッチしない', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/unknown-command'), false);
+      assertFalse(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/unknown-command'));
     });
   });
 });
@@ -905,15 +905,15 @@ describe('NOISE_USER_PATTERNS_EXTERNAL', () => {
     });
 
     it('[Normal] T-PF-NP-03-02: /deckrd → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/deckrd'), true);
+      assert(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/deckrd'));
     });
 
     it('[Normal] T-PF-NP-03-03: /idd → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/idd'), true);
+      assert(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/idd'));
     });
 
     it('[Normal] T-PF-NP-03-04: /unknown-command → マッチしない', () => {
-      assertEquals(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/unknown-command'), false);
+      assertFalse(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/unknown-command'));
     });
   });
 });
@@ -939,19 +939,19 @@ describe('NOISE_USER_PATTERNS_GENERIC', () => {
     });
 
     it('[Normal] T-PF-NP-04-02: /commit → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/commit'), true);
+      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/commit'));
     });
 
     it('[Normal] T-PF-NP-04-03: /clear → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/clear'), true);
+      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/clear'));
     });
 
     it('[Normal] T-PF-NP-04-04: /help → マッチする', () => {
-      assertEquals(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/help'), true);
+      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/help'));
     });
 
     it('[Normal] T-PF-NP-04-05: /unknown-command → マッチしない', () => {
-      assertEquals(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/unknown-command'), false);
+      assertFalse(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/unknown-command'));
     });
   });
 });

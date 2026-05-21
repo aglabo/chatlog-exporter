@@ -8,9 +8,9 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { _setByTypeForTest } from '../../parse-args.ts';
@@ -58,7 +58,7 @@ describe('_setByType', () => {
       it('[Normal] T-SBT-FL-01: rawValue なし → config[field] = true, result = null', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('flag'), undefined);
-        assertEquals(config['result'], true);
+        assert(config['result']);
         assertNull(result);
       });
     });
@@ -69,7 +69,7 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('flag'), 'ignored');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -97,14 +97,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('string'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-ST-03: rawValue "" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('string'), '');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -138,14 +138,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), 'unknown-bot');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-AG-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('agent'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -186,14 +186,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), 'abc');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-IN-06: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('integer'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -221,14 +221,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('number'), 'xyz');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-NM-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('number'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -263,14 +263,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), 'plain');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-DR-05: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('directory'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });
@@ -306,14 +306,14 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), 'invalid');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
 
       it('[Error] T-SBT-PR-04: rawValue undefined → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), undefined);
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
 
@@ -330,7 +330,7 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '');
         assertNotNull(result);
-        assertEquals(result instanceof ChatlogError, true);
+        assert(result instanceof ChatlogError);
       });
     });
   });

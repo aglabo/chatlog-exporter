@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -41,72 +41,72 @@ describe('isSystemOnlyMessage', () => {
   /** SYSTEM_TAG_PREFIXES の各プレフィックスで始まるテキストが true を返すケース。 */
   describe('When: 正常系（true を返す）', () => {
     it('[Normal] T-PF-IS-01-01: `<system-reminder>msg</system-reminder>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<system-reminder>msg</system-reminder>'), true);
+      assert(isSystemOnlyMessage('<system-reminder>msg</system-reminder>'));
     });
 
     it('[Normal] T-PF-IS-01-02: `<command-name>cmd</command-name>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<command-name>cmd</command-name>'), true);
+      assert(isSystemOnlyMessage('<command-name>cmd</command-name>'));
     });
 
     it('[Normal] T-PF-IS-01-03: `<command-message>msg</command-message>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<command-message>msg</command-message>'), true);
+      assert(isSystemOnlyMessage('<command-message>msg</command-message>'));
     });
 
     it('[Normal] T-PF-IS-01-04: `<local-command-stdout>out</local-command-stdout>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<local-command-stdout>out</local-command-stdout>'), true);
+      assert(isSystemOnlyMessage('<local-command-stdout>out</local-command-stdout>'));
     });
 
     it('[Normal] T-PF-IS-01-05: `<ide_opened_file>file.ts</ide_opened_file>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<ide_opened_file>file.ts</ide_opened_file>'), true);
+      assert(isSystemOnlyMessage('<ide_opened_file>file.ts</ide_opened_file>'));
     });
 
     it('[Normal] T-PF-IS-01-06: `<ide_selection>selected</ide_selection>` → true', () => {
-      assertEquals(isSystemOnlyMessage('<ide_selection>selected</ide_selection>'), true);
+      assert(isSystemOnlyMessage('<ide_selection>selected</ide_selection>'));
     });
 
     it('[Normal] T-PF-IS-01-07: `---\\ntitle: test\\n---\\n` → true', () => {
-      assertEquals(isSystemOnlyMessage('---\ntitle: test\n---\n'), true);
+      assert(isSystemOnlyMessage('---\ntitle: test\n---\n'));
     });
   });
 
   /** 通常テキスト・空文字列・スラッシュコマンドが false を返すケース。 */
   describe('When: 正常系（false を返す）', () => {
     it('[Normal] T-PF-IS-02-01: `これは通常のメッセージです` → false', () => {
-      assertEquals(isSystemOnlyMessage('これは通常のメッセージです'), false);
+      assertFalse(isSystemOnlyMessage('これは通常のメッセージです'));
     });
 
     it("[Normal] T-PF-IS-02-02: `''`（空文字列）→ false", () => {
-      assertEquals(isSystemOnlyMessage(''), false);
+      assertFalse(isSystemOnlyMessage(''));
     });
 
     it('[Normal] T-PF-IS-02-03: `/commit`（スラッシュコマンド）→ false', () => {
-      assertEquals(isSystemOnlyMessage('/commit'), false);
+      assertFalse(isSystemOnlyMessage('/commit'));
     });
   });
 
   /** trim 後にプレフィックスがマッチする・しないケース。 */
   describe('When: エッジケース', () => {
     it('[Edge] T-PF-IS-03-01: `  <system-reminder>msg</system-reminder>`（先頭空白）→ true（trim後マッチ）', () => {
-      assertEquals(isSystemOnlyMessage('  <system-reminder>msg</system-reminder>'), true);
+      assert(isSystemOnlyMessage('  <system-reminder>msg</system-reminder>'));
     });
 
     it('[Edge] T-PF-IS-03-02: `\\n<command-name>cmd</command-name>`（先頭改行）→ true（trim後マッチ）', () => {
-      assertEquals(isSystemOnlyMessage('\n<command-name>cmd</command-name>'), true);
+      assert(isSystemOnlyMessage('\n<command-name>cmd</command-name>'));
     });
 
     it('[Edge] T-PF-IS-03-03: `---`（改行なし）→ false（`---\\n` とは一致しない）', () => {
-      assertEquals(isSystemOnlyMessage('---'), false);
+      assertFalse(isSystemOnlyMessage('---'));
     });
   });
 
   /** プレフィックスが先頭でなく中間に出現するケース・類似タグだが一致しないケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-PF-IS-04-01: `普通のテキスト\\n<system-reminder>msg</system-reminder>`（中間に出現）→ false', () => {
-      assertEquals(isSystemOnlyMessage('普通のテキスト\n<system-reminder>msg</system-reminder>'), false);
+      assertFalse(isSystemOnlyMessage('普通のテキスト\n<system-reminder>msg</system-reminder>'));
     });
 
     it('[Error] T-PF-IS-04-02: `<system-info>info</system-info>`（類似するが一致しないタグ）→ false', () => {
-      assertEquals(isSystemOnlyMessage('<system-info>info</system-info>'), false);
+      assertFalse(isSystemOnlyMessage('<system-info>info</system-info>'));
     });
   });
 });
@@ -120,25 +120,25 @@ describe('isExcludedByFilename', () => {
         it('T-FL-IF-01-01: you-are-a-topic-and-tag-extraction-assistant を含む → true', () => {
           const result = isExcludedByFilename('you-are-a-topic-and-tag-extraction-assistant.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
 
         it('T-FL-IF-01-02: say-ok-and-nothing-else を含む → true', () => {
           const result = isExcludedByFilename('say-ok-and-nothing-else.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
 
         it('T-FL-IF-01-03: command-message-claude-idd-framework を含む → true', () => {
           const result = isExcludedByFilename('command-message-claude-idd-framework.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
 
         it('T-FL-IF-01-04: command-message-deckrd-deckrd を含む → true', () => {
           const result = isExcludedByFilename('command-message-deckrd-deckrd.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
       });
     });
@@ -152,19 +152,19 @@ describe('isExcludedByFilename', () => {
         it('T-FL-IF-02-01: 通常のファイル名 → false', () => {
           const result = isExcludedByFilename('my-chat-log.md');
 
-          assertEquals(result, false);
+          assertFalse(result);
         });
 
         it('T-FL-IF-02-02: 空文字列 → false', () => {
           const result = isExcludedByFilename('');
 
-          assertEquals(result, false);
+          assertFalse(result);
         });
 
         it('T-FL-IF-02-03: 無関係なファイル名 → false', () => {
           const result = isExcludedByFilename('architecture-discussion-2026.md');
 
-          assertEquals(result, false);
+          assertFalse(result);
         });
       });
     });
@@ -178,13 +178,13 @@ describe('isExcludedByFilename', () => {
         it('T-FL-IF-03-01: 大文字含む除外パターン → true', () => {
           const result = isExcludedByFilename('Say-Ok-And-Nothing-Else.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
 
         it('T-FL-IF-03-02: 全大文字の除外パターン → true', () => {
           const result = isExcludedByFilename('SAY-OK-AND-NOTHING-ELSE.md');
 
-          assertEquals(result, true);
+          assert(result);
         });
       });
     });
@@ -201,14 +201,14 @@ describe('isExcludedByContent', () => {
           const body = '短い本文';
           const { excluded } = isExcludedByContent(body);
 
-          assertEquals(excluded, true);
+          assert(excluded);
         });
 
         it('T-FL-IC-01-02: reason に "短すぎる" が含まれる', () => {
           const body = '短い本文';
           const { reason } = isExcludedByContent(body);
 
-          assertEquals(reason.includes('短すぎる'), true);
+          assert(reason.includes('短すぎる'));
         });
       });
     });
@@ -223,14 +223,14 @@ describe('isExcludedByContent', () => {
           const body = '### Assistant\n' + 'a'.repeat(1000) + '\n';
           const { excluded } = isExcludedByContent(body);
 
-          assertEquals(excluded, true);
+          assert(excluded);
         });
 
         it('T-FL-IC-02-02: reason に "User" が含まれる', () => {
           const body = '### Assistant\n' + 'a'.repeat(1000) + '\n';
           const { reason } = isExcludedByContent(body);
 
-          assertEquals(reason.includes('User'), true);
+          assert(reason.includes('User'));
         });
       });
     });
@@ -252,7 +252,7 @@ describe('isExcludedByContent', () => {
           const paddedBody = body + 'x'.repeat(Math.max(0, 1000 - body.length));
           const { excluded } = isExcludedByContent(paddedBody);
 
-          assertEquals(excluded, true);
+          assert(excluded);
         });
       });
     });
@@ -269,7 +269,7 @@ describe('isExcludedByContent', () => {
           const body = `### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
           const { excluded } = isExcludedByContent(body);
 
-          assertEquals(excluded, true);
+          assert(excluded);
         });
 
         it('T-FL-IC-04-02: reason に "短すぎる" が含まれる', () => {
@@ -278,7 +278,7 @@ describe('isExcludedByContent', () => {
           const body = `### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
           const { reason } = isExcludedByContent(body);
 
-          assertEquals(reason.includes('短すぎる'), true);
+          assert(reason.includes('短すぎる'));
         });
       });
     });
@@ -293,7 +293,7 @@ describe('isExcludedByContent', () => {
           const body = _makeBody({ userText: 'u'.repeat(500), assistantText: 'a'.repeat(500), extraPadding: 200 });
           const { excluded } = isExcludedByContent(body);
 
-          assertEquals(excluded, false);
+          assertFalse(excluded);
         });
 
         it('T-FL-IC-05-02: 複数ターンの会話 → excluded=false', () => {
@@ -312,7 +312,7 @@ describe('isExcludedByContent', () => {
           ].join('\n');
           const { excluded } = isExcludedByContent(body);
 
-          assertEquals(excluded, false);
+          assertFalse(excluded);
         });
       });
     });

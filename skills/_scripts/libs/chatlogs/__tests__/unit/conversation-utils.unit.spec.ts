@@ -11,7 +11,7 @@
 // cspell:words conv
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -67,7 +67,7 @@ describe('conversation-utils', () => {
       it('[Normal] T-SC-CU-01: user と assistant が混在 → user のみ返す', () => {
         const result = getUserTurns(_MIXED);
         assertEquals(result.length, 2);
-        assertEquals(result.every((t) => t.role === 'user'), true);
+        assert(result.every((t) => t.role === 'user'));
       });
 
       it('[Normal] T-SC-CU-02: user のみ → すべて返す', () => {
@@ -151,18 +151,18 @@ describe('conversation-utils', () => {
     /** user ターンがあるケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SC-CU-11: user ターンあり → true', () => {
-        assertEquals(hasUserTurn(_MIXED), true);
+        assert(hasUserTurn(_MIXED));
       });
     });
 
     /** user ターンがない・空配列のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-SC-CU-12: user ターンなし（assistantのみ）→ false', () => {
-        assertEquals(hasUserTurn(_ONLY_ASSISTANT), false);
+        assertFalse(hasUserTurn(_ONLY_ASSISTANT));
       });
 
       it('[Edge] T-SC-CU-13: 空配列 → false', () => {
-        assertEquals(hasUserTurn(_EMPTY), false);
+        assertFalse(hasUserTurn(_EMPTY));
       });
     });
   });
@@ -176,18 +176,18 @@ describe('conversation-utils', () => {
     /** user ターン 1 件のケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SC-CU-14: user ターン 1 件 → true', () => {
-        assertEquals(isSingleUserTurn(_SINGLE_USER), true);
+        assert(isSingleUserTurn(_SINGLE_USER));
       });
     });
 
     /** 0件・2件以上のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-SC-CU-15: user ターン 0 件 → false', () => {
-        assertEquals(isSingleUserTurn(_EMPTY), false);
+        assertFalse(isSingleUserTurn(_EMPTY));
       });
 
       it('[Edge] T-SC-CU-16: user ターン 2 件以上 → false', () => {
-        assertEquals(isSingleUserTurn(_MIXED), false);
+        assertFalse(isSingleUserTurn(_MIXED));
       });
     });
   });

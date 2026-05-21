@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -56,14 +56,14 @@ describe('_initSchemaForTest', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-PA-22-01: 空スキーマ → デフォルトエントリのみ含む Map が返る', () => {
       const _map = _initSchemaForTest([]);
-      assertEquals(_map.has('period'), true);
-      assertEquals(_map.has('agent'), true);
-      assertEquals(_map.has('chatlogsDir'), true);
+      assert(_map.has('period'));
+      assert(_map.has('agent'));
+      assert(_map.has('chatlogsDir'));
     });
     it('[Normal] T-PA-22-02: 追加スキーマあり → デフォルト＋追加エントリを含む Map が返る', () => {
       const _map = _initSchemaForTest([{ option: '--output', field: 'outputDir', type: 'string' }]);
-      assertEquals(_map.has('--output'), true);
-      assertEquals(_map.has('period'), true);
+      assert(_map.has('--output'));
+      assert(_map.has('period'));
     });
     it('[Normal] T-PA-22-03: flag 型エントリが正しく含まれる', () => {
       const _map = _initSchemaForTest([{ option: '--dry-run', field: 'dryRun', type: 'flag' }]);
@@ -599,7 +599,7 @@ describe('isArgDirectory', () => {
     describe('When: isArgDirectory を実行する', () => {
       describe('Then: T-LIB-U-11-01 - true が返る', () => {
         it('T-LIB-U-11-01: /path/to/dir はディレクトリ引数として認識される', () => {
-          assertEquals(isArgDirectory('/path/to/dir'), true);
+          assert(isArgDirectory('/path/to/dir'));
         });
       });
     });
@@ -609,7 +609,7 @@ describe('isArgDirectory', () => {
     describe('When: isArgDirectory を実行する', () => {
       describe('Then: T-LIB-U-11-02 - true が返る', () => {
         it('T-LIB-U-11-02: ./chatlogs はディレクトリ引数として認識される', () => {
-          assertEquals(isArgDirectory('./chatlogs'), true);
+          assert(isArgDirectory('./chatlogs'));
         });
       });
     });
@@ -619,7 +619,7 @@ describe('isArgDirectory', () => {
     describe('When: isArgDirectory を実行する', () => {
       describe('Then: T-LIB-U-11-03 - false が返る', () => {
         it('T-LIB-U-11-03: claude はディレクトリ引数として認識されない', () => {
-          assertEquals(isArgDirectory('claude'), false);
+          assertFalse(isArgDirectory('claude'));
         });
       });
     });
@@ -629,7 +629,7 @@ describe('isArgDirectory', () => {
     describe('When: isArgDirectory を実行する', () => {
       describe('Then: T-LIB-U-11-04 - normalizePath 後にスラッシュを含むので true が返る', () => {
         it('T-LIB-U-11-04: C:\\Users\\foo はスラッシュ正規化後にディレクトリ引数として認識される', () => {
-          assertEquals(isArgDirectory('C:\\Users\\foo'), true);
+          assert(isArgDirectory('C:\\Users\\foo'));
         });
       });
     });
@@ -639,7 +639,7 @@ describe('isArgDirectory', () => {
     describe('When: isArgDirectory を実行する', () => {
       describe('Then: T-LIB-U-11-05 - false が返る', () => {
         it('T-LIB-U-11-05: 空文字列はディレクトリ引数として認識されない', () => {
-          assertEquals(isArgDirectory(''), false);
+          assertFalse(isArgDirectory(''));
         });
       });
     });
@@ -662,26 +662,26 @@ describe('isArgPeriod', () => {
   /** `YYYY-MM` または `YYYY` 形式として正常に認識されるケース。 */
   describe('When: 正常系', () => {
     it('[Normal] T-LIB-U-12-01: "2026-03" → true が返る', () => {
-      assertEquals(isArgPeriod('2026-03'), true);
+      assert(isArgPeriod('2026-03'));
     });
     it('[Normal] T-LIB-U-12-02: "2026" → true が返る（年のみ指定）', () => {
-      assertEquals(isArgPeriod('2026'), true);
+      assert(isArgPeriod('2026'));
     });
     it('[Normal] T-LIB-U-12-03: "not-a-date" → false が返る', () => {
-      assertEquals(isArgPeriod('not-a-date'), false);
+      assertFalse(isArgPeriod('not-a-date'));
     });
   });
 
   /** 境界値・特殊入力のケース。 */
   describe('When: エッジケース', () => {
     it('[Edge] T-LIB-U-12-04: "" → false が返る（空文字列）', () => {
-      assertEquals(isArgPeriod(''), false);
+      assertFalse(isArgPeriod(''));
     });
     it('[Edge] T-LIB-U-12-05: "2025-13" → true が返る（月レンジ非チェック、現行と同一）', () => {
-      assertEquals(isArgPeriod('2025-13'), true);
+      assert(isArgPeriod('2025-13'));
     });
     it('[Edge] T-LIB-U-12-06: "20260" → false が返る（5桁年は不一致）', () => {
-      assertEquals(isArgPeriod('20260'), false);
+      assertFalse(isArgPeriod('20260'));
     });
   });
 });

@@ -39,8 +39,8 @@ import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // e2e helpers
+import { assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { assertFileNotExists } from '../_helpers/asserts.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
 
 // ─── Internal Helpers
@@ -168,7 +168,7 @@ describe('main - DISCARD 判定', () => {
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
             await main(['claude', '2026-03', '--base-dir', tempDir]);
 
-            await assertFileNotExists(`${chatlogsDir}/discard.md`);
+            await assertFileNotExist(`${chatlogsDir}/discard.md`);
           });
         });
       });
@@ -344,7 +344,7 @@ describe('main - DISCARD + KEEP 混在', () => {
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
             await main(['claude', '2026-03', '--base-dir', tempDir]);
 
-            await assertFileNotExists(`${chatlogsDir}/discard.md`);
+            await assertFileNotExist(`${chatlogsDir}/discard.md`);
           });
 
           it('T-FL-E2E-05-02: keep.md が残っている', async () => {
@@ -413,7 +413,7 @@ describe('main - period 絞り込み', () => {
           it('T-FL-E2E-06-01: 指定月 (2026-03) のファイルが削除される', async () => {
             await main(['claude', '2026-03', '--base-dir', tempDir]);
 
-            await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
+            await assertFileNotExist(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-06-02: 他の月 (2026-04) のファイルは残っている', async () => {
@@ -722,13 +722,13 @@ describe('main - period 未指定', () => {
           it('T-FL-E2E-10-01: 2026-03 のファイルが削除される', async () => {
             await main(['claude', '--base-dir', tempDir]);
 
-            await assertFileNotExists(`${tempDir}/claude/2026/2026-03/march.md`);
+            await assertFileNotExist(`${tempDir}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-10-02: 2026-04 のファイルが削除される', async () => {
             await main(['claude', '--base-dir', tempDir]);
 
-            await assertFileNotExists(`${tempDir}/claude/2026/2026-04/april.md`);
+            await assertFileNotExist(`${tempDir}/claude/2026/2026-04/april.md`);
           });
         });
       });

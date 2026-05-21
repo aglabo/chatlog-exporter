@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -38,7 +38,7 @@ describe('filename-patterns', () => {
         () => {
           const filename = '2026-04-30-temp-idd-pr-pr-current-draft-md-pasted-text-1-68-l-f28e906a.md';
           const matched = NOISE_FILENAME_PATTERNS.some((p) => p.test(filename));
-          assertEquals(matched, true);
+          assert(matched);
         },
       );
     });
@@ -55,7 +55,7 @@ describe('filename-patterns', () => {
         () => {
           const filename = '2026-04-30-temp-idd-pr-pr-current-draft-md-pasted-text-1-68-l-f28e906a.md';
           const matched = EXCLUDE_FILENAME_PATTERNS_STR.some((p) => filename.includes(p));
-          assertEquals(matched, true);
+          assert(matched);
         },
       );
     });

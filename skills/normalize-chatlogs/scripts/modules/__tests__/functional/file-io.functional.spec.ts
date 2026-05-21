@@ -19,8 +19,6 @@ import type { Stub } from '@std/testing/mock';
 import { writeOutput } from '../../file-io.ts';
 
 // ─── Helpers
-// types
-import type { Stats } from '../../../types/normalize.types.ts';
 
 // ─── Tests
 
@@ -49,18 +47,17 @@ describe('writeOutput', () => {
   describe('Given: 存在しない出力パスと dryRun=false', () => {
     describe('When: writeOutput を呼び出す', () => {
       describe('Then: Task T-13-01 - アトミックなファイル書き込み', () => {
-        it('T-13-01-01: stats.success がインクリメントされる', async () => {
+        it('T-13-01-01: true が返り .tmp ファイルに書き込みが行われる', async () => {
           const writtenPaths: string[] = [];
           writeTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
             writtenPaths.push(String(path));
             return Promise.resolve();
           });
           renameStub = stub(Deno, 'rename', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
-          await writeOutput('output/entry.md', 'content', false, stats);
+          const result = await writeOutput('output/entry.md', 'content', false);
 
-          assertEquals(stats.success, 1);
+          assertEquals(result, true);
           // .tmp ファイルに書いて rename するアトミック書き込みを確認
           assertEquals(writtenPaths.includes('output/entry.md.tmp'), true);
         });
@@ -76,9 +73,8 @@ describe('writeOutput', () => {
             renamedArgs.push([String(from), String(to)]);
             return Promise.resolve();
           });
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
-          await writeOutput('output/entry.md', 'content', false, stats);
+          await writeOutput('output/entry.md', 'content', false);
 
           assertEquals(writtenPaths[0], 'output/entry.md.tmp');
           assertEquals(renamedArgs[renamedArgs.length - 1], ['output/entry.md.tmp', 'output/entry.md']);
@@ -91,44 +87,45 @@ describe('writeOutput', () => {
   describe('Given: すでに存在する出力パス', () => {
     describe('When: writeOutput を呼び出す', () => {
       describe('Then: Task T-13-02 - 既存ファイルのリネームと新規書き込み', () => {
-        it('T-13-02-01: 既存ファイルを .old-01.md にリネームしてから書き込む', async () => {
+        it('T-13-02-01: 既存ファイルを .old-01.md にリネームしてから書き込み true が返る', async () => {
           const renamedArgs: Array<[string, string]> = [];
           renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
             return Promise.resolve();
           });
           writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
           // バックアップファイルなし → old-01.md に
-          await writeOutput('output/existing.md', 'new content', false, stats, () => Promise.resolve(['existing.md']));
-
-          // 1回目のリネームが既存ファイル → old-01.md であること
-          assertEquals(renamedArgs[0], ['output/existing.md', 'output/existing.old-01.md']);
-          assertEquals(stats.success, 1);
-          assertEquals(stats.skip, 0);
-        });
-
-        it('T-13-02-02: .old-01.md が既にある場合は .old-02.md にリネームする', async () => {
-          const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
-            renamedArgs.push([String(from), String(to)]);
-            return Promise.resolve();
-          });
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
-
-          // old-01.md が既存 → old-02.md に
-          await writeOutput(
+          const result = await writeOutput(
             'output/existing.md',
             'new content',
             false,
-            stats,
+            () => Promise.resolve(['existing.md']),
+          );
+
+          // 1回目のリネームが既存ファイル → old-01.md であること
+          assertEquals(renamedArgs[0], ['output/existing.md', 'output/existing.old-01.md']);
+          assertEquals(result, true);
+        });
+
+        it('T-13-02-02: .old-01.md が既にある場合は .old-02.md にリネームし true が返る', async () => {
+          const renamedArgs: Array<[string, string]> = [];
+          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
+            renamedArgs.push([String(from), String(to)]);
+            return Promise.resolve();
+          });
+          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
+
+          // old-01.md が既存 → old-02.md に
+          const result = await writeOutput(
+            'output/existing.md',
+            'new content',
+            false,
             () => Promise.resolve(['existing.md', 'existing.old-01.md']),
           );
 
           assertEquals(renamedArgs[0], ['output/existing.md', 'output/existing.old-02.md']);
-          assertEquals(stats.success, 1);
+          assertEquals(result, true);
         });
       });
     });
@@ -138,14 +135,13 @@ describe('writeOutput', () => {
   describe('Given: dryRun=true', () => {
     describe('When: writeOutput を呼び出す', () => {
       describe('Then: Task T-13-03 - ドライランモード', () => {
-        it('T-13-03-01: Deno.writeTextFile が呼ばれず stats.success が 0 のまま', async () => {
+        it('T-13-03-01: Deno.writeTextFile が呼ばれず false が返る', async () => {
           writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
-          const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
-          await writeOutput('output/dry.md', '## Summary\nbody', true, stats);
+          const result = await writeOutput('output/dry.md', '## Summary\nbody', true);
 
           assertEquals((writeTextFileStub as unknown as { calls: unknown[] }).calls.length, 0);
-          assertEquals(stats.success, 0);
+          assertEquals(result, false);
         });
       });
     });
@@ -162,10 +158,9 @@ describe('writeOutput', () => {
               'entry.md',
               ...Array.from({ length: 99 }, (_, i) => `entry.old-${String(i + 1).padStart(2, '0')}.md`),
             ];
-            const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
             await assertRejects(
-              () => writeOutput('output/entry.md', 'content', false, stats, () => Promise.resolve(allSlots)),
+              () => writeOutput('output/entry.md', 'content', false, () => Promise.resolve(allSlots)),
               Error,
               'too many backups',
             );

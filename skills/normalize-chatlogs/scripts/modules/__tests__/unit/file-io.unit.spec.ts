@@ -15,10 +15,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { reportResults, writeOutput } from '../../file-io.ts';
 
 // ─── Helpers
+import { assertFileNotExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // types
 import type { Stats } from '../../../types/normalize.types.ts';
 
@@ -44,33 +44,31 @@ describe('writeOutput', () => {
     await Deno.remove(tmpDir, { recursive: true });
   });
 
-  /** 正常系: dryRun=false のとき、ファイルが書き込まれ stats.success が 1 増える */
+  /** 正常系: dryRun=false のとき、ファイルが書き込まれ true を返す */
   describe('[正常] Normal Cases', () => {
-    it('T-WO-01-01: ファイルが書き込まれ stats.success が 1 増える', async () => {
+    it('T-WO-01-01: ファイルが書き込まれ true が返る', async () => {
       // arrange
       const outputPath = `${tmpDir}/output.md`;
       const content = '# Test Content\nHello World';
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act
-      await writeOutput(outputPath, content, false, stats);
+      const result = await writeOutput(outputPath, content, false);
 
       // assert
       const written = await readTextFile(outputPath);
       assertEquals(written, content);
-      assertEquals(stats.success, 1);
+      assertEquals(result, true);
     });
 
-    it('T-WO-02-01: 既存ファイルが .old-01.md にバックアップされ新ファイルが書かれる', async () => {
+    it('T-WO-02-01: 既存ファイルが .old-01.md にバックアップされ新ファイルが書かれ true が返る', async () => {
       // arrange
       const outputPath = `${tmpDir}/output.md`;
       const oldContent = 'old content';
       const newContent = 'new content';
       await Deno.writeTextFile(outputPath, oldContent);
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act
-      await writeOutput(outputPath, newContent, false, stats);
+      const result = await writeOutput(outputPath, newContent, false);
 
       // assert
       const backupPath = `${tmpDir}/output.old-01.md`;
@@ -78,23 +76,22 @@ describe('writeOutput', () => {
       const written = await readTextFile(outputPath);
       assertEquals(backupContent, oldContent);
       assertEquals(written, newContent);
-      assertEquals(stats.success, 1);
+      assertEquals(result, true);
     });
   });
 
-  /** 異常系: dryRun=true のとき、ファイルは書き込まれず stats が変化しない */
+  /** 正常系: dryRun=true のとき、ファイルは書き込まれず false を返す */
   describe('[異常] Dry-run Cases', () => {
-    it('T-WO-03-01: dryRun=true のときファイルは書き込まれず stats.success が増えない', async () => {
+    it('T-WO-03-01: dryRun=true のときファイルは書き込まれず false が返る', async () => {
       // arrange
       const outputPath = `${tmpDir}/output-dryrun.md`;
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act
-      await writeOutput(outputPath, 'content', true, stats);
+      const result = await writeOutput(outputPath, 'content', true);
 
       // assert
-      assertEquals(await fileOrDirExists(outputPath), false);
-      assertEquals(stats.success, 0);
+      await assertFileNotExist(outputPath);
+      assertEquals(result, false);
     });
   });
 
@@ -107,11 +104,10 @@ describe('writeOutput', () => {
       for (let i = 1; i <= 99; i++) {
         await Deno.writeTextFile(`${tmpDir}/output.old-${String(i).padStart(2, '0')}.md`, '');
       }
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
 
       // act & assert
       await assertRejects(
-        () => writeOutput(outputPath, 'content', false, stats),
+        () => writeOutput(outputPath, 'content', false),
         Error,
         'too many backups',
       );

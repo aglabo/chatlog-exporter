@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -84,7 +84,7 @@ describe('textToSlug', () => {
         it('T-LIB-U-10-07: 長いテキストは 50 文字以下のスラッグになる', () => {
           const long = 'this is a very long text that should be truncated to fifty characters maximum';
           const result = textToSlug(long);
-          assertEquals(result.length <= 50, true);
+          assert(result.length <= 50);
         });
       });
     });

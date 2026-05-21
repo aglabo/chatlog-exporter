@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assert, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -16,61 +16,61 @@ import { isValidModel } from '../../model-utils.ts';
 describe('isValidModel', () => {
   // 有効なショートエイリアス
   it('T-LIB-AI-01: returns true for "opus"', () => {
-    assertEquals(isValidModel('opus'), true);
+    assert(isValidModel('opus'));
   });
 
   it('T-LIB-AI-02: returns true for "sonnet"', () => {
-    assertEquals(isValidModel('sonnet'), true);
+    assert(isValidModel('sonnet'));
   });
 
   it('T-LIB-AI-03: returns true for "haiku"', () => {
-    assertEquals(isValidModel('haiku'), true);
+    assert(isValidModel('haiku'));
   });
 
   it('T-LIB-AI-04: returns true for "default"', () => {
-    assertEquals(isValidModel('default'), true);
+    assert(isValidModel('default'));
   });
 
   it('T-LIB-AI-05: returns true for "best"', () => {
-    assertEquals(isValidModel('best'), true);
+    assert(isValidModel('best'));
   });
 
   // 有効な特殊エイリアス
   it('T-LIB-AI-06: returns true for "sonnet[1m]"', () => {
-    assertEquals(isValidModel('sonnet[1m]'), true);
+    assert(isValidModel('sonnet[1m]'));
   });
 
   it('T-LIB-AI-07: returns true for "opusplan"', () => {
-    assertEquals(isValidModel('opusplan'), true);
+    assert(isValidModel('opusplan'));
   });
 
   // 有効なバージョン付き
   it('T-LIB-AI-08: returns true for "claude-opus-4-7"', () => {
-    assertEquals(isValidModel('claude-opus-4-7'), true);
+    assert(isValidModel('claude-opus-4-7'));
   });
 
   it('T-LIB-AI-09: returns true for "claude-sonnet-4-6"', () => {
-    assertEquals(isValidModel('claude-sonnet-4-6'), true);
+    assert(isValidModel('claude-sonnet-4-6'));
   });
 
   it('T-LIB-AI-10: returns true for "claude-haiku-4-5-20251001"', () => {
-    assertEquals(isValidModel('claude-haiku-4-5-20251001'), true);
+    assert(isValidModel('claude-haiku-4-5-20251001'));
   });
 
   // 無効
   it('T-LIB-AI-11: returns false for "invalid-model"', () => {
-    assertEquals(isValidModel('invalid-model'), false);
+    assertFalse(isValidModel('invalid-model'));
   });
 
   it('T-LIB-AI-12: returns false for "Opus" (case sensitive)', () => {
-    assertEquals(isValidModel('Opus'), false);
+    assertFalse(isValidModel('Opus'));
   });
 
   it('T-LIB-AI-13: returns false for empty string', () => {
-    assertEquals(isValidModel(''), false);
+    assertFalse(isValidModel(''));
   });
 
   it('T-LIB-AI-14: returns false for "opus-" (partial match)', () => {
-    assertEquals(isValidModel('opus-'), false);
+    assertFalse(isValidModel('opus-'));
   });
 });

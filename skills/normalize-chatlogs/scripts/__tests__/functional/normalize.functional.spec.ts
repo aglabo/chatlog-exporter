@@ -10,7 +10,7 @@
 // Deno Test module
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../_scripts/libs/testing/assert.ts';
+import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test helpers
 import {
