@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 
-import { assertEquals, assertNotMatch } from '@std/assert';
+import { assert, assertEquals, assertNotMatch } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
@@ -30,19 +30,19 @@ describe('formatEntryWithRules', () => {
         it('T-SF-FE-01-01: "- research: 調査・情報収集" で始まる', () => {
           const result = formatEntryWithRules(entry);
 
-          assertEquals(result.startsWith('- research: 調査・情報収集'), true);
+          assert(result.startsWith('- research: 調査・情報収集'));
         });
 
         it('T-SF-FE-01-02: "when: 技術調査" 行が含まれる', () => {
           const result = formatEntryWithRules(entry);
 
-          assertEquals(result.includes('  when: 技術調査'), true);
+          assert(result.includes('  when: 技術調査'));
         });
 
         it('T-SF-FE-01-03: "not:  実装作業" 行が含まれる', () => {
           const result = formatEntryWithRules(entry);
 
-          assertEquals(result.includes('  not:  実装作業'), true);
+          assert(result.includes('  not:  実装作業'));
         });
       });
     });
@@ -58,7 +58,7 @@ describe('formatEntryWithRules', () => {
         it('T-SF-FE-02-01: "when:" 行が含まれる', () => {
           const result = formatEntryWithRules(entry);
 
-          assertEquals(result.includes('  when:'), true);
+          assert(result.includes('  when:'));
         });
 
         it('T-SF-FE-02-02: "not:" 行が含まれない', () => {
@@ -96,7 +96,7 @@ describe('formatEntryWithRules', () => {
         it('T-SF-FE-04-01: when の値が "設計議論 / 方針議論" で展開される', () => {
           const result = formatEntryWithRules(entry);
 
-          assertEquals(result.includes('設計議論 / 方針議論'), true);
+          assert(result.includes('設計議論 / 方針議論'));
         });
       });
     });
