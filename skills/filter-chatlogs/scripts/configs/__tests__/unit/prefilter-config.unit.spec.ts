@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -43,7 +43,7 @@ describe('parseArgs (prefilter)', () => {
     });
 
     it('[Normal] T-PF-PA-01-02: dryRun が false になる', () => {
-      assertEquals(parseArgs([]).dryRun, false);
+      assertFalse(parseArgs([]).dryRun);
     });
 
     it('[Normal] T-PF-PA-01-03: chatlogsDir が undefined になる', () => {
@@ -55,7 +55,7 @@ describe('parseArgs (prefilter)', () => {
     });
 
     it('[Normal] T-PF-PA-01-05: report が false になる', () => {
-      assertEquals(parseArgs([]).report, false);
+      assertFalse(parseArgs([]).report);
     });
 
     it('[Normal] T-PF-PA-02-01: agent が "codex" になる', () => {
@@ -74,26 +74,26 @@ describe('parseArgs (prefilter)', () => {
     });
 
     it('[Normal] T-PF-PA-05-01: dryRun が true になる', () => {
-      assertEquals(parseArgs(['--dry-run']).dryRun, true);
+      assert(parseArgs(['--dry-run']).dryRun);
     });
 
     it('[Normal] T-PF-PA-05-02: report が false のまま', () => {
-      assertEquals(parseArgs(['--dry-run']).report, false);
+      assertFalse(parseArgs(['--dry-run']).report);
     });
 
     it('[Normal] T-PF-PA-06-01: report が true になる', () => {
-      assertEquals(parseArgs(['--report']).report, true);
+      assert(parseArgs(['--report']).report);
     });
 
     it('[Normal] T-PF-PA-06-02: dryRun が true になる（--report は dryRun も暗示）', () => {
-      assertEquals(parseArgs(['--report']).dryRun, true);
+      assert(parseArgs(['--report']).dryRun);
     });
 
     it('[Normal] T-PF-PA-07-01: report=true、dryRun=true になる', () => {
       const result = parseArgs(['--report', '--dry-run']);
 
-      assertEquals(result.report, true);
-      assertEquals(result.dryRun, true);
+      assert(result.report);
+      assert(result.dryRun);
     });
 
     it('[Normal] T-PF-PA-10-01: 全フィールドが正しく解析される', () => {
@@ -101,8 +101,8 @@ describe('parseArgs (prefilter)', () => {
 
       assertEquals(result.agent, 'codex');
       assertEquals(result.period, '2026-03');
-      assertEquals(result.report, true);
-      assertEquals(result.dryRun, true);
+      assert(result.report);
+      assert(result.dryRun);
       assertEquals(result.baseDir, '/path/to/base');
     });
 
@@ -212,7 +212,7 @@ describe('buildConfig', () => {
     });
 
     it('[Normal] T-PF-BC-01-03: dryRun が false になる', () => {
-      assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).dryRun, false);
+      assertFalse(buildConfig({ dryRun: false, report: false }, globalConfig).dryRun);
     });
 
     it('[Normal] T-PF-BC-02-01: agent が "codex" になる', () => {
@@ -220,11 +220,11 @@ describe('buildConfig', () => {
     });
 
     it('[Normal] T-PF-BC-03-01: dryRun が true になる', () => {
-      assertEquals(buildConfig({ dryRun: true, report: true }, globalConfig).dryRun, true);
+      assert(buildConfig({ dryRun: true, report: true }, globalConfig).dryRun);
     });
 
     it('[Normal] T-PF-BC-03-02: report が true になる', () => {
-      assertEquals(buildConfig({ dryRun: true, report: true }, globalConfig).report, true);
+      assert(buildConfig({ dryRun: true, report: true }, globalConfig).report);
     });
 
     it('[Normal] T-PF-BC-04-01: chatlogsDir が "/chat" になる', () => {
