@@ -10,7 +10,7 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
+import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { _matchUserPattern } from '../../../libs/classify-file.ts';
