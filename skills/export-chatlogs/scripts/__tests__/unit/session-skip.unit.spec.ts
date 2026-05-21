@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -34,7 +34,7 @@ describe('isSkippableSession', () => {
     describe('When: isSkippableSession("name: commit-message-generator\\n...") を呼び出す', () => {
       it('T-SS-01: Then: [正常] - true を返す（セッションをスキップ）', () => {
         const text = 'name: commit-message-generator\ndescription: ...';
-        assertEquals(isSkippableSession(text), true);
+        assert(isSkippableSession(text));
       });
     });
   });
@@ -48,7 +48,7 @@ describe('isSkippableSession', () => {
     describe('When: isSkippableSession("name: Commit Message Generator\\n...") を呼び出す', () => {
       it('T-SS-02: Then: [正常] - true を返す（大文字小文字不問）', () => {
         const text = 'name: Commit Message Generator\ndescription: ...';
-        assertEquals(isSkippableSession(text), true);
+        assert(isSkippableSession(text));
       });
     });
   });
@@ -62,7 +62,7 @@ describe('isSkippableSession', () => {
     describe('When: isSkippableSession("title: Git Commit Message Generator\\n...") を呼び出す', () => {
       it('T-SS-03: Then: [正常] - true を返す（セッションをスキップ）', () => {
         const text = 'title: Git Commit Message Generator\ndescription: AI agent';
-        assertEquals(isSkippableSession(text), true);
+        assert(isSkippableSession(text));
       });
     });
   });
@@ -73,7 +73,7 @@ describe('isSkippableSession', () => {
     describe('When: isSkippableSession("name: my-agent\\n...") を呼び出す', () => {
       it('T-SS-04: Then: [正常] - false を返す（スキップ対象外）', () => {
         const text = 'name: my-agent\ndescription: ...';
-        assertEquals(isSkippableSession(text), false);
+        assertFalse(isSkippableSession(text));
       });
     });
   });
@@ -83,7 +83,7 @@ describe('isSkippableSession', () => {
     /** isSkippableSession("mcpの設定を...") を呼び出す */
     describe('When: isSkippableSession("mcpの設定を...") を呼び出す', () => {
       it('T-SS-05: Then: [正常] - false を返す（スキップ対象外）', () => {
-        assertEquals(isSkippableSession('mcpの設定をしてください'), false);
+        assertFalse(isSkippableSession('mcpの設定をしてください'));
       });
     });
   });
@@ -93,7 +93,7 @@ describe('isSkippableSession', () => {
     /** isSkippableSession("") を呼び出す */
     describe('When: isSkippableSession("") を呼び出す', () => {
       it('T-SS-06: Then: [エッジケース] - false を返す', () => {
-        assertEquals(isSkippableSession(''), false);
+        assertFalse(isSkippableSession(''));
       });
     });
   });
@@ -109,7 +109,7 @@ describe('isSkippableSession', () => {
         const lines = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`);
         lines.push('name: commit-message-generator');
         const text = lines.join('\n');
-        assertEquals(isSkippableSession(text), false);
+        assertFalse(isSkippableSession(text));
       });
     });
   });
@@ -123,7 +123,7 @@ describe('isSkippableSession', () => {
     describe('When: isSkippableSession("# Claude Code 必須要素\\nname: commit-message\\n...") を呼び出す', () => {
       it('T-SS-08: Then: [正常] - true を返す（value が commit-message にマッチ）', () => {
         const text = '# Claude Code 必須要素\nname: commit-message\ndescription: ...';
-        assertEquals(isSkippableSession(text), true);
+        assert(isSkippableSession(text));
       });
     });
   });
@@ -138,7 +138,7 @@ describe('isSkippableSession', () => {
       it('T-SS-09: Then: [正常] - true を返す（セッションをスキップ）', () => {
         const text =
           '// Copyright (c) 2025 atsushifx\n//\nYou are a Git commit message generator.\n- Analyze the provided logs and diff.';
-        assertEquals(isSkippableSession(text), true);
+        assert(isSkippableSession(text));
       });
     });
   });
