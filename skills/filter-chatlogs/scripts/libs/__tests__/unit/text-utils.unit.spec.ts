@@ -10,7 +10,7 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/libs/testing/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ─── Helpers
 // functions
