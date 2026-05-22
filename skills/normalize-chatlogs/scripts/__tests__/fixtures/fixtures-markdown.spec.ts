@@ -12,11 +12,13 @@
 
 // Deno Test module
 import { assertEquals } from '@std/assert';
-import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { describe, it } from '@std/testing/bdd';
 
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
 // test target
 import { generateSegmentFile, segmentChatlogs, START_BODY_HEADING } from '../../modules/segment-io.ts';
@@ -53,95 +55,59 @@ async function _loadOutputSegment(filePath: string): Promise<Segment> {
   };
 }
 
-/**
- * fixtures ディレクトリ下の output-<N>.md を番号順に収集して返す。
- * N は 1 から始まる整数とする。
- */
-async function _collectOutputFiles(dir: string): Promise<string[]> {
-  const files: string[] = [];
-  for await (const entry of Deno.readDir(dir)) {
-    if (entry.isFile && /^output-\d+\.md$/.test(entry.name)) {
-      files.push(`${dir}/${entry.name}`);
-    }
-  }
-  return files.sort((a, b) => {
-    const _numA = parseInt(a.match(/output-(\d+)\.md$/)![1]);
-    const _numB = parseInt(b.match(/output-(\d+)\.md$/)![1]);
-    return _numA - _numB;
-  });
-}
-
-/** fixtures ルートディレクトリ下のサブディレクトリ名を収集して返す */
-async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
-  const dirs: string[] = [];
-  for await (const entry of Deno.readDir(rootDir)) {
-    if (entry.isDirectory) {
-      dirs.push(entry.name);
-    }
-  }
-  return dirs.sort();
-}
-
 // ─── ファイル駆動 fixtures-markdown tests ─────────────────────────────────────
 
-const _fixtureDirs = await _collectFixtureDirs(RUNAI_MARKDOWN_DIR);
+const _fixtureDirs = await findFixtureDirs(RUNAI_MARKDOWN_DIR);
+const _fixtureEntries = await Promise.all(
+  _fixtureDirs.map(async (_dirName) => {
+    const _bodyDir = `${RUNAI_MARKDOWN_DIR}/${_dirName}`;
+    const _bodyOutputFiles = await collectOutputFiles(_bodyDir);
+    return { _dirName, _bodyDir, _bodyOutputFiles };
+  }),
+);
 
-for (const _dirName of _fixtureDirs) {
-  const _bodyDir = `${RUNAI_MARKDOWN_DIR}/${_dirName}`;
-  const _inputPath = `${_bodyDir}/input.md`;
-  const _bodyOutputFiles = await _collectOutputFiles(_bodyDir);
+describe('generateSegmentFile — runai-markdown', () => {
+  describe('Given: runai-markdown/* の各 fixture', () => {
+    describe('When: generateSegmentFile(segment) を呼び出す', () => {
+      for (const { _dirName, _bodyDir, _bodyOutputFiles } of _fixtureEntries) {
+        const _inputPath = `${_bodyDir}/input.md`;
 
-  // output-*.md が存在しないディレクトリはフィクスチャ欠損としてテスト失敗させる
-  if (_bodyOutputFiles.length === 0) {
-    describe(`generateSegmentFile — runai-markdown/${_dirName}`, () => {
-      it(`SFM-${_dirName}-fixture-error: output-*.md が存在しない（フィクスチャ定義漏れ）`, () => {
-        throw new Error(
-          `runai-markdown/${_dirName} に output-*.md がありません。`
-            + `正常系なら output-N.md を、異常系なら runai-segments/error/ で管理してください。`,
-        );
-      });
-    });
-    continue;
-  }
+        if (_bodyOutputFiles.length === 0) {
+          it(`SFM-${_dirName}-fixture-error: output-*.md が存在しない（フィクスチャ定義漏れ）`, () => {
+            throw new Error(
+              `runai-markdown/${_dirName} に output-*.md がありません。`
+                + `正常系なら output-N.md を、異常系なら runai-segments/error/ で管理してください。`,
+            );
+          });
+          continue;
+        }
 
-  describe(`generateSegmentFile — runai-markdown/${_dirName}`, () => {
-    describe(`Given: ${_dirName}/input.md と ${_bodyOutputFiles.length} 件の body fixture`, () => {
-      let _segments: Segment[];
-      let _expectedSegments: Segment[];
-      let _bodyFixtureContents: string[];
-      let _mockHandle: ReturnType<typeof installCommandMock>;
-
-      beforeEach(async () => {
-        _expectedSegments = await Promise.all(_bodyOutputFiles.map(_loadOutputSegment));
-        _bodyFixtureContents = await Promise.all(
-          _bodyOutputFiles.map((f) => readTextFile(f)),
-        );
-
-        const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
-        _mockHandle = installCommandMock(makeSuccessMock(_stdout));
-
-        const _inputContent = await readTextFile(_inputPath);
-        const _result = await segmentChatlogs(_inputPath, _inputContent);
-        _segments = _result ?? [];
-      });
-
-      afterEach(() => {
-        _mockHandle.restore();
-      });
-
-      describe('When: generateSegmentFile(segment) を呼び出す', () => {
         for (let _i = 0; _i < _bodyOutputFiles.length; _i++) {
           const _idx = _i;
           const _n = _idx + 1;
 
-          it(`SFM-${_dirName}-${_n}-body: 生成した本文が runai-markdown/output-${_n} の START_BODY_HEADING 以降と完全一致する`, () => {
-            const _generated = generateSegmentFile(_segments[_idx]);
-            const _actual = _extractBodyFromFixture(_generated);
-            const _expected = _extractBodyFromFixture(_bodyFixtureContents[_idx]);
-            assertEquals(_actual, _expected);
+          it(`SFM-${_dirName}-${_n}-body: 生成した本文が runai-markdown/output-${_n} の START_BODY_HEADING 以降と完全一致する`, async () => {
+            const _expectedSegments = await Promise.all(_bodyOutputFiles.map(_loadOutputSegment));
+            const _bodyFixtureContents = await Promise.all(_bodyOutputFiles.map((f) => readTextFile(f)));
+
+            const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
+            const _mockHandle = installCommandMock(makeSuccessMock(_stdout));
+
+            try {
+              const _inputContent = await readTextFile(_inputPath);
+              const _result = await segmentChatlogs(_inputPath, _inputContent);
+              const _segments = _result ?? [];
+
+              const _generated = generateSegmentFile(_segments[_idx]);
+              const _actual = _extractBodyFromFixture(_generated);
+              const _expected = _extractBodyFromFixture(_bodyFixtureContents[_idx]);
+              assertEquals(_actual, _expected);
+            } finally {
+              _mockHandle.restore();
+            }
           });
         }
-      });
+      }
     });
   });
-}
+});
