@@ -10,7 +10,7 @@
 import { expandGlob } from '@std/fs';
 
 // -- internal --
-import type { GlobProvider } from '../../types/providers.types.ts';
+import type { DirProvider, GlobProvider } from '../../types/providers.types.ts';
 import { normalizePath } from '../path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
@@ -31,25 +31,63 @@ export interface FindEntriesOptions {
   glob?: GlobProvider;
 }
 
+/** findDirectoriesFlat のオプション */
+export interface FindDirectoriesFlatOptions {
+  glob?: GlobProvider;
+}
+
+/** findDirectories のオプション */
+export interface FindDirectoriesOptions {
+  glob?: GlobProvider;
+}
+
 // ─────────────────────────────────────────────
 // Public functions
 // ─────────────────────────────────────────────
 
 /**
  * 指定ディレクトリ直下のサブディレクトリパス一覧をソートして返す。
- * ディレクトリ不存在・権限エラー時は空配列を返す（例外なし）。
+ * ディレクトリが存在しない場合は空配列を返す。権限エラー等は再スローする。
  */
-export async function findDirectories(dir: string): Promise<string[]> {
+export const findDirectoriesFlat = async (
+  dir: string,
+  options?: FindDirectoriesFlatOptions,
+): Promise<string[]> => {
+  const _glob = options?.glob ?? _defaultGlob;
   try {
-    const _entries = await Array.fromAsync(Deno.readDir(dir));
-    return _entries
-      .filter((e) => e.isDirectory)
-      .map((e) => `${dir}/${e.name}`)
-      .sort();
-  } catch {
+    const _dirs = await _glob(`${dir}/*/`);
+    return _dirs.sort();
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) { throw e; }
     return [];
   }
-}
+};
+
+/**
+ * dir 以下を再帰的に走査し、dirProvider が true を返したディレクトリのみを
+ * 絶対パスのリストとして辞書順ソートして返す。
+ *
+ * dirProvider が true を返したディレクトリはそこで走査を打ち切る（内部を再帰しない）。
+ * dirProvider が false を返したディレクトリは結果に含めず、子ディレクトリを再帰的に検索する。
+ */
+export const findDirectories = async (
+  dir: string,
+  dirProvider: DirProvider,
+  options?: FindDirectoriesOptions,
+): Promise<string[]> => {
+  const _glob = options?.glob;
+  const _dirNorm = normalizePath(dir);
+
+  const _walk = async (currentDir: string): Promise<string[]> => {
+    const _subs = await findDirectoriesFlat(currentDir, { glob: _glob });
+    const _nested = await Promise.all(
+      _subs.map(async (sub) => (await dirProvider(sub)) ? [sub] : _walk(sub)),
+    );
+    return _nested.flat();
+  };
+
+  return (await _walk(_dirNorm)).sort();
+};
 
 /**
  * ディレクトリパスの配列を対象に、指定拡張子のファイルを glob で一括収集する。
