@@ -1,5 +1,5 @@
 // src: skills/_scripts/libs/file-ops/__tests__/unit/find-entries.unit.spec.ts
-// @(#): findDirectories / findEntries のユニットテスト
+// @(#): findDirectoriesFlat / findEntries のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -7,18 +7,21 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assert, assertEquals } from '@std/assert';
+import { assert, assertEquals, assertRejects } from '@std/assert';
 import { afterAll, beforeAll, describe, it } from '@std/testing/bdd';
 
 // -- test target --
-import type { GlobProvider } from '../../../../types/providers.types.ts';
-import { findDirectories, findEntries } from '../../find-entries.ts';
+import type { DirProvider, GlobProvider } from '../../../../types/providers.types.ts';
+import { findDirectories, findDirectoriesFlat, findEntries } from '../../find-entries.ts';
+
+// -- Helpers --
+import { normalizePath } from '../../../../libs/path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // T-FE-01: findDirectories - サブディレクトリ一覧取得
 // ─────────────────────────────────────────────
 
-describe('findDirectories', () => {
+describe('findDirectoriesFlat', () => {
   describe('Given: 直下に 3 つのサブディレクトリがある一時ディレクトリ', () => {
     let _tmpDir: string;
 
@@ -33,16 +36,16 @@ describe('findDirectories', () => {
       await Deno.remove(_tmpDir, { recursive: true });
     });
 
-    describe('When: findDirectories(tmpDir) を呼び出す', () => {
+    describe('When: findDirectoriesFlat(tmpDir) を呼び出す', () => {
       describe('Then: T-FE-01 - ソート済みフルパス 3 件が返される', () => {
         it('T-FE-01-01: サブディレクトリのフルパスが 3 件返される', async () => {
-          const _result = await findDirectories(_tmpDir);
+          const _result = await findDirectoriesFlat(_tmpDir);
 
           assertEquals(_result.length, 3);
         });
 
         it('T-FE-01-02: 返却パスが辞書順にソートされている', async () => {
-          const _result = await findDirectories(_tmpDir);
+          const _result = await findDirectoriesFlat(_tmpDir);
 
           const _sorted = [..._result].sort();
           assertEquals(_result, _sorted);
@@ -52,14 +55,14 @@ describe('findDirectories', () => {
   });
 
   // ─────────────────────────────────────────────
-  // T-FE-03: findDirectories - 存在しないパスで空配列（例外なし）
+  // T-FE-03: findDirectoriesFlat - 存在しないパスで空配列（例外なし）
   // ─────────────────────────────────────────────
 
   describe('Given: 存在しないディレクトリパス', () => {
-    describe('When: findDirectories("/nonexistent/path") を呼び出す', () => {
+    describe('When: findDirectoriesFlat("/nonexistent/path") を呼び出す', () => {
       describe('Then: T-FE-03 - 例外なしで空配列が返される', () => {
         it('T-FE-03-01: 空配列が返され例外はスローされない', async () => {
-          const _result = await findDirectories('/nonexistent/path/12345');
+          const _result = await findDirectoriesFlat('/nonexistent/path/12345');
 
           assertEquals(_result, []);
         });
@@ -68,7 +71,7 @@ describe('findDirectories', () => {
   });
 
   // ─────────────────────────────────────────────
-  // T-FE-02: findDirectories - ファイルを除外してディレクトリのみ返す
+  // T-FE-02: findDirectoriesFlat - ファイルを除外してディレクトリのみ返す
   // ─────────────────────────────────────────────
 
   describe('Given: ディレクトリと通常ファイルが混在する一時ディレクトリ', () => {
@@ -84,12 +87,54 @@ describe('findDirectories', () => {
       await Deno.remove(_tmpDir2, { recursive: true });
     });
 
-    describe('When: findDirectories(tmpDir) を呼び出す', () => {
+    describe('When: findDirectoriesFlat(tmpDir) を呼び出す', () => {
       describe('Then: T-FE-02 - ディレクトリのみが返される（ファイルは含まれない）', () => {
         it('T-FE-02-01: 返却件数が 1 件（ディレクトリのみ）', async () => {
-          const _result = await findDirectories(_tmpDir2);
+          const _result = await findDirectoriesFlat(_tmpDir2);
 
           assertEquals(_result.length, 1);
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-10: findDirectoriesFlat - glob オプション注入
+  // ─────────────────────────────────────────────
+
+  describe('Given: glob オプションを渡す', () => {
+    describe('When: findDirectoriesFlat(dir, { glob }) を呼び出す', () => {
+      describe('Then: T-FE-10 - glob の結果をソートして返す', () => {
+        it('T-FE-10-01: glob が返したパスをソートして返す', async () => {
+          const _mockGlob: GlobProvider = (_pattern: string) => Promise.resolve(['/base/beta/', '/base/alpha/']);
+          const _result = await findDirectoriesFlat('/base', { glob: _mockGlob });
+          assertEquals(_result, ['/base/alpha/', '/base/beta/']);
+        });
+
+        it('T-FE-10-02: glob が Deno.errors.NotFound を投げると空配列を返す', async () => {
+          const _notFoundGlob: GlobProvider = (_pattern: string) =>
+            Promise.reject(new Deno.errors.NotFound('no such dir'));
+          const _result = await findDirectoriesFlat('/base', { glob: _notFoundGlob });
+          assertEquals(_result, []);
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-11: findDirectoriesFlat - NotFound 以外のエラーは再スロー
+  // ─────────────────────────────────────────────
+
+  describe('Given: glob が PermissionDenied を投げる', () => {
+    describe('When: findDirectoriesFlat(dir, { glob }) を呼び出す', () => {
+      describe('Then: T-FE-11 - PermissionDenied がそのままスローされる', () => {
+        it('T-FE-11-01: Deno.errors.PermissionDenied が再スローされる', async () => {
+          const _permGlob: GlobProvider = (_pattern: string) =>
+            Promise.reject(new Deno.errors.PermissionDenied('access denied'));
+          await assertRejects(
+            () => findDirectoriesFlat('/base', { glob: _permGlob }),
+            Deno.errors.PermissionDenied,
+          );
         });
       });
     });
@@ -257,6 +302,219 @@ describe('findEntries', () => {
       describe('Then: T-FE-07 - 空配列が返される（glob は呼ばれない）', () => {
         it('T-FE-07-01: 空配列が返される', async () => {
           const _result = await findEntries([], '.md');
+
+          assertEquals(_result, []);
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// T-FE-12〜T-FE-18: findDirectories
+// ─────────────────────────────────────────────
+
+describe('findDirectories', () => {
+  // ─────────────────────────────────────────────
+  // T-FE-12: dirProvider が true を返す1件 → 絶対パスで返される
+  // ─────────────────────────────────────────────
+
+  describe('Given: 直下に 1 つのサブディレクトリがあり、dirProvider が true を返す', () => {
+    let _tmpDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = await Deno.makeTempDir();
+      await Deno.mkdir(`${_tmpDir}/alpha`);
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findDirectories(tmpDir, provider) を呼び出す', () => {
+      describe('Then: T-FE-12 - そのディレクトリが絶対パスで返される', () => {
+        it('T-FE-12-01: 返却件数が 1 件', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assertEquals(_result.length, 1);
+        });
+
+        it('T-FE-12-02: 返却パスがディレクトリの絶対パスである', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assert(_result[0].includes('alpha'));
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-13: dirProvider が true のディレクトリ配下にさらにサブディレクトリがある → 内部は再帰しない
+  // ─────────────────────────────────────────────
+
+  describe('Given: サブディレクトリの中にさらにサブディレクトリがあり、dirProvider が true を返す', () => {
+    let _tmpDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = await Deno.makeTempDir();
+      await Deno.mkdir(`${_tmpDir}/parent`);
+      await Deno.mkdir(`${_tmpDir}/parent/child`);
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findDirectories(tmpDir, provider) を呼び出す（provider は常に true）', () => {
+      describe('Then: T-FE-13 - parent のみ返され、child は含まれない', () => {
+        it('T-FE-13-01: 返却件数が 1 件（parent のみ）', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assertEquals(_result.length, 1);
+        });
+
+        it('T-FE-13-02: 返却パスに child が含まれない', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assert(!_result.some((p) => p.includes('child')));
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-14: dirProvider が false の親 → その子が true → 子のみ結果に含まれる
+  // ─────────────────────────────────────────────
+
+  describe('Given: 親ディレクトリで false、子ディレクトリで true を返す dirProvider', () => {
+    let _tmpDir: string;
+    let _parentDir: string;
+    let _childDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = await Deno.makeTempDir();
+      await Deno.mkdir(`${_tmpDir}/parent`);
+      await Deno.mkdir(`${_tmpDir}/parent/child`);
+      _parentDir = normalizePath(`${_tmpDir}/parent`);
+      _childDir = normalizePath(`${_tmpDir}/parent/child`);
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findDirectories(tmpDir, provider) を呼び出す', () => {
+      describe('Then: T-FE-14 - 子ディレクトリのみ返され、親は含まれない', () => {
+        it('T-FE-14-01: 返却件数が 1 件（child のみ）', async () => {
+          const _provider: DirProvider = (d) => Promise.resolve(d === _childDir);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assertEquals(_result.length, 1);
+        });
+
+        it('T-FE-14-02: 返却パスが child を含む', async () => {
+          const _provider: DirProvider = (d) => Promise.resolve(d === _childDir);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assert(_result[0].includes('child'));
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-15: 複数 true → 結果が辞書順ソートされている
+  // ─────────────────────────────────────────────
+
+  describe('Given: 直下に 3 つのサブディレクトリがあり、dirProvider が全て true を返す', () => {
+    let _tmpDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = await Deno.makeTempDir();
+      await Deno.mkdir(`${_tmpDir}/gamma`);
+      await Deno.mkdir(`${_tmpDir}/alpha`);
+      await Deno.mkdir(`${_tmpDir}/beta`);
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findDirectories(tmpDir, provider) を呼び出す', () => {
+      describe('Then: T-FE-15 - 返却配列が辞書順にソートされている', () => {
+        it('T-FE-15-01: 3 件が辞書順で返される', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          const _sorted = [..._result].sort();
+          assertEquals(_result, _sorted);
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-16: glob オプションを注入 → モック glob の結果が使われる
+  // ─────────────────────────────────────────────
+
+  describe('Given: glob オプションを渡す', () => {
+    describe('When: findDirectories(dir, provider, { glob }) を呼び出す', () => {
+      describe('Then: T-FE-16 - glob の結果に対して dirProvider が適用される', () => {
+        it('T-FE-16-01: モック glob が返したパスのうち dirProvider が true を返したものだけ返される', async () => {
+          const _mockGlob = (pattern: string) =>
+            pattern === '/base/*/'
+              ? Promise.resolve(['/base/beta/', '/base/alpha/'])
+              : Promise.resolve([]);
+          const _provider: DirProvider = (d) => Promise.resolve(d === '/base/alpha/');
+          const _result = await findDirectories('/base', _provider, { glob: _mockGlob });
+
+          assertEquals(_result, ['/base/alpha/']);
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-17: サブディレクトリなし → 空配列が返される [Edge]
+  // ─────────────────────────────────────────────
+
+  describe('Given: サブディレクトリが存在しない空ディレクトリ', () => {
+    let _tmpDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = await Deno.makeTempDir();
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findDirectories(tmpDir, provider) を呼び出す', () => {
+      describe('Then: T-FE-17 - 空配列が返される', () => {
+        it('[Edge] T-FE-17-01: 空配列が返される', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories(_tmpDir, _provider);
+
+          assertEquals(_result, []);
+        });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-FE-18: 存在しないパス → 例外なしで空配列が返される [Edge]
+  // ─────────────────────────────────────────────
+
+  describe('Given: 存在しないディレクトリパス', () => {
+    describe('When: findDirectories("/nonexistent/path") を呼び出す', () => {
+      describe('Then: T-FE-18 - 例外なしで空配列が返される', () => {
+        it('[Edge] T-FE-18-01: 空配列が返され例外はスローされない', async () => {
+          const _provider: DirProvider = (_dir) => Promise.resolve(true);
+          const _result = await findDirectories('/nonexistent/path/99999', _provider);
 
           assertEquals(_result, []);
         });
