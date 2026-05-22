@@ -33,14 +33,14 @@ import { writeOutput } from '../../file-io.ts';
  * @see writeOutput
  */
 describe('writeOutput', () => {
-  let renameStub: Stub | null = null;
-  let writeTextFileStub: Stub | null = null;
+  let denoRenameStub: Stub | null = null;
+  let denoWriteTextFileStub: Stub | null = null;
 
   afterEach(() => {
-    renameStub?.restore();
-    renameStub = null;
-    writeTextFileStub?.restore();
-    writeTextFileStub = null;
+    denoRenameStub?.restore();
+    denoRenameStub = null;
+    denoWriteTextFileStub?.restore();
+    denoWriteTextFileStub = null;
   });
 
   /** 正常系: 存在しない出力パスにアトミックにファイルを書き込む */
@@ -49,11 +49,11 @@ describe('writeOutput', () => {
       describe('Then: Task T-13-01 - アトミックなファイル書き込み', () => {
         it('T-13-01-01: true が返り .tmp ファイルに書き込みが行われる', async () => {
           const writtenPaths: string[] = [];
-          writeTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
+          denoWriteTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
             writtenPaths.push(String(path));
             return Promise.resolve();
           });
-          renameStub = stub(Deno, 'rename', () => Promise.resolve());
+          denoRenameStub = stub(Deno, 'rename', () => Promise.resolve());
 
           const result = await writeOutput('output/entry.md', 'content', false);
 
@@ -64,12 +64,12 @@ describe('writeOutput', () => {
 
         it('T-13-01-02: .tmp パスに書き込んでから outputPath にリネームする', async () => {
           const writtenPaths: string[] = [];
-          writeTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
+          denoWriteTextFileStub = stub(Deno, 'writeTextFile', (path: string | URL) => {
             writtenPaths.push(String(path));
             return Promise.resolve();
           });
           const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
+          denoRenameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
             return Promise.resolve();
           });
@@ -89,11 +89,11 @@ describe('writeOutput', () => {
       describe('Then: Task T-13-02 - 既存ファイルのリネームと新規書き込み', () => {
         it('T-13-02-01: 既存ファイルを .old-01.md にリネームしてから書き込み true が返る', async () => {
           const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
+          denoRenameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
             return Promise.resolve();
           });
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
+          denoWriteTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
 
           // バックアップファイルなし → old-01.md に
           const result = await writeOutput(
@@ -110,11 +110,11 @@ describe('writeOutput', () => {
 
         it('T-13-02-02: .old-01.md が既にある場合は .old-02.md にリネームし true が返る', async () => {
           const renamedArgs: Array<[string, string]> = [];
-          renameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
+          denoRenameStub = stub(Deno, 'rename', (from: string | URL, to: string | URL) => {
             renamedArgs.push([String(from), String(to)]);
             return Promise.resolve();
           });
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
+          denoWriteTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
 
           // old-01.md が既存 → old-02.md に
           const result = await writeOutput(
@@ -136,11 +136,11 @@ describe('writeOutput', () => {
     describe('When: writeOutput を呼び出す', () => {
       describe('Then: Task T-13-03 - ドライランモード', () => {
         it('T-13-03-01: Deno.writeTextFile が呼ばれず false が返る', async () => {
-          writeTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
+          denoWriteTextFileStub = stub(Deno, 'writeTextFile', () => Promise.resolve());
 
           const result = await writeOutput('output/dry.md', '## Summary\nbody', true);
 
-          assertEquals((writeTextFileStub as unknown as { calls: unknown[] }).calls.length, 0);
+          assertEquals((denoWriteTextFileStub as unknown as { calls: unknown[] }).calls.length, 0);
           assertEquals(result, false);
         });
       });
@@ -153,7 +153,7 @@ describe('writeOutput', () => {
       describe('When: writeOutput を呼び出す', () => {
         describe('Then: Task T-13-05 - バックアップスロット上限超過で Error をスローする', () => {
           it('T-13-05-01: "too many backups" エラーをスローする', async () => {
-            renameStub = stub(Deno, 'rename', () => Promise.resolve());
+            denoRenameStub = stub(Deno, 'rename', () => Promise.resolve());
             const allSlots = [
               'entry.md',
               ...Array.from({ length: 99 }, (_, i) => `entry.old-${String(i + 1).padStart(2, '0')}.md`),

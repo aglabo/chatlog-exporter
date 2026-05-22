@@ -10,12 +10,8 @@
 // cspell:words aaabbbb
 
 // ─── BDD modules
-import { assert, assertEquals, assertFalse, assertMatch, assertNotEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertNotEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-// stub
-import { stub } from '@std/testing/mock';
-// types
-import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
 import {
@@ -111,111 +107,54 @@ describe('extractSegmentBaseName', () => {
  * `generateOutputFileName` のユニットテストスイート。
  *
  * `<baseName>-<XX>-<hash7>.md` 形式の出力ファイル名を生成する関数の
- * フォーマット・連番・ハッシュのランダム性を検証する。
+ * フォーマット・連番・ハッシュ注入を検証する。
  *
- * hash7 は `<baseName>-<XX>-<timestamp12>-<random8>` の SHA-256 先頭 7 文字。
- * ランダム要素を含むため、`crypto.getRandomValues` をスタブして再現性を担保する。
+ * hash7 は `hashFn` 引数として注入した値が使われる。
+ * `hashFn` 未指定時は `generateHash(baseName, { length: 7 })` で SHA-256 由来の 7 文字ハッシュを返す。
  *
  * テスト ID 範囲: T-06-01-01 〜 T-06-04-01
  *
  * @see generateOutputFileName
  */
 describe('generateOutputFileName', () => {
-  let cryptoStub: Stub | null = null;
-
-  /** 固定バイト列スタブをセットする。テストが自前で restore した場合は null にしておく。 */
-  const _setupCryptoStub = (): void => {
-    cryptoStub = stub(crypto, 'getRandomValues', (arr: ArrayBufferView) => {
-      const u8 = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
-      for (let i = 0; i < u8.length; i++) {
-        u8[i] = i;
-      }
-      return arr;
-    });
-  };
+  let hashFn: () => string;
 
   beforeEach(() => {
-    _setupCryptoStub();
-  });
-
-  afterEach(() => {
-    if (cryptoStub !== null) {
-      cryptoStub.restore();
-      cryptoStub = null;
-    }
+    hashFn = () => 'abc1234';
   });
 
   /** 標準的な chatlog ファイルパスと index から正しいフォーマットのファイル名を返す正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-06-01-01: index=0 のとき <baseName>-01-<hash7>.md 形式のファイル名を返す', async () => {
+    it('[Normal] T-06-01-01: index=0 のとき hashFn 戻り値を使い <baseName>-01-<hash7>.md を返す', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
-      const result = await generateOutputFileName(filePath, 0);
+      const result = await generateOutputFileName(filePath, 0, hashFn);
 
-      assertMatch(result, /^test-file-01-[0-9a-f]{7}\.md$/);
+      assertEquals(result, 'test-file-01-abc1234.md');
     });
 
     it('[Normal] T-06-01-02: index=1 のとき連番が "02" になる', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
-      const result = await generateOutputFileName(filePath, 1);
+      const result = await generateOutputFileName(filePath, 1, hashFn);
 
-      assertMatch(result, /^test-file-02-[0-9a-f]{7}\.md$/);
+      assertEquals(result, 'test-file-02-abc1234.md');
     });
 
     it('[Normal] T-06-01-03: index=9 のとき連番が "10" になる', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
-      const result = await generateOutputFileName(filePath, 9);
+      const result = await generateOutputFileName(filePath, 9, hashFn);
 
-      assertMatch(result, /^test-file-10-[0-9a-f]{7}\.md$/);
-    });
-
-    it('[Normal] T-06-02-01: 同一タイムスタンプと固定ランダム値で常に同じファイル名が返る', async () => {
-      const dateStubs = [
-        stub(Date.prototype, 'getFullYear', () => 2026),
-        stub(Date.prototype, 'getMonth', () => 2),
-        stub(Date.prototype, 'getDate', () => 11),
-        stub(Date.prototype, 'getHours', () => 10),
-        stub(Date.prototype, 'getMinutes', () => 30),
-        stub(Date.prototype, 'getSeconds', () => 0),
-      ];
-
-      try {
-        const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
-
-        const first = await generateOutputFileName(filePath, 0);
-        const second = await generateOutputFileName(filePath, 0);
-
-        assertEquals(first, second);
-        assertMatch(first, /^test-file-01-[0-9a-f]{7}\.md$/);
-      } finally {
-        dateStubs.forEach((s) => s.restore());
-      }
+      assertEquals(result, 'test-file-10-abc1234.md');
     });
 
     it('[Normal] T-06-04-01: ソースの末尾ハッシュを除去したベース名で出力名を生成する', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
 
-      const result = await generateOutputFileName(filePath, 0);
+      const result = await generateOutputFileName(filePath, 0, hashFn);
 
-      assertMatch(result, /^2026-03-11-topic-01-[0-9a-f]{7}\.md$/);
-    });
-  });
-
-  /** crypto.getRandomValues をスタブせず実際の乱数を使うランダム性ケース。 */
-  describe('When: エッジケース', () => {
-    it('[Edge] T-06-03-01: スタブなしで 2 回呼ぶと異なるファイル名が生成される', async () => {
-      cryptoStub!.restore();
-      cryptoStub = null;
-      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
-
-      const first = await generateOutputFileName(filePath, 0);
-      const second = await generateOutputFileName(filePath, 0);
-
-      assertNotEquals(first, second);
-      assertMatch(first, /^test-file-01-[0-9a-f]{7}\.md$/);
-      assertMatch(second, /^test-file-01-[0-9a-f]{7}\.md$/);
+      assertEquals(result, '2026-03-11-topic-01-abc1234.md');
     });
   });
 });
@@ -280,8 +219,13 @@ describe('generateSegmentFile', () => {
 describe('attachFrontmatter', () => {
   /** project フィールドを引き継ぎ、AI 生成フィールドを付加する正常ケース。 */
   describe('When: 正常系', () => {
+    let fm: ChatlogFrontmatter;
+
+    beforeEach(() => {
+      fm = new ChatlogFrontmatter('');
+    });
+
     it('[Normal] T-12-01-01: 出力フロントマターに project: "ci-platform" が含まれる', () => {
-      const fm = new ChatlogFrontmatter('');
       fm.set('project', 'ci-platform');
       fm.set('date', '2026-03-01');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234', summary: 'CI fix' };
@@ -293,7 +237,6 @@ describe('attachFrontmatter', () => {
     });
 
     it('[Normal] T-12-01-02: 出力フロントマターに title・log_id・summary が含まれる', () => {
-      const fm = new ChatlogFrontmatter('');
       fm.set('project', 'ci-platform');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234', summary: 'CI fix' };
       const content = '## Summary\nFix CI';
@@ -306,7 +249,6 @@ describe('attachFrontmatter', () => {
     });
 
     it('[Normal] T-12-03-01: 出力が `---\\n` で始まりフロントマターブロックが `\\n---\\n` で終わる', () => {
-      const fm = new ChatlogFrontmatter('');
       fm.set('project', 'test');
       const segmentMeta = { title: 'T', log_id: 'x', summary: 'S' };
       const content = '## Summary\ntext';
@@ -318,7 +260,6 @@ describe('attachFrontmatter', () => {
     });
 
     it('[Normal] T-12-03-02: コンテンツボディがフロントマターブロックの後に重複なく続く', () => {
-      const fm = new ChatlogFrontmatter('');
       const segmentMeta = { title: 'T', log_id: 'x', summary: 'S' };
       const content = '## Summary\ntext';
 
@@ -331,8 +272,13 @@ describe('attachFrontmatter', () => {
 
   /** frontmatter が空の場合は AI 生成フィールドのみを含むエッジケース。 */
   describe('When: エッジケース', () => {
+    let fm: ChatlogFrontmatter;
+
+    beforeEach(() => {
+      fm = new ChatlogFrontmatter('');
+    });
+
     it('[Edge] T-12-02-01: 出力フロントマターが AI 生成フィールド（title・log_id・summary）のみを含む', () => {
-      const fm = new ChatlogFrontmatter('');
       const segmentMeta = { title: 'Topic', log_id: 'aaabbbb', summary: 'Summary' };
       const content = '## Summary\nTopic content';
 
@@ -354,7 +300,7 @@ describe('attachFrontmatter', () => {
  * Deno.Command をモックして AI 呼び出しを制御する。
  * 正常系・異常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-SC-01-01 〜 T-SC-04-01
+ * テスト ID 範囲: T-SC-01-01 〜 T-SC-05-02
  *
  * @see segmentChatlogs
  */
@@ -362,9 +308,7 @@ describe('segmentChatlogs', () => {
   let mockHandle: CommandMockHandle;
 
   afterEach(() => {
-    if (mockHandle) {
-      mockHandle.restore();
-    }
+    mockHandle?.restore();
   });
 
   /** AI が有効な JSON 配列を返す正常ケース。 */
@@ -467,6 +411,18 @@ describe('segmentChatlogs', () => {
       assertEquals(result?.[0].title, 'Topic 1');
       assertEquals(result?.[9].title, 'Topic 10');
     });
+
+    it('[Edge] T-SC-04-02: AIが空配列 [] を返すとき null を返す（空配列は未処理として扱う）', async () => {
+      // arrange
+      const stdout = new TextEncoder().encode(JSON.stringify([]));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogs('test.md', 'content');
+
+      // assert — parseJsonArray は空配列を null として返すため null になる
+      assertNull(result);
+    });
   });
 });
 
@@ -486,7 +442,7 @@ describe('segmentChatlogsBatch', () => {
   let mockHandle: CommandMockHandle;
 
   afterEach(() => {
-    if (mockHandle) { mockHandle.restore(); }
+    mockHandle?.restore();
   });
 
   describe('When: 正常系', () => {
@@ -509,6 +465,27 @@ describe('segmentChatlogsBatch', () => {
       // assert
       assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', content: 'C1' }]);
       assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', content: 'C2' }]);
+    });
+
+    it('[Normal] T-SCB-01-02: 1ファイルでAIが12セグメントを返すとき先頭10件に制限される（MAX_SEGMENTS上限）', async () => {
+      // arrange
+      const inputs = [{ filePath: 'big.md', content: 'content' }];
+      const manySegments = Array.from({ length: 12 }, (_, i) => ({
+        title: `Topic ${i + 1}`,
+        summary: `Summary ${i + 1}`,
+        content: `Body ${i + 1}`,
+      }));
+      const aiResult = [{ filePath: 'big.md', segments: manySegments }];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      // act
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertEquals(result.get('big.md')?.length, 10);
+      assertEquals(result.get('big.md')?.[0].title, 'Topic 1');
+      assertEquals(result.get('big.md')?.[9].title, 'Topic 10');
     });
   });
 
@@ -592,9 +569,19 @@ describe('segmentChatlogsBatch', () => {
  */
 describe('writeSegmentToFile', () => {
   let outputDir: string;
+  let stats: Stats;
+  let filePath: string;
+  let segment: { title: string; summary: string; content: string };
+  let frontmatter: ChatlogFrontmatter;
+  let hashFn: () => string;
 
   beforeEach(async () => {
     outputDir = await Deno.makeTempDir({ prefix: 'write-segment-test-' });
+    stats = { success: 0, skip: 0, fail: 0 };
+    filePath = `${outputDir}/sample.md`;
+    segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
+    frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
+    hashFn = () => 'testhash';
   });
 
   afterEach(async () => {
@@ -604,13 +591,6 @@ describe('writeSegmentToFile', () => {
   /** 正常系: ファイル書き込みと stats 更新を検証する。 */
   describe('When: 正常系', () => {
     it('[Normal] T-SIO-WS-01: dryRun=false で outputFileName のファイルが書き込まれ stats.success が 1 増える', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
-
       // act
       await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn);
 
@@ -621,15 +601,8 @@ describe('writeSegmentToFile', () => {
     });
 
     it('[Normal] T-SIO-WS-02: 既存ファイルがある場合 .old-01.md にバックアップされ新ファイルが書かれる', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
+      // arrange — 既存ファイルを事前作成
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
-
-      // 既存ファイルを事前作成
       await Deno.writeTextFile(expectedFile, 'old content');
 
       // act
@@ -637,19 +610,11 @@ describe('writeSegmentToFile', () => {
 
       // assert
       assertEquals(stats.success, 1);
-      const backupFile = `${outputDir}/sample-01-testhash.old-01.md`;
-      await assertFileExist(backupFile);
+      await assertFileExist(`${outputDir}/sample-01-testhash.old-01.md`);
       await assertFileExist(expectedFile);
     });
 
     it('[Normal] T-SIO-WS-04: 返されたパスが元の filePath とは異なる（入力ファイルを上書きしていない）', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
-
       // act
       const returnedPath = await writeSegmentToFile(
         outputDir,
@@ -671,16 +636,8 @@ describe('writeSegmentToFile', () => {
   /** 異常系: outputPath が filePath を含む場合は ChatlogError をスローする。 */
   describe('When: 異常系', () => {
     it('[Error] T-SIO-WS-05: outputPath が filePath を含むとき ChatlogError(ForbiddenOutput) をスローする', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
       // filePath を outputDir として渡すと outputPath = `${filePath}/${outputFileName}` になり
       // outputPath.includes(filePath) が true になる
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
-
-      // act / assert
       const err = await assertRejects(
         () => writeSegmentToFile(filePath, filePath, 0, segment, frontmatter, false, stats, hashFn),
         ChatlogError,
@@ -691,14 +648,7 @@ describe('writeSegmentToFile', () => {
 
   /** エッジケース: dryRun=true のとき stats が増えないことを検証する。 */
   describe('When: エッジケース', () => {
-    it('[Normal] T-SIO-WS-03: dryRun=true のとき stats.success が増えない', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
-
+    it('[Edge] T-SIO-WS-03: dryRun=true のとき stats.success が増えない', async () => {
       // act
       await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, true, stats, hashFn);
 
@@ -707,41 +657,24 @@ describe('writeSegmentToFile', () => {
     });
 
     it('[Edge] T-SIO-WS-06: old-98.md が存在するとき old-99.md にバックアップして成功する', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
+      // arrange — old-98.md を事前作成（これが最大 index → next=99）
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
-      const backup98 = `${outputDir}/sample-01-testhash.old-98.md`;
-
-      // old-98.md を事前作成（これが最大 index → next=99）
       await Deno.writeTextFile(expectedFile, 'existing content');
-      await Deno.writeTextFile(backup98, 'backup 98 content');
+      await Deno.writeTextFile(`${outputDir}/sample-01-testhash.old-98.md`, 'backup 98 content');
 
       // act
       await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn);
 
       // assert
-      const backup99 = `${outputDir}/sample-01-testhash.old-99.md`;
-      await assertFileExist(backup99);
+      await assertFileExist(`${outputDir}/sample-01-testhash.old-99.md`);
       assertEquals(stats.success, 1);
     });
 
     it('[Error] T-SIO-WS-07: old-99.md が存在するとき TooManyBackups エラーをスローする', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0 };
-      const filePath = `${outputDir}/sample.md`;
-      const segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
-      const frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
-      const hashFn = () => 'testhash';
+      // arrange — old-99.md を事前作成（next=100 > 99 → エラー）
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
-      const backup99 = `${outputDir}/sample-01-testhash.old-99.md`;
-
-      // old-99.md を事前作成（next=100 > 99 → エラー）
       await Deno.writeTextFile(expectedFile, 'existing content');
-      await Deno.writeTextFile(backup99, 'backup 99 content');
+      await Deno.writeTextFile(`${outputDir}/sample-01-testhash.old-99.md`, 'backup 99 content');
 
       // act / assert
       const err = await assertRejects(

@@ -15,7 +15,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { processChunk } from '../../classify-chatlogs.ts';
 
 // utils
-import { findDirectories } from '../../../../_scripts/libs/file-ops/find-entries.ts';
+import { findDirectoriesFlat } from '../../../../_scripts/libs/file-ops/find-entries.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
 // classes
@@ -110,7 +110,7 @@ for (const _relPath of _fixtureDirs) {
             );
 
             // 移動先ディレクトリを確認してプロジェクト名を取得
-            const _dirs = await findDirectories(_tempDir);
+            const _dirs = await findDirectoriesFlat(_tempDir);
             const _movedProject = _dirs.length > 0 ? _dirs[0].slice(_tempDir.length + 1) : 'misc';
 
             if (_expectedOutput.expected_project !== undefined) {

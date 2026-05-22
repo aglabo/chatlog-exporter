@@ -10,6 +10,7 @@ import { expandGlob } from '@std/fs';
 
 import type { GlobProvider } from '../../types/providers.types.ts';
 import { normalizePath } from '../path-utils/path-utils.ts';
+import { findDirectoriesFlat } from './find-entries.ts';
 
 // ─────────────────────────────────────────────
 // 型定義
@@ -40,11 +41,6 @@ const _findFileFlats = async (dir: string, ext: string, glob: GlobProvider): Pro
   return await glob(`${dir}/*${ext}`);
 };
 
-/** `dir` 直下のサブディレクトリパス一覧を返す。 */
-const _findDirFlat = async (dir: string, glob: GlobProvider): Promise<string[]> => {
-  return await glob(`${dir}/*/`);
-};
-
 /**
  * ディレクトリ `dir` 配下の `ext` ファイルパスを再帰的に収集し、辞書順ソートして返す。
  * 存在しないディレクトリを渡した場合は空配列を返す（例外なし）。
@@ -67,7 +63,10 @@ export const findFiles = async (
   const _queue = [dir];
   while (_queue.length > 0) {
     const current = _queue.shift()!;
-    const [files, dirs] = await Promise.all([_findFileFlats(current, _ext, _glob), _findDirFlat(current, _glob)]);
+    const [files, dirs] = await Promise.all([
+      _findFileFlats(current, _ext, _glob),
+      findDirectoriesFlat(current, { glob: _glob }),
+    ]);
     _all.push(...files);
     _queue.push(...dirs);
   }

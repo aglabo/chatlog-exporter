@@ -28,7 +28,7 @@ type _ParsedField = keyof NormalizeParsedConfig;
  *
  * NormalizeParsedConfig にデフォルト値を適用して NormalizeConfig を生成する処理を検証する。
  *
- * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-04
+ * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-06
  *
  * @see buildConfig
  */
@@ -81,6 +81,32 @@ describe('buildConfig', () => {
       });
     });
   });
+
+  /** 境界値・defaults 明示指定など特殊なケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-NC-BC-05-01: parsed に全フィールドが揃っているとき defaults は完全に上書きされる', () => {
+      const parsed: NormalizeParsedConfig = {
+        chatlogsDir: '/full',
+        baseDir: './base',
+        agent: 'claude',
+        period: '2026-03',
+        dryRun: true,
+        concurrency: 8,
+        normalizeDir: './out',
+        configFile: './config.yaml',
+      };
+      const result = buildConfig(parsed);
+      assertEquals(result.concurrency, 8);
+      assertEquals(result.dryRun, true);
+      assertEquals(result.normalizeDir, './out');
+    });
+
+    it('[Edge] T-NC-BC-06-01: defaults を明示指定したとき parsed がない値は defaults が適用される', () => {
+      const result = buildConfig({}, { concurrency: 16, dryRun: true, normalizeDir: './custom' });
+      assertEquals(result.concurrency, 16);
+      assertEquals(result.dryRun, true);
+    });
+  });
 });
 
 /**
@@ -89,7 +115,7 @@ describe('buildConfig', () => {
  * CLI 引数から NormalizeParsedConfig への変換を検証する。
  * parseArgs は全フィールドを undefined として返し、デフォルト値は buildConfig で適用する。
  *
- * テスト ID 範囲: T-NC-PA-01 〜 T-NC-PA-12
+ * テスト ID 範囲: T-NC-PA-01 〜 T-NC-PA-14
  *
  * @see parseArgs
  */
@@ -245,6 +271,17 @@ describe('parseArgs', () => {
           Error,
         );
       });
+    });
+  });
+
+  /** 境界値・重複オプションなど特殊なケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-NC-PA-13-01: --concurrency 0 → concurrency が 0 になる（最小境界値）', () => {
+      assertEquals(parseArgs(['--concurrency', '0']).concurrency, 0);
+    });
+
+    it('[Edge] T-NC-PA-14-01: 同じオプションを 2 回渡したとき後の値が採用される', () => {
+      assertEquals(parseArgs(['--concurrency', '4', '--concurrency', '8']).concurrency, 8);
     });
   });
 });

@@ -42,15 +42,6 @@ export const findFixtureDirs = async (
   isFixtureDir: IsFixtureDirProvider = defaultIsFixtureDir,
 ): Promise<string[]> => {
   const _rootNorm = normalizePath(rootDir);
-
-  const _walk = async (dir: string): Promise<string[]> => {
-    const subs = await findDirectories(dir);
-    const nested = await Promise.all(
-      subs.map(async (sub) => (await isFixtureDir(sub)) ? [sub] : _walk(sub)),
-    );
-    return nested.flat();
-  };
-
-  const _abs = await _walk(_rootNorm);
-  return _abs.map((p) => p.slice(_rootNorm.length + 1)).sort();
+  const _abs = await findDirectories(_rootNorm, isFixtureDir);
+  return _abs.map((p) => p.slice(_rootNorm.length + 1));
 };

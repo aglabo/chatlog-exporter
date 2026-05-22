@@ -13,11 +13,13 @@
 
 // Deno Test module
 import { assertEquals } from '@std/assert';
-import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { describe, it } from '@std/testing/bdd';
 
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
 // test target
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -78,99 +80,62 @@ function _buildOutput(
   });
 }
 
-/**
- * fixtures ディレクトリ下の output-<N>.md を番号順に収集して返す。
- * N は 1 から始まる整数とする。
- */
-async function _collectOutputFiles(dir: string): Promise<string[]> {
-  const files: string[] = [];
-  for await (const entry of Deno.readDir(dir)) {
-    if (entry.isFile && /^output-\d+\.md$/.test(entry.name)) {
-      files.push(`${dir}/${entry.name}`);
-    }
-  }
-  return files.sort((a, b) => {
-    const _numA = parseInt(a.match(/output-(\d+)\.md$/)![1]);
-    const _numB = parseInt(b.match(/output-(\d+)\.md$/)![1]);
-    return _numA - _numB;
-  });
-}
-
-/** fixtures ルートディレクトリ下のサブディレクトリ名を収集して返す */
-async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
-  const dirs: string[] = [];
-  for await (const entry of Deno.readDir(rootDir)) {
-    if (entry.isDirectory) {
-      dirs.push(entry.name);
-    }
-  }
-  return dirs.sort();
-}
-
 // ─── ファイル駆動 fixtures-frontmatter tests ──────────────────────────────────
 
-const _fixtureDirs = await _collectFixtureDirs(RUNAI_FRONTMATTER_DIR);
+const _fixtureDirs = await findFixtureDirs(RUNAI_FRONTMATTER_DIR);
+const _fixtureEntries = await Promise.all(
+  _fixtureDirs.map(async (_dirName) => {
+    const _frontmatterDir = `${RUNAI_FRONTMATTER_DIR}/${_dirName}`;
+    const _outputFiles = await collectOutputFiles(_frontmatterDir);
+    return { _dirName, _frontmatterDir, _outputFiles };
+  }),
+);
 
-for (const _dirName of _fixtureDirs) {
-  const _frontmatterDir = `${RUNAI_FRONTMATTER_DIR}/${_dirName}`;
-  const _inputPath = `${_frontmatterDir}/input.md`;
-  const _outputFiles = await _collectOutputFiles(_frontmatterDir);
+describe('attachFrontmatter — runai-frontmatter', () => {
+  describe('Given: runai-frontmatter/* の各 fixture', () => {
+    describe('When: attachFrontmatter(generateSegmentFile(segment), entry, segmentMeta) を呼び出す', () => {
+      for (const { _dirName, _frontmatterDir, _outputFiles } of _fixtureEntries) {
+        const _inputPath = `${_frontmatterDir}/input.md`;
 
-  // output-*.md が存在しないディレクトリはフィクスチャ欠損としてテスト失敗させる
-  if (_outputFiles.length === 0) {
-    describe(`attachFrontmatter — runai-frontmatter/${_dirName}`, () => {
-      it(`SFF-${_dirName}-fixture-error: output-*.md が存在しない（フィクスチャ定義漏れ）`, () => {
-        throw new Error(
-          `runai-frontmatter/${_dirName} に output-*.md がありません。`
-            + `正常系なら output-N.md を、異常系なら runai-segments/error/ で管理してください。`,
-        );
-      });
-    });
-    continue;
-  }
+        if (_outputFiles.length === 0) {
+          it(`SFF-${_dirName}-fixture-error: output-*.md が存在しない（フィクスチャ定義漏れ）`, () => {
+            throw new Error(
+              `runai-frontmatter/${_dirName} に output-*.md がありません。`
+                + `正常系なら output-N.md を、異常系なら runai-segments/error/ で管理してください。`,
+            );
+          });
+          continue;
+        }
 
-  describe(`attachFrontmatter — runai-frontmatter/${_dirName}`, () => {
-    describe(`Given: ${_dirName}/input.md と ${_outputFiles.length} 件の frontmatter fixture`, () => {
-      let _segments: Segment[];
-      let _expectedSegments: Segment[];
-      let _fixtureContents: string[];
-      let _entry: ChatlogEntry;
-      let _mockHandle: ReturnType<typeof installCommandMock>;
-
-      beforeEach(async () => {
-        _expectedSegments = await Promise.all(_outputFiles.map(_loadOutputSegment));
-        _fixtureContents = await Promise.all(
-          _outputFiles.map((f) => readTextFile(f)),
-        );
-
-        const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
-        _mockHandle = installCommandMock(makeSuccessMock(_stdout));
-
-        const _inputContent = await readTextFile(_inputPath);
-        _entry = new ChatlogEntry(_inputContent);
-        const _result = await segmentChatlogs(_inputPath, _inputContent);
-        _segments = _result ?? [];
-      });
-
-      afterEach(() => {
-        _mockHandle.restore();
-      });
-
-      describe('When: attachFrontmatter(generateSegmentFile(segment), entry, segmentMeta) を呼び出す', () => {
         for (let _i = 0; _i < _outputFiles.length; _i++) {
           const _idx = _i;
           const _n = _idx + 1;
 
           for (const _key of FRONTMATTER_KEYS) {
-            it(`SFF-${_dirName}-${_n}-${_key}: フロントマターの ${_key} が output-${_n} と一致する`, () => {
-              const _actual = _buildOutput(_segments[_idx], _entry);
-              const { meta: _actualMeta } = parseFrontmatter(_actual);
-              const { meta: _expectedMeta } = parseFrontmatter(_fixtureContents[_idx]);
-              assertEquals(_actualMeta[_key], _expectedMeta[_key]);
+            it(`SFF-${_dirName}-${_n}-${_key}: フロントマターの ${_key} が output-${_n} と一致する`, async () => {
+              const _expectedSegments = await Promise.all(_outputFiles.map(_loadOutputSegment));
+              const _fixtureContents = await Promise.all(_outputFiles.map((f) => readTextFile(f)));
+
+              const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
+              const _mockHandle = installCommandMock(makeSuccessMock(_stdout));
+
+              try {
+                const _inputContent = await readTextFile(_inputPath);
+                const _entry = new ChatlogEntry(_inputContent);
+                const _result = await segmentChatlogs(_inputPath, _inputContent);
+                const _segments = _result ?? [];
+
+                const _actual = _buildOutput(_segments[_idx], _entry);
+                const { meta: _actualMeta } = parseFrontmatter(_actual);
+                const { meta: _expectedMeta } = parseFrontmatter(_fixtureContents[_idx]);
+                assertEquals(_actualMeta[_key], _expectedMeta[_key]);
+              } finally {
+                _mockHandle.restore();
+              }
             });
           }
         }
-      });
+      }
     });
   });
-}
+});

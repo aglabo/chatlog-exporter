@@ -35,6 +35,9 @@ export type ReadTextFileProvider = (path: string) => Promise<string>;
 /** ファイルを削除する関数の型。テスト用インジェクションに利用する。 */
 export type RemoveProvider = (path: string) => Promise<void>;
 
+/** ディレクトリを結果に含めるか判定する述語関数の型。 */
+export type DirProvider = (dir: string) => Promise<boolean>;
+
 // ─────────────────────────────────────────────
 // ハッシュ生成系
 // ─────────────────────────────────────────────
