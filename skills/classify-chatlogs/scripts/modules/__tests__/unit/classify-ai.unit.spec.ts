@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/build-prompt.unit.spec.ts
+// src: scripts/modules/__tests__/unit/classify-ai.unit.spec.ts
 // @(#): buildClassifyPrompt / buildSystemPrompt のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -15,7 +15,7 @@ import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 import {
   buildClassifyPrompt,
   buildSystemPrompt,
-} from '../../classify.ts';
+} from '../../classify-ai.ts';
 
 // ─── テスト用 ClassifyChatlogEntry ヘルパー ───────────────────────────────────────────────
 
