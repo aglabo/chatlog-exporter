@@ -20,7 +20,7 @@ import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class
  * 統合テスト用フィクスチャアセットのディレクトリパス。
  * Windows 環境で `/C:/...` → `C:/...` に正規化する。
  */
-const ASSETS_DIR = new URL('../../../__tests__/integration/assets', import.meta.url)
+const ASSETS_DIR = new URL('../../../modules/__tests__/integration/assets', import.meta.url)
   .pathname
   .replace(/^\/([A-Z]:)/, '$1'); // Windows: /C:/... → C:/...
 
