@@ -1,4 +1,4 @@
-// src: scripts/__tests__/fixtures/classify-chatlogs.fixtures.spec.ts
+// src: scripts/modules/__tests__/fixtures/classify-chatlogs.fixtures.spec.ts
 // @(#): classify-chatlogs fixturesテスト（実 claude CLI 使用）
 //       fixtures-data/ 下の各ディレクトリを再帰スキャンし
 //       input.md を実際の claude CLI で分類し、output.yaml の期待値と照合する
@@ -12,23 +12,24 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // test target
-import { applyClassifications, processChunk } from '../../classify-chatlogs.ts';
+import { processChunk } from '../../classify-ai.ts';
+import { applyClassifications } from '../../file-ops.ts';
 
 // utils
-import { findDirectoriesFlat } from '../../../../_scripts/libs/file-ops/find-entries.ts';
+import { findDirectoriesFlat } from '../../../../../_scripts/libs/file-ops/find-entries.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 // classes
-import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
+import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 // types
-import type { ClassifyStats, ProjectDicEntry } from '../../types/classify.types.ts';
+import type { ClassifyStats, ProjectDicEntry } from '../../../types/classify.types.ts';
 
 // helpers
-import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { loadProjectDic } from '../../libs/load-project-dic.ts';
+import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
+import { loadProjectDic } from '../../../libs/load-project-dic.ts';
 
 // ─── フィクスチャパス ──────────────────────────────────────────────────────────
 /** フィクスチャディレクトリ */
