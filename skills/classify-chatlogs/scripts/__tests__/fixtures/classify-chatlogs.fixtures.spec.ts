@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // test target
-import { processChunk } from '../../classify-chatlogs.ts';
+import { applyClassifications, processChunk } from '../../classify-chatlogs.ts';
 
 // utils
 import { findDirectoriesFlat } from '../../../../_scripts/libs/file-ops/find-entries.ts';
@@ -89,13 +89,14 @@ for (const _relPath of _fixtureDirs) {
         await Deno.remove(_tempDir, { recursive: true });
       });
 
-      describe('When: processChunk(chunkMetas, projects, false, stats) を呼び出す', { ignore: !_shouldRunAI }, () => {
+      describe('When: processChunk(chunkMetas, projects, model) を呼び出す', { ignore: !_shouldRunAI }, () => {
         it(
           `SF-CL-${_relPath}-project: 分類結果が known_projects に含まれる`,
           async () => {
             const _fileMeta = new ClassifyChatlogEntry(_inputContent, `${_tempDir}/input.md`);
 
-            await processChunk([_fileMeta], _projects, false, _stats, DEFAULT_AI_MODEL);
+            const _buffer = await processChunk([_fileMeta], _projects, DEFAULT_AI_MODEL);
+            await applyClassifications(_buffer, false, _stats);
 
             // classify / moved ログがキャプチャされていることを確認
             assertEquals(
