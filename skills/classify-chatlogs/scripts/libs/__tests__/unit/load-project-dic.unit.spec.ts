@@ -22,7 +22,7 @@ import { DEFAULT_PROJECTS_DIC_PATH } from '../../../constants/classify.constants
 
 // ─── テスト用フィクスチャ ──────────────────────────────────────────────────────
 
-const _FIXTURE_DIC_PATH = new URL('../../../__tests__/integration/assets/projects.dic', import.meta.url)
+const _FIXTURE_DIC_PATH = new URL('../../../modules/__tests__/integration/assets/projects.dic', import.meta.url)
   .pathname
   .replace(/^\/([A-Z]:)/, '$1');
 
