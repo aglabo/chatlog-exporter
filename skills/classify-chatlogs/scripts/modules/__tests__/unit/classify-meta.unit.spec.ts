@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/pre-classify.unit.spec.ts
+// src: scripts/modules/__tests__/unit/classify-meta.unit.spec.ts
 // @(#): preClassify の単体テスト
 //       対象: preClassify
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { preClassify } from '../../classify.ts';
+import { preClassify } from '../../classify-meta.ts';
 // types
 import type { ClassifyBufferEntry } from '../../../types/classify.types.ts';
 
