@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlogs.classify-file.unit.spec.ts
+// src: scripts/modules/__tests__/unit/classify-file.unit.spec.ts
 // @(#): classifyFile の単体テスト（dryRun=true 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -11,14 +11,14 @@ import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- Test target --
-import { classifyFile } from '../../classify-chatlogs.ts';
+import { classifyFile } from '../../file-ops.ts';
 // stub
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
-import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
+import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 // types
-import type { ClassifyStats } from '../../types/classify.types.ts';
+import type { ClassifyStats } from '../../../types/classify.types.ts';
 
 // ─── ヘルパー ────────────────────────────────────────────────────────────────
 
