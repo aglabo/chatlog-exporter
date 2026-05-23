@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+
 // ─────────────────────────────────────────────
 // プロジェクトエントリ型
 // ─────────────────────────────────────────────
@@ -74,3 +76,22 @@ export type ParsedConfig = Omit<Partial<ClassifyConfig>, 'dicsDir'> & {
   /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
   configFile?: string;
 };
+
+// ─────────────────────────────────────────────
+// 分類バッファ型
+// ─────────────────────────────────────────────
+
+/** `preClassify` および `processChunk` が返す1件分のバッファエントリ。 */
+export type ClassifyBufferEntry = {
+  /** 分類対象のファイルエントリ。 */
+  file: ClassifyChatlogEntry;
+  /** 割り当てるプロジェクト名。 */
+  project: string;
+  /** AI による分類かどうか。`true` の場合は `stats.movedByAI` をインクリメントする。 */
+  byAI: boolean;
+  /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
+  action: 'move' | 'skip';
+};
+
+/** `preClassify` および `processChunk` が返すバッファ。 */
+export type ClassifyBuffer = ClassifyBufferEntry[];
