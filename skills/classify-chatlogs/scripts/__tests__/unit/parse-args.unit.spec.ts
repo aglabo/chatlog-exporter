@@ -12,8 +12,7 @@ import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
-import { parseArgs } from '../../classify-config.ts';
-import { parseArgs } from '../../parse-args.ts';
+import { parseArgs } from '../../modules/classify-config.ts';
 
 // classes
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
