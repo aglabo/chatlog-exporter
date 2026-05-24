@@ -53,7 +53,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(stats.moved, 1);
         });
@@ -65,7 +65,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(await dirExists(`${tempDir}/app1`), true);
         });
@@ -77,7 +77,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(await fileExists(`${tempDir}/app1/a.md`), true);
         });
@@ -89,7 +89,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(await fileOrDirExists(srcPath), false, 'srcPath がまだ存在する');
         });
@@ -101,7 +101,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           const _dstText = await readTextFile(`${tempDir}/app1/a.md`);
           assertStringIncludes(_dstText, 'project: "app1"');
@@ -114,7 +114,7 @@ describe('classifyFile', () => {
           const fileMeta = new ClassifyChatlogEntry(fileContent, srcPath);
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           const _allInfo = loggerStub.infoLogs.join('\n');
           assertStringIncludes(_allInfo, 'moved:');
@@ -135,7 +135,7 @@ describe('classifyFile', () => {
           );
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
         });
 
         it('T-CL-CF-03-02: stats.error が 1 になる', async () => {
@@ -145,7 +145,7 @@ describe('classifyFile', () => {
           );
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(stats.error, 1);
         });
@@ -157,7 +157,7 @@ describe('classifyFile', () => {
           );
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           const _allError = loggerStub.errorLogs.join('\n');
           assertStringIncludes(_allError, '移動失敗:');
@@ -170,7 +170,7 @@ describe('classifyFile', () => {
           );
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', false, stats);
+          await classifyFile(fileMeta, 'app1', tempDir, false, stats);
 
           assertEquals(stats.moved, 0);
         });
