@@ -13,6 +13,14 @@
       "args": [
         "mcp"
       ]
+    },
+    "codegraph-mcp": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": [
+        "serve",
+        "--mcp"
+      ]
     }
   }
 }
