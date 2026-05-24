@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/classify-chatlogs.build-config.functional.spec.ts
+// src: scripts/modules/__tests__/functional/build-config.functional.spec.ts
 // @(#): buildConfig の機能テスト
 //       ParsedConfig + GlobalConfig + デフォルト値から ClassifyConfig を構築するロジック
 //
@@ -11,18 +11,18 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // --- Test target ---
-import { buildConfig } from '../../classify-chatlogs.ts';
+import { buildConfig } from '../../classify-config.ts';
 
 // --- Helpers
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
-import { DEFAULT_CLASSIFY_CONFIG } from '../../constants/classify.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CLASSIFY_CONFIG } from '../../../constants/classify.constants.ts';
 // types
-import type { CommandProvider } from '../../../../_scripts/types/providers.types.ts';
-import type { ParsedConfig } from '../../types/classify.types.ts';
+import type { CommandProvider } from '../../../../../_scripts/types/providers.types.ts';
+import type { ParsedConfig } from '../../../types/classify.types.ts';
 // classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
