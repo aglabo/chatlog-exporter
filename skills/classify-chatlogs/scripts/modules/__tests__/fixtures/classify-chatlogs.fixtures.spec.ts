@@ -13,7 +13,7 @@ import { parse as parseYaml } from '@std/yaml';
 
 // test target
 import { processChunk } from '../../classify-ai.ts';
-import { applyClassifications } from '../../file-ops.ts';
+import { moveClassified } from '../../file-ops.ts';
 
 // utils
 import { findDirectoriesFlat } from '../../../../../_scripts/libs/file-ops/find-entries.ts';
@@ -97,7 +97,7 @@ for (const _relPath of _fixtureDirs) {
             const _fileMeta = new ClassifyChatlogEntry(_inputContent, `${_tempDir}/input.md`);
 
             const _buffer = await processChunk([_fileMeta], _projects, DEFAULT_AI_MODEL);
-            await applyClassifications(_buffer, false, _stats);
+            await moveClassified(_buffer, _tempDir, false, _stats);
 
             // classify / moved ログがキャプチャされていることを確認
             assertEquals(
