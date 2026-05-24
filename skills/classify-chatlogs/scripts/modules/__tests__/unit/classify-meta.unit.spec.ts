@@ -18,37 +18,9 @@ import type { ClassifyBufferEntry } from '../../../types/classify.types.ts';
 
 // ─── Helpers
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
-// classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 
 // ─── Internal Helpers
-
-// functions
-/**
- * テスト用 `ClassifyChatlogEntry` を frontmatter テキストとファイルパスから生成する。
- *
- * @param filePath - エントリのファイルパス（例: `/tmp/input/project-a/test.md`）
- * @param frontmatter - frontmatter に含めるフィールドの Record。省略時は空。
- * @param content - 本文テキスト。省略時は空文字列。
- * @returns 初期化済みの `ClassifyChatlogEntry` インスタンス
- */
-const _makeEntry = (
-  filePath: string,
-  frontmatter: Record<string, unknown> = {},
-  content = '',
-): ClassifyChatlogEntry => {
-  const _fmLines = Object.entries(frontmatter).map(([k, v]) => {
-    if (Array.isArray(v)) {
-      const _items = (v as string[]).map((item) => `  - ${item}`).join('\n');
-      return `${k}:\n${_items}`;
-    }
-    return `${k}: ${v}`;
-  });
-  const _text = _fmLines.length > 0
-    ? `---\n${_fmLines.join('\n')}\n---\n${content}`
-    : content;
-  return new ClassifyChatlogEntry(_text, filePath);
-};
+import { _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // ─── Tests
 
