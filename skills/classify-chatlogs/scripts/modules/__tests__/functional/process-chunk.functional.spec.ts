@@ -11,15 +11,15 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { processChunk } from '../../classify.ts';
+import { processChunk } from '../../classify-ai.ts';
 
 // ─── Helpers
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
-// classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 // types
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
+// classes
+import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 
 // ─── Internal Helpers
 import {
@@ -30,20 +30,7 @@ import {
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-
-// functions
-/**
- * テスト用 `ClassifyChatlogEntry` を生成する。
- *
- * @param filename - ファイル名（例: `a.md`）
- * @param entryText - エントリテキスト。省略時は標準の frontmatter 付きテキストを使用する。
- * @returns 初期化済みの `ClassifyChatlogEntry` インスタンス
- */
-const _makeClassifyChatlogEntry = (filename: string, entryText?: string): ClassifyChatlogEntry => {
-  const text = entryText
-    ?? `---\ntitle: Test Title\ncategory: development\ntopics:\n  - API\ntags:\n  - typescript\n---\n本文`;
-  return new ClassifyChatlogEntry(text, `/tmp/input/${filename}`);
-};
+import { _makeClassifyChatlogEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // ─── Tests
 
