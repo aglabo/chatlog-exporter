@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test target
-import { loadClassifyFileMeta } from '../../classify.ts';
+import { loadClassifyFileMeta } from '../../classify-meta.ts';
 
 // ─── loadClassifyFileMeta ─────────────────────────────────────────────────────────────
 
