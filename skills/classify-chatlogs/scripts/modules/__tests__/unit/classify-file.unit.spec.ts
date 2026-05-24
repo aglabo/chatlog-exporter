@@ -6,32 +6,22 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// -- BDD modules --
+// ─── BDD modules
 import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// -- Test target --
+// ─── Test target
 import { classifyFile } from '../../file-ops.ts';
+
+// ─── Helpers
 // stub
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-// classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
-// types
-import type { ClassifyStats } from '../../../types/classify.types.ts';
 
-// ─── ヘルパー ────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
+import { _makeClassifyChatlogEntry, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
-function _makeClassifyChatlogEntry(filename: string): ClassifyChatlogEntry {
-  const text = `---\ntitle: Test Title\ncategory: development\ntopics:\n  - API\ntags:\n  - typescript\n---\n本文`;
-  return new ClassifyChatlogEntry(text, `/tmp/input/${filename}`);
-}
-
-function _makeStats(): ClassifyStats {
-  return { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
-}
-
-// ─── classifyFile ─────────────────────────────────────────────────────────────
+// ─── Tests
 
 describe('classifyFile', () => {
   describe('Given: dryRun=true の呼び出し', () => {
