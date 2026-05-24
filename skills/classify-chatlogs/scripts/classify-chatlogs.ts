@@ -17,9 +17,7 @@
 // -- external --
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { findEntries } from '../../_scripts/libs/file-ops/find-entries.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
@@ -31,11 +29,10 @@ import { loadProjectDic } from './libs/load-project-dic.ts';
 import type { ClassifyStats } from './types/classify.types.ts';
 
 // -- modules --
-import { ClassifyChatlogEntry } from './classes/ClassifyChatlogEntry.class.ts';
-import { processChunk } from './modules/classify-ai.ts';
+import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig, parseArgs } from './modules/classify-config.ts';
-import { loadClassifyFileMeta, preClassify } from './modules/classify-meta.ts';
-import { applyClassifications } from './modules/file-ops.ts';
+import { findBufferEntries, processPreclassify } from './modules/classify-noai.ts';
+import { moveClassified } from './modules/file-ops.ts';
 
 // ─────────────────────────────────────────────
 // メイン
@@ -75,61 +72,37 @@ export const main = async (argv?: string[]): Promise<void> => {
     if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
     logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
 
-    // ファイル列挙
+    // 対象ディレクトリ
     const _searchDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
       baseDir: _config.baseDir,
       agent: _config.agent,
       period: _config.period,
     });
-    const allFiles = await findEntries(
-      [_searchDir],
-      '.md',
-    );
-    if (allFiles.length === 0) {
+
+    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
+
+    // Step 1: バッファ取得
+    const _buffer = await findBufferEntries(_searchDir, undefined, stats);
+    if (_buffer.length === 0) {
       logger.info('対象ファイルなし');
       logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
       return;
     }
 
-    // メタデータ読み込み
-    const _allMetas: ClassifyChatlogEntry[] = [];
-    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
+    // Step 2: AI なし事前分類
+    const _preBuffer = processPreclassify(_buffer);
+    const _resolved = _preBuffer.filter((e) => e.action !== 'remaining');
+    const _remaining = _preBuffer
+      .filter((e) => e.action === 'remaining')
+      .map((e) => e.file);
 
-    for (const filePath of allFiles) {
-      const meta = await loadClassifyFileMeta(filePath);
-      if (!meta) {
-        stats.error++;
-        continue;
-      }
-      _allMetas.push(meta);
-    }
+    // Step 3: AI 分類
+    const _aiBuffer = await classifyByAI(_remaining, projects, _config);
 
-    // AI 不要なケースを事前に振り分ける
-    const { buffer: _preBuffer, remaining: _remaining } = preClassify(_allMetas);
-    await applyClassifications(_preBuffer, _config.dryRun, stats);
-
-    logger.info(`\n対象ファイル数: ${_remaining.length} (スキップ: ${stats.skipped})`);
-
-    if (_remaining.length === 0) {
-      logger.info(
-        `\n完了: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
-      );
-      return;
-    }
-
-    // チャンク分割して並列処理
-    const _chunkSize = _globalConfig.get('chunkSize') as number;
-    const _concurrency = _globalConfig.get('concurrency') as number;
-    const _chunkBuffers = await runChunked(
-      _remaining,
-      _chunkSize,
-      (chunk) => processChunk(chunk, projects, _config.model),
-      _concurrency,
-    );
-    for (const _chunkBuffer of _chunkBuffers) {
-      await applyClassifications(_chunkBuffer, _config.dryRun, stats);
-    }
+    // Step 4: マージ + ファイル移動
+    const _result = [..._resolved, ..._aiBuffer];
+    await moveClassified(_result, _searchDir, _config.dryRun, stats);
 
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';
