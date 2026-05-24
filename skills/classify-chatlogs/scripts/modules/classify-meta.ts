@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { logger } from '../../../_scripts/libs/logger/logger.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
