@@ -15,27 +15,11 @@ import { describe, it } from '@std/testing/bdd';
 import { applyClassifications } from '../../file-ops.ts';
 
 // ─── Helpers
-// classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
 // types
-import type { ClassifyBuffer, ClassifyStats } from '../../../types/classify.types.ts';
+import type { ClassifyBuffer } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
-
-// functions
-/**
- * テスト用 `ClassifyChatlogEntry` を生成する。
- *
- * @param filename - ファイル名（例: `test.md`）
- * @returns 初期化済みの `ClassifyChatlogEntry` インスタンス
- */
-const _makeEntry = (filename: string): ClassifyChatlogEntry => {
-  const _text = `---\ntitle: Test\n---\n本文`;
-  return new ClassifyChatlogEntry(_text, `/tmp/input/${filename}`);
-};
-
-/** 初期化済みの `ClassifyStats` を返す。 */
-const _makeStats = (): ClassifyStats => ({ moved: 0, movedByAI: 0, skipped: 0, error: 0 });
+import { _makeEntry, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // ─── Tests
 
@@ -54,7 +38,7 @@ describe('applyClassifications', () => {
    */
   describe('When: 正常系', () => {
     it('[Normal] T-CL-AC-01: action=skip → stats.skipped++ のみ、classifyFile 未呼び出し', async () => {
-      const _entry = _makeEntry('test.md');
+      const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{ file: _entry, project: 'app1', byAI: false, action: 'skip' }];
       const _stats = _makeStats();
 
@@ -83,7 +67,7 @@ describe('applyClassifications', () => {
    */
   describe('When: 正常系 (classifyFile 実呼び出し)', () => {
     it('[Normal] T-CL-AC-02: action=move, byAI=false → classifyFile 呼び出し（byAI=false で）', async () => {
-      const _entry = _makeEntry('test.md');
+      const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{ file: _entry, project: 'app1', byAI: false, action: 'move' }];
       const _stats = _makeStats();
 
@@ -95,7 +79,7 @@ describe('applyClassifications', () => {
     });
 
     it('[Normal] T-CL-AC-03: action=move, byAI=true → classifyFile 呼び出し（byAI=true で）', async () => {
-      const _entry = _makeEntry('test.md');
+      const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{ file: _entry, project: 'app1', byAI: true, action: 'move' }];
       const _stats = _makeStats();
 
