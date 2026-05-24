@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlogs.buildPrompt.unit.spec.ts
+// src: scripts/modules/__tests__/unit/classify-ai.unit.spec.ts
 // @(#): buildClassifyPrompt / buildSystemPrompt のユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -9,13 +9,13 @@ import { assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
-import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
+import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
+import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 import {
   buildClassifyPrompt,
   buildSystemPrompt,
-} from '../../classify-chatlogs.ts';
-import { FALLBACK_PROJECT } from '../../constants/classify.constants.ts';
-import type { ProjectDicEntry } from '../../types/classify.types.ts';
+} from '../../classify-ai.ts';
 
 // ─── テスト用 ClassifyChatlogEntry ヘルパー ───────────────────────────────────────────────
 

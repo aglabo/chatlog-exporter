@@ -1,4 +1,4 @@
-// src: scripts/__tests__/integration/classify-chatlogs.fileOps.integration.spec.ts
+// src: scripts/modules/__tests__/integration/load-classify-file-meta.integration.spec.ts
 // @(#): loadClassifyFileMeta の統合テスト（実ファイルシステム使用）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,10 +7,10 @@
 
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test target
-import { loadClassifyFileMeta } from '../../classify-chatlogs.ts';
+import { loadClassifyFileMeta } from '../../classify-meta.ts';
 
 // ─── loadClassifyFileMeta ─────────────────────────────────────────────────────────────
 

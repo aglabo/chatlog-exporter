@@ -1,0 +1,121 @@
+// src: scripts/modules/classify-ai.ts
+// @(#): classify-chatlogs AI プロンプト構築・AI 分類処理モジュール
+//       対象: buildClassifyPrompt / buildSystemPrompt / processChunk
+//
+// Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
+import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
+import type { ClassifyBuffer, ClassifyResult, ProjectDicEntry } from '../types/classify.types.ts';
+
+/**
+ * AI へ渡すバッチ分類プロンプトを構築する。
+ * - メタデータ（title/category/topics/tags）がすべて空のファイルは、本文先頭 500 文字を `body:` として付加する。
+ */
+export const buildClassifyPrompt = (files: ClassifyChatlogEntry[], projects: ProjectDicEntry): string => {
+  const _projectList = Object.keys(projects).join(', ');
+  const header = `Projects: ${_projectList}\n\n`;
+
+  const _parts = files.map((f, i) => {
+    const _fm = f.frontmatter;
+    const _title = _fm.get('title');
+    const _category = _fm.get('category');
+    const _topics = _fm.get('topics');
+    const _tags = _fm.get('tags');
+
+    const title = typeof _title === 'string' ? _title : '';
+    const category = typeof _category === 'string' ? _category : '';
+    const topics = Array.isArray(_topics) ? _topics as string[] : [];
+    const tags = Array.isArray(_tags) ? _tags as string[] : [];
+
+    const topicsStr = topics.length > 0 ? topics.join(', ') : '(none)';
+    const tagsStr = tags.length > 0 ? tags.join(', ') : '(none)';
+    const hasMeta = (typeof _title === 'string' && _title)
+      || (typeof _category === 'string' && _category)
+      || (Array.isArray(_topics) && _topics.length > 0)
+      || (Array.isArray(_tags) && _tags.length > 0);
+
+    const _lines = [
+      `=== FILE ${i + 1}: ${f.filename} ===`,
+      `title: ${title || '(no title)'}`,
+      `category: ${category || '(none)'}`,
+      `topics: ${topicsStr}`,
+      `tags: ${tagsStr}`,
+    ];
+    if (!hasMeta) {
+      const snippet = f.content.slice(0, 500).trim();
+      _lines.push(`body: ${snippet}`);
+    }
+    return _lines.join('\n');
+  });
+
+  return header + _parts.join('\n\n');
+};
+
+/** AI へ渡すシステムプロンプトを構築する。JSON 配列のみを出力するよう指示する。 */
+export const buildSystemPrompt = (projects: ProjectDicEntry): string => {
+  const _projectList = Object.keys(projects).join(', ');
+  return `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+[{"file":"<filename>","project":"<project_name>","confidence":0.0,"reason":"..."},...]
+
+Choose project ONLY from this list: ${_projectList}
+If no project matches well, use "${FALLBACK_PROJECT}".
+If the file has no metadata AND the body is fewer than 3 lines, assign "${FALLBACK_PROJECT}" unconditionally.
+Base your decision on: title, category, topics, tags.`;
+};
+
+/**
+ * 1チャンク分のファイルを AI で一括分類し、分類バッファを返す。
+ * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `FALLBACK_PROJECT`（byAI=true）でバッファに積む。
+ * - AI の返答でファイル名が一致しない場合も `FALLBACK_PROJECT` を使用する。
+ * - 副作用（ファイル移動）は行わない。呼び出し元が `applyClassifications` で適用する。
+ */
+export const processChunk = async (
+  chunkMetas: ClassifyChatlogEntry[],
+  projects: ProjectDicEntry,
+  model: string,
+): Promise<ClassifyBuffer> => {
+  const _buffer: ClassifyBuffer = [];
+
+  if (chunkMetas.length === 0) { return _buffer; }
+
+  const _batchPrompt = buildClassifyPrompt(chunkMetas, projects);
+  const _systemPrompt = buildSystemPrompt(projects);
+
+  let rawResult: string;
+  try {
+    rawResult = await runAI(_systemPrompt, _batchPrompt, { model });
+  } catch (e) {
+    logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
+    logger.warn(`  error: ${e}`);
+    for (const f of chunkMetas) {
+      _buffer.push({ file: f, project: FALLBACK_PROJECT, byAI: true, action: 'move' });
+    }
+    return _buffer;
+  }
+
+  const parsed = parseJsonArray<ClassifyResult>(rawResult);
+  if (!parsed) {
+    logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
+    logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
+    for (const f of chunkMetas) {
+      _buffer.push({ file: f, project: FALLBACK_PROJECT, byAI: true, action: 'move' });
+    }
+    return _buffer;
+  }
+
+  for (const fileMeta of chunkMetas) {
+    const result = parsed.find((r) => r.file === fileMeta.filename);
+    const project = result?.project ?? FALLBACK_PROJECT;
+    logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
+    _buffer.push({ file: fileMeta, project, byAI: true, action: 'move' });
+  }
+
+  return _buffer;
+};

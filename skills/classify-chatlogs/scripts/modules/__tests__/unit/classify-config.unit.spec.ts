@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify-chatlogs.parseArgs.unit.spec.ts
+// src: scripts/modules/__tests__/unit/classify-config.unit.spec.ts
 // @(#): parseArgs のユニットテスト
 //       classify 固有オプションのモデル名バリデーション
 
@@ -12,12 +12,11 @@ import { describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
-import { parseArgs } from '../../modules/classify-config.ts';
-
+import { parseArgs } from '../../classify-config.ts';
 // classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
-import type { ParsedConfig } from '../../types/classify.types.ts';
+import type { ParsedConfig } from '../../../types/classify.types.ts';
 
 describe('parseArgs', () => {
   // ─── T-CL-PA-01: デフォルト値（未指定時は undefined） ───────────────────────

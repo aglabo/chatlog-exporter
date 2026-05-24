@@ -1,35 +1,31 @@
-// src: scripts/__tests__/integration/classify-chatlogs.classify-file.integration.spec.ts
+// src: scripts/modules/__tests__/integration/classify-file.integration.spec.ts
 // @(#): classifyFile の統合テスト（正常移動・移動失敗 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// -- BDD modules --
+// ─── BDD modules
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// -- Test target --
-import { classifyFile } from '../../classify-chatlogs.ts';
+// ─── Test target
+import { classifyFile } from '../../file-ops.ts';
+
+// ─── Helpers
 // stub
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-// types for stubs
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
-import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
-// types
-import type { ClassifyStats } from '../../types/classify.types.ts';
-// exists
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { dirExists, fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+// utils
+import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
+import { dirExists, fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 
-// ─── ヘルパー ────────────────────────────────────────────────────────────────
+// ─── Internal Helpers
+import { _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
-function _makeStats(): ClassifyStats {
-  return { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
-}
-
-// ─── classifyFile ─────────────────────────────────────────────────────────────
+// ─── Tests
 
 describe('classifyFile', () => {
   let tempDir: string;

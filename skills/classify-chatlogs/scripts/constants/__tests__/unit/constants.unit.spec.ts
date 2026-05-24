@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/classify.constants.unit.spec.ts
+// src: scripts/constants/__tests__/unit/constants.unit.spec.ts
 // @(#): classify.constants のユニットテスト
 //       DEFAULT_CLASSIFY_CONFIG の定数値を検証する
 
@@ -12,10 +12,10 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- constants for test --
-import { DEFAULT_AGENT, DEFAULT_AI_MODEL } from '../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // -- test target --
-import { DEFAULT_CLASSIFY_CONFIG, DEFAULT_PROJECTS_DIC_PATH } from '../../constants/classify.constants.ts';
+import { DEFAULT_CLASSIFY_CONFIG, DEFAULT_PROJECTS_DIC_PATH } from '../../classify.constants.ts';
 
 // ─── DEFAULT_PROJECTS_DIC_PATH の検証 ────────────────────────────────────────
 
