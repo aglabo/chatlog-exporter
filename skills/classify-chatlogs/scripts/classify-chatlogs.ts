@@ -94,7 +94,7 @@ export const main = async (argv?: string[]): Promise<void> => {
 
     // メタデータ読み込み
     const _allMetas: ClassifyChatlogEntry[] = [];
-    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0 };
+    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
 
     for (const filePath of allFiles) {
       const meta = await loadClassifyFileMeta(filePath);
