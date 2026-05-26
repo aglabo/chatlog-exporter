@@ -56,6 +56,8 @@ export const buildConfig = (
   const _baseDir = parsed.baseDir ?? _globalChatlogDir;
   const _chatlogsDir = parsed.chatlogsDir;
   const _projectsDic = globalConfig.get('projectsDic') as string;
+  const _chunkSize = globalConfig.get('chunkSize') as number;
+  const _concurrency = globalConfig.get('concurrency') as number;
   const { configFile: _cf, ...rest } = parsed;
   return {
     ..._defaults,
@@ -66,5 +68,7 @@ export const buildConfig = (
     projectsDic: _projectsDic,
     baseDir: _baseDir,
     chatlogsDir: _chatlogsDir,
+    chunkSize: _chunkSize,
+    concurrency: _concurrency,
   };
 };
