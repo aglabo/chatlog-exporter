@@ -72,6 +72,10 @@ export interface ClassifyConfig {
   model: string;
   /** チャットログ格納ディレクトリ。位置引数のディレクトリパスが設定される。 */
   chatlogsDir?: string;
+  /** バッチリクエスト1回あたりの最大ファイル数。 */
+  chunkSize: number;
+  /** 同時実行する並列タスク数の上限。 */
+  concurrency: number;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`dicsDir` は GlobalConfig で管理するため含まない。 */
