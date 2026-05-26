@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test target
-import { loadClassifyEntry } from '../../classify-meta.ts';
+import { loadClassifyEntry } from '../../classify-noai.ts';
 // errors
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
