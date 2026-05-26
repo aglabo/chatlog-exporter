@@ -9,15 +9,17 @@
 
 // Deno Test module
 import { assertEquals } from '@std/assert';
-import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { afterEach, describe, it } from '@std/testing/bdd';
 import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
 // test helpers
 import {
+  installCommandMock,
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // test target
 import { segmentChatlogs } from '../../modules/segment-io.ts';
@@ -38,12 +40,10 @@ describe('segmentChatlogs', () => {
        * セグメントが正しく配列として返され、runAI がちょうど1回呼ばれることを確認する。
        */
       describe('Then: Task T-09-01 - 正常なセグメント配列の返却', () => {
-        let savedCommand: unknown;
-        beforeEach(() => {
-          savedCommand = (Deno as unknown as Record<string, unknown>).Command;
-        });
+        let mockHandle: CommandMockHandle;
+
         afterEach(() => {
-          (Deno as unknown as Record<string, unknown>).Command = savedCommand;
+          mockHandle.restore();
         });
 
         it('T-09-01-01: {title, summary, body}[] の2件以上の配列を返す', async () => {
@@ -51,8 +51,7 @@ describe('segmentChatlogs', () => {
             { title: 'Topic A', summary: 'Summary A', content: 'Body A' },
             { title: 'Topic B', summary: 'Summary B', content: 'Body B' },
           ];
-          const mock = makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments)));
-          (Deno as unknown as Record<string, unknown>).Command = mock;
+          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments))));
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
@@ -69,8 +68,7 @@ describe('segmentChatlogs', () => {
             { title: 'Topic A', summary: 'Summary A', content: 'Body A' },
             { title: 'Topic B', summary: 'Summary B', content: 'Body B' },
           ];
-          const mock = makeCountingMock(JSON.stringify(segments), counter);
-          (Deno as unknown as Record<string, unknown>).Command = mock;
+          mockHandle = installCommandMock(makeCountingMock(JSON.stringify(segments), counter));
 
           await segmentChatlogs('path/to/file.md', 'some chat content');
 
@@ -88,16 +86,14 @@ describe('segmentChatlogs', () => {
        * runAI がエラーをスロー、または非 JSON を返した場合に null が返ることを確認する。
        */
       describe('Then: Task T-09-02 - エラー時の null 返却', () => {
-        let savedCommand: unknown;
-        beforeEach(() => {
-          savedCommand = (Deno as unknown as Record<string, unknown>).Command;
-        });
+        let mockHandle: CommandMockHandle;
+
         afterEach(() => {
-          (Deno as unknown as Record<string, unknown>).Command = savedCommand;
+          mockHandle.restore();
         });
 
         it('T-09-02-01: null を返す', async () => {
-          (Deno as unknown as Record<string, unknown>).Command = makeFailMock(1);
+          mockHandle = installCommandMock(makeFailMock(1));
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
@@ -105,8 +101,7 @@ describe('segmentChatlogs', () => {
         });
 
         it('T-09-02-02: runAI が "not json" を返す場合に null を返す', async () => {
-          const mock = makeSuccessMock(new TextEncoder().encode('not json'));
-          (Deno as unknown as Record<string, unknown>).Command = mock;
+          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('not json')));
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 
@@ -124,12 +119,10 @@ describe('segmentChatlogs', () => {
        * runAI が10件を超えるセグメントを返した場合、最初の10件のみに絞られることを確認する。
        */
       describe('Then: Task T-09-03 - セグメント数の上限適用', () => {
-        let savedCommand: unknown;
-        beforeEach(() => {
-          savedCommand = (Deno as unknown as Record<string, unknown>).Command;
-        });
+        let mockHandle: CommandMockHandle;
+
         afterEach(() => {
-          (Deno as unknown as Record<string, unknown>).Command = savedCommand;
+          mockHandle.restore();
         });
 
         it('T-09-03-01: ちょうど10件のみ返される', async () => {
@@ -138,8 +131,7 @@ describe('segmentChatlogs', () => {
             summary: `Summary ${i + 1}`,
             content: `Body ${i + 1}`,
           }));
-          const mock = makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments)));
-          (Deno as unknown as Record<string, unknown>).Command = mock;
+          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(segments))));
 
           const result = await segmentChatlogs('path/to/file.md', 'some chat content');
 

@@ -69,7 +69,7 @@ export const applyClassifications = async (
     if (entry.action === 'skip') {
       logger.info(`  skipped (分類済み: ${entry.project}): ${entry.file.filename}`);
       stats.skipped++;
-    } else {
+    } else if (entry.project !== undefined) {
       await classifyFile(entry.file, entry.project, dryRun, stats, entry.byAI);
     }
   }

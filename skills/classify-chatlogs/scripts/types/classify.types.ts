@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
 import type { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 
 // ─────────────────────────────────────────────
@@ -45,6 +46,8 @@ export interface ClassifyStats {
   skipped: number;
   /** 読み込み・移動に失敗した件数。 */
   error: number;
+  /** AI 処理が必要なエントリとしてスキップした件数。 */
+  remaining: number;
 }
 
 // ─────────────────────────────────────────────
@@ -86,12 +89,22 @@ export type ClassifyBufferEntry = {
   /** 分類対象のファイルエントリ。 */
   file: ClassifyChatlogEntry;
   /** 割り当てるプロジェクト名。 */
-  project: string;
+  project?: string;
   /** AI による分類かどうか。`true` の場合は `stats.movedByAI` をインクリメントする。 */
-  byAI: boolean;
+  byAI?: boolean;
   /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
-  action: 'move' | 'skip';
+  action?: 'move' | 'skip' | 'remaining';
 };
 
 /** `preClassify` および `processChunk` が返すバッファ。 */
 export type ClassifyBuffer = ClassifyBufferEntry[];
+
+// ─────────────────────────────────────────────
+// findBufferEntries オプション型
+// ─────────────────────────────────────────────
+
+/** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
+export type FindBufferEntriesOptions = {
+  glob?: GlobProvider;
+  loadMeta?: (path: string) => Promise<ClassifyChatlogEntry | null>;
+};

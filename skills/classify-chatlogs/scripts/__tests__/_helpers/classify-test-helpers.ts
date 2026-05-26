@@ -14,7 +14,7 @@ import type { ClassifyStats } from '../../types/classify.types.ts';
 // ─── Exports
 
 /** 初期化済みの `ClassifyStats` を返す。 */
-export const _makeStats = (): ClassifyStats => ({ moved: 0, movedByAI: 0, skipped: 0, error: 0 });
+export const _makeStats = (): ClassifyStats => ({ moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 });
 
 /**
  * テスト用 `ClassifyChatlogEntry` をファイル名から生成する。

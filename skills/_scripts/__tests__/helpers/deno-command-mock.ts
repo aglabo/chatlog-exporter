@@ -183,13 +183,21 @@ export interface CommandMockHandle {
 /**
  * Deno.Command を指定モックに差し替え、復元ハンドルを返す。
  * beforeEach で呼び出し、afterEach で handle.restore() する。
+ *
+ * Deno 2.8.0 以降で Deno.Command が getter-only になったため、
+ * Object.defineProperty で上書きし、restore 時は元の descriptor を復元する。
  */
 export function installCommandMock(mock: DenoCommandLike): CommandMockHandle {
-  const saved = (Deno as unknown as Record<string, unknown>).Command;
-  (Deno as unknown as Record<string, unknown>).Command = mock;
+  const descriptor = Object.getOwnPropertyDescriptor(Deno, 'Command')!;
+  Object.defineProperty(Deno, 'Command', {
+    value: mock,
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
   return {
     restore() {
-      (Deno as unknown as Record<string, unknown>).Command = saved;
+      Object.defineProperty(Deno, 'Command', descriptor);
     },
   };
 }
