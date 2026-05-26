@@ -29,4 +29,6 @@ export const DEFAULT_CLASSIFY_CONFIG: ClassifyConfig = {
   baseDir: './chatlogs',
   dicsDir: './assets/dics',
   model: DEFAULT_AI_MODEL,
+  chunkSize: 10,
+  concurrency: 4,
 };
