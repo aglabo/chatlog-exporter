@@ -1,18 +1,25 @@
-// src: scripts/modules/classify-meta.ts
-// @(#): classify-chatlogs ファイルメタデータ読み込み・事前分類モジュール
-//       対象: loadClassifyFileMeta / preClassify
+// src: scripts/modules/classify-noai.ts
+// @(#): classify-chatlogs AI なし事前分類モジュール
+//       対象: loadClassifyEntry / preClassify / processPreclassify
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { expandGlob } from '@std/fs';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getDirectory, normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
 import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
-import type { ClassifyBuffer } from '../types/classify.types.ts';
+import type {
+  ClassifyBuffer,
+  ClassifyBufferEntry,
+  ClassifyStats,
+  FindBufferEntriesOptions,
+} from '../types/classify.types.ts';
 
 /**
  * ファイルを読み込み、分類処理に必要なメタデータを返す。
@@ -20,12 +27,13 @@ import type { ClassifyBuffer } from '../types/classify.types.ts';
  * - フロントマターへのアクセスは `entry.frontmatter.get()` を使用する。
  */
 export const loadClassifyFileMeta = async (filePath: string): Promise<ClassifyChatlogEntry | null> => {
+  let _text: string;
   try {
-    const text = await readTextFile(filePath);
-    return new ClassifyChatlogEntry(text, filePath);
+    _text = await readTextFile(filePath);
   } catch {
     return null;
   }
+  return new ClassifyChatlogEntry(_text, filePath);
 };
 
 /**
@@ -74,4 +82,49 @@ export const preClassify = (
   }
 
   return { buffer: _buffer, remaining: _remaining };
+};
+
+export { loadClassifyFileMeta as loadClassifyEntry };
+
+/**
+ * バッファエントリ配列に対して `preClassify` を適用した結果を返す。
+ */
+export const processPreclassify = (
+  buffer: ClassifyBufferEntry[],
+): ClassifyBufferEntry[] =>
+  buffer.map((e) => {
+    const { buffer: _pre } = preClassify([e.file]);
+    return _pre.length > 0 ? _pre[0] : { file: e.file, action: 'remaining' };
+  });
+
+/**
+ * ディレクトリ配下の `.md` ファイルを収集し、メタデータを読み込んで分類バッファを返す。
+ * - `loadMeta` が `null` を返したファイルはスキップし、`stats.error` をインクリメントする。
+ */
+export const findBufferEntries = async (
+  dir: string,
+  opts?: FindBufferEntriesOptions,
+  stats?: ClassifyStats,
+): Promise<ClassifyBuffer> => {
+  const _defaultGlob: GlobProvider = (pattern: string) =>
+    Array.fromAsync(expandGlob(pattern), (entry) => normalizePath(entry.path));
+  const _glob = opts?.glob ?? _defaultGlob;
+  const _loadMeta = opts?.loadMeta ?? loadClassifyFileMeta;
+  const _files = await _glob(`${dir}/**/*.md`);
+  const _buffer: ClassifyBuffer = [];
+  for (const filePath of _files) {
+    let _entry: ClassifyChatlogEntry | null;
+    try {
+      _entry = await _loadMeta(filePath);
+    } catch {
+      if (stats) { stats.error++; }
+      continue;
+    }
+    if (!_entry) {
+      if (stats) { stats.error++; }
+      continue;
+    }
+    _buffer.push({ file: _entry });
+  }
+  return _buffer;
 };

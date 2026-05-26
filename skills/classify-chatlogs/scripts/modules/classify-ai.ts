@@ -1,6 +1,6 @@
 // src: scripts/modules/classify-ai.ts
 // @(#): classify-chatlogs AI プロンプト構築・AI 分類処理モジュール
-//       対象: buildClassifyPrompt / buildSystemPrompt / processChunk
+//       対象: buildClassifyPrompt / buildSystemPrompt / processChunk / classifyFiles
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -9,11 +9,16 @@
 
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
-import type { ClassifyBuffer, ClassifyResult, ProjectDicEntry } from '../types/classify.types.ts';
-
+import type {
+  ClassifyBuffer,
+  ClassifyConfig,
+  ClassifyResult,
+  ProjectDicEntry,
+} from '../types/classify.types.ts';
 /**
  * AI へ渡すバッチ分類プロンプトを構築する。
  * - メタデータ（title/category/topics/tags）がすべて空のファイルは、本文先頭 500 文字を `body:` として付加する。
@@ -118,4 +123,25 @@ export const processChunk = async (
   }
 
   return _buffer;
+};
+
+/**
+ * メタデータ一覧を受け取り、preClassify と AI 分類を実行して分類バッファを返す。
+ * - AI 不要なエントリは `preClassify` で先に振り分ける。
+ * - 残りは `runChunked` で並列 AI 分類する。
+ * - preClassify バッファと AI バッファを結合して返す（ファイル移動・stats更新は行わない）。
+ */
+export const classifyByAI = async (
+  metas: ClassifyChatlogEntry[],
+  projects: ProjectDicEntry,
+  config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
+): Promise<ClassifyBuffer> => {
+  const _chunkBuffers = await runChunked<ClassifyChatlogEntry, ClassifyBuffer>(
+    metas,
+    config.chunkSize,
+    (chunk) => processChunk(chunk, projects, config.model),
+    config.concurrency,
+  );
+
+  return _chunkBuffers.flat();
 };

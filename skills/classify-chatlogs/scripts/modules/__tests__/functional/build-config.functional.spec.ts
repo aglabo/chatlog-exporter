@@ -391,6 +391,70 @@ describe('buildConfig', () => {
     });
   });
 
+  // ─── chunkSize 優先順位 ──────────────────────────────────────────────────────
+
+  describe('Given: GlobalConfig に chunkSize が設定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-24 - GlobalConfig の chunkSize が使われる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('chunkSize: 5');
+        });
+        it('T-CL-BC-24-01: globalConfig.chunkSize=5 → result.chunkSize === 5', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.chunkSize, 5);
+        });
+      });
+    });
+  });
+
+  describe('Given: GlobalConfig に chunkSize が設定されていない', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-25 - DEFAULT_CLASSIFY_CONFIG.chunkSize が使われる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('agent: claude');
+        });
+        it('T-CL-BC-25-01: chunkSize 未設定 → result.chunkSize === DEFAULT_CLASSIFY_CONFIG.chunkSize', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.chunkSize, DEFAULT_CLASSIFY_CONFIG.chunkSize);
+        });
+      });
+    });
+  });
+
+  // ─── concurrency 優先順位 ────────────────────────────────────────────────────
+
+  describe('Given: GlobalConfig に concurrency が設定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-26 - GlobalConfig の concurrency が使われる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('concurrency: 2');
+        });
+        it('T-CL-BC-26-01: globalConfig.concurrency=2 → result.concurrency === 2', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.concurrency, 2);
+        });
+      });
+    });
+  });
+
+  describe('Given: GlobalConfig に concurrency が設定されていない', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-CL-BC-27 - DEFAULT_CLASSIFY_CONFIG.concurrency が使われる', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await _makeGlobalConfig('agent: claude');
+        });
+        it('T-CL-BC-27-01: concurrency 未設定 → result.concurrency === DEFAULT_CLASSIFY_CONFIG.concurrency', () => {
+          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          assertEquals(result.concurrency, DEFAULT_CLASSIFY_CONFIG.concurrency);
+        });
+      });
+    });
+  });
+
   describe('Given: GlobalConfig の dicsDir が yaml で上書きされている', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-19 - dicsDir を変えても projectsDic は独立して変わらない', () => {

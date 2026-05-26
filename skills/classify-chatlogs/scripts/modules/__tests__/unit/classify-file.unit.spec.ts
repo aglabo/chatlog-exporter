@@ -25,7 +25,7 @@ import { _makeClassifyChatlogEntry, _makeStats } from '../../../__tests__/_helpe
 
 describe('classifyFile', () => {
   describe('Given: dryRun=true の呼び出し', () => {
-    describe('When: classifyFile(fileMeta, "app1", true, stats) を呼び出す', () => {
+    describe('When: classifyFile(fileMeta, "app1", "/tmp/output", true, stats) を呼び出す', () => {
       describe('Then: T-CL-CF-01 - ファイルシステム不使用・stats.moved+1', () => {
         let loggerStub: LoggerStub;
 
@@ -41,7 +41,7 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats);
 
           assertEquals(stats.moved, 1);
         });
@@ -50,7 +50,7 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats);
 
           assertEquals(stats.error, 0);
         });
@@ -59,7 +59,7 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats);
 
           assert(loggerStub.infoLogs.some((msg) => msg.includes('[dry-run]')));
         });
@@ -68,7 +68,7 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats);
 
           const _allInfo = loggerStub.infoLogs.join('\n');
           assertStringIncludes(_allInfo, '→ app1/');
@@ -77,8 +77,53 @@ describe('classifyFile', () => {
     });
   });
 
+  describe('Given: project=undefined の呼び出し', () => {
+    describe('When: classifyFile(fileMeta, undefined, "/tmp/output", false, stats) を呼び出す', () => {
+      describe('Then: T-CL-CF-03 - stats.skipped+1・ファイルシステム不使用', () => {
+        let loggerStub: LoggerStub;
+
+        beforeEach(() => {
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(() => {
+          loggerStub.restore();
+        });
+
+        it('T-CL-CF-03-01: stats.skipped が 1 になる', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, undefined, '/tmp/output', false, stats);
+
+          assertEquals(stats.skipped, 1);
+        });
+
+        it('T-CL-CF-03-02: stats.moved / movedByAI / error が 0 のまま', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, undefined, '/tmp/output', false, stats);
+
+          assertEquals(stats.moved, 0);
+          assertEquals(stats.movedByAI, 0);
+          assertEquals(stats.error, 0);
+        });
+
+        it('T-CL-CF-03-03: warnLogs に "[skip: no-project]" が含まれる', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, undefined, '/tmp/output', false, stats);
+
+          assert(loggerStub.warnLogs.some((msg) => msg.includes('[skip: no-project]')));
+        });
+      });
+    });
+  });
+
   describe('Given: byAI=true の呼び出し', () => {
-    describe('When: classifyFile(fileMeta, "app1", true, stats, true) を呼び出す (dryRun=true)', () => {
+    describe('When: classifyFile(fileMeta, "app1", "/tmp/output", true, stats, true) を呼び出す (dryRun=true)', () => {
       describe('Then: T-CL-CF-02 - stats.movedByAI がインクリメントされ stats.moved は変化しない', () => {
         let loggerStub: LoggerStub;
 
@@ -94,7 +139,7 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats, true);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats, true);
 
           assertEquals(stats.movedByAI, 1);
         });
@@ -103,9 +148,34 @@ describe('classifyFile', () => {
           const fileMeta = _makeClassifyChatlogEntry('test.md');
           const stats = _makeStats();
 
-          await classifyFile(fileMeta, 'app1', true, stats, true);
+          await classifyFile(fileMeta, 'app1', '/tmp/output', true, stats, true);
 
           assertEquals(stats.moved, 0);
+        });
+      });
+    });
+  });
+
+  describe('Given: destDir に Windows バックスラッシュパスを渡す呼び出し', () => {
+    describe('When: classifyFile(fileMeta, "app1", "C:\\\\output", true, stats) を呼び出す (dryRun=true)', () => {
+      describe('Then: T-CL-CF-04 - normalizePath によりパスが正規化されて処理が壊れない', () => {
+        let loggerStub: LoggerStub;
+
+        beforeEach(() => {
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(() => {
+          loggerStub.restore();
+        });
+
+        it('T-CL-CF-04-01: destDir="C:\\\\output" + dryRun=true → stats.moved === 1', async () => {
+          const fileMeta = _makeClassifyChatlogEntry('test.md');
+          const stats = _makeStats();
+
+          await classifyFile(fileMeta, 'app1', 'C:\\output', true, stats);
+
+          assertEquals(stats.moved, 1);
         });
       });
     });
