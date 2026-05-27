@@ -7,68 +7,67 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words MoveByAI
+
+// --- import ---
+// functions
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
+
+// types
+import type { ClassifyAction, ClassifyBuffer, ClassifyStats } from '../types/classify.types.ts';
+
+// classes
 import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+
+// constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
-import type { ClassifyBuffer, ClassifyStats } from '../types/classify.types.ts';
+
+/** `project` が `undefined` の場合は `FALLBACK_PROJECT` を返す。 */
+export const resolveProject = (project: string | undefined): string => project ?? FALLBACK_PROJECT;
 
 /**
  * 1ファイルを指定プロジェクトのサブディレクトリへ移動し、フロントマターを更新する。
- * - `project` が `undefined` の場合はスキップして `stats.skipped++` し、警告ログを出力する。
- * - `dryRun` が `true` の場合は移動せずログのみ出力してカウンターをインクリメントする。
- * - `byAI` が `true` の場合は `stats.movedByAI`、`false` の場合は `stats.moved` をインクリメントする。
- * - 移動エラーは `stats.error` をインクリメントしてログに記録する（スローしない）。
+ * 副作用（ログ出力・stats 更新）は呼び出し元が戻り値の `action` に応じて行う。
+ * - `project` が `undefined` の場合は `FALLBACK_PROJECT` に補完して移動する。
+ * - `dryRun` が `true` の場合は移動せず `{ action: MOVE, message }` を返す。
+ * - 移動エラーは `{ action: ERROR, message }` を返す（スローしない）。
  */
 export const classifyFile = async (
   classifyEntry: ClassifyChatlogEntry,
   project: string | undefined,
   destDir: string,
   dryRun: boolean,
-  stats: ClassifyStats,
-  byAI: boolean = false,
-): Promise<void> => {
-  if (project === undefined) {
-    logger.warn(`[skip: no-project] ${classifyEntry.filename}`);
-    stats.skipped++;
-    return;
-  }
+): Promise<{ action: ClassifyAction; message: string }> => {
+  const _project = resolveProject(project);
   const srcPath = classifyEntry.filePath;
-  const _projectDir = normalizePath(`${destDir}/${project}`);
+  const _projectDir = normalizePath(`${destDir}/${_project}`);
   const dstPath = `${_projectDir}/${classifyEntry.filename}`;
 
   if (dryRun) {
-    logger.info(`[dry-run] ${classifyEntry.filename} → ${project}/`);
-    if (byAI) { stats.movedByAI++; }
-    else { stats.moved++; }
-    return;
+    return { action: CLASSIFY_ACTIONS.MOVE, message: `[dry-run] ${classifyEntry.filename} → ${_project}/` };
   }
 
   try {
     await Deno.mkdir(_projectDir, { recursive: true });
-    classifyEntry.frontmatter.set('project', project);
+    classifyEntry.frontmatter.set('project', _project);
     const _newContent = normalizeLine(classifyEntry.renderEntry());
     await Deno.writeTextFile(dstPath, _newContent);
     await Deno.remove(srcPath);
 
-    logger.info(`moved: ${classifyEntry.filename} → ${project}/`);
-    if (byAI) { stats.movedByAI++; }
-    else { stats.moved++; }
+    return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename} → ${_project}/` };
   } catch (e) {
-    logger.error(`  移動失敗: ${classifyEntry.filename}: ${e}`);
-    stats.error++;
+    return { action: CLASSIFY_ACTIONS.ERROR, message: `  move failed: ${classifyEntry.filename}: ${e}` };
   }
 };
-
-/** `project` が `undefined` の場合は `FALLBACK_PROJECT` を返す。 */
-const _resolveProject = (project: string | undefined): string => project ?? FALLBACK_PROJECT;
 
 /**
  * 分類バッファの各エントリを実際の処理（ファイル移動またはスキップ）に適用する。
  * - `action === 'move'` → `classifyFile` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
  *   - `project` が `undefined` の場合は `FALLBACK_PROJECT` へ補完する
+ * - `action === 'move-by-ai'` → `classifyFile` を呼び出してファイルを移動し、`stats.movedByAI` をインクリメントする
  * - `action === 'skip'` → `stats.skipped++` のみ（ファイル移動なし）、ログ出力
  * - `action === 'remaining'` → `stats.remaining++`（ログなし）
  * - `action === 'error'` → `stats.error++`（ファイル移動なし）、警告ログ出力
@@ -94,8 +93,28 @@ export const moveClassified = async (
         logger.warn(`  AI 分類失敗: ${entry.filePath}`);
         stats.error++;
         break;
-      default:
-        await classifyFile(entry.file!, _resolveProject(entry.project), destDir, dryRun, stats, entry.byAI);
+      case CLASSIFY_ACTIONS.MOVE: {
+        const _result = await classifyFile(entry.file!, entry.project, destDir, dryRun);
+        if (_result.action === CLASSIFY_ACTIONS.MOVE) {
+          logger.info(_result.message);
+          stats.moved++;
+        } else {
+          logger.error(_result.message);
+          stats.error++;
+        }
+        break;
+      }
+      case CLASSIFY_ACTIONS.MOVEBYAI: {
+        const _result = await classifyFile(entry.file!, entry.project, destDir, dryRun);
+        if (_result.action === CLASSIFY_ACTIONS.MOVE) {
+          logger.info(_result.message);
+          stats.movedByAI++;
+        } else {
+          logger.error(_result.message);
+          stats.error++;
+        }
+        break;
+      }
     }
   }
 };

@@ -61,7 +61,7 @@ export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => 
     const _srcDir = getDirectory(f.filePath);
     const _inSubDir = _srcDir.endsWith('/' + _existingProject);
     const _action = _inSubDir ? CLASSIFY_ACTIONS.SKIP : CLASSIFY_ACTIONS.MOVE;
-    return { ...entry, project: _existingProject, byAI: false, action: _action };
+    return { ...entry, project: _existingProject, action: _action };
   }
 
   const _title = _fm.get('title');
@@ -78,7 +78,7 @@ export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => 
   if (!_hasMeta && _fullLength < MIN_CLASSIFIABLE_LENGTH) {
     logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
     logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
-    return { ...entry, project: FALLBACK_PROJECT, byAI: false, action: CLASSIFY_ACTIONS.MOVE };
+    return { ...entry, project: FALLBACK_PROJECT, action: CLASSIFY_ACTIONS.MOVE };
   }
 
   return { ...entry, action: CLASSIFY_ACTIONS.REMAINING };

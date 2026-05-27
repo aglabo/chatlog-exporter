@@ -15,6 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { DEFAULT_AGENT, DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // -- test target --
+import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 import { DEFAULT_CLASSIFY_CONFIG, DEFAULT_PROJECTS_DIC_PATH } from '../../classify.constants.ts';
 
 // ─── DEFAULT_PROJECTS_DIC_PATH の検証 ────────────────────────────────────────
@@ -25,6 +26,20 @@ describe('classify.constants', () => {
       describe('Then: T-CL-CONST-02 - 期待するデフォルトパスを持つ', () => {
         it('T-CL-CONST-02-01: DEFAULT_PROJECTS_DIC_PATH が "./assets/configs/projects.dic" になる', () => {
           assertEquals(DEFAULT_PROJECTS_DIC_PATH, './assets/configs/projects.dic');
+        });
+      });
+    });
+  });
+});
+
+// ─── CLASSIFY_ACTIONS の各フィールド検証 ─────────────────────────────────────
+
+describe('classify.constants', () => {
+  describe('Given: CLASSIFY_ACTIONS', () => {
+    describe('When: 値を参照する', () => {
+      describe('Then: T-CL-CONST-03 - 期待するアクション値を持つ', () => {
+        it('T-CL-CONST-03-01: CLASSIFY_ACTIONS.MOVEBYAI が "move-by-ai" になる', () => {
+          assertEquals(CLASSIFY_ACTIONS.MOVEBYAI, 'move-by-ai');
         });
       });
     });

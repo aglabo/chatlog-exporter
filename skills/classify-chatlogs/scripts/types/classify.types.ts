@@ -6,6 +6,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words MoveByAI
+//
+// ─── Imports
+// types
 import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
 import type { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 
@@ -89,6 +93,7 @@ export type ParsedConfig = Omit<Partial<ClassifyConfig>, 'dicsDir'> & {
 // ─────────────────────────────────────────────
 export const CLASSIFY_ACTIONS = {
   MOVE: 'move',
+  MOVEBYAI: 'move-by-ai',
   SKIP: 'skip',
   REMAINING: 'remaining',
   ERROR: 'error',
@@ -105,8 +110,6 @@ export type ClassifyBufferEntry = {
   filePath: string;
   /** 割り当てるプロジェクト名。 */
   project?: string;
-  /** AI による分類かどうか。`true` の場合は `stats.movedByAI` をインクリメントする。 */
-  byAI?: boolean;
   /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
   action?: ClassifyAction;
   /** `action === 'error'` のときのエラーメッセージ。 */

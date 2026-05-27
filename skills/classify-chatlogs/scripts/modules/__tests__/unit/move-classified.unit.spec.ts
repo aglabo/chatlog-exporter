@@ -7,6 +7,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words MoveByAI
+
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
@@ -32,7 +34,7 @@ import { _makeEntry, _makeStats } from '../../../__tests__/_helpers/classify-tes
  *
  * バッファエントリの action に基づく振る舞いを検証する。
  *
- * テスト ID 範囲: T-CL-MC-01 〜 T-CL-MC-08
+ * テスト ID 範囲: T-CL-MC-01 〜 T-CL-MC-09
  *
  * @see moveClassified
  */
@@ -47,7 +49,6 @@ describe('moveClassified', () => {
         file: _entry,
         filePath: _entry.filePath,
         project: 'app1',
-        byAI: false,
         action: CLASSIFY_ACTIONS.SKIP,
       }];
       const _stats = _makeStats();
@@ -106,13 +107,12 @@ describe('moveClassified', () => {
    * 正常系: classifyFile の呼び出し確認（dryRun=true を利用した実際呼び出し）。
    */
   describe('When: 正常系 (classifyFile 実呼び出し)', () => {
-    it('[Normal] T-CL-MC-02: action=move, byAI=false → classifyFile 呼び出し（byAI=false で）', async () => {
+    it('[Normal] T-CL-MC-02: action=move → classifyFile 呼び出し（stats.moved がインクリメントされる）', async () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
         filePath: _entry.filePath,
         project: 'app1',
-        byAI: false,
         action: CLASSIFY_ACTIONS.MOVE,
       }];
       const _stats = _makeStats();
@@ -125,22 +125,20 @@ describe('moveClassified', () => {
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-03: action=move, byAI=true → classifyFile 呼び出し（byAI=true で）', async () => {
+    it('[Normal] T-CL-MC-03: action=MOVEBYAI → classifyFile 呼び出し（stats.movedByAI がインクリメントされる）', async () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
         filePath: _entry.filePath,
         project: 'app1',
-        byAI: true,
-        action: CLASSIFY_ACTIONS.MOVE,
+        action: CLASSIFY_ACTIONS.MOVEBYAI,
       }];
       const _stats = _makeStats();
 
       await moveClassified(_buffer, '/tmp/output', true, _stats);
 
-      // dryRun=true なので stats.movedByAI がインクリメントされる
-      assertEquals(_stats.movedByAI, 1);
       assertEquals(_stats.moved, 0);
+      assertEquals(_stats.movedByAI, 1);
       assertEquals(_stats.remaining, 0);
     });
 
@@ -150,7 +148,6 @@ describe('moveClassified', () => {
         file: _entry,
         filePath: _entry.filePath,
         project: undefined,
-        byAI: false,
         action: CLASSIFY_ACTIONS.MOVE,
       }];
       const _stats = _makeStats();
@@ -171,7 +168,6 @@ describe('moveClassified', () => {
         file: _entry,
         filePath: _entry.filePath,
         project: 'app1',
-        byAI: false,
         action: CLASSIFY_ACTIONS.MOVE,
       }];
       const _stats = _makeStats();
@@ -182,6 +178,26 @@ describe('moveClassified', () => {
       assertEquals(_stats.moved, 1);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
+      assertEquals(_stats.error, 0);
+    });
+
+    it('[Normal] T-CL-MC-09: action=MOVEBYAI → stats.movedByAI++ (dryRun=true)', async () => {
+      const _entry = _makeEntry('/tmp/input/test.md');
+      const _buffer: ClassifyBuffer = [{
+        file: _entry,
+        filePath: _entry.filePath,
+        project: 'app1',
+        action: CLASSIFY_ACTIONS.MOVEBYAI,
+      }];
+      const _stats = _makeStats();
+
+      await moveClassified(_buffer, '/tmp/output', true, _stats);
+
+      // action=MOVEBYAI で dryRun=true → stats.movedByAI がインクリメントされる
+      assertEquals(_stats.movedByAI, 1);
+      assertEquals(_stats.moved, 0);
+      assertEquals(_stats.remaining, 0);
+      assertEquals(_stats.skipped, 0);
       assertEquals(_stats.error, 0);
     });
   });

@@ -7,6 +7,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words MoveByAI
+
 // --- import ---
 // functions
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
@@ -133,7 +135,7 @@ export const processChunk = async (
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath, project, byAI: true, action: CLASSIFY_ACTIONS.MOVE });
+    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
   }
 
   return _buffer;
