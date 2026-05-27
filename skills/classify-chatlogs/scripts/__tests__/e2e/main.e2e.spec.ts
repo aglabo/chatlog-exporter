@@ -492,12 +492,12 @@ describe('main - InputNotFound エラー', () => {
   });
 });
 
-// ─── T-CL-E2E-06: AI 失敗 → 全ファイルが misc/ に移動 ───────────────────────
+// ─── T-CL-E2E-06: AI 失敗 → ファイルは移動せず error=1 ─────────────────────
 
 describe('main - AI 失敗フォールバック', () => {
   describe('Given: 1件の .md ファイルと CLI 失敗モック', () => {
     describe('When: main([...args]) を呼び出す（dryRun=false）', () => {
-      describe('Then: T-CL-E2E-06 - AI 失敗 → misc/ にファイルが移動', () => {
+      describe('Then: T-CL-E2E-06 - AI 失敗 → ファイルは移動せず error=1', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
@@ -528,19 +528,19 @@ describe('main - AI 失敗フォールバック', () => {
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-06-01: misc/ にファイルが移動している', async () => {
+        it('T-CL-E2E-06-01: ファイルが元の場所に残っている', async () => {
           await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
 
-          assertEquals(await fileExists(`${monthDir}/misc/chat.md`), true);
+          assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
-        it('T-CL-E2E-06-02: 完了ログに movedByAI=1 が含まれる', async () => {
+        it('T-CL-E2E-06-02: 完了ログに error=1 が含まれる', async () => {
           await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
 
           assertEquals(
-            errLogs.some((l) => l.includes('movedByAI=1')),
+            errLogs.some((l) => l.includes('error=1')),
             true,
-            '完了ログに movedByAI=1 が含まれていない',
+            '完了ログに error=1 が含まれていない',
           );
         });
       });
