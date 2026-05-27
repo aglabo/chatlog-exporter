@@ -51,12 +51,9 @@ assets/prompts/        # AI プロンプト
 - `_scripts/` 配下の型・定数を実装ファイルに直書き
 - 依頼範囲を超えたリファクタリング・機能追加
 
-## ルール・規約
+## コーディング規約・ルール
 
-@.claude/rules/coding-guidelines.md
-@.claude/rules/workflow.md
-@.claude/rules/bdd-cycle.md
-@.claude/rules/testing-conventions.md
+@.claude/CLAUDE.md
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 
