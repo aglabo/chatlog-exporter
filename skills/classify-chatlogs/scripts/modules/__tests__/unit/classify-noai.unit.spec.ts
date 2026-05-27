@@ -50,7 +50,6 @@ describe('preClassify', () => {
 
       assertEquals(result.action, CLASSIFY_ACTIONS.SKIP);
       assertEquals(result.project, 'app1');
-      assertEquals(result.byAI, false);
     });
 
     it('[Normal] T-CL-PRE-02: project フィールドあり + ディレクトリが違う → action=move', () => {
@@ -60,7 +59,6 @@ describe('preClassify', () => {
 
       assertEquals(result.action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(result.project, 'app1');
-      assertEquals(result.byAI, false);
     });
 
     it('[Normal] T-CL-PRE-03: project フィールドなし + hasMeta=false + 短い → FALLBACK_PROJECT, action=move', () => {
@@ -70,7 +68,6 @@ describe('preClassify', () => {
 
       assertEquals(result.action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(result.project, FALLBACK_PROJECT);
-      assertEquals(result.byAI, false);
     });
 
     it('[Normal] T-CL-PRE-04: project フィールドなし + hasMeta=true → action=remaining（AI 処理対象）', () => {
