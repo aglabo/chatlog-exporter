@@ -4,17 +4,25 @@
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 
+// cspell:words noai
+
+// ─── BDD modules
 import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
-// test target
+// ─── test target
+
 import { loadClassifyEntry } from '../../classify-noai.ts';
+
+// ─── helpers
 // errors
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+// constants
+import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
-// ─── loadClassifyEntry ─────────────────────────────────────────────────────────────
+// ─── test
 
 describe('loadClassifyEntry', () => {
   let tempDir: string;
@@ -41,7 +49,7 @@ describe('loadClassifyEntry', () => {
 
           const meta = await loadClassifyEntry(filePath);
 
-          assertEquals(meta?.filename, 'test.md');
+          assertEquals(meta.file?.filename, 'test.md');
         });
 
         it('T-CL-LFM-01-02: frontmatter の title が正しく設定される', async () => {
@@ -52,7 +60,7 @@ describe('loadClassifyEntry', () => {
           );
 
           const meta = await loadClassifyEntry(filePath);
-          const _title = meta?.frontmatter.get('title');
+          const _title = meta.file?.frontmatter.get('title');
 
           assertEquals(typeof _title === 'string' ? _title : '', 'テストタイトル');
         });
@@ -65,7 +73,7 @@ describe('loadClassifyEntry', () => {
           );
 
           const meta = await loadClassifyEntry(filePath);
-          const _category = meta?.frontmatter.get('category');
+          const _category = meta.file?.frontmatter.get('category');
 
           assertEquals(typeof _category === 'string' ? _category : '', 'development');
         });
@@ -80,24 +88,25 @@ describe('loadClassifyEntry', () => {
           const meta = await loadClassifyEntry(filePath);
 
           assertEquals(
-            meta?.frontmatterText,
+            meta.file?.frontmatterText,
             '---\ntitle: テストタイトル\ncategory: development\n---\n',
           );
-          assertEquals(meta?.content, '本文\n');
+          assertEquals(meta.file?.content, '本文\n');
         });
       });
     });
   });
 
-  // ─── T-CL-LFM-02: 存在しないファイル → null ──────────────────────────────
+  // ─── T-CL-LFM-02: 存在しないファイル → スロー ──────────────────────────────
 
   describe('Given: 存在しないファイルパス', () => {
     describe('When: loadClassifyEntry("/nonexistent/file.md") を呼び出す', () => {
-      describe('Then: T-CL-LFM-02 - null が返される', () => {
-        it('T-CL-LFM-02-01: null が返される（例外なし）', async () => {
-          const meta = await loadClassifyEntry('/nonexistent/file.md');
-
-          assertNull(meta);
+      describe('Then: T-CL-LFM-02 - ChatlogError(FileDirNotFound) がスローされる', () => {
+        it('[Error] T-CL-LFM-02-01: 存在しないファイルの場合 ChatlogError(FileDirNotFound) がスローされる', async () => {
+          await assertRejects(
+            () => loadClassifyEntry('/nonexistent/file.md'),
+            ChatlogError,
+          );
         });
       });
     });
@@ -113,7 +122,7 @@ describe('loadClassifyEntry', () => {
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
           const meta = await loadClassifyEntry(filePath);
-          const _project = meta?.frontmatter.get('project');
+          const _project = meta.file?.frontmatter.get('project');
 
           assertEquals(_project, undefined);
         });
@@ -134,7 +143,7 @@ describe('loadClassifyEntry', () => {
           );
 
           const meta = await loadClassifyEntry(filePath);
-          const _project = meta?.frontmatter.get('project');
+          const _project = meta.file?.frontmatter.get('project');
 
           assertEquals(typeof _project === 'string' ? _project : '', 'my-app');
         });
@@ -155,7 +164,7 @@ describe('loadClassifyEntry', () => {
           );
 
           const meta = await loadClassifyEntry(filePath);
-          const _topics = meta?.frontmatter.get('topics');
+          const _topics = meta.file?.frontmatter.get('topics');
 
           assertEquals(Array.isArray(_topics) ? _topics as string[] : [], ['TypeScript', 'Deno']);
         });
@@ -176,7 +185,7 @@ describe('loadClassifyEntry', () => {
           );
 
           const meta = await loadClassifyEntry(filePath);
-          const _tags = meta?.frontmatter.get('tags');
+          const _tags = meta.file?.frontmatter.get('tags');
 
           assertEquals(Array.isArray(_tags) ? _tags as string[] : [], ['refactoring', 'bdd']);
         });
@@ -184,37 +193,59 @@ describe('loadClassifyEntry', () => {
     });
   });
 
-  // ─── T-CL-LFM-07: 閉じない frontmatter → null ────────────────────────────
+  // ─── T-CL-LFM-07: 閉じない frontmatter → action='error' ─────────────────
 
   describe('Given: 閉じない frontmatter の .md ファイル（終端 --- なし）', () => {
     describe('When: loadClassifyEntry(filePath) を呼び出す', () => {
-      describe('Then: T-CL-LFM-07 - ChatlogError(InvalidFormat) がスローされる', () => {
-        it('[Error] T-CL-LFM-07-01: 閉じない frontmatter の場合 ChatlogError(InvalidFormat) がスローされる', async () => {
+      describe('Then: T-CL-LFM-07 - action=error のエントリが返される', () => {
+        it('[Error] T-CL-LFM-07-01: 閉じない frontmatter の場合 action=error のエントリが返される', async () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文'); // 閉じる --- がない
 
-          await assertRejects(
-            () => loadClassifyEntry(filePath),
-            ChatlogError,
-          );
+          const meta = await loadClassifyEntry(filePath);
+
+          assertEquals(meta.action, CLASSIFY_ACTIONS.ERROR);
+          assertEquals(meta.file, null);
+          assertEquals(meta.filePath, filePath);
+        });
+
+        it('[Error] T-CL-LFM-07-02: reason に ChatlogError のメッセージが含まれる', async () => {
+          const filePath = `${tempDir}/unclosed-fm.md`;
+          await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文');
+
+          const meta = await loadClassifyEntry(filePath);
+
+          assertEquals(typeof meta.reason, 'string');
+          assertEquals((meta.reason ?? '').length > 0, true);
         });
       });
     });
   });
 
-  // ─── T-CL-LFM-08: 壊れた YAML → null ────────────────────────────────────
+  // ─── T-CL-LFM-08: 壊れた YAML → action='error' ──────────────────────────
 
   describe('Given: 壊れた YAML を含む frontmatter の .md ファイル', () => {
     describe('When: loadClassifyEntry(filePath) を呼び出す', () => {
-      describe('Then: T-CL-LFM-08 - ChatlogError(InvalidYaml) がスローされる', () => {
-        it('[Error] T-CL-LFM-08-01: 壊れた YAML の場合 ChatlogError(InvalidYaml) がスローされる', async () => {
+      describe('Then: T-CL-LFM-08 - action=error のエントリが返される', () => {
+        it('[Error] T-CL-LFM-08-01: 壊れた YAML の場合 action=error のエントリが返される', async () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-          await assertRejects(
-            () => loadClassifyEntry(filePath),
-            ChatlogError,
-          );
+          const meta = await loadClassifyEntry(filePath);
+
+          assertEquals(meta.action, CLASSIFY_ACTIONS.ERROR);
+          assertEquals(meta.file, null);
+          assertEquals(meta.filePath, filePath);
+        });
+
+        it('[Error] T-CL-LFM-08-02: reason に ChatlogError のメッセージが含まれる', async () => {
+          const filePath = `${tempDir}/bad-yaml.md`;
+          await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
+
+          const meta = await loadClassifyEntry(filePath);
+
+          assertEquals(typeof meta.reason, 'string');
+          assertEquals((meta.reason ?? '').length > 0, true);
         });
       });
     });
@@ -231,7 +262,7 @@ describe('loadClassifyEntry', () => {
 
           const meta = await loadClassifyEntry(filePath);
 
-          assertEquals(meta !== null, true);
+          assertEquals(meta.file !== null, true);
         });
 
         it('T-CL-LFM-09-02: frontmatter.get("project") が undefined（スキップされない）', async () => {
@@ -240,7 +271,7 @@ describe('loadClassifyEntry', () => {
 
           const meta = await loadClassifyEntry(filePath);
 
-          assertEquals(meta?.frontmatter.get('project'), undefined);
+          assertEquals(meta.file?.frontmatter.get('project'), undefined);
         });
       });
     });
