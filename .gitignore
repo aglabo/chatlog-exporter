@@ -60,6 +60,7 @@ $~*
 .claude/*
 
 # agents can tracking
+!**/CLAUDE*.md
 !.claude/agents/
 !.claude/agents/**
 !.claude/rules/
