@@ -7,124 +7,86 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { expandGlob } from '@std/fs';
+// cspell:words noai
+
+// --- shared modules
+// functions
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getDirectory, normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
+import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
+
+// --- internal modules ---
+// types
+import type { ClassifyBufferEntry } from '../types/classify.types.ts';
+
+// classes
 import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+
+// constants
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
-import type {
-  ClassifyBuffer,
-  ClassifyBufferEntry,
-  ClassifyStats,
-  FindBufferEntriesOptions,
-} from '../types/classify.types.ts';
+import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
 /**
- * ファイルを読み込み、分類処理に必要なメタデータを返す。
- * - 読み込みに失敗した場合は `null` を返す（エラーをスローしない）。
- * - フロントマターへのアクセスは `entry.frontmatter.get()` を使用する。
+ * ファイルを読み込み、分類処理に必要なメタデータを `ClassifyBufferEntry` として返す。
+ * - ファイルシステムエラー（`NotFound`, `PermissionDenied` 等）はそのままスロー（致命的エラー）。
+ * - フロントマターの解析エラー（`InvalidFormat`, `InvalidYaml`）は `action: 'error'` のエントリを返す。
+ * - 正常時は `file: entry, filePath` を持つ `ClassifyBufferEntry` を返す。
  */
-export const loadClassifyFileMeta = async (filePath: string): Promise<ClassifyChatlogEntry | null> => {
-  let _text: string;
+export const loadClassifyEntry = async (filePath: string): Promise<ClassifyBufferEntry> => {
+  const _text = await readTextFile(filePath);
   try {
-    _text = await readTextFile(filePath);
-  } catch {
-    return null;
+    const _entry = new ClassifyChatlogEntry(_text, filePath);
+    return { file: _entry, filePath };
+  } catch (e) {
+    const _reason = e instanceof Error ? e.message : String(e);
+    return { file: null, filePath, action: CLASSIFY_ACTIONS.ERROR, reason: _reason };
   }
-  return new ClassifyChatlogEntry(_text, filePath);
 };
 
 /**
- * ファイルリストを AI 不要なケースとそれ以外に振り分ける。
+ * バッファエントリに対して AI 不要なケースの事前分類を行い、アクションを設定して返す。
+ * - `action === 'error'` のエントリはそのまま返す。
  * - frontmatter に `project` フィールドがある場合: 既に正しいディレクトリなら `skip`、違うなら `move`
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
- * - それ以外: `remaining` に追加して AI 処理対象とする
+ * - それ以外: `remaining`（AI 処理対象）
  */
-export const preClassify = (
-  metas: ClassifyChatlogEntry[],
-): { buffer: ClassifyBuffer; remaining: ClassifyChatlogEntry[] } => {
-  const _buffer: ClassifyBuffer = [];
-  const _remaining: ClassifyChatlogEntry[] = [];
+export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => {
+  if (entry.action === CLASSIFY_ACTIONS.ERROR) { return entry; }
+  const f = entry.file!;
+  const _fm = f.frontmatter;
+  const _existingProject = _fm.get('project');
 
-  for (const f of metas) {
-    const _fm = f.frontmatter;
-    const _existingProject = _fm.get('project');
-
-    if (typeof _existingProject === 'string' && _existingProject) {
-      const _srcDir = getDirectory(f.filePath);
-      const _inSubDir = _srcDir.endsWith('/' + _existingProject)
-        || _srcDir.endsWith('\\' + _existingProject);
-      const _action = _inSubDir ? 'skip' : 'move';
-      _buffer.push({ file: f, project: _existingProject, byAI: false, action: _action });
-      continue;
-    }
-
-    const _title = _fm.get('title');
-    const _category = _fm.get('category');
-    const _topics = _fm.get('topics');
-    const _tags = _fm.get('tags');
-    const _hasMeta = (typeof _title === 'string' && _title)
-      || (typeof _category === 'string' && _category)
-      || (Array.isArray(_topics) && _topics.length > 0)
-      || (Array.isArray(_tags) && _tags.length > 0);
-    const _fullLength = (f.frontmatterText + '\n' + f.content).trim().length;
-
-    if (!_hasMeta && _fullLength < MIN_CLASSIFIABLE_LENGTH) {
-      logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
-      logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
-      _buffer.push({ file: f, project: FALLBACK_PROJECT, byAI: false, action: 'move' });
-      continue;
-    }
-
-    _remaining.push(f);
+  // プロジェクト指定済み → 既に正しい場所にあるならスキップ、違う場所にあるなら移動
+  if (typeof _existingProject === 'string' && _existingProject) {
+    const _srcDir = getDirectory(f.filePath);
+    const _inSubDir = _srcDir.endsWith('/' + _existingProject);
+    const _action = _inSubDir ? CLASSIFY_ACTIONS.SKIP : CLASSIFY_ACTIONS.MOVE;
+    return { ...entry, project: _existingProject, byAI: false, action: _action };
   }
 
-  return { buffer: _buffer, remaining: _remaining };
-};
+  const _title = _fm.get('title');
+  const _category = _fm.get('category');
+  const _topics = _fm.get('topics');
+  const _tags = _fm.get('tags');
+  const _hasMeta = (typeof _title === 'string' && _title)
+    || (typeof _category === 'string' && _category)
+    || (Array.isArray(_topics) && _topics.length > 0)
+    || (Array.isArray(_tags) && _tags.length > 0);
+  const _fullLength = (f.frontmatterText + '\n' + f.content).trim().length;
 
-export { loadClassifyFileMeta as loadClassifyEntry };
+  // メタ情報がなく内容も短い → fallback プロジェクトに移動
+  if (!_hasMeta && _fullLength < MIN_CLASSIFIABLE_LENGTH) {
+    logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
+    logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
+    return { ...entry, project: FALLBACK_PROJECT, byAI: false, action: CLASSIFY_ACTIONS.MOVE };
+  }
+
+  return { ...entry, action: CLASSIFY_ACTIONS.REMAINING };
+};
 
 /**
  * バッファエントリ配列に対して `preClassify` を適用した結果を返す。
  */
 export const processPreclassify = (
   buffer: ClassifyBufferEntry[],
-): ClassifyBufferEntry[] =>
-  buffer.map((e) => {
-    const { buffer: _pre } = preClassify([e.file]);
-    return _pre.length > 0 ? _pre[0] : { file: e.file, action: 'remaining' };
-  });
-
-/**
- * ディレクトリ配下の `.md` ファイルを収集し、メタデータを読み込んで分類バッファを返す。
- * - `loadMeta` が `null` を返したファイルはスキップし、`stats.error` をインクリメントする。
- */
-export const findBufferEntries = async (
-  dir: string,
-  opts?: FindBufferEntriesOptions,
-  stats?: ClassifyStats,
-): Promise<ClassifyBuffer> => {
-  const _defaultGlob: GlobProvider = (pattern: string) =>
-    Array.fromAsync(expandGlob(pattern), (entry) => normalizePath(entry.path));
-  const _glob = opts?.glob ?? _defaultGlob;
-  const _loadMeta = opts?.loadMeta ?? loadClassifyFileMeta;
-  const _files = await _glob(`${dir}/**/*.md`);
-  const _buffer: ClassifyBuffer = [];
-  for (const filePath of _files) {
-    let _entry: ClassifyChatlogEntry | null;
-    try {
-      _entry = await _loadMeta(filePath);
-    } catch {
-      if (stats) { stats.error++; }
-      continue;
-    }
-    if (!_entry) {
-      if (stats) { stats.error++; }
-      continue;
-    }
-    _buffer.push({ file: _entry });
-  }
-  return _buffer;
-};
+): ClassifyBufferEntry[] => buffer.map(preClassify);

@@ -7,18 +7,28 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// --- import ---
+// functions
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
-import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
+
+// types
 import type {
   ClassifyBuffer,
   ClassifyConfig,
   ClassifyResult,
   ProjectDicEntry,
 } from '../types/classify.types.ts';
+
+// classes
+import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+
+// constants
+import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
+import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
+
 /**
  * AI へ渡すバッチ分類プロンプトを構築する。
  * - メタデータ（title/category/topics/tags）がすべて空のファイルは、本文先頭 500 文字を `body:` として付加する。
@@ -77,8 +87,8 @@ Base your decision on: title, category, topics, tags.`;
 
 /**
  * 1チャンク分のファイルを AI で一括分類し、分類バッファを返す。
- * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `FALLBACK_PROJECT`（byAI=true）でバッファに積む。
- * - AI の返答でファイル名が一致しない場合も `FALLBACK_PROJECT` を使用する。
+ * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `action: ERROR` エントリとして返す。
+ * - AI の返答でファイル名が一致しない場合は `FALLBACK_PROJECT` を使用する。
  * - 副作用（ファイル移動）は行わない。呼び出し元が `applyClassifications` で適用する。
  */
 export const processChunk = async (
@@ -97,47 +107,58 @@ export const processChunk = async (
   try {
     rawResult = await runAI(_systemPrompt, _batchPrompt, { model });
   } catch (e) {
-    logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
-    logger.warn(`  error: ${e}`);
-    for (const f of chunkMetas) {
-      _buffer.push({ file: f, project: FALLBACK_PROJECT, byAI: true, action: 'move' });
-    }
-    return _buffer;
+    const _reason = `claude CLI 実行失敗: ${e}`;
+    logger.warn(`  ${_reason}`);
+    return chunkMetas.map((f) => ({
+      file: f,
+      filePath: f.filePath,
+      action: CLASSIFY_ACTIONS.ERROR,
+      reason: _reason,
+    }));
   }
 
   const parsed = parseJsonArray<ClassifyResult>(rawResult);
   if (!parsed) {
-    logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて ${FALLBACK_PROJECT} 扱い`);
-    logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
-    for (const f of chunkMetas) {
-      _buffer.push({ file: f, project: FALLBACK_PROJECT, byAI: true, action: 'move' });
-    }
-    return _buffer;
+    const _reason = `JSON パース失敗: ${rawResult.slice(0, 200)}`;
+    logger.warn(`  ${_reason}`);
+    return chunkMetas.map((f) => ({
+      file: f,
+      filePath: f.filePath,
+      action: CLASSIFY_ACTIONS.ERROR,
+      reason: _reason,
+    }));
   }
 
   for (const fileMeta of chunkMetas) {
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    _buffer.push({ file: fileMeta, project, byAI: true, action: 'move' });
+    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath, project, byAI: true, action: CLASSIFY_ACTIONS.MOVE });
   }
 
   return _buffer;
 };
 
 /**
- * メタデータ一覧を受け取り、preClassify と AI 分類を実行して分類バッファを返す。
- * - AI 不要なエントリは `preClassify` で先に振り分ける。
+ * 分類バッファを受け取り、REMAINING エントリを AI で分類して分類バッファを返す。
+ * - allEntries から `CLASSIFY_ACTIONS.REMAINING` なエントリを抽出して AI 分類する。
+ * - REMAINING エントリが 0 件の場合は即座に空配列を返す。
  * - 残りは `runChunked` で並列 AI 分類する。
- * - preClassify バッファと AI バッファを結合して返す（ファイル移動・stats更新は行わない）。
+ * - ファイル移動・stats更新は行わない。
  */
 export const classifyByAI = async (
-  metas: ClassifyChatlogEntry[],
+  allEntries: ClassifyBuffer,
   projects: ProjectDicEntry,
   config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
 ): Promise<ClassifyBuffer> => {
+  // `e.file!` は安全: `findBufferEntries` が `action=error` を除外し、REMAINING エントリは常に file を持つ
+  const _remaining = allEntries
+    .filter((e) => e.action === CLASSIFY_ACTIONS.REMAINING)
+    .map((e) => e.file!);
+  if (_remaining.length === 0) { return []; }
+
   const _chunkBuffers = await runChunked<ClassifyChatlogEntry, ClassifyBuffer>(
-    metas,
+    _remaining,
     config.chunkSize,
     (chunk) => processChunk(chunk, projects, config.model),
     config.concurrency,

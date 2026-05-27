@@ -14,6 +14,8 @@
  *     [agent] [YYYY-MM] [--dry-run] [--config FILE] [--base-dir DIR] [--chatlogs-dir DIR]
  */
 
+// cspell:words noai
+
 // -- external --
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
@@ -26,13 +28,33 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
 import { loadProjectDic } from './libs/load-project-dic.ts';
 // types
-import type { ClassifyStats } from './types/classify.types.ts';
+import { CLASSIFY_ACTIONS } from './types/classify.types.ts';
+import type { ClassifyBuffer, ClassifyConfig, ClassifyStats, ProjectDicEntry } from './types/classify.types.ts';
 
 // -- modules --
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig, parseArgs } from './modules/classify-config.ts';
-import { findBufferEntries, processPreclassify } from './modules/classify-noai.ts';
+import { processPreclassify } from './modules/classify-noai.ts';
 import { moveClassified } from './modules/file-ops.ts';
+import { findBufferEntries } from './modules/find-buffer-entries.ts';
+
+// ─────────────────────────────────────────────
+// processClassify
+// ─────────────────────────────────────────────
+
+/**
+ * 分類バッファに対して AI なし事前分類・AI 分類を実行し、結合した分類済みバッファを返す。
+ */
+export const processClassify = async (
+  allEntries: ClassifyBuffer,
+  projects: ProjectDicEntry,
+  config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
+): Promise<ClassifyBuffer> => {
+  const _preClassified = processPreclassify(allEntries);
+  const _resolved = _preClassified.filter((e) => e.action !== CLASSIFY_ACTIONS.REMAINING);
+  const _aiClassified = await classifyByAI(_preClassified, projects, config);
+  return [..._resolved, ..._aiClassified];
+};
 
 // ─────────────────────────────────────────────
 // メイン
@@ -90,19 +112,11 @@ export const main = async (argv?: string[]): Promise<void> => {
       return;
     }
 
-    // Step 2: AI なし事前分類
-    const _preBuffer = processPreclassify(_buffer);
-    const _resolved = _preBuffer.filter((e) => e.action !== 'remaining');
-    const _remaining = _preBuffer
-      .filter((e) => e.action === 'remaining')
-      .map((e) => e.file);
+    // Step 2: 分類（AI なし + AI あり）
+    const _classified = await processClassify(_buffer, projects, _config);
 
-    // Step 3: AI 分類
-    const _aiBuffer = await classifyByAI(_remaining, projects, _config);
-
-    // Step 4: マージ + ファイル移動
-    const _result = [..._resolved, ..._aiBuffer];
-    await moveClassified(_result, _searchDir, _config.dryRun, stats);
+    // Step 3: ファイル移動
+    await moveClassified(_classified, _searchDir, _config.dryRun, stats);
 
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';

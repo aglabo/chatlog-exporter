@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 export class ClassifyChatlogEntry extends ChatlogEntry {
   readonly filePath: string;
@@ -16,6 +16,6 @@ export class ClassifyChatlogEntry extends ChatlogEntry {
   constructor(text: string, filePath: string) {
     super(text);
     this.filePath = filePath;
-    this.filename = normalizePath(filePath).split('/').pop()!;
+    this.filename = getFilename(filePath);
   }
 }

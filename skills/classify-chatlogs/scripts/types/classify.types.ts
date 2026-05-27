@@ -87,17 +87,30 @@ export type ParsedConfig = Omit<Partial<ClassifyConfig>, 'dicsDir'> & {
 // ─────────────────────────────────────────────
 // 分類バッファ型
 // ─────────────────────────────────────────────
+export const CLASSIFY_ACTIONS = {
+  MOVE: 'move',
+  SKIP: 'skip',
+  REMAINING: 'remaining',
+  ERROR: 'error',
+} as const;
+
+/** `CLASSIFY_ACTIONS` の値の型。 */
+export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIONS];
 
 /** `preClassify` および `processChunk` が返す1件分のバッファエントリ。 */
 export type ClassifyBufferEntry = {
-  /** 分類対象のファイルエントリ。 */
-  file: ClassifyChatlogEntry;
+  /** 分類対象のファイルエントリ。エラー時は `null`。 */
+  file: ClassifyChatlogEntry | null;
+  /** エントリのファイルパス。エラー時も参照できるよう `file` とは別に保持する。 */
+  filePath: string;
   /** 割り当てるプロジェクト名。 */
   project?: string;
   /** AI による分類かどうか。`true` の場合は `stats.movedByAI` をインクリメントする。 */
   byAI?: boolean;
   /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
-  action?: 'move' | 'skip' | 'remaining';
+  action?: ClassifyAction;
+  /** `action === 'error'` のときのエラーメッセージ。 */
+  reason?: string;
 };
 
 /** `preClassify` および `processChunk` が返すバッファ。 */
@@ -110,5 +123,5 @@ export type ClassifyBuffer = ClassifyBufferEntry[];
 /** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
 export type FindBufferEntriesOptions = {
   glob?: GlobProvider;
-  loadMeta?: (path: string) => Promise<ClassifyChatlogEntry | null>;
+  loadMeta?: (path: string) => Promise<ClassifyBufferEntry>;
 };

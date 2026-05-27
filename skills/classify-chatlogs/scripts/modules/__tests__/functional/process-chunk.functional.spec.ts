@@ -14,12 +14,14 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { processChunk } from '../../classify-ai.ts';
 
 // ─── Helpers
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
-import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 // types
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classes
 import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+// constants
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
+import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
 import {
@@ -27,10 +29,11 @@ import {
   makeFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { _makeClassifyChatlogEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+// types
+import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
 // ─── Tests
 
@@ -76,7 +79,7 @@ describe('processChunk', () => {
       const buffer = await processChunk(metas, projects, model);
 
       assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].action, 'move');
+      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(buffer[0].byAI, true);
       assertEquals(buffer[0].project, 'app1');
     });
@@ -96,7 +99,7 @@ describe('processChunk', () => {
   });
 
   /**
-   * 異常系: Claude CLI が失敗した場合の全件 FALLBACK_PROJECT バッファ返し。
+   * 異常系: Claude CLI 失敗・JSON パース失敗の場合に action: ERROR エントリが返される。
    */
   describe('When: 異常系', () => {
     let mockHandle: CommandMockHandle;
@@ -114,15 +117,14 @@ describe('processChunk', () => {
       loggerStub.restore();
     });
 
-    it('[Error] T-CL-PC-02-01: CLI エラー → buffer にファイル数（2）分の FALLBACK_PROJECT エントリが返される', async () => {
+    it('[Error] T-CL-PC-02-01: CLI エラー → buffer にファイル数（2）分の action: ERROR エントリが返される', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
       const buffer = await processChunk(metas, projects, model);
 
       assertEquals(buffer.length, 2);
-      assertEquals(buffer.every((e) => e.project === FALLBACK_PROJECT), true);
-      assertEquals(buffer.every((e) => e.byAI === true), true);
+      assertEquals(buffer.every((e) => e.action === CLASSIFY_ACTIONS.ERROR), true);
     });
 
     it('[Error] T-CL-PC-02-02: warn ログが warnLogs に記録される', async () => {
@@ -138,7 +140,7 @@ describe('processChunk', () => {
       );
     });
 
-    it('[Error] T-CL-PC-03-01: JSON パース失敗 → buffer に FALLBACK_PROJECT エントリが返される', async () => {
+    it('[Error] T-CL-PC-03-01: JSON パース失敗 → buffer に action: ERROR エントリが返される', async () => {
       mockHandle.restore();
       loggerStub.restore();
       loggerStub = makeLoggerStub();
@@ -152,7 +154,7 @@ describe('processChunk', () => {
       const buffer = await processChunk(metas, projects, model);
 
       assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].project, FALLBACK_PROJECT);
+      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.ERROR);
     });
 
     it('[Error] T-CL-PC-03-02: JSON パース失敗 → warn ログが warnLogs に記録される', async () => {
