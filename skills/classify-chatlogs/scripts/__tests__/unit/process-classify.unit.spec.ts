@@ -55,8 +55,8 @@ describe('processClassify', () => {
       const _entryShort = _makeEntry('/tmp/input/short.md', {}, 'short');
 
       const _buffer: ClassifyBuffer = [
-        { file: _entryMove },
-        { file: _entryShort },
+        { file: _entryMove, filePath: _entryMove.filePath },
+        { file: _entryShort, filePath: _entryShort.filePath },
       ];
 
       const result = await processClassify(_buffer, _PROJECTS, _CONFIG);
@@ -75,7 +75,7 @@ describe('processClassify', () => {
       // srcDir '/tmp/input/proj-a' は '/proj-a' で終わる → SKIP
       const _entrySkip = _makeEntry('/tmp/input/proj-a/test.md', { project: 'proj-a' }, '');
 
-      const _buffer: ClassifyBuffer = [{ file: _entrySkip }];
+      const _buffer: ClassifyBuffer = [{ file: _entrySkip, filePath: _entrySkip.filePath }];
 
       const result = await processClassify(_buffer, _PROJECTS, _CONFIG);
 
