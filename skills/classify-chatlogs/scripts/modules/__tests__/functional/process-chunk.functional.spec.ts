@@ -6,6 +6,8 @@
 //
 // This software is released under the MIT License.
 
+// cspell:words MoveByAI
+
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
@@ -72,15 +74,14 @@ describe('processChunk', () => {
       loggerStub.restore();
     });
 
-    it('[Normal] T-CL-PC-01-01: buffer に 1 件返される（action=move, byAI=true）', async () => {
+    it('[Normal] T-CL-PC-01-01: buffer に 1 件返される（action=moveByAI）', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
       const buffer = await processChunk(metas, projects, model);
 
       assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.MOVE);
-      assertEquals(buffer[0].byAI, true);
+      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.MOVEBYAI);
       assertEquals(buffer[0].project, 'app1');
     });
 
@@ -211,7 +212,6 @@ describe('processChunk', () => {
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].project, FALLBACK_PROJECT);
-      assertEquals(buffer[0].byAI, true);
     });
 
     it('[Edge] T-CL-PC-05-01: 空チャンク → 空バッファを返す', async () => {
