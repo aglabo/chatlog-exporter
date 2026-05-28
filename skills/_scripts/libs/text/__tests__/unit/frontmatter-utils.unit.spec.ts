@@ -7,16 +7,21 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import {
+  divideEntry,
   parseFrontmatter,
   parseFrontmatterEntries,
   renderFrontmatter,
   reorderFrontmatterEntries,
 } from '../../frontmatter-utils.ts';
+
+// ─── Helpers
+// error class
+import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // parseFrontmatter
@@ -54,7 +59,7 @@ describe('parseFrontmatter', () => {
         it('T-LIB-FM-04: content の正確性', () => {
           const text = '---\ntitle: Hello\n---\nThis is the body.\nSecond line.';
           const result = parseFrontmatter(text);
-          assertEquals(result.content, 'This is the body.\nSecond line.');
+          assertEquals(result.content, 'This is the body.\nSecond line.\n');
         });
       });
     });
@@ -106,7 +111,7 @@ describe('parseFrontmatter', () => {
           const text = '---\n---\nafter body';
           const result = parseFrontmatter(text);
           assertEquals(result.meta, {});
-          assertEquals(result.content, 'after body');
+          assertEquals(result.content, 'after body\n');
         });
       });
     });
@@ -162,14 +167,14 @@ describe('parseFrontmatter', () => {
     });
   });
 
-  describe('Given: 閉じ区切りが \\n--- で終わり末尾改行なしのテキスト', () => {
+  describe('Given: 閉じ区切りが末尾改行なしのテキスト', () => {
     describe('When: parseFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-LIB-FM-13 - \\n---\\n にマッチしないため失敗パス', () => {
+      describe('Then: T-LIB-FM-13 - divideEntry がパース成功するため meta と空 content が返る', () => {
         it('T-LIB-FM-13: 末尾改行なしの閉じ ---', () => {
           const text = '---\ntitle: Hello\n---';
           const result = parseFrontmatter(text);
-          assertEquals(result.meta, {});
-          assertEquals(result.content, text);
+          assertEquals(result.meta['title'], 'Hello');
+          assertEquals(result.content, '');
         });
       });
     });
@@ -195,7 +200,7 @@ describe('parseFrontmatter', () => {
           const text = '---\r\ntitle: Hi\r\n---\r\nbody text';
           const result = parseFrontmatter(text);
           assertEquals(result.meta['title'], 'Hi');
-          assertEquals(result.content, 'body text');
+          assertEquals(result.content, 'body text\n');
         });
       });
     });
@@ -208,7 +213,7 @@ describe('parseFrontmatter', () => {
           const text = '---\nsummary: "foo --- bar"\n---\nbody';
           const result = parseFrontmatter(text);
           assertEquals(result.meta['summary'], 'foo --- bar');
-          assertEquals(result.content, 'body');
+          assertEquals(result.content, 'body\n');
         });
       });
     });
@@ -276,7 +281,7 @@ describe('parseFrontmatterEntries', () => {
         it('T-LIB-FSM-05: content の正確性', () => {
           const text = '---\ntitle: Hello\n---\n# 本文\n内容';
           const result = parseFrontmatterEntries(text);
-          assertEquals(result.content, '# 本文\n内容');
+          assertEquals(result.content, '# 本文\n内容\n');
         });
       });
     });
@@ -383,6 +388,107 @@ describe('reorderFrontmatterEntries', () => {
       const entries: Record<string, string | string[]> = { title: 'Hello' };
       const result = reorderFrontmatterEntries(entries, []);
       assertEquals(result, {});
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// divideEntry
+// ─────────────────────────────────────────────
+
+/**
+ * `divideEntry` のユニットテストスイート。
+ *
+ * frontmatter ブロックと本文への分割・エラー検出・CRLF 正規化を検証する。
+ *
+ * テスト ID 範囲: T-FU-DE-01 〜 T-FU-DE-10
+ *
+ * @see divideEntry
+ */
+describe('divideEntry', () => {
+  /**
+   * 正常系: 有効な frontmatter ブロックの分割。
+   */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FU-DE-01: frontmatter と body を正しく分割する', () => {
+      const _text = '---\ntitle: X\n---\nbody';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\ntitle: X\n---\n');
+      assertEquals(_result.content, 'body\n');
+    });
+
+    it('[Normal] T-FU-DE-02: --- で始まらない入力は frontmatter="" content=normalized を返す（throw しない）', () => {
+      const _text = 'plain text';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '');
+      assertEquals(_result.content, 'plain text\n');
+    });
+
+    it('[Normal] T-FU-DE-03: 空文字列は frontmatter="" content="" を返す', () => {
+      const _result = divideEntry('');
+      assertEquals(_result.frontmatter, '');
+      assertEquals(_result.content, '');
+    });
+
+    it('[Normal] T-FU-DE-04: 空の frontmatter ブロック（---\\n---\\n）を分割する', () => {
+      const _text = '---\n---\nbody';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\n---\n');
+      assertEquals(_result.content, 'body\n');
+    });
+
+    it('[Normal] T-FU-DE-05: CRLF 改行を正規化して分割する', () => {
+      const _text = '---\r\ntitle: Hi\r\n---\r\nbody text';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\ntitle: Hi\n---\n');
+      assertEquals(_result.content, 'body text\n');
+    });
+
+    it('[Normal] T-FU-DE-06: 本文が空（frontmatter のみ）でも分割できる', () => {
+      const _text = '---\ntitle: T\n---\n';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\ntitle: T\n---\n');
+      assertEquals(_result.content, '');
+    });
+  });
+
+  /**
+   * エッジケース: YAML ブロックスカラー内に --- を含む入力の分割。
+   */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FU-DE-09: YAML ブロックスカラー内に --- を含む → 正しく分割する', () => {
+      const _text = '---\ndescription: |\n  line1\n  ---\n  line2\n---\nbody';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\ndescription: |\n  line1\n  ---\n  line2\n---\n');
+      assertEquals(_result.content, 'body\n');
+    });
+
+    it('[Edge] T-FU-DE-10: |1 記法でインデントなし --- が値内に現れる → |1 直後の --- が閉じ区切りになる', () => {
+      // YAML |1 記法（インデント幅を明示）では直後の --- がインデントなしになる。
+      // indexOf ベース実装は |1 直後の --- を閉じ区切りと解釈する。
+      const _text = '---\ndescription: |1\n---\nvalue\n---\nbody';
+      const _result = divideEntry(_text);
+      assertEquals(_result.frontmatter, '---\ndescription: |1\n---\n');
+      assertEquals(_result.content, 'value\n---\nbody\n');
+    });
+  });
+
+  /**
+   * 異常系: 不正な frontmatter で ChatlogError がスローされる。
+   */
+  describe('When: 異常系', () => {
+    it('[Error] T-FU-DE-07: 閉じ --- なし → InvalidFormat(NotClosed) をスローする', () => {
+      const _text = '---\ntitle: Hello\nno closing';
+      const _err = assertThrows(() => divideEntry(_text), ChatlogError) as ChatlogError;
+      assertEquals(_err.kind, 'InvalidFormat');
+      assertEquals(_err.subindex, 'NotClosed');
+    });
+
+    it('[Error] T-FU-DE-08: 不正な YAML → InvalidYaml(YamlSyntaxError) をスローする', () => {
+      const _text = '---\n: invalid: yaml: {\n---\nbody';
+      const _err = assertThrows(() => divideEntry(_text), ChatlogError) as ChatlogError;
+      assertEquals(_err.kind, 'InvalidYaml');
+      assertEquals(_err.subindex, 'YamlSyntaxError');
     });
   });
 });
