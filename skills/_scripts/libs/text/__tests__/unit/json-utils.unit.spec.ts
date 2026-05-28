@@ -24,7 +24,7 @@ import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.
  *
  * 3段階フォールバック（直接パース / non-greedy / greedy）の各パスを網羅する。
  *
- * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-13
+ * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-15
  *
  * @see parseAiJsonArray
  */
@@ -90,6 +90,11 @@ describe('parseAiJsonArray', () => {
       { id: 'T-LIB-J-04', label: '空文字列は null を返す', input: '' },
       { id: 'T-LIB-J-05', label: '配列を含まない文字列は null を返す', input: 'no array here' },
       { id: 'T-LIB-J-13', label: '[ で始まるが JSON.parse 失敗する場合は null を返す', input: '[invalid json' },
+      {
+        id: 'T-LIB-J-14',
+        label: '段階2・3 ともにパース失敗する場合は null を返す',
+        input: 'prefix [broken] suffix',
+      },
     ].forEach(({ id, label, input }) => {
       it(`[Error] ${id}: ${label}`, () => {
         assertNull(parseAiJsonArray(input));
@@ -99,11 +104,20 @@ describe('parseAiJsonArray', () => {
 
   /** 境界値・特殊ケース。 */
   describe('When: エッジケース', () => {
+    it('[Edge] T-LIB-J-07: 空配列は null を返す（length > 0 条件）', () => {
+      assertNull(parseAiJsonArray('[]'));
+    });
+
     [
-      { id: 'T-LIB-J-07', label: '空配列は null を返す（length > 0 条件）', input: '[]' },
-    ].forEach(({ id, label, input }) => {
+      {
+        id: 'T-LIB-J-15',
+        label: '段階1 が失敗した後、段階2 が後続の有効な配列を救済して返す',
+        input: '[] [{"a":1}]',
+        expected: [{ a: 1 }],
+      },
+    ].forEach(({ id, label, input, expected }) => {
       it(`[Edge] ${id}: ${label}`, () => {
-        assertNull(parseAiJsonArray(input));
+        assertEquals(parseAiJsonArray(input), expected);
       });
     });
 
