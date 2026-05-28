@@ -28,7 +28,7 @@ import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 
 // --- text ---
-import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // --- path ---
 import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -188,7 +188,7 @@ export const segmentChatlogs = async (
     return null;
   }
 
-  const parsed = parseJsonArray(raw);
+  const parsed = parseAiJsonArray(raw);
   if (parsed === null) {
     return null;
   }
@@ -250,7 +250,7 @@ export const segmentChatlogsBatch = async (
     return _nullMap();
   }
 
-  const _parsed = parseJsonArray(_raw);
+  const _parsed = parseAiJsonArray(_raw);
   if (_parsed === null) { return _nullMap(); }
 
   const _validPaths = new Set(inputs.map((i) => i.filePath));
