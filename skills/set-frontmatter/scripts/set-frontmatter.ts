@@ -31,10 +31,10 @@ import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
-import { parseFrontmatterEntries } from '../../_scripts/libs/text/frontmatter-utils.ts';
+import { parseFrontmatterEntries, renderFrontmatter } from '../../_scripts/libs/text/frontmatter-utils.ts';
 import { normalizeLine } from '../../_scripts/libs/text/line-utils.ts';
 import { cleanYaml } from '../../_scripts/libs/text/markdown-utils.ts';
-import { quoteString, toStringArrayWithNull } from '../../_scripts/libs/text/string-utils.ts';
+import { toStringArrayWithNull } from '../../_scripts/libs/text/string-utils.ts';
 
 // ─────────────────────────────────────────────
 // 定数
@@ -475,17 +475,17 @@ export const writeFrontmatter = async (
     return;
   }
 
-  const newFrontmatter = [
-    '---',
-    `session_id: ${quoteString(fm.sessionId)}`,
-    `date: ${quoteString(fm.date)}`,
-    `project: ${quoteString(fm.project)}`,
-    `slug: ${quoteString(fm.slug)}`,
-    `type: ${quoteString(result.type)}`,
-    `category: ${quoteString(result.category)}`,
-    result.yaml,
-    '---',
-  ].join('\n');
+  const _fields: Record<string, unknown> = {
+    session_id: fm.sessionId,
+    date: fm.date,
+    project: fm.project,
+    slug: fm.slug,
+    type: result.type,
+    category: result.category,
+  };
+  const _parsedYaml = parseYaml(result.yaml) as Record<string, unknown>;
+  const _allFields = { ..._fields, ..._parsedYaml };
+  const newFrontmatter = renderFrontmatter(_allFields).trimEnd();
 
   if (dryRun) {
     logger.log(`\n=== DRY RUN [${result.type}/${result.category}]: ${fm.file.split(/[/\\]/).pop()} ===`);
