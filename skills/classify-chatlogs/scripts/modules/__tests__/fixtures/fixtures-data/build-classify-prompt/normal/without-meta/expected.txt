@@ -1,0 +1,8 @@
+Projects: app1, misc
+
+=== FILE 1: input1.md ===
+title: (no title)
+category: (none)
+topics: (none)
+tags: (none)
+body: Just a plain body without any frontmatter metadata.
