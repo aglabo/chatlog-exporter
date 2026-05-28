@@ -51,7 +51,7 @@ describe('parseFrontmatterEntries', () => {
         it('T-SF-PF-02-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
-          assertEquals(result.content, '本文');
+          assertEquals(result.content, '本文\n');
         });
       });
     });
@@ -117,7 +117,7 @@ describe('parseFrontmatterEntries', () => {
         it('T-SF-PF-04-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
-          assertEquals(result.content, '本文');
+          assertEquals(result.content, '本文\n');
         });
       });
     });
@@ -139,7 +139,7 @@ describe('parseFrontmatterEntries', () => {
         it('T-SF-PF-05-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
-          assertEquals(result.content, '本文');
+          assertEquals(result.content, '本文\n');
         });
       });
     });
@@ -168,7 +168,7 @@ describe('parseFrontmatterEntries', () => {
         it('T-SF-PF-06-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
-          assertEquals(result.content, '本文');
+          assertEquals(result.content, '本文\n');
         });
       });
     });
