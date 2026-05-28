@@ -10,8 +10,13 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// -- test target --
-import { parseFrontmatter, parseFrontmatterEntries } from '../../frontmatter-utils.ts';
+// ─── Test target
+import {
+  parseFrontmatter,
+  parseFrontmatterEntries,
+  renderFrontmatter,
+  reorderFrontmatterEntries,
+} from '../../frontmatter-utils.ts';
 
 // ─────────────────────────────────────────────
 // parseFrontmatter
@@ -304,6 +309,124 @@ describe('parseFrontmatterEntries', () => {
           assertEquals(result.meta['tags'], ['foo', '', 'bar']);
         });
       });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// reorderFrontmatterEntries
+// ─────────────────────────────────────────────
+
+/**
+ * `reorderFrontmatterEntries` のユニットテストスイート。
+ *
+ * フィールド順序固定・空値スキップ・重複スキップ・空 fieldOrder を検証する。
+ *
+ * テスト ID 範囲: T-FU-BOE-01 〜 T-FU-BOE-06
+ *
+ * @see reorderFrontmatterEntries
+ */
+describe('reorderFrontmatterEntries', () => {
+  /**
+   * `reorderFrontmatterEntries` の正常系テスト。
+   *
+   * フィールド順序・undefined スキップ・空文字列スキップ・空配列スキップを検証する。
+   */
+  describe('When: 正常系', () => {
+    /** T-FU-BOE-01: entries と逆順の fieldOrder で順序が固定されることを確認する。 */
+    it('[Normal] T-FU-BOE-01: fieldOrder の順にエントリが並ぶ', () => {
+      const entries: Record<string, string | string[]> = { b: 'B', a: 'A' };
+      const result = reorderFrontmatterEntries(entries, ['a', 'b']);
+      assertEquals(Object.keys(result), ['a', 'b']);
+      assertEquals(result['a'], 'A');
+      assertEquals(result['b'], 'B');
+    });
+
+    /** T-FU-BOE-02: entries に存在しない（undefined な）フィールドはスキップされる。 */
+    it('[Normal] T-FU-BOE-02: undefined な値はスキップされる', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello' };
+      const result = reorderFrontmatterEntries(entries, ['title', 'missing']);
+      assertEquals(Object.keys(result), ['title']);
+    });
+
+    /** T-FU-BOE-03: 空文字列の値はスキップされる。 */
+    it('[Normal] T-FU-BOE-03: 空文字列はスキップされる', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello', category: '' };
+      const result = reorderFrontmatterEntries(entries, ['title', 'category']);
+      assertEquals(Object.keys(result), ['title']);
+    });
+
+    /** T-FU-BOE-04: 空配列の値はスキップされる。 */
+    it('[Normal] T-FU-BOE-04: 空配列はスキップされる', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello', tags: [] };
+      const result = reorderFrontmatterEntries(entries, ['title', 'tags']);
+      assertEquals(Object.keys(result), ['title']);
+    });
+  });
+
+  /**
+   * `reorderFrontmatterEntries` のエッジケーステスト。
+   *
+   * fieldOrder の重複と空配列を検証する。
+   */
+  describe('When: エッジケース', () => {
+    /** T-FU-BOE-05: fieldOrder に重複フィールドがあっても 1 回だけ出力される。 */
+    it('[Edge] T-FU-BOE-05: fieldOrder に重複があってもスキップされる', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello' };
+      const result = reorderFrontmatterEntries(entries, ['title', 'title']);
+      assertEquals(Object.keys(result), ['title']);
+      assertEquals(result['title'], 'Hello');
+    });
+
+    /** T-FU-BOE-06: fieldOrder が空のとき空 Record を返す。 */
+    it('[Edge] T-FU-BOE-06: fieldOrder が空のとき空 Record を返す', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello' };
+      const result = reorderFrontmatterEntries(entries, []);
+      assertEquals(result, {});
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// renderFrontmatter
+// ─────────────────────────────────────────────
+
+/**
+ * `renderFrontmatter` のユニットテストスイート。
+ *
+ * `Record<string, unknown>` から YAML frontmatter ブロック文字列を生成する動作を検証する。
+ *
+ * テスト ID 範囲: T-FU-RF-01 〜 T-FU-RF-04
+ *
+ * @see renderFrontmatter
+ */
+describe('renderFrontmatter', () => {
+  /**
+   * 正常系: 各種フィールドパターンの frontmatter 生成。
+   */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FU-RF-01: 空オブジェクトを渡す → 空文字列を返す', () => {
+      const _fields = {};
+      const _result = renderFrontmatter(_fields);
+      assertEquals(_result, '');
+    });
+
+    it('[Normal] T-FU-RF-02: スカラー値1件 → "---\\nkey: \\"value\\"\\n---\\n" を返す', () => {
+      const _fields = { title: 'Test Title' };
+      const _result = renderFrontmatter(_fields);
+      assertEquals(_result, '---\ntitle: "Test Title"\n---\n');
+    });
+
+    it('[Normal] T-FU-RF-03: 配列値 → "---\\nkey:\\n  - \\"a\\"\\n  - \\"b\\"\\n---\\n" を返す', () => {
+      const _fields = { topics: ['API', 'Deno'] };
+      const _result = renderFrontmatter(_fields);
+      assertEquals(_result, '---\ntopics:\n  - "API"\n  - "Deno"\n---\n');
+    });
+
+    it('[Normal] T-FU-RF-04: スカラーと配列の混在 → 挿入順通りに生成される（ダブルクォート）', () => {
+      const _fields = { title: 'My Title', tags: ['ts', 'deno'] };
+      const _result = renderFrontmatter(_fields);
+      assertEquals(_result, '---\ntitle: "My Title"\ntags:\n  - "ts"\n  - "deno"\n---\n');
     });
   });
 });
