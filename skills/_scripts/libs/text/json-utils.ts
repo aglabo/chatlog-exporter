@@ -6,8 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/** LLM 出力から JSON 配列を 3 段階フォールバックで抽出する。 */
-export const parseJsonArray = <T>(raw: string): T[] | null => {
+/** AI 出力から JSON 配列を 3 段階フォールバックで抽出する。 */
+export const parseAiJsonArray = <T>(raw: string): T[] | null => {
   const trimmed = raw.trim();
   if (trimmed.startsWith('[')) {
     try {
