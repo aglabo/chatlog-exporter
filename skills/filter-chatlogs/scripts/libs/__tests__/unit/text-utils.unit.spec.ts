@@ -1,6 +1,6 @@
 // src: scripts/libs/__tests__/unit/text-utils.unit.spec.ts
 // @(#): _scripts テキストユーティリティのユニットテスト
-//       対象: parseFrontmatterEntries / parseJsonArray
+//       対象: parseFrontmatterEntries / parseAiJsonArray
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -15,7 +15,7 @@ import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/hel
 // ─── Helpers
 // functions
 import { parseFrontmatterEntries } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
-import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 // types
 import type { ClaudeResult } from '../../../types/filter.types.ts';
 
@@ -90,29 +90,29 @@ describe('parseFrontmatterEntries', () => {
   });
 });
 
-describe('parseJsonArray', () => {
+describe('parseAiJsonArray', () => {
   // ─── T-FL-PJ-01: 純粋な JSON 配列文字列 → パース成功 ─────────────────────────
 
   describe('Given: 純粋な JSON 配列文字列', () => {
-    describe('When: parseJsonArray(raw) を呼び出す', () => {
+    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-01 - 配列が返される', () => {
         it('T-FL-PJ-01-01: 有効な JSON 配列 → null でない', () => {
           const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
-          const result = parseJsonArray(raw);
+          const result = parseAiJsonArray(raw);
 
           assertNotNull(result);
         });
 
         it('T-FL-PJ-01-02: 配列の最初の要素の file が "a.md" になる', () => {
           const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
-          const result = parseJsonArray<ClaudeResult>(raw);
+          const result = parseAiJsonArray<ClaudeResult>(raw);
 
           assertEquals(result![0].file, 'a.md');
         });
 
         it('T-FL-PJ-01-03: decision が "KEEP" になる', () => {
           const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
-          const result = parseJsonArray<ClaudeResult>(raw);
+          const result = parseAiJsonArray<ClaudeResult>(raw);
 
           assertEquals(result![0].decision, 'KEEP');
         });
@@ -122,7 +122,7 @@ describe('parseJsonArray', () => {
             { file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' },
             { file: 'b.md', decision: 'DISCARD', confidence: 0.8, reason: 'bad' },
           ]);
-          const result = parseJsonArray(raw);
+          const result = parseAiJsonArray(raw);
 
           assertEquals(result!.length, 2);
         });
@@ -133,12 +133,12 @@ describe('parseJsonArray', () => {
   // ─── T-FL-PJ-02: テキスト中に [...] 埋め込み → フォールバック成功 ─────────
 
   describe('Given: テキスト中に JSON 配列が埋め込まれた文字列', () => {
-    describe('When: parseJsonArray(raw) を呼び出す', () => {
+    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-02 - フォールバックで配列が返される', () => {
         it('T-FL-PJ-02-01: 前置テキスト + JSON 配列 → null でない', () => {
           const arr = [{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'ok' }];
           const raw = `前置テキスト\n${JSON.stringify(arr)}\n後置テキスト`;
-          const result = parseJsonArray(raw);
+          const result = parseAiJsonArray(raw);
 
           assertNotNull(result);
         });
@@ -146,7 +146,7 @@ describe('parseJsonArray', () => {
         it('T-FL-PJ-02-02: マークダウンコードブロック内の JSON → null でない', () => {
           const arr = [{ file: 'b.md', decision: 'DISCARD', confidence: 0.8, reason: 'no' }];
           const raw = `\`\`\`json\n${JSON.stringify(arr)}\n\`\`\``;
-          const result = parseJsonArray(raw);
+          const result = parseAiJsonArray(raw);
 
           assertNotNull(result);
         });
@@ -157,12 +157,12 @@ describe('parseJsonArray', () => {
   // ─── T-FL-PJ-03: 貪欲マッチのみで成功するケース ─────────────────────────────
 
   describe('Given: 非貪欲マッチでは失敗するが貪欲マッチで成功するテキスト', () => {
-    describe('When: parseJsonArray(raw) を呼び出す', () => {
+    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-03 - 貪欲マッチで配列が返される', () => {
         it('T-FL-PJ-03-01: ネストした配列を含む文字列 → null でない', () => {
           const arr = [{ file: 'c.md', decision: 'KEEP', confidence: 0.7, reason: 'nested [x]' }];
           const raw = `some text ${JSON.stringify(arr)} more text`;
-          const result = parseJsonArray(raw);
+          const result = parseAiJsonArray(raw);
 
           assertNotNull(result);
         });
@@ -173,22 +173,22 @@ describe('parseJsonArray', () => {
   // ─── T-FL-PJ-04: JSON でないテキスト → null ─────────────────────────────────
 
   describe('Given: JSON として解析できないテキスト', () => {
-    describe('When: parseJsonArray(raw) を呼び出す', () => {
+    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-04 - null が返される', () => {
         it('T-FL-PJ-04-01: 完全に無効なテキスト → null', () => {
-          const result = parseJsonArray('これはJSONではありません');
+          const result = parseAiJsonArray('これはJSONではありません');
 
           assertNull(result);
         });
 
         it('T-FL-PJ-04-02: 空文字列 → null', () => {
-          const result = parseJsonArray('');
+          const result = parseAiJsonArray('');
 
           assertNull(result);
         });
 
         it('T-FL-PJ-04-03: 空の配列 → null（length=0 の場合は null 扱い）', () => {
-          const result = parseJsonArray('[]');
+          const result = parseAiJsonArray('[]');
 
           assertNull(result);
         });
