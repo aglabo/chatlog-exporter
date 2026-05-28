@@ -12,7 +12,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { stringify } from 'yaml';
 
 // --- shared
-import { reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
+import { divideEntry, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
 import { toStringWithNull } from '../libs/text/string-utils.ts';
 
 // Error
@@ -44,16 +44,32 @@ export class ChatlogFrontmatter {
   }
 
   private _parseFrontmatter(input: string): Record<string, string | string[]> {
-    if (input === '') {
-      return {};
+    if (input === '') { return {}; }
+
+    // divideEntry で frontmatter テキストを取得（DoesNotStart は '' を返す、NotClosed は throw）
+    let _divided: { frontmatter: string; content: string };
+    try {
+      _divided = divideEntry(input);
+    } catch (e) {
+      if (e instanceof ChatlogError) { throw e; }
+      // @std/yaml が不正 YAML で throw した場合
+      const detail = e instanceof Error ? e.message : String(e);
+      throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', detail);
     }
-    const _body = this._extractBody(input);
-    if (_body.trim() === '') {
-      return {};
+
+    // DoesNotStart の場合 divideEntry は frontmatter: '' を返すが、
+    // ChatlogFrontmatter は --- で始まらない入力に DoesNotStart を throw する仕様
+    if (_divided.frontmatter === '') {
+      throw new ChatlogError('InvalidFormat', 'DoesNotStart', 'frontmatter does not start with delimiter');
     }
+
+    const _yamlText = _divided.frontmatter.split('\n').slice(1, -2).join('\n');
+
+    if (_yamlText.trim() === '') { return {}; }
+
     let _parsed: unknown;
     try {
-      _parsed = parseYaml(_body);
+      _parsed = parseYaml(_yamlText);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', detail);
@@ -62,18 +78,6 @@ export class ChatlogFrontmatter {
       throw new ChatlogError('InvalidFormat', 'YamlNotMapping', 'frontmatter yaml is not a mapping');
     }
     return this._toEntries(_parsed as Record<string, unknown>);
-  }
-
-  private _extractBody(input: string): string {
-    const _lines = input.split('\n');
-    if (_lines[0] !== FRONTMATTER_DELIMITER) {
-      throw new ChatlogError('InvalidFormat', 'DoesNotStart', 'frontmatter does not start with delimiter');
-    }
-    const _closeIdx = _lines.indexOf(FRONTMATTER_DELIMITER, 1);
-    if (_closeIdx === -1) {
-      throw new ChatlogError('InvalidFormat', 'NotClosed', 'frontmatter block is not closed');
-    }
-    return _lines.slice(1, _closeIdx).join('\n');
   }
 
   private _toStringOrArray(v: unknown): string | string[] {
