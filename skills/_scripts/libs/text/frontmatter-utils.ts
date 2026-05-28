@@ -8,6 +8,8 @@
 
 // YAML テキストをパースする (@std/yaml)
 import { parse as parseYaml } from '@std/yaml';
+// YAML テキストを生成する (yaml npm パッケージ)
+import { stringify } from 'yaml';
 
 // unknown → string 変換ユーティリティ
 import { FRONTMATTER_DELIMITER } from '../../constants/common.constants.ts';
@@ -56,6 +58,34 @@ const _unknownToStringOrArray = (v: unknown): string | string[] => {
   return _unknownToString(v);
 };
 
+/**
+ * `entries` を `fieldOrder` の順に並べ、空値を除いた Record を返す。
+ *
+ * `fieldOrder` の順に走査し、`undefined`・空文字列・空配列の値はスキップする。
+ * `fieldOrder` に重複があっても 1 回だけ出力する。
+ *
+ * @param entries - 並べ替え元の Record
+ * @param fieldOrder - 出力フィールドの順序
+ * @returns `fieldOrder` の順に並んだ `Record<string, string | string[]>`
+ */
+export const reorderFrontmatterEntries = (
+  entries: Record<string, string | string[]>,
+  fieldOrder: string[],
+): Record<string, string | string[]> => {
+  const _result: Record<string, string | string[]> = {};
+  const _seen = new Set<string>();
+  for (const field of fieldOrder) {
+    if (_seen.has(field)) { continue; }
+    _seen.add(field);
+    const value = entries[field];
+    if (value === undefined) { continue; }
+    if (typeof value === 'string' && value === '') { continue; }
+    if (Array.isArray(value) && value.length === 0) { continue; }
+    _result[field] = value;
+  }
+  return _result;
+};
+
 /** Markdown テキストから frontmatter を抽出してパースする。 */
 export const parseFrontmatter = (text: string): FrontmatterResult => {
   const _normalized = normalizeLine(text);
@@ -89,4 +119,20 @@ export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
     _typedMeta[key] = _unknownToStringOrArray(meta[key]);
   }
   return { meta: _typedMeta, content };
+};
+
+/**
+ * `Record<string, unknown>` を YAML frontmatter ブロック文字列に変換する。
+ *
+ * - `fields` が空のとき → `""` を返す（frontmatter ブロックを生成しない）
+ * - すべての文字列値はダブルクォートで囲まれる
+ * - 戻り値は `"---\n{yaml_body}---\n"` の形式（`---` セパレータと末尾改行を含む）
+ *
+ * @param fields - frontmatter フィールドの Record
+ * @returns frontmatter ブロック文字列（空オブジェクトのとき `""`）
+ */
+export const renderFrontmatter = (fields: Record<string, unknown>): string => {
+  if (Object.keys(fields).length === 0) { return ''; }
+  const _yamlBody = stringify(fields, { defaultKeyType: 'PLAIN', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 });
+  return `---\n${_yamlBody}---\n`;
 };
