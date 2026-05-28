@@ -6,11 +6,23 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// --─ Imports
+// external
 import { parse as parseYaml } from '@std/yaml';
-import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
-import { escapeString, toStringWithNull } from '../libs/text/string-utils.ts';
+import { stringify } from 'yaml';
+
+// --- shared
+import { reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
+import { toStringWithNull } from '../libs/text/string-utils.ts';
+
+// Error
 import { ChatlogError } from './ChatlogError.class.ts';
 
+// Constants
+import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
+
+// --- Internal definitions
+// constants
 const _DEFAULT_FIELD_ORDER: string[] = [
   'title',
   'date',
@@ -22,7 +34,7 @@ const _DEFAULT_FIELD_ORDER: string[] = [
   'summary',
   'topics',
   'tags',
-];
+] as const;
 
 export class ChatlogFrontmatter {
   private _entries: Record<string, string | string[]>;
@@ -96,28 +108,11 @@ export class ChatlogFrontmatter {
     if (fieldOrder.length === 0) {
       throw new ChatlogError('InvalidArgs', 'IsEmpty', 'fieldOrder must not be empty');
     }
-    const _lines: string[] = [FRONTMATTER_DELIMITER];
-    const _seen = new Set<string>();
-    for (const field of fieldOrder) {
-      if (_seen.has(field)) { continue; }
-      _seen.add(field);
-      const value = this._entries[field];
-      if (value === undefined) { continue; }
-      if (typeof value === 'string') {
-        if (value === '') { continue; }
-        _lines.push(`${field}: "${escapeString(value)}"`);
-      } else {
-        if (value.length === 0) { continue; }
-        _lines.push(`${field}:`);
-        for (const item of value) {
-          _lines.push(`  - "${escapeString(item)}"`);
-        }
-      }
+    const _ordered = reorderFrontmatterEntries(this._entries, fieldOrder);
+    if (Object.keys(_ordered).length === 0) {
+      return `${FRONTMATTER_DELIMITER}\n\n${FRONTMATTER_DELIMITER}\n`;
     }
-    if (_lines.length === 1) {
-      _lines.push('');
-    }
-    _lines.push(FRONTMATTER_DELIMITER);
-    return _lines.join('\n') + '\n';
+    const _yamlBody = stringify(_ordered, { defaultKeyType: 'PLAIN', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 });
+    return `${FRONTMATTER_DELIMITER}\n${_yamlBody}${FRONTMATTER_DELIMITER}\n`;
   }
 }
