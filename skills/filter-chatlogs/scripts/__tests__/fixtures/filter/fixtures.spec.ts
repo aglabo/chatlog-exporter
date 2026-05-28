@@ -1,6 +1,6 @@
 // src: scripts/__tests__/fixtures/filter/fixtures.spec.ts
 // @(#): filter-chatlogs fixturesテスト（実 AI 呼び出し使用）
-//       対象: runAI, parseJsonArray
+//       対象: runAI, parseAiJsonArray
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -16,7 +16,7 @@ import { parse as parseYaml } from '@std/yaml';
 
 // ─── Test target
 import { runAI } from '../../../../../_scripts/libs/ai/run-ai.ts';
-import { parseJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
@@ -124,7 +124,7 @@ const _runMockFixture = async (fixture: FixtureInfo): Promise<void> => {
   const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
   void _prompt;
 
-  const _parsed = parseJsonArray<ClaudeResult>(fixture.expectedOutput.mock_response!);
+  const _parsed = parseAiJsonArray<ClaudeResult>(fixture.expectedOutput.mock_response!);
   if (!_parsed || _parsed.length === 0) { return; }
   const _result = _parsed[0];
 
@@ -151,7 +151,7 @@ const _runRealFixture = async (fixture: FixtureInfo): Promise<void> => {
   const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
 
   const _rawResult = await runAI(_SYSTEM_PROMPT, _prompt);
-  const _parsed = parseJsonArray<ClaudeResult>(_rawResult);
+  const _parsed = parseAiJsonArray<ClaudeResult>(_rawResult);
   if (!_parsed || _parsed.length === 0) { return; }
   const _result = _parsed[0];
 
@@ -180,7 +180,7 @@ const _realFixtures = await _loadFixtureInfos(REAL_FIXTURES_DIR);
  * テスト ID 範囲: T-FL-FC-edge-01-minimal
  *
  * @see runAI
- * @see parseJsonArray
+ * @see parseAiJsonArray
  */
 describe('Mock判定', () => {
   for (const fixture of _mockFixtures) {
@@ -204,7 +204,7 @@ describe('Mock判定', () => {
  * テスト ID 範囲: T-FL-FC-normal-01-basic-keep / T-FL-FC-normal-02-basic-discard
  *
  * @see runAI
- * @see parseJsonArray
+ * @see parseAiJsonArray
  */
 describe('Real AI判定', { ignore: !_shouldRunAI }, () => {
   for (const fixture of _realFixtures) {
