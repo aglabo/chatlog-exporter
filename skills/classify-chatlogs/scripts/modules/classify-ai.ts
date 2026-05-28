@@ -14,7 +14,7 @@
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
-import { parseJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // types
 import type {
@@ -119,7 +119,7 @@ export const processChunk = async (
     }));
   }
 
-  const parsed = parseJsonArray<ClassifyResult>(rawResult);
+  const parsed = parseAiJsonArray<ClassifyResult>(rawResult);
   if (!parsed) {
     const _reason = `JSON パース失敗: ${rawResult.slice(0, 200)}`;
     logger.warn(`  ${_reason}`);
