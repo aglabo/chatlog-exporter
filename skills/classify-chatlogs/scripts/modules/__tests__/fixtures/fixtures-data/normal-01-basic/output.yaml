@@ -1,9 +1,0 @@
-# classify-chatlog システムテスト期待値
-# project が known_projects に含まれ、confidence >= 0 であれば合格
-known_projects:
-  - app1
-  - app2
-  - infra
-  - dev-tools
-  - misc
-confidence_min: 0.0

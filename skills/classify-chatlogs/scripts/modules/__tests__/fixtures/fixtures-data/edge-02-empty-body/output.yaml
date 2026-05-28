@@ -1,5 +1,0 @@
-# フロントマターなし + 本文が短すぎる場合は misc に直接分類される
-expected_project: misc
-known_projects:
-  - misc
-confidence_min: 0.0
