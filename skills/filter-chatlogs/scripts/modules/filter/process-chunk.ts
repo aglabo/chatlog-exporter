@@ -12,7 +12,7 @@ import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
-import { parseJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 
 // ─── internal ───
 // functions
@@ -56,7 +56,7 @@ export const processChunk = async (
     return;
   }
 
-  const parsed = parseJsonArray<ClaudeResult>(rawResult);
+  const parsed = parseAiJsonArray<ClaudeResult>(rawResult);
   if (!parsed) {
     logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて KEEP 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
