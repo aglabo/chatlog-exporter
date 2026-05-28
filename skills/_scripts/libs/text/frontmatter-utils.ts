@@ -6,41 +6,24 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// YAML テキストをパースする (@std/yaml)
-import { parse as parseYaml } from '@std/yaml';
+// --- external
 // YAML テキストを生成する (yaml npm パッケージ)
 import { stringify } from 'yaml';
+// YAML パース (@std/yaml)
+import { parse as parseYaml } from '@std/yaml';
 
-// unknown → string 変換ユーティリティ
-import { FRONTMATTER_DELIMITER } from '../../constants/common.constants.ts';
+// --- libs
 import { normalizeLine } from './line-utils.ts';
 import { toStringWithNull } from './string-utils.ts';
 
+// types
 import type { FrontmatterEntries, FrontmatterResult } from '../../types/frontmatter.types.ts';
 
-/** frontmatter ブロック抽出の中間結果（内部使用）。 */
-type _BlockResult = {
-  /** フロントマター区切り内の YAML テキスト。 */
-  yamlText: string;
-  /** フロントマター終端のバイトオフセット。 */
-  frontmatterEnd: number;
-};
+// Error
+import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
-/** 正規化済みテキストから frontmatter ブロックを抽出する。見つからない場合は null を返す。 */
-const _extractBlock = (normalized: string): _BlockResult | null => {
-  const _lines = normalized.split('\n');
-  if (_lines[0] !== FRONTMATTER_DELIMITER) { return null; }
-
-  const _closeIdx = _lines.indexOf(FRONTMATTER_DELIMITER, 1);
-  // 閉じ --- の後に必ず改行が必要（末尾が --- で終わる場合は不正）
-  if (_closeIdx === -1 || _closeIdx === _lines.length - 1) { return null; }
-
-  const _yamlLines = _lines.slice(1, _closeIdx);
-  return {
-    yamlText: _yamlLines.join('\n'),
-    frontmatterEnd: [FRONTMATTER_DELIMITER, ..._yamlLines, FRONTMATTER_DELIMITER, ''].join('\n').length,
-  };
-};
+// constants
+import { FRONTMATTER_DELIMITER } from '../../constants/common.constants.ts';
 
 /** unknown 値を文字列に変換する。Date は YYYY-MM-DD 形式。 */
 const _unknownToString = (v: unknown): string => {
@@ -56,6 +39,89 @@ const _unknownToStringOrArray = (v: unknown): string | string[] => {
     return v.map((item) => _unknownToString(item));
   }
   return _unknownToString(v);
+};
+
+/**
+ * テキストを frontmatter ブロックと本文に分割する。
+ *
+ * - CRLF を正規化してから処理する
+ * - `---\n` で始まらない → `{ frontmatter: '', content: normalized }` を返す（throw しない）
+ * - 閉じ `---` なし → `ChatlogError('InvalidFormat', 'NotClosed')` を throw
+ * - `@std/yaml` で YAML を検証し、不正 YAML は `ChatlogError('InvalidYaml', 'YamlSyntaxError')` を throw
+ * - **既知の制限**: `|1` / `>1` など明示インデント幅指定のブロックスカラーは未サポート（値が失われる場合がある）
+ *
+ * @param text - 分割対象の入力テキスト
+ * @returns `frontmatter` は `---\n...\n---\n` 形式、`content` は閉じ区切り以降の生テキスト
+ */
+export const divideEntry = (text: string): { frontmatter: string; content: string } => {
+  const _normalized = normalizeLine(text).trim();
+  const _lines = _normalized.split('\n');
+
+  if (_lines[0] !== FRONTMATTER_DELIMITER) {
+    return { frontmatter: '', content: _normalized !== '' ? _normalized + '\n' : '' };
+  }
+
+  const _closeIdx = _lines.indexOf(FRONTMATTER_DELIMITER, 1);
+  if (_closeIdx === -1) {
+    throw new ChatlogError('InvalidFormat', 'NotClosed', 'frontmatter block is not closed');
+  }
+
+  // @std/yaml で YAML バリデーション
+  const _yamlText = _lines.slice(1, _closeIdx).join('\n');
+  if (_yamlText.trim() !== '') {
+    try {
+      parseYaml(_yamlText);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', detail);
+    }
+  }
+
+  const _content = _lines.slice(_closeIdx + 1).join('\n');
+  return {
+    frontmatter: _lines.slice(0, _closeIdx + 1).join('\n') + '\n',
+    content: _content !== '' ? _content + '\n' : '',
+  };
+};
+
+/** Markdown テキストから frontmatter を抽出してパースする。 */
+export const parseFrontmatter = (text: string): FrontmatterResult => {
+  const _normalized = normalizeLine(text);
+  const _failure: FrontmatterResult = { meta: {}, content: text };
+
+  // フロントマターの開始区切りがない場合は早期リターン
+  if (!_normalized.startsWith(`${FRONTMATTER_DELIMITER}\n`)) { return _failure; }
+
+  // divideEntry でフロントマターブロックを分割（NotClosed / YamlSyntaxError は _failure に変換）
+  let _divResult: { frontmatter: string; content: string };
+  try {
+    _divResult = divideEntry(_normalized);
+  } catch {
+    return _failure;
+  }
+
+  // frontmatter が空 → 開き --- のみで閉じ区切りなし
+  if (_divResult.frontmatter === '') { return _failure; }
+
+  // frontmatter ブロック（'---\n...\n---\n'）から YAML 部分を抽出してパース
+  const _fmLines = _divResult.frontmatter.split('\n');
+  const _yamlBody = _fmLines.slice(1, -2).join('\n');
+  const _parsed = _yamlBody.trim() !== '' ? parseYaml(_yamlBody) : undefined;
+  const _meta = (_parsed !== null && _parsed !== undefined && typeof _parsed === 'object' && !Array.isArray(_parsed))
+    ? _parsed as Record<string, unknown>
+    : {};
+
+  return { meta: _meta, content: _divResult.content };
+};
+
+/** Markdown テキストから frontmatter を抽出し、文字列または文字列配列に変換して返す。 */
+export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
+  const { meta, content } = parseFrontmatter(text);
+  const _typedMeta: Record<string, string | string[]> = {};
+  for (const key of Object.keys(meta)) {
+    _typedMeta[key] = _unknownToStringOrArray(meta[key]);
+  }
+  return { meta: _typedMeta, content };
 };
 
 /**
@@ -84,41 +150,6 @@ export const reorderFrontmatterEntries = (
     _result[field] = value;
   }
   return _result;
-};
-
-/** Markdown テキストから frontmatter を抽出してパースする。 */
-export const parseFrontmatter = (text: string): FrontmatterResult => {
-  const _normalized = normalizeLine(text);
-  const _failure: FrontmatterResult = { meta: {}, content: text };
-
-  const _block = _extractBlock(_normalized);
-  if (_block === null) { return _failure; }
-
-  let _parsed: unknown;
-  try {
-    _parsed = parseYaml(_block.yamlText);
-  } catch {
-    return _failure;
-  }
-
-  const _meta = (_parsed !== null && _parsed !== undefined && typeof _parsed === 'object' && !Array.isArray(_parsed))
-    ? (_parsed as Record<string, unknown>)
-    : {};
-
-  return {
-    meta: _meta,
-    content: _normalized.slice(_block.frontmatterEnd),
-  };
-};
-
-/** Markdown テキストから frontmatter を抽出し、文字列または文字列配列に変換して返す。 */
-export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
-  const { meta, content } = parseFrontmatter(text);
-  const _typedMeta: Record<string, string | string[]> = {};
-  for (const key of Object.keys(meta)) {
-    _typedMeta[key] = _unknownToStringOrArray(meta[key]);
-  }
-  return { meta: _typedMeta, content };
 };
 
 /**
