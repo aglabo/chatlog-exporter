@@ -6,11 +6,23 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// --─ Imports
+// external
 import { parse as parseYaml } from '@std/yaml';
-import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
-import { escapeString, toStringWithNull } from '../libs/text/string-utils.ts';
+import { stringify } from 'yaml';
+
+// --- shared
+import { divideEntry, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
+import { toStringWithNull } from '../libs/text/string-utils.ts';
+
+// Error
 import { ChatlogError } from './ChatlogError.class.ts';
 
+// Constants
+import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
+
+// --- Internal definitions
+// constants
 const _DEFAULT_FIELD_ORDER: string[] = [
   'title',
   'date',
@@ -22,7 +34,7 @@ const _DEFAULT_FIELD_ORDER: string[] = [
   'summary',
   'topics',
   'tags',
-];
+] as const;
 
 export class ChatlogFrontmatter {
   private _entries: Record<string, string | string[]>;
@@ -32,16 +44,32 @@ export class ChatlogFrontmatter {
   }
 
   private _parseFrontmatter(input: string): Record<string, string | string[]> {
-    if (input === '') {
-      return {};
+    if (input === '') { return {}; }
+
+    // divideEntry で frontmatter テキストを取得（DoesNotStart は '' を返す、NotClosed は throw）
+    let _divided: { frontmatter: string; content: string };
+    try {
+      _divided = divideEntry(input);
+    } catch (e) {
+      if (e instanceof ChatlogError) { throw e; }
+      // @std/yaml が不正 YAML で throw した場合
+      const detail = e instanceof Error ? e.message : String(e);
+      throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', detail);
     }
-    const _body = this._extractBody(input);
-    if (_body.trim() === '') {
-      return {};
+
+    // DoesNotStart の場合 divideEntry は frontmatter: '' を返すが、
+    // ChatlogFrontmatter は --- で始まらない入力に DoesNotStart を throw する仕様
+    if (_divided.frontmatter === '') {
+      throw new ChatlogError('InvalidFormat', 'DoesNotStart', 'frontmatter does not start with delimiter');
     }
+
+    const _yamlText = _divided.frontmatter.split('\n').slice(1, -2).join('\n');
+
+    if (_yamlText.trim() === '') { return {}; }
+
     let _parsed: unknown;
     try {
-      _parsed = parseYaml(_body);
+      _parsed = parseYaml(_yamlText);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', detail);
@@ -50,18 +78,6 @@ export class ChatlogFrontmatter {
       throw new ChatlogError('InvalidFormat', 'YamlNotMapping', 'frontmatter yaml is not a mapping');
     }
     return this._toEntries(_parsed as Record<string, unknown>);
-  }
-
-  private _extractBody(input: string): string {
-    const _lines = input.split('\n');
-    if (_lines[0] !== FRONTMATTER_DELIMITER) {
-      throw new ChatlogError('InvalidFormat', 'DoesNotStart', 'frontmatter does not start with delimiter');
-    }
-    const _closeIdx = _lines.indexOf(FRONTMATTER_DELIMITER, 1);
-    if (_closeIdx === -1) {
-      throw new ChatlogError('InvalidFormat', 'NotClosed', 'frontmatter block is not closed');
-    }
-    return _lines.slice(1, _closeIdx).join('\n');
   }
 
   private _toStringOrArray(v: unknown): string | string[] {
@@ -96,28 +112,11 @@ export class ChatlogFrontmatter {
     if (fieldOrder.length === 0) {
       throw new ChatlogError('InvalidArgs', 'IsEmpty', 'fieldOrder must not be empty');
     }
-    const _lines: string[] = [FRONTMATTER_DELIMITER];
-    const _seen = new Set<string>();
-    for (const field of fieldOrder) {
-      if (_seen.has(field)) { continue; }
-      _seen.add(field);
-      const value = this._entries[field];
-      if (value === undefined) { continue; }
-      if (typeof value === 'string') {
-        if (value === '') { continue; }
-        _lines.push(`${field}: "${escapeString(value)}"`);
-      } else {
-        if (value.length === 0) { continue; }
-        _lines.push(`${field}:`);
-        for (const item of value) {
-          _lines.push(`  - "${escapeString(item)}"`);
-        }
-      }
+    const _ordered = reorderFrontmatterEntries(this._entries, fieldOrder);
+    if (Object.keys(_ordered).length === 0) {
+      return `${FRONTMATTER_DELIMITER}\n\n${FRONTMATTER_DELIMITER}\n`;
     }
-    if (_lines.length === 1) {
-      _lines.push('');
-    }
-    _lines.push(FRONTMATTER_DELIMITER);
-    return _lines.join('\n') + '\n';
+    const _yamlBody = stringify(_ordered, { defaultKeyType: 'PLAIN', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 });
+    return `${FRONTMATTER_DELIMITER}\n${_yamlBody}${FRONTMATTER_DELIMITER}\n`;
   }
 }
