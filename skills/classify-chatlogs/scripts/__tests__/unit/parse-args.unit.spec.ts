@@ -6,18 +6,19 @@
 //
 // This software is released under the MIT License.
 
-// -- BDD modules --
+// ─── BDD modules
 import { assert, assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// -- modules for test --
-// test target
+// ─── Test target
 import { parseArgs } from '../../modules/classify-config.ts';
 
-// classes
+// ─── Helpers
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { ParsedConfig } from '../../types/classify.types.ts';
+
+// ─── Tests
 
 describe('parseArgs', () => {
   // ─── T-CL-PA-01: デフォルト値（未指定時は undefined） ───────────────────────

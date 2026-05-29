@@ -6,16 +6,17 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// deno lib
+// ─── External modules
 import { parse as parseYaml } from '@std/yaml';
 
-// utils
+// ─── Shared scripts
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { resolveConfigPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+
+// ─── Local
 // types
 import type { ProjectDicEntry } from '../types/classify.types.ts';
-// classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // constants
 import { DEFAULT_PROJECTS_DIC_PATH, FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 

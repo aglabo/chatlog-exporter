@@ -9,13 +9,14 @@
 
 // cspell:words MoveByAI
 
-// --- import ---
-// functions
+// ─── Shared scripts
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
+// ─── Local
+import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 // types
 import type {
   ClassifyBuffer,
@@ -23,10 +24,6 @@ import type {
   ClassifyResult,
   ProjectDicEntry,
 } from '../types/classify.types.ts';
-
-// classes
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
-
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';

@@ -15,14 +15,13 @@ import { describe, it } from '@std/testing/bdd';
 import { processClassify } from '../../classify-chatlogs.ts';
 
 // ─── Helpers
+import { _makeEntry } from '../_helpers/classify-test-helpers.ts';
 // types
 import type { ClassifyBuffer, ProjectDicEntry } from '../../types/classify.types.ts';
-
 // constants
 import { CLASSIFY_ACTIONS } from '../../types/classify.types.ts';
 
 // ─── Internal Helpers
-import { _makeEntry } from '../_helpers/classify-test-helpers.ts';
 
 // constants
 /** プロジェクト辞書（AI を呼び出さないテスト用に proj-a のみ定義）。 */
