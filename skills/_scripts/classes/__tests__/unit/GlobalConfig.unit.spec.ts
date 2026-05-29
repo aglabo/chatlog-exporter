@@ -60,7 +60,7 @@ const _notFoundRead: ReadTextFileProvider = () => Promise.reject(new Deno.errors
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-72
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-74
  *
  * @see GlobalConfig
  */
@@ -133,6 +133,16 @@ describe('GlobalConfig', () => {
         assertEquals(_config.get('timeoutMs'), 120000);
         assertEquals(_config.get('chunkSize'), 10);
         assertEquals(_config.get('concurrency'), 4);
+      });
+
+      it('[Normal] T-CLS-GC-73: デフォルト値の maxContentLength が 4000 である', async () => {
+        const _config = await GlobalConfig.getInstance();
+        assertEquals(_config.get('maxContentLength'), 4000);
+      });
+
+      it('[Normal] T-CLS-GC-74: yaml で maxContentLength: 2000 を指定すると get() が 2000 を返す', async () => {
+        const _config = await GlobalConfig.getInstance({ yaml: 'maxContentLength: 2000\n' });
+        assertEquals(_config.get('maxContentLength'), 2000);
       });
 
       it('[Normal] T-CLS-GC-68: yaml で複数フィールドを指定すると get() で反映が確認できる', async () => {
