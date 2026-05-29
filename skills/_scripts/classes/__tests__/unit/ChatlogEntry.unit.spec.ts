@@ -206,6 +206,143 @@ describe('ChatlogEntry', () => {
   });
 
   /**
+   * `options` プロパティのユニットテスト。
+   *
+   * options 保持・コンストラクタが content を切り詰めないことを検証する。
+   *
+   * テスト ID 範囲: T-CLS-CE-23 〜 T-CLS-CE-27
+   *
+   * @see ChatlogEntry
+   */
+  describe('コンストラクタ（options）', () => {
+    /** 引数なしまたは有効なオプションを渡す正常ケース。 */
+    describe('When: 正常系', () => {
+      it('T-CLS-CE-23: [Normal] options 未指定 → entry.options が {}', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nbody\n');
+        assertEquals(entry.options, {});
+      });
+
+      it('T-CLS-CE-24: [Normal] options 渡し → entry.options がその値を保持', () => {
+        const _opts = {};
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nbody\n', _opts);
+        assertEquals(entry.options, _opts);
+      });
+
+      it('T-CLS-CE-25: [Normal] コンストラクタは content を切り詰めない', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabcde\n');
+        assertEquals(entry.content, 'abcde\n');
+      });
+    });
+
+    /** 境界値・特殊条件のケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CE-27: [Edge] 長い content もコンストラクタで切り詰められない', () => {
+        const longBody = 'a'.repeat(5000);
+        const entry = new ChatlogEntry(`---\ntitle: T\n---\n${longBody}\n`);
+        assertEquals(entry.content.length, 5001); // 5000 chars + \n
+      });
+    });
+  });
+
+  /**
+   * `_stripContent` / `_normalizeLines` による content 正規化のユニットテスト。
+   *
+   * trim() によるスペース除去・3連続改行の正規化・2連続改行の保持を検証する。
+   *
+   * テスト ID 範囲: T-CLS-CE-33 〜 T-CLS-CE-35
+   *
+   * @see ChatlogEntry
+   */
+  describe('コンストラクタ（content 正規化）', () => {
+    /** trim() でスペースも除去される正常ケース。 */
+    describe('When: 正常系', () => {
+      it('T-CLS-CE-33: [Normal] 先頭・末尾のスペースが除去される', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\n  body  \n');
+        assertEquals(entry.content, 'body\n');
+      });
+    });
+
+    /** 境界値・特殊条件のケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CE-34: [Edge] 内部の3連続改行が \\n\\n に正規化される', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nline1\n\n\nline2\n');
+        assertEquals(entry.content, 'line1\n\nline2\n');
+      });
+
+      it('T-CLS-CE-35: [Edge] 内部の2連続改行（1行空き）は変化しない', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nline1\n\nline2\n');
+        assertEquals(entry.content, 'line1\n\nline2\n');
+      });
+    });
+  });
+
+  /**
+   * `truncateContent(maxLength)` パブリックメソッドのユニットテスト。
+   *
+   * 正常系のトリミング・末尾改行付与・境界値・空 content・負値エラーを検証する。
+   *
+   * テスト ID 範囲: T-CLS-CE-40 〜 T-CLS-CE-46
+   *
+   * @see ChatlogEntry
+   */
+  describe('truncateContent()', () => {
+    /** 有効な maxLength を渡す正常ケース。 */
+    describe('When: 正常系', () => {
+      it('T-CLS-CE-40: [Normal] maxLength > content長 → 切り詰めなし・末尾 \\n 付き', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabc\n');
+        assertEquals(entry.truncateContent(10), 'abc\n');
+      });
+
+      it('T-CLS-CE-41: [Normal] maxLength < content長 → 切り詰めが発生し末尾 \\n 付き', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabcde\n');
+        assertEquals(entry.truncateContent(4), 'abc\n');
+      });
+
+      it('T-CLS-CE-42: [Normal] content を変更せずに truncateContent() が呼べる（content は全文のまま）', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabcde\n');
+        entry.truncateContent(3);
+        assertEquals(entry.content, 'abcde\n');
+      });
+    });
+
+    /** 境界値・特殊条件のケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CE-43: [Edge] maxLength === content長（境界値）→ 変化なし', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabc\n');
+        assertEquals(entry.truncateContent(4), 'abc\n');
+      });
+
+      it("T-CLS-CE-44: [Edge] maxLength = 0 → ''", () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabc\n');
+        assertEquals(entry.truncateContent(0), '');
+      });
+
+      it("T-CLS-CE-47: [Edge] maxLength = 1 → '' （\\n 単独にならない）", () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nabc\n');
+        assertEquals(entry.truncateContent(1), '');
+      });
+
+      it("T-CLS-CE-45: [Edge] 空 content + maxLength 指定 → '' のまま", () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\n');
+        assertEquals(entry.truncateContent(5), '');
+      });
+    });
+
+    /** 不正な入力でエラーがスローされるケース。 */
+    describe('When: 異常系', () => {
+      it('T-CLS-CE-46: [Error] 負の maxLength → ChatlogError(InvalidArgs, NegativeLength)', () => {
+        const entry = new ChatlogEntry('---\ntitle: T\n---\nbody\n');
+        const _err = assertThrows(
+          () => entry.truncateContent(-1),
+          ChatlogError,
+        ) as ChatlogError;
+        assertEquals(_err.kind, 'InvalidArgs');
+        assertEquals(_err.subindex, 'NegativeLength');
+      });
+    });
+  });
+
+  /**
    * @description コンストラクタ 異常系のユニットテスト。
    * 不正な frontmatter 入力で ChatlogError をスローすることを検証する。
    */
