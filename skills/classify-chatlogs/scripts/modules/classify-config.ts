@@ -7,13 +7,19 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+// types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
-import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
+
+// ─── Local
+// types
 import type { ClassifyConfig, ParsedConfig } from '../types/classify.types.ts';
+// constants
+import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
 
 /** classify-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgsSchema = [

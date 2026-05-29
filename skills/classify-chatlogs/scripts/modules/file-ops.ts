@@ -9,18 +9,15 @@
 
 // cspell:words MoveByAI
 
-// --- import ---
-// functions
+// ─── Shared scripts
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 
+// ─── Local
+import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 // types
 import type { ClassifyAction, ClassifyBuffer, ClassifyStats } from '../types/classify.types.ts';
-
-// classes
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
-
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';

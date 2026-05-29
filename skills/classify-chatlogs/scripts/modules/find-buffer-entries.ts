@@ -9,10 +9,11 @@
 
 // cspell:word noai
 
-// -- external --
+// ─── Shared scripts
 import { findEntries } from '../../../_scripts/libs/file-ops/find-entries.ts';
 
-// -- internal --
+// ─── Local
+import { loadClassifyEntry } from './classify-noai.ts';
 // types
 import type {
   ClassifyBuffer,
@@ -20,10 +21,8 @@ import type {
   ClassifyStats,
   FindBufferEntriesOptions,
 } from '../types/classify.types.ts';
+// constants
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
-
-// -- modules --
-import { loadClassifyEntry } from './classify-noai.ts';
 
 /**
  * ディレクトリ配下の `.md` ファイルを収集し、メタデータを読み込んで分類バッファを返す。

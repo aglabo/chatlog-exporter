@@ -16,27 +16,25 @@
 
 // cspell:words noai
 
-// -- external --
+// ─── Shared scripts
+import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-// classes
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
-// -- internal --
-import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
+// ─── Local
 import { loadProjectDic } from './libs/load-project-dic.ts';
-// types
-import { CLASSIFY_ACTIONS } from './types/classify.types.ts';
-import type { ClassifyBuffer, ClassifyConfig, ClassifyStats, ProjectDicEntry } from './types/classify.types.ts';
-
-// -- modules --
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig, parseArgs } from './modules/classify-config.ts';
 import { processPreclassify } from './modules/classify-noai.ts';
 import { moveClassified } from './modules/file-ops.ts';
 import { findBufferEntries } from './modules/find-buffer-entries.ts';
+// types
+import type { ClassifyBuffer, ClassifyConfig, ClassifyStats, ProjectDicEntry } from './types/classify.types.ts';
+// constants
+import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
+import { CLASSIFY_ACTIONS } from './types/classify.types.ts';
 
 // ─────────────────────────────────────────────
 // processClassify
