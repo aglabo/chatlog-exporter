@@ -6,13 +6,14 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
+// ─── Test target
 import { withConcurrency } from '../../../../_scripts/libs/parallel/concurrency.ts';
 
-// ─── 基本的な並列実行 ─────────────────────────────────────────────────────────
+// ─── Tests
 
 describe('withConcurrency', () => {
   describe('Given: 3タスクと limit=2', () => {

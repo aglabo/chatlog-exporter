@@ -6,13 +6,14 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
+// ─── Test target
 import { parseFrontmatterEntries } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 
-// ─── フロントマターなしのテキスト ─────────────────────────────────────────────
+// ─── Tests
 
 describe('parseFrontmatterEntries', () => {
   describe('Given: フロントマターのないテキスト "# タイトル\\n本文"', () => {

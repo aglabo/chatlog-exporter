@@ -25,8 +25,10 @@ import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
-import type { Dics, FrontmatterFileMeta } from '../../set-frontmatter.ts';
-import { generateFrontmatter, judgeCategory, judgeType, loadDics } from '../../set-frontmatter.ts';
+import { loadDics } from '../../modules/setfm-ai.ts';
+import { generateFrontmatter, judgeCategory, judgeType } from '../../modules/setfm-phases.ts';
+import type { Dics } from '../../types/dics.types.ts';
+import type { EntryMeta } from '../../types/entry-meta.types.ts';
 
 const _enc = new TextEncoder();
 
@@ -100,8 +102,8 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
   return dirs.sort();
 }
 
-/** FrontmatterFileMeta を input.md から構築する */
-async function _makeFrontmatterFileMeta(filePath: string): Promise<FrontmatterFileMeta> {
+/** EntryMeta を input.md から構築する */
+async function _makeEntryMeta(filePath: string): Promise<EntryMeta> {
   const text = await readTextFile(filePath);
 
   // 簡易フロントマター解析
@@ -176,7 +178,7 @@ for (const _relPath of _fixtureDirs) {
   describe(`set-frontmatter — ${_relPath}`, () => {
     describe(`Given: ${_relPath}/input.md と辞書ファイル`, () => {
       let _tempDir: string;
-      let _fileMeta: FrontmatterFileMeta;
+      let _fileMeta: EntryMeta;
       let _loggerStub: LoggerStub;
       let _commandHandle: CommandMockHandle | null = null;
 
@@ -184,7 +186,7 @@ for (const _relPath of _fixtureDirs) {
         _tempDir = await Deno.makeTempDir();
         const _tempPath = `${_tempDir}/input.md`;
         await Deno.copyFile(_inputPath, _tempPath);
-        _fileMeta = await _makeFrontmatterFileMeta(_tempPath);
+        _fileMeta = await _makeEntryMeta(_tempPath);
         _loggerStub = makeLoggerStub();
 
         if (_isFallbackCase) {

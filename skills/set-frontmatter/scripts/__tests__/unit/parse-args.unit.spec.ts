@@ -6,55 +6,77 @@
 //
 // This software is released under the MIT License.
 
-import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
+// ─── BDD modules
+import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
+// ─── Test target
+import { parseArgs } from '../../modules/setfm-config.ts';
+
+// ─── Helpers
 import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { DEFAULT_CONCURRENCY, parseArgs } from '../../set-frontmatter.ts';
 
-type Args = ReturnType<typeof parseArgs>;
+// ─── Internal Helpers
 
+// types
+type ParsedResult = ReturnType<typeof parseArgs>;
+
+// constants
+const _TARGET = '--target-dir';
+const _PATH = '/path/to/dir';
+
+// ─── Tests
+
+/**
+ * `parseArgs` のユニットテストスイート。
+ *
+ * CLI 引数の解析: `--target-dir`・`--dics`・`--dry-run`・`--no-review`・`--config` オプション。
+ *
+ * テスト ID 範囲: T-SF-PA-01 〜 T-SF-PA-11
+ *
+ * @see parseArgs
+ */
 describe('parseArgs', () => {
   // ─── T-SF-PA-01: デフォルト値 ────────────────────────────────────────────────
 
-  describe('Given: 最小引数 ["/path/to/dir"]', () => {
-    describe('When: parseArgs(["/path/to/dir"]) を呼び出す', () => {
+  /**
+   * `--target-dir` のみ指定した場合のデフォルト値テスト。
+   *
+   * 省略可能なオプションが未指定のとき undefined になることを検証する。
+   */
+  describe('Given: 最小引数 ["--target-dir", "/path/to/dir"]', () => {
+    describe('When: parseArgs(["--target-dir", "/path/to/dir"]) を呼び出す', () => {
+      /** `--target-dir` のみ指定した場合の各フィールドのデフォルト値。 */
       describe('Then: T-SF-PA-01 - デフォルト値が適用される', () => {
-        const _defaultCases: { id: string; field: keyof Args; expected: unknown }[] = [
-          { id: 'T-SF-PA-01-01', field: 'targetDir', expected: '/path/to/dir' },
-          { id: 'T-SF-PA-01-02', field: 'dicsDir', expected: './assets/dics' },
-          { id: 'T-SF-PA-01-03', field: 'dryRun', expected: false },
-          { id: 'T-SF-PA-01-04', field: 'review', expected: true },
-          { id: 'T-SF-PA-01-05', field: 'concurrency', expected: DEFAULT_CONCURRENCY },
+        const _defaultCases: { id: string; field: keyof ParsedResult; expected: unknown }[] = [
+          { id: 'T-SF-PA-01-01', field: 'targetDir', expected: _PATH },
+          { id: 'T-SF-PA-01-02', field: 'dicsDir', expected: undefined },
+          { id: 'T-SF-PA-01-03', field: 'dryRun', expected: undefined },
+          { id: 'T-SF-PA-01-04', field: 'noReview', expected: undefined },
         ];
         for (const { id, field, expected } of _defaultCases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
-            assertEquals(parseArgs(['/path/to/dir'])[field], expected);
+            assertEquals(parseArgs([_TARGET, _PATH])[field], expected);
           });
         }
       });
     });
   });
 
-  // ─── T-SF-PA-02〜08: 単一オプション ──────────────────────────────────────────
+  // ─── T-SF-PA-02〜05: 単一オプション ──────────────────────────────────────────
 
+  /**
+   * 各オプションを単独で指定した場合の解析テスト。
+   */
   describe('Given: 単一オプション', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
+      /** 対応フィールドに値が設定されることを検証する。 */
       describe('Then: 対応フィールドに値が設定される', () => {
-        const _cases: { id: string; args: string[]; field: keyof Args; expected: unknown }[] = [
-          { id: 'T-SF-PA-02-01', args: ['/path', '--dry-run'], field: 'dryRun', expected: true },
-          { id: 'T-SF-PA-03-01', args: ['/path', '--no-review'], field: 'review', expected: false },
-          { id: 'T-SF-PA-04-01', args: ['/path', '--dics', '/dics'], field: 'dicsDir', expected: '/dics' },
-          { id: 'T-SF-PA-05-01', args: ['/path', '--dics=/dics'], field: 'dicsDir', expected: '/dics' },
-          { id: 'T-SF-PA-06-01', args: ['/path', '--concurrency', '8'], field: 'concurrency', expected: 8 },
-          { id: 'T-SF-PA-07-01', args: ['/path', '--concurrency=8'], field: 'concurrency', expected: 8 },
-          {
-            id: 'T-SF-PA-08-01',
-            args: ['/path', '--concurrency=invalid'],
-            field: 'concurrency',
-            expected: DEFAULT_CONCURRENCY,
-          },
+        const _cases: { id: string; args: string[]; field: keyof ParsedResult; expected: unknown }[] = [
+          { id: 'T-SF-PA-02-01', args: [_TARGET, '/path', '--dry-run'], field: 'dryRun', expected: true },
+          { id: 'T-SF-PA-03-01', args: [_TARGET, '/path', '--no-review'], field: 'noReview', expected: true },
+          { id: 'T-SF-PA-04-01', args: [_TARGET, '/path', '--dics', '/dics'], field: 'dicsDir', expected: '/dics' },
+          { id: 'T-SF-PA-05-01', args: [_TARGET, '/path', '--dics=/dics'], field: 'dicsDir', expected: '/dics' },
         ];
         for (const { id, args, field, expected } of _cases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
@@ -67,25 +89,26 @@ describe('parseArgs', () => {
 
   // ─── T-SF-PA-09: 複数オプション組み合わせ ────────────────────────────────────
 
-  describe('Given: 全オプションを組み合わせた引数', () => {
-    it('T-SF-PA-09-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['/path/to/dir', '--dry-run', '--no-review', '--dics', '/dics', '--concurrency', '2']);
-      assertEquals(result.targetDir, '/path/to/dir');
-      assert(result.dryRun);
-      assertFalse(result.review);
-      assertEquals(result.dicsDir, '/dics');
-      assertEquals(result.concurrency, 2);
-    });
+  it('T-SF-PA-09-01: 全フィールドが正しく解析される', () => {
+    const result = parseArgs([_TARGET, _PATH, '--dry-run', '--no-review', '--dics', '/dics', '--config', 'cfg.yaml']);
+    assertEquals(result.targetDir, _PATH);
+    assertEquals(result.dryRun, true);
+    assertEquals(result.noReview, true);
+    assertEquals(result.dicsDir, '/dics');
+    assertEquals(result.configFile, 'cfg.yaml');
   });
 
   // ─── 異常系: ChatlogError がスローされる ──────────────────────────────────────
 
+  /**
+   * 不正な引数を渡したときのエラーテスト。
+   */
   describe('Given: 不正な引数', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
+      /** `ChatlogError(InvalidArgs)` がスローされることを検証する。 */
       describe('Then: ChatlogError(InvalidArgs) がスローされる', () => {
-        const _errorCases: { id: string; args: string[]; label: string; subindex: string }[] = [
-          { id: 'T-SF-PA-10-01', args: [], label: 'targetDir なし（空配列）', subindex: 'NotSpecified' },
-          { id: 'T-SF-PA-11-01', args: ['/path', '--unknown'], label: '未知オプション', subindex: 'UnknownOption' },
+        const _errorCases: { id: string; args: string[]; label: string }[] = [
+          { id: 'T-SF-PA-11-01', args: ['--unknown'], label: '未知オプション' },
         ];
         for (const { id, args, label } of _errorCases) {
           it(`${id}: ${label} → ChatlogError(InvalidArgs) がスローされる`, () => {

@@ -83,7 +83,7 @@ async function _makeTargetDir(content?: string): Promise<string> {
 
 describe('main - dry-run モード', () => {
   describe('Given: 1件の .md ファイルと dry-run フラグ', () => {
-    describe('When: main([dir, "--dry-run", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--target-dir", dir, "--dry-run", "--dics", dicsDir]) を呼び出す', () => {
       describe('Then: T-SF-E2E-01 - ファイルが変更されない', () => {
         let targetDir: string;
         let dicsDir: string;
@@ -121,14 +121,14 @@ describe('main - dry-run モード', () => {
         it('T-SF-E2E-01-01: ファイルの内容が変更されない', async () => {
           const originalContent = await readTextFile(`${targetDir}/test.md`);
 
-          await main([targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
 
           const updatedContent = await readTextFile(`${targetDir}/test.md`);
           assertEquals(updatedContent, originalContent);
         });
 
         it('T-SF-E2E-01-02: "DRY RUN" がログに出力される', async () => {
-          await main([targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
 
           assertEquals(loggerStub.logLogs.some((l) => l.includes('DRY RUN')), true);
         });
@@ -141,7 +141,7 @@ describe('main - dry-run モード', () => {
 
 describe('main - --no-review モード', () => {
   describe('Given: 1件の .md ファイルと --no-review フラグ', () => {
-    describe('When: main([dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--target-dir", dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
       describe('Then: T-SF-E2E-02 - Phase 3.5 スキップのログが出力される', () => {
         let targetDir: string;
         let dicsDir: string;
@@ -166,7 +166,7 @@ describe('main - --no-review モード', () => {
         });
 
         it('T-SF-E2E-02-01: "--no-review" または "スキップ" がログに含まれる', async () => {
-          await main([targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
 
           assertEquals(
             loggerStub.infoLogs.some((l) =>
@@ -184,7 +184,7 @@ describe('main - --no-review モード', () => {
 
 describe('main - yaml 生成失敗', () => {
   describe('Given: Claude CLI がすべて成功するが yaml が空になるモック', () => {
-    describe('When: main([dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--target-dir", dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
       describe('Then: T-SF-E2E-05 - fail=1 のサマリーが出力される', () => {
         let targetDir: string;
         let dicsDir: string;
@@ -210,7 +210,7 @@ describe('main - yaml 生成失敗', () => {
         });
 
         it('T-SF-E2E-05-01: "fail=1" がサマリーに出力される', async () => {
-          await main([targetDir, '--no-review', '--dics', dicsDir]);
+          await main(['--target-dir', targetDir, '--no-review', '--dics', dicsDir]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=1')), true);
         });

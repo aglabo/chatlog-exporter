@@ -6,20 +6,23 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assert, assertEquals, assertNotMatch } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
-import type { DicEntry } from '../../set-frontmatter.ts';
-import { formatEntryShort, formatEntryWithRules } from '../../set-frontmatter.ts';
+// ─── Test target
+import { formatEntryShort, formatEntryWithRules } from '../../modules/setfm-ai.ts';
+// types
+import type { DicEntry } from '../../types/dics.types.ts';
 
-// ─── テスト用ヘルパー ─────────────────────────────────────────────────────────
+// ─── Internal Helpers
 
+// functions
 function _makeEntry(key: string, def: string, when: string[], not: string[]): DicEntry {
   return { key, def, desc: '', rules: { when, not } };
 }
 
-// ─── formatEntryWithRules のテスト ────────────────────────────────────────────
+// ─── Tests
 
 describe('formatEntryWithRules', () => {
   describe('Given: when と not 両方があるエントリ', () => {
@@ -102,8 +105,6 @@ describe('formatEntryWithRules', () => {
     });
   });
 });
-
-// ─── formatEntryShort のテスト ────────────────────────────────────────────────
 
 describe('formatEntryShort', () => {
   describe('Given: when と not 両方があるエントリ', () => {

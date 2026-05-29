@@ -6,10 +6,16 @@
 //
 // This software is released under the MIT License.
 
+// cspell:words setfm
+
+// ─── BDD modules
 import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
-// test helpers
+// ─── Test target
+import { runClaude } from '../../modules/setfm-ai.ts';
+
+// ─── Helpers
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
@@ -18,20 +24,18 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
-// test target
-import { runClaude } from '../../set-frontmatter.ts';
+// ─── Internal Helpers
 
+// constants
 const _enc = new TextEncoder();
 
-// ─── テスト共通セットアップ ───────────────────────────────────────────────────
+// ─── Tests
 
 let commandHandle: CommandMockHandle;
 
 afterEach(() => {
   commandHandle?.restore();
 });
-
-// ─── 正常終了の場合 ───────────────────────────────────────────────────────────
 
 describe('runClaude', () => {
   describe('Given: Claude CLI が "research" を返す成功モック', () => {

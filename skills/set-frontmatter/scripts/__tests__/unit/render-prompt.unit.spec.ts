@@ -6,14 +6,17 @@
 //
 // This software is released under the MIT License.
 
+// ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-// test target
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { renderPrompt } from '../../set-frontmatter.ts';
+// ─── Test target
+import { renderPrompt } from '../../modules/setfm-ai.ts';
 
-// ─── 基本的な変数置換 ─────────────────────────────────────────────────────────
+// ─── Helpers
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+
+// ─── Tests
 
 describe('renderPrompt', () => {
   describe('Given: テンプレート "Hello ${name}" と変数 { name: "World" }', () => {
