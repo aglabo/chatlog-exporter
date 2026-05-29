@@ -1,0 +1,63 @@
+// src: scripts/types/dics.types.ts
+// @(#): set-frontmatter 辞書関連型定義
+//
+// Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
+// ─────────────────────────────────────────────
+// 辞書エントリ型
+// ─────────────────────────────────────────────
+
+/** 辞書エントリの適用・除外ルール。AI プロンプト生成時の制約条件として使用する。 */
+export interface DicRules {
+  /** このエントリを選択する条件キーワード一覧。 */
+  when: string[];
+  /** このエントリを除外する条件キーワード一覧。 */
+  not: string[];
+}
+
+/** category / topic / tag 辞書の1エントリ。`assets/dics/` 配下の YAML から読み込む。 */
+export interface DicEntry {
+  /** 辞書キー（フロントマターに書き込む値）。 */
+  key: string;
+  /** エントリの定義（短い説明）。 */
+  def: string;
+  /** AI への説明文（用途・文脈など）。 */
+  desc: string;
+  /** 適用・除外ルール。 */
+  rules: DicRules;
+}
+
+// ─────────────────────────────────────────────
+// プロンプトテンプレート型
+// ─────────────────────────────────────────────
+
+/** フェーズごとの AI プロンプトテンプレート。`assets/prompts/` から読み込む。 */
+export interface PromptTemplate {
+  /** システムプロンプト（AI の役割・制約を定義する）。 */
+  system: string;
+  /** ユーザープロンプト（具体的な指示と入力データを含む）。 */
+  user: string;
+}
+
+// ─────────────────────────────────────────────
+// 辞書集約型
+// ─────────────────────────────────────────────
+
+/** `loadDics` が返す辞書データ集約。全フェーズで共有される。 */
+export interface Dics {
+  /** category キー一覧（カンマ区切り、AI スキーマ制約用）。 */
+  category: string;
+  /** tag キー一覧（カンマ区切り、AI スキーマ制約用）。 */
+  tags: string;
+  /** type 辞書のエントリ配列。 */
+  typeEntries: DicEntry[];
+  /** topic 辞書のエントリ配列。 */
+  topicEntries: DicEntry[];
+  /** type ごとの category 判定プロンプト。キーは type 名。 */
+  categoryPrompts: Map<string, string>;
+  /** フェーズ別プロンプトテンプレート。キーはフェーズ名。 */
+  prompts: Map<string, PromptTemplate>;
+}
