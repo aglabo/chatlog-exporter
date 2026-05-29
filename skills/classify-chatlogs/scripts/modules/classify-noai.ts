@@ -9,19 +9,15 @@
 
 // cspell:words noai
 
-// --- shared modules
-// functions
+// ─── Shared scripts
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
-// --- internal modules ---
+// ─── Local
+import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 // types
 import type { ClassifyBufferEntry } from '../types/classify.types.ts';
-
-// classes
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
-
 // constants
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
