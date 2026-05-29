@@ -24,8 +24,6 @@ import { toStringArrayWithNull } from '../../../_scripts/libs/text/string-utils.
 // types
 import type { DicEntry, Dics, PromptTemplate } from '../types/dics.types.ts';
 import type { EntryMeta } from '../types/entry-meta.types.ts';
-// constants
-import { MAX_BODY_CHARS } from '../constants/entry-meta.constants.ts';
 
 // ─────────────────────────────────────────────
 // 辞書読み込み
@@ -173,7 +171,7 @@ export const formatEntryShort = (e: DicEntry): string => {
 // ファイルメタ読み込み
 // ─────────────────────────────────────────────
 
-export const loadEntryMeta = async (filePath: string): Promise<EntryMeta | null> => {
+export const loadEntryMeta = async (filePath: string, maxContentLength: number): Promise<EntryMeta | null> => {
   let text: string;
   try {
     text = await readTextFile(filePath);
@@ -199,7 +197,7 @@ export const loadEntryMeta = async (filePath: string): Promise<EntryMeta | null>
     date: _get('date'),
     project: _get('project'),
     slug: _get('slug'),
-    content: fullBody.slice(0, MAX_BODY_CHARS),
+    content: entry.truncateContent(maxContentLength),
     fullBody,
   };
 };
