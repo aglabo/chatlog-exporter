@@ -6,15 +6,24 @@
 //
 // This software is released under the MIT License.
 
-// cspell:words sess
+// cspell:words sess setfm
 
-// -- import --
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import type { Stub } from '@std/testing/mock';
+// stub
 import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
-// test helpers
+// ─── Test target
+import { generateFrontmatter, judgeCategory, judgeType, reviewFrontmatter } from '../../modules/setfm-phases.ts';
+// types
+import type { Dics } from '../../types/dics.types.ts';
+import type { EntryMeta } from '../../types/entry-meta.types.ts';
+import type { FrontmatterResult } from '../../types/phase.types.ts';
+
+// ─── Helpers
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
@@ -22,15 +31,13 @@ import {
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
-// test target
-import type { Dics, FrontmatterFileMeta, FrontmatterResult } from '../../set-frontmatter.ts';
-import { generateFrontmatter, judgeCategory, judgeType, reviewFrontmatter } from '../../set-frontmatter.ts';
+// ─── Internal Helpers
 
+// constants
 const _enc = new TextEncoder();
 
-// ─── テスト用ヘルパー ─────────────────────────────────────────────────────────
-
-function _makeFrontmatterFileMeta(): FrontmatterFileMeta {
+// functions
+function _makeEntryMeta(): EntryMeta {
   return {
     file: '/tmp/test.md',
     sessionId: 'sess-001',
@@ -68,7 +75,7 @@ function _makeDics(): Dics {
   };
 }
 
-// ─── テスト共通セットアップ ───────────────────────────────────────────────────
+// ─── Tests
 
 let commandHandle: CommandMockHandle;
 let errStub: Stub<Console>;
@@ -93,7 +100,7 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-01-01: type が "research" になる', async () => {
-          const result = await judgeType(_makeFrontmatterFileMeta(), _makeDics());
+          const result = await judgeType(_makeEntryMeta(), _makeDics());
 
           assertEquals(result.type, 'research');
         });
@@ -109,7 +116,7 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-02-01: type が "research" になる（フォールバック）', async () => {
-          const result = await judgeType(_makeFrontmatterFileMeta(), _makeDics());
+          const result = await judgeType(_makeEntryMeta(), _makeDics());
 
           assertEquals(result.type, 'research');
         });
@@ -125,7 +132,7 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-03-01: type が "research" になる（例外なし）', async () => {
-          const result = await judgeType(_makeFrontmatterFileMeta(), _makeDics());
+          const result = await judgeType(_makeEntryMeta(), _makeDics());
 
           assertEquals(result.type, 'research');
         });
@@ -145,7 +152,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-04-01: "development" が返る', async () => {
-          const result = await judgeCategory(_makeFrontmatterFileMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
 
           assertEquals(result, 'development');
         });
@@ -161,7 +168,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-05-01: "development" が返る（フォールバック）', async () => {
-          const result = await judgeCategory(_makeFrontmatterFileMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
 
           assertEquals(result, 'development');
         });
@@ -177,7 +184,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-06-01: "development" が返る（例外なし）', async () => {
-          const result = await judgeCategory(_makeFrontmatterFileMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
 
           assertEquals(result, 'development');
         });
@@ -200,7 +207,7 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-01: yaml が設定される', async () => {
           const result = await generateFrontmatter(
-            _makeFrontmatterFileMeta(),
+            _makeEntryMeta(),
             'research',
             'development',
             _makeDics(),
@@ -211,7 +218,7 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-02: type が "research" になる', async () => {
           const result = await generateFrontmatter(
-            _makeFrontmatterFileMeta(),
+            _makeEntryMeta(),
             'research',
             'development',
             _makeDics(),
@@ -222,7 +229,7 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-03: category が "development" になる', async () => {
           const result = await generateFrontmatter(
-            _makeFrontmatterFileMeta(),
+            _makeEntryMeta(),
             'research',
             'development',
             _makeDics(),
@@ -245,7 +252,7 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-08-01: yaml に ``` が含まれない', async () => {
           const result = await generateFrontmatter(
-            _makeFrontmatterFileMeta(),
+            _makeEntryMeta(),
             'research',
             'development',
             _makeDics(),
@@ -266,7 +273,7 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-09-01: yaml が空文字になる', async () => {
           const result = await generateFrontmatter(
-            _makeFrontmatterFileMeta(),
+            _makeEntryMeta(),
             'research',
             'development',
             _makeDics(),
