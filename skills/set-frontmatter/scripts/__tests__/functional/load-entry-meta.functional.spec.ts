@@ -1,17 +1,21 @@
-// src: scripts/__tests__/functional/load-frontmatter-file-meta.functional.spec.ts
-// @(#): loadFrontmatterFileMeta の機能テスト
+// src: scripts/__tests__/functional/load-entry-meta.functional.spec.ts
+// @(#): loadEntryMeta の機能テスト
 //       実ファイルを使ったメタデータ読み込みの検証
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 
+// cspell:words setfm nofm noheader
+
+// ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
-// test target
-import { loadFrontmatterFileMeta, MAX_BODY_CHARS } from '../../set-frontmatter.ts';
+// ───  test target
+import { MAX_BODY_CHARS } from '../../constants/entry-meta.constants.ts';
+import { loadEntryMeta } from '../../modules/setfm-ai.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 
@@ -27,9 +31,9 @@ afterEach(async () => {
 
 // ─── フロントマターありのファイル ────────────────────────────────────────────
 
-describe('loadFrontmatterFileMeta', () => {
+describe('loadEntryMeta', () => {
   describe('Given: フロントマターありの .md ファイル', () => {
-    describe('When: loadFrontmatterFileMeta(filePath) を呼び出す', () => {
+    describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-01 - フロントマターフィールドが正しく読み込まれる', () => {
         const content = [
           '---',
@@ -47,7 +51,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertNotNull(result);
           assertEquals(result!.sessionId, 'sess-001');
@@ -57,7 +61,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.date, '2026-03-15');
         });
@@ -66,7 +70,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.project, 'my-project');
         });
@@ -75,7 +79,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.slug, 'test-slug');
         });
@@ -84,7 +88,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.content.includes('# テスト'), true);
         });
@@ -95,14 +99,14 @@ describe('loadFrontmatterFileMeta', () => {
   // ─── 本文が MAX_BODY_CHARS を超える場合 ──────────────────────────────────
 
   describe('Given: 本文が MAX_BODY_CHARS を超えるファイル', () => {
-    describe('When: loadFrontmatterFileMeta(filePath) を呼び出す', () => {
+    describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-02 - body が制限され fullBody は全文', () => {
         it('T-SF-LFM-02-01: body が MAX_BODY_CHARS 以下になる', async () => {
           const filePath = `${tempDir}/long.md`;
           const longBody = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 100);
           await Deno.writeTextFile(filePath, longBody);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertNotNull(result);
           assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
@@ -113,7 +117,7 @@ describe('loadFrontmatterFileMeta', () => {
           const longBody = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 100);
           await Deno.writeTextFile(filePath, longBody);
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.fullBody.length > MAX_BODY_CHARS, true);
         });
@@ -124,13 +128,13 @@ describe('loadFrontmatterFileMeta', () => {
   // ─── ヘッダー行なし → null ───────────────────────────────────────────────
 
   describe('Given: "#" ヘッダー行のないファイル', () => {
-    describe('When: loadFrontmatterFileMeta(filePath) を呼び出す', () => {
+    describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-03 - null が返る', () => {
         it('T-SF-LFM-03-01: null が返る', async () => {
           const filePath = `${tempDir}/noheader.md`;
           await Deno.writeTextFile(filePath, 'ヘッダーなしの本文テキスト');
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertNull(result);
         });
@@ -141,10 +145,10 @@ describe('loadFrontmatterFileMeta', () => {
   // ─── 存在しないファイル → null ───────────────────────────────────────────
 
   describe('Given: 存在しないファイルパス', () => {
-    describe('When: loadFrontmatterFileMeta(filePath) を呼び出す', () => {
+    describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-04 - null が返る（例外なし）', () => {
         it('T-SF-LFM-04-01: null が返る', async () => {
-          const result = await loadFrontmatterFileMeta(`${tempDir}/nonexistent.md`);
+          const result = await loadEntryMeta(`${tempDir}/nonexistent.md`);
 
           assertNull(result);
         });
@@ -155,13 +159,13 @@ describe('loadFrontmatterFileMeta', () => {
   // ─── フロントマターなし（ヘッダーのみ）→ meta フィールドが空文字 ─────────
 
   describe('Given: フロントマターのない .md ファイル（ヘッダーのみ）', () => {
-    describe('When: loadFrontmatterFileMeta(filePath) を呼び出す', () => {
+    describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-05 - meta フィールドが空文字になる', () => {
         it('T-SF-LFM-05-01: sessionId が空文字になる', async () => {
           const filePath = `${tempDir}/nofm.md`;
           await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertNotNull(result);
           assertEquals(result!.sessionId, '');
@@ -171,7 +175,7 @@ describe('loadFrontmatterFileMeta', () => {
           const filePath = `${tempDir}/nofm.md`;
           await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-          const result = await loadFrontmatterFileMeta(filePath);
+          const result = await loadEntryMeta(filePath);
 
           assertEquals(result!.date, '');
         });
