@@ -20,6 +20,9 @@ import {
   classifyByAI,
 } from '../../classify-ai.ts';
 
+// ─── Helpers
+import { renderFrontmatter } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
+
 // ─── Internal Helpers
 
 // constants
@@ -34,8 +37,7 @@ const _BASE_CONFIG: ClassifyConfig = {
   concurrency: 4,
 };
 
-// ─── テスト用 ClassifyChatlogEntry ヘルパー ───────────────────────────────────────────────
-
+// types
 interface MakeMetaOptions {
   filePath?: string;
   filename?: string;
@@ -46,24 +48,30 @@ interface MakeMetaOptions {
   content?: string;
 }
 
-function makeClassifyChatlogEntry(opts: MakeMetaOptions = {}): ClassifyChatlogEntry {
+// functions
+/**
+ * テスト用 `ClassifyChatlogEntry` を MakeMetaOptions から生成する。
+ *
+ * @param opts - frontmatter フィールドとコンテンツのオプション
+ * @returns 初期化済みの `ClassifyChatlogEntry` インスタンス
+ */
+const _makeClassifyChatlogEntry = (opts: MakeMetaOptions = {}): ClassifyChatlogEntry => {
   const title = opts.title !== undefined ? opts.title : 'Test Title';
   const category = opts.category !== undefined ? opts.category : 'development';
   const topics = opts.topics ?? [];
   const tags = opts.tags ?? [];
   const content = opts.content ?? '';
 
-  const fmLines: string[] = ['---'];
-  if (title) { fmLines.push(`title: ${title}`); }
-  if (category) { fmLines.push(`category: ${category}`); }
-  if (topics.length > 0) { fmLines.push('topics:', ...topics.map((t) => `  - ${t}`)); }
-  if (tags.length > 0) { fmLines.push('tags:', ...tags.map((t) => `  - ${t}`)); }
-  fmLines.push('---');
+  const _fields: Record<string, unknown> = {};
+  if (title) { _fields['title'] = title; }
+  if (category) { _fields['category'] = category; }
+  if (topics.length > 0) { _fields['topics'] = topics; }
+  if (tags.length > 0) { _fields['tags'] = tags; }
 
-  const text = fmLines.join('\n') + '\n' + content;
+  const _text = renderFrontmatter(_fields) + content;
   const filePath = `test/path/${opts.filename ?? 'file.md'}`;
-  return new ClassifyChatlogEntry(text, filePath);
-}
+  return new ClassifyChatlogEntry(_text, filePath);
+};
 
 // ─── buildClassifyPrompt ──────────────────────────────────────────────────────
 
@@ -73,8 +81,8 @@ describe('buildClassifyPrompt', () => {
       describe('Then: T-CL-BCP-01 - 複数ファイルのプロンプト生成', () => {
         it('T-CL-BCP-01-01: "Projects: app1, app2, misc" ヘッダーが含まれる', () => {
           const files = [
-            makeClassifyChatlogEntry({ filename: 'a.md' }),
-            makeClassifyChatlogEntry({ filename: 'b.md' }),
+            _makeClassifyChatlogEntry({ filename: 'a.md' }),
+            _makeClassifyChatlogEntry({ filename: 'b.md' }),
           ];
           const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
@@ -85,8 +93,8 @@ describe('buildClassifyPrompt', () => {
 
         it('T-CL-BCP-01-02: FILE 1 のセクションが含まれる', () => {
           const files = [
-            makeClassifyChatlogEntry({ filename: 'a.md' }),
-            makeClassifyChatlogEntry({ filename: 'b.md' }),
+            _makeClassifyChatlogEntry({ filename: 'a.md' }),
+            _makeClassifyChatlogEntry({ filename: 'b.md' }),
           ];
           const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
@@ -97,8 +105,8 @@ describe('buildClassifyPrompt', () => {
 
         it('T-CL-BCP-01-03: FILE 2 のセクションが含まれる', () => {
           const files = [
-            makeClassifyChatlogEntry({ filename: 'a.md' }),
-            makeClassifyChatlogEntry({ filename: 'b.md' }),
+            _makeClassifyChatlogEntry({ filename: 'a.md' }),
+            _makeClassifyChatlogEntry({ filename: 'b.md' }),
           ];
           const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
@@ -108,7 +116,7 @@ describe('buildClassifyPrompt', () => {
         });
 
         it('T-CL-BCP-01-04: "misc, misc" が含まれない（misc 二重出力なし）', () => {
-          const files = [makeClassifyChatlogEntry({ filename: 'a.md' })];
+          const files = [_makeClassifyChatlogEntry({ filename: 'a.md' })];
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           const result = buildClassifyPrompt(files, projects);
@@ -126,7 +134,7 @@ describe('buildClassifyPrompt', () => {
     describe('When: buildClassifyPrompt([fileMeta], projects) を呼び出す', () => {
       describe('Then: T-CL-BCP-02 - topics/tags が空のとき (none) が出力される', () => {
         it('T-CL-BCP-02-01: topics として "(none)" が含まれる', () => {
-          const files = [makeClassifyChatlogEntry({ topics: [], tags: [] })];
+          const files = [_makeClassifyChatlogEntry({ topics: [], tags: [] })];
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           const result = buildClassifyPrompt(files, projects);
@@ -135,7 +143,7 @@ describe('buildClassifyPrompt', () => {
         });
 
         it('T-CL-BCP-02-02: tags として "(none)" が含まれる', () => {
-          const files = [makeClassifyChatlogEntry({ topics: [], tags: [] })];
+          const files = [_makeClassifyChatlogEntry({ topics: [], tags: [] })];
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           const result = buildClassifyPrompt(files, projects);
@@ -151,7 +159,7 @@ describe('buildClassifyPrompt', () => {
       describe('Then: T-CL-BCP-04 - 本文スニペットが追加される', () => {
         it('T-CL-BCP-04-01: "body:" フィールドが含まれる', () => {
           const files = [
-            makeClassifyChatlogEntry({
+            _makeClassifyChatlogEntry({
               title: '',
               category: '',
               topics: [],
@@ -169,7 +177,7 @@ describe('buildClassifyPrompt', () => {
         it('T-CL-BCP-04-02: 本文が 500 文字以内にトリムされて含まれる', () => {
           const longBody = 'a'.repeat(600);
           const files = [
-            makeClassifyChatlogEntry({
+            _makeClassifyChatlogEntry({
               title: '',
               category: '',
               topics: [],
@@ -192,7 +200,7 @@ describe('buildClassifyPrompt', () => {
       describe('Then: T-CL-BCP-05 - 本文スニペットは追加されない', () => {
         it('T-CL-BCP-05-01: "body:" フィールドが含まれない', () => {
           const files = [
-            makeClassifyChatlogEntry({
+            _makeClassifyChatlogEntry({
               title: 'テストタイトル',
               category: '',
               topics: [],
@@ -217,7 +225,7 @@ describe('buildClassifyPrompt', () => {
     describe('When: buildClassifyPrompt([fileMeta], projects) を呼び出す', () => {
       describe('Then: T-CL-BCP-03 - topics/tags がカンマ区切りで出力される', () => {
         it('T-CL-BCP-03-01: topics がカンマ区切りで含まれる', () => {
-          const files = [makeClassifyChatlogEntry({ topics: ['API', '設計'], tags: ['ts'] })];
+          const files = [_makeClassifyChatlogEntry({ topics: ['API', '設計'], tags: ['ts'] })];
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           const result = buildClassifyPrompt(files, projects);
@@ -226,7 +234,7 @@ describe('buildClassifyPrompt', () => {
         });
 
         it('T-CL-BCP-03-02: tags がカンマ区切りで含まれる', () => {
-          const files = [makeClassifyChatlogEntry({ topics: ['API'], tags: ['ts', 'deno'] })];
+          const files = [_makeClassifyChatlogEntry({ topics: ['API'], tags: ['ts', 'deno'] })];
           const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
           const result = buildClassifyPrompt(files, projects);

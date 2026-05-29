@@ -8,6 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Helpers
+import { renderFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import { ClassifyChatlogEntry } from '../../classes/ClassifyChatlogEntry.class.ts';
 import type { ClassifyStats } from '../../types/classify.types.ts';
 
@@ -42,15 +43,6 @@ export const _makeEntry = (
   frontmatter: Record<string, unknown> = {},
   content = '',
 ): ClassifyChatlogEntry => {
-  const _fmLines = Object.entries(frontmatter).map(([k, v]) => {
-    if (Array.isArray(v)) {
-      const _items = (v as string[]).map((item) => `  - ${item}`).join('\n');
-      return `${k}:\n${_items}`;
-    }
-    return `${k}: ${v}`;
-  });
-  const _text = _fmLines.length > 0
-    ? `---\n${_fmLines.join('\n')}\n---\n${content}`
-    : content;
+  const _text = renderFrontmatter(frontmatter) + content;
   return new ClassifyChatlogEntry(_text, filePath);
 };

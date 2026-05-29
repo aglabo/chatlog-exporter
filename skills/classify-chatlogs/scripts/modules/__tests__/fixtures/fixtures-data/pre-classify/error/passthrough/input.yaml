@@ -1,0 +1,5 @@
+filePath: /a/broken.md
+frontmatter: {}
+content: ""
+action: error
+reason: InvalidFormat

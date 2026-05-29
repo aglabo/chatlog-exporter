@@ -1,0 +1,6 @@
+app1:
+  def: Application 1
+app2:
+  def: Application 2
+misc:
+  def: Miscellaneous

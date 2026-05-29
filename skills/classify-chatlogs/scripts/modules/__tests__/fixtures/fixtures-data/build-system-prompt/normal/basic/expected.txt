@@ -1,0 +1,7 @@
+Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
+[{"file":"<filename>","project":"<project_name>","confidence":0.0,"reason":"..."},...]
+
+Choose project ONLY from this list: app1, app2, misc
+If no project matches well, use "misc".
+If the file has no metadata AND the body is fewer than 3 lines, assign "misc" unconditionally.
+Base your decision on: title, category, topics, tags.

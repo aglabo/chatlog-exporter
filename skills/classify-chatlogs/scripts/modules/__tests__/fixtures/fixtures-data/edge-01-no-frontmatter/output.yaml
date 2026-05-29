@@ -1,8 +1,0 @@
-# フロントマターなしの場合もいずれかのプロジェクトに分類される
-known_projects:
-  - app1
-  - app2
-  - infra
-  - dev-tools
-  - misc
-confidence_min: 0.0
