@@ -31,6 +31,8 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   minCharCount: 'number',
   /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
   minAssistantChars: 'number',
+  /** コンテンツ最大文字数フィルタ閾値。 */
+  maxContentLength: 'number',
   /** DISCARD 判定に必要な最低信頼度スコア（filter-chatlog 使用）。 */
   discardThreshold: 'number',
   /** 辞書ファイルが置かれたディレクトリのパス。 */
@@ -81,6 +83,8 @@ export const DEFAULT_VALUES: ConfigValues = {
   minCharCount: 1000,
   /** デフォルト Assistant 応答最小文字数 */
   minAssistantChars: 300,
+  /** デフォルトコンテンツ最大文字数 */
+  maxContentLength: 4000,
   /** デフォルト DISCARD 閾値 */
   discardThreshold: 0.7,
 } as const;
