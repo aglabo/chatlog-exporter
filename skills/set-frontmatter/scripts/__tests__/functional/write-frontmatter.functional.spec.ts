@@ -6,14 +6,17 @@
 //
 // This software is released under the MIT License.
 
+// cspell:words setfm
+
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import type { Stub } from '@std/testing/mock';
 import { stub } from '@std/testing/mock';
 
 // test target
-import type { FrontmatterFileMeta, FrontmatterResult, Stats } from '../../set-frontmatter.ts';
-import { writeFrontmatter } from '../../set-frontmatter.ts';
+import { writeFrontmatter } from '../../modules/setfm-phases.ts';
+import type { EntryMeta } from '../../types/entry-meta.types.ts';
+import type { FrontmatterResult, Stats } from '../../types/phase.types.ts';
 
 // exists
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
@@ -25,7 +28,7 @@ let tempDir: string;
 let errStub: Stub<Console>;
 let logStub: Stub<Console>;
 
-function _makeFrontmatterFileMeta(filePath: string): FrontmatterFileMeta {
+function _makeEntryMeta(filePath: string): EntryMeta {
   return {
     file: filePath,
     sessionId: 'sess-001',
@@ -71,7 +74,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-01-01: ファイルが更新される', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -84,7 +87,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-01-02: stats.success が 1 になる', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -96,7 +99,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-01-03: ファイルに "type: research" が含まれる', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -109,7 +112,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-01-04: ファイルに "category: development" が含まれる', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -122,7 +125,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-01-05: fullBody が末尾に保持される', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -144,7 +147,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           const originalContent = '# テスト\n本文';
           await Deno.writeTextFile(filePath, originalContent);
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -157,7 +160,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-02-02: stats.success が 1 になる', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
@@ -177,7 +180,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-03-01: stats.fail が 1 になる', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath, '');
           const stats = _makeStats();
 
@@ -190,7 +193,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           const originalContent = '# テスト\n本文';
           await Deno.writeTextFile(filePath, originalContent);
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath, '');
           const stats = _makeStats();
 
@@ -211,7 +214,7 @@ describe('writeFrontmatter', () => {
         it('T-SF-WF-04-01: .tmp ファイルが残らない', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const fm = _makeFrontmatterFileMeta(filePath);
+          const fm = _makeEntryMeta(filePath);
           const result = _makeResult(filePath);
           const stats = _makeStats();
 
