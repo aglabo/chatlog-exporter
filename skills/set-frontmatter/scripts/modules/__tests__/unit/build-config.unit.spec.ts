@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/build-config.unit.spec.ts
+// src: scripts/modules/__tests__/unit/build-config.unit.spec.ts
 // @(#): buildConfig のユニットテスト
 //       対象: buildConfig
 //
@@ -12,11 +12,11 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildConfig } from '../../modules/setfm-config.ts';
+import { buildConfig } from '../../setfm-config.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── Internal Helpers
 
