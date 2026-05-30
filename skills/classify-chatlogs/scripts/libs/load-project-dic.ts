@@ -18,7 +18,8 @@ import { resolveConfigPath } from '../../../_scripts/libs/path-utils/path-utils.
 // types
 import type { ProjectDicEntry } from '../types/classify.types.ts';
 // constants
-import { DEFAULT_PROJECTS_DIC_PATH, FALLBACK_PROJECT } from '../constants/classify.constants.ts';
+import { DEFAULT_PROJECTS_DIC_PATH } from '../../../_scripts/constants/defaults.constants.ts';
+import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 
 /**
  * Converts an unknown `meta` value into a `Record<string, string>` (project property map).
