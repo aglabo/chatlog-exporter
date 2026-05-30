@@ -39,9 +39,9 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
   dryRun: false,
   // config.yaml only
-  chunkSize: DEFAULT_VALUES.chunkSize as number,
-  concurrency: DEFAULT_VALUES.concurrency as number,
-  minCharCount: DEFAULT_VALUES.minCharCount as number,
-  minAssistantChars: DEFAULT_VALUES.minAssistantChars as number,
-  discardThreshold: DEFAULT_VALUES.discardThreshold as number,
+  chunkSize: DEFAULT_VALUES.chunkSize,
+  concurrency: DEFAULT_VALUES.concurrency,
+  minCharCount: DEFAULT_VALUES.minCharCount,
+  minAssistantChars: DEFAULT_VALUES.minAssistantChars,
+  discardThreshold: DEFAULT_VALUES.discardThreshold,
 };
