@@ -15,7 +15,7 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { ClassifyBufferEntry } from '../types/classify.types.ts';
 // constants
@@ -31,7 +31,7 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 export const loadClassifyEntry = async (filePath: string): Promise<ClassifyBufferEntry> => {
   const _text = await readTextFile(filePath);
   try {
-    const _entry = new ClassifyChatlogEntry(_text, filePath);
+    const _entry = new ChatlogEntry(_text, { filePath });
     return { file: _entry, filePath };
   } catch (e) {
     const _reason = e instanceof Error ? e.message : String(e);
@@ -54,7 +54,7 @@ export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => 
 
   // プロジェクト指定済み → 既に正しい場所にあるならスキップ、違う場所にあるなら移動
   if (typeof _existingProject === 'string' && _existingProject) {
-    const _srcDir = getDirectory(f.filePath);
+    const _srcDir = getDirectory(f.filePath!);
     const _inSubDir = _srcDir.endsWith('/' + _existingProject);
     const _action = _inSubDir ? CLASSIFY_ACTIONS.SKIP : CLASSIFY_ACTIONS.MOVE;
     return { ...entry, project: _existingProject, action: _action };

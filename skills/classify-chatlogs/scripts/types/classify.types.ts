@@ -10,8 +10,8 @@
 //
 // ─── Imports
 // types
+import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
-import type { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
 
 // ─────────────────────────────────────────────
 // プロジェクトエントリ型
@@ -105,7 +105,7 @@ export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIO
 /** `preClassify` および `processChunk` が返す1件分のバッファエントリ。 */
 export type ClassifyBufferEntry = {
   /** 分類対象のファイルエントリ。エラー時は `null`。 */
-  file: ClassifyChatlogEntry | null;
+  file: ChatlogEntry | null;
   /** エントリのファイルパス。エラー時も参照できるよう `file` とは別に保持する。 */
   filePath: string;
   /** 割り当てるプロジェクト名。 */

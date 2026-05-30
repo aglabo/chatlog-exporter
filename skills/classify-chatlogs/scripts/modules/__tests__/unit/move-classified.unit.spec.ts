@@ -47,7 +47,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: 'app1',
         action: CLASSIFY_ACTIONS.SKIP,
       }];
@@ -76,7 +76,11 @@ describe('moveClassified', () => {
 
     it('[Normal] T-CL-MC-05: action=remaining → stats.remaining++ のみ', async () => {
       const _entry = _makeEntry('/tmp/input/test.md');
-      const _buffer: ClassifyBuffer = [{ file: _entry, filePath: _entry.filePath, action: CLASSIFY_ACTIONS.REMAINING }];
+      const _buffer: ClassifyBuffer = [{
+        file: _entry,
+        filePath: _entry.filePath!,
+        action: CLASSIFY_ACTIONS.REMAINING,
+      }];
       const _stats = _makeStats();
 
       await moveClassified(_buffer, '/tmp/output', false, _stats);
@@ -90,7 +94,7 @@ describe('moveClassified', () => {
 
     it('[Normal] T-CL-MC-06: action=undefined → stats.remaining++', async () => {
       const _entry = _makeEntry('/tmp/input/test.md');
-      const _buffer: ClassifyBuffer = [{ file: _entry, filePath: _entry.filePath }];
+      const _buffer: ClassifyBuffer = [{ file: _entry, filePath: _entry.filePath! }];
       const _stats = _makeStats();
 
       await moveClassified(_buffer, '/tmp/output', false, _stats);
@@ -111,7 +115,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: 'app1',
         action: CLASSIFY_ACTIONS.MOVE,
       }];
@@ -129,7 +133,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: 'app1',
         action: CLASSIFY_ACTIONS.MOVEBYAI,
       }];
@@ -146,7 +150,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: undefined,
         action: CLASSIFY_ACTIONS.MOVE,
       }];
@@ -166,7 +170,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: 'app1',
         action: CLASSIFY_ACTIONS.MOVE,
       }];
@@ -185,7 +189,7 @@ describe('moveClassified', () => {
       const _entry = _makeEntry('/tmp/input/test.md');
       const _buffer: ClassifyBuffer = [{
         file: _entry,
-        filePath: _entry.filePath,
+        filePath: _entry.filePath!,
         project: 'app1',
         action: CLASSIFY_ACTIONS.MOVEBYAI,
       }];

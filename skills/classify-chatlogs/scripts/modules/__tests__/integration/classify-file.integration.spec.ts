@@ -16,7 +16,7 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Helpers
 // classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // utils
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { dirExists, fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
@@ -43,13 +43,13 @@ describe('classifyFile', () => {
   // ─── T-CL-CF-02: 正常移動 ────────────────────────────────────────────────
 
   describe('Given: 実在するファイルと dryRun=false', () => {
-    let entry: ClassifyChatlogEntry;
+    let entry: ChatlogEntry;
     let srcPath: string;
 
     beforeEach(async () => {
       srcPath = `${tempDir}/${_SRC_FILENAME}`;
       await Deno.writeTextFile(srcPath, _FILE_CONTENT);
-      entry = new ClassifyChatlogEntry(_FILE_CONTENT, srcPath);
+      entry = new ChatlogEntry(_FILE_CONTENT, { filePath: srcPath });
     });
 
     describe('When: classifyFile(entry, "app1", tempDir, false) を呼び出す', () => {
@@ -97,12 +97,12 @@ describe('classifyFile', () => {
   // ─── T-CL-CF-03: 移動失敗 ────────────────────────────────────────────────
 
   describe('Given: 存在しないファイルパスと dryRun=false', () => {
-    let entry: ClassifyChatlogEntry;
+    let entry: ChatlogEntry;
 
     beforeEach(() => {
-      entry = new ClassifyChatlogEntry(
+      entry = new ChatlogEntry(
         `---\ntitle: Test\n---\n本文`,
-        `${tempDir}/missing.md`,
+        { filePath: `${tempDir}/missing.md` },
       );
     });
 

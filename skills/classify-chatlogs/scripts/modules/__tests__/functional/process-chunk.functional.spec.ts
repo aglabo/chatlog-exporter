@@ -19,7 +19,7 @@ import { processChunk } from '../../classify-ai.ts';
 // types
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
@@ -215,7 +215,7 @@ describe('processChunk', () => {
     });
 
     it('[Edge] T-CL-PC-05-01: 空チャンク → 空バッファを返す', async () => {
-      const metas: ClassifyChatlogEntry[] = [];
+      const metas: ChatlogEntry[] = [];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
       const buffer = await processChunk(metas, projects, model);
