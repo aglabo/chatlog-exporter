@@ -48,24 +48,31 @@ const _initSchema = (schema: ArgsSchema): Map<string, ArgSchemaEntry> => {
 /**
  * エントリと生の文字列値を受け取り、型ごとに変換・検証してから `config` にセットする。
  * `flag` 型は `rawValue` 不要で呼び出せる（フラグはそのまま `true` をセットする）。
+ * `negated=true` の場合、`flag` 型は `false` をセットし、非 `flag` 型はエラーを返す。
  *
  * @param config - 値をセット対象となる設定オブジェクト（参照渡し、副作用あり）
  * @param entry  - スキーマエントリ
  * @param rawValue - CLI から取得した生文字列。`flag` 型では省略可能
+ * @param negated - `--no-<xx>` 形式の否定フラグの場合 `true`
  * @returns 成功時 `null`、失敗時 `ChatlogError`
  */
 const _setByType = (
   config: Record<string, string | boolean | number>,
   entry: ArgSchemaEntry,
   rawValue?: string,
+  negated?: boolean,
 ): ChatlogError | null => {
   // flag は rawValue 不要。rawValue が渡された場合はエラー
   if (entry.type === 'flag') {
     if (rawValue !== undefined) {
       return new ChatlogError('InvalidArgs', `フラグに値は指定できません: ${entry.option}`);
     }
-    config[entry.field] = true;
+    config[entry.field] = !negated;
     return null;
+  }
+  // flag 以外に negated を指定した場合はエラー
+  if (negated) {
+    return new ChatlogError('InvalidArgs', `--no- は flag 型にのみ使用できます: ${entry.option}`);
   }
   switch (entry.type) {
     case 'string':
@@ -192,14 +199,23 @@ export const parseArgsToConfig = <T extends { period?: string; agent?: string; c
     const arg = args[i];
 
     if (arg.startsWith('--')) {
-      const { _option, _rawValue, _nextIndex } = _getOptionAndValue(args, i, _schemaMap);
-      const _entry = _schemaMap.get(_option);
+      const _isNegation = arg.startsWith('--no-') && !_schemaMap.has(arg.split('=')[0]);
+      const _lookupKey = _isNegation ? '--' + arg.slice('--no-'.length) : arg;
+
+      if (_isNegation && arg.includes('=')) {
+        throw new ChatlogError('InvalidArgs', `--no- フラグに値は指定できません: ${arg}`);
+      }
+
+      const { _option, _rawValue, _nextIndex } = _isNegation
+        ? { _option: arg, _rawValue: undefined, _nextIndex: i }
+        : _getOptionAndValue(args, i, _schemaMap);
+      const _entry = _schemaMap.get(_isNegation ? _lookupKey : _option);
 
       if (_entry === undefined) {
         throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
       }
 
-      const err = _setByType(_config, _entry, _rawValue);
+      const err = _setByType(_config, _entry, _rawValue, _isNegation);
       if (err) { throw err; }
       i = _nextIndex;
       continue;
