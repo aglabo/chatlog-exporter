@@ -16,7 +16,7 @@ import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Local
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type {
   ClassifyBuffer,
@@ -32,7 +32,7 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
  * AI へ渡すバッチ分類プロンプトを構築する。
  * - メタデータ（title/category/topics/tags）がすべて空のファイルは、本文先頭 500 文字を `body:` として付加する。
  */
-export const buildClassifyPrompt = (files: ClassifyChatlogEntry[], projects: ProjectDicEntry): string => {
+export const buildClassifyPrompt = (files: ChatlogEntry[], projects: ProjectDicEntry): string => {
   const _projectList = Object.keys(projects).join(', ');
   const header = `Projects: ${_projectList}\n\n`;
 
@@ -91,7 +91,7 @@ Base your decision on: title, category, topics, tags.`;
  * - 副作用（ファイル移動）は行わない。呼び出し元が `applyClassifications` で適用する。
  */
 export const processChunk = async (
-  chunkMetas: ClassifyChatlogEntry[],
+  chunkMetas: ChatlogEntry[],
   projects: ProjectDicEntry,
   model: string,
 ): Promise<ClassifyBuffer> => {
@@ -110,7 +110,7 @@ export const processChunk = async (
     logger.warn(`  ${_reason}`);
     return chunkMetas.map((f) => ({
       file: f,
-      filePath: f.filePath,
+      filePath: f.filePath!,
       action: CLASSIFY_ACTIONS.ERROR,
       reason: _reason,
     }));
@@ -122,7 +122,7 @@ export const processChunk = async (
     logger.warn(`  ${_reason}`);
     return chunkMetas.map((f) => ({
       file: f,
-      filePath: f.filePath,
+      filePath: f.filePath!,
       action: CLASSIFY_ACTIONS.ERROR,
       reason: _reason,
     }));
@@ -132,7 +132,7 @@ export const processChunk = async (
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
+    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath!, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
   }
 
   return _buffer;
@@ -156,7 +156,7 @@ export const classifyByAI = async (
     .map((e) => e.file!);
   if (_remaining.length === 0) { return []; }
 
-  const _chunkBuffers = await runChunked<ClassifyChatlogEntry, ClassifyBuffer>(
+  const _chunkBuffers = await runChunked<ChatlogEntry, ClassifyBuffer>(
     _remaining,
     config.chunkSize,
     (chunk) => processChunk(chunk, projects, config.model),
