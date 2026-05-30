@@ -15,7 +15,7 @@ import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 
 // ─── Local
-import { ClassifyChatlogEntry } from '../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { ClassifyAction, ClassifyBuffer, ClassifyStats } from '../types/classify.types.ts';
 // constants
@@ -33,18 +33,18 @@ export const resolveProject = (project: string | undefined): string => project ?
  * - 移動エラーは `{ action: ERROR, message }` を返す（スローしない）。
  */
 export const classifyFile = async (
-  classifyEntry: ClassifyChatlogEntry,
+  classifyEntry: ChatlogEntry,
   project: string | undefined,
   destDir: string,
   dryRun: boolean,
 ): Promise<{ action: ClassifyAction; message: string }> => {
   const _project = resolveProject(project);
-  const srcPath = classifyEntry.filePath;
+  const srcPath = classifyEntry.filePath!;
   const _projectDir = normalizePath(`${destDir}/${_project}`);
-  const dstPath = `${_projectDir}/${classifyEntry.filename}`;
+  const dstPath = `${_projectDir}/${classifyEntry.filename!}`;
 
   if (dryRun) {
-    return { action: CLASSIFY_ACTIONS.MOVE, message: `[dry-run] ${classifyEntry.filename} → ${_project}/` };
+    return { action: CLASSIFY_ACTIONS.MOVE, message: `[dry-run] ${classifyEntry.filename!} → ${_project}/` };
   }
 
   try {
@@ -54,9 +54,9 @@ export const classifyFile = async (
     await Deno.writeTextFile(dstPath, _newContent);
     await Deno.remove(srcPath);
 
-    return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename} → ${_project}/` };
+    return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename!} → ${_project}/` };
   } catch (e) {
-    return { action: CLASSIFY_ACTIONS.ERROR, message: `  move failed: ${classifyEntry.filename}: ${e}` };
+    return { action: CLASSIFY_ACTIONS.ERROR, message: `  move failed: ${classifyEntry.filename!}: ${e}` };
   }
 };
 
@@ -80,7 +80,7 @@ export const moveClassified = async (
     const action = entry.action ?? CLASSIFY_ACTIONS.REMAINING;
     switch (action) {
       case CLASSIFY_ACTIONS.SKIP:
-        logger.info(`  skipped (分類済み: ${entry.project}): ${entry.file!.filename}`);
+        logger.info(`  skipped (分類済み: ${entry.project}): ${entry.file!.filename!}`);
         stats.skipped++;
         break;
       case CLASSIFY_ACTIONS.REMAINING:
