@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/set-frontmatter.parse-args.unit.spec.ts
+// src: scripts/modules/__tests__/unit/parse-args.unit.spec.ts
 // @(#): parseArgs のユニットテスト
 //       CLI 引数解析: デフォルト値・各オプション・エラー終了
 //
@@ -11,10 +11,10 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { parseArgs } from '../../modules/setfm-config.ts';
+import { parseArgs } from '../../setfm-config.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Internal Helpers
 
