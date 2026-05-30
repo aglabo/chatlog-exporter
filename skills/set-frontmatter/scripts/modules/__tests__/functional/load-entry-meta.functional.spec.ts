@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/load-entry-meta.functional.spec.ts
+// src: scripts/modules/__tests__/functional/load-entry-meta.functional.spec.ts
 // @(#): loadEntryMeta の機能テスト
 //       実ファイルを使ったメタデータ読み込みの検証
 //
@@ -11,13 +11,13 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ───  test target
-import { MAX_BODY_CHARS } from '../../constants/entry-meta.constants.ts';
-import { loadEntryMeta } from '../../modules/setfm-ai.ts';
+import { loadEntryMeta } from '../../setfm-ai.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
+const MAX_BODY_CHARS = 1000; // loadEntryMeta 内の定数と同じ値を使用
 
 let tempDir: string;
 
@@ -51,7 +51,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertNotNull(result);
           assertEquals(result!.sessionId, 'sess-001');
@@ -61,7 +61,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.date, '2026-03-15');
         });
@@ -70,7 +70,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.project, 'my-project');
         });
@@ -79,7 +79,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.slug, 'test-slug');
         });
@@ -88,7 +88,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, content);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.content.includes('# テスト'), true);
         });
@@ -106,7 +106,7 @@ describe('loadEntryMeta', () => {
           const longBody = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 100);
           await Deno.writeTextFile(filePath, longBody);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertNotNull(result);
           assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
@@ -117,7 +117,7 @@ describe('loadEntryMeta', () => {
           const longBody = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 100);
           await Deno.writeTextFile(filePath, longBody);
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.fullBody.length > MAX_BODY_CHARS, true);
         });
@@ -134,7 +134,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/noheader.md`;
           await Deno.writeTextFile(filePath, 'ヘッダーなしの本文テキスト');
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertNull(result);
         });
@@ -148,7 +148,7 @@ describe('loadEntryMeta', () => {
     describe('When: loadEntryMeta(filePath) を呼び出す', () => {
       describe('Then: T-SF-LFM-04 - null が返る（例外なし）', () => {
         it('T-SF-LFM-04-01: null が返る', async () => {
-          const result = await loadEntryMeta(`${tempDir}/nonexistent.md`);
+          const result = await loadEntryMeta(`${tempDir}/nonexistent.md`, MAX_BODY_CHARS);
 
           assertNull(result);
         });
@@ -165,7 +165,7 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/nofm.md`;
           await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertNotNull(result);
           assertEquals(result!.sessionId, '');
@@ -175,9 +175,83 @@ describe('loadEntryMeta', () => {
           const filePath = `${tempDir}/nofm.md`;
           await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-          const result = await loadEntryMeta(filePath);
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
 
           assertEquals(result!.date, '');
+        });
+      });
+    });
+  });
+
+  // ─── content の境界値エッジケース ────────────────────────────────────────
+
+  describe('Given: 本文長が MAX_BODY_CHARS の境界値のファイル', () => {
+    describe('When: loadEntryMeta(filePath, MAX_BODY_CHARS) を呼び出す', () => {
+      describe('When: エッジケース', () => {
+        it('[Edge] T-SF-LFM-06-01: 本文が MAX_BODY_CHARS-1 文字 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge1.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS - 1);
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
+        });
+
+        it('[Edge] T-SF-LFM-06-02: 本文が MAX_BODY_CHARS-1 文字 + 末尾改行 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge2.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS - 1) + '\n';
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
+        });
+
+        it('[Edge] T-SF-LFM-06-03: 本文が MAX_BODY_CHARS 文字 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge3.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS);
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
+        });
+
+        it('[Edge] T-SF-LFM-06-04: 本文が MAX_BODY_CHARS 文字 + 末尾改行 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge4.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS) + '\n';
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
+        });
+
+        it('[Edge] T-SF-LFM-06-05: 本文が MAX_BODY_CHARS+1 文字 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge5.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 1);
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
+        });
+
+        it('[Edge] T-SF-LFM-06-06: 本文が MAX_BODY_CHARS+1 文字 + 末尾改行 → content が MAX_BODY_CHARS 以下', async () => {
+          const filePath = `${tempDir}/edge6.md`;
+          const body = '# タイトル\n' + 'x'.repeat(MAX_BODY_CHARS + 1) + '\n';
+          await Deno.writeTextFile(filePath, body);
+
+          const result = await loadEntryMeta(filePath, MAX_BODY_CHARS);
+
+          assertNotNull(result);
+          assertEquals(result!.content.length <= MAX_BODY_CHARS, true);
         });
       });
     });
