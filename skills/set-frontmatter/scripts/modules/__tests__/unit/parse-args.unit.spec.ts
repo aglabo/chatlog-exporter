@@ -6,6 +6,8 @@
 //
 // This software is released under the MIT License.
 
+// cspell:words setfm
+
 // ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
@@ -30,7 +32,7 @@ const _PATH = '/path/to/dir';
 /**
  * `parseArgs` のユニットテストスイート。
  *
- * CLI 引数の解析: `--target-dir`・`--dics`・`--dry-run`・`--no-review`・`--config` オプション。
+ * CLI 引数の解析: `--target-dir`・`--dics`・`--dry-run`・`--review`・`--config` オプション。
  *
  * テスト ID 範囲: T-SF-PA-01 〜 T-SF-PA-11
  *
@@ -52,7 +54,7 @@ describe('parseArgs', () => {
           { id: 'T-SF-PA-01-01', field: 'targetDir', expected: _PATH },
           { id: 'T-SF-PA-01-02', field: 'dicsDir', expected: undefined },
           { id: 'T-SF-PA-01-03', field: 'dryRun', expected: undefined },
-          { id: 'T-SF-PA-01-04', field: 'noReview', expected: undefined },
+          { id: 'T-SF-PA-01-04', field: 'review', expected: undefined },
         ];
         for (const { id, field, expected } of _defaultCases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
@@ -74,7 +76,7 @@ describe('parseArgs', () => {
       describe('Then: 対応フィールドに値が設定される', () => {
         const _cases: { id: string; args: string[]; field: keyof ParsedResult; expected: unknown }[] = [
           { id: 'T-SF-PA-02-01', args: [_TARGET, '/path', '--dry-run'], field: 'dryRun', expected: true },
-          { id: 'T-SF-PA-03-01', args: [_TARGET, '/path', '--no-review'], field: 'noReview', expected: true },
+          { id: 'T-SF-PA-03-01', args: [_TARGET, '/path', '--review'], field: 'review', expected: true },
           { id: 'T-SF-PA-04-01', args: [_TARGET, '/path', '--dics', '/dics'], field: 'dicsDir', expected: '/dics' },
           { id: 'T-SF-PA-05-01', args: [_TARGET, '/path', '--dics=/dics'], field: 'dicsDir', expected: '/dics' },
         ];
@@ -90,10 +92,10 @@ describe('parseArgs', () => {
   // ─── T-SF-PA-09: 複数オプション組み合わせ ────────────────────────────────────
 
   it('T-SF-PA-09-01: 全フィールドが正しく解析される', () => {
-    const result = parseArgs([_TARGET, _PATH, '--dry-run', '--no-review', '--dics', '/dics', '--config', 'cfg.yaml']);
+    const result = parseArgs([_TARGET, _PATH, '--dry-run', '--review', '--dics', '/dics', '--config', 'cfg.yaml']);
     assertEquals(result.targetDir, _PATH);
     assertEquals(result.dryRun, true);
-    assertEquals(result.noReview, true);
+    assertEquals(result.review, true);
     assertEquals(result.dicsDir, '/dics');
     assertEquals(result.configFile, 'cfg.yaml');
   });
