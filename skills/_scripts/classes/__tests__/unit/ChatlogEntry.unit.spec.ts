@@ -343,6 +343,48 @@ describe('ChatlogEntry', () => {
   });
 
   /**
+   * `filePath` getter および `filename` getter のユニットテスト。
+   *
+   * options.filePath を渡した場合・渡さない場合・空文字列の場合を検証する。
+   *
+   * テスト ID 範囲: T-CLS-CE-50 〜 T-CLS-CE-54
+   *
+   * @see ChatlogEntry
+   */
+  describe('filePath / filename', () => {
+    /** options.filePath を渡す正常ケースと未指定ケース。 */
+    describe('When: 正常系', () => {
+      it('T-CLS-CE-50: [Normal] options.filePath を渡すと filePath が同値を返す', () => {
+        const entry = new ChatlogEntry('---\ntitle: test\n---\n\nbody', { filePath: '/path/to/file.md' });
+        assertEquals(entry.filePath, '/path/to/file.md');
+      });
+
+      it('T-CLS-CE-51: [Normal] options.filePath を渡さない場合 filePath は undefined', () => {
+        const entry = new ChatlogEntry('---\ntitle: test\n---\n\nbody');
+        assertEquals(entry.filePath, undefined);
+      });
+
+      it('T-CLS-CE-53: [Normal] options.filePath を渡すと filename がファイル名のみ返す', () => {
+        const entry = new ChatlogEntry('---\ntitle: test\n---\n\nbody', { filePath: '/path/to/file.md' });
+        assertEquals(entry.filename, 'file.md');
+      });
+
+      it('T-CLS-CE-54: [Normal] options.filePath を渡さない場合 filename は undefined', () => {
+        const entry = new ChatlogEntry('---\ntitle: test\n---\n\nbody');
+        assertEquals(entry.filename, undefined);
+      });
+    });
+
+    /** 境界値・特殊ケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CE-52: [Edge] options.filePath が空文字列 → filePath は空文字列を返す', () => {
+        const entry = new ChatlogEntry('---\ntitle: test\n---\n\nbody', { filePath: '' });
+        assertEquals(entry.filePath, '');
+      });
+    });
+  });
+
+  /**
    * @description コンストラクタ 異常系のユニットテスト。
    * 不正な frontmatter 入力で ChatlogError をスローすることを検証する。
    */
