@@ -8,6 +8,7 @@
 
 // --─ Imports
 // shared
+import { getFilename } from '../libs/path-utils/path-utils.ts';
 import { divideEntry } from '../libs/text/frontmatter-utils.ts';
 import { normalizeLine } from '../libs/text/line-utils.ts';
 
@@ -39,6 +40,16 @@ export class ChatlogEntry {
 
   /** コンストラクタに渡されたオプション。未指定時は `{}`。 */
   readonly options: EntryOptions;
+
+  /** 入力ファイルのパス。`options.filePath` が未指定の場合は `undefined`。 */
+  get filePath(): string | undefined {
+    return this.options.filePath;
+  }
+
+  /** 入力ファイルのファイル名。`options.filePath` が未指定の場合は `undefined`。 */
+  get filename(): string | undefined {
+    return this.options.filePath !== undefined ? getFilename(this.options.filePath) : undefined;
+  }
 
   constructor(text: string, options?: EntryOptions) {
     const { frontmatter, content } = divideEntry(text);
