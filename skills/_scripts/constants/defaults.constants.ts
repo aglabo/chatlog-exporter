@@ -15,6 +15,12 @@ import type { KnownAgent } from './agents.constants.ts';
 /** GlobalConfig が読み込むデフォルト設定ファイルパス。 */
 export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
 
+/** プロジェクト辞書ファイルのデフォルトパス。 */
+export const DEFAULT_PROJECTS_DIC_PATH = './assets/configs/projects.dic';
+
+/** AI プロンプトファイルが置かれたデフォルトディレクトリ。 */
+export const DEFAULT_PROMPTS_DIR = './assets/prompts';
+
 // ─────────────────────────────────────────────
 // ディレクトリ
 // ─────────────────────────────────────────────
@@ -24,6 +30,9 @@ export const DEFAULT_CHATLOGS_DIR = './chatlogs';
 
 /** normalize-chatlogs が出力するセグメントのデフォルトベースディレクトリ。 */
 export const DEFAULT_NORMALIZE_DIR = './chatlogs/normalizelogs';
+
+/** 辞書ファイルが置かれたデフォルトディレクトリ。 */
+export const DEFAULT_DICS_DIR = './assets/dics';
 
 // ─────────────────────────────────────────────
 // エージェント
