@@ -6,7 +6,14 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { DEFAULT_AGENT, DEFAULT_AI_MODEL } from '../../../_scripts/constants/defaults.constants.ts';
+import {
+  DEFAULT_AGENT,
+  DEFAULT_AI_MODEL,
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_CONCURRENCY,
+  DEFAULT_DICS_DIR,
+} from '../../../_scripts/constants/defaults.constants.ts';
 import type { ClassifyConfig } from '../types/classify.types.ts';
 
 // ─────────────────────────────────────────────
@@ -16,9 +23,6 @@ import type { ClassifyConfig } from '../types/classify.types.ts';
 /** プロジェクトが特定できなかった場合に割り当てるフォールバックプロジェクト名。 */
 export const FALLBACK_PROJECT = 'misc';
 
-/** プロジェクト辞書ファイルのデフォルトパス。 */
-export const DEFAULT_PROJECTS_DIC_PATH = './assets/configs/projects.dic';
-
 /** フロントマターなし時に分類を試みる最低本文長（文字数）。これ未満は misc に直接分類する。 */
 export const MIN_CLASSIFIABLE_LENGTH = 50;
 
@@ -26,9 +30,9 @@ export const MIN_CLASSIFIABLE_LENGTH = 50;
 export const DEFAULT_CLASSIFY_CONFIG: ClassifyConfig = {
   agent: DEFAULT_AGENT,
   dryRun: false,
-  baseDir: './chatlogs',
-  dicsDir: './assets/dics',
+  baseDir: DEFAULT_CHATLOGS_DIR,
+  dicsDir: DEFAULT_DICS_DIR,
   model: DEFAULT_AI_MODEL,
-  chunkSize: 10,
-  concurrency: 4,
+  chunkSize: DEFAULT_CHUNK_SIZE,
+  concurrency: DEFAULT_CONCURRENCY,
 };
