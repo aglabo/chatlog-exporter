@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/set-frontmatter.render-prompt.unit.spec.ts
+// src: scripts/modules/__tests__/unit/render-prompt.unit.spec.ts
 // @(#): renderPrompt のユニットテスト
 //       テンプレート変数置換とインジェクション防止の検証
 //
@@ -11,10 +11,10 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { renderPrompt } from '../../modules/setfm-ai.ts';
+import { renderPrompt } from '../../setfm-ai.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Tests
 
