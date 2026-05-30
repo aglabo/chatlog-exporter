@@ -1,4 +1,4 @@
-// src: scripts/__tests__/integration/set-frontmatter.run-claude.integration.spec.ts
+// src: scripts/modules/__tests__/integration/run-claude.integration.spec.ts
 // @(#): runClaude の統合テスト
 //       Deno.Command モックを使った Claude CLI 呼び出しの検証
 //
@@ -13,16 +13,16 @@ import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { runClaude } from '../../modules/setfm-ai.ts';
+import { runClaude } from '../../setfm-ai.ts';
 
 // ─── Helpers
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
   makeFailMock,
   makeNotFoundMock,
   makeSuccessMock,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // ─── Internal Helpers
 

@@ -1,4 +1,4 @@
-// src: scripts/__tests__/integration/set-frontmatter.judge-pipeline.integration.spec.ts
+// src: scripts/modules/__tests__/integration/judge-pipeline.integration.spec.ts
 // @(#): judgeType / judgeCategory / generateFrontmatter / reviewFrontmatter の統合テスト
 //       Deno.Command モックを使ったパイプライン動作の検証
 //
@@ -17,19 +17,19 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { generateFrontmatter, judgeCategory, judgeType, reviewFrontmatter } from '../../modules/setfm-phases.ts';
+import { generateFrontmatter, judgeCategory, judgeType, reviewFrontmatter } from '../../setfm-phases.ts';
 // types
-import type { Dics } from '../../types/dics.types.ts';
-import type { EntryMeta } from '../../types/entry-meta.types.ts';
-import type { FrontmatterResult } from '../../types/phase.types.ts';
+import type { Dics } from '../../../types/dics.types.ts';
+import type { EntryMeta } from '../../../types/entry-meta.types.ts';
+import type { FrontmatterResult } from '../../../types/phase.types.ts';
 
 // ─── Helpers
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
   makeFailMock,
   makeSuccessMock,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // ─── Internal Helpers
 

@@ -1,4 +1,4 @@
-// src: scripts/__tests__/functional/set-frontmatter.write-frontmatter.functional.spec.ts
+// src: scripts/modules/__tests__/functional/write-frontmatter.functional.spec.ts
 // @(#): writeFrontmatter の機能テスト
 //       実ファイルを使ったフロントマター書き込みの検証
 //
@@ -14,13 +14,13 @@ import type { Stub } from '@std/testing/mock';
 import { stub } from '@std/testing/mock';
 
 // test target
-import { writeFrontmatter } from '../../modules/setfm-phases.ts';
-import type { EntryMeta } from '../../types/entry-meta.types.ts';
-import type { FrontmatterResult, Stats } from '../../types/phase.types.ts';
+import type { EntryMeta } from '../../../types/entry-meta.types.ts';
+import type { FrontmatterResult, Stats } from '../../../types/phase.types.ts';
+import { writeFrontmatter } from '../../setfm-phases.ts';
 
 // exists
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
+import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 

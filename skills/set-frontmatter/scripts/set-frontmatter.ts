@@ -80,7 +80,7 @@ export const main = async (args: string[]): Promise<void> => {
     const fileMetaList: EntryMeta[] = [];
     const stats: Stats = { total: allFiles.length, success: 0, fail: 0, skip: 0 };
     for (const filePath of allFiles) {
-      const fm = await loadEntryMeta(filePath);
+      const fm = await loadEntryMeta(filePath, _globalConfig.get('maxContentLength') as number);
       if (!fm) {
         logger.info(`  skip: ${filePath.split(/[/\\]/).pop()}`);
         stats.skip++;
