@@ -23,9 +23,9 @@ export interface GenerateHashOptions {
 // ─────────────────────────────────────────────
 
 /** `ChatlogEntry` コンストラクタのオプション引数。 */
-// deno-lint-ignore ban-types
 export type EntryOptions = {
-  // 将来の拡張用に予約
+  /** エントリの元ファイルパス。未指定時は `undefined`。 */
+  filePath?: string;
 };
 
 // ─────────────────────────────────────────────
