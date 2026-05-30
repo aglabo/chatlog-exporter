@@ -16,7 +16,7 @@ import { buildClassifyPrompt } from '../../classify-ai.ts';
 
 // ─── Helpers
 // classes
-import { ClassifyChatlogEntry } from '../../../classes/ClassifyChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // functions
@@ -45,18 +45,18 @@ const _isFixtureDir: IsFixtureDirProvider = async (dir: string): Promise<boolean
 
 /**
  * fixture ディレクトリの `input/` 下の `*.md` ファイルを辞書順で読み込み、
- * `ClassifyChatlogEntry[]` を返す。
+ * `ChatlogEntry[]` を返す。
  *
  * @param dir - fixture ディレクトリの絶対パス
- * @returns `ClassifyChatlogEntry` の配列（辞書順）
+ * @returns `ChatlogEntry` の配列（辞書順）
  */
-const _loadInputFiles = async (dir: string): Promise<ClassifyChatlogEntry[]> => {
+const _loadInputFiles = async (dir: string): Promise<ChatlogEntry[]> => {
   const _inputDir = `${dir}/input`;
   const _paths = await findFiles(_inputDir, { ext: '.md' });
   return await Promise.all(
     _paths.map(async (filePath) => {
       const _text = await readTextFile(filePath);
-      return new ClassifyChatlogEntry(_text, filePath);
+      return new ChatlogEntry(_text, { filePath });
     }),
   );
 };
@@ -92,7 +92,7 @@ const _fixtures = await Promise.all(
  * `buildClassifyPrompt` の fixtures テストスイート。
  *
  * fixtures-data/build-classify-prompt/ 下の各ディレクトリを読み込み、
- * `input/*.md` から `ClassifyChatlogEntry[]` を構築して `buildClassifyPrompt` に渡し、
+ * `input/*.md` から `ChatlogEntry[]` を構築して `buildClassifyPrompt` に渡し、
  * `expected.txt` の期待値と照合する。
  *
  * テスト ID 範囲: SF-CL-BCP-01 〜 SF-CL-BCP-03
