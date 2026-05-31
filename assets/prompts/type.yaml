@@ -1,56 +1,21 @@
 # src: ./assets/prompts/type.yaml
-# @(#) Phase 2: type判定プロンプトテンプレート
+# @(#) Phase 2: type判定プロンプトテンプレート（バッチ処理）
 #
 # 変数:
-#   ${type_list} — types.dic から生成したtype一覧
-#   ${body}      — ログ本文
+#   system: ${type_dics} — types.dic から生成したtype一覧
+#   user:   ${entries}   — "=== FILE n: <filename> ===\n<body>" ブロックの連結
 
 system: |
-  You are a log classifier. Output the type name only, nothing else.
-  Choose the single best type based on the PRIMARY purpose of the log.
+  You are a log classifier. Output ONLY a JSON array. No markdown, no explanation.
+
+  Evaluate types in the order listed below. Assign the FIRST matching type. Do not continue after a match.
+
+  ${type_dics}
+
+  Output format: [{"file":"<filename>","type":"<type_key>"},...]
+  One entry per file. Output ONLY the JSON array, nothing else.
 
 user: |
-  Classify the log into one of the following types.
+  Classify each log file listed below.
 
-  Types:
-  ${type_list}
-
-  CLASSIFICATION RULES — evaluate in order. Assign the FIRST matching type. Do not continue after a match.
-
-  [incident]
-    WHEN  the log opens with a problem signal:
-          error message / stack trace / CI failure / "doesn't work" / mismatch / unexpected behavior
-    WHILE the problem signal was an actual event that triggered the conversation (not a hypothetical)
-    NOT DO continue to the next rule — incident dominates all others
-    WHERE any subsequent fix, investigation, or decision in the same log does NOT change the type;
-          the starting point defines the type, not what follows
-
-  [writing]
-    WHEN  the primary outcome is a written artifact: document / article / specification / prompt text
-    WHILE the log was NOT triggered by an error signal
-    NOT DO classify as writing if the document is a side effect of a decision or incident
-
-  [execution]
-    WHEN  code, scripts, or configuration files were modified as the PRIMARY purpose
-    WHILE the log was NOT triggered by an error signal
-    NOT DO classify as execution if changes were made only to fix an incident,
-          or if the primary outcome is a document
-    WHERE "primary purpose" means modification was the goal, not the side effect
-
-  [discussion]
-    WHEN  an explicit, irreversible decision affecting future implementation or operations was stated
-    WHILE no code files were modified as a primary outcome
-    NOT DO classify as discussion for opinions, preferences, or "we might" — must be confirmed ("decided", "we will use X", "adopted", "finalized as Y")
-    WHERE the decision must be forward-looking and binding, not just a conclusion within the log
-
-  [research]
-    WHEN  the primary purpose was understanding, comparison, or learning
-    WHILE no implementation occurred AND no explicit decision was confirmed
-    NOT DO classify as research if the investigation led to a confirmed decision (→ discussion)
-          or if it was triggered by an error (→ incident)
-    WHERE this is the fallback — assign only when no other type fits
-
-  Output the type name only (e.g. "execution"), nothing else.
-
-  ---
-  ${body}
+  ${entries}
