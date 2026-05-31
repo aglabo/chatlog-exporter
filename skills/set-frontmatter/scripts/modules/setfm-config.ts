@@ -13,6 +13,8 @@
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+// constants
+import { DEFAULT_DICS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 
@@ -52,7 +54,7 @@ export const buildConfig = (
       'Usage: set_frontmatter.ts --target-dir <dir> [--dry-run] [--no-review] [--dics DIR] [--config FILE]',
     );
   }
-  const _dicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? './assets/dics';
+  const _dicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? DEFAULT_DICS_DIR;
   const _dryRun = parsed.dryRun ?? false;
   const _review = !(parsed.noReview ?? false);
   const _concurrency = globalConfig.get('concurrency') as number;
