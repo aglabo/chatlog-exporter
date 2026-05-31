@@ -22,7 +22,7 @@ import { generateFrontmatter } from '../../setfm-frontmatter.ts';
 import { reviewFrontmatter } from '../../setfm-review.ts';
 import { judgeType } from '../../setfm-type.ts';
 // types
-import type { Dics } from '../../../types/dics.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
 import type { EntryMeta } from '../../../types/entry-meta.types.ts';
 import type { FrontmatterResult } from '../../../types/phase.types.ts';
 
@@ -52,6 +52,18 @@ function _makeEntryMeta(): EntryMeta {
   };
 }
 
+function _makeEntryMeta2(): EntryMeta {
+  return {
+    file: '/tmp/other.md',
+    sessionId: 'sess-002',
+    date: '2026-03-16',
+    project: 'my-project',
+    slug: 'other-slug',
+    content: '# Other\nOther body',
+    fullBody: '# Other\nOther body',
+  };
+}
+
 function _makeDics(): Dics {
   return {
     category: 'development,tooling,ai',
@@ -64,15 +76,20 @@ function _makeDics(): Dics {
     topicEntries: [
       { key: 'development', def: '開発', desc: '', rules: { when: [], not: [] } },
     ],
+  };
+}
+
+function _makePrompts(): Prompts {
+  return {
     categoryPrompts: new Map([['research', 'focus guide for research']]),
     prompts: new Map([
-      ['type', { system: 'type system', user: 'type ${type_list} ${body}' }],
+      ['type', { system: 'type system ${type_dics}', user: '${entries}' }],
       ['category', { system: 'category system', user: 'category ${category_list} ${focus_guide} ${body}' }],
       ['meta', { system: 'meta system', user: 'meta ${log_type} ${log_category} ${topic_list} ${tags_list} ${body}' }],
       ['review', {
         system: 'review system',
         user:
-          'review ${type_list} ${topic_list} ${category_list} ${tags_list} ${result_type} ${result_category} ${result_yaml}',
+          'review ${type_dics} ${topic_list} ${category_list} ${tags_list} ${result_type} ${result_category} ${result_yaml}',
       }],
     ]),
   };
@@ -95,49 +112,85 @@ afterEach(() => {
 // ─── judgeType のテスト ───────────────────────────────────────────────────────
 
 describe('judgeType', () => {
-  describe('Given: モックが "research" を返す', () => {
-    describe('When: judgeType(fm, dics) を呼び出す', () => {
-      describe('Then: T-SF-JP-01 - type="research" が返る', () => {
+  describe('Given: モックが JSON 配列 [{"file":"test.md","type":"research"}] を返す', () => {
+    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
+      describe('Then: T-SF-JP-01 - result[0].type="research" が返る', () => {
         beforeEach(() => {
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          commandHandle = installCommandMock(
+            makeSuccessMock(_enc.encode('[{"file":"test.md","type":"research"}]')),
+          );
         });
 
-        it('T-SF-JP-01-01: type が "research" になる', async () => {
-          const result = await judgeType(_makeEntryMeta(), _makeDics());
+        it('T-SF-JP-01-01: result[0].type が "research" になる', async () => {
+          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
 
-          assertEquals(result.type, 'research');
+          assertEquals(result[0].type, 'research');
         });
       });
     });
   });
 
-  describe('Given: モックが有効キー以外の "unknown" を返す', () => {
-    describe('When: judgeType(fm, dics) を呼び出す', () => {
+  describe('Given: モックが有効キー以外の JSON 配列を返す', () => {
+    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-02 - フォールバック "research" が返る', () => {
         beforeEach(() => {
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('unknown')));
+          commandHandle = installCommandMock(
+            makeSuccessMock(_enc.encode('[{"file":"test.md","type":"unknown"}]')),
+          );
         });
 
-        it('T-SF-JP-02-01: type が "research" になる（フォールバック）', async () => {
-          const result = await judgeType(_makeEntryMeta(), _makeDics());
+        it('T-SF-JP-02-01: result[0].type が "research" になる（フォールバック）', async () => {
+          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
 
-          assertEquals(result.type, 'research');
+          assertEquals(result[0].type, 'research');
         });
       });
     });
   });
 
   describe('Given: Claude CLI が失敗する（exit code=1）', () => {
-    describe('When: judgeType(fm, dics) を呼び出す', () => {
+    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-03 - フォールバック "research" が返る（例外なし）', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
-        it('T-SF-JP-03-01: type が "research" になる（例外なし）', async () => {
-          const result = await judgeType(_makeEntryMeta(), _makeDics());
+        it('T-SF-JP-03-01: result[0].type が "research" になる（例外なし）', async () => {
+          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
 
-          assertEquals(result.type, 'research');
+          assertEquals(result[0].type, 'research');
+        });
+      });
+    });
+  });
+
+  describe('Given: モックが 2 ファイル分の JSON 配列を返す（1件はファイル名不一致）', () => {
+    describe('When: judgeType([fm1, fm2], dics, prompts) を呼び出す', () => {
+      describe('Then: T-SF-JP-14 - 一致したファイルは採用、不一致は "research" フォールバック', () => {
+        beforeEach(() => {
+          commandHandle = installCommandMock(
+            makeSuccessMock(
+              _enc.encode('[{"file":"test.md","type":"execution"},{"file":"nomatch.md","type":"discussion"}]'),
+            ),
+          );
+        });
+
+        it('T-SF-JP-14-01: result[0].type が "execution" になる（test.md と一致）', async () => {
+          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+
+          assertEquals(result[0].type, 'execution');
+        });
+
+        it('T-SF-JP-14-02: result[1].type が "research" になる（other.md は不一致 → フォールバック）', async () => {
+          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+
+          assertEquals(result[1].type, 'research');
+        });
+
+        it('T-SF-JP-14-03: result[0].file がフルパス "/tmp/test.md" になる', async () => {
+          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+
+          assertEquals(result[0].file, '/tmp/test.md');
         });
       });
     });
@@ -155,7 +208,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-04-01: "development" が返る', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
 
           assertEquals(result, 'development');
         });
@@ -171,7 +224,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-05-01: "development" が返る（フォールバック）', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
 
           assertEquals(result, 'development');
         });
@@ -187,7 +240,7 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-06-01: "development" が返る（例外なし）', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics());
+          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
 
           assertEquals(result, 'development');
         });
@@ -214,6 +267,7 @@ describe('generateFrontmatter', () => {
             'research',
             'development',
             _makeDics(),
+            _makePrompts(),
           );
 
           assertEquals(result.yaml.length > 0, true);
@@ -225,6 +279,7 @@ describe('generateFrontmatter', () => {
             'research',
             'development',
             _makeDics(),
+            _makePrompts(),
           );
 
           assertEquals(result.type, 'research');
@@ -236,6 +291,7 @@ describe('generateFrontmatter', () => {
             'research',
             'development',
             _makeDics(),
+            _makePrompts(),
           );
 
           assertEquals(result.category, 'development');
@@ -259,6 +315,7 @@ describe('generateFrontmatter', () => {
             'research',
             'development',
             _makeDics(),
+            _makePrompts(),
           );
 
           assertEquals(result.yaml.includes('```'), false);
@@ -280,6 +337,7 @@ describe('generateFrontmatter', () => {
             'research',
             'development',
             _makeDics(),
+            _makePrompts(),
           );
 
           assertEquals(result.yaml, '');
@@ -311,13 +369,13 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-10-01: validity が "pass" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'pass');
         });
 
         it('T-SF-JP-10-02: errors が空配列になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.errors, []);
         });
@@ -342,13 +400,13 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-11-01: validity が "fail" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'fail');
         });
 
         it('T-SF-JP-11-02: errors が2件になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.errors.length, 2);
         });
@@ -377,13 +435,13 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-12-01: correctedType が "execution" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.correctedType, 'execution');
         });
 
         it('T-SF-JP-12-02: correctedCategory が "tooling" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.correctedCategory, 'tooling');
         });
@@ -399,7 +457,7 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-13-01: validity が "pass" になる（例外なし）', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics());
+          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'pass');
         });
