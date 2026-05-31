@@ -6,6 +6,13 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import {
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_DICS_DIR,
+  DEFAULT_PROJECTS_DIC_PATH,
+  DEFAULT_PROMPTS_DIR,
+} from './defaults.constants.ts';
+
 export type SchemaValueType = string | number;
 export type SchemaValueTypeName = 'string' | 'number';
 
@@ -54,7 +61,7 @@ export type ConfigSchema = Record<DefaultSchemaKey, SchemaValueTypeName>;
 export type ConfigValues = Record<DefaultSchemaKey, SchemaValueType>;
 
 /** GlobalConfig のデフォルト値。DEFAULT_SCHEMA のすべてのキーに対する初期値を持つ。 */
-export const DEFAULT_VALUES: ConfigValues = {
+export const DEFAULT_VALUES = {
   /** デフォルトエージェントは "claude" */
   agent: 'claude',
   /** デフォルトモデルは "sonnet" */
@@ -72,13 +79,13 @@ export const DEFAULT_VALUES: ConfigValues = {
   /** デフォルト並列数は 4 タスク */
   concurrency: 4,
   /** デフォルト辞書ディレクトリ */
-  dicsDir: './assets/dics',
+  dicsDir: DEFAULT_DICS_DIR,
   /** デフォルトプロジェクト辞書パス */
-  projectsDic: './assets/configs/projects.dic',
+  projectsDic: DEFAULT_PROJECTS_DIC_PATH,
   /** デフォルトプロンプトディレクトリ */
-  promptsDir: './assets/prompts',
+  promptsDir: DEFAULT_PROMPTS_DIR,
   /** デフォルトチャットログディレクトリ */
-  chatlogsDir: './chatlogs',
+  chatlogsDir: DEFAULT_CHATLOGS_DIR,
   /** デフォルトコンテンツ最小文字数 */
   minCharCount: 1000,
   /** デフォルト Assistant 応答最小文字数 */
@@ -87,4 +94,4 @@ export const DEFAULT_VALUES: ConfigValues = {
   maxContentLength: 4000,
   /** デフォルト DISCARD 閾値 */
   discardThreshold: 0.7,
-} as const;
+} as const satisfies ConfigValues;

@@ -18,7 +18,7 @@ import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classed
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
-import { DEFAULT_PROJECTS_DIC_PATH } from '../../../constants/classify.constants.ts';
+import { DEFAULT_PROJECTS_DIC_PATH } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── テスト用フィクスチャ ──────────────────────────────────────────────────────
 
