@@ -10,13 +10,8 @@
 // 辞書エントリ型
 // ─────────────────────────────────────────────
 
-/** 辞書エントリの適用・除外ルール。AI プロンプト生成時の制約条件として使用する。 */
-export interface DicRules {
-  /** このエントリを選択する条件キーワード一覧。 */
-  when: string[];
-  /** このエントリを除外する条件キーワード一覧。 */
-  not: string[];
-}
+/** 辞書エントリの適用・除外ルール。各フィールドはキーワード配列。when / not / always 等、辞書ファイルに実在するフィールドをすべて保持する。 */
+export type DicRules = Record<string, string[]>;
 
 /** category / topic / tag 辞書の1エントリ。`assets/dics/` 配下の YAML から読み込む。 */
 export interface DicEntry {
@@ -28,6 +23,8 @@ export interface DicEntry {
   desc: string;
   /** 適用・除外ルール。 */
   rules: DicRules;
+  /** 会話の構造パターン（スカラー文字列、types.dic の structure フィールド）。 */
+  structure?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -46,7 +43,7 @@ export interface PromptTemplate {
 // 辞書集約型
 // ─────────────────────────────────────────────
 
-/** `loadDics` が返す辞書データ集約。全フェーズで共有される。 */
+/** `loadDics` が返す辞書データ集約（プロンプトを含まない）。全フェーズで共有される。 */
 export interface Dics {
   /** category キー一覧（カンマ区切り、AI スキーマ制約用）。 */
   category: string;
@@ -56,6 +53,10 @@ export interface Dics {
   typeEntries: DicEntry[];
   /** topic 辞書のエントリ配列。 */
   topicEntries: DicEntry[];
+}
+
+/** `loadPrompts` が返すプロンプトデータ集約。 */
+export interface Prompts {
   /** type ごとの category 判定プロンプト。キーは type 名。 */
   categoryPrompts: Map<string, string>;
   /** フェーズ別プロンプトテンプレート。キーはフェーズ名。 */
