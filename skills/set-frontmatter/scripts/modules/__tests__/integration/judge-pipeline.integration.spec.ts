@@ -17,7 +17,10 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { generateFrontmatter, judgeCategory, judgeType, reviewFrontmatter } from '../../setfm-phases.ts';
+import { judgeCategory } from '../../setfm-category.ts';
+import { generateFrontmatter } from '../../setfm-frontmatter.ts';
+import { reviewFrontmatter } from '../../setfm-review.ts';
+import { judgeType } from '../../setfm-type.ts';
 // types
 import type { Dics } from '../../../types/dics.types.ts';
 import type { EntryMeta } from '../../../types/entry-meta.types.ts';
