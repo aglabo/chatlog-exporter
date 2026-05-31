@@ -54,7 +54,7 @@ async function _makeDicsDir(): Promise<string> {
   await Deno.writeTextFile(`${dicsDir}/tags.dic`, '"lang:typescript":\n  def: TypeScript\n');
 
   // プロンプトファイル
-  await Deno.writeTextFile(`${promptsDir}/type.yaml`, 'system: "type"\nuser: "${type_list} ${body}"\n');
+  await Deno.writeTextFile(`${promptsDir}/type.yaml`, 'system: "type ${type_dics}"\nuser: "${entries}"\n');
   await Deno.writeTextFile(
     `${promptsDir}/category.yaml`,
     'system: "category"\nuser: "${category_list} ${focus_guide} ${body}"\n',
@@ -65,7 +65,7 @@ async function _makeDicsDir(): Promise<string> {
   );
   await Deno.writeTextFile(
     `${promptsDir}/review.yaml`,
-    'system: "review"\nuser: "${type_list} ${topic_list} ${category_list} ${tags_list} ${result_type} ${result_category} ${result_yaml}"\n',
+    'system: "review"\nuser: "${type_dics} ${topic_list} ${category_list} ${tags_list} ${result_type} ${result_category} ${result_yaml}"\n',
   );
 
   return dicsDir;
