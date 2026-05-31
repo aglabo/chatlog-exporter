@@ -12,7 +12,13 @@ import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _initSchemaForTest, isArgDirectory, isArgPeriod, parseArgsToConfig } from '../../parse-args.ts';
+import {
+  _initSchemaForTest,
+  _setByTypeForTest,
+  isArgDirectory,
+  isArgPeriod,
+  parseArgsToConfig,
+} from '../../parse-args.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
@@ -68,6 +74,56 @@ describe('_initSchemaForTest', () => {
     it('[Normal] T-PA-22-03: flag 型エントリが正しく含まれる', () => {
       const _map = _initSchemaForTest([{ option: '--dry-run', field: 'dryRun', type: 'flag' }]);
       assertEquals(_map.get('--dry-run')?.type, 'flag');
+    });
+  });
+});
+
+// ─── T-PA-ST-N: _setByTypeForTest negated パラメータ ────────────────────────
+
+/**
+ * `_setByTypeForTest` の `negated` パラメータテストスイート。
+ *
+ * `negated=true` 時に flag フィールドを `false` にセットし、
+ * non-flag に対しては `ChatlogError` を返すことを検証する。
+ *
+ * テスト ID 範囲: T-PA-ST-N-01 〜 T-PA-ST-N-04
+ *
+ * @see _setByTypeForTest
+ */
+describe('_setByTypeForTest (negated)', () => {
+  /** negated パラメータの正常系ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PA-ST-N-01: flag + negated=true → field が false にセットされる', () => {
+      const _config: Record<string, string | boolean | number> = {};
+      const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
+      const _err = _setByTypeForTest(_config, _entry, undefined, true);
+      assertEquals(_err, null);
+      assertEquals(_config['dryRun'], false);
+    });
+
+    it('[Normal] T-PA-ST-N-04: flag + negated=false (未指定) → field が true にセットされる（既存回帰）', () => {
+      const _config: Record<string, string | boolean | number> = {};
+      const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
+      const _err = _setByTypeForTest(_config, _entry, undefined);
+      assertEquals(_err, null);
+      assertEquals(_config['dryRun'], true);
+    });
+  });
+
+  /** negated パラメータの異常系ケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-PA-ST-N-02: flag + negated=true + rawValue → ChatlogError が返る', () => {
+      const _config: Record<string, string | boolean | number> = {};
+      const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
+      const _err = _setByTypeForTest(_config, _entry, 'true', true);
+      assertEquals(_err instanceof ChatlogError, true);
+    });
+
+    it('[Error] T-PA-ST-N-03: string 型 + negated=true → ChatlogError が返る', () => {
+      const _config: Record<string, string | boolean | number> = {};
+      const _entry = { option: '--output', field: 'outputDir', type: 'string' as const };
+      const _err = _setByTypeForTest(_config, _entry, undefined, true);
+      assertEquals(_err instanceof ChatlogError, true);
     });
   });
 });
@@ -587,6 +643,130 @@ describe('parseArgsToConfig', () => {
       it('[Normal] T-PA-25-02: --agent chatgpt → agent が "chatgpt" になる', () => {
         const result = parseArgsToConfig<TestConfig>(['--agent', 'chatgpt'], _SCHEMA_AGENT);
         assertEquals(result.agent, 'chatgpt');
+      });
+    });
+  });
+
+  // ─── T-PA-26: --no-<xx> でフラグが false になる ──────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `--no-<xx>` フラグ否定テスト。
+   *
+   * `--no-` プレフィックスを持つ引数を渡した場合に、対応するフラグフィールドが
+   * `false` に設定されることを検証する。
+   *
+   * テスト ID 範囲: T-PA-26-01 〜 T-PA-26-02
+   */
+  describe('Given: --no-<xx> フラグ否定引数', () => {
+    /** --no- プレフィックスの正常系ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-26-01: --no-dry-run を渡すと dryRun: false がセットされる', () => {
+        const result = parseArgsToConfig<TestConfig>(['--no-dry-run'], TEST_SCHEMA);
+        assertEquals(result.dryRun, false);
+      });
+      it('[Normal] T-PA-26-02: --no-verbose を渡すと verbose: false がセットされる', () => {
+        const result = parseArgsToConfig<TestConfig>(['--no-verbose'], TEST_SCHEMA);
+        assertEquals(result.verbose, false);
+      });
+    });
+  });
+
+  // ─── T-PA-27: 既存フラグ動作の回帰確認 ─────────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の既存フラグ動作回帰テスト。
+   *
+   * `--no-` 追加後も `--dry-run` が `true` をセットし続けることを検証する。
+   *
+   * テスト ID 範囲: T-PA-27-01 〜 T-PA-27-02
+   */
+  describe('Given: 既存フラグと --no- の混在', () => {
+    /** 既存フラグ動作が変わっていないことを確認する正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-27-01: --dry-run → dryRun: true (既存動作変更なし)', () => {
+        const result = parseArgsToConfig<TestConfig>(['--dry-run'], TEST_SCHEMA);
+        assertEquals(result.dryRun, true);
+      });
+      it('[Normal] T-PA-27-02: --no-dry-run と --output の組み合わせ → 両フィールドが正しくセット', () => {
+        const result = parseArgsToConfig<TestConfig>(['--no-dry-run', '--output', '/out'], TEST_SCHEMA);
+        assertEquals(result.dryRun, false);
+        assertEquals(result.outputDir, '/out');
+      });
+    });
+  });
+
+  // ─── T-PA-28: エッジケース — 後勝ち ────────────────────────────────────
+
+  /**
+   * `parseArgsToConfig` のフラグ否定後勝ちテスト。
+   *
+   * `--dry-run` と `--no-dry-run` を両方渡した場合、後に指定した値が優先されることを検証する。
+   *
+   * テスト ID 範囲: T-PA-28-01 〜 T-PA-28-02
+   */
+  describe('Given: --dry-run と --no-dry-run の両方を渡す', () => {
+    /** 後勝ちのエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-PA-28-01: --dry-run --no-dry-run → dryRun: false (後が優先)', () => {
+        const result = parseArgsToConfig<TestConfig>(['--dry-run', '--no-dry-run'], TEST_SCHEMA);
+        assertEquals(result.dryRun, false);
+      });
+      it('[Edge] T-PA-28-02: --no-dry-run --dry-run → dryRun: true (後が優先)', () => {
+        const result = parseArgsToConfig<TestConfig>(['--no-dry-run', '--dry-run'], TEST_SCHEMA);
+        assertEquals(result.dryRun, true);
+      });
+    });
+  });
+
+  // ─── T-PA-29: 異常系 — スキーマなし / =値指定 ─────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `--no-` プレフィックスエラーケーステスト。
+   *
+   * 対応するスキーマエントリが存在しない場合と `=値` を指定した場合に
+   * `ChatlogError('InvalidArgs')` をスローすることを検証する。
+   *
+   * テスト ID 範囲: T-PA-29-01 〜 T-PA-29-02
+   */
+  describe('Given: --no- プレフィックスのエラーケース', () => {
+    /** スキーマなし・=値指定の異常系。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-PA-29-01: --no-unknown → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--no-unknown'], TEST_SCHEMA),
+          ChatlogError,
+          'Invalid Args',
+        );
+      });
+      it('[Error] T-PA-29-02: --no-dry-run=true → ChatlogError(InvalidArgs) がスローされる (=値指定不可)', () => {
+        assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--no-dry-run=true'], TEST_SCHEMA),
+          ChatlogError,
+          'Invalid Args',
+        );
+      });
+    });
+  });
+
+  // ─── T-PA-30: 異常系 — flag 以外に --no- を付けた場合 ──────────────────
+
+  /**
+   * `parseArgsToConfig` の `--no-` プレフィックスに非フラグオプションを指定するテスト。
+   *
+   * `string` 型など flag 以外のオプションに `--no-` を付けた場合に
+   * `ChatlogError('InvalidArgs')` をスローすることを検証する。
+   *
+   * テスト ID 範囲: T-PA-30-01
+   */
+  describe('Given: flag 以外のオプションに --no- を付けた場合', () => {
+    /** string 型オプションへの --no- 指定エラー。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-PA-30-01: --no-output (string 型) → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgsToConfig<TestConfig>(['--no-output'], TEST_SCHEMA),
+          ChatlogError,
+          'Invalid Args',
+        );
       });
     });
   });

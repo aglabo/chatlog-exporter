@@ -7,6 +7,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// cspell:words setfm
+
 // ─── BDD modules
 import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
@@ -96,7 +98,7 @@ describe('buildConfig', () => {
         assertEquals(result.dryRun, false);
       });
 
-      it('[Normal] T-SF-BC-02-04: review のデフォルトは true（--no-review 未指定）', () => {
+      it('[Normal] T-SF-BC-02-04: review のデフォルトは true（--review 未指定）', () => {
         const result = buildConfig({ targetDir: '/target' }, globalConfig);
         assertEquals(result.review, true);
       });
@@ -119,8 +121,8 @@ describe('buildConfig', () => {
         assertEquals(result.dryRun, true);
       });
 
-      it('[Normal] T-SF-BC-03-03: noReview=true → review=false になる', () => {
-        const result = buildConfig({ targetDir: '/target', noReview: true }, globalConfig);
+      it('[Normal] T-SF-BC-03-03: review=false → result.review=false になる', () => {
+        const result = buildConfig({ targetDir: '/target', review: false }, globalConfig);
         assertEquals(result.review, false);
       });
     });

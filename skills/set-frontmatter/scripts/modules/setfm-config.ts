@@ -27,7 +27,7 @@ const _SCHEMA: ArgsSchema = [
   { option: '--target-dir', field: 'targetDir', type: 'directory' },
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
-  { option: '--no-review', field: 'noReview', type: 'flag' },
+  { option: '--review', field: 'review', type: 'flag' },
   { option: '--config', field: 'configFile', type: 'string' },
 ];
 
@@ -38,9 +38,9 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な SetfmConfig を構築する。
  * - targetDir: `parsed.targetDir` が未指定なら `ChatlogError('InvalidArgs')` をスロー
- * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `'./assets/dics'`
+ * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `DEFAULT_DICS_DIR`
  * - dryRun: `parsed.dryRun ?? false`
- * - review: `!(parsed.noReview ?? false)` — デフォルト true
+ * - review: `parsed.review ?? true` — デフォルト true
  * - concurrency: `globalConfig.get('concurrency') as number`
  */
 export const buildConfig = (
@@ -51,12 +51,12 @@ export const buildConfig = (
     throw new ChatlogError(
       'InvalidArgs',
       'NotSpecified',
-      'Usage: set_frontmatter.ts --target-dir <dir> [--dry-run] [--no-review] [--dics DIR] [--config FILE]',
+      'Usage: set_frontmatter.ts --target-dir <dir> [--dry-run] [--review] [--no-review] [--dics DIR] [--config FILE]',
     );
   }
   const _dicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? DEFAULT_DICS_DIR;
   const _dryRun = parsed.dryRun ?? false;
-  const _review = !(parsed.noReview ?? false);
+  const _review = parsed.review ?? true;
   const _concurrency = globalConfig.get('concurrency') as number;
   return {
     targetDir: parsed.targetDir,
