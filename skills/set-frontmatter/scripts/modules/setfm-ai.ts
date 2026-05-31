@@ -1,7 +1,7 @@
 // src: scripts/modules/setfm-ai.ts
 // @(#): set-frontmatter AI/辞書操作モジュール
 //       対象: loadDics / renderPrompt / formatEntryWithRules / formatEntryShort /
-//             loadEntryMeta / runClaude
+//             loadEntryMeta
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -200,24 +200,4 @@ export const loadEntryMeta = async (filePath: string, maxContentLength: number):
     content: entry.truncateContent(maxContentLength),
     fullBody,
   };
-};
-
-// ─────────────────────────────────────────────
-// Claude CLI 呼び出し
-// ─────────────────────────────────────────────
-
-export const runClaude = async (systemPrompt: string, userPrompt: string): Promise<string> => {
-  const cmd = new Deno.Command('claude', {
-    args: ['-p', systemPrompt, '--output-format', 'text'],
-    stdin: 'piped',
-    stdout: 'piped',
-    stderr: 'null',
-  });
-  const process = cmd.spawn();
-  const writer = process.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(userPrompt));
-  await writer.close();
-  const output = await process.output();
-  if (!output.success) { throw new ChatlogError('CliError', 'ExitFailure', `claude CLI エラー (code=${output.code})`); }
-  return new TextDecoder().decode(output.stdout).trim();
 };

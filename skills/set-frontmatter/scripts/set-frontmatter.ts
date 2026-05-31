@@ -34,14 +34,12 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // ─── Local
 import { loadDics, loadEntryMeta } from './modules/setfm-ai.ts';
+import { judgeCategory } from './modules/setfm-category.ts';
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
-import {
-  generateFrontmatter,
-  judgeCategory,
-  judgeType,
-  reviewFrontmatter,
-  writeFrontmatter,
-} from './modules/setfm-phases.ts';
+import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
+import { reviewFrontmatter } from './modules/setfm-review.ts';
+import { judgeType } from './modules/setfm-type.ts';
+import { writeFrontmatter } from './modules/setfm-write.ts';
 // types
 import type { EntryMeta } from './types/entry-meta.types.ts';
 import type { Stats } from './types/phase.types.ts';
