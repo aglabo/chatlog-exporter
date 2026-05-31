@@ -16,7 +16,7 @@ import { stub } from '@std/testing/mock';
 // test target
 import type { EntryMeta } from '../../../types/entry-meta.types.ts';
 import type { FrontmatterResult, Stats } from '../../../types/phase.types.ts';
-import { writeFrontmatter } from '../../setfm-phases.ts';
+import { writeFrontmatter } from '../../setfm-write.ts';
 
 // exists
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';

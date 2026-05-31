@@ -26,7 +26,9 @@ import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
 import { loadDics } from '../../modules/setfm-ai.ts';
-import { generateFrontmatter, judgeCategory, judgeType } from '../../modules/setfm-phases.ts';
+import { judgeCategory } from '../../modules/setfm-category.ts';
+import { generateFrontmatter } from '../../modules/setfm-frontmatter.ts';
+import { judgeType } from '../../modules/setfm-type.ts';
 import type { Dics } from '../../types/dics.types.ts';
 import type { EntryMeta } from '../../types/entry-meta.types.ts';
 
