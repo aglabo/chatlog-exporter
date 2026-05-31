@@ -13,9 +13,10 @@
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
-import { formatEntryShort, formatEntryWithRules, renderPrompt } from './setfm-ai.ts';
+import { formatEntryShort, formatEntryWithRules } from '../libs/dic-format-utils.ts';
+import { renderPrompt } from '../libs/template-utils.ts';
 // types
-import type { Dics } from '../types/dics.types.ts';
+import type { Dics, Prompts } from '../types/dics.types.ts';
 import type { FrontmatterResult, ReviewResult } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
@@ -25,13 +26,14 @@ import type { FrontmatterResult, ReviewResult } from '../types/phase.types.ts';
 export const reviewFrontmatter = async (
   result: FrontmatterResult,
   dics: Dics,
+  prompts: Prompts,
 ): Promise<ReviewResult> => {
-  const tmpl = dics.prompts.get('review') ?? { system: '', user: '' };
+  const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
   const typeList = dics.typeEntries.map(formatEntryWithRules).join('\n');
   const topicList = dics.topicEntries.map(formatEntryShort).join('\n');
   const system = renderPrompt(tmpl.system, {});
   const user = renderPrompt(tmpl.user, {
-    type_list: typeList,
+    type_dics: typeList,
     topic_list: topicList,
     category_list: dics.category,
     tags_list: dics.tags,
