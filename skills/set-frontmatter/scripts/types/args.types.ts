@@ -18,12 +18,16 @@ export interface SetfmConfig {
   targetDir: string;
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: string;
+  /** プロンプトファイルが置かれたディレクトリのパス。 */
+  promptsDir: string;
   /** `true` のときファイルを書き換えずに処理結果のみ表示する。 */
   dryRun: boolean;
   /** `true` のときレビューフェーズ（Phase 3）を実行する。 */
   review: boolean;
   /** 同時実行する並列タスク数の上限。 */
   concurrency: number;
+  /** バッチリクエスト1回あたりの最大ファイル数。 */
+  chunkSize: number;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`concurrency` は GlobalConfig で管理するため除外。 */
