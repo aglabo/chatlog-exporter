@@ -1,7 +1,6 @@
-// src: scripts/modules/setfm-ai.ts
-// @(#): set-frontmatter AI/辞書操作モジュール
-//       対象: loadDics / renderPrompt / formatEntryWithRules / formatEntryShort /
-//             loadEntryMeta
+// src: scripts/modules/setfm-loader.ts
+// @(#): set-frontmatter データ読み込みモジュール
+//       対象: loadDics / loadPrompts / loadEntryMeta
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -180,7 +179,7 @@ export const loadEntryMeta = async (filePath: string, maxContentLength: number):
     return null;
   }
 
-  const entry = new ChatlogEntry(text);
+  const entry = new ChatlogEntry(text, { filePath });
   const fullBody = entry.content;
 
   if (!/^#/m.test(fullBody)) { return null; }
