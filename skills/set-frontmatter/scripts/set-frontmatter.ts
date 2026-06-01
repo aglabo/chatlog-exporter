@@ -30,13 +30,13 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
+import { runChunked, runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // ─── Local
-import { loadDics, loadEntryMeta } from './modules/setfm-ai.ts';
 import { judgeCategory } from './modules/setfm-category.ts';
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
+import { loadDics, loadEntryMeta, loadPrompts } from './modules/setfm-loader.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeType } from './modules/setfm-type.ts';
 import { writeFrontmatter } from './modules/setfm-write.ts';
@@ -52,23 +52,23 @@ export const main = async (args: string[]): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { targetDir, dicsDir, dryRun, review, concurrency } = buildConfig(_parsed, _globalConfig);
+    const _config = buildConfig(_parsed, _globalConfig);
 
-    if (!await dirExists(targetDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${targetDir}`);
+    if (!await dirExists(_config.targetDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.targetDir}`);
     }
 
-    const dics = await loadDics(dicsDir);
+    const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
     logger.info(
       `辞書読み込み完了: category=${dics.category.split(',').length}件 `
         + `topics=${dics.topicEntries.length}件 tags=${dics.tags.split(',').length}件 `
         + `types=${dics.typeEntries.length}件`,
     );
 
-    const allFiles = await findFiles(targetDir);
+    const allFiles = await findFiles(_config.targetDir);
     logger.info(`対象ファイル数: ${allFiles.length}`);
-    if (dryRun) { logger.info('dry-run モード: ファイルは更新しません'); }
-    if (!review) { logger.info('--no-review モード: Phase 3.5 をスキップします'); }
+    if (_config.dryRun) { logger.info('dry-run モード: ファイルは更新しません'); }
+    if (!_config.review) { logger.info('--no-review モード: Phase 3.5 をスキップします'); }
     if (allFiles.length === 0) {
       logger.info('対象ファイルなし');
       return;
@@ -86,48 +86,58 @@ export const main = async (args: string[]): Promise<void> => {
     }
     logger.info(`メタ読み込み: ${fileMetaList.length}件（スキップ: ${stats.skip}件）`);
 
-    // Phase 2: type判定（並列）
-    logger.info(`\nPhase 2: type判定開始 (${fileMetaList.length}件 × 並列度${concurrency})`);
-    const typeResults = await runConcurrent(fileMetaList, (fm) => judgeType(fm, dics), concurrency);
+    // Phase 2: type判定（バッチ並列）
+    logger.info(
+      `\nPhase 2: type判定開始 (${fileMetaList.length}件 × チャンク${_config.chunkSize} × 並列度${_config.concurrency})`,
+    );
+    const typeChunks = await runChunked(
+      fileMetaList,
+      _config.chunkSize,
+      (chunk) => judgeType(chunk, dics, prompts),
+      _config.concurrency,
+    );
+    const typeResults = typeChunks.flat();
     const typeMap = new Map(typeResults.map((r) => [r.file, r]));
     for (const r of typeResults) { logger.info(`  type [${r.type}]: ${r.file.split(/[/\\]/).pop()}`); }
 
     // Phase 3a: category判定（並列）
-    logger.info(`\nPhase 3a: category判定開始 (${fileMetaList.length}件 × 並列度${concurrency})`);
+    logger.info(`\nPhase 3a: category判定開始 (${fileMetaList.length}件 × 並列度${_config.concurrency})`);
     const categoryResults = await runConcurrent(
       fileMetaList,
       async (fm) => {
         const type = typeMap.get(fm.file)?.type ?? 'research';
-        const category = await judgeCategory(fm, type, dics);
+        const category = await judgeCategory(fm, type, dics, prompts);
         logger.info(`  category [${category}]: ${fm.file.split(/[/\\]/).pop()}`);
         return { file: fm.file, type, category };
       },
-      concurrency,
+      _config.concurrency,
     );
     const categoryMap = new Map(categoryResults.map((r) => [r.file, r]));
 
     // Phase 3b: フロントマター生成（並列）
-    logger.info(`\nPhase 3b: フロントマター生成開始 (${fileMetaList.length}件 × 並列度${concurrency})`);
+    logger.info(`\nPhase 3b: フロントマター生成開始 (${fileMetaList.length}件 × 並列度${_config.concurrency})`);
     const fmResults = await runConcurrent(
       fileMetaList,
       (fm) => {
         const cr = categoryMap.get(fm.file);
         const type = cr?.type ?? 'research';
         const category = cr?.category ?? 'development';
-        return generateFrontmatter(fm, type, category, dics);
+        return generateFrontmatter(fm, type, category, dics, prompts);
       },
-      concurrency,
+      _config.concurrency,
     );
     const fmResultMap = new Map(fmResults.map((r) => [r.file, r]));
     for (const r of fmResults) { logger.info(`  generated: ${r.file.split(/[/\\]/).pop()}`); }
 
     // Phase 3.5: レビュー（並列）
-    if (review) {
-      logger.info(`\nPhase 3.5: フロントマターレビュー開始 (${fileMetaList.length}件 × 並列度${concurrency})`);
+    if (_config.review) {
+      logger.info(
+        `\nPhase 3.5: フロントマターレビュー開始 (${fileMetaList.length}件 × 並列度${_config.concurrency})`,
+      );
       const reviewResults = await runConcurrent(
         fmResults.filter((r) => r.yaml),
-        (r) => reviewFrontmatter(r, dics),
-        concurrency,
+        (r) => reviewFrontmatter(r, dics, prompts),
+        _config.concurrency,
       );
       for (const r of reviewResults) {
         if (r.validity === 'fail') {
@@ -157,10 +167,10 @@ export const main = async (args: string[]): Promise<void> => {
         stats.fail++;
         continue;
       }
-      await writeFrontmatter(fm, result, dryRun, stats);
+      await writeFrontmatter(fm, result, _config.dryRun, stats);
     }
 
-    const drySuffix = dryRun ? ' (dry-run)' : '';
+    const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
       `\n完了${drySuffix}: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip}`,
     );

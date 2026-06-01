@@ -2,7 +2,7 @@
 # @(#) Phase 3.5: フロントマターレビュープロンプトテンプレート
 #
 # 変数:
-#   ${type_list}        — types.dic から生成したtype一覧（when/not付き）
+#   ${type_dics}        — types.dic から生成したtype一覧（when/not付き）
 #   ${topic_list}       — topics.dic から生成したtopic一覧（簡略版）
 #   ${category_list}    — category.dic から生成したcategory一覧（カンマ区切り）
 #   ${tags_list}        — tags.dic から生成したtag一覧（カンマ区切り）
@@ -19,7 +19,7 @@ user: |
 
   ## RULE 0 — type
   Must be one of the following. Choose the best match for the PRIMARY purpose.
-  ${type_list}
+  ${type_dics}
 
   ## RULE 1 — category
   Must match the primary domain (not surface tools).

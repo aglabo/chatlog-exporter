@@ -11,7 +11,7 @@ import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { renderPrompt } from '../../setfm-ai.ts';
+import { renderPrompt } from '../../../libs/template-utils.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';

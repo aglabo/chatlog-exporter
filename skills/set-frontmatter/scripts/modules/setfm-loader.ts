@@ -1,7 +1,6 @@
-// src: scripts/modules/setfm-ai.ts
-// @(#): set-frontmatter AI/辞書操作モジュール
-//       対象: loadDics / renderPrompt / formatEntryWithRules / formatEntryShort /
-//             loadEntryMeta
+// src: scripts/modules/setfm-loader.ts
+// @(#): set-frontmatter データ読み込みモジュール
+//       対象: loadDics / loadPrompts / loadEntryMeta
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -22,107 +21,108 @@ import { toStringArrayWithNull } from '../../../_scripts/libs/text/string-utils.
 
 // ─── Local
 // types
-import type { DicEntry, Dics, PromptTemplate } from '../types/dics.types.ts';
+import type { DicEntry, Dics, Prompts, PromptTemplate } from '../types/dics.types.ts';
 import type { EntryMeta } from '../types/entry-meta.types.ts';
 
 // ─────────────────────────────────────────────
 // 辞書読み込み
 // ─────────────────────────────────────────────
 
+const _readFileSilent = async (path: string): Promise<string> => {
+  try {
+    return await readTextFile(path);
+  } catch {
+    logger.warn(`辞書ファイルが見つかりません: ${path}`);
+    return '';
+  }
+};
+
+const _parseYamlDic = (raw: string): Record<string, unknown> => {
+  if (!raw) { return {}; }
+  const result = parseYaml(raw);
+  return (result && typeof result === 'object') ? (result as Record<string, unknown>) : {};
+};
+
+const _extractEntries = (raw: string): DicEntry[] => {
+  const parsed = _parseYamlDic(raw);
+  return Object.entries(parsed)
+    .filter(([, v]) => v !== null && typeof v === 'object')
+    .map(([k, v]) => {
+      const entry = v as Record<string, unknown>;
+      const rulesRaw = entry['rules'] as Record<string, unknown> | undefined;
+      return {
+        key: k,
+        def: (entry['def'] as string | undefined)?.trim() ?? '',
+        desc: (entry['desc'] as string | undefined)?.trim() ?? '',
+        rules: {
+          when: toStringArrayWithNull(rulesRaw?.['when']),
+          not: toStringArrayWithNull(rulesRaw?.['not']),
+        },
+      };
+    });
+};
+
+const _loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
+  const obj = _parseYamlDic(raw);
+  const system = typeof obj['system'] === 'string' ? (obj['system'] as string).trim() : '';
+  const user = typeof obj['user'] === 'string' ? (obj['user'] as string).trim() : '';
+  if (!system || !user) {
+    logger.warn(`プロンプトテンプレート "${name}" に system/user キーがありません`);
+  }
+  return { system, user };
+};
+
 export const loadDics = async (dicsDir: string): Promise<Dics> => {
-  const readFile = async (path: string): Promise<string> => {
-    try {
-      return await readTextFile(path);
-    } catch {
-      logger.warn(`辞書ファイルが見つかりません: ${path}`);
-      return '';
-    }
+  const [categoryRaw, topicsRaw, tagsRaw, typesRaw] = await Promise.all([
+    _readFileSilent(`${dicsDir}/category.dic`),
+    _readFileSilent(`${dicsDir}/topics.dic`),
+    _readFileSilent(`${dicsDir}/tags.dic`),
+    _readFileSilent(`${dicsDir}/types.dic`),
+  ]);
+
+  const _category = Object.keys(_parseYamlDic(categoryRaw)).join(',');
+  const _tags = Object.keys(_parseYamlDic(tagsRaw)).join(',');
+
+  return {
+    category: _category,
+    tags: _tags,
+    typeEntries: _extractEntries(typesRaw),
+    topicEntries: _extractEntries(topicsRaw),
   };
+};
 
-  const promptsDir = dicsDir.replace(/[/\\]dics$/, '/prompts');
-
+export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
   const [
-    categoryRaw,
-    topicsRaw,
-    tagsRaw,
-    typesRaw,
     categoryRulesRaw,
     typePromptRaw,
     categoryPromptRaw,
     metaPromptRaw,
     reviewPromptRaw,
   ] = await Promise.all([
-    readFile(`${dicsDir}/category.dic`),
-    readFile(`${dicsDir}/topics.dic`),
-    readFile(`${dicsDir}/tags.dic`),
-    readFile(`${dicsDir}/types.dic`),
-    readFile(`${promptsDir}/category-rules.yaml`),
-    readFile(`${promptsDir}/type.yaml`),
-    readFile(`${promptsDir}/category.yaml`),
-    readFile(`${promptsDir}/meta.yaml`),
-    readFile(`${promptsDir}/review.yaml`),
+    _readFileSilent(`${promptsDir}/category-rules.yaml`),
+    _readFileSilent(`${promptsDir}/type.yaml`),
+    _readFileSilent(`${promptsDir}/category.yaml`),
+    _readFileSilent(`${promptsDir}/meta.yaml`),
+    _readFileSilent(`${promptsDir}/review.yaml`),
   ]);
 
-  const parseYamlDic = (raw: string): Record<string, unknown> => {
-    if (!raw) { return {}; }
-    const result = parseYaml(raw);
-    return (result && typeof result === 'object') ? (result as Record<string, unknown>) : {};
-  };
-
-  const extractEntries = (raw: string): DicEntry[] => {
-    const parsed = parseYamlDic(raw);
-    return Object.entries(parsed)
-      .filter(([, v]) => v !== null && typeof v === 'object')
-      .map(([k, v]) => {
-        const entry = v as Record<string, unknown>;
-        const rulesRaw = entry['rules'] as Record<string, unknown> | undefined;
-        return {
-          key: k,
-          def: (entry['def'] as string | undefined)?.trim() ?? '',
-          desc: (entry['desc'] as string | undefined)?.trim() ?? '',
-          rules: {
-            when: toStringArrayWithNull(rulesRaw?.['when']),
-            not: toStringArrayWithNull(rulesRaw?.['not']),
-          },
-        };
-      });
-  };
-
-  const _category = Object.keys(parseYamlDic(categoryRaw)).join(',');
-  const _tags = Object.keys(parseYamlDic(tagsRaw)).join(',');
-
-  const categoryRulesObj = parseYamlDic(categoryRulesRaw);
+  const categoryRulesObj = _parseYamlDic(categoryRulesRaw);
   const _categoryPrompts = new Map<string, string>(
     Object.entries(categoryRulesObj)
       .filter(([, v]) => typeof v === 'string')
       .map(([k, v]) => [k, (v as string).trim()]),
   );
 
-  // プロンプトテンプレート読み込み
-  const loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
-    const obj = parseYamlDic(raw);
-    const system = typeof obj['system'] === 'string' ? (obj['system'] as string).trim() : '';
-    const user = typeof obj['user'] === 'string' ? (obj['user'] as string).trim() : '';
-    if (!system || !user) {
-      logger.warn(`プロンプトテンプレート "${name}" に system/user キーがありません`);
-    }
-    return { system, user };
-  };
-
-  const prompts = new Map<string, PromptTemplate>([
-    ['type', loadPromptTemplate(typePromptRaw, 'type')],
-    ['category', loadPromptTemplate(categoryPromptRaw, 'category')],
-    ['meta', loadPromptTemplate(metaPromptRaw, 'meta')],
-    ['review', loadPromptTemplate(reviewPromptRaw, 'review')],
+  const _prompts = new Map<string, PromptTemplate>([
+    ['type', _loadPromptTemplate(typePromptRaw, 'type')],
+    ['category', _loadPromptTemplate(categoryPromptRaw, 'category')],
+    ['meta', _loadPromptTemplate(metaPromptRaw, 'meta')],
+    ['review', _loadPromptTemplate(reviewPromptRaw, 'review')],
   ]);
 
   return {
-    category: _category,
-    tags: _tags,
-    typeEntries: extractEntries(typesRaw),
-    topicEntries: extractEntries(topicsRaw),
     categoryPrompts: _categoryPrompts,
-    prompts,
+    prompts: _prompts,
   };
 };
 
@@ -179,7 +179,7 @@ export const loadEntryMeta = async (filePath: string, maxContentLength: number):
     return null;
   }
 
-  const entry = new ChatlogEntry(text);
+  const entry = new ChatlogEntry(text, { filePath });
   const fullBody = entry.content;
 
   if (!/^#/m.test(fullBody)) { return null; }

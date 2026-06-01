@@ -19,6 +19,8 @@ import { buildConfig } from '../../setfm-config.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// constants
+import { DEFAULT_CHUNK_SIZE, DEFAULT_PROMPTS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 
@@ -107,6 +109,11 @@ describe('buildConfig', () => {
         const result = buildConfig({ targetDir: '/target' }, globalConfig);
         assertEquals(result.concurrency, 4);
       });
+
+      it('[Normal] T-SF-BC-06-01: chunkSize のデフォルトは 10', () => {
+        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        assertEquals(result.chunkSize, DEFAULT_CHUNK_SIZE);
+      });
     });
 
     /** 各フィールドを明示的に指定したケース。 */
@@ -124,6 +131,50 @@ describe('buildConfig', () => {
       it('[Normal] T-SF-BC-03-03: review=false → result.review=false になる', () => {
         const result = buildConfig({ targetDir: '/target', review: false }, globalConfig);
         assertEquals(result.review, false);
+      });
+
+      it('[Normal] T-SF-BC-06-02: parsed.chunkSize=5 → result.chunkSize=5 になる', () => {
+        const result = buildConfig({ targetDir: '/target', chunkSize: 5 }, globalConfig);
+        assertEquals(result.chunkSize, 5);
+      });
+    });
+  });
+
+  /**
+   * `promptsDir` フィールドの優先順位テスト。
+   *
+   * 優先順位: parsed.promptsDir > GlobalConfig.promptsDir > DEFAULT_PROMPTS_DIR
+   */
+  describe('When: promptsDir の優先順位', () => {
+    /** promptsDir 未指定でデフォルト値が使われる正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SFP-01-01: 引数なし + GlobalConfig 未設定 → DEFAULT_PROMPTS_DIR が使われる', () => {
+        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        assertEquals(result.promptsDir, DEFAULT_PROMPTS_DIR);
+      });
+
+      it('[Normal] T-SFP-02-01: parsed.promptsDir 指定 → その値が使われる', () => {
+        const result = buildConfig({ targetDir: '/target', promptsDir: './custom/prompts' }, globalConfig);
+        assertEquals(result.promptsDir, './custom/prompts');
+      });
+    });
+
+    /** GlobalConfig の値が使われるエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-SFP-03-01: GlobalConfig に promptsDir 設定済み → GlobalConfig の値が使われる', async () => {
+        const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
+
+        const result = buildConfig({ targetDir: '/target' }, gc);
+
+        assertEquals(result.promptsDir, './gc/prompts');
+      });
+
+      it('[Edge] T-SFP-03-02: parsed.promptsDir が GlobalConfig より優先される', async () => {
+        const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
+
+        const result = buildConfig({ targetDir: '/target', promptsDir: './parsed/prompts' }, gc);
+
+        assertEquals(result.promptsDir, './parsed/prompts');
       });
     });
   });
