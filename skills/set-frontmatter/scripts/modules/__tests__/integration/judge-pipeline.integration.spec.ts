@@ -23,7 +23,6 @@ import { reviewFrontmatter } from '../../setfm-review.ts';
 import { judgeType } from '../../setfm-type.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
-import type { EntryMeta } from '../../../types/entry-meta.types.ts';
 import type { FrontmatterResult } from '../../../types/phase.types.ts';
 
 // ─── Helpers
@@ -33,35 +32,54 @@ import {
   makeFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── Internal Helpers
 
 // constants
 const _enc = new TextEncoder();
+const _MAX_CONTENT_LENGTH = 5000;
 
 // functions
-function _makeEntryMeta(): EntryMeta {
-  return {
-    file: '/tmp/test.md',
-    sessionId: 'sess-001',
-    date: '2026-03-15',
-    project: 'my-project',
-    slug: 'test-slug',
-    content: '# テスト\n本文テキスト',
-    fullBody: '# テスト\n本文テキスト',
-  };
+
+/**
+ * テスト用 `ChatlogEntry` を生成する（/tmp/test.md 相当）。
+ *
+ * @returns filePath='/tmp/test.md' でセッションメタを持つ `ChatlogEntry`
+ */
+function _makeChatlogEntry(): ChatlogEntry {
+  const text = [
+    '---',
+    'session_id: sess-001',
+    'date: 2026-03-15',
+    'project: my-project',
+    'slug: test-slug',
+    '---',
+    '',
+    '# テスト',
+    '本文テキスト',
+  ].join('\n');
+  return new ChatlogEntry(text, { filePath: '/tmp/test.md' });
 }
 
-function _makeEntryMeta2(): EntryMeta {
-  return {
-    file: '/tmp/other.md',
-    sessionId: 'sess-002',
-    date: '2026-03-16',
-    project: 'my-project',
-    slug: 'other-slug',
-    content: '# Other\nOther body',
-    fullBody: '# Other\nOther body',
-  };
+/**
+ * テスト用 `ChatlogEntry` を生成する（/tmp/other.md 相当）。
+ *
+ * @returns filePath='/tmp/other.md' でセッションメタを持つ `ChatlogEntry`
+ */
+function _makeChatlogEntry2(): ChatlogEntry {
+  const text = [
+    '---',
+    'session_id: sess-002',
+    'date: 2026-03-16',
+    'project: my-project',
+    'slug: other-slug',
+    '---',
+    '',
+    '# Other',
+    'Other body',
+  ].join('\n');
+  return new ChatlogEntry(text, { filePath: '/tmp/other.md' });
 }
 
 function _makeDics(): Dics {
@@ -113,7 +131,7 @@ afterEach(() => {
 
 describe('judgeType', () => {
   describe('Given: モックが JSON 配列 [{"file":"test.md","type":"research"}] を返す', () => {
-    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
+    describe('When: judgeType([entry], maxContentLength, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-01 - result[0].type="research" が返る', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
@@ -122,7 +140,7 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-01-01: result[0].type が "research" になる', async () => {
-          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
+          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
           assertEquals(result[0].type, 'research');
         });
@@ -131,7 +149,7 @@ describe('judgeType', () => {
   });
 
   describe('Given: モックが有効キー以外の JSON 配列を返す', () => {
-    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
+    describe('When: judgeType([entry], maxContentLength, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-02 - フォールバック "research" が返る', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
@@ -140,7 +158,7 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-02-01: result[0].type が "research" になる（フォールバック）', async () => {
-          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
+          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
           assertEquals(result[0].type, 'research');
         });
@@ -149,14 +167,14 @@ describe('judgeType', () => {
   });
 
   describe('Given: Claude CLI が失敗する（exit code=1）', () => {
-    describe('When: judgeType([fm], dics, prompts) を呼び出す', () => {
+    describe('When: judgeType([entry], maxContentLength, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-03 - フォールバック "research" が返る（例外なし）', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
         it('T-SF-JP-03-01: result[0].type が "research" になる（例外なし）', async () => {
-          const result = await judgeType([_makeEntryMeta()], _makeDics(), _makePrompts());
+          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
           assertEquals(result[0].type, 'research');
         });
@@ -165,7 +183,7 @@ describe('judgeType', () => {
   });
 
   describe('Given: モックが 2 ファイル分の JSON 配列を返す（1件はファイル名不一致）', () => {
-    describe('When: judgeType([fm1, fm2], dics, prompts) を呼び出す', () => {
+    describe('When: judgeType([entry1, entry2], maxContentLength, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-14 - 一致したファイルは採用、不一致は "research" フォールバック', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
@@ -176,19 +194,34 @@ describe('judgeType', () => {
         });
 
         it('T-SF-JP-14-01: result[0].type が "execution" になる（test.md と一致）', async () => {
-          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+          const result = await judgeType(
+            [_makeChatlogEntry(), _makeChatlogEntry2()],
+            _MAX_CONTENT_LENGTH,
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result[0].type, 'execution');
         });
 
         it('T-SF-JP-14-02: result[1].type が "research" になる（other.md は不一致 → フォールバック）', async () => {
-          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+          const result = await judgeType(
+            [_makeChatlogEntry(), _makeChatlogEntry2()],
+            _MAX_CONTENT_LENGTH,
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result[1].type, 'research');
         });
 
         it('T-SF-JP-14-03: result[0].file がフルパス "/tmp/test.md" になる', async () => {
-          const result = await judgeType([_makeEntryMeta(), _makeEntryMeta2()], _makeDics(), _makePrompts());
+          const result = await judgeType(
+            [_makeChatlogEntry(), _makeChatlogEntry2()],
+            _MAX_CONTENT_LENGTH,
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result[0].file, '/tmp/test.md');
         });
@@ -201,14 +234,20 @@ describe('judgeType', () => {
 
 describe('judgeCategory', () => {
   describe('Given: モックが "development" を返す', () => {
-    describe('When: judgeCategory(fm, type, dics) を呼び出す', () => {
+    describe('When: judgeCategory(entry, maxContentLength, type, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-04 - "development" が返る', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeSuccessMock(_enc.encode('development')));
         });
 
         it('T-SF-JP-04-01: "development" が返る', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
+          const result = await judgeCategory(
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
+            'research',
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result, 'development');
         });
@@ -217,14 +256,20 @@ describe('judgeCategory', () => {
   });
 
   describe('Given: モックが無効カテゴリ "invalid" を返す', () => {
-    describe('When: judgeCategory(fm, type, dics) を呼び出す', () => {
+    describe('When: judgeCategory(entry, maxContentLength, type, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-05 - フォールバック "development" が返る', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeSuccessMock(_enc.encode('invalid')));
         });
 
         it('T-SF-JP-05-01: "development" が返る（フォールバック）', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
+          const result = await judgeCategory(
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
+            'research',
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result, 'development');
         });
@@ -233,14 +278,20 @@ describe('judgeCategory', () => {
   });
 
   describe('Given: Claude CLI が失敗する（exit code=1）', () => {
-    describe('When: judgeCategory(fm, type, dics) を呼び出す', () => {
+    describe('When: judgeCategory(entry, maxContentLength, type, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-06 - フォールバック "development" が返る（例外なし）', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
         it('T-SF-JP-06-01: "development" が返る（例外なし）', async () => {
-          const result = await judgeCategory(_makeEntryMeta(), 'research', _makeDics(), _makePrompts());
+          const result = await judgeCategory(
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
+            'research',
+            _makeDics(),
+            _makePrompts(),
+          );
 
           assertEquals(result, 'development');
         });
@@ -253,7 +304,7 @@ describe('judgeCategory', () => {
 
 describe('generateFrontmatter', () => {
   describe('Given: モックが YAML 文字列を返す', () => {
-    describe('When: generateFrontmatter(fm, type, category, dics) を呼び出す', () => {
+    describe('When: generateFrontmatter(entry, maxContentLength, type, category, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-07 - yaml フィールドが設定される', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
@@ -263,7 +314,8 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-01: yaml が設定される', async () => {
           const result = await generateFrontmatter(
-            _makeEntryMeta(),
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
             'research',
             'development',
             _makeDics(),
@@ -275,7 +327,8 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-02: type が "research" になる', async () => {
           const result = await generateFrontmatter(
-            _makeEntryMeta(),
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
             'research',
             'development',
             _makeDics(),
@@ -287,7 +340,8 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-07-03: category が "development" になる', async () => {
           const result = await generateFrontmatter(
-            _makeEntryMeta(),
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
             'research',
             'development',
             _makeDics(),
@@ -311,7 +365,8 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-08-01: yaml に ``` が含まれない', async () => {
           const result = await generateFrontmatter(
-            _makeEntryMeta(),
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
             'research',
             'development',
             _makeDics(),
@@ -333,7 +388,8 @@ describe('generateFrontmatter', () => {
 
         it('T-SF-JP-09-01: yaml が空文字になる', async () => {
           const result = await generateFrontmatter(
-            _makeEntryMeta(),
+            _makeChatlogEntry(),
+            _MAX_CONTENT_LENGTH,
             'research',
             'development',
             _makeDics(),
