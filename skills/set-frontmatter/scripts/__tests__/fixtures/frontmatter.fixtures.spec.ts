@@ -23,17 +23,16 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { DEFAULT_PROMPTS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
-
 // test target
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { judgeCategory } from '../../modules/setfm-category.ts';
 import { generateFrontmatter } from '../../modules/setfm-frontmatter.ts';
-import { loadDics, loadPrompts } from '../../modules/setfm-loader.ts';
+import { loadChatlogEntry, loadDics, loadPrompts } from '../../modules/setfm-loader.ts';
 import { judgeType } from '../../modules/setfm-type.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
-import type { EntryMeta } from '../../types/entry-meta.types.ts';
 
 const _enc = new TextEncoder();
+const _MAX_CONTENT_LENGTH = 4000;
 
 // ─── フィクスチャパス・辞書パス ───────────────────────────────────────────────
 
@@ -105,36 +104,13 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
   return dirs.sort();
 }
 
-/** EntryMeta を input.md から構築する */
-async function _makeEntryMeta(filePath: string): Promise<EntryMeta> {
-  const text = await readTextFile(filePath);
-
-  // 簡易フロントマター解析
-  const lines = normalizeLine(text).split('\n');
-  const meta: Record<string, string> = {};
-  if (lines[0] === '---') {
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i] === '---') { break; }
-      const idx = lines[i].indexOf(': ');
-      if (idx !== -1) {
-        meta[lines[i].slice(0, idx).trim()] = lines[i].slice(idx + 2).trim();
-      }
-    }
+/** ChatlogEntry を input.md から構築する */
+async function _makeChatlogEntry(filePath: string): Promise<ChatlogEntry> {
+  const entry = await loadChatlogEntry(filePath, _MAX_CONTENT_LENGTH);
+  if (!entry) {
+    throw new Error(`failed to load: ${filePath}`);
   }
-
-  const headerIdx = lines.findIndex((l) => /^#/.test(l));
-  const bodyStart = headerIdx >= 0 ? headerIdx : 0;
-  const fullBody = lines.slice(bodyStart).join('\n');
-
-  return {
-    file: filePath,
-    sessionId: meta['session_id'] ?? '',
-    date: meta['date'] ?? '',
-    project: meta['project'] ?? '',
-    slug: meta['slug'] ?? '',
-    content: fullBody.slice(0, 4000),
-    fullBody,
-  };
+  return entry;
 }
 
 /** フォールバックケース用のインライン辞書（実ファイル不要） */
@@ -188,7 +164,7 @@ for (const _relPath of _fixtureDirs) {
   describe(`set-frontmatter — ${_relPath}`, () => {
     describe(`Given: ${_relPath}/input.md と辞書ファイル`, () => {
       let _tempDir: string;
-      let _fileMeta: EntryMeta;
+      let _fileMeta: ChatlogEntry;
       let _loggerStub: LoggerStub;
       let _commandHandle: CommandMockHandle | null = null;
 
@@ -196,7 +172,7 @@ for (const _relPath of _fixtureDirs) {
         _tempDir = await Deno.makeTempDir();
         const _tempPath = `${_tempDir}/input.md`;
         await Deno.copyFile(_inputPath, _tempPath);
-        _fileMeta = await _makeEntryMeta(_tempPath);
+        _fileMeta = await _makeChatlogEntry(_tempPath);
         _loggerStub = makeLoggerStub();
 
         if (_isFallbackCase) {
@@ -226,7 +202,7 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResults = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _result = _typeResults[0];
 
               if (_expectedOutput.fallback?.expected_type) {
@@ -252,7 +228,7 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            const _typeResults = await judgeType([_fileMeta], _dics, _prompts);
+            const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _result = _typeResults[0];
 
             assertEquals(
@@ -274,9 +250,15 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResultArr = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _typeResultArr = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _typeResult = _typeResultArr[0];
-              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics, _activePrompts);
+              const _category = await judgeCategory(
+                _fileMeta,
+                _MAX_CONTENT_LENGTH,
+                _typeResult.type,
+                _activeDics,
+                _activePrompts,
+              );
 
               if (_expectedOutput.fallback?.expected_category) {
                 assertEquals(
@@ -302,9 +284,9 @@ for (const _relPath of _fixtureDirs) {
             }
 
             // まず type を判定してから category を判定する
-            const _typeResultArr = await judgeType([_fileMeta], _dics, _prompts);
+            const _typeResultArr = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _typeResult = _typeResultArr[0];
-            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics, _prompts);
+            const _category = await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _typeResult.type, _dics, _prompts);
 
             assertEquals(
               _expectedOutput.known_categories.includes(_category),
@@ -327,11 +309,18 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResults = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _typeResult = _typeResults[0];
-              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics, _activePrompts);
+              const _category = await judgeCategory(
+                _fileMeta,
+                _MAX_CONTENT_LENGTH,
+                _typeResult.type,
+                _activeDics,
+                _activePrompts,
+              );
               const _fmResult = await generateFrontmatter(
                 _fileMeta,
+                _MAX_CONTENT_LENGTH,
                 _typeResult.type,
                 _category,
                 _activeDics,
@@ -361,10 +350,17 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            const _typeResults = await judgeType([_fileMeta], _dics, _prompts);
+            const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _typeResult = _typeResults[0];
-            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics, _prompts);
-            const _fmResult = await generateFrontmatter(_fileMeta, _typeResult.type, _category, _dics, _prompts);
+            const _category = await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _typeResult.type, _dics, _prompts);
+            const _fmResult = await generateFrontmatter(
+              _fileMeta,
+              _MAX_CONTENT_LENGTH,
+              _typeResult.type,
+              _category,
+              _dics,
+              _prompts,
+            );
 
             // yaml が生成されたことを確認（空でないこと）
             if (!_fmResult.yaml) {
