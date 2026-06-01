@@ -20,16 +20,17 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { DEFAULT_PROMPTS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { normalizeLine } from '../../../../_scripts/libs/text/line-utils.ts';
 
 // test target
-import { loadDics } from '../../modules/setfm-ai.ts';
 import { judgeCategory } from '../../modules/setfm-category.ts';
 import { generateFrontmatter } from '../../modules/setfm-frontmatter.ts';
+import { loadDics, loadPrompts } from '../../modules/setfm-loader.ts';
 import { judgeType } from '../../modules/setfm-type.ts';
-import type { Dics } from '../../types/dics.types.ts';
+import type { Dics, Prompts } from '../../types/dics.types.ts';
 import type { EntryMeta } from '../../types/entry-meta.types.ts';
 
 const _enc = new TextEncoder();
@@ -149,9 +150,15 @@ function _makeDicsForFallback(): Dics {
     topicEntries: [
       { key: 'development', def: '開発', desc: '', rules: { when: [], not: [] } },
     ],
+  };
+}
+
+/** フォールバックケース用のインラインプロンプト（実ファイル不要） */
+function _makePromptsForFallback(): Prompts {
+  return {
     categoryPrompts: new Map([['research', '']]),
     prompts: new Map([
-      ['type', { system: '', user: '${type_list} ${body}' }],
+      ['type', { system: '${type_dics}', user: '${entries}' }],
       ['category', { system: '', user: '${category_list} ${focus_guide} ${body}' }],
       ['meta', { system: '', user: '${log_type} ${log_category} ${topic_list} ${tags_list} ${body}' }],
       ['review', { system: '', user: '' }],
@@ -163,10 +170,11 @@ function _makeDicsForFallback(): Dics {
 
 const _fixtureDirs = await _collectFixtureDirs(FIXTURES_DIR);
 
-// 辞書は実際の assets/dics/ を使用
+// 辞書・プロンプトは実際の assets/ を使用
 let _dics: Dics | null = null;
+let _prompts: Prompts | null = null;
 try {
-  _dics = await loadDics(ASSETS_DICS_DIR);
+  [_dics, _prompts] = await Promise.all([loadDics(ASSETS_DICS_DIR), loadPrompts(DEFAULT_PROMPTS_DIR)]);
 } catch {
   // 辞書が読み込めない場合はテストをスキップ
 }
@@ -217,7 +225,9 @@ for (const _relPath of _fixtureDirs) {
           async () => {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
-              const _result = await judgeType(_fileMeta, _activeDics);
+              const _activePrompts = _prompts ?? _makePromptsForFallback();
+              const _typeResults = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _result = _typeResults[0];
 
               if (_expectedOutput.fallback?.expected_type) {
                 assertEquals(
@@ -237,12 +247,13 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            if (!_dics) {
+            if (!_dics || !_prompts) {
               // 辞書ファイルが読み込めないためスキップ
               return;
             }
 
-            const _result = await judgeType(_fileMeta, _dics);
+            const _typeResults = await judgeType([_fileMeta], _dics, _prompts);
+            const _result = _typeResults[0];
 
             assertEquals(
               _expectedOutput.known_types.includes(_result.type),
@@ -262,8 +273,10 @@ for (const _relPath of _fixtureDirs) {
           async () => {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
-              const _typeResult = await judgeType(_fileMeta, _activeDics);
-              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics);
+              const _activePrompts = _prompts ?? _makePromptsForFallback();
+              const _typeResultArr = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _typeResult = _typeResultArr[0];
+              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics, _activePrompts);
 
               if (_expectedOutput.fallback?.expected_category) {
                 assertEquals(
@@ -283,14 +296,15 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            if (!_dics) {
+            if (!_dics || !_prompts) {
               // 辞書ファイルが読み込めないためスキップ
               return;
             }
 
             // まず type を判定してから category を判定する
-            const _typeResult = await judgeType(_fileMeta, _dics);
-            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics);
+            const _typeResultArr = await judgeType([_fileMeta], _dics, _prompts);
+            const _typeResult = _typeResultArr[0];
+            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics, _prompts);
 
             assertEquals(
               _expectedOutput.known_categories.includes(_category),
@@ -312,9 +326,17 @@ for (const _relPath of _fixtureDirs) {
           async () => {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
-              const _typeResult = await judgeType(_fileMeta, _activeDics);
-              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics);
-              const _fmResult = await generateFrontmatter(_fileMeta, _typeResult.type, _category, _activeDics);
+              const _activePrompts = _prompts ?? _makePromptsForFallback();
+              const _typeResults = await judgeType([_fileMeta], _activeDics, _activePrompts);
+              const _typeResult = _typeResults[0];
+              const _category = await judgeCategory(_fileMeta, _typeResult.type, _activeDics, _activePrompts);
+              const _fmResult = await generateFrontmatter(
+                _fileMeta,
+                _typeResult.type,
+                _category,
+                _activeDics,
+                _activePrompts,
+              );
 
               if (_expectedOutput.fallback?.expected_yaml_empty === true) {
                 assertEquals(
@@ -334,14 +356,15 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            if (!_dics) {
+            if (!_dics || !_prompts) {
               // 辞書ファイルが読み込めないためスキップ
               return;
             }
 
-            const _typeResult = await judgeType(_fileMeta, _dics);
-            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics);
-            const _fmResult = await generateFrontmatter(_fileMeta, _typeResult.type, _category, _dics);
+            const _typeResults = await judgeType([_fileMeta], _dics, _prompts);
+            const _typeResult = _typeResults[0];
+            const _category = await judgeCategory(_fileMeta, _typeResult.type, _dics, _prompts);
+            const _fmResult = await generateFrontmatter(_fileMeta, _typeResult.type, _category, _dics, _prompts);
 
             // yaml が生成されたことを確認（空でないこと）
             if (!_fmResult.yaml) {
