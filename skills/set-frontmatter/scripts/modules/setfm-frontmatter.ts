@@ -10,6 +10,7 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
 
@@ -18,7 +19,6 @@ import { formatEntryWithRules } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
-import type { EntryMeta } from '../types/entry-meta.types.ts';
 import type { FrontmatterResult, LogType } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
@@ -26,7 +26,8 @@ import type { FrontmatterResult, LogType } from '../types/phase.types.ts';
 // ─────────────────────────────────────────────
 
 export const generateFrontmatter = async (
-  fm: EntryMeta,
+  entry: ChatlogEntry,
+  maxContentLength: number,
   type: LogType,
   category: string,
   dics: Dics,
@@ -40,13 +41,13 @@ export const generateFrontmatter = async (
     log_category: category,
     topic_list: topicList,
     tags_list: dics.tags,
-    body: fm.content,
+    body: entry.truncateContent(maxContentLength),
   });
   let raw: string;
   try {
     raw = await runAI(system, user);
   } catch {
-    return { file: fm.file, type, category, yaml: '' };
+    return { file: entry.filePath!, type, category, yaml: '' };
   }
-  return { file: fm.file, type, category, yaml: cleanYaml(raw, 'title') };
+  return { file: entry.filePath!, type, category, yaml: cleanYaml(raw, 'title') };
 };
