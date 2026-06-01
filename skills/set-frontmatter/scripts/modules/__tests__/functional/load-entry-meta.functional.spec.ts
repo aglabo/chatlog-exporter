@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ───  test target
-import { loadEntryMeta } from '../../setfm-ai.ts';
+import { loadEntryMeta } from '../../setfm-loader.ts';
 
 // ─── テスト共通セットアップ ───────────────────────────────────────────────────
 const MAX_BODY_CHARS = 1000; // loadEntryMeta 内の定数と同じ値を使用
