@@ -13,12 +13,12 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Shared scripts
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { renderFrontmatter } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── Local
 // types
-import type { EntryMeta } from '../types/entry-meta.types.ts';
 import type { FrontmatterResult, Stats } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
@@ -26,22 +26,24 @@ import type { FrontmatterResult, Stats } from '../types/phase.types.ts';
 // ─────────────────────────────────────────────
 
 export const writeFrontmatter = async (
-  fm: EntryMeta,
+  entry: ChatlogEntry,
   result: FrontmatterResult,
   dryRun: boolean,
   stats: Stats,
 ): Promise<void> => {
+  const filePath = entry.filePath!;
+
   if (!result.yaml) {
-    logger.error(`  FAIL (yaml空): ${fm.file.split(/[/\\]/).pop()}`);
+    logger.error(`  FAIL (yaml空): ${filePath.split(/[/\\]/).pop()}`);
     stats.fail++;
     return;
   }
 
   const _fields: Record<string, unknown> = {
-    session_id: fm.sessionId,
-    date: fm.date,
-    project: fm.project,
-    slug: fm.slug,
+    session_id: entry.frontmatter.get('session_id') as string ?? '',
+    date: entry.frontmatter.get('date') as string ?? '',
+    project: entry.frontmatter.get('project') as string ?? '',
+    slug: entry.frontmatter.get('slug') as string ?? '',
     type: result.type,
     category: result.category,
   };
@@ -50,23 +52,23 @@ export const writeFrontmatter = async (
   const newFrontmatter = renderFrontmatter(_allFields).trimEnd();
 
   if (dryRun) {
-    logger.log(`\n=== DRY RUN [${result.type}/${result.category}]: ${fm.file.split(/[/\\]/).pop()} ===`);
+    logger.log(`\n=== DRY RUN [${result.type}/${result.category}]: ${filePath.split(/[/\\]/).pop()} ===`);
     logger.log(newFrontmatter);
     stats.success++;
     return;
   }
 
-  const tmpFile = fm.file + '.tmp';
+  const tmpFile = filePath + '.tmp';
   try {
-    await Deno.writeTextFile(tmpFile, newFrontmatter + '\n' + fm.fullBody);
-    await Deno.rename(tmpFile, fm.file);
-    logger.info(`  OK [${result.type}/${result.category}]: ${fm.file.split(/[/\\]/).pop()}`);
+    await Deno.writeTextFile(tmpFile, newFrontmatter + '\n' + entry.content);
+    await Deno.rename(tmpFile, filePath);
+    logger.info(`  OK [${result.type}/${result.category}]: ${filePath.split(/[/\\]/).pop()}`);
     stats.success++;
   } catch (e) {
     try {
       await Deno.remove(tmpFile);
     } catch { /* ignore */ }
-    logger.error(`  FAIL (書き込みエラー): ${fm.file.split(/[/\\]/).pop()}: ${e}`);
+    logger.error(`  FAIL (書き込みエラー): ${filePath.split(/[/\\]/).pop()}: ${e}`);
     stats.fail++;
   }
 };
