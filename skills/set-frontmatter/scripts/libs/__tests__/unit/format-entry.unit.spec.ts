@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/format-entry.unit.spec.ts
+// src: scripts/libs/__tests__/unit/format-entry.unit.spec.ts
 // @(#): formatEntryWithRules / formatEntryShort のユニットテスト
 //       辞書エントリをプロンプト文字列に整形する関数の検証
 //
@@ -11,7 +11,7 @@ import { assert, assertEquals, assertNotMatch } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { formatEntryShort, formatEntryWithRules } from '../../../libs/dic-format-utils.ts';
+import { formatEntryShort, formatEntryWithRules } from '../../dic-format-utils.ts';
 // types
 import type { DicEntry, DicRules } from '../../../types/dics.types.ts';
 
