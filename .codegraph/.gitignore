@@ -18,6 +18,9 @@
 # Cache
 cache/
 
+# daemon
+daemon.*
+
 # Logs
 *.log
 
