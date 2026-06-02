@@ -7,9 +7,22 @@
 //
 // This software is released under the MIT License.
 
+// cspell:words setfm
+
+// ─── BDD test framework
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+
+// ─── external libraries
 import { parse as parseYaml } from '@std/yaml';
+
+// test target
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { loadDics, loadPrompts } from '../../modules/setfm-assets-loader.ts';
+import { judgeCategory } from '../../modules/setfm-category.ts';
+import { loadChatlogEntry } from '../../modules/setfm-entry-loader.ts';
+import { generateFrontmatter } from '../../modules/setfm-frontmatter.ts';
+import { judgeType } from '../../modules/setfm-type.ts';
 
 // test helpers
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -23,12 +36,6 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { DEFAULT_PROMPTS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-// test target
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { judgeCategory } from '../../modules/setfm-category.ts';
-import { generateFrontmatter } from '../../modules/setfm-frontmatter.ts';
-import { loadChatlogEntry, loadDics, loadPrompts } from '../../modules/setfm-loader.ts';
-import { judgeType } from '../../modules/setfm-type.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
 
 const _enc = new TextEncoder();
@@ -106,7 +113,7 @@ async function _collectFixtureDirs(rootDir: string): Promise<string[]> {
 
 /** ChatlogEntry を input.md から構築する */
 async function _makeChatlogEntry(filePath: string): Promise<ChatlogEntry> {
-  const entry = await loadChatlogEntry(filePath, _MAX_CONTENT_LENGTH);
+  const entry = await loadChatlogEntry(filePath);
   if (!entry) {
     throw new Error(`failed to load: ${filePath}`);
   }
