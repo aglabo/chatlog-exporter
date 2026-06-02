@@ -16,13 +16,14 @@ import { parse as parseYaml } from '@std/yaml';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { toStringArrayWithNull } from '../../../_scripts/libs/text/string-utils.ts';
 
 // ─── Local
 // types
 import type { DicEntry, Dics, Prompts, PromptTemplate } from '../types/dics.types.ts';
-import type { EntryMeta } from '../types/entry-meta.types.ts';
+import type { Stats } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
 // 辞書読み込み
@@ -127,56 +128,40 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
 };
 
 // ─────────────────────────────────────────────
-// テンプレート変数置換
-// ─────────────────────────────────────────────
-
-/**
- * テンプレート内の ${varname} を vars で置換する。
- * varname が [a-z_]+ 以外の場合はエラー終了（インジェクション防止）。
- */
-export const renderPrompt = (template: string, vars: Record<string, string>): string => {
-  return template.replace(/\$\{([^}]+)\}/g, (_match, name: string) => {
-    if (!/^[a-z_]+$/.test(name)) {
-      throw new ChatlogError('InvalidArgs', 'InvalidSyntax', `不正な変数名 "${name}" — 英小文字と "_" のみ使用可能`);
-    }
-    if (!(name in vars)) {
-      throw new ChatlogError('InvalidArgs', 'NotDefined', `未定義の変数 "${name}"`);
-    }
-    return vars[name];
-  });
-};
-
-// ─────────────────────────────────────────────
-// 辞書エントリをプロンプト文字列に整形するヘルパー
-// ─────────────────────────────────────────────
-
-/** エントリを「- key: def\n  when: ...\n  not: ...」形式に展開 */
-export const formatEntryWithRules = (e: DicEntry): string => {
-  const lines: string[] = [`- ${e.key}: ${e.def}`];
-  if (e.rules.when.length > 0) {
-    lines.push(`  when: ${e.rules.when.join(' / ')}`);
-  }
-  if (e.rules.not.length > 0) {
-    lines.push(`  not:  ${e.rules.not.join(' / ')}`);
-  }
-  return lines.join('\n');
-};
-
-/** エントリを「- key: def」形式に展開（rules なし・簡略版） */
-export const formatEntryShort = (e: DicEntry): string => {
-  return `- ${e.key}: ${e.def}`;
-};
-
-// ─────────────────────────────────────────────
 // ファイルメタ読み込み
 // ─────────────────────────────────────────────
 
-export const loadEntryMeta = async (filePath: string, maxContentLength: number): Promise<EntryMeta | null> => {
+export const loadAllEntries = async (
+  dir: string,
+  maxContentLength: number,
+  stats: Stats,
+): Promise<ChatlogEntry[]> => {
+  const allFiles = await findFiles(dir);
+  logger.info(`対象ファイル数: ${allFiles.length}`);
+  stats.total = allFiles.length;
+
+  const _entries: ChatlogEntry[] = [];
+  for (const filePath of allFiles) {
+    const entry = await loadChatlogEntry(filePath, maxContentLength);
+    if (!entry) {
+      logger.info(`  skip: ${filePath.split(/[/\\]/).pop()}`);
+      stats.skip++;
+    } else {
+      _entries.push(entry);
+    }
+  }
+  return _entries;
+};
+
+export const loadChatlogEntry = async (filePath: string, _maxContentLength: number): Promise<ChatlogEntry | null> => {
   let text: string;
   try {
     text = await readTextFile(filePath);
-  } catch {
-    return null;
+  } catch (e) {
+    if (e instanceof ChatlogError && e.kind === 'FileDirNotFound') {
+      return null;
+    }
+    throw e;
   }
 
   const entry = new ChatlogEntry(text, { filePath });
@@ -185,19 +170,5 @@ export const loadEntryMeta = async (filePath: string, maxContentLength: number):
   if (!/^#/m.test(fullBody)) { return null; }
   if (!fullBody.trim()) { return null; }
 
-  const fm = entry.frontmatter;
-  const _get = (key: string): string => {
-    const v = fm.get(key);
-    return typeof v === 'string' ? v : '';
-  };
-
-  return {
-    file: filePath,
-    sessionId: _get('session_id'),
-    date: _get('date'),
-    project: _get('project'),
-    slug: _get('slug'),
-    content: entry.truncateContent(maxContentLength),
-    fullBody,
-  };
+  return entry;
 };
