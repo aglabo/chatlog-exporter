@@ -32,10 +32,11 @@ import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runChunked, runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 
 // ─── Local
+import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 import { judgeCategory } from './modules/setfm-category.ts';
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
+import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
-import { loadAllEntries, loadDics, loadPrompts } from './modules/setfm-loader.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeType } from './modules/setfm-type.ts';
 import { writeFrontmatter } from './modules/setfm-write.ts';
@@ -70,7 +71,7 @@ export const main = async (args: string[]): Promise<void> => {
     const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0 };
 
     // Phase 1: メタ読み込み
-    const entries = await loadAllEntries(_config.targetDir, maxContentLength, stats);
+    const entries = await loadAllEntries(_config.targetDir, stats);
     logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
     if (entries.length === 0) {
       logger.info('対象ファイルなし');
