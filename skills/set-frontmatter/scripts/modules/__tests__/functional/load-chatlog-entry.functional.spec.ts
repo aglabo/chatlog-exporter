@@ -15,12 +15,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
 // ─── Test target
-import { loadChatlogEntry } from '../../setfm-loader.ts';
-
-// ─── Internal Helpers
-
-// constants
-const MAX_BODY_CHARS = 1000;
+import { loadChatlogEntry } from '../../setfm-entry-loader.ts';
 
 // ─── Tests
 
@@ -67,7 +62,7 @@ describe('loadChatlogEntry', () => {
         ].join('\n');
         await Deno.writeTextFile(filePath, content);
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNotNull(result);
       });
@@ -84,7 +79,7 @@ describe('loadChatlogEntry', () => {
         ].join('\n');
         await Deno.writeTextFile(filePath, content);
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNotNull(result);
         assertEquals(result!.filePath, filePath);
@@ -102,7 +97,7 @@ describe('loadChatlogEntry', () => {
         ].join('\n');
         await Deno.writeTextFile(filePath, content);
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNotNull(result);
         assertEquals(result!.frontmatter.get('session_id'), 'sess-001');
@@ -119,7 +114,7 @@ describe('loadChatlogEntry', () => {
     /** 存在しないファイルパスを渡した場合のケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-SF-LCE-02-01: 存在しないファイル → null が返る', async () => {
-        const result = await loadChatlogEntry(`${tempDir}/nonexistent.md`, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(`${tempDir}/nonexistent.md`);
 
         assertNull(result);
       });
@@ -136,7 +131,7 @@ describe('loadChatlogEntry', () => {
         const filePath = `${tempDir}/noheader.md`;
         await Deno.writeTextFile(filePath, 'ヘッダーなしの本文テキスト');
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNull(result);
       });
@@ -145,7 +140,7 @@ describe('loadChatlogEntry', () => {
         const filePath = `${tempDir}/nofm.md`;
         await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNotNull(result);
       });
@@ -154,7 +149,7 @@ describe('loadChatlogEntry', () => {
         const filePath = `${tempDir}/nofm.md`;
         await Deno.writeTextFile(filePath, '# タイトル\n本文');
 
-        const result = await loadChatlogEntry(filePath, MAX_BODY_CHARS);
+        const result = await loadChatlogEntry(filePath);
 
         assertNotNull(result);
         assertEquals(result!.frontmatter.get('session_id'), undefined);

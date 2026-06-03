@@ -1,6 +1,6 @@
-// src: scripts/modules/setfm-loader.ts
-// @(#): set-frontmatter データ読み込みモジュール
-//       対象: loadDics / loadPrompts / loadEntryMeta
+// src: scripts/modules/setfm-assets-loader.ts
+// @(#): set-frontmatter assets/ 配下の静的アセット（辞書・プロンプト）読み込みモジュール
+//       対象: loadDics / loadPrompts
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -13,28 +13,29 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Shared scripts
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { toStringArrayWithNull } from '../../../_scripts/libs/text/string-utils.ts';
+import { toStringArrayWithNull, toStringWithNull } from '../../../_scripts/libs/text/string-utils.ts';
+// classes
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Local
 // types
-import type { DicEntry, Dics, Prompts, PromptTemplate } from '../types/dics.types.ts';
-import type { Stats } from '../types/phase.types.ts';
+import type { DicEntry, DicRules, Dics, Prompts, PromptTemplate } from '../types/dics.types.ts';
 
 // ─────────────────────────────────────────────
 // 辞書読み込み
 // ─────────────────────────────────────────────
 
-const _readFileSilent = async (path: string): Promise<string> => {
+const _readAssetFile = async (path: string): Promise<string> => {
   try {
     return await readTextFile(path);
-  } catch {
-    logger.warn(`辞書ファイルが見つかりません: ${path}`);
-    return '';
+  } catch (e) {
+    if (e instanceof ChatlogError && e.kind === 'FileDirNotFound') {
+      logger.warn(`アセットファイルが見つかりません: ${path}`);
+      return '';
+    }
+    throw e;
   }
 };
 
@@ -44,21 +45,26 @@ const _parseYamlDic = (raw: string): Record<string, unknown> => {
   return (result && typeof result === 'object') ? (result as Record<string, unknown>) : {};
 };
 
+const _extractRules = (rulesRaw: Record<string, unknown> | undefined): DicRules => {
+  if (!rulesRaw) { return {}; }
+  return Object.fromEntries(
+    Object.entries(rulesRaw)
+      .map(([k, v]) => [k, toStringArrayWithNull(v)])
+      .filter(([, v]) => v !== null),
+  ) as DicRules;
+};
+
 const _extractEntries = (raw: string): DicEntry[] => {
   const parsed = _parseYamlDic(raw);
   return Object.entries(parsed)
     .filter(([, v]) => v !== null && typeof v === 'object')
     .map(([k, v]) => {
       const entry = v as Record<string, unknown>;
-      const rulesRaw = entry['rules'] as Record<string, unknown> | undefined;
       return {
         key: k,
-        def: (entry['def'] as string | undefined)?.trim() ?? '',
-        desc: (entry['desc'] as string | undefined)?.trim() ?? '',
-        rules: {
-          when: toStringArrayWithNull(rulesRaw?.['when']),
-          not: toStringArrayWithNull(rulesRaw?.['not']),
-        },
+        def: toStringWithNull(entry['def']).trim(),
+        desc: toStringWithNull(entry['desc']).trim(),
+        rules: _extractRules(entry['rules'] as Record<string, unknown> | undefined),
       };
     });
 };
@@ -75,10 +81,10 @@ const _loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
 
 export const loadDics = async (dicsDir: string): Promise<Dics> => {
   const [categoryRaw, topicsRaw, tagsRaw, typesRaw] = await Promise.all([
-    _readFileSilent(`${dicsDir}/category.dic`),
-    _readFileSilent(`${dicsDir}/topics.dic`),
-    _readFileSilent(`${dicsDir}/tags.dic`),
-    _readFileSilent(`${dicsDir}/types.dic`),
+    _readAssetFile(`${dicsDir}/category.dic`),
+    _readAssetFile(`${dicsDir}/topics.dic`),
+    _readAssetFile(`${dicsDir}/tags.dic`),
+    _readAssetFile(`${dicsDir}/types.dic`),
   ]);
 
   const _category = Object.keys(_parseYamlDic(categoryRaw)).join(',');
@@ -100,11 +106,11 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
     metaPromptRaw,
     reviewPromptRaw,
   ] = await Promise.all([
-    _readFileSilent(`${promptsDir}/category-rules.yaml`),
-    _readFileSilent(`${promptsDir}/type.yaml`),
-    _readFileSilent(`${promptsDir}/category.yaml`),
-    _readFileSilent(`${promptsDir}/meta.yaml`),
-    _readFileSilent(`${promptsDir}/review.yaml`),
+    _readAssetFile(`${promptsDir}/category-rules.yaml`),
+    _readAssetFile(`${promptsDir}/type.yaml`),
+    _readAssetFile(`${promptsDir}/category.yaml`),
+    _readAssetFile(`${promptsDir}/meta.yaml`),
+    _readAssetFile(`${promptsDir}/review.yaml`),
   ]);
 
   const categoryRulesObj = _parseYamlDic(categoryRulesRaw);
@@ -125,50 +131,4 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
     categoryPrompts: _categoryPrompts,
     prompts: _prompts,
   };
-};
-
-// ─────────────────────────────────────────────
-// ファイルメタ読み込み
-// ─────────────────────────────────────────────
-
-export const loadAllEntries = async (
-  dir: string,
-  maxContentLength: number,
-  stats: Stats,
-): Promise<ChatlogEntry[]> => {
-  const allFiles = await findFiles(dir);
-  logger.info(`対象ファイル数: ${allFiles.length}`);
-  stats.total = allFiles.length;
-
-  const _entries: ChatlogEntry[] = [];
-  for (const filePath of allFiles) {
-    const entry = await loadChatlogEntry(filePath, maxContentLength);
-    if (!entry) {
-      logger.info(`  skip: ${filePath.split(/[/\\]/).pop()}`);
-      stats.skip++;
-    } else {
-      _entries.push(entry);
-    }
-  }
-  return _entries;
-};
-
-export const loadChatlogEntry = async (filePath: string, _maxContentLength: number): Promise<ChatlogEntry | null> => {
-  let text: string;
-  try {
-    text = await readTextFile(filePath);
-  } catch (e) {
-    if (e instanceof ChatlogError && e.kind === 'FileDirNotFound') {
-      return null;
-    }
-    throw e;
-  }
-
-  const entry = new ChatlogEntry(text, { filePath });
-  const fullBody = entry.content;
-
-  if (!/^#/m.test(fullBody)) { return null; }
-  if (!fullBody.trim()) { return null; }
-
-  return entry;
 };

@@ -1,5 +1,5 @@
-// src: scripts/modules/__tests__/unit/setfm-loader.unit.spec.ts
-// @(#): setfm-loader のユニットテスト
+// src: scripts/modules/__tests__/unit/load-chatlog-entry.unit.spec.ts
+// @(#): loadChatlogEntry のユニットテスト
 //       対象: loadChatlogEntry
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -16,7 +16,7 @@ import { describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { loadChatlogEntry } from '../../setfm-loader.ts';
+import { loadChatlogEntry } from '../../setfm-entry-loader.ts';
 
 // ─── Internal Helpers
 
@@ -56,7 +56,7 @@ describe('loadChatlogEntry', () => {
       it('[Normal] T-SF-LCE-01: 有効なchatlog MDを読み込むとChatlogEntryを返す', async () => {
         using _readStub = stub(Deno, 'readTextFile', () => Promise.resolve(_VALID_CONTENT));
 
-        const result = await loadChatlogEntry(_DUMMY_PATH, 0);
+        const result = await loadChatlogEntry(_DUMMY_PATH);
 
         assertEquals(result !== null, true);
         assertEquals(result?.content, '# タイトル\n本文テキスト\n');
@@ -68,7 +68,7 @@ describe('loadChatlogEntry', () => {
       it('[Edge] T-SF-LCE-02: 見出しなしの本文はnullを返す', async () => {
         using _readStub = stub(Deno, 'readTextFile', () => Promise.resolve(_NO_HEADING_CONTENT));
 
-        const result = await loadChatlogEntry(_DUMMY_PATH, 0);
+        const result = await loadChatlogEntry(_DUMMY_PATH);
 
         assertEquals(result, null);
       });
@@ -76,7 +76,7 @@ describe('loadChatlogEntry', () => {
       it('[Edge] T-SF-LCE-03: 空本文はnullを返す', async () => {
         using _readStub = stub(Deno, 'readTextFile', () => Promise.resolve(_EMPTY_CONTENT));
 
-        const result = await loadChatlogEntry(_DUMMY_PATH, 0);
+        const result = await loadChatlogEntry(_DUMMY_PATH);
 
         assertEquals(result, null);
       });
@@ -87,7 +87,7 @@ describe('loadChatlogEntry', () => {
       it('[Error] T-SF-LCE-04: ファイル不在(FileDirNotFound)はnullを返す', async () => {
         using _readStub = stub(Deno, 'readTextFile', () => Promise.reject(new Deno.errors.NotFound('not found')));
 
-        const result = await loadChatlogEntry(_DUMMY_PATH, 0);
+        const result = await loadChatlogEntry(_DUMMY_PATH);
 
         assertEquals(result, null);
       });
@@ -96,7 +96,7 @@ describe('loadChatlogEntry', () => {
         using _readStub = stub(Deno, 'readTextFile', () => Promise.reject(new Deno.errors.PermissionDenied('denied')));
 
         await assertRejects(
-          () => loadChatlogEntry(_DUMMY_PATH, 0),
+          () => loadChatlogEntry(_DUMMY_PATH),
           Deno.errors.PermissionDenied,
         );
       });
