@@ -27,7 +27,7 @@ import { CHUNK_SIZE, MAX_PROMPT_LENGTH, OVER_MAX_CHARS_LENGTH } from '../../_hel
  * `buildBatchPrompt` 関数の機能テストスイート。
  *
  * `buildBatchPrompt(files)` は複数の .md ファイルを読み込み、
- * `=== FILE N: filename ===` 形式のヘッダ付きバッチプロンプト文字列を生成する。
+ * `=== filename ===` 形式のヘッダ付きバッチプロンプト文字列を生成する。
  * 本文が `MAX_BODY_CHARS`（8000）を超える場合は切り詰める。
  * 存在しないファイルパスが渡された場合は `ChatlogError('FileDirNotFound')` を throw する。
  *
@@ -74,13 +74,13 @@ describe('buildBatchPrompt', () => {
           assertStringIncludes(result, '質問');
         });
 
-        it('T-FL-BP-01-04: [Normal] ヘッダーが "=== FILE 1: <filename> ===" の形式で出力される', async () => {
+        it('T-FL-BP-01-04: [Normal] ヘッダーが "=== <filename> ===" の形式で出力される', async () => {
           const file = `${chatlogsDir}/chat.md`;
           await Deno.writeTextFile(file, makeValidContent('テスト', '質問', '回答'));
 
           const result = await buildBatchPrompt([file]);
 
-          assertStringIncludes(result, '=== FILE 1: chat.md ===');
+          assertStringIncludes(result, '=== chat.md ===');
         });
 
         it('T-FL-BP-01-03: [Normal] サブディレクトリ内ファイルでもファイル名のみが抽出される', async () => {
@@ -100,13 +100,13 @@ describe('buildBatchPrompt', () => {
     describe('When: エッジケース - フロントマターのみ・ターンマーカーなし・長大本文で本文が空または切り詰められる', () => {
       /** フロントマターのみのファイルでヘッダーは出力され本文が空になることを検証する。 */
       describe('Then: [Edgecase] T-FL-BP-02 - フロントマターのみのファイルは本文が空になる', () => {
-        it('T-FL-BP-02-01: [Edgecase] "=== FILE 1:" ヘッダーは出力される', async () => {
+        it('T-FL-BP-02-01: [Edgecase] "=== " ヘッダーは出力される', async () => {
           const file = `${chatlogsDir}/empty.md`;
           await Deno.writeTextFile(file, makeFrontmatter('空'));
 
           const result = await buildBatchPrompt([file]);
 
-          assertStringIncludes(result, '=== FILE 1:');
+          assertStringIncludes(result, '=== ');
         });
 
         it('T-FL-BP-02-02: [Edgecase] ヘッダーに続く本文が空になる', async () => {
@@ -124,13 +124,13 @@ describe('buildBatchPrompt', () => {
        * `parseConversation` がターンを検出しないため本文が空になることを検証する。
        */
       describe('Then: [Edgecase] T-FL-BP-03 - ターンマーカーのないファイルは本文が空になる', () => {
-        it('T-FL-BP-03-01: [Edgecase] "=== FILE 1:" ヘッダーは出力される', async () => {
+        it('T-FL-BP-03-01: [Edgecase] "=== " ヘッダーは出力される', async () => {
           const file = `${chatlogsDir}/plain.md`;
           await Deno.writeTextFile(file, makePlainContent('生テキスト', 'これは会話形式でない生テキストです。'));
 
           const result = await buildBatchPrompt([file]);
 
-          assertStringIncludes(result, '=== FILE 1:');
+          assertStringIncludes(result, '=== ');
         });
 
         it('T-FL-BP-03-02: [Edgecase] ヘッダーに続く本文が空になる', async () => {
@@ -176,10 +176,10 @@ describe('buildBatchPrompt', () => {
       await Deno.remove(tempDir, { recursive: true });
     });
 
-    describe('When: 正常系 - 2 ファイルが \\n\\n 区切りで結合され FILE 1/2 ヘッダーが出力される', () => {
-      /** 2 ファイルが `\n\n` 区切りで順番に結合されることを検証する。 */
-      describe('Then: [Normal] T-FL-BP-05 - 2 ファイルが \\n\\n 区切りで結合される', () => {
-        it('T-FL-BP-05-01: [Normal] FILE 1/2 のヘッダーにそれぞれのファイル名が対応して出力される', async () => {
+    describe('When: 正常系 - 2 ファイルが結合されファイル名がヘッダーに出力される', () => {
+      /** 2 ファイルのヘッダーがそれぞれ出力されることを検証する。 */
+      describe('Then: [Normal] T-FL-BP-05 - 2 ファイルのヘッダーが出力される', () => {
+        it('T-FL-BP-05-01: [Normal] 各ファイル名がヘッダーに対応して出力される', async () => {
           const file1 = `${chatlogsDir}/chat-a.md`;
           const file2 = `${chatlogsDir}/chat-b.md`;
           await Deno.writeTextFile(file1, makeValidContent('A', '質問A', '回答A'));
@@ -187,11 +187,11 @@ describe('buildBatchPrompt', () => {
 
           const result = await buildBatchPrompt([file1, file2]);
 
-          assertStringIncludes(result, '=== FILE 1: chat-a.md ===');
-          assertStringIncludes(result, '=== FILE 2: chat-b.md ===');
+          assertStringIncludes(result, '=== chat-a.md ===');
+          assertStringIncludes(result, '=== chat-b.md ===');
         });
 
-        it('T-FL-BP-05-02: [Normal] FILE 2 ヘッダーの直前が \\n\\n で区切られる', async () => {
+        it('T-FL-BP-05-02: [Normal] 2 つ目のヘッダーの直前に \\n が含まれる', async () => {
           const file1 = `${chatlogsDir}/chat-a.md`;
           const file2 = `${chatlogsDir}/chat-b.md`;
           await Deno.writeTextFile(file1, makeValidContent('A', '質問A', '回答A'));
@@ -199,7 +199,7 @@ describe('buildBatchPrompt', () => {
 
           const result = await buildBatchPrompt([file1, file2]);
 
-          assertStringIncludes(result, '\n\n=== FILE 2:');
+          assertStringIncludes(result, '\n=== chat-b.md ===');
         });
       });
     });
@@ -222,10 +222,10 @@ describe('buildBatchPrompt', () => {
       await Deno.remove(tempDir, { recursive: true });
     });
 
-    describe(`When: 正常系 - FILE 1〜${CHUNK_SIZE} が正しくナンバリングされて出力される`, () => {
-      /** FILE 1 〜 FILE 10 まで正しくナンバリングされて出力されることを検証する。 */
-      describe(`Then: [Normal] T-FL-BP-06 - FILE 1 〜 FILE ${CHUNK_SIZE} が正しく出力される`, () => {
-        it(`T-FL-BP-06-01: [Normal] "=== FILE ${CHUNK_SIZE}:" が含まれる`, async () => {
+    describe(`When: 正常系 - ${CHUNK_SIZE} ファイルのヘッダーがすべて出力される`, () => {
+      /** すべてのファイル名がヘッダーとして出力されることを検証する。 */
+      describe(`Then: [Normal] T-FL-BP-06 - ${CHUNK_SIZE} ファイルのヘッダーが出力される`, () => {
+        it(`T-FL-BP-06-01: [Normal] "=== chat-${CHUNK_SIZE}.md ===" が含まれる`, async () => {
           const files: string[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
             const file = `${chatlogsDir}/chat-${i}.md`;
@@ -235,10 +235,10 @@ describe('buildBatchPrompt', () => {
 
           const result = await buildBatchPrompt(files);
 
-          assertStringIncludes(result, `=== FILE ${CHUNK_SIZE}:`);
+          assertStringIncludes(result, `=== chat-${CHUNK_SIZE}.md ===`);
         });
 
-        it('T-FL-BP-06-02: [Normal] すべての FILE ヘッダーが連続して含まれる', async () => {
+        it('T-FL-BP-06-02: [Normal] すべてのファイルのヘッダーが含まれる', async () => {
           const files: string[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
             const file = `${chatlogsDir}/chat-${i}.md`;
@@ -249,7 +249,7 @@ describe('buildBatchPrompt', () => {
           const result = await buildBatchPrompt(files);
 
           for (let i = 1; i <= CHUNK_SIZE; i++) {
-            assertStringIncludes(result, `=== FILE ${i}:`);
+            assertStringIncludes(result, `=== chat-${i}.md ===`);
           }
         });
       });
