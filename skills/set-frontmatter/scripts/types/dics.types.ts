@@ -49,6 +49,8 @@ export interface Dics {
   category: string;
   /** tag キー一覧（カンマ区切り、AI スキーマ制約用）。 */
   tags: string;
+  /** category 辞書のエントリ配列。 */
+  categoryEntries: DicEntry[];
   /** type 辞書のエントリ配列。 */
   typeEntries: DicEntry[];
   /** topic 辞書のエントリ配列。 */

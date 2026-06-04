@@ -34,6 +34,9 @@ execution:
       - エラー・障害が会話の起点（→ incident が優先・無条件）
       - ファイル変更がない計画・方針確定（→ discussion）
       - 文書・記事の作成が主体（→ writing）
+    where:
+      - incident との境界：起点がエラー・障害であれば execution ではなく incident（ファイル変更の有無は無関係）
+      - discussion との境界：ファイル変更を伴う実装があれば execution（計画・方針のみなら discussion）
   structure: 指示 → 実装 → 確認
 
 incident:
@@ -66,6 +69,11 @@ discussion:
       - 技術調査のみで明示的決定に至らなかった（→ research）
       - エラーが起点の対処方針検討（→ incident）
       - 意見・好み・懸念の表明のみで確定していない（→ research）
+    always:
+      - 「〜に決定」「〜を採用する」「〜方針とする」「〜に統一する」などの明示的な確定表現が含まれていること
+    where:
+      - 技術検討のみで確定表現がなければ research
+      - 決定後に同じログで実装コードが続いていても、起点が決定ならば discussion
   structure: 課題 → 検討 → 決定
 
 research:
@@ -81,6 +89,9 @@ research:
       - 調査後にコードを実装した（→ execution）
       - 調査結果をもとに設計判断が明示的に確定した（→ discussion）
       - エラーが起点の原因調査（→ incident）
+    where:
+      - 「〜が最適」「〜を採用する」などの判断が明示されていれば discussion
+      - 調査後にコード実装が続いていれば execution
   structure: 問い → 調査・回答 → 結論
 
 writing:
@@ -95,4 +106,7 @@ writing:
       - 設計判断の議論が主体（→ discussion）
       - コードのコメント追加のみ（→ execution）
       - 内部設計文書の意思決定が主体（→ discussion）
+    where:
+      - 内部向け設計文書（ADR・決定記録）で意思決定が主体なら discussion
+      - コード内のコメント・docstring 追加のみなら execution
   structure: 題材 → 執筆 → 校閲

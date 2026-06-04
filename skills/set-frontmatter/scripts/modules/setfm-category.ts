@@ -11,9 +11,12 @@
 
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { DEFAULT_FALLBACK_CATEGORY } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
+import { formatDicEntries } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
@@ -23,6 +26,12 @@ import type { LogType } from '../types/phase.types.ts';
 // Phase 3a: category判定（並列）
 // ─────────────────────────────────────────────
 
+/** categoryEntries を formatDicEntries で整形し、テンプレートに埋め込んで system prompt を生成する。 */
+const _buildCategorySystemPrompt = (systemTemplate: string, dics: Dics): string => {
+  const _categoryDics = formatDicEntries(dics.categoryEntries);
+  return renderPrompt(systemTemplate, { category_dics: _categoryDics });
+};
+
 export const judgeCategory = async (
   entry: ChatlogEntry,
   maxContentLength: number,
@@ -30,11 +39,13 @@ export const judgeCategory = async (
   dics: Dics,
   prompts: Prompts,
 ): Promise<string> => {
-  const tmpl = prompts.prompts.get('category') ?? { system: '', user: '' };
+  const tmpl = prompts.prompts.get('category');
+  if (!tmpl) {
+    throw new ChatlogError('InvalidArgs', 'NotDefined', 'プロンプトテンプレート "category" が定義されていません');
+  }
   const focusGuide = prompts.categoryPrompts.get(type) ?? '';
-  const system = renderPrompt(tmpl.system, {});
+  const system = _buildCategorySystemPrompt(tmpl.system, dics);
   const user = renderPrompt(tmpl.user, {
-    category_list: dics.category,
     focus_guide: focusGuide,
     body: entry.truncateContent(maxContentLength),
   });
@@ -42,9 +53,13 @@ export const judgeCategory = async (
   try {
     raw = await runAI(system, user);
   } catch {
-    return 'development';
+    return DEFAULT_FALLBACK_CATEGORY;
   }
   const normalized = raw.replace(/\s/g, '').toLowerCase();
   const valid = new Set(dics.category.split(','));
-  return valid.has(normalized) ? normalized : 'development';
+  return valid.has(normalized) ? normalized : DEFAULT_FALLBACK_CATEGORY;
 };
+
+// ─── Test exports (テスト専用・本番コードから import 禁止)
+/** テスト専用エクスポート: `_buildCategorySystemPrompt` を直接テストするためのラッパー。 */
+export const _buildCategorySystemPromptForTest = _buildCategorySystemPrompt;

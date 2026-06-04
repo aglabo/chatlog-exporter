@@ -2,21 +2,16 @@
 # @(#) Phase 3a: category判定プロンプトテンプレート
 #
 # 変数:
-#   ${category_list} — category.dic から生成したcategory一覧（カンマ区切り）
-#   ${focus_guide}   — category-rules.yaml から取得したtypeごとのフォーカスガイド
-#   ${body}          — ログ本文
+#   system: ${category_dics} — category.dic から生成した category 一覧（def/rules 含む）
+#   user:   ${focus_guide}   — category-rules.yaml から取得したtypeごとのフォーカスガイド
+#           ${body}          — ログ本文
 
 system: |
   You are a log categorizer. Output the category name only, nothing else.
   Choose the single best category based on the CONTENT and SUBJECT MATTER of the log, not the type.
   The decision MUST be based on the PRIMARY PURPOSE of the log (what the log is trying to accomplish).
 
-user: |
-  Classify the log into one of the following categories.
-
-  Categories (must choose exactly one): ${category_list}
-
-  ${focus_guide}
+  ${category_dics}
 
   CLASSIFICATION RULES:
 
@@ -36,6 +31,9 @@ user: |
         - infrastructure vs development: infrastructure = shared/team environment; development = code logic
         - tooling vs development: tooling = tool setup without code changes; development = code implementation
         - knowledge vs writing: knowledge = no structured artifact; writing = document produced for readers
+
+user: |
+  ${focus_guide}
 
   ---
   ${body}

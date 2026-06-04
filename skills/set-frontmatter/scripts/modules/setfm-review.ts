@@ -13,7 +13,7 @@
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
-import { formatEntryShort, formatEntryWithRules } from '../libs/dic-format-utils.ts';
+import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
@@ -29,8 +29,8 @@ export const reviewFrontmatter = async (
   prompts: Prompts,
 ): Promise<ReviewResult> => {
   const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
-  const typeList = dics.typeEntries.map(formatEntryWithRules).join('\n');
-  const topicList = dics.topicEntries.map(formatEntryShort).join('\n');
+  const typeList = formatDicEntries(dics.typeEntries);
+  const topicList = formatDicEntriesShort(dics.topicEntries);
   const system = renderPrompt(tmpl.system, {});
   const user = renderPrompt(tmpl.user, {
     type_dics: typeList,

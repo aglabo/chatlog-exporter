@@ -15,7 +15,7 @@ import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
 
 // ─── Local
-import { formatEntryWithRules } from '../libs/dic-format-utils.ts';
+import { formatDicEntries } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
@@ -34,7 +34,7 @@ export const generateFrontmatter = async (
   prompts: Prompts,
 ): Promise<FrontmatterResult> => {
   const tmpl = prompts.prompts.get('meta') ?? { system: '', user: '' };
-  const topicList = dics.topicEntries.map(formatEntryWithRules).join('\n');
+  const topicList = formatDicEntries(dics.topicEntries);
   const system = renderPrompt(tmpl.system, {});
   const user = renderPrompt(tmpl.user, {
     log_type: type,

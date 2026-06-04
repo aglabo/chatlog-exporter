@@ -73,3 +73,13 @@ export const MIN_RANDOM_LENGTH = 4;
 
 /** generateHash の maxRandomLength パラメータのデフォルト値。 */
 export const DEFAULT_MAX_RANDOM_LENGTH = 16;
+
+// ─────────────────────────────────────────────
+// フロントマター判定フォールバック
+// ─────────────────────────────────────────────
+
+/** type 判定が失敗・不明のときのフォールバック type 値。 */
+export const DEFAULT_FALLBACK_TYPE = 'research';
+
+/** category 判定が失敗・不明のときのフォールバック category 値。 */
+export const DEFAULT_FALLBACK_CATEGORY = 'development';
