@@ -86,6 +86,7 @@ function _makeDics(): Dics {
   return {
     category: 'development,tooling,ai',
     tags: 'lang:typescript,tool:deno',
+    categoryEntries: [],
     typeEntries: [
       { key: 'research', def: '調査', desc: '', rules: { when: [], not: [] } },
       { key: 'execution', def: '実行', desc: '', rules: { when: [], not: [] } },
@@ -102,7 +103,7 @@ function _makePrompts(): Prompts {
     categoryPrompts: new Map([['research', 'focus guide for research']]),
     prompts: new Map([
       ['type', { system: 'type system ${type_dics}', user: '${entries}' }],
-      ['category', { system: 'category system', user: 'category ${category_list} ${focus_guide} ${body}' }],
+      ['category', { system: 'category system ${category_dics}', user: '${focus_guide} ${body}' }],
       ['meta', { system: 'meta system', user: 'meta ${log_type} ${log_category} ${topic_list} ${tags_list} ${body}' }],
       ['review', {
         system: 'review system',
