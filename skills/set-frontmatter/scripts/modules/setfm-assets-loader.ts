@@ -93,6 +93,7 @@ export const loadDics = async (dicsDir: string): Promise<Dics> => {
   return {
     category: _category,
     tags: _tags,
+    categoryEntries: _extractEntries(categoryRaw),
     typeEntries: _extractEntries(typesRaw),
     topicEntries: _extractEntries(topicsRaw),
   };
