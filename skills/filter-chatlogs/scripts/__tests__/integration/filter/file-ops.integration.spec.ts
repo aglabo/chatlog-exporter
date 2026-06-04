@@ -75,7 +75,7 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
 describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
   describe('Given: prefilterFiles を通過したファイルリスト', () => {
     describe('When: buildBatchPrompt でプロンプトを構築する', () => {
-      describe('Then: T-FL-IO-02 - 各ファイルが === FILE N: === 形式で含まれる', () => {
+      describe('Then: T-FL-IO-02 - 各ファイルが === <filename> === 形式で含まれる', () => {
         it('T-FL-IO-02-01: buildBatchPrompt の結果に各ファイルのヘッダーが含まれる', async () => {
           const file1 = `${tempDir}/chat-1.md`;
           const file2 = `${tempDir}/chat-2.md`;
@@ -88,8 +88,8 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
 
           const prompt = await buildBatchPrompt(passed);
 
-          assertStringIncludes(prompt, '=== FILE 1:');
-          assertStringIncludes(prompt, '=== FILE 2:');
+          assertStringIncludes(prompt, '=== chat-1.md ===');
+          assertStringIncludes(prompt, '=== chat-2.md ===');
         });
       });
     });
