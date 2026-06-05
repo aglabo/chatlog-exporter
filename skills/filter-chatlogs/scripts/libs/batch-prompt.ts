@@ -7,14 +7,13 @@
 // https://opensource.org/licenses/MIT
 
 // ─── shared ───
+// classes
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // functions
+import { buildConversationEntries } from '../../../_scripts/libs/ai/prompt-utils.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── internal ───
-// functions
-import { extractConversation } from './common-utils.ts';
 // constants
 import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
 
@@ -23,17 +22,12 @@ import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
 // ─────────────────────────────────────────────
 
 export const buildBatchPrompt = async (files: string[]): Promise<string> => {
-  const parts: string[] = [];
-
-  for (let i = 0; i < files.length; i++) {
-    const filePath = files[i];
-    const filename = getFilename(filePath);
-    const text = await readTextFile(filePath);
-    const { content } = parseFrontmatterEntries(text);
-    const bodyText = extractConversation(content, MAX_BODY_CHARS);
-
-    parts.push(`=== FILE ${i + 1}: ${filename} ===\n${bodyText}`);
-  }
-
-  return parts.join('\n\n');
+  if (files.length === 0) { return ''; }
+  const _entries = await Promise.all(
+    files.map(async (filePath) => {
+      const text = await readTextFile(filePath);
+      return new ChatlogEntry(text, { filePath });
+    }),
+  );
+  return buildConversationEntries(_entries, MAX_BODY_CHARS);
 };

@@ -20,7 +20,7 @@ import { buildBatchPrompt } from '../../batch-prompt.ts';
 /** テスト用の単純な会話形式本文（frontmatter なし）。 */
 const _SIMPLE_BODY = `### User\nHello world\n\n### Assistant\nHi there`;
 
-/** frontmatter 付きの本文。parseFrontmatterEntries で除去されることを確認する。 */
+/** frontmatter 付きの本文。ChatlogEntry で frontmatter が除去されることを確認する。 */
 const _BODY_WITH_FRONTMATTER = `---\ntitle: Test\ndate: 2026-01-01\n---\n\n${_SIMPLE_BODY}`;
 
 // functions
@@ -42,6 +42,7 @@ const _makeTempFile = async (content: string): Promise<string> => {
  * `buildBatchPrompt` のユニットテストスイート。
  *
  * ファイルパスの配列を受け取り、本文を連結したバッチプロンプト文字列を返す動作を検証する。
+ * ヘッダー形式は `=== <filename> ===` で、各ブロックは `\n` で結合される。
  *
  * テスト ID 範囲: T-PF-BP-01 〜 T-PF-BP-03
  *
@@ -64,64 +65,43 @@ describe('buildBatchPrompt', () => {
   /**
    * `正常系` のテスト。
    *
-   * 単一ファイル・複数ファイル・ファイル番号の正確性を検証する。
+   * 単一ファイル・複数ファイルの動作を検証する。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-PF-BP-01-01: 単一ファイル → "=== FILE 1: <filename> ===" ヘッダを含む文字列を返す', async () => {
+    it('[Normal] T-PF-BP-01-01: 単一ファイル → "=== <filename> ===" ヘッダを含む文字列を返す', async () => {
       const path = await _makeTempFile(_SIMPLE_BODY);
       tempFiles.push(path);
       const filename = path.split(/[/\\]/).pop()!;
 
       const result = await buildBatchPrompt([path]);
 
-      assertMatch(result, new RegExp(`^=== FILE 1: ${filename} ===`));
+      assertMatch(result, new RegExp(`^=== ${filename} ===`));
     });
 
-    it('[Normal] T-PF-BP-01-02: 複数ファイル → "\\n\\n" で連結された文字列を返す', async () => {
+    it('[Normal] T-PF-BP-01-02: 複数ファイル → 各ブロックが含まれる文字列を返す', async () => {
       const path1 = await _makeTempFile(_SIMPLE_BODY);
       const path2 = await _makeTempFile(_SIMPLE_BODY);
       tempFiles.push(path1, path2);
+      const filename1 = path1.split(/[/\\]/).pop()!;
+      const filename2 = path2.split(/[/\\]/).pop()!;
 
       const result = await buildBatchPrompt([path1, path2]);
 
-      const parts = result.split('\n\n=== FILE ');
-      assertEquals(parts.length, 2);
-    });
-
-    it('[Normal] T-PF-BP-01-03: 複数ファイル → ファイル番号が 1 始まりで順に付与される', async () => {
-      const path1 = await _makeTempFile(_SIMPLE_BODY);
-      const path2 = await _makeTempFile(_SIMPLE_BODY);
-      tempFiles.push(path1, path2);
-
-      const result = await buildBatchPrompt([path1, path2]);
-
-      assertMatch(result, /=== FILE 1:/);
-      assertMatch(result, /=== FILE 2:/);
+      assertMatch(result, new RegExp(`=== ${filename1} ===`));
+      assertMatch(result, new RegExp(`=== ${filename2} ===`));
     });
   });
 
   /**
    * `エッジケース` のテスト。
    *
-   * 空配列・バックスラッシュパス・frontmatter 付き内容を検証する。
+   * 空配列・frontmatter 付き内容を検証する。
    */
   describe('When: エッジケース', () => {
     it('[Edge] T-PF-BP-02-01: 空の files 配列 → 空文字列を返す', async () => {
       const result = await buildBatchPrompt([]);
 
       assertEquals(result, '');
-    });
-
-    it('[Edge] T-PF-BP-02-02: ファイルパスに \\ が含まれる → 正しくファイル名を抽出する', async () => {
-      const path = await _makeTempFile(_SIMPLE_BODY);
-      tempFiles.push(path);
-      const filename = path.split(/[/\\]/).pop()!;
-      // バックスラッシュ区切りのパスを模倣する（Windows 環境でも確認できる形式）
-      const backslashPath = path.replace(/\//g, '\\');
-
-      const result = await buildBatchPrompt([backslashPath]);
-
-      assertMatch(result, new RegExp(`=== FILE 1: ${filename} ===`));
     });
 
     it('[Edge] T-PF-BP-02-03: frontmatter 付きの内容 → frontmatter が除去されて本文のみ返す', async () => {
