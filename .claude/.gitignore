@@ -1,0 +1,28 @@
+# src: .claude/.gitignore
+# @(#) : ignore/unignore settings for .claude
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+# track gitignore
+!**/.gitignore
+
+# track files settings for
+!agents/
+!agents/**
+!rules/
+!rules/**
+
+# deckrd settings
+!rules/
+!rules/**
+rules/deckrd-rule-*
+
+
+## claude add-ons
+# Agents
+!agents/
+!agents/*
+
