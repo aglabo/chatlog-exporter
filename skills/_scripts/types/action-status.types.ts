@@ -13,6 +13,9 @@ export const ENTRY_ACTIONS = {
   MOVE: 'move',
   REMOVE: 'remove',
   WRITE: 'write',
+  MOVEBYAI: 'move-by-ai',
+  PENDING: 'pending',
+  ERROR: 'error',
 } as const;
 
 /** `ENTRY_ACTIONS` の値から派生したユニオン型。`'keep' | 'skip' | 'move' | 'remove' | 'write'` と等価。 */
