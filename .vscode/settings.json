@@ -1,4 +1,10 @@
+// src: .vscode/settings.json
+// @(#): vscode workspace settings
 //
+// Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
 {
   //  chatlog dictionary files
   "files.associations": {
