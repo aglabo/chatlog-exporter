@@ -7,17 +7,16 @@
 // https://opensource.org/licenses/MIT
 
 // --- external
-// YAML テキストを生成する (yaml npm パッケージ)
-import { stringify } from 'yaml';
 // YAML パース (@std/yaml)
 import { parse as parseYaml } from '@std/yaml';
 
 // --- libs
 import { normalizeLine } from './line-utils.ts';
 import { toStringWithNull } from './string-utils.ts';
+import { stringifyFrontmatter } from './yaml-utils.ts';
 
 // types
-import type { FrontmatterEntries, FrontmatterResult } from '../../types/frontmatter.types.ts';
+import type { FrontmatterEntries, FrontmatterFields, FrontmatterResult } from '../../types/frontmatter.types.ts';
 
 // Error
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
@@ -117,7 +116,7 @@ export const parseFrontmatter = (text: string): FrontmatterResult => {
 /** Markdown テキストから frontmatter を抽出し、文字列または文字列配列に変換して返す。 */
 export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
   const { meta, content } = parseFrontmatter(text);
-  const _typedMeta: Record<string, string | string[]> = {};
+  const _typedMeta: FrontmatterFields = {};
   for (const key of Object.keys(meta)) {
     _typedMeta[key] = _unknownToStringOrArray(meta[key]);
   }
@@ -132,13 +131,13 @@ export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
  *
  * @param entries - 並べ替え元の Record
  * @param fieldOrder - 出力フィールドの順序
- * @returns `fieldOrder` の順に並んだ `Record<string, string | string[]>`
+ * @returns `fieldOrder` の順に並んだ `FrontmatterFields`
  */
 export const reorderFrontmatterEntries = (
-  entries: Record<string, string | string[]>,
+  entries: FrontmatterFields,
   fieldOrder: string[],
-): Record<string, string | string[]> => {
-  const _result: Record<string, string | string[]> = {};
+): FrontmatterFields => {
+  const _result: FrontmatterFields = {};
   const _seen = new Set<string>();
   for (const field of fieldOrder) {
     if (_seen.has(field)) { continue; }
@@ -162,8 +161,8 @@ export const reorderFrontmatterEntries = (
  * @param fields - frontmatter フィールドの Record
  * @returns frontmatter ブロック文字列（空オブジェクトのとき `""`）
  */
-export const renderFrontmatter = (fields: Record<string, unknown>): string => {
+export const renderFrontmatter = (fields: FrontmatterFields): string => {
   if (Object.keys(fields).length === 0) { return ''; }
-  const _yamlBody = stringify(fields, { defaultKeyType: 'PLAIN', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 });
+  const _yamlBody = stringifyFrontmatter(fields);
   return `---\n${_yamlBody}---\n`;
 };
