@@ -11,6 +11,8 @@
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { renderFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
 import type { ClassifyStats } from '../../types/classify.types.ts';
+// types
+import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Exports
 
@@ -40,7 +42,7 @@ export const _makeClassifyChatlogEntry = (filename: string, entryText?: string):
  */
 export const _makeEntry = (
   filePath: string,
-  frontmatter: Record<string, unknown> = {},
+  frontmatter: FrontmatterFields = {},
   content = '',
 ): ChatlogEntry => {
   const _text = renderFrontmatter(frontmatter) + content;
