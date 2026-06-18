@@ -22,6 +22,8 @@ import {
 
 // ─── Helpers
 import { renderFrontmatter } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
+// types
+import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Internal Helpers
 
@@ -62,7 +64,7 @@ const _makeChatlogEntry = (opts: MakeMetaOptions = {}): ChatlogEntry => {
   const tags = opts.tags ?? [];
   const content = opts.content ?? '';
 
-  const _fields: Record<string, unknown> = {};
+  const _fields: FrontmatterFields = {};
   if (title) { _fields['title'] = title; }
   if (category) { _fields['category'] = category; }
   if (topics.length > 0) { _fields['topics'] = topics; }
