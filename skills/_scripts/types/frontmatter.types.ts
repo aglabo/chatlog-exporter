@@ -7,6 +7,13 @@
 // https://opensource.org/licenses/MIT
 
 // ─────────────────────────────────────────────
+// frontmatter フィールド型
+// ─────────────────────────────────────────────
+
+/** frontmatter フィールドの値型。スカラー文字列または文字列配列。 */
+export type FrontmatterFields = Record<string, string | string[]>;
+
+// ─────────────────────────────────────────────
 // frontmatter 抽出結果系
 // ─────────────────────────────────────────────
 
@@ -21,7 +28,7 @@ export type FrontmatterResult = {
 /** frontmatter フィールドを文字列または文字列配列に変換した抽出結果。 */
 export type FrontmatterEntries = {
   /** 変換されたフロントマターフィールド。配列値は string[] で保持される。 */
-  meta: Record<string, string | string[]>;
+  meta: FrontmatterFields;
   /** フロントマターを除いた本文。 */
   content: string;
 };
