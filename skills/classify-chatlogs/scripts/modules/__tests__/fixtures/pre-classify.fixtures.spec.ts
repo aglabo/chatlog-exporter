@@ -20,6 +20,7 @@ import { preClassify } from '../../classify-noai.ts';
 // ─── Helpers
 // types
 import type { ClassifyAction, ClassifyBufferEntry } from '../../../types/classify.types.ts';
+import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 // functions
 import {
   findFixtureDirs,
@@ -40,7 +41,7 @@ const FIXTURES_DIR = new URL('./fixtures-data/pre-classify', import.meta.url)
 // types
 interface _FixtureInput {
   filePath: string;
-  frontmatter: Record<string, unknown>;
+  frontmatter: FrontmatterFields;
   content: string;
   action?: string;
   reason?: string;
