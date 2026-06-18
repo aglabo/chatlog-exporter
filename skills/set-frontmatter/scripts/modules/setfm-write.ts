@@ -16,6 +16,8 @@ import { parse as parseYaml } from '@std/yaml';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { renderFrontmatter } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+// types
+import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Local
 // types
@@ -39,7 +41,7 @@ export const writeFrontmatter = async (
     return;
   }
 
-  const _fields: Record<string, unknown> = {
+  const _fields: FrontmatterFields = {
     session_id: entry.frontmatter.get('session_id') as string ?? '',
     date: entry.frontmatter.get('date') as string ?? '',
     project: entry.frontmatter.get('project') as string ?? '',
@@ -47,8 +49,8 @@ export const writeFrontmatter = async (
     type: result.type,
     category: result.category,
   };
-  const _parsedYaml = parseYaml(result.yaml) as Record<string, unknown>;
-  const _allFields = { ..._fields, ..._parsedYaml };
+  const _parsedYaml = parseYaml(result.yaml) as FrontmatterFields;
+  const _allFields: FrontmatterFields = { ..._fields, ..._parsedYaml };
   const newFrontmatter = renderFrontmatter(_allFields).trimEnd();
 
   if (dryRun) {
