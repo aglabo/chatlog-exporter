@@ -9,11 +9,14 @@
 // --─ Imports
 // external
 import { parse as parseYaml } from '@std/yaml';
-import { stringify } from 'yaml';
 
 // --- shared
 import { divideEntry, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
 import { toStringWithNull } from '../libs/text/string-utils.ts';
+import { stringifyFrontmatter } from '../libs/text/yaml-utils.ts';
+
+// types
+import type { FrontmatterFields } from '../types/frontmatter.types.ts';
 
 // Error
 import { ChatlogError } from './ChatlogError.class.ts';
@@ -37,13 +40,13 @@ const _DEFAULT_FIELD_ORDER: string[] = [
 ] as const;
 
 export class ChatlogFrontmatter {
-  private _entries: Record<string, string | string[]>;
+  private _entries: FrontmatterFields;
 
   constructor(input: string) {
     this._entries = this._parseFrontmatter(input);
   }
 
-  private _parseFrontmatter(input: string): Record<string, string | string[]> {
+  private _parseFrontmatter(input: string): FrontmatterFields {
     if (input === '') { return {}; }
 
     // divideEntry で frontmatter テキストを取得（DoesNotStart は '' を返す、NotClosed は throw）
@@ -88,8 +91,8 @@ export class ChatlogFrontmatter {
     return toStringWithNull(v);
   }
 
-  private _toEntries(parsed: Record<string, unknown>): Record<string, string | string[]> {
-    const _result: Record<string, string | string[]> = {};
+  private _toEntries(parsed: Record<string, unknown>): FrontmatterFields {
+    const _result: FrontmatterFields = {};
     for (const key of Object.keys(parsed)) {
       _result[key] = this._toStringOrArray(parsed[key]);
     }
@@ -116,7 +119,7 @@ export class ChatlogFrontmatter {
     if (Object.keys(_ordered).length === 0) {
       return `${FRONTMATTER_DELIMITER}\n\n${FRONTMATTER_DELIMITER}\n`;
     }
-    const _yamlBody = stringify(_ordered, { defaultKeyType: 'PLAIN', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 });
+    const _yamlBody = stringifyFrontmatter(_ordered);
     return `${FRONTMATTER_DELIMITER}\n${_yamlBody}${FRONTMATTER_DELIMITER}\n`;
   }
 }
