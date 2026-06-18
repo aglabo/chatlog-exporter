@@ -13,6 +13,7 @@ issue-prefix: "cle"
 # When true, bd will use .beads/issues.jsonl as the source of truth
 # no-db: false
 no-db: true
+no-daemon: true
 
 # Enable JSON output by default
 # json: false

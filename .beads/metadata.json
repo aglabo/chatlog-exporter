@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "chatlog_exporter",
-  "project_id": "c6bb90fc-d46e-4d77-96c9-652b4c30f134"
-}
