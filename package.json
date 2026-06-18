@@ -1,0 +1,23 @@
+{
+  "name": "@aglabo/chatlog-exporter",
+  "@(#)": "Development environment for chatlog-exporter",
+  "version": "0.0.1",
+  "description": "Development environment for chatlog-exporter",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "chatlog",
+    "exporter",
+    "claude",
+    "obsidian"
+  ],
+  "author": "atsushifx",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atsushifx/chatlog-exporter.git"
+  },
+  "scripts": {
+    "prepare": "bash ./scripts/setup-dev-env.sh"
+  }
+}

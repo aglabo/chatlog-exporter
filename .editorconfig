@@ -1,5 +1,5 @@
 # src: .editorconfig
-# @(#) : editorconfig template with shell settings
+# @(#) : editorconfig main settings for chatlog-exporter
 #
 # Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 #
@@ -22,13 +22,16 @@ tab_width = 2
 # ─────────────────────────────
 # Exclude directories/files
 # ─────────────────────────────
+[node_modules/*]
+ignore = true
+
 [.tools/*]
 ignore = true
 
 [.local/*]
 ignore = true
 
-[*.spec.sh]
+[**/*.spec.sh]
 ignore = true
 
 # ─────────────────────────────
