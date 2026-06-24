@@ -7,7 +7,6 @@
 # https://opensource.org/licenses/MIT
 
 
-
 ##  General
 #   OS specific files
 .DS_Store
@@ -101,15 +100,8 @@ tmp/
 ## Node
 node_modules/
 
-## Beads
-.beads/*
+## beads
+.beads/+
+!.beads/**/.gitignore
 !.beads/config.yaml
-!.beads/issues.jsonl
-
-
-
-.dolt/
-*.db
-.beads-credential-key
-
 
