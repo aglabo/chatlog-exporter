@@ -154,15 +154,16 @@ describe('judgeCategory', () => {
             makeSuccessMock(_enc.encode(category)),
           );
 
-          const _result = await judgeCategory(
-            _makeChatlogEntry('# テスト\n本文'),
+          const _entry = _makeChatlogEntry('# テスト\n本文');
+          _entry.frontmatter.set('type', 'research');
+          await judgeCategory(
+            _entry,
             _MAX_CONTENT_LENGTH,
-            'research',
             _makeDics(),
             _makePrompts(),
           );
 
-          assertEquals(_result, category);
+          assertEquals(_entry.frontmatter.get('category'), category);
         });
       }
     });
@@ -174,15 +175,16 @@ describe('judgeCategory', () => {
           makeSuccessMock(_enc.encode('unknown_category')),
         );
 
-        const _result = await judgeCategory(
-          _makeChatlogEntry('# テスト\n本文'),
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        _entry.frontmatter.set('type', 'research');
+        await judgeCategory(
+          _entry,
           _MAX_CONTENT_LENGTH,
-          'research',
           _makeDics(),
           _makePrompts(),
         );
 
-        assertEquals(_result, 'development');
+        assertEquals(_entry.frontmatter.get('category'), 'development');
       });
     });
 
@@ -193,15 +195,16 @@ describe('judgeCategory', () => {
           makeSuccessMock(_enc.encode(' tooling ')),
         );
 
-        const _result = await judgeCategory(
-          _makeChatlogEntry('# テスト\n本文'),
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        _entry.frontmatter.set('type', 'research');
+        await judgeCategory(
+          _entry,
           _MAX_CONTENT_LENGTH,
-          'research',
           _makeDics(),
           _makePrompts(),
         );
 
-        assertEquals(_result, 'tooling');
+        assertEquals(_entry.frontmatter.get('category'), 'tooling');
       });
 
       it('[Edge] T-SF-JC-04: 大文字混じりの category → 小文字化して有効キーに一致する', async () => {
@@ -209,15 +212,16 @@ describe('judgeCategory', () => {
           makeSuccessMock(_enc.encode('DEVELOPMENT')),
         );
 
-        const _result = await judgeCategory(
-          _makeChatlogEntry('# テスト\n本文'),
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        _entry.frontmatter.set('type', 'research');
+        await judgeCategory(
+          _entry,
           _MAX_CONTENT_LENGTH,
-          'research',
           _makeDics(),
           _makePrompts(),
         );
 
-        assertEquals(_result, 'development');
+        assertEquals(_entry.frontmatter.get('category'), 'development');
       });
     });
   });
@@ -233,15 +237,16 @@ describe('judgeCategory', () => {
       it('[Error] T-SF-JC-05: AI が失敗（exit code=1） → フォールバック "development" が返る（例外なし）', async () => {
         commandHandle = installCommandMock(makeFailMock(1));
 
-        const _result = await judgeCategory(
-          _makeChatlogEntry('# テスト\n本文'),
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        _entry.frontmatter.set('type', 'research');
+        await judgeCategory(
+          _entry,
           _MAX_CONTENT_LENGTH,
-          'research',
           _makeDics(),
           _makePrompts(),
         );
 
-        assertEquals(_result, 'development');
+        assertEquals(_entry.frontmatter.get('category'), 'development');
       });
     });
   });
@@ -265,7 +270,6 @@ describe('judgeCategory', () => {
             judgeCategory(
               _makeChatlogEntry('# テスト\n本文'),
               _MAX_CONTENT_LENGTH,
-              'research',
               _makeDics(),
               _promptsWithoutCategory,
             ),

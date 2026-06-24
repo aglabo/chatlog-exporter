@@ -16,9 +16,6 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { _buildTypeSystemPromptForTest as buildTypeSystemPrompt, judgeType } from '../../setfm-type.ts';
 
-// types
-import type { TypeResult } from '../../../types/phase.types.ts';
-
 // ─── Helpers
 import {
   installCommandMock,
@@ -148,19 +145,16 @@ describe('judgeType', () => {
       ] as const;
 
       _cases.forEach(({ id, aiType, expected }) => {
-        it(`[Normal] ${id}: AI が "${aiType}" を返す → result[0].type が "${expected}" になる`, async () => {
+        it(`[Normal] ${id}: AI が "${aiType}" を返す → entry.frontmatter.get('type') が "${expected}" になる`, async () => {
           commandHandle = installCommandMock(
             makeSuccessMock(_enc.encode(`[{"file":"test.md","type":"${aiType}"}]`)),
           );
 
-          const _result: TypeResult[] = await judgeType(
-            [_makeChatlogEntry('test.md', '# テスト\n本文')],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry('test.md', '# テスト\n本文');
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+          const _type = _entry.frontmatter.get('type') as string;
 
-          assertEquals(_result[0].type, expected);
+          assertEquals(_type, expected);
         });
       });
     });
@@ -178,14 +172,11 @@ describe('judgeType', () => {
             makeSuccessMock(_enc.encode(`[{"file":"test.md","type":"${aiType}"}]`)),
           );
 
-          const _result = await judgeType(
-            [_makeChatlogEntry('test.md', '# テスト\n本文')],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry('test.md', '# テスト\n本文');
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+          const _type = _entry.frontmatter.get('type') as string;
 
-          assertEquals(_result[0].type, expected);
+          assertEquals(_type, expected);
         });
       });
     });
@@ -207,19 +198,16 @@ describe('judgeType', () => {
       ] as const;
 
       _cases.forEach(({ id, label, aiJson }) => {
-        it(`[Error] ${id}: ${label} → フォールバック "research" が返る`, async () => {
+        it(`[Error] ${id}: ${label} → フォールバック "research" が entry.frontmatter に書き込まれる`, async () => {
           commandHandle = installCommandMock(
             makeSuccessMock(_enc.encode(aiJson)),
           );
 
-          const _result = await judgeType(
-            [_makeChatlogEntry('test.md', '# テスト\n本文')],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry('test.md', '# テスト\n本文');
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+          const _type = _entry.frontmatter.get('type') as string;
 
-          assertEquals(_result[0].type, 'research');
+          assertEquals(_type, 'research');
         });
       });
     });
@@ -241,46 +229,20 @@ describe('judgeType', () => {
         );
       });
 
-      it('[Normal] T-SF-JT-06: 2エントリ渡したとき 2件の結果が返る', async () => {
-        const _result = await judgeType(
-          [
-            _makeChatlogEntry('first.md', '# 実装ログ\n実装作業'),
-            _makeChatlogEntry('second.md', '# エラーログ\nエラー発生'),
-          ],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
+      it('[Normal] T-SF-JT-07: entry0.frontmatter.get("type") が "execution" になる', async () => {
+        const _entry0 = _makeChatlogEntry('first.md', '# 実装ログ\n実装作業');
+        const _entry1 = _makeChatlogEntry('second.md', '# エラーログ\nエラー発生');
+        await judgeType([_entry0, _entry1], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-        assertEquals(_result.length, 2);
+        assertEquals(_entry0.frontmatter.get('type') as string, 'execution');
       });
 
-      it('[Normal] T-SF-JT-07: result[0].type が "execution" になる', async () => {
-        const _result = await judgeType(
-          [
-            _makeChatlogEntry('first.md', '# 実装ログ\n実装作業'),
-            _makeChatlogEntry('second.md', '# エラーログ\nエラー発生'),
-          ],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
+      it('[Normal] T-SF-JT-08: entry1.frontmatter.get("type") が "incident" になる', async () => {
+        const _entry0 = _makeChatlogEntry('first.md', '# 実装ログ\n実装作業');
+        const _entry1 = _makeChatlogEntry('second.md', '# エラーログ\nエラー発生');
+        await judgeType([_entry0, _entry1], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-        assertEquals(_result[0].type, 'execution');
-      });
-
-      it('[Normal] T-SF-JT-08: result[1].type が "incident" になる', async () => {
-        const _result = await judgeType(
-          [
-            _makeChatlogEntry('first.md', '# 実装ログ\n実装作業'),
-            _makeChatlogEntry('second.md', '# エラーログ\nエラー発生'),
-          ],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
-
-        assertEquals(_result[1].type, 'incident');
+        assertEquals(_entry1.frontmatter.get('type') as string, 'incident');
       });
     });
 
@@ -295,43 +257,12 @@ describe('judgeType', () => {
       });
 
       it('[Edge] T-SF-JT-09: 一致したファイルは採用、不一致は "research" フォールバック', async () => {
-        const _result = await judgeType(
-          [
-            _makeChatlogEntry('first.md', '# 実装ログ\n実装作業'),
-            _makeChatlogEntry('second.md', '# エラーログ\nエラー発生'),
-          ],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
+        const _entry0 = _makeChatlogEntry('first.md', '# 実装ログ\n実装作業');
+        const _entry1 = _makeChatlogEntry('second.md', '# エラーログ\nエラー発生');
+        await judgeType([_entry0, _entry1], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-        assertEquals(_result[0].type, 'execution');
-        assertEquals(_result[1].type, 'research');
-      });
-    });
-  });
-
-  // ─── 戻り値の file フィールド ────────────────────────────────────────────────
-
-  /**
-   * 戻り値の `file` フィールドがフルパスであることを検証する。
-   */
-  describe('file フィールド', () => {
-    /** 戻り値がフルパスを持つ正常ケース。 */
-    describe('When: 正常系', () => {
-      it('[Normal] T-SF-JT-10: result[0].file がフルパス "/tmp/test.md" になる', async () => {
-        commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('[{"file":"test.md","type":"research"}]')),
-        );
-
-        const _result = await judgeType(
-          [_makeChatlogEntry('test.md', '# テスト\n本文')],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
-
-        assertEquals(_result[0].file, '/tmp/test.md');
+        assertEquals(_entry0.frontmatter.get('type') as string, 'execution');
+        assertEquals(_entry1.frontmatter.get('type') as string, 'research');
       });
     });
   });
@@ -344,34 +275,24 @@ describe('judgeType', () => {
   describe('エラー耐性', () => {
     /** AI CLI が失敗するケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-JT-11: AI が失敗（exit code=1） → result[0].type が "research" になる（例外なし）', async () => {
+      it('[Error] T-SF-JT-11: AI が失敗（exit code=1） → entry.frontmatter.get("type") が "research" になる（例外なし）', async () => {
         commandHandle = installCommandMock(makeFailMock(1));
 
-        const _result = await judgeType(
-          [_makeChatlogEntry('test.md', '# テスト\n本文')],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
+        const _entry = _makeChatlogEntry('test.md', '# テスト\n本文');
+        await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-        assertEquals(_result[0].type, 'research');
+        assertEquals(_entry.frontmatter.get('type') as string, 'research');
       });
 
       it('[Error] T-SF-JT-12: AI が失敗しても例外はスローされない（2エントリ）', async () => {
         commandHandle = installCommandMock(makeFailMock(1));
 
-        const _result = await judgeType(
-          [
-            _makeChatlogEntry('a.md', '# A\n本文A'),
-            _makeChatlogEntry('b.md', '# B\n本文B'),
-          ],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
+        const _entryA = _makeChatlogEntry('a.md', '# A\n本文A');
+        const _entryB = _makeChatlogEntry('b.md', '# B\n本文B');
+        await judgeType([_entryA, _entryB], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-        assertEquals(_result[0].type, 'research');
-        assertEquals(_result[1].type, 'research');
+        assertEquals(_entryA.frontmatter.get('type') as string, 'research');
+        assertEquals(_entryB.frontmatter.get('type') as string, 'research');
       });
     });
   });
@@ -384,19 +305,12 @@ describe('judgeType', () => {
   describe('空入力', () => {
     /** entries が空配列のエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-SF-JT-17: entries が空配列 → 空配列が返る', async () => {
+      it('[Edge] T-SF-JT-17: entries が空配列 → 例外なく完了する', async () => {
         commandHandle = installCommandMock(
           makeSuccessMock(_enc.encode('[]')),
         );
 
-        const _result = await judgeType(
-          [],
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-        );
-
-        assertEquals(_result, []);
+        await judgeType([], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
       });
     });
   });
@@ -442,19 +356,15 @@ describe('judgeType', () => {
   describe('maxContentLength', () => {
     /** maxContentLength=0 のエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-SF-JT-20: maxContentLength=0 でも例外はスローされず結果が返る', async () => {
+      it('[Edge] T-SF-JT-20: maxContentLength=0 でも例外はスローされず type が書き込まれる', async () => {
         commandHandle = installCommandMock(
           makeSuccessMock(_enc.encode('[{"file":"test.md","type":"research"}]')),
         );
 
-        const _result = await judgeType(
-          [_makeChatlogEntry('test.md', '# テスト\n本文')],
-          0,
-          _makeDics(),
-          _makePrompts(),
-        );
+        const _entry = _makeChatlogEntry('test.md', '# テスト\n本文');
+        await judgeType([_entry], 0, _makeDics(), _makePrompts());
 
-        assertEquals(_result.length, 1);
+        assertEquals(_entry.frontmatter.get('type') as string, 'research');
       });
     });
   });
