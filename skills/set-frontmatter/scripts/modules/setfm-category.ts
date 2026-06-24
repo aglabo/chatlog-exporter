@@ -12,7 +12,7 @@
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { DEFAULT_FALLBACK_CATEGORY } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
@@ -35,14 +35,14 @@ const _buildCategorySystemPrompt = (systemTemplate: string, dics: Dics): string 
 export const judgeCategory = async (
   entry: ChatlogEntry,
   maxContentLength: number,
-  type: LogType,
   dics: Dics,
   prompts: Prompts,
-): Promise<string> => {
+): Promise<void> => {
   const tmpl = prompts.prompts.get('category');
   if (!tmpl) {
     throw new ChatlogError('InvalidArgs', 'NotDefined', 'プロンプトテンプレート "category" が定義されていません');
   }
+  const type = (entry.frontmatter.get('type') as LogType) ?? DEFAULT_FALLBACK_TYPE;
   const focusGuide = prompts.categoryPrompts.get(type) ?? '';
   const system = _buildCategorySystemPrompt(tmpl.system, dics);
   const user = renderPrompt(tmpl.user, {
@@ -53,11 +53,13 @@ export const judgeCategory = async (
   try {
     raw = await runAI(system, user);
   } catch {
-    return DEFAULT_FALLBACK_CATEGORY;
+    entry.frontmatter.set('category', DEFAULT_FALLBACK_CATEGORY);
+    return;
   }
   const normalized = raw.replace(/\s/g, '').toLowerCase();
   const valid = new Set(dics.category.split(','));
-  return valid.has(normalized) ? normalized : DEFAULT_FALLBACK_CATEGORY;
+  const category = valid.has(normalized) ? normalized : DEFAULT_FALLBACK_CATEGORY;
+  entry.frontmatter.set('category', category);
 };
 
 // ─── Test exports (テスト専用・本番コードから import 禁止)

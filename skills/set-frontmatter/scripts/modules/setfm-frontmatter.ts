@@ -9,17 +9,22 @@
 
 // cspell:words setfm
 
+// ─── External modules
+import { parse as parseYaml } from '@std/yaml';
+
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
+// types
+import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Local
 import { formatDicEntries } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
-import type { FrontmatterResult, LogType } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
 // Phase 3b: フロントマター生成（並列）
@@ -28,11 +33,11 @@ import type { FrontmatterResult, LogType } from '../types/phase.types.ts';
 export const generateFrontmatter = async (
   entry: ChatlogEntry,
   maxContentLength: number,
-  type: LogType,
-  category: string,
   dics: Dics,
   prompts: Prompts,
-): Promise<FrontmatterResult> => {
+): Promise<boolean> => {
+  const type = (entry.frontmatter.get('type') as string) ?? DEFAULT_FALLBACK_TYPE;
+  const category = (entry.frontmatter.get('category') as string) ?? DEFAULT_FALLBACK_CATEGORY;
   const tmpl = prompts.prompts.get('meta') ?? { system: '', user: '' };
   const topicList = formatDicEntries(dics.topicEntries);
   const system = renderPrompt(tmpl.system, {});
@@ -47,7 +52,15 @@ export const generateFrontmatter = async (
   try {
     raw = await runAI(system, user);
   } catch {
-    return { file: entry.filePath!, type, category, yaml: '' };
+    return false;
   }
-  return { file: entry.filePath!, type, category, yaml: cleanYaml(raw, 'title') };
+  const _yaml = cleanYaml(raw, 'title');
+  if (!_yaml) { return false; }
+  const _parsed = (parseYaml(_yaml) ?? {}) as FrontmatterFields;
+  for (const [key, val] of Object.entries(_parsed)) {
+    if (key !== 'type' && key !== 'category') {
+      entry.frontmatter.set(key, val);
+    }
+  }
+  return true;
 };
