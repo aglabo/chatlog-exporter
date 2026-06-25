@@ -22,7 +22,6 @@ import { formatDicEntries } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
-import type { TypeResult } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
 // Phase 2: type判定（バッチ）
@@ -39,7 +38,7 @@ export const judgeType = async (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
-): Promise<TypeResult[]> => {
+): Promise<void> => {
   const tmpl = prompts.prompts.get('type');
   if (!tmpl) {
     throw new ChatlogError('InvalidArgs', 'NotDefined', 'プロンプトテンプレート "type" が定義されていません');
@@ -61,12 +60,13 @@ export const judgeType = async (
     // fall through to fallback
   }
 
-  return entries.map((entry) => {
+  for (const entry of entries) {
     const filename = getFilename(entry.filePath!);
     const match = parsed?.find((r) => r.file === filename);
     const normalized = match?.type.replace(/\s/g, '').toLowerCase() ?? '';
-    return { file: entry.filePath!, type: validKeys.has(normalized) ? normalized : DEFAULT_FALLBACK_TYPE };
-  });
+    const type = validKeys.has(normalized) ? normalized : DEFAULT_FALLBACK_TYPE;
+    entry.frontmatter.set('type', type);
+  }
 };
 
 // ─── Test exports (テスト専用・本番コードから import 禁止)

@@ -30,6 +30,7 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runChunked, runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
+import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
@@ -82,71 +83,62 @@ export const main = async (args: string[]): Promise<void> => {
     logger.info(
       `\nPhase 2: type判定開始 (${entries.length}件 × チャンク${_config.chunkSize} × 並列度${_config.concurrency})`,
     );
-    const typeChunks = await runChunked(
+    await runChunked(
       entries,
       _config.chunkSize,
       (chunk) => judgeType(chunk, maxContentLength, dics, prompts),
       _config.concurrency,
     );
-    const typeResults = typeChunks.flat();
-    const typeMap = new Map(typeResults.map((r) => [r.file, r]));
-    for (const r of typeResults) { logger.info(`  type [${r.type}]: ${r.file.split(/[/\\]/).pop()}`); }
+    for (const entry of entries) {
+      logger.info(`  type [${entry.frontmatter.get('type')}]: ${getFilename(entry.filePath!)}`);
+    }
 
     // Phase 3a: category判定（並列）
     logger.info(`\nPhase 3a: category判定開始 (${entries.length}件 × 並列度${_config.concurrency})`);
-    const categoryResults = await runConcurrent(
+    await runConcurrent(
       entries,
       async (entry) => {
-        const type = typeMap.get(entry.filePath!)?.type ?? 'research';
-        const category = await judgeCategory(entry, maxContentLength, type, dics, prompts);
-        logger.info(`  category [${category}]: ${entry.filePath!.split(/[/\\]/).pop()}`);
-        return { file: entry.filePath!, type, category };
+        await judgeCategory(entry, maxContentLength, dics, prompts);
+        logger.info(`  category [${entry.frontmatter.get('category')}]: ${getFilename(entry.filePath!)}`);
       },
       _config.concurrency,
     );
-    const categoryMap = new Map(categoryResults.map((r) => [r.file, r]));
 
     // Phase 3b: フロントマター生成（並列）
     logger.info(`\nPhase 3b: フロントマター生成開始 (${entries.length}件 × 並列度${_config.concurrency})`);
-    const fmResults = await runConcurrent(
+    const _generatedFiles = new Set<string>();
+    await runConcurrent(
       entries,
-      (entry) => {
-        const cr = categoryMap.get(entry.filePath!);
-        const type = cr?.type ?? 'research';
-        const category = cr?.category ?? 'development';
-        return generateFrontmatter(entry, maxContentLength, type, category, dics, prompts);
+      async (entry) => {
+        const _ok = await generateFrontmatter(entry, maxContentLength, dics, prompts);
+        if (_ok) {
+          _generatedFiles.add(entry.filePath!);
+          logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+        } else {
+          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+        }
       },
       _config.concurrency,
     );
-    const fmResultMap = new Map(fmResults.map((r) => [r.file, r]));
-    for (const r of fmResults) { logger.info(`  generated: ${r.file.split(/[/\\]/).pop()}`); }
 
     // Phase 3.5: レビュー（並列）
     if (_config.review) {
       logger.info(
         `\nPhase 3.5: フロントマターレビュー開始 (${entries.length}件 × 並列度${_config.concurrency})`,
       );
-      const reviewResults = await runConcurrent(
-        fmResults.filter((r) => r.yaml),
-        (r) => reviewFrontmatter(r, dics, prompts),
+      const _reviewEntries = entries.filter((e) => _generatedFiles.has(e.filePath!));
+      await runConcurrent(
+        _reviewEntries,
+        async (entry) => {
+          const r = await reviewFrontmatter(entry, dics, prompts);
+          if (r.validity === 'fail') {
+            logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
+          } else {
+            logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
+          }
+        },
         _config.concurrency,
       );
-      for (const r of reviewResults) {
-        if (r.validity === 'fail') {
-          logger.warn(`  review FAIL: ${r.file.split(/[/\\]/).pop()} — ${r.errors.join('; ')}`);
-          const fm = fmResultMap.get(r.file);
-          if (fm) {
-            fmResultMap.set(r.file, {
-              ...fm,
-              type: r.correctedType || fm.type,
-              category: r.correctedCategory || fm.category,
-              yaml: r.correctedYaml || fm.yaml,
-            });
-          }
-        } else {
-          logger.info(`  review OK: ${r.file.split(/[/\\]/).pop()}`);
-        }
-      }
     } else {
       logger.info(`\nPhase 3.5: スキップ (--no-review)`);
     }
@@ -154,12 +146,12 @@ export const main = async (args: string[]): Promise<void> => {
     // Phase 4: 書き込み
     logger.info(`\nPhase 4: Markdownへ書き込み`);
     for (const entry of entries) {
-      const result = fmResultMap.get(entry.filePath!);
-      if (!result) {
+      if (!_generatedFiles.has(entry.filePath!)) {
+        logger.error(`  FAIL (yaml空): ${getFilename(entry.filePath!)}`);
         stats.fail++;
         continue;
       }
-      await writeFrontmatter(entry, result, _config.dryRun, stats);
+      await writeFrontmatter(entry, _config.dryRun, stats);
     }
 
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';

@@ -210,22 +210,20 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
-              const _result = _typeResults[0];
+              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              const _type = _fileMeta.frontmatter.get('type') as string;
 
               if (_expectedOutput.fallback?.expected_type) {
                 assertEquals(
-                  _result.type,
+                  _type,
                   _expectedOutput.fallback.expected_type,
-                  `type "${_result.type}" が期待値 "${_expectedOutput.fallback.expected_type}" と一致しない`,
+                  `type "${_type}" が期待値 "${_expectedOutput.fallback.expected_type}" と一致しない`,
                 );
               } else {
                 assertEquals(
-                  _expectedOutput.known_types.includes(_result.type),
+                  _expectedOutput.known_types.includes(_type),
                   true,
-                  `type "${_result.type}" が known_types ${
-                    JSON.stringify(_expectedOutput.known_types)
-                  } に含まれていない`,
+                  `type "${_type}" が known_types ${JSON.stringify(_expectedOutput.known_types)} に含まれていない`,
                 );
               }
               return;
@@ -236,13 +234,13 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
-            const _result = _typeResults[0];
+            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            const _type = _fileMeta.frontmatter.get('type') as string;
 
             assertEquals(
-              _expectedOutput.known_types.includes(_result.type),
+              _expectedOutput.known_types.includes(_type),
               true,
-              `type "${_result.type}" が known_types ${JSON.stringify(_expectedOutput.known_types)} に含まれていない`,
+              `type "${_type}" が known_types ${JSON.stringify(_expectedOutput.known_types)} に含まれていない`,
             );
           },
         );
@@ -258,15 +256,9 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResultArr = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
-              const _typeResult = _typeResultArr[0];
-              const _category = await judgeCategory(
-                _fileMeta,
-                _MAX_CONTENT_LENGTH,
-                _typeResult.type,
-                _activeDics,
-                _activePrompts,
-              );
+              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              const _category = _fileMeta.frontmatter.get('category') as string;
 
               if (_expectedOutput.fallback?.expected_category) {
                 assertEquals(
@@ -292,9 +284,9 @@ for (const _relPath of _fixtureDirs) {
             }
 
             // まず type を判定してから category を判定する
-            const _typeResultArr = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
-            const _typeResult = _typeResultArr[0];
-            const _category = await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _typeResult.type, _dics, _prompts);
+            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
+            const _category = _fileMeta.frontmatter.get('category') as string;
 
             assertEquals(
               _expectedOutput.known_categories.includes(_category),
@@ -309,44 +301,34 @@ for (const _relPath of _fixtureDirs) {
 
       // ─── フロントマター生成（required_fields の確認） ─────────────────────
 
-      describe('When: generateFrontmatter(fileMeta, type, category, dics) を呼び出す', () => {
+      describe('When: generateFrontmatter(fileMeta, dics) を呼び出す', () => {
         it(
-          `SF-SF-${_relPath}-fields: required_fields が全て yaml に含まれる`,
+          `SF-SF-${_relPath}-fields: required_fields が全て entry.frontmatter に含まれる`,
           { ignore: !_isFallbackCase && !_shouldRunClaude },
           async () => {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
-              const _typeResult = _typeResults[0];
-              const _category = await judgeCategory(
+              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              const _ok = await generateFrontmatter(
                 _fileMeta,
                 _MAX_CONTENT_LENGTH,
-                _typeResult.type,
-                _activeDics,
-                _activePrompts,
-              );
-              const _fmResult = await generateFrontmatter(
-                _fileMeta,
-                _MAX_CONTENT_LENGTH,
-                _typeResult.type,
-                _category,
                 _activeDics,
                 _activePrompts,
               );
 
               if (_expectedOutput.fallback?.expected_yaml_empty === true) {
-                assertEquals(
-                  _fmResult.yaml,
-                  '',
-                  `yaml が空でないことが期待されているが、実際には: ${_fmResult.yaml.slice(0, 200)}`,
-                );
+                assertEquals(_ok, false, `yaml 生成が失敗しているはずだが成功している`);
               } else {
+                assertEquals(_ok, true, `yaml 生成が失敗している`);
                 for (const _field of _expectedOutput.required_fields) {
                   assertEquals(
-                    _fmResult.yaml.includes(`${_field}:`),
+                    _fileMeta.frontmatter.get(_field) !== undefined,
                     true,
-                    `required_field "${_field}" が yaml に含まれていない: ${_fmResult.yaml.slice(0, 200)}`,
+                    `required_field "${_field}" が entry.frontmatter に含まれていない: ${
+                      _fileMeta.frontmatter.toFrontmatter().slice(0, 200)
+                    }`,
                   );
                 }
               }
@@ -358,29 +340,27 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            const _typeResults = await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
-            const _typeResult = _typeResults[0];
-            const _category = await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _typeResult.type, _dics, _prompts);
-            const _fmResult = await generateFrontmatter(
+            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
+            const _ok = await generateFrontmatter(
               _fileMeta,
               _MAX_CONTENT_LENGTH,
-              _typeResult.type,
-              _category,
               _dics,
               _prompts,
             );
 
-            // yaml が生成されたことを確認（空でないこと）
-            if (!_fmResult.yaml) {
-              // generateFrontmatter が空の yaml を返したためスキップ
+            // 生成が失敗した場合はスキップ
+            if (!_ok) {
               return;
             }
 
             for (const _field of _expectedOutput.required_fields) {
               assertEquals(
-                _fmResult.yaml.includes(`${_field}:`),
+                _fileMeta.frontmatter.get(_field) !== undefined,
                 true,
-                `required_field "${_field}" が yaml に含まれていない: ${_fmResult.yaml.slice(0, 200)}`,
+                `required_field "${_field}" が entry.frontmatter に含まれていない: ${
+                  _fileMeta.frontmatter.toFrontmatter().slice(0, 200)
+                }`,
               );
             }
           },

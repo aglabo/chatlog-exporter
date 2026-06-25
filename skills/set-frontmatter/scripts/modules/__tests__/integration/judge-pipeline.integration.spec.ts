@@ -23,7 +23,6 @@ import { reviewFrontmatter } from '../../setfm-review.ts';
 import { judgeType } from '../../setfm-type.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
-import type { FrontmatterResult } from '../../../types/phase.types.ts';
 
 // ─── Helpers
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -140,10 +139,11 @@ describe('judgeType', () => {
           );
         });
 
-        it('T-SF-JP-01-01: result[0].type が "research" になる', async () => {
-          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+        it('T-SF-JP-01-01: entry.frontmatter.get("type") が "research" になる', async () => {
+          const _entry = _makeChatlogEntry();
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result[0].type, 'research');
+          assertEquals(_entry.frontmatter.get('type'), 'research');
         });
       });
     });
@@ -158,10 +158,11 @@ describe('judgeType', () => {
           );
         });
 
-        it('T-SF-JP-02-01: result[0].type が "research" になる（フォールバック）', async () => {
-          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+        it('T-SF-JP-02-01: entry.frontmatter.get("type") が "research" になる（フォールバック）', async () => {
+          const _entry = _makeChatlogEntry();
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result[0].type, 'research');
+          assertEquals(_entry.frontmatter.get('type'), 'research');
         });
       });
     });
@@ -174,10 +175,11 @@ describe('judgeType', () => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
-        it('T-SF-JP-03-01: result[0].type が "research" になる（例外なし）', async () => {
-          const result = await judgeType([_makeChatlogEntry()], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+        it('T-SF-JP-03-01: entry.frontmatter.get("type") が "research" になる（例外なし）', async () => {
+          const _entry = _makeChatlogEntry();
+          await judgeType([_entry], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result[0].type, 'research');
+          assertEquals(_entry.frontmatter.get('type'), 'research');
         });
       });
     });
@@ -194,37 +196,20 @@ describe('judgeType', () => {
           );
         });
 
-        it('T-SF-JP-14-01: result[0].type が "execution" になる（test.md と一致）', async () => {
-          const result = await judgeType(
-            [_makeChatlogEntry(), _makeChatlogEntry2()],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
+        it('T-SF-JP-14-01: entry1.frontmatter.get("type") が "execution" になる（test.md と一致）', async () => {
+          const _entry1 = _makeChatlogEntry();
+          const _entry2 = _makeChatlogEntry2();
+          await judgeType([_entry1, _entry2], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result[0].type, 'execution');
+          assertEquals(_entry1.frontmatter.get('type'), 'execution');
         });
 
-        it('T-SF-JP-14-02: result[1].type が "research" になる（other.md は不一致 → フォールバック）', async () => {
-          const result = await judgeType(
-            [_makeChatlogEntry(), _makeChatlogEntry2()],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
+        it('T-SF-JP-14-02: entry2.frontmatter.get("type") が "research" になる（other.md は不一致 → フォールバック）', async () => {
+          const _entry1 = _makeChatlogEntry();
+          const _entry2 = _makeChatlogEntry2();
+          await judgeType([_entry1, _entry2], _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result[1].type, 'research');
-        });
-
-        it('T-SF-JP-14-03: result[0].file がフルパス "/tmp/test.md" になる', async () => {
-          const result = await judgeType(
-            [_makeChatlogEntry(), _makeChatlogEntry2()],
-            _MAX_CONTENT_LENGTH,
-            _makeDics(),
-            _makePrompts(),
-          );
-
-          assertEquals(result[0].file, '/tmp/test.md');
+          assertEquals(_entry2.frontmatter.get('type'), 'research');
         });
       });
     });
@@ -242,15 +227,11 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-04-01: "development" が返る', async () => {
-          const result = await judgeCategory(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          await judgeCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result, 'development');
+          assertEquals(_entry.frontmatter.get('category'), 'development');
         });
       });
     });
@@ -264,15 +245,11 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-05-01: "development" が返る（フォールバック）', async () => {
-          const result = await judgeCategory(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          await judgeCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result, 'development');
+          assertEquals(_entry.frontmatter.get('category'), 'development');
         });
       });
     });
@@ -286,15 +263,11 @@ describe('judgeCategory', () => {
         });
 
         it('T-SF-JP-06-01: "development" が返る（例外なし）', async () => {
-          const result = await judgeCategory(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          await judgeCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result, 'development');
+          assertEquals(_entry.frontmatter.get('category'), 'development');
         });
       });
     });
@@ -305,51 +278,41 @@ describe('judgeCategory', () => {
 
 describe('generateFrontmatter', () => {
   describe('Given: モックが YAML 文字列を返す', () => {
-    describe('When: generateFrontmatter(entry, maxContentLength, type, category, dics, prompts) を呼び出す', () => {
-      describe('Then: T-SF-JP-07 - yaml フィールドが設定される', () => {
+    describe('When: generateFrontmatter(entry, maxContentLength, dics, prompts) を呼び出す', () => {
+      describe('Then: T-SF-JP-07 - generateFrontmatter が true を返す', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
             makeSuccessMock(_enc.encode('title: テスト\nsummary: 概要')),
           );
         });
 
-        it('T-SF-JP-07-01: yaml が設定される', async () => {
-          const result = await generateFrontmatter(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            'development',
-            _makeDics(),
-            _makePrompts(),
-          );
+        it('T-SF-JP-07-01: generateFrontmatter が true を返す', async () => {
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const _ok = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result.yaml.length > 0, true);
+          assertEquals(_ok, true);
         });
 
         it('T-SF-JP-07-02: type が "research" になる', async () => {
-          const result = await generateFrontmatter(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            'development',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const _ok = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result.type, 'research');
+          assertEquals(_ok, true);
+          assertEquals(_entry.frontmatter.get('type'), 'research');
         });
 
         it('T-SF-JP-07-03: category が "development" になる', async () => {
-          const result = await generateFrontmatter(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            'development',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const _ok = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result.category, 'development');
+          assertEquals(_ok, true);
+          assertEquals(_entry.frontmatter.get('category'), 'development');
         });
       });
     });
@@ -365,16 +328,13 @@ describe('generateFrontmatter', () => {
         });
 
         it('T-SF-JP-08-01: yaml に ``` が含まれない', async () => {
-          const result = await generateFrontmatter(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            'development',
-            _makeDics(),
-            _makePrompts(),
-          );
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const _ok = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result.yaml.includes('```'), false);
+          assertEquals(_ok, true);
+          assertEquals(_entry.frontmatter.toFrontmatter().includes('```'), false);
         });
       });
     });
@@ -382,22 +342,18 @@ describe('generateFrontmatter', () => {
 
   describe('Given: Claude CLI が失敗する', () => {
     describe('When: generateFrontmatter を呼び出す', () => {
-      describe('Then: T-SF-JP-09 - yaml が空文字（例外なし）', () => {
+      describe('Then: T-SF-JP-09 - false が返る（例外なし）', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
-        it('T-SF-JP-09-01: yaml が空文字になる', async () => {
-          const result = await generateFrontmatter(
-            _makeChatlogEntry(),
-            _MAX_CONTENT_LENGTH,
-            'research',
-            'development',
-            _makeDics(),
-            _makePrompts(),
-          );
+        it('T-SF-JP-09-01: false が返る', async () => {
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const _ok = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
 
-          assertEquals(result.yaml, '');
+          assertEquals(_ok, false);
         });
       });
     });
@@ -407,17 +363,8 @@ describe('generateFrontmatter', () => {
 // ─── reviewFrontmatter のテスト ───────────────────────────────────────────────
 
 describe('reviewFrontmatter', () => {
-  function _makeFmResult(): FrontmatterResult {
-    return {
-      file: '/tmp/test.md',
-      type: 'research',
-      category: 'development',
-      yaml: 'title: テスト\nsummary: 概要',
-    };
-  }
-
   describe('Given: レビュー結果が "validity: pass" を返す', () => {
-    describe('When: reviewFrontmatter(result, dics) を呼び出す', () => {
+    describe('When: reviewFrontmatter(entry, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-10 - validity="pass", errors=[]', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(
@@ -426,13 +373,19 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-10-01: validity が "pass" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const result = await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'pass');
         });
 
         it('T-SF-JP-10-02: errors が空配列になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const result = await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
           assertEquals(result.errors, []);
         });
@@ -441,7 +394,7 @@ describe('reviewFrontmatter', () => {
   });
 
   describe('Given: レビュー結果が validity=fail + errors を返す', () => {
-    describe('When: reviewFrontmatter(result, dics) を呼び出す', () => {
+    describe('When: reviewFrontmatter(entry, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-11 - validity="fail", errors が抽出される', () => {
         const failResponse = [
           'validity: fail',
@@ -457,13 +410,19 @@ describe('reviewFrontmatter', () => {
         });
 
         it('T-SF-JP-11-01: validity が "fail" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const result = await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'fail');
         });
 
         it('T-SF-JP-11-02: errors が2件になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const result = await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
           assertEquals(result.errors.length, 2);
         });
@@ -471,9 +430,9 @@ describe('reviewFrontmatter', () => {
     });
   });
 
-  describe('Given: レビュー結果が validity=fail + corrected fields を返す', () => {
-    describe('When: reviewFrontmatter(result, dics) を呼び出す', () => {
-      describe('Then: T-SF-JP-12 - correctedType/Category/Yaml が設定される', () => {
+  describe('Given: レビュー結果が validity=fail + corrections を返す', () => {
+    describe('When: reviewFrontmatter(entry, dics, prompts) を呼び出す', () => {
+      describe('Then: T-SF-JP-12 - entry.frontmatter に type/category が書き込まれる', () => {
         const failResponse = [
           'validity: fail',
           'errors:',
@@ -491,30 +450,39 @@ describe('reviewFrontmatter', () => {
           );
         });
 
-        it('T-SF-JP-12-01: correctedType が "execution" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+        it('T-SF-JP-12-01: entry.frontmatter.get("type") が "execution" になる', async () => {
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
-          assertEquals(result.correctedType, 'execution');
+          assertEquals(_entry.frontmatter.get('type'), 'execution');
         });
 
-        it('T-SF-JP-12-02: correctedCategory が "tooling" になる', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+        it('T-SF-JP-12-02: entry.frontmatter.get("category") が "tooling" になる', async () => {
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
-          assertEquals(result.correctedCategory, 'tooling');
+          assertEquals(_entry.frontmatter.get('category'), 'tooling');
         });
       });
     });
   });
 
   describe('Given: Claude CLI が失敗する', () => {
-    describe('When: reviewFrontmatter(result, dics) を呼び出す', () => {
+    describe('When: reviewFrontmatter(entry, dics, prompts) を呼び出す', () => {
       describe('Then: T-SF-JP-13 - フォールバック pass が返る（例外なし）', () => {
         beforeEach(() => {
           commandHandle = installCommandMock(makeFailMock(1));
         });
 
         it('T-SF-JP-13-01: validity が "pass" になる（例外なし）', async () => {
-          const result = await reviewFrontmatter(_makeFmResult(), _makeDics(), _makePrompts());
+          const _entry = _makeChatlogEntry();
+          _entry.frontmatter.set('type', 'research');
+          _entry.frontmatter.set('category', 'development');
+          const result = await reviewFrontmatter(_entry, _makeDics(), _makePrompts());
 
           assertEquals(result.validity, 'pass');
         });
