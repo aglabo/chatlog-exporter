@@ -130,7 +130,7 @@ export const generateSegmentFile = (segment: Segment): string => {
  * Attaches a YAML frontmatter block to the given Markdown content.
  *
  * Sets AI-generated fields (`title`, `log_id`, `summary`) onto `frontmatter`,
- * serialises it via `toFrontmatter()`, and prepends the result to `content`.
+ * serialize it via `toFrontmatter()`, and prepends the result to `content`.
  *
  * @param content - The Markdown body to attach frontmatter to
  * @param frontmatter - `ChatlogFrontmatter` instance propagated from the source file
@@ -218,7 +218,7 @@ type ChatlogInput = {
  */
 export const segmentChatlogsBatch = async (
   inputs: ChatlogInput[],
-  options?: { model?: string },
+  options?: { model?: string; timeoutMs?: number },
 ): Promise<Map<string, Segment[] | null>> => {
   const _nullMap = (): Map<string, Segment[] | null> => {
     const m = new Map<string, Segment[] | null>();
@@ -242,7 +242,10 @@ export const segmentChatlogsBatch = async (
 
   let _raw: string;
   try {
-    _raw = await runAI(systemPrompt, userPrompt, { model: options?.model ?? DEFAULT_AI_MODEL });
+    _raw = await runAI(systemPrompt, userPrompt, {
+      model: options?.model ?? DEFAULT_AI_MODEL,
+      ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+    });
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
       logger.warn(`segmentChatlogsBatch: timed out`);
