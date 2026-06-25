@@ -24,7 +24,7 @@ allowed-tools: Bash, Glob
 `$ARGUMENTS` を解析し、以下のルールでスクリプト引数に変換する。
 
 スクリプトは位置引数として `agent` や `YYYY-MM` を直接受け付けない。
-SKILL.md 側でフラグ（`--agent`, `--year-month`）に変換してから渡す。
+SKILL.md 側でフラグ（`--agent`, `--period`）に変換してから渡す。
 
 引数の判定ルール:
 
@@ -38,9 +38,9 @@ SKILL.md 側でフラグ（`--agent`, `--year-month`）に変換してから渡�
 引数パターンと変換ルール:
 
 - 引数なし → **エラー**。`agent + YYYY-MM` または `path` のいずれかが必須。使い方を表示して終了する。
-- `YYYY-MM` のみ → `--agent claude --year-month YYYY-MM`
-- `agent` のみ → `--agent <agent> --year-month` が揃っていないためエラー。YYYY-MM も指定するよう案内する。
-- `agent YYYY-MM` → `--agent <agent> --year-month YYYY-MM`
+- `YYYY-MM` のみ → `--agent claude --period YYYY-MM`
+- `agent` のみ → `--agent <agent> --period` が揃っていないためエラー。YYYY-MM も指定するよう案内する。
+- `agent YYYY-MM` → `--agent <agent> --period YYYY-MM`
 - `/path/to/dir` → `/path/to/dir`（位置引数のまま渡す）
 - `--output <dir>` → `--output <dir>` としてスクリプトに転送
 - `--dry-run` フラグ → そのままスクリプトに転送
@@ -66,8 +66,8 @@ deno run --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変�
 
 - 引数なし → エラー出力して終了（`agent + YYYY-MM` または `path` が必須）
 - `agent` のみ → エラー出力して終了（YYYY-MM が不足）
-- `2026-03` のみ → `deno run ... "$SCRIPT_PATH" --agent claude --year-month 2026-03`
-- `claude 2026-03` → `deno run ... "$SCRIPT_PATH" --agent claude --year-month 2026-03`
+- `2026-03` のみ → `deno run ... "$SCRIPT_PATH" --agent claude --period 2026-03`
+- `claude 2026-03` → `deno run ... "$SCRIPT_PATH" --agent claude --period 2026-03`
 - `/path/to/chatlogs` → `deno run ... "$SCRIPT_PATH" /path/to/chatlogs`
 - `--output <dir>` を含む → `--output <dir>` をスクリプトに転送
 - `--concurrency <n>` を含む → `--concurrency <n>` をスクリプトに転送

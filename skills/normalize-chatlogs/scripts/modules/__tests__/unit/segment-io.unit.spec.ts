@@ -30,6 +30,7 @@ import { assertFileExist, assertNull } from '../../../../../_scripts/__tests__/h
 // mock helpers
 import {
   installCommandMock,
+  makeDelayedSuccessMock,
   makeFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -552,6 +553,37 @@ describe('segmentChatlogsBatch', () => {
       // assert
       assertNull(result.get('known.md'));
       assertFalse(result.has('unknown.md'));
+    });
+  });
+
+  /** timeoutMs オプション転送: 指定・省略時の動作を検証するケース。 */
+  describe('When: timeoutMs オプション', () => {
+    it('[Normal] T-SCB-05-01: timeoutMs: 1 を渡すとタイムアウトして全ファイルが null の Map を返す', async () => {
+      // arrange — AI が 50ms 後に応答するモック
+      const inputs = [{ filePath: 'a.md', content: 'content a' }];
+      const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] }];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeDelayedSuccessMock(50, stdout));
+
+      // act — 1ms タイムアウト: 50ms の遅延より先に abort される
+      const result = await segmentChatlogsBatch(inputs, { timeoutMs: 1 });
+
+      // assert
+      assertNull(result.get('a.md'));
+    });
+
+    it('[Normal] T-SCB-05-02: timeoutMs を省略するとデフォルト(120s)が使われ正常にセグメントを返す', async () => {
+      // arrange — AI が 50ms 後に応答するモック
+      const inputs = [{ filePath: 'a.md', content: 'content a' }];
+      const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] }];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      mockHandle = installCommandMock(makeDelayedSuccessMock(50, stdout));
+
+      // act — timeoutMs 省略: デフォルト 120s >> 50ms 遅延
+      const result = await segmentChatlogsBatch(inputs);
+
+      // assert
+      assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', content: 'C' }]);
     });
   });
 });

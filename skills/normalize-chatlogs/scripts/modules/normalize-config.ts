@@ -34,6 +34,7 @@ const _SCHEMA: ArgsSchema = [
   { option: '--config', field: 'configFile', type: 'string' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
+  { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
   { option: '--normalize-dir', field: 'normalizeDir', type: 'directory' },
 ];
 

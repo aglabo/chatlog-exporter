@@ -63,7 +63,7 @@ export const resolveOutputDir = (outputBase: string, filePath: string, project?:
 export const processFiles = async (
   inputDir: string,
   outputBase: string,
-  config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'>,
+  config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'timeoutMs'>,
   stats: Stats,
   hashFn?: HashProvider,
 ): Promise<void> => {
@@ -106,7 +106,10 @@ export const processFiles = async (
       }),
     );
 
-    const _resultMap = await segmentChatlogsBatch(_inputs, { model: config.model });
+    const _resultMap = await segmentChatlogsBatch(_inputs, {
+      model: config.model,
+      ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+    });
 
     for (const { filePath, content } of _inputs) {
       const segments = _resultMap.get(filePath) ?? null;

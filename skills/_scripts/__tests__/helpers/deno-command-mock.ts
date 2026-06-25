@@ -8,7 +8,7 @@
 // ─── 型定義 ────────────────────────────────────────────────────────────────────
 
 /** Deno.Command の最小インターフェイス。テスト用モッククラスが実装する型。 */
-export type DenoCommandLike = new(cmd: string, opts: { args: string[] }) => {
+export type DenoCommandLike = new(cmd: string, opts: { args: string[]; signal?: AbortSignal }) => {
   spawn(): {
     stdin: { getWriter(): { write(d: Uint8Array): Promise<void>; close(): Promise<void> } };
     output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }>;
@@ -114,6 +114,43 @@ export class NotFoundMockCommand extends BaseMockCommand {
   }
 }
 
+/**
+ * `output()` を指定ミリ秒だけ遅延させるモッククラス。
+ * `opts.signal` が渡された場合、abort 時に即座に reject する。
+ */
+export class DelayedSuccessMockCommand extends BaseMockCommand {
+  private readonly stdout: Uint8Array;
+  private readonly delayMs: number;
+  private readonly signal?: AbortSignal;
+
+  constructor(
+    _cmd: string,
+    opts: { args: string[]; signal?: AbortSignal },
+    stdout: Uint8Array,
+    delayMs: number,
+  ) {
+    super();
+    this.stdout = stdout;
+    this.delayMs = delayMs;
+    this.signal = opts.signal;
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        resolve({ success: true, code: 0, stdout: this.stdout });
+      }, this.delayMs);
+
+      if (this.signal) {
+        this.signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(this.signal!.reason);
+        }, { once: true });
+      }
+    });
+  }
+}
+
 /** 呼び出し回数をカウントするモッククラス。 */
 export class CountingMockCommand extends BaseMockCommand {
   private readonly responseText: string;
@@ -199,6 +236,18 @@ export function installCommandMock(mock: DenoCommandLike): CommandMockHandle {
     restore() {
       Object.defineProperty(Deno, 'Command', descriptor);
     },
+  };
+}
+
+/**
+ * `output()` を `delayMs` ミリ秒遅延させ、`opts.signal` の abort を受け付けるモックを返す。
+ * タイムアウト検証テストで使用する。
+ */
+export function makeDelayedSuccessMock(delayMs: number, stdout: Uint8Array): DenoCommandLike {
+  return class extends DelayedSuccessMockCommand {
+    constructor(cmd: string, opts: { args: string[]; signal?: AbortSignal }) {
+      super(cmd, opts, stdout, delayMs);
+    }
   };
 }
 

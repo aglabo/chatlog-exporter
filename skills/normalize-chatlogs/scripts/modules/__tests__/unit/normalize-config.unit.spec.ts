@@ -44,6 +44,9 @@ describe('buildConfig', () => {
           it('T-NC-BC-01-02: dryRun が false になる', () => {
             assertEquals(buildConfig({}).dryRun, false);
           });
+          it('T-NC-BC-01-03: timeoutMs が undefined になる', () => {
+            assertEquals(buildConfig({}).timeoutMs, undefined);
+          });
         });
       });
     });
@@ -76,6 +79,16 @@ describe('buildConfig', () => {
         describe('Then: T-NC-BC-04 - normalizeDir のデフォルト値が適用される', () => {
           it('T-NC-BC-04-01: normalizeDir が "./chatlogs/normalizelogs" になる', () => {
             assertEquals(buildConfig({}).normalizeDir, './chatlogs/normalizelogs');
+          });
+        });
+      });
+    });
+
+    describe('Given: timeoutMs を含む parsed', () => {
+      describe('When: buildConfig(parsed) を呼び出す', () => {
+        describe('Then: T-NC-BC-07 - timeoutMs が適用される', () => {
+          it('T-NC-BC-07-01: timeoutMs = 300000 が適用される', () => {
+            assertEquals(buildConfig({ timeoutMs: 300000 }).timeoutMs, 300000);
           });
         });
       });
@@ -137,6 +150,7 @@ describe('parseArgs', () => {
             { id: 'T-NC-PA-01-06', field: 'normalizeDir' },
             { id: 'T-NC-PA-01-07', field: 'configFile' },
             { id: 'T-NC-PA-01-08', field: 'baseDir' },
+            { id: 'T-NC-PA-01-09', field: 'timeoutMs' },
           ];
           for (const { id, field } of _defaultCases) {
             it(`${id}: ${field} が undefined になる`, () => {
@@ -169,6 +183,7 @@ describe('parseArgs', () => {
               expected: './config.yaml',
             },
             { id: 'T-NC-PA-12-01', args: ['--base-dir', './base'], field: 'baseDir', expected: './base' },
+            { id: 'T-NC-PA-15-01', args: ['--timeout-ms', '300000'], field: 'timeoutMs', expected: 300000 },
           ];
           for (const { id, args, field, expected } of _cases) {
             it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
