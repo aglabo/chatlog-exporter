@@ -10,21 +10,23 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
+import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
 
 // ─── Local
 import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
 import type { Dics, Prompts } from '../types/dics.types.ts';
-import type { FrontmatterResult, ReviewResult } from '../types/phase.types.ts';
+import type { ReviewResult } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
 // Phase 3.5: フロントマターレビュー（並列）
 // ─────────────────────────────────────────────
 
 export const reviewFrontmatter = async (
-  result: FrontmatterResult,
+  entry: ChatlogEntry,
   dics: Dics,
   prompts: Prompts,
 ): Promise<ReviewResult> => {
@@ -37,38 +39,24 @@ export const reviewFrontmatter = async (
     topic_list: topicList,
     category_list: dics.category,
     tags_list: dics.tags,
-    result_type: result.type,
-    result_category: result.category,
-    result_yaml: result.yaml,
+    result_type: (entry.frontmatter.get('type') as string) ?? '',
+    result_category: (entry.frontmatter.get('category') as string) ?? '',
+    result_yaml: entry.frontmatter.toFrontmatter(),
   });
   let raw: string;
   try {
     raw = await runAI(system, user);
   } catch {
-    return {
-      file: result.file,
-      validity: 'pass',
-      errors: [],
-      correctedType: '',
-      correctedCategory: '',
-      correctedYaml: '',
-    };
+    return { validity: 'pass', errors: [] };
   }
 
-  const _cleaned = raw.split('\n').filter((l) => !l.startsWith('```')).join('\n').trim();
+  const _cleaned = cleanYaml(raw, 'validity');
 
   const validityMatch = _cleaned.match(/^validity:\s*(pass|fail)/m);
   const validity = (validityMatch?.[1] ?? 'pass') as 'pass' | 'fail';
 
   if (validity === 'pass') {
-    return {
-      file: result.file,
-      validity: 'pass',
-      errors: [],
-      correctedType: '',
-      correctedCategory: '',
-      correctedYaml: '',
-    };
+    return { validity: 'pass', errors: [] };
   }
 
   const errorsMatch = _cleaned.match(/^errors:\s*\n((?: {2}- .+\n?)*)/m);
@@ -78,16 +66,11 @@ export const reviewFrontmatter = async (
 
   const typeMatch = _cleaned.match(/^ {2}type:\s*(\S+)/m);
   const correctedType = typeMatch?.[1]?.trim() ?? '';
+  if (correctedType) { entry.frontmatter.set('type', correctedType); }
 
   const categoryMatch = _cleaned.match(/^ {2}category:\s*(\S+)/m);
   const correctedCategory = categoryMatch?.[1]?.trim() ?? '';
+  if (correctedCategory) { entry.frontmatter.set('category', correctedCategory); }
 
-  const correctedYaml = _cleaned
-    .replace(/^[\s\S]*?(^ {2}title:)/m, '$1')
-    .split('\n')
-    .map((l) => l.replace(/^ {2}/, ''))
-    .join('\n')
-    .trim();
-
-  return { file: result.file, validity, errors, correctedType, correctedCategory, correctedYaml };
+  return { validity, errors };
 };

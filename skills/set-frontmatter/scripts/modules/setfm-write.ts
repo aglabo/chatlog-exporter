@@ -9,19 +9,14 @@
 
 // cspell:words setfm
 
-// ─── External modules
-import { parse as parseYaml } from '@std/yaml';
-
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { renderFrontmatter } from '../../../_scripts/libs/text/frontmatter-utils.ts';
-// types
-import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 // types
-import type { FrontmatterResult, Stats } from '../types/phase.types.ts';
+import type { Stats } from '../types/phase.types.ts';
 
 // ─────────────────────────────────────────────
 // Phase 4: Markdownへ書き込み
@@ -29,48 +24,38 @@ import type { FrontmatterResult, Stats } from '../types/phase.types.ts';
 
 export const writeFrontmatter = async (
   entry: ChatlogEntry,
-  result: FrontmatterResult,
   dryRun: boolean,
   stats: Stats,
 ): Promise<void> => {
   const filePath = entry.filePath!;
 
-  if (!result.yaml) {
-    logger.error(`  FAIL (yaml空): ${filePath.split(/[/\\]/).pop()}`);
+  if (!entry.frontmatter.get('title')) {
+    logger.error(`  FAIL (yaml空): ${getFilename(filePath)}`);
     stats.fail++;
     return;
   }
 
-  const _fields: FrontmatterFields = {
-    session_id: entry.frontmatter.get('session_id') as string ?? '',
-    date: entry.frontmatter.get('date') as string ?? '',
-    project: entry.frontmatter.get('project') as string ?? '',
-    slug: entry.frontmatter.get('slug') as string ?? '',
-    type: result.type,
-    category: result.category,
-  };
-  const _parsedYaml = parseYaml(result.yaml) as FrontmatterFields;
-  const _allFields: FrontmatterFields = { ..._fields, ..._parsedYaml };
-  const newFrontmatter = renderFrontmatter(_allFields).trimEnd();
+  const type = (entry.frontmatter.get('type') as string) ?? '';
+  const category = (entry.frontmatter.get('category') as string) ?? '';
 
   if (dryRun) {
-    logger.log(`\n=== DRY RUN [${result.type}/${result.category}]: ${filePath.split(/[/\\]/).pop()} ===`);
-    logger.log(newFrontmatter);
+    logger.log(`\n=== DRY RUN [${type}/${category}]: ${getFilename(filePath)} ===`);
+    logger.log(entry.frontmatter.toFrontmatter().trimEnd());
     stats.success++;
     return;
   }
 
   const tmpFile = filePath + '.tmp';
   try {
-    await Deno.writeTextFile(tmpFile, newFrontmatter + '\n' + entry.content);
+    await Deno.writeTextFile(tmpFile, entry.renderEntry());
     await Deno.rename(tmpFile, filePath);
-    logger.info(`  OK [${result.type}/${result.category}]: ${filePath.split(/[/\\]/).pop()}`);
+    logger.info(`  OK [${type}/${category}]: ${getFilename(filePath)}`);
     stats.success++;
   } catch (e) {
     try {
       await Deno.remove(tmpFile);
     } catch { /* ignore */ }
-    logger.error(`  FAIL (書き込みエラー): ${filePath.split(/[/\\]/).pop()}: ${e}`);
+    logger.error(`  FAIL (書き込みエラー): ${getFilename(filePath)}: ${e}`);
     stats.fail++;
   }
 };
