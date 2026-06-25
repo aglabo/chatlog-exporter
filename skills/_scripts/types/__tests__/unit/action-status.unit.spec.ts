@@ -59,18 +59,18 @@ describe('ENTRY_ACTIONS', () => {
   });
 
   /**
-   * `EntryAction` ユニオン型が 5 値すべてを網羅していることを検証する。
+   * `EntryAction` ユニオン型が 8 値すべてを網羅していることを検証する。
    */
   describe('EntryAction union', () => {
     /** EntryAction の値域が ENTRY_ACTIONS の全 value と一致する正常ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-01-02-01: EntryAction が 5 値のユニオン型に一致する (AC-002)', () => {
+      it('[Normal] T-01-02-01: EntryAction が 8 値のユニオン型に一致する (AC-002)', () => {
         // arrange
         const _values = Object.values(ENTRY_ACTIONS);
 
         // act / assert
-        assertEquals(_values.length, 5);
-        assertArrayIncludes(_values, ['keep', 'skip', 'move', 'remove', 'write']);
+        assertEquals(_values.length, 8);
+        assertArrayIncludes(_values, ['keep', 'skip', 'move', 'remove', 'write', 'move-by-ai', 'pending', 'error']);
       });
     });
   });
@@ -198,6 +198,44 @@ describe('ActionStatusEntry', () => {
 
         // act / assert
         assertEquals(_options.filePath, '');
+      });
+
+      it('[Normal] T-02-01-01: targetPath を設定でき、値が取得できる', () => {
+        // arrange
+        const _options: ActionStatusOptions = { filePath: '/src/file.md', targetPath: '/dest/file.md' };
+
+        // act / assert
+        assertEquals(_options.targetPath, '/dest/file.md');
+      });
+    });
+
+    /** targetPath 省略・空文字列など境界値のケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-02-01-02: targetPath を省略すると undefined になる', () => {
+        // arrange
+        const _options: ActionStatusOptions = { filePath: '/src/file.md' };
+
+        // act / assert
+        assertEquals(_options.targetPath, undefined);
+      });
+
+      it('[Edge] T-02-01-03: targetPath に空文字列を設定できる', () => {
+        // arrange
+        const _options: ActionStatusOptions = { filePath: '/src/file.md', targetPath: '' };
+
+        // act / assert
+        assertEquals(_options.targetPath, '');
+      });
+    });
+
+    /** targetPath に不正な型を代入するとコンパイルエラーになるケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-02-01-04: targetPath に数値を代入するとコンパイルエラーになる', () => {
+        // @ts-expect-error targetPath is string only
+        const _options: ActionStatusOptions = { filePath: '/src/file.md', targetPath: 123 };
+
+        // act / assert — コンパイルが通ることが検証（@ts-expect-error がエラーを抑制）
+        assertEquals(typeof _options.targetPath, 'number');
       });
     });
   });

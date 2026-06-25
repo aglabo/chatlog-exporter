@@ -16,6 +16,7 @@ export type ActionStatusOptions = {
   action?: EntryAction;
   status?: EntryStatus;
   reason?: string;
+  targetPath?: string;
 };
 
 /** チャットログエントリーと処理オプションをまとめたラッパー型。 */

@@ -17,25 +17,30 @@ import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
+import type { ActionStatusEntry } from '../../../_scripts/types/action-status-entry.types.ts';
 import type { ClassifyBufferEntry } from '../types/classify.types.ts';
 // constants
+import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../_scripts/types/action-status.types.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
 /**
- * ファイルを読み込み、分類処理に必要なメタデータを `ClassifyBufferEntry` として返す。
+ * ファイルを読み込み、分類処理に必要なメタデータを `ActionStatusEntry` として返す。
  * - ファイルシステムエラー（`NotFound`, `PermissionDenied` 等）はそのままスロー（致命的エラー）。
- * - フロントマターの解析エラー（`InvalidFormat`, `InvalidYaml`）は `action: 'error'` のエントリを返す。
- * - 正常時は `file: entry, filePath` を持つ `ClassifyBufferEntry` を返す。
+ * - フロントマターの解析エラー（`InvalidFormat`, `InvalidYaml`）は `options.action: 'error'` のエントリを返す。
+ * - 正常時は `entry: ChatlogEntry, options: { filePath }` を持つ `ActionStatusEntry` を返す。
  */
-export const loadClassifyEntry = async (filePath: string): Promise<ClassifyBufferEntry> => {
+export const loadClassifyEntry = async (filePath: string): Promise<ActionStatusEntry> => {
   const _text = await readTextFile(filePath);
   try {
     const _entry = new ChatlogEntry(_text, { filePath });
-    return { file: _entry, filePath };
+    return { entry: _entry, options: { filePath } };
   } catch (e) {
     const _reason = e instanceof Error ? e.message : String(e);
-    return { file: null, filePath, action: CLASSIFY_ACTIONS.ERROR, reason: _reason };
+    return {
+      entry: new ChatlogEntry(''),
+      options: { filePath, action: ENTRY_ACTIONS.ERROR, status: ENTRY_STATUSES.ERROR, reason: _reason },
+    };
   }
 };
 
