@@ -12,6 +12,7 @@
 
 // -- classes --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
 // -- types --
 import type { HashProvider } from '../../_scripts/types/providers.types.ts';
@@ -21,6 +22,7 @@ import {
   DEFAULT_AGENT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_NORMALIZE_DIR,
+  DEFAULT_TIMEOUT_MS,
 } from '../../_scripts/constants/defaults.constants.ts';
 
 // -- file-io --
@@ -29,6 +31,13 @@ import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
 
 // -- io --
 import { logger } from '../../_scripts/libs/io/logger.ts';
+
+// ─────────────────────────────────────────────
+// local modules
+// ─────────────────────────────────────────────
+
+// -- constants --
+import { DEFAULT_NORMALIZE_CONFIG } from './constants/normalize.constants.ts';
 
 // -- modules --
 import { reportResults } from './modules/file-io.ts';
@@ -52,7 +61,12 @@ import type { Stats } from './types/normalize.types.ts';
 export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void> => {
   try {
     const _parsed = parseArgs(argv ?? Deno.args);
-    const config = buildConfig(_parsed);
+    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _timeoutMs = Number(_globalConfig.get('timeoutMs') ?? DEFAULT_TIMEOUT_MS);
+    const config = buildConfig(_parsed, {
+      ...DEFAULT_NORMALIZE_CONFIG,
+      timeoutMs: _timeoutMs,
+    });
     const inputDir = resolveChatlogsDir({
       chatlogsDir: config.chatlogsDir,
       baseDir: config.baseDir ?? DEFAULT_CHATLOGS_DIR,
