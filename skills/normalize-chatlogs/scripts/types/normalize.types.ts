@@ -51,6 +51,7 @@ export interface NormalizeConfig {
   agent?: string;
   period?: string;
   model?: string;
+  timeoutMs?: number;
   dryRun: boolean;
   concurrency: number;
   normalizeDir?: string;
