@@ -63,7 +63,7 @@ async function _loadOutput(dir: string): Promise<FixtureOutput> {
 }
 
 /** output の種別に応じたモックを生成する */
-function _buildMock(output: FixtureOutput): DenoCommandLike {
+function _buildMock(output: FixtureOutput, filePath: string): DenoCommandLike {
   if (output.kind === 'error') {
     switch (output.error) {
       case 'external/ai-fail':
@@ -81,7 +81,8 @@ function _buildMock(output: FixtureOutput): DenoCommandLike {
     summary: `summary-${i}`,
     content: `content-${i}`,
   }));
-  return makeSuccessMock(new TextEncoder().encode(JSON.stringify(_mockSegments)));
+  const _aiResult = [{ filePath, segments: _mockSegments }];
+  return makeSuccessMock(new TextEncoder().encode(JSON.stringify(_aiResult)));
 }
 
 // ─── ファイル駆動 fixtures tests ──────────────────────────────────────────────
@@ -104,11 +105,11 @@ describe('segmentChatlogs — runai-segments', () => {
         const _inputPath = `${_fixtureDir}/input.md`;
 
         it(`SF-${_relPath}-count: セグメント数が output.yaml の count と一致する`, async () => {
-          const _mockHandle = installCommandMock(_buildMock(_output));
+          const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _result = await segmentChatlogs(_inputPath, _inputContent);
-            const _segments = _result ?? [];
+            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            const _segments = _map.get(_inputPath) ?? [];
             assertEquals(_segments.length, _output.count);
           } finally {
             _mockHandle.restore();
@@ -116,11 +117,11 @@ describe('segmentChatlogs — runai-segments', () => {
         });
 
         it(`SF-${_relPath}-structure: 各セグメントが title/summary/content フィールドを持つ`, async () => {
-          const _mockHandle = installCommandMock(_buildMock(_output));
+          const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _result = await segmentChatlogs(_inputPath, _inputContent);
-            const _segments = _result ?? [];
+            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            const _segments = _map.get(_inputPath) ?? [];
             for (const seg of _segments) {
               assertExists(seg.title);
               assertExists(seg.summary);
@@ -141,11 +142,11 @@ describe('segmentChatlogs — runai-segments', () => {
         const _inputPath = `${_fixtureDir}/input.md`;
 
         it(`SF-${_relPath}-error: segmentChatlogs が null を返す`, async () => {
-          const _mockHandle = installCommandMock(_buildMock(_output));
+          const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _result = await segmentChatlogs(_inputPath, _inputContent);
-            assertNull(_result);
+            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            assertNull(_map.get(_inputPath));
           } finally {
             _mockHandle.restore();
           }

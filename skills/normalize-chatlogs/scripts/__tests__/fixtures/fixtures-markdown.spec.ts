@@ -15,13 +15,12 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
 // test target
-import { generateSegmentFile, segmentChatlogs, START_BODY_HEADING } from '../../modules/segment-io.ts';
+import { generateSegmentFile, START_BODY_HEADING } from '../../modules/segment-io.ts';
 import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
@@ -69,9 +68,7 @@ const _fixtureEntries = await Promise.all(
 describe('generateSegmentFile — runai-markdown', () => {
   describe('Given: runai-markdown/* の各 fixture', () => {
     describe('When: generateSegmentFile(segment) を呼び出す', () => {
-      for (const { _dirName, _bodyDir, _bodyOutputFiles } of _fixtureEntries) {
-        const _inputPath = `${_bodyDir}/input.md`;
-
+      for (const { _dirName, _bodyOutputFiles } of _fixtureEntries) {
         if (_bodyOutputFiles.length === 0) {
           it(`SFM-${_dirName}-fixture-error: output-*.md が存在しない（フィクスチャ定義漏れ）`, () => {
             throw new Error(
@@ -90,21 +87,10 @@ describe('generateSegmentFile — runai-markdown', () => {
             const _expectedSegments = await Promise.all(_bodyOutputFiles.map(_loadOutputSegment));
             const _bodyFixtureContents = await Promise.all(_bodyOutputFiles.map((f) => readTextFile(f)));
 
-            const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
-            const _mockHandle = installCommandMock(makeSuccessMock(_stdout));
-
-            try {
-              const _inputContent = await readTextFile(_inputPath);
-              const _result = await segmentChatlogs(_inputPath, _inputContent);
-              const _segments = _result ?? [];
-
-              const _generated = generateSegmentFile(_segments[_idx]);
-              const _actual = _extractBodyFromFixture(_generated);
-              const _expected = _extractBodyFromFixture(_bodyFixtureContents[_idx]);
-              assertEquals(_actual, _expected);
-            } finally {
-              _mockHandle.restore();
-            }
+            const _generated = generateSegmentFile(_expectedSegments[_idx]);
+            const _actual = _extractBodyFromFixture(_generated);
+            const _expected = _extractBodyFromFixture(_bodyFixtureContents[_idx]);
+            assertEquals(_actual, _expected);
           });
         }
       }

@@ -116,14 +116,15 @@ describe('attachFrontmatter — runai-frontmatter', () => {
               const _expectedSegments = await Promise.all(_outputFiles.map(_loadOutputSegment));
               const _fixtureContents = await Promise.all(_outputFiles.map((f) => readTextFile(f)));
 
-              const _stdout = new TextEncoder().encode(JSON.stringify(_expectedSegments));
+              const _aiResult = [{ filePath: _inputPath, segments: _expectedSegments }];
+              const _stdout = new TextEncoder().encode(JSON.stringify(_aiResult));
               const _mockHandle = installCommandMock(makeSuccessMock(_stdout));
 
               try {
                 const _inputContent = await readTextFile(_inputPath);
                 const _entry = new ChatlogEntry(_inputContent);
-                const _result = await segmentChatlogs(_inputPath, _inputContent);
-                const _segments = _result ?? [];
+                const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+                const _segments = _map.get(_inputPath) ?? [];
 
                 const _actual = _buildOutput(_segments[_idx], _entry);
                 const { meta: _actualMeta } = parseFrontmatter(_actual);
