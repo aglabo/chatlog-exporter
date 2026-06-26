@@ -13,4 +13,5 @@ export const ERROR_KIND_LABELS = {
   InvalidYaml: 'Invalid Yaml',
   NotInGitRepo: 'Not In Git Repository',
   GitNotFound: 'Git Not Found',
+  FailFast: 'Fail Fast',
 } as const;
