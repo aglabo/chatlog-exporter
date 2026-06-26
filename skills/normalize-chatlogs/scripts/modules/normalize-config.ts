@@ -36,6 +36,8 @@ const _SCHEMA: ArgsSchema = [
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
   { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
   { option: '--normalize-dir', field: 'normalizeDir', type: 'directory' },
+  { option: '--fail-fast', field: 'failFast', type: 'flag' },
+  { option: '--single-file', field: 'singleFile', type: 'flag' },
 ];
 
 export const parseArgs = (args: string[]): NormalizeParsedConfig => {
