@@ -132,7 +132,7 @@ describe('segmentChatlogs', () => {
     describe('When: segmentChatlogs([{filePath, content}]) を呼び出す', () => {
       /**
        * Task T-09-03: セグメント数の上限適用。
-       * runAI が10件を超えるセグメントを返した場合、最初の10件のみに絞られることを確認する。
+       * runAI が5件を超えるセグメントを返した場合、最初の5件のみに絞られることを確認する。
        */
       describe('Then: Task T-09-03 - セグメント数の上限適用', () => {
         let mockHandle: CommandMockHandle;
