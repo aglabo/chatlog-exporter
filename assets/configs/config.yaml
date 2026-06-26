@@ -1,32 +1,32 @@
-# chatlog-exporter グローバルデフォルト設定
-# このファイルを編集することで、全スクリプトのデフォルト値を上書きできます。
-# --config <path> オプションで別ファイルを指定することも可能です。
+# chatlog-exporter global default configuration
+# Edit this file to override default values for all scripts.
+# You can also specify another file with the --config <path> option.
 
-# エージェント
+# Agent
 agent: claude
 
-# AI 実行系
-model: "sonnet"
-timeoutMs: 120_000 # 2分(ms)
+# AI execution
+model: "haiku"
+timeoutMs: 120_000 # 2 min (ms)
 
-# ハッシュ生成系
+# Hash generation
 hashLength: 8
 minRandomLength: 4
 maxRandomLength: 16
 
-# 並列処理・バッチ処理系
-chunkSize: 10
+# Parallel / batch processing
+chunkSize: 5
 concurrency: 4
 
-# 文字数フィルタ系
-minCharCount: 1000 # コンテンツ最小文字数
-minAssistantChars: 300 # Assistant 応答最小文字数（userTurns=1 時）
-maxContentLength: 4000 # コンテンツ最大文字数
+# Character count filters
+minCharCount: 1000 # Minimum content length
+minAssistantChars: 300 # Minimum assistant response length (when userTurns=1)
+maxContentLength: 4000 # Maximum content length
 
-# DISCARD 判定系（filter-chatlog）
-discardThreshold: 0.7 # confidence がこの値以上の DISCARD を削除対象とする
+# DISCARD threshold (filter-chatlog)
+discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value
 
-# アセットディレクトリ
+# Asset directories
 dicsDir: "./assets/dics"
 promptsDir: "./assets/prompts"
 chatlogsDir: "./chatlogs"
