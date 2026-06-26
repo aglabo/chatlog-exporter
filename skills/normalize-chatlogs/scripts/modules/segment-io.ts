@@ -1,6 +1,6 @@
 // src: scripts/modules/segment-io.ts
 // @(#): セグメント分割・ファイル生成・フロントマター付与・ファイル書き出しに関する関数群
-//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, segmentChatlogs, segmentChatlogsBatch, _writeSegmentToFile
+//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, segmentChatlogs, _writeSegmentToFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -149,58 +149,34 @@ export const attachFrontmatter = (
   return `${fmText}\n${content}`;
 };
 
-// ─── AI Execution ─────────────────────────────────────────────────────────────
+// ─── Line Number Helpers ──────────────────────────────────────────────────────
 
-/**
- * Splits a chatlog into topic-based segments by calling the Claude AI.
- *
- * Sends the chatlog content to Claude with a system prompt requesting a JSON
- * array of segments. Each segment has `title`, `summary`, and `body` fields.
- * At most {@link MAX_SEGMENTS} segments are returned.
- *
- * @param filePath - Path to the chatlog file (used for context in the prompt)
- * @param content  - Full text content of the chatlog file
- * @returns Promise resolving to an array of {@link Segment} objects, or `null`
- *          if the AI call fails or the response cannot be parsed as a JSON array
- */
-export const segmentChatlogs = async (
-  filePath: string,
-  content: string,
-  options?: { model?: string },
-): Promise<Segment[] | null> => {
-  const systemPrompt = 'You are a chatlog analyst. Split the given chatlog into topic-based segments. '
-    + 'Return ONLY a JSON array where each element has exactly three string fields: '
-    + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
-    + 'For "content": copy the relevant conversation verbatim — do NOT rewrite, paraphrase, or reformat. '
-    + 'Preserve all original line breaks, blank lines, code blocks, and list formatting exactly as they appear. '
-    + 'Preserve ### User and ### Assistant headings to distinguish speakers. '
-    + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
-
-  const userPrompt = `File: ${filePath}\n\n${content}`;
-
-  let raw: string;
-  try {
-    raw = await runAI(systemPrompt, userPrompt, { model: options?.model ?? DEFAULT_AI_MODEL });
-  } catch (e) {
-    if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlogs: timed out — ${filePath}`);
-    }
-    return null;
-  }
-
-  const parsed = parseAiJsonArray(raw);
-  if (parsed === null) {
-    return null;
-  }
-
-  const segments = parsed as Segment[];
-  return segments.slice(0, MAX_SEGMENTS);
+const _addLineNumbers = (content: string): string => {
+  if (!content) { return ''; }
+  return content.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
 };
 
-// ─── Batch AI Execution ───────────────────────────────────────────────────────
+const _extractLines = (lines: string[], startLine: number, endLine: number): string => {
+  const total = lines.length;
+  if (total === 0) { return ''; }
+  const start = Math.max(1, Math.min(startLine, total));
+  const end = Math.max(start, Math.min(endLine, total));
+  if (start > end) { return ''; }
+  return lines.slice(start - 1, end).join('\n');
+};
+
+// ─── AI Execution ─────────────────────────────────────────────────────────────
+
+/** AI が返す行番号範囲方式のセグメント定義。export しない内部型。 */
+type _AiSegmentRange = {
+  title: string;
+  summary: string;
+  startLine: number;
+  endLine: number;
+};
 
 /** バッチ処理用の入力1件。 */
-type ChatlogInput = {
+export type ChatlogInput = {
   filePath: string;
   content: string;
 };
@@ -213,10 +189,10 @@ type ChatlogInput = {
  * return results for, or if the AI call fails entirely.
  *
  * @param inputs   - Array of `{ filePath, content }` to segment
- * @param options  - Optional AI options (model)
+ * @param options  - Optional AI options (model, timeoutMs)
  * @returns Map from filePath to Segment[] or null
  */
-export const segmentChatlogsBatch = async (
+export const segmentChatlogs = async (
   inputs: ChatlogInput[],
   options?: { model?: string; timeoutMs?: number },
 ): Promise<Map<string, Segment[] | null>> => {
@@ -226,18 +202,22 @@ export const segmentChatlogsBatch = async (
     return m;
   };
 
-  const systemPrompt = 'You are a chatlog analyst. Split each given chatlog into topic-based segments. '
-    + 'Return ONLY a JSON array where each element has exactly two fields: '
-    + '"filePath" (the file path as given) and "segments" (array of segment objects). '
-    + 'Each segment object has exactly three string fields: '
-    + '"title" (short topic title), "summary" (one-sentence summary), and "content" (relevant text). '
-    + 'For "content": copy the relevant conversation verbatim — do NOT rewrite, paraphrase, or reformat. '
-    + 'Preserve all original line breaks, blank lines, code blocks, and list formatting exactly as they appear. '
-    + 'Preserve ### User and ### Assistant headings to distinguish speakers. '
+  const systemPrompt = 'You are a chatlog analyst. Split each given chatlog into 1 to 5 broad topic segments.\n'
+    + 'If the conversation covers only one topic, return exactly 1 segment covering the full content.\n'
+    + 'Never return an empty segments array — always return at least 1 segment per file.\n'
+    + 'Group minor subtopics under the nearest major theme — do NOT create a segment per small exchange.\n'
+    + 'Return ONLY a JSON array where each element has exactly two fields:\n'
+    + '"filePath" (the file path as given) and "segments" (array of segment objects).\n'
+    + 'Each segment object has exactly four fields:\n'
+    + '"title" (short topic title, 5 words or fewer),\n'
+    + '"summary" (one-sentence summary),\n'
+    + '"startLine" (integer, 1-based, inclusive),\n'
+    + '"endLine" (integer, 1-based, inclusive).\n'
+    + 'Ranges must be contiguous and non-overlapping. Cover the full conversation.\n'
     + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
 
   const userPrompt = inputs
-    .map(({ filePath, content }, i) => `File ${i + 1}: ${filePath}\n${content}`)
+    .map(({ filePath, content }, i) => `File ${i + 1}: ${filePath}\n${_addLineNumbers(content)}`)
     .join('\n\n---\n\n');
 
   let _raw: string;
@@ -247,23 +227,52 @@ export const segmentChatlogsBatch = async (
       ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
     });
   } catch (e) {
+    const _paths = inputs.map((i) => getBasename(i.filePath)).join(', ');
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlogsBatch: timed out`);
+      logger.warn(`segmentChatlogs: timed out — ${_paths}`);
+    } else {
+      logger.warn(`segmentChatlogs: AI error — ${_paths}`);
     }
     return _nullMap();
   }
 
   const _parsed = parseAiJsonArray(_raw);
-  if (_parsed === null) { return _nullMap(); }
+  if (_parsed === null) {
+    const _paths = inputs.map((i) => getBasename(i.filePath)).join(', ');
+    logger.warn(`segmentChatlogs: invalid JSON response — ${_paths}`);
+    return _nullMap();
+  }
 
   const _validPaths = new Set(inputs.map((i) => i.filePath));
   const _result = new Map<string, Segment[] | null>();
   for (const { filePath } of inputs) { _result.set(filePath, null); }
 
-  for (const entry of _parsed as Array<{ filePath: string; segments: Segment[] }>) {
+  for (const entry of _parsed as Array<{ filePath: string; segments: _AiSegmentRange[] }>) {
     if (!_validPaths.has(entry.filePath)) { continue; }
+    const _inputContent = inputs.find((i) => i.filePath === entry.filePath)!.content;
+    const _lines = _inputContent.split('\n');
     const _segments = Array.isArray(entry.segments) ? entry.segments : [];
-    _result.set(entry.filePath, _segments.slice(0, MAX_SEGMENTS));
+    _result.set(
+      entry.filePath,
+      _segments.slice(0, MAX_SEGMENTS).map((r) => ({
+        title: r.title,
+        summary: r.summary,
+        content: _extractLines(_lines, r.startLine, r.endLine),
+      })),
+    );
+  }
+
+  // null のまま残ったファイルまたは空セグメントのファイルに対してログ出力
+  for (const { filePath } of inputs) {
+    const _segments = _result.get(filePath);
+    if (_segments && _segments.length > 0) { continue; }
+    const _entry = (_parsed as Array<{ filePath: string; segments: unknown[] }>)
+      .find((e) => e.filePath === filePath);
+    if (!_entry) {
+      logger.warn(`segmentChatlogs: no entry returned for — ${getBasename(filePath)}`);
+    } else {
+      logger.warn(`segmentChatlogs: empty segments returned for — ${getBasename(filePath)}`);
+    }
   }
 
   return _result;
