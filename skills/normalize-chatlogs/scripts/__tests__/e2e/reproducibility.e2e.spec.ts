@@ -27,7 +27,6 @@ import {
   silenceLog,
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // types
@@ -46,7 +45,7 @@ import type { HashProvider } from '../../../../_scripts/types/providers.types.ts
 describe('main - reproducibility', () => {
   // ─── T-15-04-02: 再実行時のバックアップ ──────────────────────────────────────
 
-  /** エッジケース: 再実行時に既存出力ファイルをバックアップして再書き込みする (R-011) */
+  /** エッジケース: 再実行時に normalize済みファイルをスキップする (R-011) */
   describe('Given: 出力ファイルがすでに存在する処理済み入力ファイル', () => {
     let inputDir: string;
     let outputDir: string;
@@ -78,8 +77,8 @@ describe('main - reproducibility', () => {
     });
 
     describe('When: main() を同一入力で 2 回呼び出す', () => {
-      describe('Then: Task T-15-04-02 - 再実行時に既存出力ファイルをバックアップして再書き込みする', () => {
-        it('T-15-04-02-01: 2 回目の呼び出しで success=1 がレポートに含まれ、旧ファイルが .old-01.md としてバックアップされる', async () => {
+      describe('Then: Task T-15-04-02 - 再実行時に normalize済みファイルをスキップする', () => {
+        it('T-15-04-02-01: 2 回目の呼び出しで skip=1 がレポートに含まれる', async () => {
           // Fixed hash so both runs generate the same output filename
           const fixedHash: HashProvider = () => '0000000';
 
@@ -89,15 +88,10 @@ describe('main - reproducibility', () => {
           // Reset log capture for second run
           loggerStub.infoLogs.splice(0);
 
-          // Second run: should backup existing file and rewrite
+          // Second run: should skip already-normalized file
           await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
-          assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
-
-          // Verify the old file was backed up as .old-01.md (search recursively under outputDir)
-          const allFiles = await findFiles(outputDir);
-          const backupExists = allFiles.some((path) => path.includes('.old-01.md'));
-          assertEquals(backupExists, true);
+          assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
         });
       });
     });
