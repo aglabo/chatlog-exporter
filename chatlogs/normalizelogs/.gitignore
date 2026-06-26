@@ -1,0 +1,22 @@
+# src: .gitignore
+# @(#) : ignore outputed chatlogs
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+# ignore words for Python files, including pycache and pybuilder
+# cspell:words pycache codz pybuilder
+
+## ignore all directories
+/*
+
+# track git settings
+!.git*
+!**/.git*
+
+# directory keeper
+!**/.keep
+
+
