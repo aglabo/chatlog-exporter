@@ -34,6 +34,7 @@ import {
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { DEFAULT_PROMPTS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
@@ -43,13 +44,9 @@ const _MAX_CONTENT_LENGTH = 4000;
 
 // ─── フィクスチャパス・辞書パス ───────────────────────────────────────────────
 
-const FIXTURES_DIR = new URL('./fixtures-data', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1'); // Windows: /C:/... → C:/...
+const FIXTURES_DIR = normalizePath(new URL('./fixtures-data', import.meta.url).pathname);
 
-const ASSETS_DICS_DIR = new URL('../../../../../../assets/dics', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const ASSETS_DICS_DIR = normalizePath(new URL('../../../../../../assets/dics', import.meta.url).pathname);
 
 // ─── 型定義 ───────────────────────────────────────────────────────────────────
 
