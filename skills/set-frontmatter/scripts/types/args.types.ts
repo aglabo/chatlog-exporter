@@ -14,7 +14,9 @@
 
 /** `buildConfig` が返す完全な設定（すべてのフィールドが必須）。 */
 export interface SetfmConfig {
-  /** フロントマターを付与する対象ディレクトリのパス。 */
+  /** チャットログを読み込む入力ディレクトリのパス。 */
+  inputDir: string;
+  /** フロントマター付きファイルの書き込み先ディレクトリのパス。 */
   targetDir: string;
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: string;
@@ -28,6 +30,8 @@ export interface SetfmConfig {
   concurrency: number;
   /** バッチリクエスト1回あたりの最大ファイル数。 */
   chunkSize: number;
+  /** フェーズ単位のキャッシュファイルを格納するディレクトリのパス。 */
+  cacheDir: string;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`concurrency` は GlobalConfig で管理するため除外。 */
