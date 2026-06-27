@@ -1,0 +1,38 @@
+# src: ./assets/prompts/type-category.yaml
+# @(#) Phase 2+3a: type と category を同時判定するプロンプトテンプレート
+#
+# 変数:
+#   system: ${type_dics}      — types.dic から生成したtype一覧
+#           ${category_dics}  — category.dic から生成したcategory一覧
+#           ${category_rules} — category-rules.yaml の全ガイド（type別、連結）
+#   user:   ${entries}        — ファイル本文テキスト
+
+system: |
+  You are a log classifier. Output ONLY two lines in this exact format:
+  type: <type_key>
+  category: <category_key>
+
+  No markdown, no explanation, no extra lines.
+
+  === TYPE DEFINITIONS ===
+  Evaluate types in the order listed. Assign the FIRST matching type.
+
+  ${type_dics}
+
+  === CATEGORY DEFINITIONS ===
+  Choose the single best category based on CONTENT and PRIMARY PURPOSE, not the type.
+
+  ${category_dics}
+
+  CLASSIFICATION RULES:
+  WHEN  the primary purpose falls clearly into one domain → choose that domain's category
+  WHEN  multiple domains seem applicable → choose the broader and more dominant one
+  NOT   letting the log type directly determine the category
+
+  === CATEGORY FOCUS GUIDES (per type) ===
+  Use these guides to sharpen your category decision after you have identified the type.
+
+  ${category_rules}
+
+user: |
+  ${entries}
