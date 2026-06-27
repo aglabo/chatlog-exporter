@@ -83,15 +83,17 @@ async function _makeTargetDir(content?: string): Promise<string> {
 
 describe('main - dry-run モード', () => {
   describe('Given: 1件の .md ファイルと dry-run フラグ', () => {
-    describe('When: main(["--target-dir", dir, "--dry-run", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--input-dir", dir, "--target-dir", outDir, "--dry-run", ...]) を呼び出す', () => {
       describe('Then: T-SF-E2E-01 - ファイルが変更されない', () => {
-        let targetDir: string;
+        let inputDir: string;
+        let outputDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          targetDir = await _makeTargetDir();
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
           dicsDir = await _makeDicsDir();
 
           // 各フェーズの応答を順番に返す（全呼び出しで成功）
@@ -113,24 +115,58 @@ describe('main - dry-run モード', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
-          await Deno.remove(targetDir, { recursive: true }).catch(() => {});
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
         it('T-SF-E2E-01-01: ファイルの内容が変更されない', async () => {
-          const originalContent = await readTextFile(`${targetDir}/test.md`);
+          const originalContent = await readTextFile(`${inputDir}/test.md`);
 
-          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+          await main([
+            '--input-dir',
+            inputDir,
+            '--target-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
 
-          const updatedContent = await readTextFile(`${targetDir}/test.md`);
+          const updatedContent = await readTextFile(`${inputDir}/test.md`);
           assertEquals(updatedContent, originalContent);
         });
 
-        it('T-SF-E2E-01-02: "DRY RUN" がログに出力される', async () => {
-          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+        it('T-SF-E2E-01-02: "[dry-run]" がログに出力される', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--target-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
 
-          assertEquals(loggerStub.logLogs.some((l) => l.includes('DRY RUN')), true);
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
+        });
+
+        it('T-SF-E2E-01-03: Phase 2 (type判定) が実行されない', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--target-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.every((l) => !l.includes('Phase 2')), true);
         });
       });
     });
@@ -141,15 +177,17 @@ describe('main - dry-run モード', () => {
 
 describe('main - --no-review モード', () => {
   describe('Given: 1件の .md ファイルと --no-review フラグ', () => {
-    describe('When: main(["--target-dir", dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--input-dir", dir, "--target-dir", outDir, "--no-review", ...]) を呼び出す', () => {
       describe('Then: T-SF-E2E-02 - Phase 3.5 スキップのログが出力される', () => {
-        let targetDir: string;
+        let inputDir: string;
+        let outputDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          targetDir = await _makeTargetDir();
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
           dicsDir = await _makeDicsDir();
           commandHandle = installCommandMock(
             makeSuccessMock(_enc.encode('research')),
@@ -160,13 +198,23 @@ describe('main - --no-review モード', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
-          await Deno.remove(targetDir, { recursive: true }).catch(() => {});
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
         it('T-SF-E2E-02-01: "--no-review" または "スキップ" がログに含まれる', async () => {
-          await main(['--target-dir', targetDir, '--dry-run', '--no-review', '--dics', dicsDir]);
+          await main([
+            '--input-dir',
+            inputDir,
+            '--target-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
 
           assertEquals(
             loggerStub.infoLogs.some((l) =>
@@ -184,15 +232,17 @@ describe('main - --no-review モード', () => {
 
 describe('main - yaml 生成失敗', () => {
   describe('Given: Claude CLI がすべて成功するが yaml が空になるモック', () => {
-    describe('When: main(["--target-dir", dir, "--no-review", "--dics", dicsDir]) を呼び出す', () => {
+    describe('When: main(["--input-dir", dir, "--target-dir", outDir, "--no-review", ...]) を呼び出す', () => {
       describe('Then: T-SF-E2E-05 - fail=1 のサマリーが出力される', () => {
-        let targetDir: string;
+        let inputDir: string;
+        let outputDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          targetDir = await _makeTargetDir();
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
           dicsDir = await _makeDicsDir();
           // 全フェーズで空文字を返す（title: なし → cleanYaml で空になる）
           commandHandle = installCommandMock(
@@ -204,13 +254,14 @@ describe('main - yaml 生成失敗', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
-          await Deno.remove(targetDir, { recursive: true }).catch(() => {});
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
         it('T-SF-E2E-05-01: "fail=1" がサマリーに出力される', async () => {
-          await main(['--target-dir', targetDir, '--no-review', '--dics', dicsDir]);
+          await main(['--input-dir', inputDir, '--target-dir', outputDir, '--no-review', '--dics', dicsDir]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=1')), true);
         });
