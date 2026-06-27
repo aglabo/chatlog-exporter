@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // utils
+import { join, relative } from '@std/path';
 import { getProjectRootDir } from './dir-utils.ts';
 // types
 import type { ResolveConfigPathOptions } from '../../types/path-utils.types.ts';
@@ -60,6 +61,20 @@ export const isAbsolutePath = (path: string): boolean => {
   if (_WIN_ABS.test(_normalized)) { return true; }
   if (_normalized.startsWith('/')) { return true; }
   return false;
+};
+
+// ─────────────────────────────────────────────
+// パス結合・相対パス
+// ─────────────────────────────────────────────
+
+/** 複数のパスを結合し、区切り文字をスラッシュに統一して返す。 */
+export const joinPath = (base: string, ...parts: string[]): string => {
+  return normalizePath(join(base, ...parts));
+};
+
+/** `from` から `to` への相対パスを返す。区切り文字はスラッシュに統一される。 */
+export const getRelativePath = (from: string, to: string): string => {
+  return normalizePath(relative(from, to));
 };
 
 // ─────────────────────────────────────────────
