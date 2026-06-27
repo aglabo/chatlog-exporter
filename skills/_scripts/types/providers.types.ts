@@ -35,6 +35,15 @@ export type ReadTextFileProvider = (path: string) => Promise<string>;
 /** ファイルを削除する関数の型。テスト用インジェクションに利用する。 */
 export type RemoveProvider = (path: string) => Promise<void>;
 
+/** テキストファイルを書き込む関数の型。テスト用インジェクションに利用する。 */
+export type WriteTextFileProvider = (path: string, data: string) => Promise<void>;
+
+/** ディレクトリを作成する関数の型。テスト用インジェクションに利用する。 */
+export type MkdirProvider = (path: string, options?: { recursive?: boolean }) => Promise<void>;
+
+/** ファイルをリネーム（移動）する関数の型。テスト用インジェクションに利用する。 */
+export type RenameProvider = (oldPath: string, newPath: string) => Promise<void>;
+
 /** ディレクトリを結果に含めるか判定する述語関数の型。 */
 export type DirProvider = (dir: string) => Promise<boolean>;
 

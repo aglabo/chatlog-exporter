@@ -31,6 +31,9 @@ export const DEFAULT_CHATLOGS_DIR = './chatlogs';
 /** normalize-chatlogs が出力するセグメントのデフォルトベースディレクトリ。 */
 export const DEFAULT_NORMALIZE_DIR = './chatlogs/normalizelogs';
 
+/** set-frontmatter が処理対象とするデフォルトのターゲットディレクトリ。 */
+export const DEFAULT_TARGET_DIR = './chatlogs/outputLogs';
+
 /** 辞書ファイルが置かれたデフォルトディレクトリ。 */
 export const DEFAULT_DICS_DIR = './assets/dics';
 

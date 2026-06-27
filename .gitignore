@@ -101,7 +101,12 @@ tmp/
 node_modules/
 
 ## beads
-.beads/+
-!.beads/**/.gitignore
+.beads/*
+!**/.gitignore
 !.beads/config.yaml
 
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

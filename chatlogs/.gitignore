@@ -1,5 +1,5 @@
 # src: .gitignore
-# @(#) : ignore outputed chatlogs
+# @(#) : ignore output chatlogs
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
@@ -21,4 +21,4 @@
 
 
 # track normalize logs
-!normalizelogs
+
