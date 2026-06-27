@@ -15,7 +15,9 @@ import {
   getBasename,
   getDirectory,
   getFilename,
+  getRelativePath,
   isAbsolutePath,
+  joinPath,
   normalizePath,
   resolveConfigPath,
 } from '../../path-utils.ts';
@@ -692,6 +694,108 @@ describe('resolveConfigPath', () => {
             }),
             '/home/user/config.yaml',
           );
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// joinPath
+// ─────────────────────────────────────────────
+
+describe('joinPath', () => {
+  describe('Given: Unix ベースパス', () => {
+    describe('When: joinPath を実行する', () => {
+      describe('Then: T-LIB-U-20-01 - 正規化されたパスが返る', () => {
+        it('[Normal] T-LIB-U-20-01: /foo + bar → /foo/bar', () => {
+          assertEquals(joinPath('/foo', 'bar'), '/foo/bar');
+        });
+      });
+    });
+  });
+
+  describe('Given: Windows バックスラッシュのベースパス', () => {
+    describe('When: joinPath を実行する', () => {
+      describe('Then: T-LIB-U-20-02 - バックスラッシュがスラッシュに統一される', () => {
+        it('[Normal] T-LIB-U-20-02: C:\\\\foo + bar → C:/foo/bar', () => {
+          assertEquals(joinPath('C:\\foo', 'bar'), 'C:/foo/bar');
+        });
+      });
+    });
+  });
+
+  describe('Given: 複数パーツのパス', () => {
+    describe('When: joinPath を実行する', () => {
+      describe('Then: T-LIB-U-20-03 - 全パーツが結合される', () => {
+        it('[Normal] T-LIB-U-20-03: /a + b + c → /a/b/c', () => {
+          assertEquals(joinPath('/a', 'b', 'c'), '/a/b/c');
+        });
+      });
+    });
+  });
+
+  describe('Given: 末尾スラッシュ付きベースパス', () => {
+    describe('When: joinPath を実行する', () => {
+      describe('Then: T-LIB-U-20-04 - 末尾スラッシュが除去される', () => {
+        it('[Edge] T-LIB-U-20-04: /foo/ + bar → /foo/bar', () => {
+          assertEquals(joinPath('/foo/', 'bar'), '/foo/bar');
+        });
+      });
+    });
+  });
+
+  describe('Given: パーツなし（base のみ）', () => {
+    describe('When: joinPath を実行する', () => {
+      describe('Then: T-LIB-U-20-05 - base がそのまま返る', () => {
+        it('[Edge] T-LIB-U-20-05: joinPath("/foo") → /foo', () => {
+          assertEquals(joinPath('/foo'), '/foo');
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// getRelativePath
+// ─────────────────────────────────────────────
+
+describe('getRelativePath', () => {
+  describe('Given: Unix パスで from の子パスへ', () => {
+    describe('When: getRelativePath を実行する', () => {
+      describe('Then: T-LIB-U-21-01 - 相対パスが返る', () => {
+        it('[Normal] T-LIB-U-21-01: /a/b から /a/b/c/d.md → c/d.md', () => {
+          assertEquals(getRelativePath('/a/b', '/a/b/c/d.md'), 'c/d.md');
+        });
+      });
+    });
+  });
+
+  describe('Given: Windows バックスラッシュパスで from の子パスへ', () => {
+    describe('When: getRelativePath を実行する', () => {
+      describe('Then: T-LIB-U-21-02 - バックスラッシュなしの相対パスが返る', () => {
+        it('[Normal] T-LIB-U-21-02: C:\\\\foo から C:\\\\foo\\\\bar\\\\baz.md → bar/baz.md', () => {
+          assertEquals(getRelativePath('C:\\foo', 'C:\\foo\\bar\\baz.md'), 'bar/baz.md');
+        });
+      });
+    });
+  });
+
+  describe('Given: 同じパスを from と to に指定する', () => {
+    describe('When: getRelativePath を実行する', () => {
+      describe('Then: T-LIB-U-21-03 - 空文字列が返る', () => {
+        it('[Edge] T-LIB-U-21-03: /a/b から /a/b → 空文字列', () => {
+          assertEquals(getRelativePath('/a/b', '/a/b'), '');
+        });
+      });
+    });
+  });
+
+  describe('Given: 上位ディレクトリへの相対パス', () => {
+    describe('When: getRelativePath を実行する', () => {
+      describe('Then: T-LIB-U-21-04 - .. が返る', () => {
+        it('[Edge] T-LIB-U-21-04: /a/b/c から /a/b → ..', () => {
+          assertEquals(getRelativePath('/a/b/c', '/a/b'), '..');
         });
       });
     });
