@@ -19,6 +19,7 @@ import { buildConfig } from '../../setfm-config.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_CHUNK_SIZE, DEFAULT_PROMPTS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
@@ -59,23 +60,23 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `targetDir` 未指定のとき `ChatlogError(InvalidArgs, NotSpecified)` がスローされることを検証する。
+   * `targetDir` 未指定のとき `joinPath(chatlogsDir, 'outputLogs')` が使われることを検証する。
    */
   describe('When: targetDir が未指定', () => {
-    it('[Error] T-SF-BC-01-01: targetDir undefined → ChatlogError(InvalidArgs) がスローされる', () => {
-      assertThrows(
-        () => buildConfig({}, globalConfig),
-        ChatlogError,
-        'Invalid Args',
-      );
+    it('[Normal] T-SF-BC-01-01: targetDir undefined → joinPath(chatlogsDir, outputLogs) が使われる', () => {
+      const result = buildConfig({}, globalConfig);
+      assertEquals(result.targetDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
     });
 
-    it('[Error] T-SF-BC-01-02: targetDir 空文字列 → ChatlogError(InvalidArgs) がスローされる', () => {
-      assertThrows(
-        () => buildConfig({ targetDir: '' }, globalConfig),
-        ChatlogError,
-        'Invalid Args',
-      );
+    it('[Edge] T-SF-BC-01-02: targetDir 空文字列 → joinPath(chatlogsDir, outputLogs) が使われる', () => {
+      const result = buildConfig({ targetDir: '' }, globalConfig);
+      assertEquals(result.targetDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
+    });
+
+    it('[Normal] T-SF-BC-01-03: GlobalConfig.chatlogsDir=./custom → targetDir=joinPath(./custom, outputLogs)', async () => {
+      const gc = await _makeGlobalConfig('chatlogsDir: ./custom');
+      const result = buildConfig({}, gc);
+      assertEquals(result.targetDir, joinPath('./custom', 'outputLogs'));
     });
   });
 
@@ -141,6 +142,38 @@ describe('buildConfig', () => {
   });
 
   /**
+   * `inputDir` フィールドのデフォルト値と指定値テスト。
+   */
+  describe('When: inputDir の設定', () => {
+    /** inputDir 未指定でデフォルト値が使われる正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-BC-07-01: inputDir undefined → joinPath(chatlogsDir, normalizelogs) が使われる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.inputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
+      });
+
+      it('[Normal] T-SF-BC-07-02: parsed.inputDir 指定 → その値が使われる', () => {
+        const result = buildConfig({ inputDir: '/custom/input' }, globalConfig);
+        assertEquals(result.inputDir, '/custom/input');
+      });
+
+      it('[Normal] T-SF-BC-07-04: GlobalConfig.chatlogsDir=./custom → inputDir=joinPath(./custom, normalizelogs)', async () => {
+        const gc = await _makeGlobalConfig('chatlogsDir: ./custom');
+        const result = buildConfig({}, gc);
+        assertEquals(result.inputDir, joinPath('./custom', 'normalizelogs'));
+      });
+    });
+
+    /** inputDir 空文字列のエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-SF-BC-07-03: inputDir 空文字列 → joinPath(chatlogsDir, normalizelogs) が使われる', () => {
+        const result = buildConfig({ inputDir: '' }, globalConfig);
+        assertEquals(result.inputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
+      });
+    });
+  });
+
+  /**
    * `promptsDir` フィールドの優先順位テスト。
    *
    * 優先順位: parsed.promptsDir > GlobalConfig.promptsDir > DEFAULT_PROMPTS_DIR
@@ -175,6 +208,26 @@ describe('buildConfig', () => {
         const result = buildConfig({ targetDir: '/target', promptsDir: './parsed/prompts' }, gc);
 
         assertEquals(result.promptsDir, './parsed/prompts');
+      });
+    });
+  });
+
+  /**
+   * `cacheDir` フィールドのデフォルト値と CLI 指定値テスト。
+   *
+   * 優先順位: parsed.cacheDir > joinPath(TEMP環境変数, 'setfm-cache')
+   */
+  describe('When: cacheDir の設定', () => {
+    /** cacheDir 未指定でデフォルト値が使われる正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-BC-08-01: cacheDir 未指定 → joinPath(TEMP, setfm-cache) が使われる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.cacheDir, joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache'));
+      });
+
+      it('[Normal] T-SF-BC-08-02: parsed.cacheDir 指定 → その値が使われる', () => {
+        const result = buildConfig({ cacheDir: '/custom/cache' }, globalConfig);
+        assertEquals(result.cacheDir, '/custom/cache');
       });
     });
   });
