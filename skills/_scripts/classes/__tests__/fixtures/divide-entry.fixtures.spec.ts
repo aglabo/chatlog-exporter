@@ -18,6 +18,7 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 
 // -- helpers --
 import { findFixtureDirs, type IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../libs/path-utils/path-utils.ts';
 // exists
 import { readTextFile } from '../../../libs/file-io/read-utils.ts';
 import { fileExists } from '../../../libs/file-ops/exists-utils.ts';
@@ -33,9 +34,7 @@ type _FixtureExpected =
   | { frontmatterText: string; content: string; error?: never }
   | { error: string; frontmatterText?: never; content?: never };
 
-const FIXTURES_DIR = new URL('./fixtures-data/divide-entry', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const FIXTURES_DIR = normalizePath(new URL('./fixtures-data/divide-entry', import.meta.url).pathname);
 
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
   return await fileExists(`${dir}/input.md`);

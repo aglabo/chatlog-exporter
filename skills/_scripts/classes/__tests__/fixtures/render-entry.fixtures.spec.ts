@@ -19,6 +19,7 @@ import { ChatlogEntry } from '../../ChatlogEntry.class.ts';
 
 // -- helpers --
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../libs/path-utils/path-utils.ts';
 // type
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // file libs
@@ -39,9 +40,7 @@ type _FixtureExpected =
   | { expected: string; error?: never }
   | { error: string; expected?: never };
 
-const FIXTURES_DIR = new URL('./fixtures-data/render-entry', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const FIXTURES_DIR = normalizePath(new URL('./fixtures-data/render-entry', import.meta.url).pathname);
 
 async function _loadFixture(
   dir: string,
