@@ -101,8 +101,8 @@ tmp/
 node_modules/
 
 ## beads
-.beads/+
-!.beads/**/.gitignore
+.beads/*
+!**/.gitignore
 !.beads/config.yaml
 
 
