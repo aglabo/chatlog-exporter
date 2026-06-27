@@ -14,7 +14,7 @@ import type {
   RenameProvider,
   WriteTextFileProvider,
 } from '../../types/providers.types.ts';
-import { getRelativePath, joinPath } from '../path-utils/path-utils.ts';
+import { getFilename, joinPath } from '../path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // 内部ユーティリティ
@@ -40,17 +40,16 @@ export interface CacheWriteProviders {
 // ─────────────────────────────────────────────
 
 /**
- * 入力ディレクトリとファイルパスから、キャッシュファイル識別用の slug を算出する。
+ * ファイルパスからキャッシュファイル識別用の slug を算出する。
  *
- * `getRelativePath` でパスを相対化・正規化し、パス区切り文字（`/`）を
- * `_` に置換して返す。
+ * ファイル名（basename）のみを使うため、INPUT_DIR が変わっても同じ slug になる。
+ * スキル別に `cacheDir` を分けることで誤ヒットを防ぐ。
  *
- * @param inputDir - 入力ディレクトリの絶対パス
- * @param filePath - エントリファイルの絶対パス
- * @returns パス区切りを `_` に置換した slug 文字列
+ * @param filePath - エントリファイルの絶対パスまたは相対パス
+ * @returns ファイル名部分のみの slug 文字列
  */
-export const getCacheSlug = (inputDir: string, filePath: string): string =>
-  getRelativePath(inputDir, filePath).replace(/\//g, '_');
+export const getCacheSlug = (filePath: string): string =>
+  getFilename(filePath);
 
 /**
  * キャッシュファイルを読み込んで `T` のパーシャルオブジェクトを返す。

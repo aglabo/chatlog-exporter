@@ -23,7 +23,6 @@ import type { CacheWriteProviders } from '../../cache-utils.ts';
 // ─── Internal Helpers
 
 // constants
-const _INPUT_DIR = '/c/Users/user/chatlogs';
 const _CACHE_DIR_PREFIX = 'cache-utils-test';
 
 // ─── Tests
@@ -46,25 +45,24 @@ describe('cache-utils', () => {
    * パス区切り文字を `_` に正規化した slug を返すことを検証する。
    */
   describe('getCacheSlug', () => {
-    /** 正常系: Unix/Windows パスを正規化して slug を生成するケース。 */
+    /** 正常系: ファイル名のみの slug を返すケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-LIB-CA-01: Unix パスのサブディレクトリ区切り / を _ に置換する', () => {
-        const _slug = getCacheSlug(_INPUT_DIR, `${_INPUT_DIR}/subdir/file.md`);
-        assertEquals(_slug, 'subdir_file.md');
+      it('[Normal] T-LIB-CA-01: Unix パスからファイル名のみを返す', () => {
+        const _slug = getCacheSlug('/c/Users/user/chatlogs/subdir/file.md');
+        assertEquals(_slug, 'file.md');
       });
 
-      it('[Normal] T-LIB-CA-02: 入力ディレクトリ直下のファイルは slug がファイル名のみ', () => {
-        const _slug = getCacheSlug(_INPUT_DIR, `${_INPUT_DIR}/file.md`);
+      it('[Normal] T-LIB-CA-02: ファイル名のみのパスもそのまま返す', () => {
+        const _slug = getCacheSlug('file.md');
         assertEquals(_slug, 'file.md');
       });
     });
 
     /** エッジケース: Windows スタイルのバックスラッシュ。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-LIB-CA-03: Windows バックスラッシュも _ に置換する', () => {
-        const _winInputDir = 'W:\\chatlogs';
-        const _slug = getCacheSlug(_winInputDir, `${_winInputDir}\\subdir\\file.md`);
-        assertEquals(_slug, 'subdir_file.md');
+      it('[Edge] T-LIB-CA-03: Windows バックスラッシュパスからもファイル名のみを返す', () => {
+        const _slug = getCacheSlug('W:\\chatlogs\\subdir\\file.md');
+        assertEquals(_slug, 'file.md');
       });
     });
   });
