@@ -5,7 +5,7 @@ description: >
   /set-frontmatter で呼び出す。
   AIが会話内容を解析してtitle/summary/category/topics/tagsを生成。
   assets/dics/ の辞書を参照してcategory/topics/tagsを選定する。
-argument-hint: "<path> | [agent] project [YYYY-MM] [--dry-run]"
+argument-hint: "<input-path> [output-path] | [agent] project [YYYY-MM] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
@@ -25,7 +25,8 @@ allowed-tools: Bash, Glob
 `$ARGUMENTS` を解析し、以下のルールで引数を処理:
 
 - 引数なし → エラー (project またはパスを指定してください)
-- `<path>` → パス直接指定・指定ディレクトリのみ処理
+- `<path>` → 1つのパス指定: `--input-dir` として使用（出力はデフォルト `outputLogs`）
+- `<input-path> <output-path>` → 2つのパス指定: 1つ目=`--input-dir`、2つ目=`--target-dir`（出力先）
 - `project` のみ → `claude` agent・指定プロジェクト・全年月
 - `project YYYY-MM` → `claude` agent・指定プロジェクト・指定年月
 - `agent project` → 指定 agent・指定プロジェクト・全年月
@@ -36,14 +37,20 @@ allowed-tools: Bash, Glob
 
 1. `--dry-run` → DRY_RUN_FLAG
 2. 各引数の `\` を `/` に正規化する
-3. 最初の非オプション引数が `/` を含む → **PATH モード** (パスを直接 TARGET_DIR として使用)
-4. `YYYY-MM` パターン (`^[0-9]{4}-[0-9]{2}$`) → YEAR_MONTH
-5. 既知のagentリスト (`claude`, `chatgpt`) に一致 → AGENT
-6. それ以外 → PROJECT (最初の非オプション引数)
+3. 非オプション引数をパス引数リスト (PATH_ARGS) とその他に分類する
+   - `/` を含む引数 → PATH_ARGS に追加
+4. PATH_ARGS の数で分岐:
+   - 1つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR は未設定（スクリプトのデフォルト使用）
+   - 2つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR=PATH_ARGS[1]
+5. PATH_ARGS が0の場合は非パスモードで処理:
+   - `YYYY-MM` パターン (`^[0-9]{4}-[0-9]{2}$`) → YEAR_MONTH
+   - 既知のagentリスト (`claude`, `chatgpt`) に一致 → AGENT
+   - それ以外最初の値 → PROJECT
 
 例:
 
-- `/set-frontmatter temp/chatlogs/claude/2026-03/voift` → そのパスのみ処理
+- `/set-frontmatter chatlogs/normalizelogs/claude/2026-04` → input=その パス、output=デフォルト
+- `/set-frontmatter chatlogs/normalizelogs/claude/2026-04 chatlogs/outputLogs/claude/2026-04` → input=1つ目、output=2つ目
 - `/set-frontmatter dev-tooling 2026-03` → claude/dev-tooling/2026-03
 - `/set-frontmatter chatgpt dev-tooling 2026-03` → chatgpt/dev-tooling/2026-03
 - `/set-frontmatter deckrd --dry-run` → claude/deckrd 全年月 (dry-run)
@@ -62,58 +69,53 @@ DICS_DIR    = <cwd>/temp/dics
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
-CHATLOGS_BASE="$REPO_ROOT/temp/chatlogs"
+CHATLOGS_BASE="$REPO_ROOT/chatlogs"
 DICS_DIR="$REPO_ROOT/assets/dics"
 AGENT="claude"   # デフォルト
 PROJECT=""
 YEAR_MONTH=""
 DRY_RUN_FLAG=""
-PATH_MODE=false
-TARGET_DIR=""
+INPUT_DIR=""
+OUTPUT_DIR=""
+PATH_ARGS=()
 
 # $ARGUMENTS を解析:
 # 1. "--dry-run" → DRY_RUN_FLAG
-# 2. 各引数の \ を / に正規化する (例: temp\chatlogs\... → temp/chatlogs/...)
-# 3. 正規化後に / を含む → PATH_MODE=true
-# 4. "^[0-9]{4}-[0-9]{2}$" → YEAR_MONTH
-# 5. "claude" or "chatgpt" → AGENT
-# 6. それ以外最初の値 → PROJECT
+# 2. 各引数の \ を / に正規化する
+# 3. 正規化後に / を含む → PATH_ARGS に追加
+# 4. それ以外は YYYY-MM / AGENT / PROJECT として分類
 
-# PATH_MODE 判定例:
-# "temp\chatlogs\claude\2026-03\voift" → 正規化 → "temp/chatlogs/claude/2026-03/voift" → / を含む → PATH_MODE=true
-# "C:\Users\foo\bar" → 正規化 → "C:/Users/foo/bar" → / を含む → PATH_MODE=true
+# パス引数の数で分岐:
+# PATH_ARGS が1つ: INPUT_DIR=PATH_ARGS[0]（絶対パスならそのまま、相対なら $REPO_ROOT/$ARG）
+# PATH_ARGS が2つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR=PATH_ARGS[1]
+# PATH_ARGS が0: 非パスモード（PROJECT/AGENT/YEAR_MONTH で INPUT_DIR を構築）
 
-# TARGET_DIR の決定:
-# PATH_MODE true の場合:
-#   - 絶対パス (/ または ドライブレター) → TARGET_DIR="$FIRST_ARG"
-#   - 相対パス → TARGET_DIR="$REPO_ROOT/$FIRST_ARG"
-#   単一ディレクトリとしてスクリプトを実行
-# PATH_MODE false の場合:
-#   YEAR_MONTH あり: $CHATLOGS_BASE/$AGENT/$YEAR_MONTH/$PROJECT
-#   YEAR_MONTH なし: find で $CHATLOGS_BASE/$AGENT 配下の $PROJECT ディレクトリを列挙
+# 非パスモードの INPUT_DIR 決定:
+#   YEAR_MONTH あり: $CHATLOGS_BASE/normalizelogs/$AGENT/$YEAR_MONTH/$PROJECT
+#   YEAR_MONTH なし: find で $CHATLOGS_BASE/normalizelogs/$AGENT 配下を列挙
 ```
 
 ## ステップ3: スクリプト実行
 
 ```bash
-# PATH_MODE の場合 (パス直接指定):
-# 単一ディレクトリとして実行
-deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" \
-  "$TARGET_DIR" \
+# INPUT_DIR のみ指定 (OUTPUT_DIR は --target-dir を省略してスクリプトのデフォルトに委ねる):
+deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
+  --input-dir "$INPUT_DIR" \
   --dics "$DICS_DIR" \
   $DRY_RUN_FLAG
 
-# YEAR_MONTH が指定されている場合 (単一ディレクトリ):
-deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" \
-  "$TARGET_DIR" \
+# INPUT_DIR と OUTPUT_DIR 両方指定:
+deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
+  --input-dir "$INPUT_DIR" \
+  --target-dir "$OUTPUT_DIR" \
   --dics "$DICS_DIR" \
   $DRY_RUN_FLAG
 
-# YEAR_MONTH が未指定の場合 (全年月):
-find "$CHATLOGS_BASE/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
+# 非パスモード・YEAR_MONTH が未指定の場合 (全年月):
+find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
   echo "=== Processing: $dir ==="
-  deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" \
-    "$dir" \
+  deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
+    --input-dir "$dir" \
     --dics "$DICS_DIR" \
     $DRY_RUN_FLAG
 done
