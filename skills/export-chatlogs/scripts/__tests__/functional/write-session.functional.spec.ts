@@ -18,7 +18,8 @@ import { writeSession } from '../../libs/session-writer.ts';
 // ─── Helpers
 // types
 import type { ExportedSession } from '../../types/session.types.ts';
-// exists
+// functions
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 
@@ -97,7 +98,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
           // Windows パス対応
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           assertEquals(await fileExists(normalizedPath), true);
         });
       });
@@ -159,7 +160,7 @@ describe('writeSession', () => {
         it('T-EC-WS-03-01: frontmatter の "session_id:" が含まれる', async () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, 'session_id:');
         });
@@ -167,7 +168,7 @@ describe('writeSession', () => {
         it('T-EC-WS-03-02: "# What is TDD?" タイトル行が含まれる', async () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '# What is TDD?');
         });
@@ -175,7 +176,7 @@ describe('writeSession', () => {
         it('T-EC-WS-03-03: "### User" セクションが含まれる', async () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '### User');
         });
@@ -183,7 +184,7 @@ describe('writeSession', () => {
         it('T-EC-WS-03-04: "### Assistant" セクションが含まれる', async () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           const content = await readTextFile(normalizedPath);
           assertStringIncludes(content, '### Assistant');
         });
@@ -213,7 +214,7 @@ describe('writeSession', () => {
           const session = _makeSession();
           const nestedBase = `${tempDir}/deep/nested/dir`;
           const outPath = await writeSession(nestedBase, 'codex', session);
-          const normalizedPath = outPath.replace(/^\/([A-Z]:)/, '$1');
+          const normalizedPath = normalizePath(outPath);
           assertEquals(await fileExists(normalizedPath), true);
         });
       });
