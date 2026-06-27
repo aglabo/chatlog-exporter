@@ -14,15 +14,15 @@ import { loadProjectDic } from '../../load-project-dic.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
+// ─── Helpers
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+
 // ─── フィクスチャパス ──────────────────────────────────────────────────────────
 
 /**
  * 統合テスト用フィクスチャアセットのディレクトリパス。
- * Windows 環境で `/C:/...` → `C:/...` に正規化する。
  */
-const ASSETS_DIR = new URL('../../../modules/__tests__/integration/assets', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1'); // Windows: /C:/... → C:/...
+const ASSETS_DIR = normalizePath(new URL('../../../modules/__tests__/integration/assets', import.meta.url).pathname);
 
 // ─── loadProjectDic ───────────────────────────────────────────────────────────
 

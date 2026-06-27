@@ -22,6 +22,7 @@ import { parseCodexSession } from '../../codex-exporter.ts';
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { IsFixtureDirProvider } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import type { PeriodRange } from '../../../types/filter.types.ts';
@@ -50,9 +51,7 @@ interface FixtureData {
 // constants
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
-const FIXTURES_DIR = new URL('../fixtures-data', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const FIXTURES_DIR = normalizePath(new URL('../fixtures-data', import.meta.url).pathname);
 
 // functions
 /**  fixture ディレクトリチェック */

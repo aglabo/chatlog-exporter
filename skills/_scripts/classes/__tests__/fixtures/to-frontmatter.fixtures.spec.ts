@@ -15,6 +15,7 @@ import { parse as parseYaml } from '@std/yaml';
 
 // -- helpers --
 import { findFixtureDirs } from '../../../__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../libs/path-utils/path-utils.ts';
 // types
 import type { IsFixtureDirProvider } from '../../../__tests__/helpers/find-fixture-dirs.ts';
 // file libs
@@ -39,9 +40,7 @@ type _FixtureExpected =
   | { expected: string; error?: never }
   | { error: string; expected?: never };
 
-const FIXTURES_DIR = new URL('./fixtures-data/to-frontmatter', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const FIXTURES_DIR = normalizePath(new URL('./fixtures-data/to-frontmatter', import.meta.url).pathname);
 
 const _isFixtureDir: IsFixtureDirProvider = async (dir) => {
   return await fileExists(`${dir}/input.md`) && await fileExists(`${dir}/config.yaml`);

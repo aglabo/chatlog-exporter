@@ -20,6 +20,7 @@ import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.t
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── Internal Helpers
@@ -32,15 +33,11 @@ const _SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, n
 KEEP: design decisions, reusable patterns, new concepts, architecture discussion
 DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 
-/** fixtures-data/fixtures/mock の絶対パス（Windows パス正規化済み）。 */
-const MOCK_FIXTURES_DIR = new URL('./fixtures-data/fixtures/mock', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+/** fixtures-data/fixtures/mock の絶対パス。 */
+const MOCK_FIXTURES_DIR = normalizePath(new URL('./fixtures-data/fixtures/mock', import.meta.url).pathname);
 
-/** fixtures-data/fixtures/real の絶対パス（Windows パス正規化済み）。 */
-const REAL_FIXTURES_DIR = new URL('./fixtures-data/fixtures/real', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+/** fixtures-data/fixtures/real の絶対パス。 */
+const REAL_FIXTURES_DIR = normalizePath(new URL('./fixtures-data/fixtures/real', import.meta.url).pathname);
 
 /** `RUN_AI=1`: test with exec run AI */
 const _shouldRunAI = Deno.env.get('RUN_AI') === '1';

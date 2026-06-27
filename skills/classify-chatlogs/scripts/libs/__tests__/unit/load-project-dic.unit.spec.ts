@@ -20,11 +20,12 @@ import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class
 // constants
 import { DEFAULT_PROJECTS_DIC_PATH } from '../../../../../_scripts/constants/defaults.constants.ts';
 
+// ─── Helpers
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+
 // ─── テスト用フィクスチャ ──────────────────────────────────────────────────────
 
-const _FIXTURE_DIC_PATH = new URL('../../../modules/__tests__/integration/assets/projects.dic', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const _FIXTURE_DIC_PATH = normalizePath(new URL('../../../modules/__tests__/integration/assets/projects.dic', import.meta.url).pathname);
 
 const _FIXTURE_TEXT_NO_MISC = `app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n`;
 const _FIXTURE_TEXT_NON_STRING_PROP = `app1:\n  def: Test project 1\n  count: 5\n`;

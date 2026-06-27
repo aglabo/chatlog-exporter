@@ -19,13 +19,13 @@ import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.t
 
 // constants
 /** テスト対象スクリプト `classify-chatlogs.ts` の絶対パス。サブプロセス起動時に使用する。 */
-const SCRIPT_PATH = new URL('../../classify-chatlogs.ts', import.meta.url).pathname;
+const SCRIPT_PATH = normalizePath(new URL('../../classify-chatlogs.ts', import.meta.url).pathname);
 
-/** システムテスト用フィクスチャディレクトリの絶対パス。Windows ドライブレター正規化済み。 */
-const FIXTURE_SYSTEM_DATA = new URL('./fixtures', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+/** システムテスト用フィクスチャディレクトリの絶対パス。 */
+const FIXTURE_SYSTEM_DATA = normalizePath(new URL('./fixtures', import.meta.url).pathname);
 
 /** システムテスト用辞書フィクスチャの絶対パス。GlobalConfig の dicsDir として使用する。 */
-const FIXTURE_DICS_DIR = new URL('./fixtures/assets/dics', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+const FIXTURE_DICS_DIR = normalizePath(new URL('./fixtures/assets/dics', import.meta.url).pathname);
 
 /** `RUN_AI=1` 環境変数が設定されている場合に `true`。AI 呼び出しを伴うテストの実行制御に使用する。 */
 const _shouldRunAI = Deno.env.get('RUN_AI') === '1';

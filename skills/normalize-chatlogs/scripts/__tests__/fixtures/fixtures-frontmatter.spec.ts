@@ -18,6 +18,7 @@ import { describe, it } from '@std/testing/bdd';
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
@@ -38,8 +39,7 @@ const FRONTMATTER_KEYS = ['title', 'summary'] as const;
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
-const RUNAI_FRONTMATTER_DIR = new URL('./fixtures-data/runai-frontmatter', import.meta.url).pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const RUNAI_FRONTMATTER_DIR = normalizePath(new URL('./fixtures-data/runai-frontmatter', import.meta.url).pathname);
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
