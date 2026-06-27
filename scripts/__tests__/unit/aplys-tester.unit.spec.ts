@@ -322,7 +322,7 @@ describe('MODULE_GLOB_TABLE', () => {
 describe('buildDenoArgs', () => {
   describe('Given: unit タイプのみ', () => {
     describe('When: buildDenoArgs(["unit"], "**/__tests__") を呼び出す', () => {
-      describe('Then: T-AT-DA-01 - 基本フラグとパスを含み allow-run/env を含まない', () => {
+      describe('Then: T-AT-DA-01 - 基本フラグとパスを含み allow-run を含まない', () => {
         it('T-AT-DA-01-01: --allow-read を含む', () => {
           const result = buildDenoArgs(['unit'], '**/__tests__');
           assertEquals(result.includes('--allow-read'), true);
@@ -331,9 +331,9 @@ describe('buildDenoArgs', () => {
           const result = buildDenoArgs(['unit'], '**/__tests__');
           assertEquals(result.includes('--allow-run'), false);
         });
-        it('T-AT-DA-01-03: --allow-env を含まない', () => {
+        it('T-AT-DA-01-03: --allow-env を含む', () => {
           const result = buildDenoArgs(['unit'], '**/__tests__');
-          assertEquals(result.includes('--allow-env'), false);
+          assertEquals(result.includes('--allow-env'), true);
         });
         it('T-AT-DA-01-04: フラットパス "**/__tests__/unit/**/" を含む', () => {
           const result = buildDenoArgs(['unit'], '**/__tests__');
