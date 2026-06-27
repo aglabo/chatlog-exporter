@@ -104,12 +104,14 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
     categoryRulesRaw,
     typePromptRaw,
     categoryPromptRaw,
+    typeCategoryPromptRaw,
     metaPromptRaw,
     reviewPromptRaw,
   ] = await Promise.all([
     _readAssetFile(`${promptsDir}/category-rules.yaml`),
     _readAssetFile(`${promptsDir}/type.yaml`),
     _readAssetFile(`${promptsDir}/category.yaml`),
+    _readAssetFile(`${promptsDir}/type-category.yaml`),
     _readAssetFile(`${promptsDir}/meta.yaml`),
     _readAssetFile(`${promptsDir}/review.yaml`),
   ]);
@@ -124,6 +126,7 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
   const _prompts = new Map<string, PromptTemplate>([
     ['type', _loadPromptTemplate(typePromptRaw, 'type')],
     ['category', _loadPromptTemplate(categoryPromptRaw, 'category')],
+    ['type-category', _loadPromptTemplate(typeCategoryPromptRaw, 'type-category')],
     ['meta', _loadPromptTemplate(metaPromptRaw, 'meta')],
     ['review', _loadPromptTemplate(reviewPromptRaw, 'review')],
   ]);
