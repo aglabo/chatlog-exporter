@@ -8,7 +8,9 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-const SCRIPT_PATH = new URL('../../classify-chatlogs.ts', import.meta.url).pathname;
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+
+const SCRIPT_PATH = normalizePath(new URL('../../classify-chatlogs.ts', import.meta.url).pathname);
 
 async function runClassify(args: string[]): Promise<number> {
   const _cmd = new Deno.Command(Deno.execPath(), {
