@@ -26,6 +26,7 @@ import {
   findFixtureDirs,
   type IsFixtureDirProvider,
 } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // helpers
@@ -34,9 +35,7 @@ import { _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts
 // ─── Internal Helpers
 
 // constants
-const FIXTURES_DIR = new URL('./fixtures-data/pre-classify', import.meta.url)
-  .pathname
-  .replace(/^\/([A-Z]:)/, '$1');
+const FIXTURES_DIR = normalizePath(new URL('./fixtures-data/pre-classify', import.meta.url).pathname);
 
 // types
 interface _FixtureInput {
