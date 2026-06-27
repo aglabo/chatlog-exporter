@@ -70,7 +70,10 @@ export const writeOutput = async (
  * @param stats - Counters collected across a batch run
  */
 export const reportResults = (stats: Stats): void => {
-  logger.info(`Results: success=${stats.success}, skip=${stats.skip}, fail=${stats.fail}`);
+  logger.info(`Results: success=${stats.success}, skip=${stats.skip}, fallback=${stats.fallback}, fail=${stats.fail}`);
+  if (stats.fallback > 0) {
+    logger.info(`::info:: ${stats.fallback} file(s) processed via fallback (1-segment)`);
+  }
   if (stats.fail > 0) {
     logger.warn(`WARNING: ${stats.fail} file(s) failed`);
   }

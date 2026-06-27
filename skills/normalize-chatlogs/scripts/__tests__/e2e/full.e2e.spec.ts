@@ -172,23 +172,18 @@ describe('normalize-chatlogs - full E2E', () => {
       await removeTempDirs(inputDir, outputDir);
     });
 
-    it('T-FULL-03: 2 回実行後に旧ファイルが .old-01.md にバックアップされ、入力ファイルは不変である', async () => {
+    it('T-FULL-03: 2 回実行後に normalize済みファイルがスキップされ、入力ファイルは不変である', async () => {
       const fixedHash: HashProvider = () => '0000000';
 
       // 1 回目: 出力ファイルを生成
       await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
-      // 2 回目: バックアップを生成
+      // 2 回目: normalize済みファイルをスキップ
       loggerStub.infoLogs.splice(0);
       await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
 
-      // reproducibility: 2 回目も success=1
-      assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
-
-      // reproducibility: .old-01.md バックアップが存在する（サブディレクトリも含めて再帰検索）
-      const allFiles = await findFiles(outputDir);
-      const backupExists = allFiles.some((path) => path.includes('.old-01.md'));
-      assertEquals(backupExists, true);
+      // reproducibility: 2 回目は skip=1
+      assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
 
       // reproducibility: 入力ファイルは不変
       const afterContent = await readTextFile(`${inputDir}/chat.md`);

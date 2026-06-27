@@ -43,6 +43,8 @@ export type Stats = {
   skip: number;
   /** 失敗したファイル数（AI エラー・書き込みエラー等）。 */
   fail: number;
+  /** AI 失敗 → 1セグメント強制で処理した件数（--single-file モード専用）。 */
+  fallback: number;
 };
 
 export interface NormalizeConfig {
@@ -55,6 +57,8 @@ export interface NormalizeConfig {
   dryRun: boolean;
   concurrency: number;
   normalizeDir?: string;
+  failFast?: boolean;
+  singleFile?: boolean;
 }
 
 export type NormalizeParsedConfig = Partial<NormalizeConfig> & {

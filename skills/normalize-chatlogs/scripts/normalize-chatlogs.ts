@@ -78,7 +78,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
     }
     const outputBase = config.normalizeDir ?? DEFAULT_NORMALIZE_DIR;
 
-    const stats: Stats = { success: 0, skip: 0, fail: 0 };
+    const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
     await processFiles(inputDir, outputBase, config, stats, hashFn);
     reportResults(stats);
   } catch (e) {
