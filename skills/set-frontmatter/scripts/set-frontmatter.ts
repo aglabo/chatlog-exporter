@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
 // src: scripts/set-frontmatter.ts
 // @(#): チャットログMarkdownにAI生成フロントマターを並列付加する
 //
@@ -15,8 +15,7 @@
  *
  * 処理フロー:
  *   Phase 1: ファイル列挙・メタ読み込み
- *   Phase 2: type判定 (並列)
- *   Phase 3a: category判定 (並列, typeごとの外部プロンプト使用)
+ *   Phase 2+3a: type・category同時判定 (並列, 1回のAI呼び出し)
  *   Phase 3b: フロントマター生成 (並列, category起点)
  *   Phase 3.5: レビュー・修正 (並列)
  *   Phase 4: Markdownへ書き込み
@@ -29,17 +28,19 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { runChunked, runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
+import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
-import { judgeCategory } from './modules/setfm-category.ts';
+import { getCacheSlug, readCache, writeCache } from '../../_scripts/libs/cache/cache-utils.ts';
+// types
+import type { SetfmCache } from './types/cache.types.ts';
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
 import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
-import { judgeType } from './modules/setfm-type.ts';
+import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
 import { writeFrontmatter } from './modules/setfm-write.ts';
 // types
 import type { Stats } from './types/phase.types.ts';
@@ -54,8 +55,8 @@ export const main = async (args: string[]): Promise<void> => {
     const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    if (!await dirExists(_config.targetDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.targetDir}`);
+    if (!await dirExists(_config.inputDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
     }
 
     const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
@@ -65,41 +66,50 @@ export const main = async (args: string[]): Promise<void> => {
         + `types=${dics.typeEntries.length}件`,
     );
 
-    if (_config.dryRun) { logger.info('dry-run モード: ファイルは更新しません'); }
     if (!_config.review) { logger.info('--no-review モード: Phase 3.5 をスキップします'); }
 
     const maxContentLength = _globalConfig.get('maxContentLength') as number;
     const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0 };
 
     // Phase 1: メタ読み込み
-    const entries = await loadAllEntries(_config.targetDir, stats);
+    const entries = await loadAllEntries(_config.inputDir, stats);
     logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
     if (entries.length === 0) {
       logger.info('対象ファイルなし');
       return;
     }
 
-    // Phase 2: type判定（バッチ並列）
-    logger.info(
-      `\nPhase 2: type判定開始 (${entries.length}件 × チャンク${_config.chunkSize} × 並列度${_config.concurrency})`,
-    );
-    await runChunked(
-      entries,
-      _config.chunkSize,
-      (chunk) => judgeType(chunk, maxContentLength, dics, prompts),
-      _config.concurrency,
-    );
-    for (const entry of entries) {
-      logger.info(`  type [${entry.frontmatter.get('type')}]: ${getFilename(entry.filePath!)}`);
+    if (_config.dryRun) {
+      for (const entry of entries) {
+        logger.info(`  [dry-run] ${getFilename(entry.filePath!)}`);
+      }
+      logger.info(`\n完了 (dry-run): total=${entries.length} skip=${stats.skip}`);
+      return;
     }
 
-    // Phase 3a: category判定（並列）
-    logger.info(`\nPhase 3a: category判定開始 (${entries.length}件 × 並列度${_config.concurrency})`);
+    // Phase 2+3a: type・category同時判定（並列）
+    logger.info(`\nPhase 2+3a: type・category同時判定開始 (${entries.length}件 × 並列度${_config.concurrency})`);
     await runConcurrent(
       entries,
       async (entry) => {
-        await judgeCategory(entry, maxContentLength, dics, prompts);
-        logger.info(`  category [${entry.frontmatter.get('category')}]: ${getFilename(entry.filePath!)}`);
+        const _slug = getCacheSlug(entry.filePath!);
+        const _cache = await readCache<SetfmCache>(_config.cacheDir, _slug);
+        if (_cache.type && _cache.category) {
+          entry.frontmatter.set('type', _cache.type);
+          entry.frontmatter.set('category', _cache.category);
+          logger.info(`  type+category (cached): ${getFilename(entry.filePath!)}`);
+        } else {
+          await judgeTypeAndCategory(entry, maxContentLength, dics, prompts);
+          await writeCache(_config.cacheDir, _slug, {
+            type: entry.frontmatter.get('type') as string,
+            category: entry.frontmatter.get('category') as string,
+          });
+          logger.info(
+            `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
+              getFilename(entry.filePath!)
+            }`,
+          );
+        }
       },
       _config.concurrency,
     );
@@ -110,12 +120,27 @@ export const main = async (args: string[]): Promise<void> => {
     await runConcurrent(
       entries,
       async (entry) => {
-        const _ok = await generateFrontmatter(entry, maxContentLength, dics, prompts);
-        if (_ok) {
+        const _slug = getCacheSlug(entry.filePath!);
+        const _cache = await readCache<SetfmCache>(_config.cacheDir, _slug);
+        if (_cache.frontmatter) {
+          Object.entries(_cache.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
           _generatedFiles.add(entry.filePath!);
-          logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+          logger.info(`  generated (cached): ${getFilename(entry.filePath!)}`);
         } else {
-          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+          const _ok = await generateFrontmatter(entry, maxContentLength, dics, prompts);
+          if (_ok) {
+            const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary', 'topics', 'tags'];
+            const _fmSnapshot: Record<string, string | string[]> = {};
+            _knownFields.forEach((k) => {
+              const v = entry.frontmatter.get(k);
+              if (v !== undefined) { _fmSnapshot[k] = v; }
+            });
+            await writeCache(_config.cacheDir, _slug, { frontmatter: _fmSnapshot });
+            _generatedFiles.add(entry.filePath!);
+            logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+          } else {
+            logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+          }
         }
       },
       _config.concurrency,
@@ -151,12 +176,11 @@ export const main = async (args: string[]): Promise<void> => {
         stats.fail++;
         continue;
       }
-      await writeFrontmatter(entry, _config.dryRun, stats);
+      await writeFrontmatter(entry, _config.targetDir, _config.inputDir, _config.dryRun, stats);
     }
 
-    const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
-      `\n完了${drySuffix}: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip}`,
+      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
