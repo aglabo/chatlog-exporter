@@ -10,9 +10,10 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import { join, relative } from '@std/path';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 // types
@@ -24,38 +25,44 @@ import type { Stats } from '../types/phase.types.ts';
 
 export const writeFrontmatter = async (
   entry: ChatlogEntry,
+  outputDir: string,
+  inputDir: string,
   dryRun: boolean,
   stats: Stats,
 ): Promise<void> => {
-  const filePath = entry.filePath!;
+  const _inputPath = entry.filePath!;
 
   if (!entry.frontmatter.get('title')) {
-    logger.error(`  FAIL (yaml空): ${getFilename(filePath)}`);
+    logger.error(`  FAIL (yaml空): ${getFilename(_inputPath)}`);
     stats.fail++;
     return;
   }
 
-  const type = (entry.frontmatter.get('type') as string) ?? '';
-  const category = (entry.frontmatter.get('category') as string) ?? '';
+  const _type = (entry.frontmatter.get('type') as string) ?? '';
+  const _category = (entry.frontmatter.get('category') as string) ?? '';
 
   if (dryRun) {
-    logger.log(`\n=== DRY RUN [${type}/${category}]: ${getFilename(filePath)} ===`);
+    logger.log(`\n=== DRY RUN [${_type}/${_category}]: ${getFilename(_inputPath)} ===`);
     logger.log(entry.frontmatter.toFrontmatter().trimEnd());
     stats.success++;
     return;
   }
 
-  const tmpFile = filePath + '.tmp';
+  const _relPath = relative(inputDir, _inputPath);
+  const _outputPath = join(outputDir, _relPath);
+  const _outputSubDir = getDirectory(_outputPath);
+  const _tmpFile = _outputPath + '.tmp';
   try {
-    await Deno.writeTextFile(tmpFile, entry.renderEntry());
-    await Deno.rename(tmpFile, filePath);
-    logger.info(`  OK [${type}/${category}]: ${getFilename(filePath)}`);
+    await Deno.mkdir(_outputSubDir, { recursive: true });
+    await Deno.writeTextFile(_tmpFile, entry.renderEntry());
+    await Deno.rename(_tmpFile, _outputPath);
+    logger.info(`  OK [${_type}/${_category}]: ${getFilename(_inputPath)}`);
     stats.success++;
   } catch (e) {
     try {
-      await Deno.remove(tmpFile);
+      await Deno.remove(_tmpFile);
     } catch { /* ignore */ }
-    logger.error(`  FAIL (書き込みエラー): ${getFilename(filePath)}: ${e}`);
+    logger.error(`  FAIL (書き込みエラー): ${getFilename(_inputPath)}: ${e}`);
     stats.fail++;
   }
 };
