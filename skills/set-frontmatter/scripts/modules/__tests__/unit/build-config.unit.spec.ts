@@ -10,18 +10,21 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals, assertThrows } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { buildConfig } from '../../setfm-config.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_CHUNK_SIZE, DEFAULT_PROMPTS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
+import {
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_PROMPTS_DIR,
+} from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 
