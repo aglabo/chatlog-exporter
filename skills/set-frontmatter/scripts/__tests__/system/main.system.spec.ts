@@ -20,14 +20,14 @@ async function runSetFrontmatter(args: string[]): Promise<number> {
   return code;
 }
 
-// ─── T-SF-SYS-01: 存在しない targetDir → exit(1) ─────────────────────────────
+// ─── T-SF-SYS-01: 存在しない inputDir → exit(1) ─────────────────────────────
 
 describe('main - エラー終了コード', () => {
-  describe('Given: 存在しない targetDir を指定', () => {
+  describe('Given: 存在しない inputDir を指定', () => {
     describe('When: set-frontmatter をサブプロセスで実行する', () => {
       describe('Then: T-SF-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-SF-SYS-01-01: 終了コードが 1 である', async () => {
-          const code = await runSetFrontmatter(['/nonexistent/path']);
+          const code = await runSetFrontmatter(['--input-dir', '/nonexistent/path']);
           assertEquals(code, 1);
         });
       });
