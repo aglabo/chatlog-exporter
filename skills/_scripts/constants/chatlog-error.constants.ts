@@ -14,4 +14,7 @@ export const ERROR_KIND_LABELS = {
   NotInGitRepo: 'Not In Git Repository',
   GitNotFound: 'Git Not Found',
   FailFast: 'Fail Fast',
+  EnvVarNotAllowed: 'Env Var Not Allowed',
+  EnvVarNotSet: 'Env Var Not Set',
+  InvalidPath: 'Invalid Path',
 } as const;
