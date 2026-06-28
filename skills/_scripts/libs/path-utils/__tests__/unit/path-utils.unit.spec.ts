@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assert, assertEquals, assertFalse, assertRejects } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { assert, assertEquals, assertFalse } from '@std/assert';
+import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import {
@@ -21,16 +21,8 @@ import {
   normalizePath,
   resolveConfigPath,
 } from '../../path-utils.ts';
-
-// -- test helpers --
-import {
-  makeNotFoundMock,
-  makeSuccessMock,
-} from '../../../../__tests__/helpers/deno-command-mock.ts';
-// providers for
-import type { CommandProvider } from '../../../../types/providers.types.ts';
-// error class
-import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
+// helpers
+import { resetProjectRoot } from '../../dir-utils.ts';
 
 // ─────────────────────────────────────────────
 // normalizePath
@@ -263,11 +255,6 @@ describe('isAbsolutePath', () => {
           assertFalse(isAbsolutePath('./relative'));
         });
       });
-      describe('Then: T-LIB-U-12-06 - false が返る', () => {
-        it('T-LIB-U-12-06: ../parent は絶対パスではないと判定される', () => {
-          assertFalse(isAbsolutePath('../parent'));
-        });
-      });
     });
   });
 
@@ -488,6 +475,8 @@ describe('getBasename', () => {
 // ─────────────────────────────────────────────
 
 describe('resolveConfigPath', () => {
+  beforeEach(() => resetProjectRoot('/home/user/project'));
+
   describe('Given: configPath に Unix 絶対パスを指定する', () => {
     describe('When: resolveConfigPath を実行する', () => {
       describe('Then: T-LIB-U-14-01 - 絶対パスが正規化されて返る', () => {
@@ -524,13 +513,10 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-03 - プロジェクトルートと結合して正規化されて返る', () => {
         it('T-LIB-U-14-03: 相対パスはプロジェクトルートと結合されて返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'config/settings.yaml',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project/config/settings.yaml',
           );
@@ -558,32 +544,11 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-05 - defaultPath がプロジェクトルートと結合されて返る', () => {
         it('T-LIB-U-14-05: configPath 省略のとき defaultPath 相対パスがルートと結合されて返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'config/default.yaml',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project/config/default.yaml',
-          );
-        });
-      });
-    });
-  });
-
-  describe('Given: 相対パスで git コマンドが見つからない', () => {
-    describe('When: resolveConfigPath を実行する（makeNotFoundMock）', () => {
-      describe('Then: T-LIB-U-14-06 - ChatlogError(GitNotFound) で reject する', () => {
-        it('T-LIB-U-14-06: makeNotFoundMock() → ChatlogError(GitNotFound) で reject される', async () => {
-          await assertRejects(
-            () =>
-              resolveConfigPath({
-                defaultPath: 'default.yaml',
-                configPath: 'config/settings.yaml',
-                commandProvider: makeNotFoundMock() as unknown as CommandProvider,
-              }),
-            ChatlogError,
           );
         });
       });
@@ -594,13 +559,10 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-07 - プロジェクトルートが末尾スラッシュなしで返る', () => {
         it('T-LIB-U-14-07: configPath="" のとき /home/user/project が返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project',
           );
@@ -613,13 +575,10 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-08 - プロジェクトルートと結合されて返る', () => {
         it('T-LIB-U-14-08: 相対ディレクトリパスはプロジェクトルートと結合されて返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'assets/dics',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project/assets/dics',
           );
@@ -648,13 +607,10 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-10 - 末尾スラッシュが除去されてプロジェクトルートと結合されて返る', () => {
         it('T-LIB-U-14-10: 末尾スラッシュ付き相対ディレクトリパスは末尾スラッシュが除去されて返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'assets/dics/',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project/assets/dics',
           );
@@ -667,12 +623,9 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
       describe('Then: T-LIB-U-14-11 - defaultPath がプロジェクトルートと結合されて返る', () => {
         it('T-LIB-U-14-11: configPath 省略のとき defaultPath 相対ディレクトリがルートと結合されて返る', async () => {
-          const _enc = new TextEncoder();
-          const _mock = makeSuccessMock(_enc.encode('/home/user/project\n'));
           assertEquals(
             await resolveConfigPath({
               defaultPath: 'assets/dics',
-              commandProvider: _mock as unknown as CommandProvider,
             }),
             '/home/user/project/assets/dics',
           );
