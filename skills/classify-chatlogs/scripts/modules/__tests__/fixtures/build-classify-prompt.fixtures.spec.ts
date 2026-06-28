@@ -24,10 +24,10 @@ import {
   findFixtureDirs,
   type IsFixtureDirProvider,
 } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { loadProjectDic } from '../../../libs/load-project-dic.ts';
 
 // ─── Internal Helpers
