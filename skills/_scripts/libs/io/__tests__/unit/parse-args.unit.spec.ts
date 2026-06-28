@@ -239,7 +239,7 @@ describe('parseArgsToConfig', () => {
       describe('Then: T-PA-07 - chatlogsDir に設定される', () => {
         const _cases: { id: string; input: string; expected: string }[] = [
           { id: 'T-PA-07-01', input: '/absolute/path', expected: '/absolute/path' },
-          { id: 'T-PA-07-02', input: './relative/path', expected: './relative/path' },
+          { id: 'T-PA-07-02', input: './relative/path', expected: 'relative/path' },
           { id: 'T-PA-07-03', input: 'C:\\Windows\\path', expected: 'C:/Windows/path' },
         ];
         for (const { id, input, expected } of _cases) {
@@ -397,9 +397,9 @@ describe('parseArgsToConfig', () => {
   describe('Given: エージェント名を含むディレクトリパスの位置引数', () => {
     describe('When: parseArgsToConfig(["./claude"]) を呼び出す', () => {
       describe('Then: T-PA-16 - ディレクトリパスとして chatlogsDir に設定される', () => {
-        it('T-PA-16-01: "./claude" → agent ではなく chatlogsDir が "./claude" になる', () => {
+        it('T-PA-16-01: "./claude" → agent ではなく chatlogsDir が "claude" になる（normalizePath で ./ が除去される）', () => {
           const result = parseArgsToConfig<TestConfig>(['./claude'], TEST_SCHEMA);
-          assertEquals(result.chatlogsDir, './claude');
+          assertEquals(result.chatlogsDir, 'claude');
           assertEquals(result.agent, undefined);
         });
       });
