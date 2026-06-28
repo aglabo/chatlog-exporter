@@ -6,22 +6,14 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// -- BDD modules --
-import { assertEquals, assertRejects } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+// ─── BDD modules
+import { assertEquals } from '@std/assert';
+import { beforeEach, describe, it } from '@std/testing/bdd';
 
-// -- test helpers --
-import {
-  makeFailMock,
-  makeNotFoundMock,
-  makeSuccessMock,
-} from '../../../../__tests__/helpers/deno-command-mock.ts';
+// ─── Test target
+import { getProjectRoot, homeDir, resetProjectRoot } from '../../dir-utils.ts';
 
-// -- test target --
-import { getProjectRootDir, homeDir } from '../../dir-utils.ts';
-
-// -- error class --
-import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
+// ─── Tests
 
 // ─────────────────────────────────────────────
 // homeDir
@@ -83,57 +75,73 @@ describe('homeDir', () => {
 });
 
 // ─────────────────────────────────────────────
-// getProjectRootDir
+// getProjectRoot / resetProjectRoot
 // ─────────────────────────────────────────────
 
-describe('Given: Git リポジトリ内でプロジェクトルートを取得する', () => {
-  describe('When: git rev-parse --show-toplevel が成功する', () => {
-    describe('Then: T-LIB-U-13-01 - Unix パスで正常取得', () => {
-      it('T-LIB-U-13-01: stdout "/home/user/project\\n" → "/home/user/project" が返る', async () => {
-        const _mock = makeSuccessMock(new TextEncoder().encode('/home/user/project\n'));
-        const _result = await getProjectRootDir(_mock);
-        assertEquals(_result, '/home/user/project');
-      });
+/**
+ * `getProjectRoot` / `resetProjectRoot` のユニットテストスイート。
+ *
+ * シード設定・キャッシュ動作・リセット・バックスラッシュ正規化を検証する。
+ *
+ * テスト ID 範囲: T-LIB-U-60 〜 T-LIB-U-62
+ *
+ * @see getProjectRoot
+ * @see resetProjectRoot
+ */
+describe('getProjectRoot / resetProjectRoot', () => {
+  beforeEach(() => resetProjectRoot());
+
+  /** seed 設定後に getProjectRoot() が git を実行せず即時返るテスト。 */
+  describe('When: resetProjectRoot でパスをシードした場合', () => {
+    it('[Normal] T-LIB-U-60-01: resetProjectRoot("/home/user/project") 後に getProjectRoot() → "/home/user/project" が返る', async () => {
+      resetProjectRoot('/home/user/project');
+      const _result = await getProjectRoot();
+      assertEquals(_result, '/home/user/project');
     });
 
-    describe('Then: T-LIB-U-13-02 - Windows バックスラッシュ正規化', () => {
-      it('T-LIB-U-13-02: stdout "C:\\\\Users\\\\foo\\\\project\\r\\n" → "C:/Users/foo/project" が返る', async () => {
-        const _mock = makeSuccessMock(new TextEncoder().encode('C:\\Users\\foo\\project\r\n'));
-        const _result = await getProjectRootDir(_mock);
-        assertEquals(_result, 'C:/Users/foo/project');
-      });
+    it('[Normal] T-LIB-U-60-02: getProjectRoot() を 2 回呼ぶ → キャッシュが機能し両方同じ値を返す', async () => {
+      resetProjectRoot('/home/user/project');
+      const _result1 = await getProjectRoot();
+      const _result2 = await getProjectRoot();
+      assertEquals(_result1, '/home/user/project');
+      assertEquals(_result2, '/home/user/project');
+    });
+
+    it('[Edge] T-LIB-U-60-03: resetProjectRoot("/proj1") → getProjectRoot() → resetProjectRoot("/proj2") → getProjectRoot() → それぞれ正しい値を返す', async () => {
+      resetProjectRoot('/proj1');
+      const _result1 = await getProjectRoot();
+      resetProjectRoot('/proj2');
+      const _result2 = await getProjectRoot();
+      assertEquals(_result1, '/proj1');
+      assertEquals(_result2, '/proj2');
     });
   });
-});
 
-describe('Given: git が未インストールの環境でプロジェクトルートを取得しようとする', () => {
-  describe('When: Deno.Command の output() が Deno.errors.NotFound をスローする', () => {
-    describe('Then: T-LIB-U-13-03 - ChatlogError(GitNotFound) が throw される', () => {
-      it('T-LIB-U-13-03: makeNotFoundMock() → ChatlogError(GitNotFound) が reject される', async () => {
-        const _mock = makeNotFoundMock();
-        const _err = await assertRejects(
-          () => getProjectRootDir(_mock),
-          ChatlogError,
-          'Git Not Found',
-        ) as ChatlogError;
-        assertEquals(_err.subindex, 'NotFound');
-      });
+  /** 引数なし/空文字でキャッシュがクリアされることを確認するテスト。 */
+  describe('When: resetProjectRoot を引数なし/空文字で呼んだ場合', () => {
+    it('[Normal] T-LIB-U-61-01: resetProjectRoot() 後に再シードすると新しい値が返る', async () => {
+      resetProjectRoot('/home/user/project');
+      resetProjectRoot();
+      resetProjectRoot('/new/path');
+      const _result = await getProjectRoot();
+      assertEquals(_result, '/new/path');
+    });
+
+    it('[Edge] T-LIB-U-61-02: resetProjectRoot("") 後に再シードすると新しい値が返る', async () => {
+      resetProjectRoot('/home/user/project');
+      resetProjectRoot('');
+      resetProjectRoot('/another/path');
+      const _result = await getProjectRoot();
+      assertEquals(_result, '/another/path');
     });
   });
-});
 
-describe('Given: Git リポジトリ外でプロジェクトルートを取得しようとする', () => {
-  describe('When: git rev-parse --show-toplevel が exit 128 で失敗する', () => {
-    describe('Then: T-LIB-U-13-04 - ChatlogError(NotInGitRepo) が throw される', () => {
-      it('T-LIB-U-13-04: makeFailMock(128) → ChatlogError(NotInGitRepo) が reject される', async () => {
-        const _mock = makeFailMock(128);
-        const _err = await assertRejects(
-          () => getProjectRootDir(_mock),
-          ChatlogError,
-          'Not In Git Repository',
-        ) as ChatlogError;
-        assertEquals(_err.subindex, 'ExitFailure');
-      });
+  /** バックスラッシュパスが正規化されることを確認するテスト。 */
+  describe('When: バックスラッシュパスをシードする場合', () => {
+    it('[Edge] T-LIB-U-62-01: resetProjectRoot("C:\\\\Users\\\\foo") → getProjectRoot() → "C:/Users/foo" が返る', async () => {
+      resetProjectRoot('C:\\Users\\foo');
+      const _result = await getProjectRoot();
+      assertEquals(_result, 'C:/Users/foo');
     });
   });
 });

@@ -9,18 +9,9 @@
 // -- external modules
 import { normalizePath } from './path-utils.ts';
 // types
-import type { CommandProvider, EnvProvider } from '../../types/providers.types.ts';
+import type { EnvProvider } from '../../types/providers.types.ts';
 // error class
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
-
-// ─────────────────────────────────────────────
-// 内部定数
-// ─────────────────────────────────────────────
-
-/**
- * コマンドプロバイダのデフォルト実装。通常は Deno.Command を使用するが、テスト時にはモックに差し替えるため、定数として切り出している。
- */
-const _DEFAULT_COMMAND_PROVIDER = Deno.Command as unknown as CommandProvider;
 
 // ─────────────────────────────────────────────
 // ホームディレクトリ
@@ -33,19 +24,12 @@ export const homeDir = (env: EnvProvider = Deno.env.get): string => {
 };
 
 // ─────────────────────────────────────────────
-// プロジェクトルート
+// getProjectRoot / resetProjectRoot
 // ─────────────────────────────────────────────
 
-/**
- * `git rev-parse --show-toplevel` を実行してプロジェクトルートパスを返す。
- *
- * @param commandProvider - Deno.Command 互換のコマンドプロバイダ（テスト用インジェクション可能）
- * @returns プロジェクトルートの絶対パス（正規化済み）
- */
-export const getProjectRootDir = async (
-  commandProvider: CommandProvider = _DEFAULT_COMMAND_PROVIDER,
-): Promise<string> => {
-  const _cmd = new commandProvider('git', { args: ['rev-parse', '--show-toplevel'] });
+/** git rev-parse --show-toplevel を実行してプロジェクトルートパスを返す。 */
+const _fetchProjectRoot = async (): Promise<string> => {
+  const _cmd = new Deno.Command('git', { args: ['rev-parse', '--show-toplevel'] });
   let _output: { success: boolean; code: number; stdout: Uint8Array };
   try {
     _output = await _cmd.output();
@@ -60,4 +44,23 @@ export const getProjectRootDir = async (
   }
   const _raw = new TextDecoder().decode(_output.stdout);
   return normalizePath(_raw.trim());
+};
+
+/** モジュールレベルのキャッシュ。プロジェクトルートの Promise を保持する。 */
+let _cachedRoot: Promise<string> | null = null;
+
+/**
+ * プロジェクトルートの絶対パスを返す。初回は git を実行し、以降はキャッシュを返す。
+ *
+ * @returns プロジェクトルートの絶対パス（正規化済み）
+ */
+export const getProjectRoot = (): Promise<string> => (_cachedRoot ??= _fetchProjectRoot());
+
+/**
+ * キャッシュをリセットする。initialRoot を指定すると次回の getProjectRoot() がそれを返す（テスト用シード）。
+ *
+ * @param initialRoot - シードするパス。空文字列または省略でキャッシュをクリアする
+ */
+export const resetProjectRoot = (initialRoot: string = ''): void => {
+  _cachedRoot = initialRoot === '' ? null : Promise.resolve(normalizePath(initialRoot));
 };

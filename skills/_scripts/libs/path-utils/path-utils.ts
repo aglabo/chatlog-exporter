@@ -8,10 +8,9 @@
 
 // utils
 import { join, relative } from '@std/path';
-import { getProjectRootDir } from './dir-utils.ts';
+import { getProjectRoot } from './dir-utils.ts';
 // types
 import type { ResolveConfigPathOptions } from '../../types/path-utils.types.ts';
-import type { CommandProvider } from '../../types/providers.types.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
@@ -19,9 +18,6 @@ import type { CommandProvider } from '../../types/providers.types.ts';
 
 /** Windowsパスの絶対パス正規表現 */
 const _WIN_ABS = /^[A-Za-z]:\//;
-
-/** コマンドプロバイダのデフォルト実装 */
-const _DEFAULT_COMMAND_PROVIDER = Deno.Command as unknown as CommandProvider;
 
 // ─────────────────────────────────────────────
 // パス正規化
@@ -89,14 +85,13 @@ export const getRelativePath = (from: string, to: string): string => {
 export const resolveConfigPath = async ({
   configPath,
   defaultPath,
-  commandProvider = _DEFAULT_COMMAND_PROVIDER,
 }: ResolveConfigPathOptions): Promise<string> => {
   const _path = configPath ?? defaultPath;
   let _resolved: string;
   if (isAbsolutePath(_path)) {
     _resolved = normalizePath(_path);
   } else {
-    const _root = await getProjectRootDir(commandProvider);
+    const _root = await getProjectRoot();
     _resolved = normalizePath(`${_root}/${_path}`);
   }
   return _resolved;
