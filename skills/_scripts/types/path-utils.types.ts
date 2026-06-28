@@ -6,8 +6,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import type { CommandProvider } from './providers.types.ts';
-
 // ─────────────────────────────────────────────
 // パス解決系
 // ─────────────────────────────────────────────
@@ -18,6 +16,4 @@ export interface ResolveConfigPathOptions {
   configPath?: string;
   /** デフォルトパス */
   defaultPath: string;
-  /** コマンドプロバイダ: `Git`用 (テスト用に置き換え可能) */
-  commandProvider?: CommandProvider;
 }
