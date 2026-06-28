@@ -8,20 +8,8 @@
 
 // -- external modules
 import { normalizePath } from './path-utils.ts';
-// types
-import type { EnvProvider } from '../../types/providers.types.ts';
 // error class
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
-
-// ─────────────────────────────────────────────
-// ホームディレクトリ
-// ─────────────────────────────────────────────
-
-/** ホームディレクトリを表す文字列を返す。 */
-export const homeDir = (env: EnvProvider = Deno.env.get): string => {
-  const _home = (env('HOME') ?? env('USERPROFILE')) ?? '~';
-  return normalizePath(_home);
-};
 
 // ─────────────────────────────────────────────
 // getProjectRoot / resetProjectRoot
