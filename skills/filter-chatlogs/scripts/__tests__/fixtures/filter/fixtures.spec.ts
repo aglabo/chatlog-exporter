@@ -20,8 +20,8 @@ import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.t
 
 // ─── Helpers
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Internal Helpers
 

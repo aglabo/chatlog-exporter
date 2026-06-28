@@ -18,7 +18,7 @@ import { buildConfig, parseArgs } from '../../../configs/prefilter-config.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 // types
-import type { CommandProvider } from '../../../../../_scripts/types/providers.types.ts';
+import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
 
 // ─── Tests
 
@@ -161,33 +161,18 @@ describe('parseArgs (prefilter)', () => {
  */
 describe('buildConfig', () => {
   /**
-   * git コマンドを実行しない `CommandProvider` モック。
-   *
-   * `GlobalConfig.getInstance()` に渡す `commandProvider` として使用し、
-   * 実際の git rev-parse を発行せずに成功レスポンスを返す。
-   */
-  class _NoopCommandProvider {
-    /** コマンドと引数を受け取るが何も実行しない（インターフェース互換用）。 */
-    constructor(_cmd: string, _opts: { args: string[] }) {}
-
-    /** 常に `{ success: true, code: 0, stdout: 空バイト列 }` を返す。 */
-    output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
-      return Promise.resolve({ success: true, code: 0, stdout: new Uint8Array() });
-    }
-  }
-
-  /**
    * 空の GlobalConfig インスタンスを生成する。
    *
-   * `GlobalConfig.resetInstance()` でリセットしてから空 YAML で初期化する。
+   * `GlobalConfig.resetInstance()` でリセットしてから
+   * `resetProjectRoot` でプロジェクトルートをシードして初期化する。
    *
    * @returns 初期化済みの `GlobalConfig` インスタンス（空設定）
    */
   const _makeEmptyGlobalConfig = async (): Promise<GlobalConfig> => {
+    resetProjectRoot('/home/user/project');
     GlobalConfig.resetInstance();
     return await GlobalConfig.getInstance({
       readTextFileProvider: () => Promise.resolve('{}'),
-      commandProvider: _NoopCommandProvider as unknown as CommandProvider,
       configFile: 'dummy.yaml',
       schema: {},
     });

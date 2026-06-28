@@ -23,31 +23,16 @@ import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-st
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // types
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { CommandProvider } from '../../../../_scripts/types/providers.types.ts';
 // constants
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
 import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { makePeriodDir, makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
+// helpers
+import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
-
-/**
- * git コマンドを実行しない `CommandProvider` モック。
- *
- * `GlobalConfig.getInstance()` に渡す `commandProvider` として使用し、
- * 実際の git rev-parse を発行せずに成功レスポンスを返す。
- */
-class _NoopCommandProvider {
-  /** コマンドと引数を受け取るが何も実行しない（インターフェース互換用）。 */
-  constructor(_cmd: string, _opts: { args: string[] }) {}
-
-  /** 常に `{ success: true, code: 0, stdout: 空バイト列 }` を返す。 */
-  output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
-    return Promise.resolve({ success: true, code: 0, stdout: new Uint8Array() });
-  }
-}
 
 // functions
 
@@ -61,16 +46,16 @@ const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH
  * テスト用 `GlobalConfig` インスタンスを YAML 文字列から生成する。
  *
  * 毎回 `GlobalConfig.resetInstance()` でシングルトンをリセットしてから
- * `_NoopCommandProvider` を注入して初期化する。
+ * `resetProjectRoot` でプロジェクトルートをシードして初期化する。
  *
  * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'chatlogsDir: /tmp/test'`）
  * @returns 初期化済みの `GlobalConfig` インスタンス
  */
 const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
+  resetProjectRoot('/home/user/project');
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
     readTextFileProvider: () => Promise.resolve(yaml),
-    commandProvider: _NoopCommandProvider as unknown as CommandProvider,
     configFile: 'dummy.yaml',
   });
 };
