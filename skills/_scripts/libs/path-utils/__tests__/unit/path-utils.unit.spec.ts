@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assert, assertEquals, assertFalse } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -19,9 +19,11 @@ import {
   isAbsolutePath,
   joinPath,
   normalizePath,
-  resolveConfigPath,
+  toUnixPath,
 } from '../../path-utils.ts';
+import { isSafePath, resolveConfigPath } from '../../resolve-path.ts';
 // helpers
+import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { resetProjectRoot } from '../../dir-utils.ts';
 
 // ─────────────────────────────────────────────
@@ -102,6 +104,51 @@ describe('normalizePath', () => {
           assertEquals(normalizePath('/home/user///'), '/home/user');
         });
       });
+    });
+  });
+
+  describe('When: 正常系 - . セグメント除去', () => {
+    /** 単独ドットセグメントを除去してパスを正規化する。 */
+    it('[Normal] T-LIB-U-50-01: a/./b → a/b', () => {
+      assertEquals(normalizePath('a/./b'), 'a/b');
+    });
+    it('[Normal] T-LIB-U-50-02: ./foo → foo', () => {
+      assertEquals(normalizePath('./foo'), 'foo');
+    });
+    it('[Normal] T-LIB-U-50-03: foo/. → foo', () => {
+      assertEquals(normalizePath('foo/.'), 'foo');
+    });
+    it('[Normal] T-LIB-U-50-04: /a/./b/./c → /a/b/c', () => {
+      assertEquals(normalizePath('/a/./b/./c'), '/a/b/c');
+    });
+  });
+
+  describe('When: 異常系 - .. 禁止', () => {
+    /** toUnixPath で展開できない不可約な .. セグメントは ChatlogError(InvalidPath) をスローする。展開可能な .. は正規化されて返る。 */
+    it('[Normal] T-LIB-U-51-01: a/../b → b（toUnixPath で展開される）', () => {
+      assertEquals(normalizePath('a/../b'), 'b');
+    });
+    it('[Error] T-LIB-U-51-02: ../foo → ChatlogError(InvalidPath)（不可約な先頭 ..）', () => {
+      assertThrows(() => normalizePath('../foo'), ChatlogError);
+    });
+    it('[Normal] T-LIB-U-51-03: /foo/../../bar → /bar（toUnixPath で展開される）', () => {
+      assertEquals(normalizePath('/foo/../../bar'), '/bar');
+    });
+    it('[Error] T-LIB-U-51-04: a/.../b（3ドット）→ ChatlogError(InvalidPath)', () => {
+      assertThrows(() => normalizePath('a/.../b'), ChatlogError);
+    });
+  });
+
+  describe('When: エッジケース - ドット文字を含む許可パターン', () => {
+    /** .hidden や file..name はドットセグメントではないため通常通り処理される。 */
+    it('[Edge] T-LIB-U-52-01: .hidden → .hidden（throw しない）', () => {
+      assertEquals(normalizePath('.hidden'), '.hidden');
+    });
+    it('[Edge] T-LIB-U-52-02: file..name → file..name（throw しない）', () => {
+      assertEquals(normalizePath('file..name'), 'file..name');
+    });
+    it('[Normal] T-LIB-U-52-03: C:\\a\\..\\b（バックスラッシュ含む ..）→ C:/b（toUnixPath で展開される）', () => {
+      assertEquals(normalizePath('C:\\a\\..\\b'), 'C:/b');
     });
   });
 });
@@ -744,13 +791,152 @@ describe('getRelativePath', () => {
     });
   });
 
-  describe('Given: 上位ディレクトリへの相対パス', () => {
+  describe('Given: 上位ディレクトリへの相対パス（.. を含む）', () => {
     describe('When: getRelativePath を実行する', () => {
-      describe('Then: T-LIB-U-21-04 - .. が返る', () => {
-        it('[Edge] T-LIB-U-21-04: /a/b/c から /a/b → ..', () => {
-          assertEquals(getRelativePath('/a/b/c', '/a/b'), '..');
+      /** `..` を含む相対パスが生成されるケース — normalizePath が throw する。 */
+      describe('Then: T-LIB-U-21-04 - ChatlogError(InvalidPath) がスローされる', () => {
+        it('[Error] T-LIB-U-21-04: /a/b/c から /a/b → .. を含む → ChatlogError', () => {
+          assertThrows(() => getRelativePath('/a/b/c', '/a/b'), ChatlogError);
         });
       });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// toUnixPath
+// ─────────────────────────────────────────────
+
+// ─── Internal Helpers
+
+// constants
+/** 正常系テストケース（T-LIB-U-60）。 */
+const _cases = [
+  { id: 'T-LIB-U-60-01', input: 'a/b/../c', expected: 'a/c' },
+  { id: 'T-LIB-U-60-02', input: 'a/./b', expected: 'a/b' },
+  { id: 'T-LIB-U-60-03', input: '/foo/bar/../baz', expected: '/foo/baz' },
+  { id: 'T-LIB-U-60-04', input: 'a/b/c/../../d', expected: 'a/d' },
+  { id: 'T-LIB-U-60-05', input: 'C:\\a\\..\\b', expected: 'C:/b' },
+] as const;
+
+/** エッジケーステストケース（T-LIB-U-61）。 */
+const _edgeCases = [
+  { id: 'T-LIB-U-61-01', input: '', expected: '' },
+  { id: 'T-LIB-U-61-02', input: '../../etc/passwd', expected: '../../etc/passwd' },
+  { id: 'T-LIB-U-61-03', input: '/../x', expected: '/x' },
+  { id: 'T-LIB-U-61-04', input: '/foo/bar/', expected: '/foo/bar' },
+  { id: 'T-LIB-U-61-05', input: './foo', expected: 'foo' },
+  { id: 'T-LIB-U-61-06', input: '.hidden', expected: '.hidden' },
+  { id: 'T-LIB-U-61-07', input: 'file..name', expected: 'file..name' },
+  { id: 'T-LIB-U-61-08', input: '/C:/Users/foo', expected: 'C:/Users/foo' },
+  { id: 'T-LIB-U-61-09', input: 'c:/Users/foo', expected: 'C:/Users/foo' },
+  { id: 'T-LIB-U-61-10', input: '/c:/Users/foo', expected: 'C:/Users/foo' },
+] as const;
+
+/**
+ * `toUnixPath` のユニットテストスイート。
+ *
+ * バックスラッシュ変換・ドライブレター正規化・`..`/`./` 展開・末尾スラッシュ除去を検証する。
+ *
+ * テスト ID 範囲: T-LIB-U-60 〜 T-LIB-U-61
+ *
+ * @see toUnixPath
+ */
+describe('toUnixPath', () => {
+  /** `..` / `./` / バックスラッシュを含む通常パスの変換テスト。 */
+  describe('When: 正常系', () => {
+    for (const { id, input, expected } of _cases) {
+      it(`[Normal] ${id}: '${input}' → '${expected}'`, () => {
+        assertEquals(toUnixPath(input), expected);
+      });
+    }
+  });
+
+  /** 空文字列・トラバーサル・ドライブレター・末尾スラッシュ等の特殊ケース。 */
+  describe('When: エッジケース', () => {
+    for (const { id, input, expected } of _edgeCases) {
+      it(`[Edge] ${id}: '${input}' → '${expected}'`, () => {
+        assertEquals(toUnixPath(input), expected);
+      });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────
+// isSafePath
+// ─────────────────────────────────────────────
+
+// ─── Internal Helpers
+
+// constants
+/** TEMP と TMP の両方を固定する envProvider モック。 */
+const _mockEnvTempTmp = (key: string): string | undefined => {
+  const _env: Record<string, string> = { TEMP: '/tmp', TMP: '/tmp2' };
+  return _env[key];
+};
+
+/** TEMP/TMP が未設定の envProvider モック。 */
+const _mockEnvNoTemp = (_key: string): string | undefined => undefined;
+
+/**
+ * `isSafePath` のユニットテストスイート。
+ *
+ * projectRoot・TEMP・TMP・safeDirs による安全判定と、セグメント境界・相対パス解決を検証する。
+ *
+ * テスト ID 範囲: T-LIB-U-62-01 〜 T-LIB-U-62-10
+ *
+ * @see isSafePath
+ */
+describe('isSafePath', () => {
+  beforeEach(() => resetProjectRoot('/home/user/project'));
+
+  /** 安全なディレクトリ配下のパスは true を返す正常ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-LIB-U-62-01: projectRoot 自身のパス → true', async () => {
+      assertEquals(await isSafePath('/home/user/project', { envProvider: _mockEnvTempTmp }), true);
+    });
+    it('[Normal] T-LIB-U-62-02: projectRoot 配下のパス → true', async () => {
+      assertEquals(await isSafePath('/home/user/project/skills/foo.ts', { envProvider: _mockEnvTempTmp }), true);
+    });
+    it('[Normal] T-LIB-U-62-03: TEMP 配下のパス → true', async () => {
+      assertEquals(await isSafePath('/tmp/work/output.md', { envProvider: _mockEnvTempTmp }), true);
+    });
+    it('[Normal] T-LIB-U-62-04: TMP 配下のパス → true', async () => {
+      assertEquals(await isSafePath('/tmp2/work/output.md', { envProvider: _mockEnvTempTmp }), true);
+    });
+    it('[Normal] T-LIB-U-62-05: opts.safeDirs に指定したディレクトリの下 → true', async () => {
+      assertEquals(
+        await isSafePath('/custom/safe/file.ts', {
+          envProvider: _mockEnvNoTemp,
+          safeDirs: ['/custom/safe'],
+        }),
+        true,
+      );
+    });
+    it('[Normal] T-LIB-U-62-06: projectRoot 外のパス → false', async () => {
+      assertEquals(await isSafePath('/var/log/system.log', { envProvider: _mockEnvTempTmp }), false);
+    });
+  });
+
+  /** セグメント境界・相対パス・空 safeDirs・TEMP/TMP 未設定の特殊ケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-LIB-U-62-07: /project-evil はセグメント境界で false', async () => {
+      assertEquals(await isSafePath('/home/user/project-evil/file.ts', { envProvider: _mockEnvTempTmp }), false);
+    });
+    it('[Edge] T-LIB-U-62-08: 相対パスが projectRoot 配下に解決される → true', async () => {
+      assertEquals(await isSafePath('skills/foo.ts', { envProvider: _mockEnvTempTmp }), true);
+    });
+    it('[Edge] T-LIB-U-62-09: opts.safeDirs が空配列 → projectRoot/TEMP/TMP のみで判定（projectRoot 配下は true）', async () => {
+      assertEquals(
+        await isSafePath('/home/user/project/file.ts', {
+          envProvider: _mockEnvTempTmp,
+          safeDirs: [],
+        }),
+        true,
+      );
+    });
+    it('[Edge] T-LIB-U-62-10: TEMP/TMP が未設定のとき /tmp/x は false', async () => {
+      assertEquals(await isSafePath('/tmp/x', { envProvider: _mockEnvNoTemp }), false);
     });
   });
 });
