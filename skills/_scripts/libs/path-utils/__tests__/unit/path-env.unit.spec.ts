@@ -1,0 +1,200 @@
+// src: skills/_scripts/libs/path-utils/__tests__/unit/path-env.unit.spec.ts
+// @(#): expandEnvVars のユニットテスト
+//       対象: expandEnvVars
+//
+// Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
+// ─── BDD modules
+import { assertEquals } from '@std/assert';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+
+// ─── Test target
+import { expandEnvVars } from '../../path-env.ts';
+
+// ─── Helpers
+import { resetProjectRoot } from '../../dir-utils.ts';
+// helpers
+import { assertRejectsChatlogError } from '../../../../__tests__/helpers/assert.ts';
+
+// ─── Internal Helpers
+
+// functions
+/** envProvider モックを生成する。map に存在しないキーは undefined を返す。 */
+const _mockEnv = (map: Record<string, string | undefined>) => (key: string): string | undefined => map[key];
+
+// ─── Tests
+
+/**
+ * `expandEnvVars` のユニットテストスイート。
+ *
+ * 組み込み allowList (TEMP/TMP) / 特殊キーワード / エラー系を検証する。
+ * allowList はハードコードされた ['TEMP', 'TMP'] のみ。
+ *
+ * テスト ID 範囲: T-LIB-U-70 〜 T-LIB-U-79
+ *
+ * @see expandEnvVars
+ */
+describe('expandEnvVars', () => {
+  /**
+   * 組み込み allowList (TEMP/TMP) 変数の展開テスト。
+   */
+  describe('allowList 変数の展開 (TEMP/TMP)', () => {
+    /** TEMP, TMP が展開される正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-U-70-01: ${TEMP}/logs + TEMP=/tmp → /tmp/logs', async () => {
+        const _result = await expandEnvVars('${TEMP}/logs', _mockEnv({ TEMP: '/tmp' }));
+        assertEquals(_result, '/tmp/logs');
+      });
+
+      it('[Normal] T-LIB-U-70-02: ${TMP}/cache + TMP=/var/tmp → /var/tmp/cache', async () => {
+        const _result = await expandEnvVars('${TMP}/cache', _mockEnv({ TMP: '/var/tmp' }));
+        assertEquals(_result, '/var/tmp/cache');
+      });
+
+      it('[Normal] T-LIB-U-70-03: ${TEMP}/${TEMP} (重複) + TEMP=/tmp → /tmp//tmp', async () => {
+        const _result = await expandEnvVars('${TEMP}/${TEMP}', _mockEnv({ TEMP: '/tmp' }));
+        assertEquals(_result, '/tmp//tmp');
+      });
+
+      it('[Normal] T-LIB-U-70-04: /base/${TMP}/file.txt + TMP=t → /base/t/file.txt', async () => {
+        const _result = await expandEnvVars('/base/${TMP}/file.txt', _mockEnv({ TMP: 't' }));
+        assertEquals(_result, '/base/t/file.txt');
+      });
+    });
+  });
+
+  /**
+   * ${ProjectRoot} 特殊キーワードの展開テスト。
+   */
+  describe('${ProjectRoot} 特殊キーワード', () => {
+    beforeEach(() => resetProjectRoot('/mock/project'));
+    afterEach(() => resetProjectRoot());
+
+    /** ProjectRoot は allowList 不要で展開される正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-U-71-01: ${ProjectRoot}/src → /mock/project/src', async () => {
+        const _result = await expandEnvVars('${ProjectRoot}/src');
+        assertEquals(_result, '/mock/project/src');
+      });
+
+      it('[Normal] T-LIB-U-71-02: ${ProjectRoot}/a/b/c → /mock/project/a/b/c', async () => {
+        const _result = await expandEnvVars('${ProjectRoot}/a/b/c');
+        assertEquals(_result, '/mock/project/a/b/c');
+      });
+
+      it('[Normal] T-LIB-U-71-03: ${ProjectRoot} のみ → /mock/project', async () => {
+        const _result = await expandEnvVars('${ProjectRoot}');
+        assertEquals(_result, '/mock/project');
+      });
+    });
+  });
+
+  /**
+   * ${HOME} 特殊キーワードの展開テスト。
+   */
+  describe('${HOME} 特殊キーワード', () => {
+    /** HOME は allowList 不要で展開される正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-U-72-01: ${HOME}/notes + HOME=/mock/home → /mock/home/notes', async () => {
+        const _result = await expandEnvVars(
+          '${HOME}/notes',
+          _mockEnv({ HOME: '/mock/home', USERPROFILE: undefined }),
+        );
+        assertEquals(_result, '/mock/home/notes');
+      });
+
+      it('[Normal] T-LIB-U-72-02: ${HOME} のみ + HOME=/mock/home → /mock/home', async () => {
+        const _result = await expandEnvVars(
+          '${HOME}',
+          _mockEnv({ HOME: '/mock/home', USERPROFILE: undefined }),
+        );
+        assertEquals(_result, '/mock/home');
+      });
+    });
+  });
+
+  /**
+   * プレースホルダーなし・空文字・`$VAR` 形式のエッジケース。
+   */
+  describe('プレースホルダーなし / エッジケース', () => {
+    /** マッチなし・空文字・非対応形式は入力をそのまま返す。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-LIB-U-73-01: $TEMP (ブレースなし) → そのまま返す', async () => {
+        const _result = await expandEnvVars('$TEMP', _mockEnv({ TEMP: '/tmp' }));
+        assertEquals(_result, '$TEMP');
+      });
+
+      it('[Edge] T-LIB-U-73-02: 空文字列 → 空文字列', async () => {
+        const _result = await expandEnvVars('');
+        assertEquals(_result, '');
+      });
+
+      it('[Edge] T-LIB-U-73-03: プレースホルダーなしのパス → そのまま返す', async () => {
+        const _result = await expandEnvVars('/no/placeholder');
+        assertEquals(_result, '/no/placeholder');
+      });
+    });
+  });
+
+  /**
+   * allowList 外変数（TEMP/TMP/ProjectRoot/HOME 以外）のエラーテスト。
+   */
+  describe('allowList 外変数', () => {
+    /** allowList に含まれない変数は EnvVarNotAllowed をスローする。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-U-74-01: ${SECRET} → ChatlogError(EnvVarNotAllowed)', async () => {
+        await assertRejectsChatlogError(
+          () => expandEnvVars('${SECRET}', _mockEnv({ SECRET: 's3cr3t' })),
+          'EnvVarNotAllowed',
+        );
+      });
+    });
+  });
+
+  /**
+   * 未定義変数のエラーテスト。
+   */
+  describe('未定義変数', () => {
+    /** allowList に含まれるが未設定の変数は EnvVarNotSet をスローする。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-U-75-01: ${TEMP} + TEMP=undefined → ChatlogError(EnvVarNotSet)', async () => {
+        await assertRejectsChatlogError(
+          () => expandEnvVars('${TEMP}', _mockEnv({ TEMP: undefined })),
+          'EnvVarNotSet',
+        );
+      });
+    });
+  });
+
+  /**
+   * 大文字小文字区別・再展開なし・連続プレースホルダー・カスタム env のエッジケース。
+   */
+  describe('その他エッジケース', () => {
+    describe('When: エッジケース', () => {
+      it('[Edge] T-LIB-U-76-01: ${PROJECTROOT} (大文字) → ChatlogError(EnvVarNotAllowed)', async () => {
+        await assertRejectsChatlogError(
+          () => expandEnvVars('${PROJECTROOT}'),
+          'EnvVarNotAllowed',
+        );
+      });
+
+      it("[Edge] T-LIB-U-77-01: ${TEMP}='${TMP}' → 再展開しない (${TMP} のまま)", async () => {
+        const _result = await expandEnvVars('${TEMP}', _mockEnv({ TEMP: '${TMP}', TMP: 'leaked' }));
+        assertEquals(_result, '${TMP}');
+      });
+
+      it('[Edge] T-LIB-U-78-01: ${TEMP}${TMP} 連続 + TEMP=/tmp, TMP=/var → /tmp/var', async () => {
+        const _result = await expandEnvVars('${TEMP}${TMP}', _mockEnv({ TEMP: '/tmp', TMP: '/var' }));
+        assertEquals(_result, '/tmp/var');
+      });
+
+      it('[Edge] T-LIB-U-79-01: ${TEMP} + カスタム env → custom-value', async () => {
+        const _result = await expandEnvVars('${TEMP}', _mockEnv({ TEMP: 'custom-value' }));
+        assertEquals(_result, 'custom-value');
+      });
+    });
+  });
+});
