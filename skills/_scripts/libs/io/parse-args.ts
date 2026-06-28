@@ -9,7 +9,7 @@
 // --- shared modules ---
 // functions
 import { isKnownAgent } from '../../constants/agents.constants.ts';
-import { normalizePath } from '../path-utils/path-utils.ts';
+import { normalizePath, toSlashPath } from '../path-utils/path-utils.ts';
 // classes
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 // types
@@ -20,9 +20,9 @@ import type { ArgSchemaEntry, ArgsSchema } from '../../types/args-schema.types.t
 /** `YYYY-MM` または `YYYY` 形式の文字列の場合 `true` を返す（CLI 位置引数の期間判定）。 */
 export const isArgPeriod = (arg: string): boolean => /^\d{4}-\d{2}$/.test(arg) || /^\d{4}$/.test(arg);
 
-/** 正規化後に `/` を含む場合 `true` を返す（CLI 位置引数のディレクトリパス判定）。 */
+/** バックスラッシュをスラッシュに変換後に `/` を含む場合 `true` を返す（CLI 位置引数のディレクトリパス判定）。 */
 export const isArgDirectory = (arg: string): boolean => {
-  return normalizePath(arg).includes('/');
+  return toSlashPath(arg).includes('/');
 };
 
 // --- Public API ---
@@ -126,10 +126,10 @@ const _setByType = (
       if (rawValue === undefined || rawValue === '') {
         return new ChatlogError('InvalidArgs', `値が空です: ${entry.option}`);
       }
-      const _dir = normalizePath(rawValue);
-      if (!isArgDirectory(_dir)) {
+      if (!isArgDirectory(rawValue)) {
         return new ChatlogError('InvalidArgs', `ディレクトリ形式ではありません: ${rawValue}`);
       }
+      const _dir = normalizePath(rawValue);
       config[entry.field] = _dir;
       return null;
     }
