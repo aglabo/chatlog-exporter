@@ -26,9 +26,9 @@ import {
   findFixtureDirs,
   type IsFixtureDirProvider,
 } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // helpers
 import { _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
