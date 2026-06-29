@@ -180,6 +180,42 @@ describe('normalizePath', () => {
       assertThrows(() => normalizePath('${SECRET}/path'), ChatlogError);
     });
   });
+
+  /**
+   * `normalizePath` の `env` 引数渡しテスト。
+   *
+   * カスタム `env` を渡すことで環境変数の展開をテスト可能にする。
+   */
+  describe('When: env 引数あり', () => {
+    it('[Normal] T-LIB-U-82-01: カスタム env で ${TEMP} が展開される', () => {
+      const _mockEnv = (key: string): string | undefined => key === 'TEMP' ? '/custom/tmp' : undefined;
+      assertEquals(normalizePath('${TEMP}/foo', _mockEnv), '/custom/tmp/foo');
+    });
+
+    it('[Normal] T-LIB-U-82-02: カスタム env で ${HOME} が展開される', () => {
+      const _mockEnv = (key: string): string | undefined => key === 'HOME' ? '/custom/home' : undefined;
+      assertEquals(normalizePath('${HOME}/notes', _mockEnv), '/custom/home/notes');
+    });
+
+    it('[Error] T-LIB-U-82-03: カスタム env でも allowList 外変数は ChatlogError をスローする', () => {
+      const _mockEnv = (key: string): string | undefined => key === 'SECRET' ? 's3cr3t' : undefined;
+      const _err = assertThrows(() => normalizePath('${SECRET}/path', _mockEnv), ChatlogError);
+      assertEquals(_err.kind, 'EnvVarNotAllowed');
+    });
+
+    it('[Error] T-LIB-U-82-04: カスタム env で TEMP が undefined → ChatlogError(EnvVarNotSet)', () => {
+      const _mockEnv = (_key: string): string | undefined => undefined;
+      const _err = assertThrows(() => normalizePath('${TEMP}/x', _mockEnv), ChatlogError);
+      assertEquals(_err.kind, 'EnvVarNotSet');
+    });
+
+    it('[Edge] T-LIB-U-82-05: カスタム env は ${ProjectRoot} 展開に影響しない', () => {
+      resetProjectRoot('/mock/root');
+      const _mockEnv = (key: string): string | undefined => key === 'ProjectRoot' ? '/injected' : undefined;
+      assertEquals(normalizePath('${ProjectRoot}/x', _mockEnv), '/mock/root/x');
+      resetProjectRoot('');
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
