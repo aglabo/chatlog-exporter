@@ -276,6 +276,16 @@ describe('buildBaseGlob', () => {
       });
     });
   });
+
+  describe('Given: moduleName が "classes"', () => {
+    describe('When: buildBaseGlob("classes") を呼び出す', () => {
+      describe('Then: T-AT-BG-08 - classes 用の特殊パスを返す', () => {
+        it('T-AT-BG-08-01: 戻り値が "**/_scripts/classes/**/__tests__" である', () => {
+          assertEquals(buildBaseGlob('classes'), '**/_scripts/classes/**/__tests__');
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -309,6 +319,9 @@ describe('MODULE_GLOB_TABLE', () => {
         });
         it('T-AT-GT-08: "set" エントリが "**/set-frontmatter/**/__tests__" である', () => {
           assertEquals(MODULE_GLOB_TABLE['set'], '**/set-frontmatter/**/__tests__');
+        });
+        it('T-AT-GT-09: "classes" エントリが "**/_scripts/classes/**/__tests__" である', () => {
+          assertEquals(MODULE_GLOB_TABLE['classes'], '**/_scripts/classes/**/__tests__');
         });
       });
     });

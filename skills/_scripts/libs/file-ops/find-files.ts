@@ -36,9 +36,28 @@ const _defaultGlob: GlobProvider = async (pattern: string): Promise<string[]> =>
   return _results;
 };
 
-/** `dir` 直下の `ext` ファイルパス一覧を返す。 */
+/** `dir` 直下の `ext` ファイルパス一覧を返す（内部実装）。 */
 const _findFileFlats = async (dir: string, ext: string, glob: GlobProvider): Promise<string[]> => {
   return await glob(`${dir}/*${ext}`);
+};
+
+/**
+ * `dir` 直下の `ext` ファイルパス一覧を返す（1段のみ、サブディレクトリ非再帰）。
+ *
+ * @param dir - 探索対象ディレクトリパス
+ * @param options - `ext`（デフォルト `".md"`）、`glob` プロバイダー
+ * @throws Error `ext` がドット始まりでない場合
+ */
+export const findFilesFlat = async (
+  dir: string,
+  options?: FindFilesOptions,
+): Promise<string[]> => {
+  const _ext = options?.ext ?? '.md';
+  if (!_ext.startsWith('.')) {
+    throw new Error(`ext must start with '.': "${_ext}"`);
+  }
+  const _glob = options?.glob ?? _defaultGlob;
+  return await _findFileFlats(dir, _ext, _glob);
 };
 
 /**
