@@ -95,9 +95,9 @@ const _resolveEnv = (
  */
 export const expandEnvVars = (
   input: string,
-  env: EnvProvider = Deno.env.get,
+  env?: EnvProvider,
 ): string => {
-  const _envProvider = env;
+  const _envProvider = env ?? Deno.env.get;
   const _allowList = _DEFAULT_ALLOW_LIST;
   const _matches = [...input.matchAll(_EXPAND_RE)];
   if (_matches.length === 0) {
