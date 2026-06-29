@@ -44,7 +44,6 @@ const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
  * `afterEach` で `envStub.restore()` とディレクトリ削除を行う。
  *
  * @see findClaudeSessions
- * @see walkFiles
  * @see homeDir
  */
 describe('findClaudeSessions', () => {
