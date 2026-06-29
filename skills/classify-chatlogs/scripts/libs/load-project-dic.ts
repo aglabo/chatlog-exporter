@@ -12,7 +12,7 @@ import { parse as parseYaml } from '@std/yaml';
 // ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { resolveConfigPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { resolveConfigPath } from '../../../_scripts/libs/path-utils/resolve-path.ts';
 
 // ─── Local
 // types
@@ -106,7 +106,7 @@ export const loadProjectDic = async (
   resolveProvider: typeof resolveConfigPath = resolveConfigPath,
   readProvider: typeof readTextFile = readTextFile,
 ): Promise<ProjectDicEntry> => {
-  const _resolved = await resolveProvider({
+  const _resolved = resolveProvider({
     configPath: filePath,
     defaultPath: DEFAULT_PROJECTS_DIC_PATH,
   });
