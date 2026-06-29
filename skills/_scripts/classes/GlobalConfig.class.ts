@@ -12,14 +12,14 @@ import { parse } from '@std/yaml';
 
 // --- local modules
 // libs
-import { resolveConfigPath } from '../libs/path-utils/path-utils.ts';
+import { resolveConfigPath } from '../libs/path-utils/resolve-path.ts';
 import { parseNumber, parseString } from '../libs/text/string-utils.ts';
 // constants
 import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
 // types
 import type { ConfigSchema, ConfigValues, DefaultSchemaKey, SchemaValueType } from '../constants/schema.constants.ts';
-import type { CommandProvider, ReadTextFileProvider } from '../types/providers.types.ts';
+import type { ReadTextFileProvider } from '../types/providers.types.ts';
 // classes
 import { ChatlogError } from './ChatlogError.class.ts';
 
@@ -54,7 +54,6 @@ export class GlobalConfig {
     configFile?: string;
     yaml?: string;
     readTextFileProvider?: ReadTextFileProvider;
-    commandProvider?: CommandProvider;
   }): Promise<GlobalConfig> {
     if (!GlobalConfig._instance) {
       GlobalConfig._instance = new GlobalConfig(options?.schema);
@@ -69,7 +68,6 @@ export class GlobalConfig {
           const _loaded = await GlobalConfig._instance.loadConfigFile({
             configPath: options.configFile,
             readTextFileProvider: options.readTextFileProvider,
-            commandProvider: options.commandProvider,
           });
           GlobalConfig._instance._fields = { ...DEFAULT_VALUES, ..._loaded } as ConfigValues;
         } catch (e) {
@@ -140,13 +138,11 @@ export class GlobalConfig {
   async loadConfigFile(options?: {
     configPath?: string;
     readTextFileProvider?: ReadTextFileProvider;
-    commandProvider?: CommandProvider;
   }): Promise<Partial<ConfigValues>> {
     const _readTextFile = options?.readTextFileProvider ?? GlobalConfig._DEFAULT_READ_TEXT_FILE;
     const _resolved = await resolveConfigPath({
       configPath: options?.configPath,
       defaultPath: GlobalConfig._DEFAULT_CONFIG_PATH,
-      commandProvider: options?.commandProvider,
     });
     let _text: string;
     try {

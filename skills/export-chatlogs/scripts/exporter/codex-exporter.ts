@@ -10,7 +10,7 @@
 // libs
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { findEntries } from '../../../_scripts/libs/file-ops/find-entries.ts';
-import { homeDir } from '../../../_scripts/libs/path-utils/dir-utils.ts';
+import { homeDir } from '../../../_scripts/libs/path-utils/path-env.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 // constants
@@ -163,7 +163,7 @@ export const parseCodexSession = async (
 /**
  * `~/.codex/sessions/` 配下の全 JSONL セッションファイルパスを収集する。
  *
- * `walkFiles()` で `~/.codex/sessions/YYYY/MM/DD/*.jsonl` 形式の
+ * `~/.codex/sessions/YYYY/MM/DD/*.jsonl` 形式の
  * ディレクトリツリーを再帰走査する。
  *
  * @param _period 期間フィルタ（未使用。パーサー側でフィルタリングするため）

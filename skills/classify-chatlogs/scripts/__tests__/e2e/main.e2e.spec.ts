@@ -39,6 +39,7 @@ import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts
 // exists
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists, fileOrDirExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
@@ -61,7 +62,7 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   const year = period.slice(0, 4);
   const monthDir = `${inputDir}/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
-  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
+  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`);
   await Deno.writeTextFile(
     `${configsDir}/projects.dic`,
     'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
@@ -91,6 +92,7 @@ describe('main - dry-run モード', () => {
           const response = JSON.stringify([
             { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
           ]);
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
           );
@@ -100,6 +102,7 @@ describe('main - dry-run モード', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           loggerStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });
@@ -144,6 +147,7 @@ describe('main - 正常分類', () => {
           const response = JSON.stringify([
             { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
           ]);
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
           );
@@ -153,6 +157,7 @@ describe('main - 正常分類', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });
@@ -197,6 +202,7 @@ describe('main - project 設定済みファイルの移動', () => {
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
           );
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('[]')),
           );
@@ -210,6 +216,7 @@ describe('main - project 設定済みファイルの移動', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           exitStub.restore();
           GlobalConfig.resetInstance();
@@ -251,6 +258,7 @@ describe('main - project 設定済みファイルの移動', () => {
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
           );
           counter = { calls: 0 };
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(makeCountingMock('[]', counter));
           errStub = stub(console, 'error', () => {});
           exitStub = stub(Deno, 'exit');
@@ -259,6 +267,7 @@ describe('main - project 設定済みファイルの移動', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           exitStub.restore();
           GlobalConfig.resetInstance();
@@ -295,6 +304,7 @@ describe('main - project 設定済みファイルの実移動', () => {
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
           );
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('[]')),
           );
@@ -304,6 +314,7 @@ describe('main - project 設定済みファイルの実移動', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });
@@ -349,6 +360,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
             `${app1Dir}/chat.md`,
             '---\ntitle: テスト\nproject: app1\n---\n本文',
           );
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('[]')),
           );
@@ -362,6 +374,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           exitStub.restore();
           GlobalConfig.resetInstance();
@@ -402,6 +415,7 @@ describe('main - 対象ファイルなし', () => {
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile } = await _makeTestDirs());
           // monthDir は _makeTestDirs で作成済み、.md ファイルは置かない
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('[]')),
           );
@@ -415,6 +429,7 @@ describe('main - 対象ファイルなし', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           exitStub.restore();
           GlobalConfig.resetInstance();
@@ -447,7 +462,7 @@ describe('main - InputNotFound エラー', () => {
         beforeEach(async () => {
           configsDir = normalizePath(await Deno.makeTempDir());
           configFile = `${configsDir}/defaults.yaml`;
-          await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
+          await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`);
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\n',
@@ -512,6 +527,7 @@ describe('main - AI 失敗フォールバック', () => {
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\ncategory: development\n---\n本文',
           );
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(makeFailMock(1));
           errLogs = [];
           errStub = stub(console, 'error', (...args: unknown[]) => {
@@ -522,6 +538,7 @@ describe('main - AI 失敗フォールバック', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           errStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });
@@ -578,6 +595,7 @@ describe('main - 期間フィルタ', () => {
           const response = JSON.stringify([
             { file: 'in-scope.md', project: 'app1', confidence: 0.9, reason: 'matched' },
           ]);
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
           );
@@ -588,6 +606,7 @@ describe('main - 期間フィルタ', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           loggerStub.restore();
           errStub.restore();
           GlobalConfig.resetInstance();
@@ -711,6 +730,7 @@ describe('main - --chatlogs-dir フルパス直接指定', () => {
           const response = JSON.stringify([
             { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
           ]);
+          resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
           );
@@ -720,6 +740,7 @@ describe('main - --chatlogs-dir フルパス直接指定', () => {
 
         afterEach(async () => {
           commandHandle.restore();
+          resetProjectRoot();
           loggerStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });

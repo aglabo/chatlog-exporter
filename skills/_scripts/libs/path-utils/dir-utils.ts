@@ -8,56 +8,29 @@
 
 // -- external modules
 import { normalizePath } from './path-utils.ts';
-// types
-import type { CommandProvider, EnvProvider } from '../../types/providers.types.ts';
-// error class
-import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
-// 内部定数
+// getProjectRoot / resetProjectRoot
 // ─────────────────────────────────────────────
 
-/**
- * コマンドプロバイダのデフォルト実装。通常は Deno.Command を使用するが、テスト時にはモックに差し替えるため、定数として切り出している。
- */
-const _DEFAULT_COMMAND_PROVIDER = Deno.Command as unknown as CommandProvider;
+/** 実行時のカレントディレクトリをプロジェクトルートとして返す。 */
+const _fetchProjectRoot = (): string => normalizePath(Deno.cwd());
 
-// ─────────────────────────────────────────────
-// ホームディレクトリ
-// ─────────────────────────────────────────────
-
-/** ホームディレクトリを表す文字列を返す。 */
-export const homeDir = (env: EnvProvider = Deno.env.get): string => {
-  const _home = (env('HOME') ?? env('USERPROFILE')) ?? '~';
-  return normalizePath(_home);
-};
-
-// ─────────────────────────────────────────────
-// プロジェクトルート
-// ─────────────────────────────────────────────
+/** モジュールレベルのキャッシュ。プロジェクトルートの文字列を保持する。 */
+let _cachedRoot: string | null = null;
 
 /**
- * `git rev-parse --show-toplevel` を実行してプロジェクトルートパスを返す。
+ * プロジェクトルートの絶対パスを返す。初回は git を実行し、以降はキャッシュを返す。
  *
- * @param commandProvider - Deno.Command 互換のコマンドプロバイダ（テスト用インジェクション可能）
  * @returns プロジェクトルートの絶対パス（正規化済み）
  */
-export const getProjectRootDir = async (
-  commandProvider: CommandProvider = _DEFAULT_COMMAND_PROVIDER,
-): Promise<string> => {
-  const _cmd = new commandProvider('git', { args: ['rev-parse', '--show-toplevel'] });
-  let _output: { success: boolean; code: number; stdout: Uint8Array };
-  try {
-    _output = await _cmd.output();
-  } catch (e) {
-    if (e instanceof Deno.errors.NotFound) {
-      throw new ChatlogError('GitNotFound', 'NotFound', 'git command not found');
-    }
-    throw e;
-  }
-  if (!_output.success) {
-    throw new ChatlogError('NotInGitRepo', 'ExitFailure', `git exited with code ${_output.code}`);
-  }
-  const _raw = new TextDecoder().decode(_output.stdout);
-  return normalizePath(_raw.trim());
+export const getProjectRoot = (): string => (_cachedRoot ??= _fetchProjectRoot());
+
+/**
+ * キャッシュをリセットする。initialRoot を指定すると次回の getProjectRoot() がそれを返す（テスト用シード）。
+ *
+ * @param initialRoot - シードするパス。空文字列または省略でキャッシュをクリアする
+ */
+export const resetProjectRoot = (initialRoot: string = ''): void => {
+  _cachedRoot = initialRoot === '' ? null : normalizePath(initialRoot);
 };

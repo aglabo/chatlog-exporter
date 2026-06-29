@@ -18,8 +18,8 @@ import { describe, it } from '@std/testing/bdd';
 // test helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
 // test target

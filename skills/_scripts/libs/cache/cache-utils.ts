@@ -48,8 +48,7 @@ export interface CacheWriteProviders {
  * @param filePath - エントリファイルの絶対パスまたは相対パス
  * @returns ファイル名部分のみの slug 文字列
  */
-export const getCacheSlug = (filePath: string): string =>
-  getFilename(filePath);
+export const getCacheSlug = (filePath: string): string => getFilename(filePath);
 
 /**
  * キャッシュファイルを読み込んで `T` のパーシャルオブジェクトを返す。

@@ -18,28 +18,21 @@ import { buildConfig } from '../../classify-config.ts';
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_CLASSIFY_CONFIG } from '../../../constants/classify.constants.ts';
 // types
-import type { CommandProvider } from '../../../../../_scripts/types/providers.types.ts';
 import type { ParsedConfig } from '../../../types/classify.types.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// helpers
+import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-/** git コマンドを実行しない CommandProvider モック。 */
-class _NoopCommandProvider {
-  constructor(_cmd: string, _opts: { args: string[] }) {}
-  output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
-    return Promise.resolve({ success: true, code: 0, stdout: new Uint8Array() });
-  }
-}
-
 /** テスト用 GlobalConfig を作成する（YAML 文字列から）。 */
 async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
+  resetProjectRoot('/home/user/project');
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
     readTextFileProvider: () => Promise.resolve(yaml),
-    commandProvider: _NoopCommandProvider as unknown as CommandProvider,
     configFile: 'dummy.yaml',
   });
 }

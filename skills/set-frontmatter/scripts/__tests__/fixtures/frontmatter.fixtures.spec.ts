@@ -34,9 +34,9 @@ import {
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { DEFAULT_PROMPTS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
 
 const _enc = new TextEncoder();
