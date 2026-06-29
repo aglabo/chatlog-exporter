@@ -55,6 +55,9 @@ releases/*
 # worktree base dir
 .worktrees/
 
+## Coverage
+coverage*/
+
 ## AI generated files
 
 ## Coding AI depended
