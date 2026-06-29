@@ -34,6 +34,7 @@ const _SPECIAL_GLOB_TABLE = {
   'all': '**/__tests__',
   'libs': '**/_scripts/**/__tests__',
   'scripts': 'scripts/**/__tests__',
+  'classes': '**/_scripts/classes/**/__tests__',
 } as const;
 
 // スキルモジュール: 短縮名 → フルモジュール名
