@@ -175,14 +175,14 @@ describe('parseArgs', () => {
             { id: 'T-NC-PA-04-01', args: ['--period', '2026-03'], field: 'period', expected: '2026-03' },
             { id: 'T-NC-PA-05-01', args: ['--dry-run'], field: 'dryRun', expected: true },
             { id: 'T-NC-PA-06-01', args: ['--concurrency', '8'], field: 'concurrency', expected: 8 },
-            { id: 'T-NC-PA-07-01', args: ['--normalize-dir', './out'], field: 'normalizeDir', expected: './out' },
+            { id: 'T-NC-PA-07-01', args: ['--normalize-dir', './out'], field: 'normalizeDir', expected: 'out' },
             {
               id: 'T-NC-PA-11-01',
               args: ['--config', './config.yaml'],
               field: 'configFile',
               expected: './config.yaml',
             },
-            { id: 'T-NC-PA-12-01', args: ['--base-dir', './base'], field: 'baseDir', expected: './base' },
+            { id: 'T-NC-PA-12-01', args: ['--base-dir', './base'], field: 'baseDir', expected: 'base' },
             { id: 'T-NC-PA-15-01', args: ['--timeout-ms', '300000'], field: 'timeoutMs', expected: 300000 },
           ];
           for (const { id, args, field, expected } of _cases) {
@@ -248,13 +248,13 @@ describe('parseArgs', () => {
           './out',
         ]);
         assertEquals(result.chatlogsDir, '/some/path');
-        assertEquals(result.baseDir, './base');
+        assertEquals(result.baseDir, 'base');
         assertEquals(result.agent, 'claude');
         assertEquals(result.period, '2026-03');
         assertEquals(result.configFile, './config.yaml');
         assertEquals(result.dryRun, true);
         assertEquals(result.concurrency, 8);
-        assertEquals(result.normalizeDir, './out');
+        assertEquals(result.normalizeDir, 'out');
       });
     });
   });
