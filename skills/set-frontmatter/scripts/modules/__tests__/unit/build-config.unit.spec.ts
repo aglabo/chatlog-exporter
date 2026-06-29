@@ -143,6 +143,29 @@ describe('buildConfig', () => {
       });
     });
 
+    /**
+     * `dicsDir` の優先順位テスト。
+     *
+     * 優先順位: parsed.dicsDir > GlobalConfig.dicsDir > DEFAULT_DICS_DIR
+     */
+    describe('When: dicsDir の優先順位', () => {
+      it('[Edge] T-SF-BC-08-01: GlobalConfig に dicsDir 設定済み → GlobalConfig の値が使われる', async () => {
+        const gc = await _makeGlobalConfig('dicsDir: ./gc/dics');
+
+        const result = buildConfig({ outputDir: '/target' }, gc);
+
+        assertEquals(result.dicsDir, './gc/dics');
+      });
+
+      it('[Edge] T-SF-BC-08-02: parsed.dicsDir が GlobalConfig より優先される', async () => {
+        const gc = await _makeGlobalConfig('dicsDir: ./gc/dics');
+
+        const result = buildConfig({ outputDir: '/target', dicsDir: './parsed/dics' }, gc);
+
+        assertEquals(result.dicsDir, './parsed/dics');
+      });
+    });
+
     /** 各フィールドを明示的に指定したケース。 */
     describe('When: 各フィールドを指定', () => {
       it('[Normal] T-SF-BC-03-01: parsed.dicsDir が使用される', () => {
