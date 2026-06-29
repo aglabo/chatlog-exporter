@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/setfm-cache.unit.spec.ts
-// @(#): readCache / writeCache / getCacheSlug のユニットテスト
-//       対象: readCache, writeCache, getCacheSlug
+// @(#): CleCache<SetfmCache> を使ったキャッシュ操作パターンのユニットテスト
+//       対象: CleCache (set-frontmatter 固有のキャッシュパターン)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,78 +14,132 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { getCacheSlug, readCache, writeCache } from '../../../../../_scripts/libs/cache/cache-utils.ts';
+import { CleCache } from '../../../../../_scripts/classes/CleCache.class.ts';
+// types
+import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** テスト用キャッシュ識別子。`getCacheSlug` を使わず固定値でラウンドトリップを検証する。 */
-const _SLUG = 'test-entry.md';
+/** テスト用エントリファイルパス。CleCache がベース名をキーとして使う動作を確認する。 */
+const _ENTRY_PATH = '/some/dir/test-entry.md';
+
+// functions
+/**
+ * バッファプロバイダーを使った `CleCache<SetfmCache>` インスタンスを生成する。
+ *
+ * ファイルシステムに依存しないテストのため、`Map<string, string>` をバッファとして使用する。
+ *
+ * @param buf - 読み書きを受け持つバッファ
+ * @param cacheRoot - テスト用キャッシュルートパス
+ * @returns 初期化済みの `CleCache<SetfmCache>` インスタンス
+ */
+const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<CleCache<SetfmCache>> => {
+  const cache = new CleCache<SetfmCache>('fm-cache', cacheRoot, {
+    cache: {
+      readTextFile: (path) => {
+        const data = buf.get(path);
+        if (data === undefined) { return Promise.reject(new Error('not found')); }
+        return Promise.resolve(data);
+      },
+      writeTextFile: (path, data) => {
+        buf.set(path, data);
+        return Promise.resolve();
+      },
+      mkdir: () => Promise.resolve(),
+    },
+  });
+  await cache.ready;
+  return cache;
+};
 
 // ─── Tests
 
 /**
- * `readCache` / `writeCache` / `getCacheSlug` のユニットテストスイート。
+ * `CleCache<SetfmCache>` を使った set-frontmatter 固有キャッシュパターンのテストスイート。
  *
- * 実ファイルシステムを使ったラウンドトリップと re-export の確認を行う。
+ * Phase 2+3a（type/category の書き込み）と Phase 3b（frontmatter のマージ書き込み）の
+ * 動作を検証する。CleCache 自体のユニットテストは別ファイルで実施済みのため、
+ * ここでは set-frontmatter 固有の使用パターンに集中する。
  *
- * テスト ID 範囲: T-SF-CA-01-01 〜 T-SF-CA-03-01
+ * テスト ID 範囲: T-SF-CA-01 〜 T-SF-CA-03
  *
- * @see readCache
- * @see writeCache
- * @see getCacheSlug
+ * @see CleCache
+ * @see SetfmCache
  */
 describe('setfm-cache', () => {
+  let buf: Map<string, string>;
+  let cacheRoot: string;
+
+  beforeEach(async () => {
+    buf = new Map<string, string>();
+    cacheRoot = await Deno.makeTempDir();
+  });
+
+  afterEach(async () => {
+    await Deno.remove(cacheRoot, { recursive: true });
+  });
+
   /**
-   * `readCache` / `writeCache` のラウンドトリップテスト。
+   * Phase 2+3a パターン: `{ type, category }` を write して read で返るケース。
    *
-   * 実ディレクトリを使い書き込み・読み込み・マージ動作を検証する。
+   * CleCache のインメモリキャッシュにより、同一インスタンス内での read はディスクを読まない。
    */
-  describe('readCache / writeCache', () => {
-    let tempDir: string;
-
-    beforeEach(async () => {
-      tempDir = await Deno.makeTempDir();
-    });
-
-    afterEach(async () => {
-      await Deno.remove(tempDir, { recursive: true });
-    });
-
-    /** 書き込んだ値がそのまま読み返せる正常ケース。 */
+  describe('When: Phase 2+3a - type と category の書き込み', () => {
+    /** write して同一インスタンスで read できる正常ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-SF-CA-01-01: writeCache で { type: "tech" } を書き、readCache で同じ値が返る', async () => {
-        await writeCache(tempDir, _SLUG, { type: 'tech' });
-        const result = await readCache(tempDir, _SLUG);
-        assertEquals(result, { type: 'tech' });
-      });
+      it('[Normal] T-SF-CA-01-01: write({type, category}) → read で同じ値が返る', async () => {
+        const cache = await _makeCache(buf, cacheRoot);
 
-      it('[Normal] T-SF-CA-01-02: writeCache を2回呼ぶと値がマージされる', async () => {
-        await writeCache(tempDir, _SLUG, { type: 'tech' });
-        await writeCache(tempDir, _SLUG, { category: 'life' });
-        const result = await readCache(tempDir, _SLUG);
-        assertEquals(result, { type: 'tech', category: 'life' });
-      });
-    });
+        await cache.write(_ENTRY_PATH, { type: 'tech', category: 'development' });
+        const result = await cache.read(_ENTRY_PATH);
 
-    /** キャッシュファイルが存在しない境界値ケース。 */
-    describe('When: エッジケース', () => {
-      it('[Edge] T-SF-CA-02-01: 存在しない slug を readCache すると {} が返る', async () => {
-        const result = await readCache(tempDir, 'nonexistent.md');
-        assertEquals(result, {});
+        assertEquals(result, { type: 'tech', category: 'development' });
       });
     });
   });
 
   /**
-   * `getCacheSlug` の re-export 確認テスト。
+   * Phase 3b パターン: 既存の `{ type, category }` に `frontmatter` をマージして write するケース。
    *
-   * cache-utils から正しく re-export されていることを検証する。
+   * `CleCache.write` は上書きのため、Phase 3b では read → spread merge → write の手順が必要。
    */
-  describe('getCacheSlug', () => {
-    it('[Normal] T-SF-CA-03-01: getCacheSlug がファイルパスから文字列を返す', () => {
-      const result = getCacheSlug('/foo/bar.md');
-      assertEquals(typeof result, 'string');
+  describe('When: Phase 3b - frontmatter のマージ書き込み', () => {
+    /** Phase 2+3a 後に Phase 3b でマージして write するケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-CA-02-01: Phase 3b マージパターン → {type, category, frontmatter} が全て返る', async () => {
+        const cache = await _makeCache(buf, cacheRoot);
+        const _fmSnapshot = { title: 'テスト', summary: '概要', topics: ['tech'], tags: ['lang:typescript'] };
+
+        // Phase 2+3a: type, category を書き込む
+        await cache.write(_ENTRY_PATH, { type: 'tech', category: 'development' });
+
+        // Phase 3b: 既存値を read してマージ後に write する
+        const _existing = await cache.read(_ENTRY_PATH);
+        await cache.write(_ENTRY_PATH, { ..._existing, frontmatter: _fmSnapshot });
+
+        const result = await cache.read(_ENTRY_PATH);
+        assertEquals(result, {
+          type: 'tech',
+          category: 'development',
+          frontmatter: { title: 'テスト', summary: '概要', topics: ['tech'], tags: ['lang:typescript'] },
+        });
+      });
+    });
+  });
+
+  /**
+   * キャッシュミスのエッジケース。
+   *
+   * Phase 2+3a でキャッシュヒットしない場合、read は `{}` を返す。
+   */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-CA-03-01: 存在しないエントリの read → {} が返る', async () => {
+      const cache = await _makeCache(buf, cacheRoot);
+
+      const result = await cache.read('/nonexistent/path.md');
+
+      assertEquals(result, {});
     });
   });
 });
