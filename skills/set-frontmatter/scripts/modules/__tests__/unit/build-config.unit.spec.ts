@@ -63,82 +63,105 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `targetDir` 未指定のとき `joinPath(chatlogsDir, 'outputLogs')` が使われることを検証する。
+   * `outputDir` 未指定のとき `joinPath(chatlogsDir, 'outputLogs')` が使われることを検証する。
    */
-  describe('When: targetDir が未指定', () => {
-    it('[Normal] T-SF-BC-01-01: targetDir undefined → joinPath(chatlogsDir, outputLogs) が使われる', () => {
+  describe('When: outputDir が未指定', () => {
+    it('[Normal] T-SF-BC-01-01: outputDir undefined → joinPath(chatlogsDir, outputLogs) が使われる', () => {
       const result = buildConfig({}, globalConfig);
-      assertEquals(result.targetDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
+      assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
     });
 
-    it('[Edge] T-SF-BC-01-02: targetDir 空文字列 → joinPath(chatlogsDir, outputLogs) が使われる', () => {
-      const result = buildConfig({ targetDir: '' }, globalConfig);
-      assertEquals(result.targetDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
+    it('[Edge] T-SF-BC-01-02: outputDir 空文字列 → joinPath(chatlogsDir, outputLogs) が使われる', () => {
+      const result = buildConfig({ outputDir: '' }, globalConfig);
+      assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'outputLogs'));
     });
 
-    it('[Normal] T-SF-BC-01-03: GlobalConfig.chatlogsDir=./custom → targetDir=joinPath(./custom, outputLogs)', async () => {
+    it('[Normal] T-SF-BC-01-03: GlobalConfig.chatlogsDir=./custom → outputDir=joinPath(./custom, outputLogs)', async () => {
       const gc = await _makeGlobalConfig('chatlogsDir: ./custom');
       const result = buildConfig({}, gc);
-      assertEquals(result.targetDir, joinPath('./custom', 'outputLogs'));
+      assertEquals(result.outputDir, joinPath('./custom', 'outputLogs'));
     });
   });
 
   /**
-   * `targetDir` が指定されているとき SetfmConfig が正しく構築されることを検証する。
+   * `outputDir` が指定されているとき SetfmConfig が正しく構築されることを検証する。
    */
-  describe('When: targetDir が指定されている', () => {
+  describe('When: outputDir が指定されている', () => {
     /** デフォルト値が適用される正常ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-SF-BC-02-01: targetDir が設定される', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
-        assertEquals(result.targetDir, '/target');
+      it('[Normal] T-SF-BC-02-01: outputDir が設定される', () => {
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
+        assertEquals(result.outputDir, '/target');
       });
 
       it('[Normal] T-SF-BC-02-02: dicsDir のデフォルトは ./assets/dics', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.dicsDir, './assets/dics');
       });
 
       it('[Normal] T-SF-BC-02-03: dryRun のデフォルトは false', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.dryRun, false);
       });
 
       it('[Normal] T-SF-BC-02-04: review のデフォルトは true（--review 未指定）', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.review, true);
       });
 
       it('[Normal] T-SF-BC-02-05: concurrency は GlobalConfig から取得される', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.concurrency, 4);
       });
 
       it('[Normal] T-SF-BC-06-01: chunkSize のデフォルトは 10', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.chunkSize, DEFAULT_CHUNK_SIZE);
+      });
+    });
+
+    /**
+     * `outputDir` の絶対パス・相対パス判定テスト。
+     *
+     * 絶対パスはそのまま使用し、相対パスは chatlogsDir と join する。
+     */
+    describe('When: outputDir の絶対パス・相対パス判定', () => {
+      it('[Normal] T-SF-BC-09-01: 絶対パス指定 → そのまま使われる', () => {
+        const result = buildConfig({ outputDir: '/abs/output' }, globalConfig);
+        assertEquals(result.outputDir, '/abs/output');
+      });
+
+      it('[Normal] T-SF-BC-09-02: 相対パス指定 → joinPath(chatlogsDir, outputDir) が使われる', () => {
+        const result = buildConfig({ outputDir: './rel/output' }, globalConfig);
+        assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, './rel/output'));
+      });
+
+      it('[Normal] T-SF-BC-09-03: 相対パス + GlobalConfig.chatlogsDir=./custom → joinPath(./custom, outputDir)', async () => {
+        const gc = await _makeGlobalConfig('chatlogsDir: ./custom');
+        const result = buildConfig({ outputDir: 'myout' }, gc);
+        assertEquals(result.outputDir, joinPath('./custom', 'myout'));
       });
     });
 
     /** 各フィールドを明示的に指定したケース。 */
     describe('When: 各フィールドを指定', () => {
       it('[Normal] T-SF-BC-03-01: parsed.dicsDir が使用される', () => {
-        const result = buildConfig({ targetDir: '/target', dicsDir: '/custom/dics' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target', dicsDir: '/custom/dics' }, globalConfig);
         assertEquals(result.dicsDir, '/custom/dics');
       });
 
       it('[Normal] T-SF-BC-03-02: dryRun=true が設定される', () => {
-        const result = buildConfig({ targetDir: '/target', dryRun: true }, globalConfig);
+        const result = buildConfig({ outputDir: '/target', dryRun: true }, globalConfig);
         assertEquals(result.dryRun, true);
       });
 
       it('[Normal] T-SF-BC-03-03: review=false → result.review=false になる', () => {
-        const result = buildConfig({ targetDir: '/target', review: false }, globalConfig);
+        const result = buildConfig({ outputDir: '/target', review: false }, globalConfig);
         assertEquals(result.review, false);
       });
 
       it('[Normal] T-SF-BC-06-02: parsed.chunkSize=5 → result.chunkSize=5 になる', () => {
-        const result = buildConfig({ targetDir: '/target', chunkSize: 5 }, globalConfig);
+        const result = buildConfig({ outputDir: '/target', chunkSize: 5 }, globalConfig);
         assertEquals(result.chunkSize, 5);
       });
     });
@@ -185,12 +208,12 @@ describe('buildConfig', () => {
     /** promptsDir 未指定でデフォルト値が使われる正常ケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SFP-01-01: 引数なし + GlobalConfig 未設定 → DEFAULT_PROMPTS_DIR が使われる', () => {
-        const result = buildConfig({ targetDir: '/target' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.promptsDir, DEFAULT_PROMPTS_DIR);
       });
 
       it('[Normal] T-SFP-02-01: parsed.promptsDir 指定 → その値が使われる', () => {
-        const result = buildConfig({ targetDir: '/target', promptsDir: './custom/prompts' }, globalConfig);
+        const result = buildConfig({ outputDir: '/target', promptsDir: './custom/prompts' }, globalConfig);
         assertEquals(result.promptsDir, './custom/prompts');
       });
     });
@@ -200,7 +223,7 @@ describe('buildConfig', () => {
       it('[Edge] T-SFP-03-01: GlobalConfig に promptsDir 設定済み → GlobalConfig の値が使われる', async () => {
         const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
 
-        const result = buildConfig({ targetDir: '/target' }, gc);
+        const result = buildConfig({ outputDir: '/target' }, gc);
 
         assertEquals(result.promptsDir, './gc/prompts');
       });
@@ -208,7 +231,7 @@ describe('buildConfig', () => {
       it('[Edge] T-SFP-03-02: parsed.promptsDir が GlobalConfig より優先される', async () => {
         const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
 
-        const result = buildConfig({ targetDir: '/target', promptsDir: './parsed/prompts' }, gc);
+        const result = buildConfig({ outputDir: '/target', promptsDir: './parsed/prompts' }, gc);
 
         assertEquals(result.promptsDir, './parsed/prompts');
       });
