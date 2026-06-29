@@ -12,7 +12,7 @@ import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import type { GlobProvider } from '../../../../types/providers.types.ts';
-import { findFiles } from '../../find-files.ts';
+import { findFiles, findFilesFlat } from '../../find-files.ts';
 
 // ─────────────────────────────────────────────
 // ヘルパー
@@ -237,6 +237,44 @@ describe('findFiles', () => {
 
           assert(_result.every((p) => p.endsWith('.txt')));
         });
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // T-LIB-FF-09〜11: findFilesFlat（1段のみ探索）
+  // ─────────────────────────────────────────────
+
+  describe('findFilesFlat', () => {
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-FF-09: dir 直下の .json ファイル一覧を返す', async () => {
+        const _glob: GlobProvider = (pattern) =>
+          pattern.endsWith('/*.json')
+            ? Promise.resolve(['/cache/a.json', '/cache/b.json'])
+            : Promise.resolve([]);
+        const _result = await findFilesFlat('/cache', { ext: '.json', glob: _glob });
+        assertEquals(_result, ['/cache/a.json', '/cache/b.json']);
+      });
+
+      it('[Normal] T-LIB-FF-10: ext 省略時はデフォルト ".md" で glob を呼ぶ', async () => {
+        let _called = '';
+        const _glob: GlobProvider = (pattern) => {
+          _called = pattern;
+          return Promise.resolve([]);
+        };
+        await findFilesFlat('/dir', { glob: _glob });
+        assertEquals(_called, '/dir/*.md');
+      });
+    });
+
+    describe('When: エッジケース', () => {
+      it('[Edge] T-LIB-FF-11: サブディレクトリは探索せず dir 直下のみ返す', async () => {
+        const _glob: GlobProvider = (pattern) =>
+          pattern.endsWith('/*.md')
+            ? Promise.resolve(['/root/a.md'])
+            : Promise.resolve(['/root/sub']);
+        const _result = await findFilesFlat('/root', { glob: _glob });
+        assertEquals(_result, ['/root/a.md']);
       });
     });
   });
