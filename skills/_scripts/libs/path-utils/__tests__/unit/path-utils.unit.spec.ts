@@ -8,7 +8,7 @@
 
 // -- BDD modules --
 import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
-import { beforeEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import {
@@ -149,6 +149,35 @@ describe('normalizePath', () => {
     });
     it('[Normal] T-LIB-U-52-03: C:\\a\\..\\b（バックスラッシュ含む ..）→ C:/b（toUnixPath で展開される）', () => {
       assertEquals(normalizePath('C:\\a\\..\\b'), 'C:/b');
+    });
+  });
+
+  /** T-LIB-U-80: normalizePath が環境変数展開する（正常系・エッジケース）。 */
+  describe('When: 正常系 - 環境変数展開', () => {
+    beforeEach(() => resetProjectRoot('/mock/root'));
+    afterEach(() => resetProjectRoot());
+
+    it('[Normal] T-LIB-U-80-01: ${ProjectRoot}/skills → /mock/root/skills', () => {
+      assertEquals(normalizePath('${ProjectRoot}/skills'), '/mock/root/skills');
+    });
+    it('[Normal] T-LIB-U-80-02: ${ProjectRoot} のみ → /mock/root', () => {
+      assertEquals(normalizePath('${ProjectRoot}'), '/mock/root');
+    });
+    it('[Edge] T-LIB-U-80-03: プレースホルダーなしパスは従来通り正規化される', () => {
+      assertEquals(normalizePath('/plain/path'), '/plain/path');
+    });
+    it('[Edge] T-LIB-U-80-04: ${ProjectRoot}/x → /mock/root/x（git 実行なし）', () => {
+      assertEquals(normalizePath('${ProjectRoot}/x'), '/mock/root/x');
+    });
+  });
+
+  /** T-LIB-U-81: normalizePath が allowList 外変数で throw する（異常系）。 */
+  describe('When: 異常系 - allowList 外変数', () => {
+    beforeEach(() => resetProjectRoot('/mock/root'));
+    afterEach(() => resetProjectRoot());
+
+    it('[Error] T-LIB-U-81-01: ${SECRET}/path → ChatlogError(EnvVarNotAllowed)', () => {
+      assertThrows(() => normalizePath('${SECRET}/path'), ChatlogError);
     });
   });
 });
