@@ -66,7 +66,7 @@ const _makeBufferProviders = (buf: Map<string, string> = new Map()) => ({
  *
  * コンストラクタ・read・write メソッドの動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-33
+ * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-36
  *
  * @see CleCache
  */
@@ -277,6 +277,48 @@ describe('CleCache', () => {
         const _result = await _cache.read('chat');
         assertEquals(_result, { value: 'no-ext' });
       });
+
+      it('[Normal] T-CLS-CC-34: _hash ミス時に readTextFile が呼ばれ有効ファイルの値が返る', async () => {
+        let _readCount = 0;
+        const _buf = new Map<string, string>([
+          ['/tmp/test-cle-cache/cle-cache/test/chat.json', JSON.stringify({ value: 'from-disk' })],
+        ]);
+        const _baseProv = _makeBufferProviders(_buf);
+        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+          env: _fakeEnv,
+          cache: {
+            ..._baseProv,
+            readTextFile: (path: string): Promise<string> => {
+              _readCount++;
+              return _baseProv.readTextFile(path);
+            },
+          },
+        });
+        const _result = await _cache.read('chat.md');
+        assertEquals(_result, { value: 'from-disk' });
+        assertEquals(_readCount, 1);
+      });
+
+      it('[Normal] T-CLS-CC-35: _readFile 成功後の 2回目 read は _hash ヒットしてファイルを読まない', async () => {
+        let _readCount = 0;
+        const _buf = new Map<string, string>([
+          ['/tmp/test-cle-cache/cle-cache/test/chat.json', JSON.stringify({ value: 'from-disk' })],
+        ]);
+        const _baseProv = _makeBufferProviders(_buf);
+        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+          env: _fakeEnv,
+          cache: {
+            ..._baseProv,
+            readTextFile: (path: string): Promise<string> => {
+              _readCount++;
+              return _baseProv.readTextFile(path);
+            },
+          },
+        });
+        await _cache.read('chat.md');
+        await _cache.read('chat.md');
+        assertEquals(_readCount, 1);
+      });
     });
 
     /** ファイルが存在しない（未 write）の場合のケース。 */
@@ -472,6 +514,20 @@ describe('CleCache', () => {
         });
         await _cache.loadAll();
         assertEquals(await _cache.read('file-a'), {});
+      });
+
+      it('[Edge] T-CLS-CC-36: loadAll() は既存の _hash をクリアする（事前 loadFromYaml した値が消える）', async () => {
+        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+          env: _fakeEnv,
+          cache: {
+            ..._makeBufferProviders(),
+            glob: (_pattern: string) => Promise.resolve([]),
+          },
+        });
+        _cache.loadFromYaml('old:\n  type: OLD\n');
+        await _cache.loadAll();
+        const _result = await _cache.read('old');
+        assertEquals(_result, {});
       });
     });
 
