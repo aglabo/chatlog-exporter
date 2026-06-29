@@ -10,6 +10,7 @@
 import { join, relative } from '@std/path';
 import { normalize as posixNormalize } from '@std/path/posix';
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+import type { EnvProvider } from '../../types/providers.types.ts';
 import { expandEnvVars } from './path-env.ts';
 
 // ─────────────────────────────────────────────
@@ -53,9 +54,9 @@ export const toUnixPath = (path: string): string => {
  * `C:\a\..\b` のように展開可能な `..` は `toUnixPath` で `C:/b` に解決されてエラーにならない。
  * `../foo` のような先頭の不可約な `..` は展開後も残るためエラーになる。
  */
-export const normalizePath = (path: string): string => {
+export const normalizePath = (path: string, env?: EnvProvider): string => {
   if (path === '') { return path; }
-  const _expanded = expandEnvVars(path);
+  const _expanded = expandEnvVars(path, env);
   const _normalized = toUnixPath(_expanded);
   // 展開後もドットのみのセグメントが2文字以上（..、...等）残っていれば禁止
   const _hasDotDot = _normalized.split('/').some((seg) => /^\.[.]+$/.test(seg));
