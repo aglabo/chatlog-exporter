@@ -140,8 +140,33 @@ describe('reviewFrontmatter', () => {
 
   /**
    * `runAI` が `fail` かつ corrected フィールドを含むとき entry.frontmatter が更新されることを検証する。
+   * また validity キーなし・errors 複数件のエッジケースも検証する。
    */
   describe('When: エッジケース', () => {
+    it('[Edge] T-SF-RV-05-01: runAI が validity: キーなしの YAML を返す → デフォルト pass → { validity: pass, errors: [] }', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('type: research\ncategory: ai\n')),
+      );
+
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(result, { validity: 'pass', errors: [] });
+    });
+
+    it('[Edge] T-SF-RV-06-01: runAI が validity: fail + errors 2件を返す → errors に2件が含まれる', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode('validity: fail\nerrors:\n  - wrong type\n  - wrong category\n'),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(result, { validity: 'fail', errors: ['wrong type', 'wrong category'] });
+    });
+
     it('[Edge] T-SF-RV-04-01: runAI が fail かつ corrected type: tech を含む → entry.frontmatter.get(type) が tech に更新される', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
