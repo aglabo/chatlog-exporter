@@ -30,3 +30,6 @@ discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value
 dicsDir: "./assets/dics"
 promptsDir: "./assets/prompts"
 chatlogsDir: "./chatlogs"
+
+# Temporary cache
+cacheDir: "${TEMP}/cle-cache"

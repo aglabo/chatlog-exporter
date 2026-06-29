@@ -86,3 +86,10 @@ export const DEFAULT_FALLBACK_TYPE = 'research';
 
 /** category 判定が失敗・不明のときのフォールバック category 値。 */
 export const DEFAULT_FALLBACK_CATEGORY = 'development';
+
+// ─────────────────────────────────────────────
+// デフォルト設定ディレクトリー
+// ─────────────────────────────────────────────
+
+/** キャッシュルートディレクトリー */
+export const DEFAULT_CACHE_ROOT = '${TEMP}/cle-cache';
