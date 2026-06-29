@@ -269,8 +269,54 @@ describe('judgeTypeAndCategory', () => {
 
   /**
    * AI 出力の type や category が無効キーのとき、フォールバック値がセットされることを検証する。
+   * type のみ・category のみ・逆順の返却パターンも含む。
    */
   describe('When: エッジケース', () => {
+    it(
+      '[Edge] T-SF-TC-16: AI が "type: research" のみ（category なし）を返す → type=research, category=development（デフォルト）',
+      async () => {
+        commandHandle = installCommandMock(
+          makeSuccessMock(_enc.encode('type: research')),
+        );
+
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+
+        assertEquals(_entry.frontmatter.get('type') as string, 'research');
+        assertEquals(_entry.frontmatter.get('category') as string, 'development'); // DEFAULT_FALLBACK_CATEGORY
+      },
+    );
+
+    it(
+      '[Edge] T-SF-TC-17: AI が "category: development" のみ（type なし）を返す → type=research（デフォルト）, category=development',
+      async () => {
+        commandHandle = installCommandMock(
+          makeSuccessMock(_enc.encode('category: development')),
+        );
+
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+
+        assertEquals(_entry.frontmatter.get('type') as string, 'research'); // DEFAULT_FALLBACK_TYPE
+        assertEquals(_entry.frontmatter.get('category') as string, 'development');
+      },
+    );
+
+    it(
+      '[Edge] T-SF-TC-18: AI が逆順 "category: development\\ntype: research" を返す → 両方正しくセットされる',
+      async () => {
+        commandHandle = installCommandMock(
+          makeSuccessMock(_enc.encode('category: development\ntype: research')),
+        );
+
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+
+        assertEquals(_entry.frontmatter.get('type') as string, 'research');
+        assertEquals(_entry.frontmatter.get('category') as string, 'development');
+      },
+    );
+
     it(
       '[Edge] T-SF-TC-12: 不正な type キー → フォールバック type がセットされる',
       async () => {
