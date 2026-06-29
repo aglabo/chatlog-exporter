@@ -24,7 +24,7 @@ import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class
 type ParsedResult = ReturnType<typeof parseArgs>;
 
 // constants
-const _TARGET = '--target-dir';
+const _TARGET = '--output-dir';
 const _PATH = '/path/to/dir';
 
 // ─── Tests
@@ -32,7 +32,7 @@ const _PATH = '/path/to/dir';
 /**
  * `parseArgs` のユニットテストスイート。
  *
- * CLI 引数の解析: `--target-dir`・`--dics`・`--dry-run`・`--review`・`--config` オプション。
+ * CLI 引数の解析: `--output-dir`・`--dics`・`--dry-run`・`--review`・`--config` オプション。
  *
  * テスト ID 範囲: T-SF-PA-01 〜 T-SF-PA-11
  *
@@ -42,16 +42,16 @@ describe('parseArgs', () => {
   // ─── T-SF-PA-01: デフォルト値 ────────────────────────────────────────────────
 
   /**
-   * `--target-dir` のみ指定した場合のデフォルト値テスト。
+   * `--output-dir` のみ指定した場合のデフォルト値テスト。
    *
    * 省略可能なオプションが未指定のとき undefined になることを検証する。
    */
-  describe('Given: 最小引数 ["--target-dir", "/path/to/dir"]', () => {
-    describe('When: parseArgs(["--target-dir", "/path/to/dir"]) を呼び出す', () => {
-      /** `--target-dir` のみ指定した場合の各フィールドのデフォルト値。 */
+  describe('Given: 最小引数 ["--output-dir", "/path/to/dir"]', () => {
+    describe('When: parseArgs(["--output-dir", "/path/to/dir"]) を呼び出す', () => {
+      /** `--output-dir` のみ指定した場合の各フィールドのデフォルト値。 */
       describe('Then: T-SF-PA-01 - デフォルト値が適用される', () => {
         const _defaultCases: { id: string; field: keyof ParsedResult; expected: unknown }[] = [
-          { id: 'T-SF-PA-01-01', field: 'targetDir', expected: _PATH },
+          { id: 'T-SF-PA-01-01', field: 'outputDir', expected: _PATH },
           { id: 'T-SF-PA-01-02', field: 'dicsDir', expected: undefined },
           { id: 'T-SF-PA-01-03', field: 'dryRun', expected: undefined },
           { id: 'T-SF-PA-01-04', field: 'review', expected: undefined },
@@ -93,7 +93,7 @@ describe('parseArgs', () => {
 
   it('T-SF-PA-09-01: 全フィールドが正しく解析される', () => {
     const result = parseArgs([_TARGET, _PATH, '--dry-run', '--review', '--dics', '/dics', '--config', 'cfg.yaml']);
-    assertEquals(result.targetDir, _PATH);
+    assertEquals(result.outputDir, _PATH);
     assertEquals(result.dryRun, true);
     assertEquals(result.review, true);
     assertEquals(result.dicsDir, '/dics');
