@@ -11,7 +11,7 @@
  * set_frontmatter.ts — チャットログMarkdownにAI生成フロントマターを並列付加する
  *
  * 使い方:
- *   deno run --allow-read --allow-run --allow-write set_frontmatter.ts --target-dir <dir> [--dry-run] [--review] [--no-review] [--dics DIR] [--config FILE]
+ *   deno run --allow-read --allow-run --allow-write set_frontmatter.ts --output-dir <dir> [--dry-run] [--review] [--no-review] [--dics DIR] [--config FILE]
  *
  * 処理フロー:
  *   Phase 1: ファイル列挙・メタ読み込み
@@ -176,7 +176,7 @@ export const main = async (args: string[]): Promise<void> => {
         stats.fail++;
         continue;
       }
-      await writeFrontmatter(entry, _config.targetDir, _config.inputDir, _config.dryRun, stats);
+      await writeFrontmatter(entry, _config.outputDir, _config.inputDir, _config.dryRun, stats);
     }
 
     logger.info(
