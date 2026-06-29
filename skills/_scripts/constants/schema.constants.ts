@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 import {
+  DEFAULT_CACHE_ROOT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_DICS_DIR,
   DEFAULT_PROJECTS_DIC_PATH,
@@ -50,6 +51,8 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   promptsDir: 'string',
   /** チャットログの入出力ディレクトリのパス。 */
   chatlogsDir: 'string',
+  /** キャッシュルートディレクトリのパス。 */
+  cacheDir: 'string',
 };
 
 /** DEFAULT_SCHEMA のキーのユニオン型。 */
@@ -86,6 +89,8 @@ export const DEFAULT_VALUES = {
   promptsDir: DEFAULT_PROMPTS_DIR,
   /** デフォルトチャットログディレクトリ */
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
+  /** デフォルトキャッシュルートディレクトリ */
+  cacheDir: DEFAULT_CACHE_ROOT,
   /** デフォルトコンテンツ最小文字数 */
   minCharCount: 1000,
   /** デフォルト Assistant 応答最小文字数 */

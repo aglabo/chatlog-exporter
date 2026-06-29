@@ -32,6 +32,7 @@ const _DEFAULT_SCHEMA: ArgsSchema = [
   { option: 'period', field: 'period', type: 'period' },
   { option: 'agent', field: 'agent', type: 'agent' },
   { option: 'chatlogsDir', field: 'chatlogsDir', type: 'directory' },
+  { option: 'cacheDir', field: 'cacheDir', type: 'directory' },
 ];
 
 /**

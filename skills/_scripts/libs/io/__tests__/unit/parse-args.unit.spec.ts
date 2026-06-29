@@ -65,6 +65,7 @@ describe('_initSchemaForTest', () => {
       assert(_map.has('period'));
       assert(_map.has('agent'));
       assert(_map.has('chatlogsDir'));
+      assert(_map.has('cacheDir'));
     });
     it('[Normal] T-PA-22-02: 追加スキーマあり → デフォルト＋追加エントリを含む Map が返る', () => {
       const _map = _initSchemaForTest([{ option: '--output', field: 'outputDir', type: 'string' }]);
@@ -767,6 +768,54 @@ describe('parseArgsToConfig', () => {
           ChatlogError,
           'Invalid Args',
         );
+      });
+    });
+  });
+
+  // ─── T-PA-31: cacheDir オプションの directory 型バリデーション ──────────────
+
+  /**
+   * `parseArgsToConfig` の `cacheDir` フィールド設定テスト。
+   *
+   * `--cache-dir` オプションに有効なパス・無効な値・引数なしを渡した際の
+   * 動作を検証する。
+   *
+   * テスト ID 範囲: T-PA-31-01 〜 T-PA-31-03
+   */
+  describe('Given: --cache-dir オプションの directory 型バリデーション', () => {
+    const _SCHEMA_WITH_CACHE: ArgsSchema = [
+      { option: '--cache-dir', field: 'cacheDir', type: 'directory' },
+    ];
+
+    type TestConfigWithCache = TestConfig & { cacheDir?: string };
+
+    /** 有効なディレクトリパスを渡す正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-31-01: --cache-dir ./tmp/cache → cacheDir が "tmp/cache" になる', () => {
+        const result = parseArgsToConfig<TestConfigWithCache>(
+          ['--cache-dir', './tmp/cache'],
+          _SCHEMA_WITH_CACHE,
+        );
+        assertEquals(result.cacheDir, 'tmp/cache');
+      });
+    });
+
+    /** ディレクトリ形式でない値を渡す異常系。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-PA-31-02: --cache-dir plain-value → ChatlogError(InvalidArgs) がスローされる', () => {
+        assertThrows(
+          () => parseArgsToConfig<TestConfigWithCache>(['--cache-dir', 'plain-value'], _SCHEMA_WITH_CACHE),
+          ChatlogError,
+          'Invalid Args',
+        );
+      });
+    });
+
+    /** 引数を渡さないエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-PA-31-03: 引数なし → cacheDir が undefined になる', () => {
+        const result = parseArgsToConfig<TestConfigWithCache>([], _SCHEMA_WITH_CACHE);
+        assertEquals(result.cacheDir, undefined);
       });
     });
   });
