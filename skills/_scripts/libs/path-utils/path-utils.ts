@@ -10,6 +10,7 @@
 import { join, relative } from '@std/path';
 import { normalize as posixNormalize } from '@std/path/posix';
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+import { expandEnvVars } from './path-env.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
@@ -54,7 +55,8 @@ export const toUnixPath = (path: string): string => {
  */
 export const normalizePath = (path: string): string => {
   if (path === '') { return path; }
-  const _normalized = toUnixPath(path);
+  const _expanded = expandEnvVars(path);
+  const _normalized = toUnixPath(_expanded);
   // 展開後もドットのみのセグメントが2文字以上（..、...等）残っていれば禁止
   const _hasDotDot = _normalized.split('/').some((seg) => /^\.[.]+$/.test(seg));
   if (_hasDotDot) { throw new ChatlogError('InvalidPath', path, `Path contains forbidden dot segments: ${path}`); }

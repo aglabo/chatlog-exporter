@@ -52,14 +52,14 @@ const _DEFAULT_ALLOW_LIST: readonly string[] = ['TEMP', 'TMP'];
  * @throws {ChatlogError} EnvVarNotAllowed — allowList 外の変数
  * @throws {ChatlogError} EnvVarNotSet — allowList 内だが未定義の変数
  */
-const _resolveEnv = async (
+const _resolveEnv = (
   name: string,
   allowList: readonly string[],
   envProvider: EnvProvider,
-): Promise<string> => {
+): string => {
   switch (name) {
     case _KEYWORD_PROJECT_ROOT:
-      return await getProjectRoot();
+      return getProjectRoot();
     case _KEYWORD_HOME:
       return homeDir(envProvider);
     default: {
@@ -93,10 +93,10 @@ const _resolveEnv = async (
  * @throws {ChatlogError} EnvVarNotAllowed — allowList 外の変数が含まれる場合
  * @throws {ChatlogError} EnvVarNotSet — allowList 内の変数が未定義の場合
  */
-export const expandEnvVars = async (
+export const expandEnvVars = (
   input: string,
   env: EnvProvider = Deno.env.get,
-): Promise<string> => {
+): string => {
   const _envProvider = env;
   const _allowList = _DEFAULT_ALLOW_LIST;
   const _matches = [...input.matchAll(_EXPAND_RE)];
@@ -104,9 +104,7 @@ export const expandEnvVars = async (
     return input;
   }
   const _uniqueNames = [...new Set(_matches.map(([, name]) => name))];
-  const _resolvedEntries = await Promise.all(
-    _uniqueNames.map(async (name) => [name, await _resolveEnv(name, _allowList, _envProvider)] as const),
-  );
+  const _resolvedEntries = _uniqueNames.map((name) => [name, _resolveEnv(name, _allowList, _envProvider)] as const);
   const _resolvedMap = new Map(_resolvedEntries);
   return input.replace(_EXPAND_RE, (_, name) => _resolvedMap.get(name)!);
 };

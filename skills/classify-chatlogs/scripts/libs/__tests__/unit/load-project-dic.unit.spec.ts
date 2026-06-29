@@ -39,11 +39,13 @@ const _FALLBACK_PROPS = {
   desc: '特定プロジェクトに属さない雑多なログ。日常的な質問・技術外の相談・一時的な調査',
 };
 
-const _resolveToFixture = (_opts: ResolveConfigPathOptions) => Promise.resolve(_FIXTURE_DIC_PATH);
-const _resolveFileDirNotFound = (_opts: ResolveConfigPathOptions) =>
-  Promise.reject(new ChatlogError('FileDirNotFound', 'テスト用: ファイル不在'));
-const _resolveGitNotFound = (_opts: ResolveConfigPathOptions) =>
-  Promise.reject(new ChatlogError('GitNotFound', 'テスト用: git が見つからない'));
+const _resolveToFixture = (_opts: ResolveConfigPathOptions): string => _FIXTURE_DIC_PATH;
+const _resolveFileDirNotFound = (_opts: ResolveConfigPathOptions): string => {
+  throw new ChatlogError('FileDirNotFound', 'テスト用: ファイル不在');
+};
+const _resolveGitNotFound = (_opts: ResolveConfigPathOptions): string => {
+  throw new ChatlogError('GitNotFound', 'テスト用: git が見つからない');
+};
 
 const _readPermissionError = (_path: string) =>
   Promise.reject(new Deno.errors.PermissionDenied('テスト用: 読み取り権限なし'));
@@ -122,9 +124,9 @@ describe('loadProjectDic', () => {
     // T-CL-LPD-06: 引数なし → resolveProvider に configPath=undefined / defaultPath が渡る
     it('T-CL-LPD-06-01: 引数なしで呼び出すと resolveProvider の configPath が undefined になる', async () => {
       let _capturedOpts: ResolveConfigPathOptions | undefined;
-      const _captureResolve = (opts: ResolveConfigPathOptions) => {
+      const _captureResolve = (opts: ResolveConfigPathOptions): string => {
         _capturedOpts = opts;
-        return Promise.resolve(_FIXTURE_DIC_PATH);
+        return _FIXTURE_DIC_PATH;
       };
 
       await loadProjectDic(undefined, _captureResolve);
@@ -134,9 +136,9 @@ describe('loadProjectDic', () => {
 
     it('T-CL-LPD-06-02: 引数なしで呼び出すと resolveProvider の defaultPath が DEFAULT_PROJECTS_DIC_PATH になる', async () => {
       let _capturedOpts: ResolveConfigPathOptions | undefined;
-      const _captureResolve = (opts: ResolveConfigPathOptions) => {
+      const _captureResolve = (opts: ResolveConfigPathOptions): string => {
         _capturedOpts = opts;
-        return Promise.resolve(_FIXTURE_DIC_PATH);
+        return _FIXTURE_DIC_PATH;
       };
 
       await loadProjectDic(undefined, _captureResolve);
@@ -184,7 +186,7 @@ describe('loadProjectDic', () => {
     // T-CL-LPD-05 / T-CL-LPD-07: resolveProvider がエラーを throw → 再throw される
     const _resolveErrorTable: {
       label: string;
-      resolveProvider: (opts: ResolveConfigPathOptions) => Promise<string>;
+      resolveProvider: (opts: ResolveConfigPathOptions) => string;
       expectedKind: string;
     }[] = [
       {
