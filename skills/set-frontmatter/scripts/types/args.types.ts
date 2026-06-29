@@ -17,7 +17,7 @@ export interface SetfmConfig {
   /** チャットログを読み込む入力ディレクトリのパス。 */
   inputDir: string;
   /** フロントマター付きファイルの書き込み先ディレクトリのパス。 */
-  targetDir: string;
+  outputDir: string;
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: string;
   /** プロンプトファイルが置かれたディレクトリのパス。 */
