@@ -207,7 +207,7 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _type = _fileMeta.frontmatter.get('type') as string;
 
               if (_expectedOutput.fallback?.expected_type) {
@@ -231,7 +231,7 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _type = _fileMeta.frontmatter.get('type') as string;
 
             assertEquals(
@@ -253,7 +253,7 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _category = _fileMeta.frontmatter.get('category') as string;
 
@@ -281,7 +281,7 @@ for (const _relPath of _fixtureDirs) {
             }
 
             // まず type を判定してから category を判定する
-            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
             await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _category = _fileMeta.frontmatter.get('category') as string;
 
@@ -306,7 +306,7 @@ for (const _relPath of _fixtureDirs) {
             if (_isFallbackCase) {
               const _activeDics = _dics ?? _makeDicsForFallback();
               const _activePrompts = _prompts ?? _makePromptsForFallback();
-              await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
+              await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _activeDics, _activePrompts);
               const _ok = await generateFrontmatter(
                 _fileMeta,
@@ -337,7 +337,7 @@ for (const _relPath of _fixtureDirs) {
               return;
             }
 
-            await judgeType([_fileMeta], _MAX_CONTENT_LENGTH, _dics, _prompts);
+            await judgeType(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
             await judgeCategory(_fileMeta, _MAX_CONTENT_LENGTH, _dics, _prompts);
             const _ok = await generateFrontmatter(
               _fileMeta,

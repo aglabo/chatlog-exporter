@@ -1,5 +1,5 @@
 // src: scripts/modules/setfm-type.ts
-// @(#): set-frontmatter Phase 2 type判定モジュール（バッチ処理）
+// @(#): set-frontmatter Phase 2 type判定モジュール（1ファイル単位）
 //       対象: judgeType
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -14,8 +14,6 @@ import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Local
 import { formatDicEntries } from '../libs/dic-format-utils.ts';
@@ -24,7 +22,7 @@ import { renderPrompt } from '../libs/template-utils.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 
 // ─────────────────────────────────────────────
-// Phase 2: type判定（バッチ）
+// Phase 2: type判定（1ファイル単位）
 // ─────────────────────────────────────────────
 
 /** typeEntries を formatDicEntry で整形し、テンプレートに埋め込んで system prompt を生成する。 */
@@ -34,7 +32,7 @@ const _buildTypeSystemPrompt = (systemTemplate: string, dics: Dics): string => {
 };
 
 export const judgeType = async (
-  entries: ChatlogEntry[],
+  entry: ChatlogEntry,
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
@@ -44,29 +42,21 @@ export const judgeType = async (
     throw new ChatlogError('InvalidArgs', 'NotDefined', 'プロンプトテンプレート "type" が定義されていません');
   }
   const systemPrompt = _buildTypeSystemPrompt(tmpl.system, dics);
-  const entriesText = entries
-    .map((entry, i) =>
-      `=== FILE ${i + 1}: ${getFilename(entry.filePath!)} ===\n${entry.truncateContent(maxContentLength)}`
-    )
-    .join('\n\n');
+  const entriesText = entry.truncateContent(maxContentLength);
   const user = renderPrompt(tmpl.user, { entries: entriesText });
   const validKeys = new Set(dics.typeEntries.map((e) => e.key));
 
-  let parsed: { file: string; type: string }[] | null = null;
+  let type = DEFAULT_FALLBACK_TYPE;
   try {
     const raw = await runAI(systemPrompt, user);
-    parsed = parseAiJsonArray<{ file: string; type: string }>(raw);
+    const normalized = raw.trim().replace(/\s/g, '').toLowerCase();
+    if (validKeys.has(normalized)) {
+      type = normalized;
+    }
   } catch {
     // fall through to fallback
   }
-
-  for (const entry of entries) {
-    const filename = getFilename(entry.filePath!);
-    const match = parsed?.find((r) => r.file === filename);
-    const normalized = match?.type.replace(/\s/g, '').toLowerCase() ?? '';
-    const type = validKeys.has(normalized) ? normalized : DEFAULT_FALLBACK_TYPE;
-    entry.frontmatter.set('type', type);
-  }
+  entry.frontmatter.set('type', type);
 };
 
 // ─── Test exports (テスト専用・本番コードから import 禁止)

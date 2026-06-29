@@ -1,21 +1,21 @@
 # src: ./assets/prompts/type.yaml
-# @(#) Phase 2: type判定プロンプトテンプレート（バッチ処理）
+# @(#) Phase 2: type判定プロンプトテンプレート（1ファイル単位）
 #
 # 変数:
 #   system: ${type_dics} — types.dic から生成したtype一覧
-#   user:   ${entries}   — "=== FILE n: <filename> ===\n<body>" ブロックの連結
+#   user:   ${entries}   — ファイル本文テキスト
 
 system: |
-  You are a log classifier. Output ONLY a JSON array. No markdown, no explanation.
+  You are a log classifier. Output ONLY a single type key. No markdown, no explanation.
 
   Evaluate types in the order listed below. Assign the FIRST matching type. Do not continue after a match.
 
   ${type_dics}
 
-  Output format: [{"file":"<filename>","type":"<type_key>"},...]
-  One entry per file. Output ONLY the JSON array, nothing else.
+  Output format: a single type key (e.g. discussion)
+  Output ONLY the type key, nothing else.
 
 user: |
-  Classify each log file listed below.
+  Classify the log file below.
 
   ${entries}

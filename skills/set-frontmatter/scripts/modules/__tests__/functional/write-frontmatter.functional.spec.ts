@@ -83,7 +83,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('---'), true);
@@ -98,7 +98,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           assertEquals(stats.success, 1);
         });
@@ -112,7 +112,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('type: "research"'), true);
@@ -127,7 +127,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('category: "development"'), true);
@@ -142,7 +142,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('# テスト'), true);
@@ -166,7 +166,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, true, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, true, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated, originalContent);
@@ -181,7 +181,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, true, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, true, stats);
 
           assertEquals(stats.success, 1);
         });
@@ -200,7 +200,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           assertEquals(stats.fail, 1);
         });
@@ -212,7 +212,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated, originalContent);
@@ -235,7 +235,7 @@ describe('writeFrontmatter', () => {
           entry.frontmatter.set('category', 'development');
           const stats = _makeStats();
 
-          await writeFrontmatter(entry, false, stats);
+          await writeFrontmatter(entry, tempDir, tempDir, false, stats);
 
           assertEquals(await fileOrDirExists(`${filePath}.tmp`), false);
         });
