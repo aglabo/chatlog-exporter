@@ -106,7 +106,7 @@ export const loadProjectDic = async (
   resolveProvider: typeof resolveConfigPath = resolveConfigPath,
   readProvider: typeof readTextFile = readTextFile,
 ): Promise<ProjectDicEntry> => {
-  const _resolved = await resolveProvider({
+  const _resolved = resolveProvider({
     configPath: filePath,
     defaultPath: DEFAULT_PROJECTS_DIC_PATH,
   });
