@@ -11,7 +11,6 @@ export const ERROR_KIND_LABELS = {
   FileDirNotFound: 'File Or Dir Not Found',
   InvalidFormat: 'Invalid Format',
   InvalidYaml: 'Invalid Yaml',
-  NotInGitRepo: 'Not In Git Repository',
   GitNotFound: 'Git Not Found',
   FailFast: 'Fail Fast',
   EnvVarNotAllowed: 'Env Var Not Allowed',

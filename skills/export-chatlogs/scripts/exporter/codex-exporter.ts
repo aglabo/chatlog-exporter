@@ -163,7 +163,7 @@ export const parseCodexSession = async (
 /**
  * `~/.codex/sessions/` 配下の全 JSONL セッションファイルパスを収集する。
  *
- * `walkFiles()` で `~/.codex/sessions/YYYY/MM/DD/*.jsonl` 形式の
+ * `~/.codex/sessions/YYYY/MM/DD/*.jsonl` 形式の
  * ディレクトリツリーを再帰走査する。
  *
  * @param _period 期間フィルタ（未使用。パーサー側でフィルタリングするため）
