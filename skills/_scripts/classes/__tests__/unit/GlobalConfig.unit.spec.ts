@@ -18,6 +18,7 @@ import { GlobalConfig } from '../../GlobalConfig.class.ts';
 import type { ReadTextFileProvider } from '../../../types/providers.types.ts';
 // constants
 import { DEFAULT_CONFIG_FILE } from '../../../constants/defaults.constants.ts';
+import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../../../constants/schema.constants.ts';
 // classes
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -60,7 +61,7 @@ const _notFoundRead: ReadTextFileProvider = () => Promise.reject(new Deno.errors
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-74
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-80
  *
  * @see GlobalConfig
  */
@@ -143,6 +144,11 @@ describe('GlobalConfig', () => {
       it('[Normal] T-CLS-GC-74: yaml で maxContentLength: 2000 を指定すると get() が 2000 を返す', async () => {
         const _config = await GlobalConfig.getInstance({ yaml: 'maxContentLength: 2000\n' });
         assertEquals(_config.get('maxContentLength'), 2000);
+      });
+
+      it('[Normal] T-CLS-GC-77: 設定なしのとき get("cacheDir") がデフォルト値を返す', async () => {
+        const _config = await GlobalConfig.getInstance();
+        assertEquals(_config.get('cacheDir'), '${TEMP}/cle-cache');
       });
 
       it('[Normal] T-CLS-GC-68: yaml で複数フィールドを指定すると get() で反映が確認できる', async () => {
@@ -249,6 +255,16 @@ describe('GlobalConfig', () => {
         assertStrictEquals(_first, _second);
         assertEquals(_second.get('agent'), 'claude');
       });
+
+      it('[Edge] T-CLS-GC-78: yaml で cacheDir: /tmp/my-cache を指定すると get("cacheDir") がその値を返す', async () => {
+        const _config = await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/my-cache\n' });
+        assertEquals(_config.get('cacheDir'), '/tmp/my-cache');
+      });
+
+      it('[Edge] T-CLS-GC-79: yaml に cacheDir キーがない場合は get("cacheDir") がデフォルト値を返す', async () => {
+        const _config = await GlobalConfig.getInstance({ yaml: 'agent: chatgpt\n' });
+        assertEquals(_config.get('cacheDir'), '${TEMP}/cle-cache');
+      });
     });
   });
 
@@ -348,6 +364,12 @@ describe('GlobalConfig', () => {
         label: '不明キーが混在しても ChatlogError をスローする',
         input: { agent: 'claude', badKey: 'x' },
         errorType: ChatlogError,
+      },
+      {
+        id: 'T-CLS-GC-80',
+        label: 'string フィールド cacheDir に number 型は TypeError をスローする',
+        input: { cacheDir: 42 },
+        errorType: TypeError,
       },
     ];
 
@@ -507,5 +529,25 @@ describe('GlobalConfig', () => {
 describe('DEFAULT_CONFIG_FILE', () => {
   it('[Normal] T-CLS-GC-60: DEFAULT_CONFIG_FILE が "assets/configs/config.yaml" である', () => {
     assertEquals(DEFAULT_CONFIG_FILE, 'assets/configs/config.yaml');
+  });
+});
+
+// ─── DEFAULT_SCHEMA / DEFAULT_VALUES — cacheDir 定数検証 ─────────────────────
+
+/**
+ * `DEFAULT_SCHEMA` および `DEFAULT_VALUES` の `cacheDir` エントリ検証スイート。
+ *
+ * テスト ID: T-CLS-GC-75, T-CLS-GC-76
+ *
+ * @see DEFAULT_SCHEMA
+ * @see DEFAULT_VALUES
+ */
+describe('DEFAULT_SCHEMA / DEFAULT_VALUES — cacheDir', () => {
+  it('[FN確認] T-CLS-GC-75: DEFAULT_SCHEMA.cacheDir が "string" である', () => {
+    assertEquals(DEFAULT_SCHEMA['cacheDir'], 'string');
+  });
+
+  it('[Normal] T-CLS-GC-76: DEFAULT_VALUES.cacheDir が "${TEMP}/cle-cache" である', () => {
+    assertEquals((DEFAULT_VALUES as Record<string, unknown>)['cacheDir'], '${TEMP}/cle-cache');
   });
 });
