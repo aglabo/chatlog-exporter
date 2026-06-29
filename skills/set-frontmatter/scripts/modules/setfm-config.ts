@@ -12,7 +12,7 @@
 // ─── Shared scripts
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
-import { joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import {
   DEFAULT_CHATLOGS_DIR,
@@ -30,7 +30,7 @@ import type { ParsedConfig, SetfmConfig } from '../types/args.types.ts';
 /** set-frontmatter の引数スキーマ。 */
 const _SCHEMA: ArgsSchema = [
   { option: '--input-dir', field: 'inputDir', type: 'directory' },
-  { option: '--target-dir', field: 'targetDir', type: 'directory' },
+  { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
@@ -47,7 +47,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な SetfmConfig を構築する。
  * - inputDir 優先順位: `parsed.inputDir` > `join(chatlogsDir, 'normalizelogs')`
- * - targetDir 優先順位: `parsed.targetDir` > `join(chatlogsDir, 'outputLogs')`
+ * - outputDir: 絶対パスならそのまま使用、相対パスなら `join(chatlogsDir, outputDir)`、未指定なら `join(chatlogsDir, 'outputLogs')`
  * - chatlogsDir: `globalConfig.get('chatlogsDir')` > `DEFAULT_CHATLOGS_DIR`
  * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `DEFAULT_DICS_DIR`
  * - promptsDir 優先順位: `parsed.promptsDir` > `globalConfig.get('promptsDir')` > `DEFAULT_PROMPTS_DIR`
@@ -61,7 +61,9 @@ export const buildConfig = (
 ): SetfmConfig => {
   const _chatlogsDir = (globalConfig.get('chatlogsDir') as string | undefined) ?? DEFAULT_CHATLOGS_DIR;
   const _inputDir = parsed.inputDir || joinPath(_chatlogsDir, 'normalizelogs');
-  const _targetDir = parsed.targetDir || joinPath(_chatlogsDir, 'outputLogs');
+  const _outputDir = parsed.outputDir
+    ? (isAbsolutePath(parsed.outputDir) ? parsed.outputDir : joinPath(_chatlogsDir, parsed.outputDir))
+    : joinPath(_chatlogsDir, 'outputLogs');
   const _dicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? DEFAULT_DICS_DIR;
   const _promptsDir = parsed.promptsDir ?? (globalConfig.get('promptsDir') as string | undefined)
     ?? DEFAULT_PROMPTS_DIR;
@@ -72,7 +74,7 @@ export const buildConfig = (
   const _cacheDir = parsed.cacheDir ?? joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache');
   return {
     inputDir: _inputDir,
-    targetDir: _targetDir,
+    outputDir: _outputDir,
     dicsDir: _dicsDir,
     promptsDir: _promptsDir,
     dryRun: _dryRun,
