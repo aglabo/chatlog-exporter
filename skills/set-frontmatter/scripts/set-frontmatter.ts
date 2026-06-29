@@ -32,16 +32,16 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
+import { CleCache } from '../../_scripts/classes/CleCache.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
-import { getCacheSlug, readCache, writeCache } from '../../_scripts/libs/cache/cache-utils.ts';
 // types
-import type { SetfmCache } from './types/cache.types.ts';
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
 import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
 import { writeFrontmatter } from './modules/setfm-write.ts';
+import type { SetfmCache } from './types/cache.types.ts';
 // types
 import type { Stats } from './types/phase.types.ts';
 
@@ -58,6 +58,9 @@ export const main = async (args: string[]): Promise<void> => {
     if (!await dirExists(_config.inputDir)) {
       throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
     }
+
+    const _cache = new CleCache<SetfmCache>('fm-cache');
+    await _cache.ready;
 
     const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
     logger.info(
@@ -92,15 +95,14 @@ export const main = async (args: string[]): Promise<void> => {
     await runConcurrent(
       entries,
       async (entry) => {
-        const _slug = getCacheSlug(entry.filePath!);
-        const _cache = await readCache<SetfmCache>(_config.cacheDir, _slug);
-        if (_cache.type && _cache.category) {
-          entry.frontmatter.set('type', _cache.type);
-          entry.frontmatter.set('category', _cache.category);
+        const _cached = await _cache.read(entry.filePath!);
+        if (_cached.type && _cached.category) {
+          entry.frontmatter.set('type', _cached.type);
+          entry.frontmatter.set('category', _cached.category);
           logger.info(`  type+category (cached): ${getFilename(entry.filePath!)}`);
         } else {
           await judgeTypeAndCategory(entry, maxContentLength, dics, prompts);
-          await writeCache(_config.cacheDir, _slug, {
+          await _cache.write(entry.filePath!, {
             type: entry.frontmatter.get('type') as string,
             category: entry.frontmatter.get('category') as string,
           });
@@ -120,10 +122,9 @@ export const main = async (args: string[]): Promise<void> => {
     await runConcurrent(
       entries,
       async (entry) => {
-        const _slug = getCacheSlug(entry.filePath!);
-        const _cache = await readCache<SetfmCache>(_config.cacheDir, _slug);
-        if (_cache.frontmatter) {
-          Object.entries(_cache.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
+        const _cached = await _cache.read(entry.filePath!);
+        if (_cached.frontmatter) {
+          Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
           _generatedFiles.add(entry.filePath!);
           logger.info(`  generated (cached): ${getFilename(entry.filePath!)}`);
         } else {
@@ -135,7 +136,8 @@ export const main = async (args: string[]): Promise<void> => {
               const v = entry.frontmatter.get(k);
               if (v !== undefined) { _fmSnapshot[k] = v; }
             });
-            await writeCache(_config.cacheDir, _slug, { frontmatter: _fmSnapshot });
+            const _existing = await _cache.read(entry.filePath!);
+            await _cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot });
             _generatedFiles.add(entry.filePath!);
             logger.info(`  generated: ${getFilename(entry.filePath!)}`);
           } else {
