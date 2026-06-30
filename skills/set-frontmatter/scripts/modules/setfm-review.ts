@@ -72,5 +72,17 @@ export const reviewFrontmatter = async (
   const correctedCategory = categoryMatch?.[1]?.trim() ?? '';
   if (correctedCategory) { entry.frontmatter.set('category', correctedCategory); }
 
+  const topicsMatch = _cleaned.match(/^ {2}topics:\n((?:^ {4}- .+\n?)*)/m);
+  if (topicsMatch) {
+    const correctedTopics = topicsMatch[1].split('\n').map((l) => l.replace(/^ {4}- /, '').trim()).filter(Boolean);
+    if (correctedTopics.length > 0) { entry.frontmatter.set('topics', correctedTopics); }
+  }
+
+  const tagsMatch = _cleaned.match(/^ {2}tags:\n((?:^ {4}- .+\n?)*)/m);
+  if (tagsMatch) {
+    const correctedTags = tagsMatch[1].split('\n').map((l) => l.replace(/^ {4}- /, '').trim()).filter(Boolean);
+    if (correctedTags.length > 0) { entry.frontmatter.set('tags', correctedTags); }
+  }
+
   return { validity, errors };
 };
