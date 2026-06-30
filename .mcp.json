@@ -4,14 +4,15 @@
       "type": "stdio",
       "command": "serena",
       "args": [
-        "start-mcp-server"
+        "start-mcp-server",
+        "--project-from-cwd"
       ]
     },
     "cocoindex-code": {
       "type": "stdio",
-      "command": "ccc",
+      "command": "cocoindex-code",
       "args": [
-        "mcp"
+        "serve"
       ]
     },
     "codegraph-mcp": {
