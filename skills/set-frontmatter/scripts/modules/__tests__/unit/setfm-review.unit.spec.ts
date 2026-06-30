@@ -192,5 +192,51 @@ describe('reviewFrontmatter', () => {
 
       assertEquals(_entry.frontmatter.get('category'), 'life');
     });
+
+    it('[Edge] T-SF-RV-07-01: runAI が validity: fail + corrected_frontmatter.topics を含む → entry.frontmatter.get(topics) が更新される', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: fail\nerrors:\n  - wrong topics\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n    - behavior\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
+    });
+
+    it('[Edge] T-SF-RV-07-02: runAI が validity: fail + corrected_frontmatter.tags を含む → entry.frontmatter.get(tags) が更新される', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: fail\nerrors:\n  - wrong tags\ncorrected_frontmatter:\n  tags:\n    - lang:typescript\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
+    });
+
+    it('[Edge] T-SF-RV-08-01: runAI が validity: pass + corrected_frontmatter.topics を含む → entry.frontmatter.get(topics) は変更されない', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: pass\nerrors: []\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      _entry.frontmatter.set('topics', ['existing-topic']);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(_entry.frontmatter.get('topics'), ['existing-topic']);
+    });
   });
 });
