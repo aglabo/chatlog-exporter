@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/CleCache.class.ts
+// src: skills/_scripts/classes/ChatlogWorks.class.ts
 // @(#): ファイルベース JSON キャッシュクラス（ディレクトリ状態をインスタンスに保持）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -36,24 +36,30 @@ const _defaultGlob: GlobProvider = async (pattern) => {
 // 型定義
 // ─────────────────────────────────────────────
 
-/** `CleCache` に渡すファイル操作プロバイダー。テスト時はバッファで差し替える。 */
-export interface CleCacheFileProviders {
+/** `ChatlogWorks` に渡すファイル操作プロバイダー。テスト時はバッファで差し替える。 */
+export interface ChatlogWorksFileProviders {
   readTextFile?: ReadTextFileProvider;
   writeTextFile?: WriteTextFileProvider;
   mkdir?: MkdirProvider;
   glob?: GlobProvider;
 }
 
-/** `CleCache` コンストラクタに渡す依存性注入プロバイダーのまとめ。 */
-export interface CleCacheProviders {
+/** `ChatlogWorks` コンストラクタに渡す依存性注入プロバイダーのまとめ。 */
+export interface ChatlogWorksProviders {
   /** ファイル操作プロバイダー（省略時は Deno デフォルト）。 */
-  cache?: CleCacheFileProviders;
+  cache?: ChatlogWorksFileProviders;
   /** 環境変数取得関数（省略時は `Deno.env.get`）。 */
   env?: EnvProvider;
 }
 
+/** `ChatlogWorks` コンストラクタに渡すキャッシュ初期化オプション。 */
+export interface ChatlogWorksInitializer {
+  /** YAML 文字列でキャッシュを初期化する場合に指定する。省略時はディレクトリから自動読み込み。 */
+  yaml?: string;
+}
+
 // ─────────────────────────────────────────────
-// CleCache クラス
+// ChatlogWorks クラス
 // ─────────────────────────────────────────────
 
 /**
@@ -66,7 +72,7 @@ export interface CleCacheProviders {
  * `cacheRoot` が falsy の場合は `GlobalConfig` の `cacheDir` を使用する。
  * `read`/`write` 前に `await cache.ready` を呼ぶこと。
  */
-export class CleCache<T extends object> {
+export class ChatlogWorks<T extends object> {
   private _cacheDir!: string;
   private readonly _hash: Map<string, Partial<T>>;
 
@@ -82,15 +88,21 @@ export class CleCache<T extends object> {
    * @param subDir - ベースディレクトリからの相対パス（`cacheRoot` 配下）
    * @param cacheRoot - キャッシュルートパス（falsy のとき `GlobalConfig.cacheDir` を使用）
    * @param providers - ファイル操作・環境変数プロバイダー（省略時は Deno デフォルト）
+   * @param initializer - キャッシュ初期化オプション（yaml 指定時は YAML で初期化、省略時はディレクトリから読み込み）
    */
-  constructor(subDir: string, cacheRoot = '', providers?: CleCacheProviders) {
+  constructor(
+    subDir: string,
+    cacheRoot = '',
+    providers?: ChatlogWorksProviders,
+    initializer?: ChatlogWorksInitializer,
+  ) {
     this._initProviders(providers);
     this._hash = new Map<string, Partial<T>>();
-    this.ready = this._initCacheDir(subDir, cacheRoot, providers);
+    this.ready = this._initCacheDir(subDir, cacheRoot, providers, initializer);
   }
 
   /** ファイル操作プロバイダーを初期化する。省略時は Deno デフォルトを使用する。 */
-  private _initProviders(providers?: CleCacheProviders): void {
+  private _initProviders(providers?: ChatlogWorksProviders): void {
     this._readTextFile = providers?.cache?.readTextFile ?? ((path) => Deno.readTextFile(path));
     this._writeTextFile = providers?.cache?.writeTextFile ?? ((path, data) => Deno.writeTextFile(path, data));
     this._mkdir = providers?.cache?.mkdir ?? ((path, opts) => Deno.mkdir(path, opts));
@@ -101,7 +113,12 @@ export class CleCache<T extends object> {
    * `_cacheDir` を解決してディレクトリを作成する。
    * `cacheRoot` が falsy のとき `GlobalConfig.cacheDir` を非同期で取得する。
    */
-  private async _initCacheDir(subDir: string, cacheRoot: string, providers?: CleCacheProviders): Promise<void> {
+  private async _initCacheDir(
+    subDir: string,
+    cacheRoot: string,
+    providers?: ChatlogWorksProviders,
+    initializer?: ChatlogWorksInitializer,
+  ): Promise<void> {
     const _expandedSubDir = normalizePath(subDir, providers?.env);
     if (isAbsolutePath(_expandedSubDir)) {
       this._cacheDir = _expandedSubDir;
@@ -110,6 +127,11 @@ export class CleCache<T extends object> {
       this._cacheDir = joinPath(normalizePath(_root, providers?.env), _expandedSubDir);
     }
     await this._mkdir(this._cacheDir, { recursive: true });
+    if (initializer?.yaml != null) {
+      this.loadFromYaml(initializer.yaml);
+    } else {
+      await this.loadAll();
+    }
   }
 
   /** ファイルパスまたはファイル名から `_hash` キー（拡張子なしベース名）を返す。 */
@@ -122,18 +144,6 @@ export class CleCache<T extends object> {
     return joinPath(this._cacheDir, `${key}.json`);
   }
 
-  /** ディスクから `<key>.json` を読み込み、`_hash` に格納して返す。ファイル不在時は `{}` を返す。 */
-  private async _readFile(key: string): Promise<Partial<T>> {
-    try {
-      const _text = await this._readTextFile(this._cachePath(key));
-      const _result = JSON.parse(_text) as Partial<T>;
-      this._hash.set(key, _result);
-      return _result;
-    } catch {
-      return {};
-    }
-  }
-
   /** `data` を `<key>.json` に書き込み、`_hash` を上書きする。 */
   private async _writeFile(key: string, data: Partial<T>): Promise<void> {
     await this._writeTextFile(this._cachePath(key), JSON.stringify(data));
@@ -143,15 +153,15 @@ export class CleCache<T extends object> {
   /**
    * キャッシュを読み込んで `Partial<T>` を返す。
    *
-   * `_hash` にヒットすればディスクを読まずに即返す。ミス時のみ `_readFile` でファイルを読む。
+   * `await cache.ready` でプリロード済みの `_hash` を参照する同期メソッド。
+   * キャッシュミス時は `{}` を返す。
    *
    * @param filePath - ファイルパスまたはファイル名（拡張子あり・なし両可）
    * @returns パース済みの `Partial<T>`、またはキャッシュなし時は `{}`
    */
-  read(filePath: string): Promise<Partial<T>> {
+  read(filePath: string): Partial<T> {
     const _key = this._toHashKey(filePath);
-    if (this._hash.has(_key)) { return Promise.resolve(this._hash.get(_key)!); }
-    return this._readFile(_key);
+    return this._hash.has(_key) ? (this._hash.get(_key) as Partial<T>) : {};
   }
 
   /**
