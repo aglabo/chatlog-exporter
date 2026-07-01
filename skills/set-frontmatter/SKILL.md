@@ -26,7 +26,7 @@ allowed-tools: Bash, Glob
 
 - 引数なし → エラー (project またはパスを指定してください)
 - `<path>` → 1つのパス指定: `--input-dir` として使用（出力はデフォルト `outputLogs`）
-- `<input-path> <output-path>` → 2つのパス指定: 1つ目=`--input-dir`、2つ目=`--target-dir`（出力先）
+- `<input-path> <output-path>` → 2つのパス指定: 1つ目=`--input-dir`、2つ目=`--output-dir`（出力先）
 - `project` のみ → `claude` agent・指定プロジェクト・全年月
 - `project YYYY-MM` → `claude` agent・指定プロジェクト・指定年月
 - `agent project` → 指定 agent・指定プロジェクト・全年月
@@ -98,7 +98,7 @@ PATH_ARGS=()
 ## ステップ3: スクリプト実行
 
 ```bash
-# INPUT_DIR のみ指定 (OUTPUT_DIR は --target-dir を省略してスクリプトのデフォルトに委ねる):
+# INPUT_DIR のみ指定 (OUTPUT_DIR は --output-dir を省略してスクリプトのデフォルトに委ねる):
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --dics "$DICS_DIR" \
@@ -107,7 +107,7 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
 # INPUT_DIR と OUTPUT_DIR 両方指定:
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
-  --target-dir "$OUTPUT_DIR" \
+  --output-dir "$OUTPUT_DIR" \
   --dics "$DICS_DIR" \
   $DRY_RUN_FLAG
 
