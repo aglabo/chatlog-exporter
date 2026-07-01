@@ -1,6 +1,6 @@
-// src: skills/_scripts/classes/__tests__/functional/CleCache.functional.spec.ts
-// @(#): CleCache functional テスト - 実ファイルIOを使った検証
-//       対象: CleCache<T>
+// src: skills/_scripts/classes/__tests__/functional/ChatlogWorks.functional.spec.ts
+// @(#): ChatlogWorks functional テスト - 実ファイルIOを使った検証
+//       対象: ChatlogWorks<T>
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { CleCache } from '../../CleCache.class.ts';
+import { ChatlogWorks } from '../../ChatlogWorks.class.ts';
 
 // ─── Internal Helpers
 
@@ -30,15 +30,15 @@ interface _NumData {
 // ─── Tests
 
 /**
- * `CleCache` クラスの functional テストスイート。
+ * `ChatlogWorks` クラスの functional テストスイート。
  *
  * 実ファイル IO を使って constructor・write・read・loadAll の動作を検証する。
  *
  * テスト ID 範囲: T-CLS-CC-37 〜 T-CLS-CC-41
  *
- * @see CleCache
+ * @see ChatlogWorks
  */
-describe('CleCache', () => {
+describe('ChatlogWorks', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('CleCache', () => {
     /** 有効な cacheRoot を渡してインスタンスを生成するケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-37: cacheRoot=tempDir・subDir="clecache" → <tempDir>/clecache ディレクトリが作成される', async () => {
-        const cache = new CleCache<_CacheData>('clecache', tempDir);
+        const cache = new ChatlogWorks<_CacheData>('clecache', tempDir);
         await cache.ready;
 
         const stat = await Deno.stat(`${tempDir}/clecache`);
@@ -76,7 +76,7 @@ describe('CleCache', () => {
     /** 有効なキーとデータを渡してファイルを書き込むケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-38: write("foo", {value:"bar"}) → foo.json に {"value":"bar"} が書き込まれる', async () => {
-        const cache = new CleCache<_CacheData>('clecache', tempDir);
+        const cache = new ChatlogWorks<_CacheData>('clecache', tempDir);
         await cache.ready;
         await cache.write('foo', { value: 'bar' });
 
@@ -95,14 +95,15 @@ describe('CleCache', () => {
   describe('read', () => {
     /** 新インスタンスを生成してディスクから読み込むケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-39: write 後に新インスタンス生成・ready 待機後に read → { value:"bar" } が返る', async () => {
-        const cache1 = new CleCache<_CacheData>('clecache', tempDir);
+      it('[Normal] T-CLS-CC-39: write 後に新インスタンス生成・loadAll() 後に read → { value:"bar" } が返る', async () => {
+        const cache1 = new ChatlogWorks<_CacheData>('clecache', tempDir);
         await cache1.ready;
         await cache1.write('foo', { value: 'bar' });
 
-        const cache2 = new CleCache<_CacheData>('clecache', tempDir);
+        const cache2 = new ChatlogWorks<_CacheData>('clecache', tempDir);
         await cache2.ready;
-        const result = await cache2.read('foo');
+        await cache2.loadAll();
+        const result = cache2.read('foo');
 
         assertEquals(result, { value: 'bar' });
       });
@@ -111,7 +112,7 @@ describe('CleCache', () => {
     /** ファイルが存在しないキーで read を呼ぶケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-41: ファイル未作成のキー "nonexistent" を read → {} が返る', async () => {
-        const cache = new CleCache<_CacheData>('clecache', tempDir);
+        const cache = new ChatlogWorks<_CacheData>('clecache', tempDir);
         await cache.ready;
 
         const result = await cache.read('nonexistent');
@@ -129,7 +130,7 @@ describe('CleCache', () => {
     /** 複数ファイルを write 後に loadAll を呼ぶケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-40: 3ファイル write 後に loadAll → 各キーの read がすべてヒットする', async () => {
-        const cache = new CleCache<_NumData>('clecache', tempDir);
+        const cache = new ChatlogWorks<_NumData>('clecache', tempDir);
         await cache.ready;
         await cache.write('alpha', { n: 1 });
         await cache.write('beta', { n: 2 });
