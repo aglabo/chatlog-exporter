@@ -1,6 +1,6 @@
-// src: skills/_scripts/classes/__tests__/unit/CleCache.unit.spec.ts
-// @(#): CleCache クラス ユニットテスト
-//       対象: CleCache
+// src: skills/_scripts/classes/__tests__/unit/ChatlogWorks.unit.spec.ts
+// @(#): ChatlogWorks クラス ユニットテスト
+//       対象: ChatlogWorks
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,7 +12,7 @@ import { assertEquals, assertRejects, assertStrictEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { CleCache } from '../../CleCache.class.ts';
+import { ChatlogWorks } from '../../ChatlogWorks.class.ts';
 
 // ─── Helpers
 // classes
@@ -62,15 +62,15 @@ const _makeBufferProviders = (buf: Map<string, string> = new Map()) => ({
 // ─── Tests
 
 /**
- * `CleCache` クラスのユニットテストスイート。
+ * `ChatlogWorks` クラスのユニットテストスイート。
  *
  * コンストラクタ・read・write メソッドの動作を検証する。
  *
  * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-36
  *
- * @see CleCache
+ * @see ChatlogWorks
  */
-describe('CleCache', () => {
+describe('ChatlogWorks', () => {
   /**
    * `constructor` のインスタンス生成テスト。
    *
@@ -79,23 +79,30 @@ describe('CleCache', () => {
   describe('constructor', () => {
     /** 有効な環境変数でインスタンスを生成するケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-01: providers を省略しても new CleCache() でインスタンスが生成される', () => {
-        const _cache = new CleCache('set-frontmatter', '/tmp/test-cle-cache');
-        assertEquals(_cache instanceof CleCache, true);
+      it('[Normal] T-CLS-CC-01: providers を省略しても new ChatlogWorks() でインスタンスが生成される', () => {
+        const _cache = new ChatlogWorks('set-frontmatter', '/tmp/test-cle-cache');
+        assertEquals(_cache instanceof ChatlogWorks, true);
+      });
+
+      it('[Normal] T-CLS-CC-37: initializer に yaml を指定して new ChatlogWorks() がインスタンスを生成する', () => {
+        const _cache = new ChatlogWorks('test', '/tmp/test-cle-cache', { cache: _makeBufferProviders() }, {
+          yaml: 'key:\n  v: 1\n',
+        });
+        assertEquals(_cache instanceof ChatlogWorks, true);
       });
     });
 
     /** 環境変数が存在しない場合・mkdir 失敗のエラーケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-CLS-CC-04: TEMP が未設定のとき ready が ChatlogError(EnvVarNotSet) で reject される', async () => {
-        const _cache = new CleCache('set-frontmatter', '${TEMP}/cle-cache', { env: _noEnv });
+        const _cache = new ChatlogWorks('set-frontmatter', '${TEMP}/cle-cache', { env: _noEnv });
         const _err = await assertRejects(() => _cache.ready, ChatlogError);
         assertEquals(_err.kind, 'EnvVarNotSet');
       });
 
       it('[Error] T-CLS-CC-20: mkdir が失敗したとき ready が reject される', async () => {
         const _err = new Error('mkdir failed');
-        const _cache = new CleCache('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -106,11 +113,37 @@ describe('CleCache', () => {
       });
     });
 
+    /** initializer.yaml 指定時にキャッシュが自動初期化されるケース。 */
+    describe('When: initializer yaml 指定', () => {
+      it('[Normal] T-CLS-CC-40: initializer.yaml を指定すると ready 完了後に YAML 内容で _hash が初期化される', async () => {
+        const _cache = new ChatlogWorks<{ value: string; count: number }>(
+          'test',
+          '${TEMP}/cle-cache',
+          { env: _fakeEnv, cache: _makeBufferProviders() },
+          { yaml: _FIXTURE_YAML },
+        );
+        await _cache.ready;
+        assertEquals(_cache.read('chat-a'), { value: 'hello', count: 1 });
+        assertEquals(_cache.read('chat-b'), { value: 'world', count: 2 });
+      });
+
+      it('[Edge] T-CLS-CC-41: initializer.yaml が空文字列のとき _hash は空のまま', async () => {
+        const _cache = new ChatlogWorks<{ value: string }>(
+          'test',
+          '${TEMP}/cle-cache',
+          { env: _fakeEnv, cache: _makeBufferProviders() },
+          { yaml: '' },
+        );
+        await _cache.ready;
+        assertEquals(_cache.read('chat-a'), {});
+      });
+    });
+
     /** コンストラクタでキャッシュディレクトリを作成するケース。 */
     describe('When: ディレクトリ作成', () => {
-      it('[Normal] T-CLS-CC-10: new CleCache() でキャッシュディレクトリが作成される', async () => {
+      it('[Normal] T-CLS-CC-10: new ChatlogWorks() でキャッシュディレクトリが作成される', async () => {
         let _mkdirPath = '';
-        const _cache = new CleCache('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -135,7 +168,7 @@ describe('CleCache', () => {
     describe('When: subDir が絶対パス', () => {
       it('[Normal] T-CLS-CC-18: subDir が絶対パスのとき cacheRoot を無視して subDir が _cacheDir になる', async () => {
         let _mkdirPath = '';
-        const _cache = new CleCache('/tmp/abs-subdir', '/tmp/ignored-root', {
+        const _cache = new ChatlogWorks('/tmp/abs-subdir', '/tmp/ignored-root', {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -150,7 +183,7 @@ describe('CleCache', () => {
 
       it('[Normal] T-CLS-CC-19: subDir に環境変数プレースホルダーを含み展開後が絶対パスのとき cacheRoot を無視する', async () => {
         let _mkdirPath = '';
-        const _cache = new CleCache('${TEMP}/abs-subdir', '/tmp/ignored-root', {
+        const _cache = new ChatlogWorks('${TEMP}/abs-subdir', '/tmp/ignored-root', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -183,7 +216,7 @@ describe('CleCache', () => {
       it('[Normal] T-CLS-CC-16: cacheRoot を省略すると GlobalConfig の cacheDir が使われる', async () => {
         await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
-        const _cache = new CleCache('sub', '', {
+        const _cache = new ChatlogWorks('sub', '', {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -199,7 +232,7 @@ describe('CleCache', () => {
       it('[Normal] T-CLS-CC-17: cacheRoot を明示指定すると GlobalConfig は無視される', async () => {
         await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
-        const _cache = new CleCache('sub', '/tmp/explicit-cache', {
+        const _cache = new ChatlogWorks('sub', '/tmp/explicit-cache', {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -226,7 +259,7 @@ describe('CleCache', () => {
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-02: write() した値を read() で取得できる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -237,7 +270,7 @@ describe('CleCache', () => {
 
       it('[Normal] T-CLS-CC-03: 同一ファイルを write() 2回すると2回目の値で上書きされる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ a?: string; b?: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ a?: string; b?: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -251,7 +284,7 @@ describe('CleCache', () => {
         let _readCount = 0;
         const _buf = new Map<string, string>();
         const _baseProv = _makeBufferProviders(_buf);
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._baseProv,
@@ -269,7 +302,7 @@ describe('CleCache', () => {
 
       it('[Normal] T-CLS-CC-06: 拡張子なしのキーで write() した値を拡張子なしの read() でも取得できる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -278,34 +311,26 @@ describe('CleCache', () => {
         assertEquals(_result, { value: 'no-ext' });
       });
 
-      it('[Normal] T-CLS-CC-34: _hash ミス時に readTextFile が呼ばれ有効ファイルの値が返る', async () => {
-        let _readCount = 0;
+      it('[Normal] T-CLS-CC-34: _hash ミス時（loadAll 未使用）は {} を返す', async () => {
         const _buf = new Map<string, string>([
           ['/tmp/test-cle-cache/cle-cache/test/chat.json', JSON.stringify({ value: 'from-disk' })],
         ]);
-        const _baseProv = _makeBufferProviders(_buf);
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
-          cache: {
-            ..._baseProv,
-            readTextFile: (path: string): Promise<string> => {
-              _readCount++;
-              return _baseProv.readTextFile(path);
-            },
-          },
+          cache: _makeBufferProviders(_buf),
         });
-        const _result = await _cache.read('chat.md');
-        assertEquals(_result, { value: 'from-disk' });
-        assertEquals(_readCount, 1);
+        await _cache.ready;
+        const _result = _cache.read('chat.md');
+        assertEquals(_result, {});
       });
 
-      it('[Normal] T-CLS-CC-35: _readFile 成功後の 2回目 read は _hash ヒットしてファイルを読まない', async () => {
-        let _readCount = 0;
+      it('[Normal] T-CLS-CC-35: loadAll() 後の read は _hash ヒットしてファイルを読む', async () => {
         const _buf = new Map<string, string>([
           ['/tmp/test-cle-cache/cle-cache/test/chat.json', JSON.stringify({ value: 'from-disk' })],
         ]);
         const _baseProv = _makeBufferProviders(_buf);
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        let _readCount = 0;
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._baseProv,
@@ -313,10 +338,18 @@ describe('CleCache', () => {
               _readCount++;
               return _baseProv.readTextFile(path);
             },
+            glob: (_pattern: string) => {
+              const _results: string[] = [];
+              for (const key of _buf.keys()) {
+                if (key.endsWith('.json')) { _results.push(key); }
+              }
+              return Promise.resolve(_results);
+            },
           },
         });
-        await _cache.read('chat.md');
-        await _cache.read('chat.md');
+        await _cache.ready;
+        const _result = _cache.read('chat.md');
+        assertEquals(_result, { value: 'from-disk' });
         assertEquals(_readCount, 1);
       });
     });
@@ -324,7 +357,7 @@ describe('CleCache', () => {
     /** ファイルが存在しない（未 write）の場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-05: 未 write のキーを read() すると {} を返す', async () => {
-        const _cache = new CleCache<{ key: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ key: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -334,7 +367,7 @@ describe('CleCache', () => {
 
       it('[Edge] T-CLS-CC-07: 拡張子あり/なしは同一キーとして扱われる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -345,7 +378,7 @@ describe('CleCache', () => {
 
       it('[Edge] T-CLS-CC-08: 異なるファイルは独立して保持され値が混在しない', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -357,7 +390,7 @@ describe('CleCache', () => {
 
       it('[Edge] T-CLS-CC-09: write() は <cacheDir>/<key>.json にデータを書き込む', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ x: number }>('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ x: number }>('sub', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -369,21 +402,25 @@ describe('CleCache', () => {
 
     /** ファイル I/O が失敗するケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-CLS-CC-25: ファイルが存在するが JSON が壊れているとき read() は {} を返す', async () => {
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+      it('[Error] T-CLS-CC-25: loadAll() で JSON が壊れているファイルは _hash に載らず read() は {} を返す', async () => {
+        const _buf = new Map<string, string>([
+          ['/tmp/test-cle-cache/cle-cache/test/chat.json', 'invalid json {{{'],
+        ]);
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
-            ..._makeBufferProviders(),
-            readTextFile: (_path: string): Promise<string> => Promise.resolve('invalid json {{{'),
+            ..._makeBufferProviders(_buf),
+            glob: (_pattern: string) => Promise.resolve(['/tmp/test-cle-cache/cle-cache/test/chat.json']),
           },
         });
-        const _result = await _cache.read('chat.md');
+        await _cache.ready;
+        const _result = _cache.read('chat.md');
         assertEquals(_result, {});
       });
 
       it('[Error] T-CLS-CC-26: writeTextFile が失敗したとき write() が reject される', async () => {
         const _writeErr = new Error('disk full');
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -392,6 +429,23 @@ describe('CleCache', () => {
         });
         const _err = await assertRejects(() => _cache.write('chat.md', { value: 'x' }));
         assertStrictEquals(_err, _writeErr);
+      });
+
+      it('[Error] T-CLS-CC-42: JSON が壊れていたファイルを write() で上書きすると read() が正常値を返す', async () => {
+        const _buf = new Map<string, string>([
+          ['/tmp/test-cle-cache/cle-cache/test/chat.json', 'invalid json {{{'],
+        ]);
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+          env: _fakeEnv,
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: (_pattern: string) => Promise.resolve(['/tmp/test-cle-cache/cle-cache/test/chat.json']),
+          },
+        });
+        await _cache.ready;
+        assertEquals(_cache.read('chat.md'), {});
+        await _cache.write('chat.md', { value: 'fixed' });
+        assertEquals(_cache.read('chat.md'), { value: 'fixed' });
       });
     });
   });
@@ -408,7 +462,7 @@ describe('CleCache', () => {
     /** YAML フィクスチャから _hash が正しく展開されるケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-11: YAML の各キーが _hash に展開され read() で取得できる', async () => {
-        const _cache = new CleCache<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -419,7 +473,7 @@ describe('CleCache', () => {
 
       it('[Normal] T-CLS-CC-12: loadFromYaml() は既存の _hash を上書きする', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new CleCache<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -432,7 +486,7 @@ describe('CleCache', () => {
     /** YAML が空・非オブジェクトの場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-13: 空 YAML を渡すと _hash は空のまま（未 read は {} を返す）', async () => {
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -441,7 +495,7 @@ describe('CleCache', () => {
       });
 
       it('[Edge] T-CLS-CC-29: YAML が配列のとき _hash は空のまま', async () => {
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -450,7 +504,7 @@ describe('CleCache', () => {
       });
 
       it('[Edge] T-CLS-CC-30: YAML がスカラー文字列のとき _hash は空のまま', async () => {
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -459,7 +513,7 @@ describe('CleCache', () => {
       });
 
       it('[Edge] T-CLS-CC-32: YAML の value が null のとき {} として格納される', async () => {
-        const _cache = new CleCache<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -485,7 +539,7 @@ describe('CleCache', () => {
           ['/tmp/test-cle-cache/cle-cache/test/file-a.json', JSON.stringify({ type: 'A' })],
           ['/tmp/test-cle-cache/cle-cache/test/file-b.json', JSON.stringify({ type: 'B' })],
         ]);
-        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
@@ -505,7 +559,7 @@ describe('CleCache', () => {
     /** glob がファイルを返さない場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-15: glob が空リストを返すと _hash は空のまま', async () => {
-        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -517,7 +571,7 @@ describe('CleCache', () => {
       });
 
       it('[Edge] T-CLS-CC-36: loadAll() は既存の _hash をクリアする（事前 loadFromYaml した値が消える）', async () => {
-        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -538,7 +592,7 @@ describe('CleCache', () => {
           ['/tmp/test-cle-cache/cle-cache/test/file-ok.json', JSON.stringify({ type: 'OK' })],
           ['/tmp/test-cle-cache/cle-cache/test/file-bad.json', 'invalid json {{{'],
         ]);
-        const _cache = new CleCache<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
