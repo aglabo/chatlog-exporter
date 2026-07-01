@@ -11,7 +11,7 @@
  * set_frontmatter.ts — チャットログMarkdownにAI生成フロントマターを並列付加する
  *
  * 使い方:
- *   deno run --allow-read --allow-run --allow-write set_frontmatter.ts --output-dir <dir> [--dry-run] [--review] [--no-review] [--dics DIR] [--config FILE]
+ *   deno run --allow-read --allow-run --allow-write set_frontmatter.ts --output-dir <dir> [--dry-run] [--review] [--dics DIR] [--config FILE]
  *
  * 処理フロー:
  *   Phase 1: ファイル列挙・メタ読み込み
@@ -32,6 +32,7 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
+import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 // types
@@ -42,8 +43,240 @@ import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
 import { writeFrontmatter } from './modules/setfm-write.ts';
 import type { SetfmCache } from './types/cache.types.ts';
+import type { Dics, Prompts } from './types/dics.types.ts';
 // types
-import type { Stats } from './types/phase.types.ts';
+import type { ReviewResult, Stats } from './types/phase.types.ts';
+
+// ─── Internal types
+type _JudgeProvider = (
+  entry: ChatlogEntry,
+  maxContentLength: number,
+  dics: Dics,
+  prompts: Prompts,
+) => Promise<void>;
+
+type _GenerateProvider = (
+  entry: ChatlogEntry,
+  maxContentLength: number,
+  dics: Dics,
+  prompts: Prompts,
+) => Promise<boolean>;
+
+type _ReviewProvider = (
+  entry: ChatlogEntry,
+  dics: Dics,
+  prompts: Prompts,
+) => Promise<ReviewResult>;
+
+// ─── Internal constants
+const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary', 'topics', 'tags'];
+
+// ─────────────────────────────────────────────
+// 内部関数
+// ─────────────────────────────────────────────
+
+/**
+ * エントリの frontmatter に 6 フィールドすべてが充足しているか判定する。
+ * - type: string かつ非空
+ * - category: string かつ非空
+ * - title: string かつ非空
+ * - summary: string かつ非空
+ * - topics: string[] かつ length >= 1
+ * - tags: string[] かつ length >= 1
+ */
+const _hasFrontmatterFields = (entry: ChatlogEntry): boolean => {
+  const type = entry.frontmatter.get('type');
+  const category = entry.frontmatter.get('category');
+  const title = entry.frontmatter.get('title');
+  const summary = entry.frontmatter.get('summary');
+  const topics = entry.frontmatter.get('topics');
+  const tags = entry.frontmatter.get('tags');
+  return (
+    typeof type === 'string' && type.length > 0
+    && typeof category === 'string' && category.length > 0
+    && typeof title === 'string' && title.length > 0
+    && typeof summary === 'string' && summary.length > 0
+    && Array.isArray(topics) && topics.length >= 1
+    && Array.isArray(tags) && tags.length >= 1
+  );
+};
+
+/**
+ * エントリ配列を skip と generate に分割する。
+ *
+ * 判定優先順位:
+ * 1. `cache.read(e.filePath!).reviewed === true` → skip（全フェーズ完了済み）
+ * 2. `_hasFrontmatterFields(e) === true` → skip（フロントマターが既に完全）
+ * 3. それ以外 → generate
+ *
+ * @param entries - 分割対象のエントリ配列
+ * @param cache - フェーズキャッシュ
+ * @returns `{ skipEntries, generateEntries }` — 重複なし・漏れなしで分割されたエントリ配列
+ */
+const _filterEntries = (
+  entries: ChatlogEntry[],
+  cache: ChatlogWorks<SetfmCache>,
+): { skipEntries: ChatlogEntry[]; generateEntries: ChatlogEntry[] } => {
+  const skipEntries = entries.filter(
+    (e) => cache.read(e.filePath!).reviewed === true || _hasFrontmatterFields(e),
+  );
+  const generateEntries = entries.filter(
+    (e) => cache.read(e.filePath!).reviewed !== true && !_hasFrontmatterFields(e),
+  );
+  return { skipEntries, generateEntries };
+};
+
+const _phaseTypeAndCategory = async (
+  entries: ChatlogEntry[],
+  cache: ChatlogWorks<SetfmCache>,
+  maxContentLength: number,
+  dics: Dics,
+  prompts: Prompts,
+  concurrency: number,
+  judgeProvider?: _JudgeProvider,
+): Promise<void> => {
+  const _hits = entries.filter((e) => {
+    const _cached = cache.read(e.filePath!);
+    return !!(_cached.type && _cached.category);
+  });
+  const _misses = entries.filter((e) => {
+    const _cached = cache.read(e.filePath!);
+    return !(_cached.type && _cached.category);
+  });
+
+  _hits.forEach((e) => {
+    const _cached = cache.read(e.filePath!);
+    e.frontmatter.set('type', _cached.type!);
+    e.frontmatter.set('category', _cached.category!);
+    logger.info(`  type+category (cached): ${getFilename(e.filePath!)}`);
+  });
+
+  const _judge = judgeProvider ?? judgeTypeAndCategory;
+  await runConcurrent(
+    _misses,
+    async (entry) => {
+      await _judge(entry, maxContentLength, dics, prompts);
+      await cache.write(entry.filePath!, {
+        type: entry.frontmatter.get('type') as string,
+        category: entry.frontmatter.get('category') as string,
+      });
+      logger.info(
+        `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
+          getFilename(entry.filePath!)
+        }`,
+      );
+    },
+    concurrency,
+  );
+};
+
+const _phaseFrontmatter = async (
+  entries: ChatlogEntry[],
+  cache: ChatlogWorks<SetfmCache>,
+  maxContentLength: number,
+  dics: Dics,
+  prompts: Prompts,
+  concurrency: number,
+  generateProvider?: _GenerateProvider,
+): Promise<Set<string>> => {
+  const _generatedFiles = new Set<string>();
+
+  const _hits = entries.filter((e) => !!cache.read(e.filePath!).frontmatter);
+  const _misses = entries.filter((e) => !cache.read(e.filePath!).frontmatter);
+
+  _hits.forEach((e) => {
+    const _cached = cache.read(e.filePath!);
+    Object.entries(_cached.frontmatter!).forEach(([k, v]) => e.frontmatter.set(k, v));
+    _generatedFiles.add(e.filePath!);
+    logger.info(`  generated (cached): ${getFilename(e.filePath!)}`);
+  });
+
+  const _alreadyFilled = _misses.filter((e) => _hasFrontmatterFields(e));
+  const _needsGenerate = _misses.filter((e) => !_hasFrontmatterFields(e));
+
+  await Promise.all(
+    _alreadyFilled.map(async (entry) => {
+      const _fmSnapshot: Record<string, string | string[]> = {};
+      _knownFields.forEach((k) => {
+        const v = entry.frontmatter.get(k);
+        if (v !== undefined) { _fmSnapshot[k] = v; }
+      });
+      const _existing = cache.read(entry.filePath!);
+      await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot });
+      _generatedFiles.add(entry.filePath!);
+      logger.info(`  frontmatter (existing): ${getFilename(entry.filePath!)}`);
+    }),
+  );
+
+  const _generate = generateProvider ?? generateFrontmatter;
+  await runConcurrent(
+    _needsGenerate,
+    async (entry) => {
+      const _ok = await _generate(entry, maxContentLength, dics, prompts);
+      if (_ok) {
+        const _fmSnapshot: Record<string, string | string[]> = {};
+        _knownFields.forEach((k) => {
+          const v = entry.frontmatter.get(k);
+          if (v !== undefined) { _fmSnapshot[k] = v; }
+        });
+        const _existing = cache.read(entry.filePath!);
+        await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot });
+        _generatedFiles.add(entry.filePath!);
+        logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+      } else {
+        logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+      }
+    },
+    concurrency,
+  );
+
+  return _generatedFiles;
+};
+
+const _phaseReview = async (
+  entries: ChatlogEntry[],
+  cache: ChatlogWorks<SetfmCache>,
+  dics: Dics,
+  prompts: Prompts,
+  concurrency: number,
+  reviewProvider?: _ReviewProvider,
+): Promise<void> => {
+  const _hits = entries.filter((e) => !!cache.read(e.filePath!).reviewed);
+  const _misses = entries.filter((e) => !cache.read(e.filePath!).reviewed);
+
+  _hits.forEach((e) => {
+    logger.info(`  review (cached): ${getFilename(e.filePath!)}`);
+  });
+
+  const _review = reviewProvider ?? reviewFrontmatter;
+  await runConcurrent(
+    _misses,
+    async (entry) => {
+      const r = await _review(entry, dics, prompts);
+      if (r.validity === 'fail') {
+        logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
+      } else {
+        logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
+      }
+      const _existing = cache.read(entry.filePath!);
+      const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
+      for (const k of _knownFields) {
+        const v = entry.frontmatter.get(k);
+        if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
+      }
+      const _correctedType = (entry.frontmatter.get('type') as string | undefined) ?? _existing.type;
+      const _correctedCategory = (entry.frontmatter.get('category') as string | undefined) ?? _existing.category;
+      await cache.write(entry.filePath!, {
+        ..._existing,
+        type: _correctedType,
+        category: _correctedCategory,
+        frontmatter: _fmSnapshot,
+        reviewed: true,
+      });
+    },
+    concurrency,
+  );
+};
 
 // ─────────────────────────────────────────────
 // メイン
@@ -59,7 +292,7 @@ export const main = async (args: string[]): Promise<void> => {
       throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
     }
 
-    const _cache = new ChatlogWorks<SetfmCache>('fm-cache');
+    const _cache = new ChatlogWorks<SetfmCache>('fm-cache', _config.cacheDir);
     await _cache.ready;
 
     const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
@@ -82,6 +315,10 @@ export const main = async (args: string[]): Promise<void> => {
       return;
     }
 
+    // Phase 1.5: 事前フィルタリング（skip / generate 分割）
+    const { skipEntries, generateEntries } = _filterEntries(entries, _cache);
+    logger.info(`フィルタリング: skip=${skipEntries.length}件 generate=${generateEntries.length}件`);
+
     if (_config.dryRun) {
       for (const entry of entries) {
         logger.info(`  [dry-run] ${getFilename(entry.filePath!)}`);
@@ -91,84 +328,35 @@ export const main = async (args: string[]): Promise<void> => {
     }
 
     // Phase 2+3a: type・category同時判定（並列）
-    logger.info(`\nPhase 2+3a: type・category同時判定開始 (${entries.length}件 × 並列度${_config.concurrency})`);
-    await runConcurrent(
-      entries,
-      async (entry) => {
-        const _cached = _cache.read(entry.filePath!);
-        if (_cached.type && _cached.category) {
-          entry.frontmatter.set('type', _cached.type);
-          entry.frontmatter.set('category', _cached.category);
-          logger.info(`  type+category (cached): ${getFilename(entry.filePath!)}`);
-        } else {
-          await judgeTypeAndCategory(entry, maxContentLength, dics, prompts);
-          await _cache.write(entry.filePath!, {
-            type: entry.frontmatter.get('type') as string,
-            category: entry.frontmatter.get('category') as string,
-          });
-          logger.info(
-            `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
-              getFilename(entry.filePath!)
-            }`,
-          );
-        }
-      },
-      _config.concurrency,
+    logger.info(
+      `\nPhase 2+3a: type・category同時判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
     );
+    await _phaseTypeAndCategory(generateEntries, _cache, maxContentLength, dics, prompts, _config.concurrency);
 
     // Phase 3b: フロントマター生成（並列）
-    logger.info(`\nPhase 3b: フロントマター生成開始 (${entries.length}件 × 並列度${_config.concurrency})`);
-    const _generatedFiles = new Set<string>();
-    await runConcurrent(
-      entries,
-      async (entry) => {
-        const _cached = _cache.read(entry.filePath!);
-        if (_cached.frontmatter) {
-          Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v as string | string[]));
-          _generatedFiles.add(entry.filePath!);
-          logger.info(`  generated (cached): ${getFilename(entry.filePath!)}`);
-        } else {
-          const _ok = await generateFrontmatter(entry, maxContentLength, dics, prompts);
-          if (_ok) {
-            const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary', 'topics', 'tags'];
-            const _fmSnapshot: Record<string, string | string[]> = {};
-            _knownFields.forEach((k) => {
-              const v = entry.frontmatter.get(k);
-              if (v !== undefined) { _fmSnapshot[k] = v; }
-            });
-            const _existing = await _cache.read(entry.filePath!);
-            await _cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot });
-            _generatedFiles.add(entry.filePath!);
-            logger.info(`  generated: ${getFilename(entry.filePath!)}`);
-          } else {
-            logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
-          }
-        }
-      },
+    logger.info(`\nPhase 3b: フロントマター生成開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`);
+    const _generatedFiles = await _phaseFrontmatter(
+      generateEntries,
+      _cache,
+      maxContentLength,
+      dics,
+      prompts,
       _config.concurrency,
     );
 
     // Phase 3.5: レビュー（並列）
     if (_config.review) {
       logger.info(
-        `\nPhase 3.5: フロントマターレビュー開始 (${entries.length}件 × 並列度${_config.concurrency})`,
+        `\nPhase 3.5: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
       );
-      const _reviewEntries = entries.filter((e) => _generatedFiles.has(e.filePath!));
-      await runConcurrent(
-        _reviewEntries,
-        async (entry) => {
-          const r = await reviewFrontmatter(entry, dics, prompts);
-          if (r.validity === 'fail') {
-            logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
-          } else {
-            logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
-          }
-        },
-        _config.concurrency,
-      );
+      const _reviewEntries = generateEntries.filter((e) => _generatedFiles.has(e.filePath!));
+      await _phaseReview(_reviewEntries, _cache, dics, prompts, _config.concurrency);
     } else {
       logger.info(`\nPhase 3.5: スキップ (--no-review)`);
     }
+
+    // Phase 4 前: skip 済みエントリを _generatedFiles に追加（writeFrontmatter を通す）
+    skipEntries.forEach((e) => _generatedFiles.add(e.filePath!));
 
     // Phase 4: 書き込み
     logger.info(`\nPhase 4: Markdownへ書き込み`);
@@ -196,3 +384,10 @@ export const main = async (args: string[]): Promise<void> => {
 if (import.meta.main) {
   await main(Deno.args);
 }
+
+// ─── Test exports (テスト専用・本番コードから import 禁止)
+export { _phaseTypeAndCategory as _phaseTypeAndCategoryForTest };
+export { _phaseFrontmatter as _phaseFrontmatterForTest };
+export { _phaseReview as _phaseReviewForTest };
+export { _hasFrontmatterFields as _hasFrontmatterFieldsForTest };
+export { _filterEntries as _filterEntriesForTest };

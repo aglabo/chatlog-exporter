@@ -1,0 +1,14 @@
+{
+  "type": "research",
+  "category": "development",
+  "frontmatter": {
+    "title": "Fixtures Full Test",
+    "date": "2026-04-14",
+    "session_id": "ffd8fa3c-0001",
+    "project": "chatlog-exporter",
+    "slug": "fixtures-full-test",
+    "summary": "fixtures テスト用フロントマターサンプル",
+    "topics": ["development", "testing"],
+    "tags": ["lang:typescript", "tool:deno", "dev:testing"]
+  }
+}

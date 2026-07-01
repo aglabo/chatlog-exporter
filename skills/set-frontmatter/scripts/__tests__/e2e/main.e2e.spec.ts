@@ -6,15 +6,16 @@
 //
 // This software is released under the MIT License.
 
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
 import { main } from '../../set-frontmatter.ts';
 
 // helpers
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle, DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
+  BaseMockCommand,
   installCommandMock,
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -264,6 +265,134 @@ describe('main - yaml 生成失敗', () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir, '--no-review', '--dics', dicsDir]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=1')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-SF-E2E-10: --cache-dir が ChatlogWorks に渡される ─────────────────────────
+
+/**
+ * フェーズごとに異なる stdout を返す sequential mock ファクトリ。
+ *
+ * `responses` の順番に応答し、範囲外のインデックスは最後の応答を返す。
+ */
+const _makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike => {
+  let callCount = 0;
+  return class extends BaseMockCommand {
+    private readonly _stdout: Uint8Array;
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      const idx = callCount < responses.length ? callCount : responses.length - 1;
+      this._stdout = responses[idx];
+      callCount++;
+    }
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+      return Promise.resolve({ success: true, code: 0, stdout: this._stdout });
+    }
+  } as unknown as DenoCommandLike;
+};
+
+describe('main - --cache-dir オプション', () => {
+  describe('Given: inputDir に test.md を配置し、--cache-dir を明示指定', () => {
+    describe('When: main() を呼び出す', () => {
+      describe('Then: T-SF-E2E-10 - cacheDir が ChatlogWorks に渡され、出力ファイルが生成される', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await Deno.makeTempDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
+          dicsDir = await _makeDicsDir();
+
+          await Deno.writeTextFile(`${inputDir}/test.md`, '# テスト\n本文テキスト');
+
+          commandHandle = installCommandMock(
+            _makeSequentialMock([
+              _enc.encode('research\ndevelopment'),
+              _enc.encode(
+                'title: Generated Title\nsummary: テスト概要\ntopics:\n  - development\ntags:\n  - lang:typescript\n',
+              ),
+            ]),
+          );
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-E2E-10-01: outputDir に test.md が生成される', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          let exists = false;
+          try {
+            await Deno.stat(`${outputDir}/test.md`);
+            exists = true;
+          } catch { /* noop */ }
+          assertEquals(exists, true);
+        });
+
+        it('T-SF-E2E-10-02: 出力ファイルのフロントマターに type, category, title, summary が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          const content = await readTextFile(`${outputDir}/test.md`);
+          assertStringIncludes(content, 'type:');
+          assertStringIncludes(content, 'category:');
+          assertStringIncludes(content, 'title:');
+          assertStringIncludes(content, 'summary:');
+        });
+
+        it('T-SF-E2E-10-03: cacheDir/fm-cache/test.json が生成される', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          let exists = false;
+          try {
+            await Deno.stat(`${cacheDir}/fm-cache/test.json`);
+            exists = true;
+          } catch { /* noop */ }
+          assertEquals(exists, true);
         });
       });
     });

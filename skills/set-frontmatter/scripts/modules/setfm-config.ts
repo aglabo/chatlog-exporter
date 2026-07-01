@@ -10,13 +10,13 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import {
   DEFAULT_CHATLOGS_DIR,
-  DEFAULT_CHUNK_SIZE,
   DEFAULT_DICS_DIR,
   DEFAULT_PROMPTS_DIR,
 } from '../../../_scripts/constants/defaults.constants.ts';
@@ -35,7 +35,7 @@ const _SCHEMA: ArgsSchema = [
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--review', field: 'review', type: 'flag' },
-  { option: '--chunk-size', field: 'chunkSize', type: 'number' },
+  { option: '--concurrency', field: 'concurrency', type: 'integer' },
   { option: '--cache-dir', field: 'cacheDir', type: 'string' },
   { option: '--config', field: 'configFile', type: 'string' },
 ];
@@ -69,8 +69,11 @@ export const buildConfig = (
     ?? DEFAULT_PROMPTS_DIR;
   const _dryRun = parsed.dryRun ?? false;
   const _review = parsed.review ?? true;
-  const _concurrency = globalConfig.get('concurrency') as number;
-  const _chunkSize = parsed.chunkSize ?? DEFAULT_CHUNK_SIZE;
+  const _rawConcurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number);
+  const _concurrency = Math.floor(_rawConcurrency);
+  if (_concurrency < 1) {
+    throw new ChatlogError('InvalidArgs', `--concurrency は 1 以上の整数を指定してください: ${_rawConcurrency}`);
+  }
   const _cacheDir = parsed.cacheDir ?? joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache');
   return {
     inputDir: _inputDir,
@@ -80,7 +83,6 @@ export const buildConfig = (
     dryRun: _dryRun,
     review: _review,
     concurrency: _concurrency,
-    chunkSize: _chunkSize,
     cacheDir: _cacheDir,
   };
 };

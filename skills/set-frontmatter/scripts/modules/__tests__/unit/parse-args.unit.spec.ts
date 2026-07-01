@@ -124,4 +124,49 @@ describe('parseArgs', () => {
       });
     });
   });
+
+  // ─── T-SF-PA-12: --concurrency オプション ────────────────────────────────────
+
+  /**
+   * `--concurrency` オプションの解析テスト。
+   *
+   * 正常系: 整数値が parsed.concurrency に設定される。
+   * 異常系: 非数値・値なしで ChatlogError がスローされる。
+   */
+  describe('Given: --concurrency オプション', () => {
+    describe('When: parseArgs(args) を呼び出す', () => {
+      /** 正常系: 整数値が設定される。 */
+      describe('Then: 正常系 - concurrency が設定される', () => {
+        const _cases = [
+          { id: 'T-SF-PA-12-01', args: ['--output-dir', '/path', '--concurrency', '4'], expected: 4 },
+          { id: 'T-SF-PA-12-02', args: ['--output-dir', '/path', '--concurrency', '1'], expected: 1 },
+        ] as const;
+        for (const { id, args, expected } of _cases) {
+          it(`[Normal] ${id}: --concurrency ${expected} → concurrency=${expected}`, () => {
+            assertEquals(parseArgs([...args]).concurrency, expected);
+          });
+        }
+      });
+
+      /** 正常系: 未指定のとき undefined になる。 */
+      describe('Then: 正常系 - --concurrency 未指定', () => {
+        it('[Normal] T-SF-PA-12-03: --concurrency 未指定 → undefined', () => {
+          assertEquals(parseArgs(['--output-dir', '/path']).concurrency, undefined);
+        });
+      });
+
+      /** 異常系: ChatlogError がスローされる。 */
+      describe('Then: 異常系 - ChatlogError がスローされる', () => {
+        const _errorCases = [
+          { id: 'T-SF-PA-12-04', args: ['--output-dir', '/path', '--concurrency', 'abc'], label: '非数値' },
+          { id: 'T-SF-PA-12-05', args: ['--output-dir', '/path', '--concurrency'], label: '値なし（引数末尾）' },
+        ] as const;
+        for (const { id, args, label } of _errorCases) {
+          it(`[Error] ${id}: --concurrency ${label} → ChatlogError(InvalidArgs)`, () => {
+            assertThrows(() => parseArgs(args as unknown as string[]), ChatlogError);
+          });
+        }
+      });
+    });
+  });
 });

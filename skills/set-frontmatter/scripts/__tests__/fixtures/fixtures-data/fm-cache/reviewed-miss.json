@@ -1,0 +1,14 @@
+{
+  "type": "coding",
+  "category": "development",
+  "frontmatter": {
+    "title": "Reviewed Miss Test",
+    "date": "2026-06-30",
+    "session_id": "sess-review-002",
+    "project": "chatlog-exporter",
+    "slug": "reviewed-miss-test",
+    "summary": "レビュー未実行 fixtures テスト用サンプル",
+    "topics": ["development"],
+    "tags": ["lang:typescript"]
+  }
+}
