@@ -28,14 +28,12 @@ export interface SetfmConfig {
   review: boolean;
   /** 同時実行する並列タスク数の上限。 */
   concurrency: number;
-  /** バッチリクエスト1回あたりの最大ファイル数。 */
-  chunkSize: number;
   /** フェーズ単位のキャッシュファイルを格納するディレクトリのパス。 */
   cacheDir: string;
 }
 
-/** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`concurrency` は GlobalConfig で管理するため除外。 */
-export type ParsedConfig = Omit<Partial<SetfmConfig>, 'concurrency'> & {
+/** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
+export type ParsedConfig = Partial<SetfmConfig> & {
   /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
   configFile?: string;
 };
