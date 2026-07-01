@@ -10,19 +10,19 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { buildConfig } from '../../setfm-config.ts';
 
 // ─── Helpers
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import {
   DEFAULT_CHATLOGS_DIR,
-  DEFAULT_CHUNK_SIZE,
   DEFAULT_PROMPTS_DIR,
 } from '../../../../../_scripts/constants/defaults.constants.ts';
 
@@ -113,11 +113,6 @@ describe('buildConfig', () => {
         const result = buildConfig({ outputDir: '/target' }, globalConfig);
         assertEquals(result.concurrency, 4);
       });
-
-      it('[Normal] T-SF-BC-06-01: chunkSize のデフォルトは 10', () => {
-        const result = buildConfig({ outputDir: '/target' }, globalConfig);
-        assertEquals(result.chunkSize, DEFAULT_CHUNK_SIZE);
-      });
     });
 
     /**
@@ -181,11 +176,6 @@ describe('buildConfig', () => {
       it('[Normal] T-SF-BC-03-03: review=false → result.review=false になる', () => {
         const result = buildConfig({ outputDir: '/target', review: false }, globalConfig);
         assertEquals(result.review, false);
-      });
-
-      it('[Normal] T-SF-BC-06-02: parsed.chunkSize=5 → result.chunkSize=5 になる', () => {
-        const result = buildConfig({ outputDir: '/target', chunkSize: 5 }, globalConfig);
-        assertEquals(result.chunkSize, 5);
       });
     });
   });
@@ -277,6 +267,46 @@ describe('buildConfig', () => {
       it('[Normal] T-SF-BC-08-02: parsed.cacheDir 指定 → その値が使われる', () => {
         const result = buildConfig({ cacheDir: '/custom/cache' }, globalConfig);
         assertEquals(result.cacheDir, '/custom/cache');
+      });
+    });
+  });
+
+  /**
+   * `concurrency` の解決ロジックテスト。
+   *
+   * 優先順位: parsed.concurrency > GlobalConfig.concurrency
+   * clamp: Math.max(1, Math.floor(value)) で 1 未満を防ぐ
+   */
+  describe('When: concurrency の解決', () => {
+    /** 正常系: CLI値とGlobalConfig値の優先順位テスト。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-BC-10-01: parsed.concurrency=4, gc=8 → config.concurrency=4 (CLI wins)', async () => {
+        const gc = await _makeGlobalConfig('concurrency: 8');
+        const result = buildConfig({ outputDir: '/target', concurrency: 4 }, gc);
+        assertEquals(result.concurrency, 4);
+      });
+
+      it('[Normal] T-SF-BC-10-02: parsed.concurrency 未指定, gc=8 → config.concurrency=8', async () => {
+        const gc = await _makeGlobalConfig('concurrency: 8');
+        const result = buildConfig({ outputDir: '/target' }, gc);
+        assertEquals(result.concurrency, 8);
+      });
+    });
+
+    /** 異常系: 0・負数は ChatlogError(InvalidArgs) を throw する。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-SF-BC-10-03: parsed.concurrency=0 → ChatlogError(InvalidArgs)', () => {
+        assertThrows(
+          () => buildConfig({ outputDir: '/target', concurrency: 0 }, globalConfig),
+          ChatlogError,
+        );
+      });
+
+      it('[Error] T-SF-BC-10-04: parsed.concurrency=-3 → ChatlogError(InvalidArgs)', () => {
+        assertThrows(
+          () => buildConfig({ outputDir: '/target', concurrency: -3 }, globalConfig),
+          ChatlogError,
+        );
       });
     });
   });
