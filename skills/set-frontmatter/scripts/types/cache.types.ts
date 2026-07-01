@@ -17,4 +17,6 @@ export interface SetfmCache {
   category?: string;
   /** Phase 3b (generateFrontmatter) で生成したフロントマターフィールド群。 */
   frontmatter?: Record<string, string | string[]>;
+  /** Phase 3.5 (reviewFrontmatter) でレビュー済みを示すフラグ。true のとき次回スキップ。 */
+  reviewed?: boolean;
 }

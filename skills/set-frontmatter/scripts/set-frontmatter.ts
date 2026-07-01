@@ -32,7 +32,7 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
-import { CleCache } from '../../_scripts/classes/CleCache.class.ts';
+import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 // types
 import { buildConfig, parseArgs } from './modules/setfm-config.ts';
@@ -59,7 +59,7 @@ export const main = async (args: string[]): Promise<void> => {
       throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
     }
 
-    const _cache = new CleCache<SetfmCache>('fm-cache');
+    const _cache = new ChatlogWorks<SetfmCache>('fm-cache');
     await _cache.ready;
 
     const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
@@ -95,7 +95,7 @@ export const main = async (args: string[]): Promise<void> => {
     await runConcurrent(
       entries,
       async (entry) => {
-        const _cached = await _cache.read(entry.filePath!);
+        const _cached = _cache.read(entry.filePath!);
         if (_cached.type && _cached.category) {
           entry.frontmatter.set('type', _cached.type);
           entry.frontmatter.set('category', _cached.category);
@@ -122,9 +122,9 @@ export const main = async (args: string[]): Promise<void> => {
     await runConcurrent(
       entries,
       async (entry) => {
-        const _cached = await _cache.read(entry.filePath!);
+        const _cached = _cache.read(entry.filePath!);
         if (_cached.frontmatter) {
-          Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
+          Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v as string | string[]));
           _generatedFiles.add(entry.filePath!);
           logger.info(`  generated (cached): ${getFilename(entry.filePath!)}`);
         } else {

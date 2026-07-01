@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/setfm-cache.unit.spec.ts
-// @(#): CleCache<SetfmCache> を使ったキャッシュ操作パターンのユニットテスト
-//       対象: CleCache (set-frontmatter 固有のキャッシュパターン)
+// @(#): ChatlogWorks<SetfmCache> を使ったキャッシュ操作パターンのユニットテスト
+//       対象: ChatlogWorks (set-frontmatter 固有のキャッシュパターン)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,28 +14,28 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { CleCache } from '../../../../../_scripts/classes/CleCache.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** テスト用エントリファイルパス。CleCache がベース名をキーとして使う動作を確認する。 */
+/** テスト用エントリファイルパス。ChatlogWorks がベース名をキーとして使う動作を確認する。 */
 const _ENTRY_PATH = '/some/dir/test-entry.md';
 
 // functions
 /**
- * バッファプロバイダーを使った `CleCache<SetfmCache>` インスタンスを生成する。
+ * バッファプロバイダーを使った `ChatlogWorks<SetfmCache>` インスタンスを生成する。
  *
  * ファイルシステムに依存しないテストのため、`Map<string, string>` をバッファとして使用する。
  *
  * @param buf - 読み書きを受け持つバッファ
  * @param cacheRoot - テスト用キャッシュルートパス
- * @returns 初期化済みの `CleCache<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
  */
-const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<CleCache<SetfmCache>> => {
-  const cache = new CleCache<SetfmCache>('fm-cache', cacheRoot, {
+const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<ChatlogWorks<SetfmCache>> => {
+  const cache = new ChatlogWorks<SetfmCache>('fm-cache', cacheRoot, {
     cache: {
       readTextFile: (path) => {
         const data = buf.get(path);
@@ -56,15 +56,15 @@ const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<
 // ─── Tests
 
 /**
- * `CleCache<SetfmCache>` を使った set-frontmatter 固有キャッシュパターンのテストスイート。
+ * `ChatlogWorks<SetfmCache>` を使った set-frontmatter 固有キャッシュパターンのテストスイート。
  *
  * Phase 2+3a（type/category の書き込み）と Phase 3b（frontmatter のマージ書き込み）の
- * 動作を検証する。CleCache 自体のユニットテストは別ファイルで実施済みのため、
+ * 動作を検証する。ChatlogWorks 自体のユニットテストは別ファイルで実施済みのため、
  * ここでは set-frontmatter 固有の使用パターンに集中する。
  *
  * テスト ID 範囲: T-SF-CA-01 〜 T-SF-CA-03
  *
- * @see CleCache
+ * @see ChatlogWorks
  * @see SetfmCache
  */
 describe('setfm-cache', () => {
@@ -83,7 +83,7 @@ describe('setfm-cache', () => {
   /**
    * Phase 2+3a パターン: `{ type, category }` を write して read で返るケース。
    *
-   * CleCache のインメモリキャッシュにより、同一インスタンス内での read はディスクを読まない。
+   * ChatlogWorks のインメモリキャッシュにより、同一インスタンス内での read はディスクを読まない。
    */
   describe('When: Phase 2+3a - type と category の書き込み', () => {
     /** write して同一インスタンスで read できる正常ケース。 */
@@ -102,7 +102,7 @@ describe('setfm-cache', () => {
   /**
    * Phase 3b パターン: 既存の `{ type, category }` に `frontmatter` をマージして write するケース。
    *
-   * `CleCache.write` は上書きのため、Phase 3b では read → spread merge → write の手順が必要。
+   * `ChatlogWorks.write` は上書きのため、Phase 3b では read → spread merge → write の手順が必要。
    */
   describe('When: Phase 3b - frontmatter のマージ書き込み', () => {
     /** Phase 2+3a 後に Phase 3b でマージして write するケース。 */
