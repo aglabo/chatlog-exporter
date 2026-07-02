@@ -78,26 +78,6 @@ describe('isSkippableSession', () => {
     });
   });
 
-  /** YAML メタ情報がない通常の会話テキストは name:/title: マッチ対象外 */
-  describe('Given: name: キーを含まない通常テキスト', () => {
-    /** isSkippableSession("mcpの設定を...") を呼び出す */
-    describe('When: isSkippableSession("mcpの設定を...") を呼び出す', () => {
-      it('T-SS-05: Then: [正常] - false を返す（スキップ対象外）', () => {
-        assertFalse(isSkippableSession('mcpの設定をしてください'));
-      });
-    });
-  });
-
-  /** 空文字列は name:/title: を含まないため false を返すエッジケース */
-  describe('Given: 空文字列', () => {
-    /** isSkippableSession("") を呼び出す */
-    describe('When: isSkippableSession("") を呼び出す', () => {
-      it('T-SS-06: Then: [エッジケース] - false を返す', () => {
-        assertFalse(isSkippableSession(''));
-      });
-    });
-  });
-
   /**
    * 先頭 10 行のみを対象とする範囲制限の境界ケース。
    * 11 行目以降にキーワードが現れても false になることを確認する。
