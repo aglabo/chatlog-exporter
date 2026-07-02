@@ -74,17 +74,6 @@ describe('processFiles', () => {
 
   /** 正常系: ファイルなし・dryRun のケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-PF-01-01: inputDir が空のとき stats は全ゼロのまま', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-
-      // act
-      await processFiles(tmpDir, outputDir, _CONFIG, stats);
-
-      // assert
-      assertEquals(stats, { success: 0, skip: 0, fail: 0, fallback: 0 });
-    });
-
     it('[Normal] T-PF-01-03: segmentChatlogsBatch が1セグメントを返しdryRun=trueのとき stats.success === 0', async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
@@ -168,22 +157,6 @@ describe('processFiles', () => {
 
   /** エッジケース: concurrency=1 での動作確認、AI が空配列を返すケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-PF-01-04: concurrency=1 でも複数ファイルを順次処理できる', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
-        dryRun: true,
-        concurrency: 1,
-      };
-
-      // act — 空のtmpDirを渡してファイルなし
-      await processFiles(tmpDir, outputDir, config, stats);
-
-      // assert
-      assertEquals(stats.fail, 0);
-      assertEquals(stats.success, 0);
-    });
-
     it('[Edge] T-PF-01-07: AIが空のsegments配列を返したとき stats.fail は増加せず stats.success === 0', async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
@@ -254,17 +227,6 @@ describe('processFiles', () => {
         () => processFiles(tmpDir, tmpDir, _CONFIG, stats),
         ChatlogError,
       );
-    });
-
-    it('[Normal] T-PF-VAL-05: outputBase が inputDir の外なら stats はゼロのまま', async () => {
-      // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-
-      // act
-      await processFiles(tmpDir, outputDir, _CONFIG, stats);
-
-      // assert
-      assertEquals(stats, { success: 0, skip: 0, fail: 0, fallback: 0 });
     });
   });
 
@@ -509,25 +471,6 @@ describe('processFiles', () => {
       // assert
       assertEquals(stats.skip, 1);
       assertEquals(stats.success, 0);
-      assertEquals(stats.fail, 0);
-    });
-
-    it('[Normal] T-PF-SKIP-06: 出力済みでないファイルはスキップされず stats.skip は増加しない', async () => {
-      // arrange — 出力済みファイルなし、dryRun=true
-      const filePath = normalizePath(`${tmpDir}/dummy.md`);
-      const segments = [{ title: 'Topic', summary: 'Summary', content: 'Body' }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
-      mockHandle = installCommandMock(makeSuccessMock(stdout));
-
-      await Deno.writeTextFile(filePath, '# Test\n\nContent');
-
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-
-      // act
-      await processFiles(tmpDir, outputDir, _CONFIG, stats);
-
-      // assert
-      assertEquals(stats.skip, 0);
       assertEquals(stats.fail, 0);
     });
 

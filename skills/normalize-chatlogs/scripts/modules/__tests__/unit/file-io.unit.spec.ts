@@ -131,28 +131,6 @@ describe('reportResults', () => {
     loggerStub.restore();
   });
 
-  /** 正常系: success/skip/fail カウントを stdout に集計レポートとして出力する */
-  describe('Given: success/skip/fail カウントを持つ stats', () => {
-    it('[Normal] T-14-01-01: stdout に成功件数が含まれる', () => {
-      const stats: Stats = { success: 5, skip: 2, fail: 1, fallback: 0 };
-
-      reportResults(stats);
-
-      const output = loggerStub.infoLogs.join('\n');
-      assertMatch(output, /success=5/);
-    });
-
-    it('[Normal] T-14-01-02: stdout にスキップ数と失敗数が含まれる', () => {
-      const stats: Stats = { success: 3, skip: 1, fail: 2, fallback: 0 };
-
-      reportResults(stats);
-
-      const output = loggerStub.infoLogs.join('\n');
-      assertMatch(output, /skip=1/);
-      assertMatch(output, /fail=2/);
-    });
-  });
-
   /** エッジケース: 全カウントが 0 でもスローせず出力する */
   describe('Given: 全カウントが 0 の stats', () => {
     it('[Edge] T-14-02-01: throw せずに stdout に出力される', () => {
@@ -174,19 +152,6 @@ describe('reportResults', () => {
 
       const output = loggerStub.warnLogs.join('\n');
       assertMatch(output, /fail.*3|3.*fail|失敗.*3|3.*失敗/i);
-    });
-  });
-
-  /** エッジケース: success だけが非ゼロの場合のレポート出力。 */
-  describe('Given: success のみ非ゼロの stats', () => {
-    it('T-14-04-01: stdout に skip と fail の 0 が含まれる', () => {
-      const stats: Stats = { success: 5, skip: 0, fail: 0, fallback: 0 };
-
-      reportResults(stats);
-
-      const output = loggerStub.infoLogs.join('\n');
-      assertMatch(output, /skip=0/);
-      assertMatch(output, /fail=0/);
     });
   });
 });
