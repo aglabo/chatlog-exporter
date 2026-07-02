@@ -13,6 +13,7 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import {
   divideEntry,
+  hasFrontmatter,
   parseFrontmatter,
   parseFrontmatterEntries,
   renderFrontmatter,
@@ -682,6 +683,56 @@ describe('renderFrontmatter', () => {
       const _fields = { title: 'My Title', tags: ['ts', 'deno'] };
       const _result = renderFrontmatter(_fields);
       assertEquals(_result, '---\ntitle: "My Title"\ntags:\n  - "ts"\n  - "deno"\n---\n');
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// hasFrontmatter
+// ─────────────────────────────────────────────
+
+/**
+ * `hasFrontmatter` のユニットテストスイート。
+ *
+ * テキストにフロントマターが存在し1つ以上のフィールドが設定されているか判定する動作を検証する。
+ *
+ * テスト ID 範囲: T-01-01-01 〜 T-01-03-03
+ *
+ * @see hasFrontmatter
+ */
+describe('hasFrontmatter', () => {
+  /**
+   * 正常系: フロントマターありのテキスト。
+   */
+  describe('When: 正常系', () => {
+    it('[Normal] T-01-01-01: title フィールドがある .md テキスト → true', () => {
+      const _result = hasFrontmatter('---\ntitle: Test\n---\nContent\n');
+      assertEquals(_result, true);
+    });
+
+    it('[Normal] T-01-02-01: プレーンテキスト → false', () => {
+      const _result = hasFrontmatter('No frontmatter here.\n');
+      assertEquals(_result, false);
+    });
+  });
+
+  /**
+   * エッジケース: 空フロントマター・空文字列・不正 YAML。
+   */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-01-03-01: 空フロントマター (---\\n---\\n) → false', () => {
+      const _result = hasFrontmatter('---\n---\n');
+      assertEquals(_result, false);
+    });
+
+    it('[Edge] T-01-03-02: 空文字列 → false', () => {
+      const _result = hasFrontmatter('');
+      assertEquals(_result, false);
+    });
+
+    it('[Edge] T-01-03-03: 不正 YAML フロントマター → false', () => {
+      const _result = hasFrontmatter('---\n: invalid: yaml: {\n---\nbody');
+      assertEquals(_result, false);
     });
   });
 });
