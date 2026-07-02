@@ -252,7 +252,7 @@ describe('cache-hit fixtures', () => {
   /**
    * `_phaseReview` — レビュー済みキャッシュヒット時のスキップ検証。
    *
-   * `reviewed-full.json` に `reviewed: true` が存在するとき、reviewProvider は呼ばれず
+   * `reviewed-full.json` に `status: 'reviewed'` が存在するとき、reviewProvider は呼ばれず
    * スキップされることを検証する。また `reviewed-miss.json` では reviewProvider が1回呼ばれることを検証する。
    */
   describe('_phaseReview', () => {
