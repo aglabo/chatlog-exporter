@@ -35,4 +35,6 @@ export interface Stats {
   fail: number;
   /** スキップされたファイル数（dryRun 等）。 */
   skip: number;
+  /** `status === 'written'` でフィルタされたファイル数（outputDir 書き込み済み）。 */
+  written: number;
 }
