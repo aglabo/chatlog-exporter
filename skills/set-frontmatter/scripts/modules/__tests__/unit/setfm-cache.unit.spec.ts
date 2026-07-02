@@ -16,8 +16,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
-import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 import type { SetfmCache } from '../../../types/cache.types.ts';
+// status types
+import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 
 // ─── Internal Helpers
 
@@ -63,7 +64,7 @@ const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<
  * 動作を検証する。ChatlogWorks 自体のユニットテストは別ファイルで実施済みのため、
  * ここでは set-frontmatter 固有の使用パターンに集中する。
  *
- * テスト ID 範囲: T-SF-CA-01 〜 T-SF-CA-03
+ * テスト ID 範囲: T-SF-CA-01 〜 T-SF-CA-06
  *
  * @see ChatlogWorks
  * @see SetfmCache
