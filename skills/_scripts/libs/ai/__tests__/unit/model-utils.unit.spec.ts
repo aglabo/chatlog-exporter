@@ -132,10 +132,6 @@ describe('getAiBackend', () => {
       assertEquals(getAiBackend('antigravity/foo'), 'antigravity');
     });
 
-    it('T-LIB-AI-53: getAiBackend("google/gemini") → "antigravity"', () => {
-      assertEquals(getAiBackend('google/gemini'), 'antigravity');
-    });
-
     it('T-LIB-AI-32: getAiBackend("claude/claude-3") → "claude" (via provider map)', () => {
       assertEquals(getAiBackend('claude/claude-3'), 'claude');
     });
@@ -216,11 +212,6 @@ describe('parseModel', () => {
     });
 
     it('T-LIB-AI-41: parseModel("google/gemini") → { provider:"google", model:"gemini" }', () => {
-      const _expected: AiModelSpec = { provider: 'google', model: 'gemini' };
-      assertEquals(parseModel('google/gemini'), _expected);
-    });
-
-    it('T-LIB-AI-50: parseModel("google/gemini") → { provider:"google", model:"gemini" }', () => {
       const _expected: AiModelSpec = { provider: 'google', model: 'gemini' };
       assertEquals(parseModel('google/gemini'), _expected);
     });

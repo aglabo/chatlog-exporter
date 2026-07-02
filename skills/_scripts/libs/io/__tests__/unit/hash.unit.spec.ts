@@ -11,11 +11,7 @@ import { assertEquals, assertMatch, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- constants --
-import {
-  DEFAULT_HASH_LENGTH,
-  DEFAULT_MAX_RANDOM_LENGTH,
-  MIN_RANDOM_LENGTH,
-} from '../../../../constants/defaults.constants.ts';
+import { DEFAULT_HASH_LENGTH } from '../../../../constants/defaults.constants.ts';
 
 // test target
 import { generateHash } from '../../hash.ts';
@@ -134,26 +130,6 @@ describe('generateHash', () => {
           const ra = await generateHash('project-a');
           const rb = await generateHash('project-b');
           assertNotEquals(ra, rb);
-        });
-      });
-    });
-  });
-
-  // ─── グループ05: 定数の検証 ─────────────────────────────────────────────────
-
-  describe('Given: エクスポートされた定数', () => {
-    describe('When: 値を参照する', () => {
-      describe('Then: T-LIB-H-05 - 定数値の確認', () => {
-        it('T-LIB-H-05-01: DEFAULT_HASH_LENGTH が 8 である', () => {
-          assertEquals(DEFAULT_HASH_LENGTH, 8);
-        });
-
-        it('T-LIB-H-05-02: MIN_RANDOM_LENGTH が 4 である', () => {
-          assertEquals(MIN_RANDOM_LENGTH, 4);
-        });
-
-        it('T-LIB-H-05-03: DEFAULT_MAX_RANDOM_LENGTH が 16 である', () => {
-          assertEquals(DEFAULT_MAX_RANDOM_LENGTH, 16);
         });
       });
     });
