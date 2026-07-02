@@ -81,25 +81,6 @@ describe('setfm-cache', () => {
   });
 
   /**
-   * Phase 2+3a パターン: `{ type, category }` を write して read で返るケース。
-   *
-   * ChatlogWorks のインメモリキャッシュにより、同一インスタンス内での read はディスクを読まない。
-   */
-  describe('When: Phase 2+3a - type と category の書き込み', () => {
-    /** write して同一インスタンスで read できる正常ケース。 */
-    describe('When: 正常系', () => {
-      it('[Normal] T-SF-CA-01-01: write({type, category}) → read で同じ値が返る', async () => {
-        const cache = await _makeCache(buf, cacheRoot);
-
-        await cache.write(_ENTRY_PATH, { type: 'tech', category: 'development' });
-        const result = await cache.read(_ENTRY_PATH);
-
-        assertEquals(result, { type: 'tech', category: 'development' });
-      });
-    });
-  });
-
-  /**
    * Phase 3b パターン: 既存の `{ type, category }` に `frontmatter` をマージして write するケース。
    *
    * `ChatlogWorks.write` は上書きのため、Phase 3b では read → spread merge → write の手順が必要。

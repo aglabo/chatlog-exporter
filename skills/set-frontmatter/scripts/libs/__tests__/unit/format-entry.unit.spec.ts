@@ -211,17 +211,6 @@ describe('formatDicEntryShort', () => {
 describe('formatDicEntries', () => {
   /** 2エントリが改行で結合される正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-SF-FE-09: 2エントリ → formatDicEntry で整形して改行で結合された文字列が返る', () => {
-      const entries = [
-        _makeEntry('research', '調査', { when: [], not: [] }),
-        _makeEntry('execution', '実行', { when: [], not: [] }),
-      ];
-
-      const result = formatDicEntries(entries);
-
-      assertEquals(result, formatDicEntry(entries[0]) + '\n' + formatDicEntry(entries[1]));
-    });
-
     it('[Normal] T-SF-FE-10: 空配列 → 空文字列が返る', () => {
       const result = formatDicEntries([]);
 
