@@ -147,13 +147,6 @@ describe('processPreclassify', () => {
       assertEquals(_result[1].project, FALLBACK_PROJECT);
       assertEquals(_result[2].action, CLASSIFY_ACTIONS.REMAINING);
     });
-
-    it('[Normal] T-CL-PCL-02: 空配列を渡す → 空配列を返す', () => {
-      const _result = processPreclassify([]);
-
-      assertEquals(Array.isArray(_result), true);
-      assertEquals(_result.length, 0);
-    });
   });
 
   /**

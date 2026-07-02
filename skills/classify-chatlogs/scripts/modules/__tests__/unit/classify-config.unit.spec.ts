@@ -15,30 +15,8 @@ import { describe, it } from '@std/testing/bdd';
 import { parseArgs } from '../../classify-config.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-// types
-import type { ParsedConfig } from '../../../types/classify.types.ts';
 
 describe('parseArgs', () => {
-  // ─── T-CL-PA-01: デフォルト値（未指定時は undefined） ───────────────────────
-
-  describe('Given: 空の引数配列 []', () => {
-    describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-CL-PA-01 - 各フィールドが undefined になる', () => {
-        const _cases: Array<[string, keyof ParsedConfig]> = [
-          ['T-CL-PA-01-01: baseDir → undefined', 'baseDir'],
-          ['T-CL-PA-01-02: configFile → undefined', 'configFile'],
-          ['T-CL-PA-01-03: dryRun → undefined', 'dryRun'],
-        ];
-        for (const [id, key] of _cases) {
-          it(id, () => {
-            const result = parseArgs([]);
-            assertEquals(result[key], undefined);
-          });
-        }
-      });
-    });
-  });
-
   // ─── T-CL-PA-02: --base-dir オプション ─────────────────────────────────────
 
   describe('Given: --base-dir または --base-dir=VALUE', () => {

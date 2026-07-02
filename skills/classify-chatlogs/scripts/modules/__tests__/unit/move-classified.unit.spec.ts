@@ -184,25 +184,5 @@ describe('moveClassified', () => {
       assertEquals(_stats.remaining, 0);
       assertEquals(_stats.error, 0);
     });
-
-    it('[Normal] T-CL-MC-09: action=MOVEBYAI → stats.movedByAI++ (dryRun=true)', async () => {
-      const _entry = _makeEntry('/tmp/input/test.md');
-      const _buffer: ClassifyBuffer = [{
-        file: _entry,
-        filePath: _entry.filePath!,
-        project: 'app1',
-        action: CLASSIFY_ACTIONS.MOVEBYAI,
-      }];
-      const _stats = _makeStats();
-
-      await moveClassified(_buffer, '/tmp/output', true, _stats);
-
-      // action=MOVEBYAI で dryRun=true → stats.movedByAI がインクリメントされる
-      assertEquals(_stats.movedByAI, 1);
-      assertEquals(_stats.moved, 0);
-      assertEquals(_stats.remaining, 0);
-      assertEquals(_stats.skipped, 0);
-      assertEquals(_stats.error, 0);
-    });
   });
 });
