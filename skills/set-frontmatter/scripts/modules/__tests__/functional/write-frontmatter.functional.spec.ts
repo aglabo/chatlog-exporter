@@ -81,6 +81,16 @@ async function _makeNoopCache(cacheDir: string): Promise<ChatlogWorks<SetfmCache
   return c;
 }
 
+/** 6フィールドをすべて entry.frontmatter にセットするヘルパー。 */
+const _setAllFields = (entry: ChatlogEntry): void => {
+  entry.frontmatter.set('type', 'research');
+  entry.frontmatter.set('category', 'development');
+  entry.frontmatter.set('title', 'テスト');
+  entry.frontmatter.set('summary', 'テスト用のサマリー');
+  entry.frontmatter.set('topics', ['topic-a']);
+  entry.frontmatter.set('tags', ['tag1']);
+};
+
 beforeEach(async () => {
   tempDir = await Deno.makeTempDir();
   cache = await _makeNoopCache(tempDir);
@@ -104,9 +114,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
@@ -118,9 +126,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           const ok = await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
@@ -131,9 +137,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
@@ -145,9 +149,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
@@ -159,9 +161,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
@@ -182,9 +182,7 @@ describe('writeFrontmatter', () => {
           const originalContent = '# テスト\n本文';
           await Deno.writeTextFile(filePath, originalContent);
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, true);
 
@@ -196,9 +194,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           const ok = await writeFrontmatter(entry, cache, tempDir, tempDir, true);
 
@@ -247,9 +243,7 @@ describe('writeFrontmatter', () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
-          entry.frontmatter.set('title', 'テスト');
-          entry.frontmatter.set('type', 'research');
-          entry.frontmatter.set('category', 'development');
+          _setAllFields(entry);
 
           await writeFrontmatter(entry, cache, tempDir, tempDir, false);
 
