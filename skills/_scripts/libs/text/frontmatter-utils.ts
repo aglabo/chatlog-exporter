@@ -113,6 +113,12 @@ export const parseFrontmatter = (text: string): FrontmatterResult => {
   return { meta: _meta, content: _divResult.content };
 };
 
+/** テキストにフロントマターが存在し、かつ1つ以上のフィールドが設定されているか判定する。 */
+export const hasFrontmatter = (text: string): boolean => {
+  const { meta } = parseFrontmatter(text);
+  return Object.keys(meta).length > 0;
+};
+
 /** Markdown テキストから frontmatter を抽出し、文字列または文字列配列に変換して返す。 */
 export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
   const { meta, content } = parseFrontmatter(text);
