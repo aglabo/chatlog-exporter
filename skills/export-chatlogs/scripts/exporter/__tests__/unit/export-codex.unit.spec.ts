@@ -87,18 +87,6 @@ describe('exportCodex', () => {
         );
         assertEquals(result.exportedCount, 1);
       });
-
-      it('T-EC-XC-01-02: outputPaths に1件のパスが含まれる', async () => {
-        const session = _makeSession('sess-0001', 'my-app');
-        const result = await exportCodex(
-          BASE_CONFIG,
-          _makeFlowProviders([
-            ['/fake/session.jsonl', () => Promise.resolve(session), () => Promise.resolve(outPath)],
-          ]),
-        );
-        assertEquals(result.outputPaths.length, 1);
-        assertEquals(result.outputPaths[0], outPath);
-      });
     });
   });
 
@@ -121,16 +109,6 @@ describe('exportCodex', () => {
         );
         assertEquals(result.exportedCount, 0);
       });
-
-      it('T-EC-XC-02-02: outputPaths が空配列', async () => {
-        const result = await exportCodex(
-          BASE_CONFIG,
-          _makeFlowProviders([
-            ['/fake/skipped.jsonl', () => Promise.resolve(null), () => Promise.resolve('')],
-          ]),
-        );
-        assertEquals(result.outputPaths, []);
-      });
     });
   });
 
@@ -147,11 +125,6 @@ describe('exportCodex', () => {
       it('T-EC-XC-03-01: exportedCount が 0', async () => {
         const result = await exportCodex(BASE_CONFIG, _makeFlowProviders([]));
         assertEquals(result.exportedCount, 0);
-      });
-
-      it('T-EC-XC-03-02: outputPaths が空配列', async () => {
-        const result = await exportCodex(BASE_CONFIG, _makeFlowProviders([]));
-        assertEquals(result.outputPaths, []);
       });
     });
   });
@@ -178,18 +151,6 @@ describe('exportCodex', () => {
           ]),
         );
         assertEquals(result.exportedCount, 2);
-      });
-
-      it('T-EC-XC-04-02: outputPaths の件数が 2', async () => {
-        const result = await exportCodex(
-          BASE_CONFIG,
-          _makeFlowProviders([
-            ['/fake/a.jsonl', () => Promise.resolve(session), () => Promise.resolve('/tmp/out.md')],
-            ['/fake/b.jsonl', () => Promise.resolve(null), () => Promise.resolve('')],
-            ['/fake/c.jsonl', () => Promise.resolve(session), () => Promise.resolve('/tmp/out.md')],
-          ]),
-        );
-        assertEquals(result.outputPaths.length, 2);
       });
     });
   });

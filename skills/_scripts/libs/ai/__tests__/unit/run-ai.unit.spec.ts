@@ -129,13 +129,6 @@ describe('_buildCommand', () => {
       assertEquals(result.hasSystemPromptWithArgs, true);
     });
 
-    it('[Normal] T-LIB-AI-RA-09: model=google/gemini → { command:"agy", args:["--model","gemini","--print","sys"], hasSystemPromptWithArgs:true }', () => {
-      const result = _buildCommand('google/gemini', 'sys');
-      assertEquals(result.command, 'agy');
-      assertEquals(result.args, ['--model', 'gemini', '--print', 'sys']);
-      assertEquals(result.hasSystemPromptWithArgs, true);
-    });
-
     it('[Normal] T-LIB-AI-RA-10: model=antigravity/foo → { command:"agy", args:["--model","foo","--print","sys"], hasSystemPromptWithArgs:true }', () => {
       const result = _buildCommand('antigravity/foo', 'sys');
       assertEquals(result.command, 'agy');

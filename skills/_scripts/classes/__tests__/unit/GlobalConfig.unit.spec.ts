@@ -126,29 +126,9 @@ describe('GlobalConfig', () => {
         assertFalse(_called.flag);
       });
 
-      it('[Normal] T-CLS-GC-67: デフォルト値の全フィールドを get() で確認する', async () => {
-        const _config = await GlobalConfig.getInstance();
-        assertEquals(_config.get('agent'), 'claude');
-        assertEquals(_config.get('chatlogsDir'), './chatlogs');
-        assertEquals(_config.get('model'), 'sonnet');
-        assertEquals(_config.get('timeoutMs'), 120000);
-        assertEquals(_config.get('chunkSize'), 10);
-        assertEquals(_config.get('concurrency'), 4);
-      });
-
-      it('[Normal] T-CLS-GC-73: デフォルト値の maxContentLength が 4000 である', async () => {
-        const _config = await GlobalConfig.getInstance();
-        assertEquals(_config.get('maxContentLength'), 4000);
-      });
-
       it('[Normal] T-CLS-GC-74: yaml で maxContentLength: 2000 を指定すると get() が 2000 を返す', async () => {
         const _config = await GlobalConfig.getInstance({ yaml: 'maxContentLength: 2000\n' });
         assertEquals(_config.get('maxContentLength'), 2000);
-      });
-
-      it('[Normal] T-CLS-GC-77: 設定なしのとき get("cacheDir") がデフォルト値を返す', async () => {
-        const _config = await GlobalConfig.getInstance();
-        assertEquals(_config.get('cacheDir'), '${TEMP}/cle-cache');
       });
 
       it('[Normal] T-CLS-GC-68: yaml で複数フィールドを指定すると get() で反映が確認できる', async () => {

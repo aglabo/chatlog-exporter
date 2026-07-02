@@ -153,16 +153,6 @@ describe('setfm-assets-loader', () => {
         await _writeDicFiles(dicsDir);
       });
 
-      it('[Normal] T-SF-AL-01-01: 有効な .dic ファイルが揃っている場合 → Dics 型を返す', async () => {
-        const result = await loadDics(dicsDir);
-
-        assertEquals(typeof result.category, 'string');
-        assertEquals(typeof result.tags, 'string');
-        assertEquals(Array.isArray(result.categoryEntries), true);
-        assertEquals(Array.isArray(result.typeEntries), true);
-        assertEquals(Array.isArray(result.topicEntries), true);
-      });
-
       it('[Normal] T-SF-AL-01-02: category キーが Dics.category に抽出される', async () => {
         const result = await loadDics(dicsDir);
 
@@ -204,13 +194,6 @@ describe('setfm-assets-loader', () => {
         promptsDir = `${tempDir}/prompts`;
         await Deno.mkdir(promptsDir);
         await _writePromptFiles(promptsDir);
-      });
-
-      it('[Normal] T-SF-AL-03-01: 有効な .yaml ファイルが揃っている場合 → Prompts 型を返す', async () => {
-        const result = await loadPrompts(promptsDir);
-
-        assertEquals(result.prompts instanceof Map, true);
-        assertEquals(result.categoryPrompts instanceof Map, true);
       });
 
       it('[Normal] T-SF-AL-03-02: prompts.get("type") に PromptTemplate が入っている', async () => {

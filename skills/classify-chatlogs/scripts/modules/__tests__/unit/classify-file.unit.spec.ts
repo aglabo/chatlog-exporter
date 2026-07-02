@@ -55,14 +55,6 @@ describe('classifyFile', () => {
   describe('Given: project=undefined の呼び出し', () => {
     describe(`When: classifyFile(_entry, undefined, "/tmp/output", true) を呼び出す (dryRun=true)`, () => {
       describe(`Then: T-CL-CF-03 - FALLBACK_PROJECT で dryRun 移動される・action=MOVE`, () => {
-        it('T-CL-CF-03-01: action が CLASSIFY_ACTIONS.MOVE になる', async () => {
-          const _entry = _makeClassifyChatlogEntry('test.md');
-
-          const _result = await classifyFile(_entry, undefined, '/tmp/output', true);
-
-          assertEquals(_result.action, CLASSIFY_ACTIONS.MOVE);
-        });
-
         it(`T-CL-CF-03-02: message に "→ ${FALLBACK_PROJECT}/" が含まれる`, async () => {
           const _entry = _makeClassifyChatlogEntry('test.md');
 

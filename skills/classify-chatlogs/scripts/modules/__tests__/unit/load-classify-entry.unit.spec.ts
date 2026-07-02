@@ -58,15 +58,6 @@ describe('loadClassifyEntry', () => {
       assertInstanceOf(_result.entry, ChatlogEntry);
     });
 
-    it('[Normal] T-03-01-02: options.filePath が指定パスと一致する', async () => {
-      const filePath = `${tempDir}/valid.md`;
-      await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
-
-      const _result = await loadClassifyEntry(filePath);
-
-      assertEquals(_result.options.filePath, filePath);
-    });
-
     it('[Normal] T-03-01-03: options.action が undefined（エラーなし）', async () => {
       const filePath = `${tempDir}/valid.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');

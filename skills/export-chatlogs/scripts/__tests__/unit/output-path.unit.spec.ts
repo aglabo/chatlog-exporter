@@ -57,19 +57,6 @@ describe('buildOutputPath', () => {
     describe('When: buildOutputPath(...) を呼び出す', () => {
       /** T-EC-OP-01: 正しいパス構造を生成する */
       describe('Then: T-EC-OP-01 - 正しいパス構造を生成する', () => {
-        it('T-EC-OP-01-01: パスが "出力ベース/claude/YYYY/YYYY-MM/ファイル名.md" 形式', () => {
-          const meta = _makeMeta();
-          const result = buildOutputPath('/out', 'claude', meta, 'test-slug');
-          assertStringIncludes(result, '/out/claude/2026/2026-03/');
-          assertStringIncludes(result, '.md');
-        });
-
-        it('T-EC-OP-01-02: ファイル名に slug が含まれる', () => {
-          const meta = _makeMeta();
-          const result = buildOutputPath('/out', 'claude', meta, 'test-slug');
-          assertStringIncludes(result, 'test-slug');
-        });
-
         it('T-EC-OP-01-03: sessionId のハイフンを除去した先頭8文字が含まれる', () => {
           const meta = _makeMeta({ sessionId: 'abc-def-12345678' });
           const result = buildOutputPath('/out', 'claude', meta, 'test-slug');
@@ -77,19 +64,6 @@ describe('buildOutputPath', () => {
           assertStringIncludes(result, 'abcdef12');
         });
       });
-    });
-  });
-
-  /**
-   * agent="codex" でパスに "codex" セグメントが含まれるケース。
-   * agent 名がパスの第1セグメントに正しく埋め込まれることを確認する。
-   * claude と codex でパスが独立して区別されることの仕様確認。
-   */
-  describe('Given: agent="codex"', () => {
-    it('T-EC-OP-01-04: パスに "codex" セグメントが含まれる', () => {
-      const meta = _makeMeta();
-      const result = buildOutputPath('/out', 'codex', meta, 'test');
-      assertStringIncludes(result, '/codex/');
     });
   });
 

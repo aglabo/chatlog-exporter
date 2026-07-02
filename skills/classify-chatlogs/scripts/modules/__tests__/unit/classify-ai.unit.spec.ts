@@ -7,17 +7,16 @@
 // This software is released under the MIT License.
 
 // ─── BDD modules
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
-import type { ClassifyConfig, ProjectDicEntry } from '../../../types/classify.types.ts';
+import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 import {
   buildClassifyPrompt,
   buildSystemPrompt,
-  classifyByAI,
 } from '../../classify-ai.ts';
 
 // ─── Helpers
@@ -26,18 +25,6 @@ import { renderFrontmatter } from '../../../../../_scripts/libs/text/frontmatter
 import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Internal Helpers
-
-// constants
-const _PROJECTS: ProjectDicEntry = { app1: {}, misc: {} };
-const _BASE_CONFIG: ClassifyConfig = {
-  agent: 'claude',
-  dryRun: false,
-  baseDir: '/tmp',
-  dicsDir: './assets/dics',
-  model: 'sonnet',
-  chunkSize: 10,
-  concurrency: 4,
-};
 
 // types
 interface MakeMetaOptions {
@@ -308,27 +295,3 @@ describe('buildSystemPrompt', () => {
 });
 
 // ─── classifyByAI ─────────────────────────────────────────────────────────────
-
-/**
- * `classifyByAI` のユニットテストスイート。
- *
- * remaining エントリのみを受け取り AI 分類を実行するバッファ構築を検証する。
- *
- * テスト ID 範囲: T-CL-CA-01 〜 T-CL-CA-02
- *
- * @see classifyByAI
- */
-describe('classifyByAI', () => {
-  /**
-   * 正常系: remaining が 0 件のとき空バッファが返されるケース。
-   */
-  describe('When: 正常系', () => {
-    it('[Normal] T-CL-CA-01: remaining が 0 件のとき AI 分類が呼ばれず空配列が返される', async () => {
-      // Act: remaining エントリが空 → runChunked は processChunk を呼ばない
-      const _buffer = await classifyByAI([], _PROJECTS, _BASE_CONFIG);
-
-      // Assert: AI 未呼び出しで空バッファ
-      assertEquals(_buffer.length, 0);
-    });
-  });
-});

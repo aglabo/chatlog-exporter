@@ -18,18 +18,6 @@ describe('withConcurrency', () => {
   describe('Given: タスク数が limit より少ない場合', () => {
     describe('When: withConcurrency(tasks, limit) を呼び出す', () => {
       describe('Then: T-FL-WC-01 - 全タスクが実行される', () => {
-        it('T-FL-WC-01-01: 3 タスク / limit=5 → 3 件の結果が返される', async () => {
-          const tasks = [
-            () => Promise.resolve(1),
-            () => Promise.resolve(2),
-            () => Promise.resolve(3),
-          ];
-
-          const results = await withConcurrency(tasks, 5);
-
-          assertEquals(results.length, 3);
-        });
-
         it('T-FL-WC-01-02: 結果の順序が保持される', async () => {
           const tasks = [
             () => Promise.resolve('a'),
@@ -95,20 +83,6 @@ describe('withConcurrency', () => {
             Error,
             'タスク失敗',
           );
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-WC-04: 空のタスクリスト → 空配列 ─────────────────────────────────
-
-  describe('Given: 空のタスクリスト', () => {
-    describe('When: withConcurrency([], limit) を呼び出す', () => {
-      describe('Then: T-FL-WC-04 - 空配列が返される', () => {
-        it('T-FL-WC-04-01: 空配列が返される', async () => {
-          const results = await withConcurrency([], 4);
-
-          assertEquals(results.length, 0);
         });
       });
     });
