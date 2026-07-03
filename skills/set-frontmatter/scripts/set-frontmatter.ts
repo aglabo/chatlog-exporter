@@ -41,7 +41,7 @@ import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
-import { hasFrontmatterFields, writeFrontmatter } from './modules/setfm-write.ts';
+import { applyCacheToEntry, hasFrontmatterFields, writeFrontmatter } from './modules/setfm-write.ts';
 import type { SetfmCache } from './types/cache.types.ts';
 import type { Dics, Prompts } from './types/dics.types.ts';
 // types
@@ -73,7 +73,6 @@ type _WriteProvider = (
   cache: ChatlogWorks<SetfmCache>,
   outputDir: string,
   inputDir: string,
-  dryRun: boolean,
 ) => Promise<boolean>;
 
 // ─── Internal constants
@@ -82,9 +81,6 @@ const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary
 // ─────────────────────────────────────────────
 // 内部関数
 // ─────────────────────────────────────────────
-
-/** エントリの frontmatter に 6 フィールドすべてが充足しているか判定する。`hasFrontmatterFields` の内部エイリアス。 */
-const _hasFrontmatterFields = hasFrontmatterFields;
 
 /**
  * エントリ配列を writtenEntries と targetEntries に分割する。
@@ -108,7 +104,7 @@ const _splitWritten = (
 /**
  * エントリ配列を skipEntries と targetEntries に分割する。
  *
- * `cache.read(e.filePath!).status === 'reviewed'` のエントリを skipEntries に、
+ * `cache.read(e.filePath!).status` が `'reviewed'` または `'need-review'` のエントリを skipEntries に、
  * それ以外を targetEntries に分類する。
  *
  * @param entries - 分割対象のエントリ配列
@@ -119,9 +115,14 @@ const _splitSkip = (
   entries: ChatlogEntry[],
   cache: ChatlogWorks<SetfmCache>,
 ): { skipEntries: ChatlogEntry[]; targetEntries: ChatlogEntry[] } => {
-  const skipEntries = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
-  const targetEntries = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.REVIEWED);
-  return { skipEntries, targetEntries };
+  const _isSkipStatus = (e: ChatlogEntry): boolean => {
+    const status = cache.read(e.filePath!).status;
+    return status === CACHE_STATUSES.REVIEWED || status === CACHE_STATUSES.NEED_REVIEW;
+  };
+  return {
+    skipEntries: entries.filter(_isSkipStatus),
+    targetEntries: entries.filter((e) => !_isSkipStatus(e)),
+  };
 };
 
 const _phaseTypeAndCategory = async (
@@ -131,6 +132,7 @@ const _phaseTypeAndCategory = async (
   dics: Dics,
   prompts: Prompts,
   concurrency: number,
+  dryRun: boolean,
   judgeProvider?: _JudgeProvider,
 ): Promise<void> => {
   const _hits = entries.filter((e) => {
@@ -153,16 +155,20 @@ const _phaseTypeAndCategory = async (
   await runConcurrent(
     _misses,
     async (entry) => {
-      await _judge(entry, maxContentLength, dics, prompts);
-      await cache.write(entry.filePath!, {
-        type: entry.frontmatter.get('type') as string,
-        category: entry.frontmatter.get('category') as string,
-      });
-      logger.info(
-        `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
-          getFilename(entry.filePath!)
-        }`,
-      );
+      if (dryRun) {
+        logger.info(`  [dry-run] type/category: ${getFilename(entry.filePath!)}`);
+      } else {
+        await _judge(entry, maxContentLength, dics, prompts);
+        await cache.write(entry.filePath!, {
+          type: entry.frontmatter.get('type') as string,
+          category: entry.frontmatter.get('category') as string,
+        });
+        logger.info(
+          `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
+            getFilename(entry.filePath!)
+          }`,
+        );
+      }
     },
     concurrency,
   );
@@ -175,6 +181,7 @@ const _phaseFrontmatter = async (
   dics: Dics,
   prompts: Prompts,
   concurrency: number,
+  dryRun: boolean,
   generateProvider?: _GenerateProvider,
 ): Promise<Set<string>> => {
   const _generatedFiles = new Set<string>();
@@ -192,14 +199,18 @@ const _phaseFrontmatter = async (
     const _cached = cache.read(e.filePath!);
     Object.entries(_cached.frontmatter!).forEach(([k, v]) => e.frontmatter.set(k, v));
     _generatedFiles.add(e.filePath!);
-    if (_hasFrontmatterFields(e)) {
+    if (hasFrontmatterFields(e) && !dryRun) {
       await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
     }
-    logger.info(`  generated (cached): ${getFilename(e.filePath!)}`);
+    if (dryRun) {
+      logger.info(`  [dry-run] frontmatter (cached): ${getFilename(e.filePath!)}`);
+    } else {
+      logger.info(`  generated (cached): ${getFilename(e.filePath!)}`);
+    }
   }
 
-  const _alreadyFilled = _misses.filter((e) => _hasFrontmatterFields(e));
-  const _needsGenerate = _misses.filter((e) => !_hasFrontmatterFields(e));
+  const _alreadyFilled = _misses.filter((e) => hasFrontmatterFields(e));
+  const _needsGenerate = _misses.filter((e) => !hasFrontmatterFields(e));
 
   await Promise.all(
     _alreadyFilled.map(async (entry) => {
@@ -209,13 +220,19 @@ const _phaseFrontmatter = async (
         if (v !== undefined) { _fmSnapshot[k] = v; }
       });
       const _existing = cache.read(entry.filePath!);
-      await cache.write(entry.filePath!, {
-        ..._existing,
-        frontmatter: _fmSnapshot,
-        status: CACHE_STATUSES.NEED_REVIEW,
-      });
-      _generatedFiles.add(entry.filePath!);
-      logger.info(`  frontmatter (existing): ${getFilename(entry.filePath!)}`);
+      if (!dryRun) {
+        await cache.write(entry.filePath!, {
+          ..._existing,
+          frontmatter: _fmSnapshot,
+          status: CACHE_STATUSES.NEED_REVIEW,
+        });
+        _generatedFiles.add(entry.filePath!);
+      }
+      if (dryRun) {
+        logger.info(`  [dry-run] frontmatter (existing): ${getFilename(entry.filePath!)}`);
+      } else {
+        logger.info(`  frontmatter (existing): ${getFilename(entry.filePath!)}`);
+      }
     }),
   );
 
@@ -223,20 +240,24 @@ const _phaseFrontmatter = async (
   await runConcurrent(
     _needsGenerate,
     async (entry) => {
-      const _ok = await _generate(entry, maxContentLength, dics, prompts);
-      if (_ok) {
-        const _fmSnapshot: Record<string, string | string[]> = {};
-        _knownFields.forEach((k) => {
-          const v = entry.frontmatter.get(k);
-          if (v !== undefined) { _fmSnapshot[k] = v; }
-        });
-        const _existing = cache.read(entry.filePath!);
-        const _statusUpdate = _hasFrontmatterFields(entry) ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
-        await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
-        _generatedFiles.add(entry.filePath!);
-        logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+      if (dryRun) {
+        logger.info(`  [dry-run] frontmatter: ${getFilename(entry.filePath!)}`);
       } else {
-        logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+        const _ok = await _generate(entry, maxContentLength, dics, prompts);
+        if (_ok) {
+          const _fmSnapshot: Record<string, string | string[]> = {};
+          _knownFields.forEach((k) => {
+            const v = entry.frontmatter.get(k);
+            if (v !== undefined) { _fmSnapshot[k] = v; }
+          });
+          const _existing = cache.read(entry.filePath!);
+          const _statusUpdate = hasFrontmatterFields(entry) ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
+          await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
+          _generatedFiles.add(entry.filePath!);
+          logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+        } else {
+          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+        }
       }
     },
     concurrency,
@@ -249,15 +270,18 @@ const _phaseFrontmatter = async (
  * エントリ配列を走査し、各エントリのキャッシュ status を設定する。
  *
  * - `cache.read(e.filePath!).status === 'written'` → スキップ
- * - `_hasFrontmatterFields(entry) === true` → `status: 'need-review'` を書き込む
+ * - `hasFrontmatterFields(entry) === true` → `status: 'need-review'` を書き込む
  * - それ以外 → `status: ''` を書き込む
+ * - `dryRun === true` の場合は cache.write を実行しない
  *
  * @param entries - 対象エントリ配列
  * @param cache - フェーズキャッシュ
+ * @param dryRun - true の場合は cache.write を実行しない
  */
 const _phaseStatus = async (
   entries: ChatlogEntry[],
   cache: ChatlogWorks<SetfmCache>,
+  dryRun: boolean,
 ): Promise<void> => {
   await Promise.all(
     entries.map(async (entry) => {
@@ -265,10 +289,15 @@ const _phaseStatus = async (
       if (_existing.status === CACHE_STATUSES.WRITTEN) {
         return;
       }
-      const _status = _hasFrontmatterFields(entry)
+      if (dryRun) {
+        logger.info(`  [dry-run] status: ${getFilename(entry.filePath!)} - skipped`);
+        return;
+      }
+      const _status = hasFrontmatterFields(entry)
         ? CACHE_STATUSES.NEED_REVIEW
         : CACHE_STATUSES.EMPTY;
       await cache.write(entry.filePath!, { ..._existing, status: _status });
+      logger.info(`  status: ${getFilename(entry.filePath!)} - status: ${_status || '(empty)'}`);
     }),
   );
 };
@@ -279,6 +308,7 @@ const _phaseReview = async (
   dics: Dics,
   prompts: Prompts,
   concurrency: number,
+  dryRun: boolean,
   reviewProvider?: _ReviewProvider,
 ): Promise<void> => {
   const _hits = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
@@ -292,27 +322,32 @@ const _phaseReview = async (
   await runConcurrent(
     _misses,
     async (entry) => {
-      const r = await _review(entry, dics, prompts);
-      if (r.validity === 'fail') {
-        logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
+      if (dryRun) {
+        logger.info(`  [dry-run] review: ${getFilename(entry.filePath!)}`);
       } else {
-        logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
+        const r = await _review(entry, dics, prompts);
+        if (r.validity === 'fail') {
+          logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
+          await cache.delete(entry.filePath!);
+        } else {
+          logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
+          const _existing = cache.read(entry.filePath!);
+          const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
+          for (const k of _knownFields) {
+            const v = entry.frontmatter.get(k);
+            if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
+          }
+          const _correctedType = (entry.frontmatter.get('type') as string | undefined) ?? _existing.type;
+          const _correctedCategory = (entry.frontmatter.get('category') as string | undefined) ?? _existing.category;
+          await cache.write(entry.filePath!, {
+            ..._existing,
+            type: _correctedType,
+            category: _correctedCategory,
+            frontmatter: _fmSnapshot,
+            status: CACHE_STATUSES.REVIEWED,
+          });
+        }
       }
-      const _existing = cache.read(entry.filePath!);
-      const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
-      for (const k of _knownFields) {
-        const v = entry.frontmatter.get(k);
-        if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
-      }
-      const _correctedType = (entry.frontmatter.get('type') as string | undefined) ?? _existing.type;
-      const _correctedCategory = (entry.frontmatter.get('category') as string | undefined) ?? _existing.category;
-      await cache.write(entry.filePath!, {
-        ..._existing,
-        type: _correctedType,
-        category: _correctedCategory,
-        frontmatter: _fmSnapshot,
-        status: r.validity === 'fail' ? CACHE_STATUSES.REVIEW_FAILED : CACHE_STATUSES.REVIEWED,
-      });
     },
     concurrency,
   );
@@ -324,25 +359,27 @@ const _filterReviewEntries = (
 ): ChatlogEntry[] => entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.NEED_REVIEW);
 
 /**
- * 書き込み対象エントリを status でフィルタリングする。
+ * エントリが書き込み対象かどうかを status で判定する predicate 関数。
  *
- * `status === 'reviewed'` または `status === 'need-review'` のエントリのみを返す。
- * `status === 'written'` および `status` が未設定のエントリは除外する。
+ * `review=true` の場合は `status === 'reviewed'` のみ true を返す。
+ * `review=false` の場合は `status === 'reviewed'` または `status === 'need-review'` で true を返す。
+ * `status === 'written'` / `status === 'review-failed'` / `status === ''` は常に false。
  *
- * @param entries - フィルタ対象のエントリ配列
+ * @param entry - 判定対象のエントリ
  * @param cache - フェーズキャッシュ
- * @param reviewOnly - true の場合は 'reviewed' のみ、false の場合は 'reviewed' と 'need-review' の両方
- * @returns フィルタ後のエントリ配列
+ * @param review - true の場合は 'reviewed' のみ、false の場合は 'reviewed' と 'need-review' の両方
+ * @returns 書き込み対象なら true
  */
-const _filterWriteEntries = (
-  entries: ChatlogEntry[],
+const _filterWriteEntry = (
+  filePath: string,
   cache: ChatlogWorks<SetfmCache>,
-  reviewOnly: boolean,
-): ChatlogEntry[] => {
-  if (reviewOnly) {
-    return entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
+  review: boolean,
+): boolean => {
+  const status = cache.read(filePath).status;
+  if (review) {
+    return status === CACHE_STATUSES.REVIEWED;
   } else {
-    return entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.NEED_REVIEW);
+    return status === CACHE_STATUSES.REVIEWED || status === CACHE_STATUSES.NEED_REVIEW;
   }
 };
 
@@ -357,12 +394,20 @@ const _phaseWrite = async (
   const _write = writeProvider ?? writeFrontmatter;
   // NOTE: for...of is intentional here — writes must be sequential to preserve existing behavior
   for (const entry of entries) {
-    const _ok = await _write(entry, cache, config.outputDir, config.inputDir, config.dryRun);
-    if (_ok) {
-      logger.info(`  OK: ${getFilename(entry.filePath!)}`);
-      stats.success++;
+    applyCacheToEntry(entry, cache);
+    if (config.dryRun) {
+      const _type = (entry.frontmatter.get('type') as string) ?? '';
+      const _category = (entry.frontmatter.get('category') as string) ?? '';
+      logger.info(`  [dry-run] [${_type}/${_category}]: ${getFilename(entry.filePath!)} -- skipped`);
+      stats.skip++;
     } else {
-      stats.fail++;
+      const _ok = await _write(entry, cache, config.outputDir, config.inputDir);
+      if (_ok) {
+        logger.info(`  OK: ${getFilename(entry.filePath!)}`);
+        stats.success++;
+      } else {
+        stats.fail++;
+      }
     }
   }
 };
@@ -417,19 +462,21 @@ export const main = async (args: string[]): Promise<void> => {
     const { skipEntries, targetEntries: generateEntries } = _splitSkip(targetEntries, _cache);
     logger.info(`フィルタリング: skip=${skipEntries.length}件 generate=${generateEntries.length}件`);
 
-    if (_config.dryRun) {
-      for (const entry of entries) {
-        logger.info(`  [dry-run] ${getFilename(entry.filePath!)}`);
-      }
-      logger.info(`\n完了 (dry-run): total=${entries.length} skip=${stats.skip}`);
-      return;
-    }
-
     // Phase 2+3a: type・category同時判定（並列）
-    logger.info(
-      `\nPhase 2+3a: type・category同時判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
+    if (!_config.dryRun) {
+      logger.info(
+        `\nPhase 2+3a: type・category同時判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
+      );
+    }
+    await _phaseTypeAndCategory(
+      generateEntries,
+      _cache,
+      maxContentLength,
+      dics,
+      prompts,
+      _config.concurrency,
+      _config.dryRun,
     );
-    await _phaseTypeAndCategory(generateEntries, _cache, maxContentLength, dics, prompts, _config.concurrency);
 
     // Phase 3b: フロントマター生成（並列）
     logger.info(`\nPhase 3b: フロントマター生成開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`);
@@ -440,11 +487,12 @@ export const main = async (args: string[]): Promise<void> => {
       dics,
       prompts,
       _config.concurrency,
+      _config.dryRun,
     );
 
     // Phase 3.5pre: ステータス設定
     logger.info(`\nPhase 3.5pre: ステータス設定 (${generateEntries.length}件)`);
-    await _phaseStatus(generateEntries, _cache);
+    await _phaseStatus(generateEntries, _cache, _config.dryRun);
 
     // Phase 3.5: レビュー（並列）
     if (_config.review) {
@@ -452,22 +500,24 @@ export const main = async (args: string[]): Promise<void> => {
         `\nPhase 3.5: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
       );
       const _reviewEntries = _filterReviewEntries(generateEntries, _cache);
-      await _phaseReview(_reviewEntries, _cache, dics, prompts, _config.concurrency);
+      await _phaseReview(_reviewEntries, _cache, dics, prompts, _config.concurrency, _config.dryRun);
     } else {
       logger.info(`\nPhase 3.5: スキップ (--no-review)`);
     }
 
     // Phase 4: 書き込み
-    const _writeEntries = generateEntries.filter((e) => _generatedFiles.has(e.filePath!));
-    const _failEntries = generateEntries.filter((e) => !_generatedFiles.has(e.filePath!));
-    _failEntries.forEach((e) => {
-      logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
-      stats.fail++;
-    });
+    const _writeEntries = targetEntries.filter((e) => _filterWriteEntry(e.filePath!, _cache, _config.review));
+    if (!_config.dryRun) {
+      const _failEntries = targetEntries.filter((e) => !_filterWriteEntry(e.filePath!, _cache, _config.review));
+      _failEntries.forEach((e) => {
+        logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
+        stats.fail++;
+      });
+    }
     await _phaseWrite(_writeEntries, _cache, _config, stats);
 
     logger.info(
-      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written}`,
+      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${targetEntries.length}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
@@ -488,8 +538,7 @@ export { _phaseFrontmatter as _phaseFrontmatterForTest };
 export { _phaseStatus as _phaseStatusForTest };
 export { _phaseReview as _phaseReviewForTest };
 export { _phaseWrite as _phaseWriteForTest };
-export { _hasFrontmatterFields as _hasFrontmatterFieldsForTest };
 export { _splitSkip as _splitSkipForTest };
 export { _splitWritten as _splitWrittenForTest };
 export { _filterReviewEntries as _filterReviewEntriesForTest };
-export { _filterWriteEntries as _filterWriteEntriesForTest };
+export { _filterWriteEntry as _filterWriteEntryForTest };
