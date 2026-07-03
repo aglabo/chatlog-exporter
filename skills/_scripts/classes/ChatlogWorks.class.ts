@@ -17,6 +17,8 @@ import { getBasename, isAbsolutePath, joinPath, normalizePath } from '../libs/pa
 import { hasFrontmatter, parseFrontmatter } from '../libs/text/frontmatter-utils.ts';
 // classes
 import { GlobalConfig } from './GlobalConfig.class.ts';
+// constants
+import { CACHE_STATUSES } from '../types/cache-status.const.types.ts';
 // types
 import type {
   EnvProvider,
@@ -226,7 +228,7 @@ export class ChatlogWorks<T extends object> {
     ).filter((entry): entry is { filePath: string; meta: Record<string, unknown> } => entry !== null);
     await Promise.all(
       _targets.map(({ filePath, meta }) =>
-        this._writeFile(this._toHashKey(filePath), { ...meta, status: 'written' } as unknown as Partial<T>)
+        this._writeFile(this._toHashKey(filePath), { ...meta, status: CACHE_STATUSES.WRITTEN } as unknown as Partial<T>)
       ),
     );
   }
