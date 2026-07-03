@@ -24,7 +24,7 @@ import type { Stats } from '../../../types/phase.types.ts';
 
 // functions
 /** `Stats` の初期値を生成する。 */
-const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0 });
+const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0, written: 0 });
 
 /** 有効な `.md` ファイルを tempDir に書き込む（`#` ヘッダーあり）。 */
 const _writeValidMd = async (dir: string, filename: string): Promise<string> => {

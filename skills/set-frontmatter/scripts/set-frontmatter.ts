@@ -30,7 +30,6 @@ import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
-
 // ─── Local
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
@@ -42,7 +41,7 @@ import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
-import { hasFrontmatterFields as _hasFrontmatterFields, writeFrontmatter } from './modules/setfm-write.ts';
+import { hasFrontmatterFields, writeFrontmatter } from './modules/setfm-write.ts';
 import type { SetfmCache } from './types/cache.types.ts';
 import type { Dics, Prompts } from './types/dics.types.ts';
 // types
@@ -84,14 +83,18 @@ const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary
 // 内部関数
 // ─────────────────────────────────────────────
 
+/** エントリの frontmatter に 6 フィールドすべてが充足しているか判定する。`hasFrontmatterFields` の内部エイリアス。 */
+const _hasFrontmatterFields = hasFrontmatterFields;
+
 /**
- * エントリの frontmatter に 6 フィールドすべてが充足しているか判定する。
- * - type: string かつ非空
- * - category: string かつ非空
- * - title: string かつ非空
- * - summary: string かつ非空
- * - topics: string[] かつ length >= 1
- * - tags: string[] かつ length >= 1
+ * エントリ配列を writtenEntries と targetEntries に分割する。
+ *
+ * `cache.read(e.filePath!).status === 'written'` のエントリを writtenEntries に、
+ * それ以外を targetEntries に分類する。
+ *
+ * @param entries - 分割対象のエントリ配列
+ * @param cache - フェーズキャッシュ
+ * @returns `{ writtenEntries, targetEntries }` — 重複なし・漏れなしで分割されたエントリ配列
  */
 const _splitWritten = (
   entries: ChatlogEntry[],
@@ -103,18 +106,16 @@ const _splitWritten = (
 };
 
 /**
- * エントリ配列を skip と generate に分割する。
+ * エントリ配列を skipEntries と targetEntries に分割する。
  *
- * 判定優先順位:
- * 1. `cache.read(e.filePath!).reviewed === true` → skip（全フェーズ完了済み）
- * 2. `_hasFrontmatterFields(e) === true` → skip（フロントマターが既に完全）
- * 3. それ以外 → generate
+ * `cache.read(e.filePath!).status === 'reviewed'` のエントリを skipEntries に、
+ * それ以外を targetEntries に分類する。
  *
  * @param entries - 分割対象のエントリ配列
  * @param cache - フェーズキャッシュ
- * @returns `{ skipEntries, generateEntries }` — 重複なし・漏れなしで分割されたエントリ配列
+ * @returns `{ skipEntries, targetEntries }` — 重複なし・漏れなしで分割されたエントリ配列
  */
-const _filterEntries = (
+const _splitSkip = (
   entries: ChatlogEntry[],
   cache: ChatlogWorks<SetfmCache>,
 ): { skipEntries: ChatlogEntry[]; targetEntries: ChatlogEntry[] } => {
@@ -380,7 +381,11 @@ export const main = async (args: string[]): Promise<void> => {
       throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
     }
 
-    const _cache = new ChatlogWorks<SetfmCache>('fm-cache', _config.cacheDir);
+    const _cache = new ChatlogWorks<SetfmCache>(
+      'fm-cache',
+      _config.cacheDir,
+      { outputDir: _config.outputDir },
+    );
     await _cache.ready;
 
     const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
@@ -393,7 +398,7 @@ export const main = async (args: string[]): Promise<void> => {
     if (!_config.review) { logger.info('--no-review モード: Phase 3.5 をスキップします'); }
 
     const maxContentLength = _globalConfig.get('maxContentLength') as number;
-    const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0 };
+    const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
 
     // Phase 1: メタ読み込み
     const entries = await loadAllEntries(_config.inputDir, stats);
@@ -403,8 +408,13 @@ export const main = async (args: string[]): Promise<void> => {
       return;
     }
 
+    // Phase 1.2: writtenフィルタ（outputDir書き込み済みを分離）
+    const { writtenEntries, targetEntries } = _splitWritten(entries, _cache);
+    stats.written = writtenEntries.length;
+    logger.info(`writtenフィルタ: written=${writtenEntries.length}件 target=${targetEntries.length}件`);
+
     // Phase 1.5: 事前フィルタリング（skip / generate 分割）
-    const { skipEntries, targetEntries: generateEntries } = _filterEntries(entries, _cache);
+    const { skipEntries, targetEntries: generateEntries } = _splitSkip(targetEntries, _cache);
     logger.info(`フィルタリング: skip=${skipEntries.length}件 generate=${generateEntries.length}件`);
 
     if (_config.dryRun) {
@@ -432,23 +442,24 @@ export const main = async (args: string[]): Promise<void> => {
       _config.concurrency,
     );
 
+    // Phase 3.5pre: ステータス設定
+    logger.info(`\nPhase 3.5pre: ステータス設定 (${generateEntries.length}件)`);
+    await _phaseStatus(generateEntries, _cache);
+
     // Phase 3.5: レビュー（並列）
     if (_config.review) {
       logger.info(
         `\nPhase 3.5: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
       );
-      const _reviewEntries = generateEntries.filter((e) => _generatedFiles.has(e.filePath!));
+      const _reviewEntries = _filterReviewEntries(generateEntries, _cache);
       await _phaseReview(_reviewEntries, _cache, dics, prompts, _config.concurrency);
     } else {
       logger.info(`\nPhase 3.5: スキップ (--no-review)`);
     }
 
-    // Phase 4 前: skip 済みエントリを _generatedFiles に追加（writeFrontmatter を通す）
-    skipEntries.forEach((e) => _generatedFiles.add(e.filePath!));
-
     // Phase 4: 書き込み
-    const _writeEntries = entries.filter((e) => _generatedFiles.has(e.filePath!));
-    const _failEntries = entries.filter((e) => !_generatedFiles.has(e.filePath!));
+    const _writeEntries = generateEntries.filter((e) => _generatedFiles.has(e.filePath!));
+    const _failEntries = generateEntries.filter((e) => !_generatedFiles.has(e.filePath!));
     _failEntries.forEach((e) => {
       logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
       stats.fail++;
@@ -456,7 +467,7 @@ export const main = async (args: string[]): Promise<void> => {
     await _phaseWrite(_writeEntries, _cache, _config, stats);
 
     logger.info(
-      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip}`,
+      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
@@ -474,6 +485,11 @@ if (import.meta.main) {
 // ─── Test exports (テスト専用・本番コードから import 禁止)
 export { _phaseTypeAndCategory as _phaseTypeAndCategoryForTest };
 export { _phaseFrontmatter as _phaseFrontmatterForTest };
+export { _phaseStatus as _phaseStatusForTest };
 export { _phaseReview as _phaseReviewForTest };
+export { _phaseWrite as _phaseWriteForTest };
 export { _hasFrontmatterFields as _hasFrontmatterFieldsForTest };
-export { _filterEntries as _filterEntriesForTest };
+export { _splitSkip as _splitSkipForTest };
+export { _splitWritten as _splitWrittenForTest };
+export { _filterReviewEntries as _filterReviewEntriesForTest };
+export { _filterWriteEntries as _filterWriteEntriesForTest };

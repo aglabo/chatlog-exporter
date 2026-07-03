@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-filter-entries.unit.spec.ts
-// @(#): _filterEntries 事前フィルタリングのユニットテスト
-//       対象: _filterEntriesForTest
+// src: scripts/__tests__/unit/setfm-split-skip.unit.spec.ts
+// @(#): _splitSkip エントリ分割のユニットテスト
+//       対象: _splitSkipForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,7 +14,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _filterEntriesForTest as filterEntries } from '../../set-frontmatter.ts';
+import { _splitSkipForTest as splitSkip } from '../../set-frontmatter.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -29,7 +29,7 @@ import type { SetfmCache } from '../../types/cache.types.ts';
 
 /** テスト用キャッシュディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
 const _UNIT_TEST_CACHE_DIR = normalizePath(
-  new URL('./fixtures-data/fm-cache-fe-unit', import.meta.url).pathname,
+  new URL('./fixtures-data/fm-cache-ss-unit', import.meta.url).pathname,
 );
 
 // functions
@@ -92,101 +92,102 @@ const _makeEntry = (filePath: string, fmLines: string[], body: string): ChatlogE
   return new ChatlogEntry(text, { filePath });
 };
 
-/** 全6フィールド充足エントリ: type/category/title/summary/topics[1]/tags[1] */
-const _makeFullEntry = (filePath: string): ChatlogEntry =>
-  _makeEntry(filePath, [
-    'type: research',
-    'category: development',
-    'title: Test Title',
-    'summary: Test summary text',
-    'topics:',
-    '  - typescript',
-    'tags:',
-    '  - lang:typescript',
-  ], '# Full entry body');
-
-/** フィールド不足エントリ: topics なし */
-const _makeMissingTopicsEntry = (filePath: string): ChatlogEntry =>
-  _makeEntry(filePath, [
-    'type: research',
-    'category: development',
-    'title: Test Title',
-    'summary: Test summary text',
-    'tags:',
-    '  - lang:typescript',
-  ], '# Missing topics body');
-
 // ─── Tests
 
-describe('_filterEntries', () => {
-  /**
-   * `_filterEntries` の skip/generate 分割ロジックを検証する。
-   *
-   * テスト ID 範囲: T-SF-FE-01 〜 T-SF-FE-05
-   *
-   * @see _filterEntriesForTest
-   */
-  describe('When: status 未設定（cache MISS）', () => {
-    it('[Normal] T-SF-FE-01-01: status 未設定エントリ → targetEntries に入る（skipEntries は空）', async () => {
-      const entry = _makeFullEntry('/path/to/full.md');
-      const cache = await _makeEmptyCache();
+/**
+ * `_splitSkip` の skip/target 分割ロジックを検証する。
+ *
+ * テスト ID 範囲: T-SF-SS-01 〜 T-SF-SS-05
+ *
+ * @see _splitSkipForTest
+ */
+describe('_splitSkip', () => {
+  describe('When: 正常系', () => {
+    it('[Normal] T-SF-SS-01: status=reviewed（全フィールド充足）→ skipEntries に入る（targetEntries は空）', async () => {
+      const filePath = '/path/to/reviewed-full.md';
+      const entry = _makeEntry(filePath, [
+        'type: research',
+        'category: development',
+        'title: Test Title',
+        'summary: Test summary text',
+        'topics:',
+        '  - typescript',
+        'tags:',
+        '  - lang:typescript',
+      ], '# Full entry body');
 
-      const { skipEntries, targetEntries } = filterEntries([entry], cache);
-
-      assertEquals(skipEntries.length, 0);
-      assertEquals(targetEntries.length, 1);
-    });
-  });
-
-  describe('When: status=reviewed キャッシュあり', () => {
-    it('[Normal] T-SF-FE-02-01: status=reviewed キャッシュ → skipEntries に入る', async () => {
-      const filePath = '/path/to/reviewed.md';
-      const entry = _makeMissingTopicsEntry(filePath);
       const cache = await _makeCacheWithHit(filePath, { status: 'reviewed' });
 
-      const { skipEntries, targetEntries } = filterEntries([entry], cache);
+      const { skipEntries, targetEntries } = splitSkip([entry], cache);
 
       assertEquals(skipEntries.length, 1);
       assertEquals(targetEntries.length, 0);
     });
-  });
 
-  describe('When: フィールド不足（cache MISS）', () => {
-    it('[Normal] T-SF-FE-03-01: フィールド不足エントリ（cache miss）→ targetEntries に入る', async () => {
-      const entry = _makeMissingTopicsEntry('/path/to/incomplete.md');
+    it('[Normal] T-SF-SS-03: cache miss（フィールド不足）→ targetEntries に入る', async () => {
+      const entry = _makeEntry('/path/to/incomplete.md', [
+        'type: research',
+        'category: development',
+        'title: Test Title',
+        'summary: Test summary text',
+        'tags:',
+        '  - lang:typescript',
+      ], '# Missing topics body');
       const cache = await _makeEmptyCache();
 
-      const { skipEntries, targetEntries } = filterEntries([entry], cache);
+      const { skipEntries, targetEntries } = splitSkip([entry], cache);
 
       assertEquals(skipEntries.length, 0);
       assertEquals(targetEntries.length, 1);
     });
   });
 
-  describe('When: 空配列入力（境界値）', () => {
-    it('[Edge] T-SF-FE-04-01: 空配列 entries → skipEntries も targetEntries も空', async () => {
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-SS-06: status=review-failed → targetEntries に入る（skipEntries は空）', async () => {
+      const filePath = '/path/to/review-failed.md';
+      const entry = _makeEntry(filePath, ['title: Review Failed'], '# body');
+      const cache = await _makeCacheWithHit(filePath, { status: 'review-failed' });
+
+      const { skipEntries, targetEntries } = splitSkip([entry], cache);
+
+      assertEquals(skipEntries.length, 0);
+      assertEquals(targetEntries.length, 1);
+    });
+
+    it('[Edge] T-SF-SS-04: 空配列 entries → skipEntries も targetEntries も空', async () => {
       const cache = await _makeEmptyCache();
 
-      const { skipEntries, targetEntries } = filterEntries([], cache);
+      const { skipEntries, targetEntries } = splitSkip([], cache);
 
       assertEquals(skipEntries.length, 0);
       assertEquals(targetEntries.length, 0);
     });
-  });
 
-  describe('When: skip と target の混在', () => {
-    it('[Edge] T-SF-FE-05-01: reviewed 済みと未レビューの混在 → 正しく分割', async () => {
-      const reviewedFilePath = '/path/to/reviewed.md';
-      const reviewedEntry = _makeFullEntry(reviewedFilePath);
-      const incompleteEntry = _makeMissingTopicsEntry('/path/to/incomplete.md');
-      const cache = await _makeCacheWithHit(reviewedFilePath, { status: 'reviewed' });
+    it('[Edge] T-SF-SS-05: skip（status=reviewed）と target（cache miss）の混在 → 正しく分割', async () => {
+      const reviewedPath = '/path/to/reviewed.md';
+      const missPath = '/path/to/incomplete.md';
+      const reviewedEntry = _makeEntry(reviewedPath, ['title: Reviewed'], '# Reviewed body');
+      const missEntry = _makeEntry(missPath, ['title: Incomplete'], '# Incomplete body');
 
-      const { skipEntries, targetEntries } = filterEntries([reviewedEntry, incompleteEntry], cache);
+      const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
+        cache: {
+          writeTextFile: () => Promise.resolve(),
+          mkdir: () => Promise.resolve(),
+          readTextFile: (path: string) => {
+            if (path.includes('reviewed')) { return Promise.resolve(JSON.stringify({ status: 'reviewed' })); }
+            return Promise.reject(new Error('not found'));
+          },
+          glob: (_pattern: string) => Promise.resolve([reviewedPath]),
+        },
+      });
+      await cache.ready;
+
+      const { skipEntries, targetEntries } = splitSkip([reviewedEntry, missEntry], cache);
 
       assertEquals(skipEntries.length, 1);
       assertEquals(targetEntries.length, 1);
-      assertEquals(skipEntries[0].filePath, reviewedFilePath);
-      assertEquals(targetEntries[0].filePath, '/path/to/incomplete.md');
+      assertEquals(skipEntries[0].filePath, reviewedPath);
+      assertEquals(targetEntries[0].filePath, missPath);
     });
   });
 });

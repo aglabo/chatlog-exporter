@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/setfm-phase-frontmatter.unit.spec.ts
+// src: scripts/__tests__/functional/setfm-phase-frontmatter.functional.spec.ts
 // @(#): _phaseFrontmatter フィールド充足チェックのユニットテスト
 //       対象: _phaseFrontmatterForTest (_hasFrontmatterFields 経由の分岐動作)
 //
@@ -232,6 +232,40 @@ const _makeGenerateStub =
     return Promise.resolve(true);
   };
 
+/**
+ * generateProvider スタブ。全6フィールド（type/category/title/summary/topics/tags）をセットして true を返す。
+ * T-SF-PF-12 で「生成成功＋全フィールド充足」ケースに使用する。
+ *
+ * @param counter - `{ count: number }` オブジェクト（参照渡しでカウントを外部から観察する）
+ * @returns generateProvider 互換の非同期関数
+ */
+const _makeFullGenerateStub =
+  (counter: { count: number }) => (e: ChatlogEntry, _max: number, _dics: Dics, _prompts: Prompts): Promise<boolean> => {
+    counter.count++;
+    e.frontmatter.set('type', 'research');
+    e.frontmatter.set('category', 'development');
+    e.frontmatter.set('title', 'Generated Title');
+    e.frontmatter.set('summary', 'Generated summary text');
+    e.frontmatter.set('topics', ['typescript']);
+    e.frontmatter.set('tags', ['lang:typescript']);
+    return Promise.resolve(true);
+  };
+
+/**
+ * generateProvider スタブ。何もセットせずに false を返す（生成失敗シミュレーション）。
+ *
+ * @returns generateProvider 互換の非同期関数
+ */
+const _makeFailGenerateStub = (_counter: { count: number }) =>
+(
+  _e: ChatlogEntry,
+  _max: number,
+  _dics: Dics,
+  _prompts: Prompts,
+): Promise<boolean> => {
+  return Promise.resolve(false);
+};
+
 // ─── Tests
 
 /**
@@ -442,6 +476,194 @@ describe('_phaseFrontmatter', () => {
       );
 
       assertEquals(counter.count, 1);
+    });
+  });
+
+  /**
+   * review-failed 除外テスト (T-SF-PF-14)。
+   *
+   * `status: 'review-failed'` のキャッシュヒットエントリは `_hits` から除外され、
+   * `_needsGenerate` パスに流れて generateProvider が呼ばれることを検証する。
+   */
+  describe('review-failed 除外', () => {
+    describe('When: キャッシュヒットだが status=review-failed', () => {
+      it('[Error] T-SF-PF-14-01: status=review-failed + frontmatter あり → generateProvider が1回呼ばれる', async () => {
+        const filePath = '/path/to/review-failed.md';
+        const cache = await _makeEmptyCache();
+        await cache.write(filePath, {
+          frontmatter: {
+            type: 'research',
+            category: 'development',
+            title: 'Failed Title',
+            summary: 'Failed summary',
+            topics: ['typescript'],
+            tags: ['lang:typescript'],
+          },
+          status: 'review-failed',
+        });
+
+        const entry = _makeEntry(filePath, [], '# body');
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeGenerateStub(counter),
+        );
+
+        assertEquals(counter.count, 1);
+      });
+    });
+  });
+
+  /**
+   * NEED_REVIEW ステータス書き込みテスト (T-SF-PF-10〜13)。
+   *
+   * `_phaseFrontmatter` の 3 パス（キャッシュヒット / _alreadyFilled / _needsGenerate）で
+   * 全フィールド充足時に `status: 'need-review'` が書き込まれることを検証する。
+   */
+  describe('NEED_REVIEW ステータス書き込み', () => {
+    /** キャッシュヒットパス (_hits) の NEED_REVIEW 書き込み */
+    describe('When: キャッシュヒット', () => {
+      it('[Normal] T-SF-PF-10-01: キャッシュヒット＋全フィールド充足 → status = need-review', async () => {
+        const filePath = '/path/to/cached-full.md';
+        const cache = await _makeEmptyCache();
+        await cache.write(filePath, {
+          frontmatter: {
+            type: 'research',
+            category: 'development',
+            title: 'Cached Title',
+            summary: 'Cached summary',
+            topics: ['typescript'],
+            tags: ['lang:typescript'],
+          },
+        });
+
+        const entry = _makeEntry(filePath, [], '# body');
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeGenerateStub(counter),
+        );
+
+        assertEquals(cache.read(filePath).status, 'need-review');
+      });
+
+      it('[Edge] T-SF-PF-10-02: キャッシュヒット＋フィールド不足 → status が need-review でない', async () => {
+        const filePath = '/path/to/cached-partial.md';
+        const cache = await _makeEmptyCache();
+        await cache.write(filePath, {
+          frontmatter: { type: 'research', category: 'development' },
+        });
+
+        const entry = _makeMissingTopicsEntry(filePath);
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeGenerateStub(counter),
+        );
+
+        const status = cache.read(filePath).status;
+        assertEquals(status !== 'need-review', true);
+      });
+    });
+
+    /** _alreadyFilled パス (キャッシュミス＋全フィールド充足) の NEED_REVIEW 書き込み */
+    describe('When: 既充足エントリ（キャッシュミス）', () => {
+      it('[Normal] T-SF-PF-11-01: 既充足エントリ（キャッシュミス）→ status = need-review', async () => {
+        const filePath = '/path/to/already-full.md';
+        const entry = _makeFullEntry(filePath);
+        const cache = await _makeEmptyCache();
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeGenerateStub(counter),
+        );
+
+        assertEquals(cache.read(filePath).status, 'need-review');
+      });
+    });
+
+    /** _needsGenerate パス (新規生成) の NEED_REVIEW 書き込み */
+    describe('When: 新規生成', () => {
+      it('[Normal] T-SF-PF-12-01: 新規生成成功＋全フィールド充足 → status = need-review', async () => {
+        const filePath = '/path/to/new-full.md';
+        const entry = _makeMissingTopicsEntry(filePath);
+        const cache = await _makeEmptyCache();
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeFullGenerateStub(counter),
+        );
+
+        assertEquals(cache.read(filePath).status, 'need-review');
+      });
+
+      it('[Error] T-SF-PF-13-01: 生成失敗 (_ok=false) → status が need-review でない', async () => {
+        const filePath = '/path/to/fail-gen.md';
+        const entry = _makeMissingTopicsEntry(filePath);
+        const cache = await _makeEmptyCache();
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeFailGenerateStub(counter),
+        );
+
+        assertEquals(cache.read(filePath).status !== 'need-review', true);
+      });
+
+      it('[Edge] T-SF-PF-13-02: 生成成功だがフィールド不足 → status が need-review でない', async () => {
+        const filePath = '/path/to/partial-gen.md';
+        const entry = _makeMissingTopicsEntry(filePath);
+        const cache = await _makeEmptyCache();
+        const counter = { count: 0 };
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _DICS,
+          _PROMPTS,
+          _CONCURRENCY,
+          _makeGenerateStub(counter),
+        );
+
+        assertEquals(cache.read(filePath).status !== 'need-review', true);
+      });
     });
   });
 });
