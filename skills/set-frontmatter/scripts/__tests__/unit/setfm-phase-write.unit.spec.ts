@@ -1,6 +1,6 @@
 // src: scripts/__tests__/unit/setfm-phase-write.unit.spec.ts
-// @(#): _phaseWrite および _filterWriteEntries のユニットテスト
-//       対象: _phaseWriteForTest, _filterWriteEntriesForTest
+// @(#): _phaseWrite のユニットテスト
+//       対象: _phaseWriteForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,19 +10,19 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { assertEquals, assertStringIncludes } from '@std/assert';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import {
-  _filterWriteEntriesForTest as filterWriteEntries,
-  _phaseWriteForTest as phaseWrite,
-} from '../../set-frontmatter.ts';
+import { _phaseWriteForTest as phaseWrite } from '../../set-frontmatter.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+
 import type { SetfmCache } from '../../types/cache.types.ts';
 import type { Stats } from '../../types/phase.types.ts';
 
@@ -34,7 +34,6 @@ type _WriteProvider = (
   cache: ChatlogWorks<SetfmCache>,
   outputDir: string,
   inputDir: string,
-  dryRun: boolean,
 ) => Promise<boolean>;
 
 // functions
@@ -92,7 +91,6 @@ const _makeWriteStub = (): { stub: _WriteProvider; getCount: () => number } => {
     _cache: ChatlogWorks<SetfmCache>,
     _outputDir: string,
     _inputDir: string,
-    _dryRun: boolean,
   ): Promise<boolean> => {
     _count++;
     return Promise.resolve(true);
@@ -114,7 +112,6 @@ const _makeWriteStubWithFails = (failCount: number): { stub: _WriteProvider } =>
     _cache: ChatlogWorks<SetfmCache>,
     _outputDir: string,
     _inputDir: string,
-    _dryRun: boolean,
   ): Promise<boolean> => {
     _callCount++;
     return Promise.resolve(_callCount > failCount);
@@ -124,6 +121,27 @@ const _makeWriteStubWithFails = (failCount: number): { stub: _WriteProvider } =>
 
 /** テスト用デフォルト Stats オブジェクト。 */
 const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0, written: 0 });
+
+/**
+ * 6フィールドを持つキャッシュエントリを書き込んだキャッシュを返す。
+ *
+ * @param filePath - キャッシュのキー（エントリのファイルパス）
+ * @returns 指定パスに6フィールドが書き込まれた `ChatlogWorks<SetfmCache>` インスタンス
+ */
+const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogWorks<SetfmCache>> => {
+  const cache = await _makeCache();
+  await cache.write(filePath, {
+    type: 'tech',
+    category: 'backend',
+    frontmatter: {
+      title: 'Test Title',
+      summary: 'Test summary.',
+      topics: ['topic-a'],
+      tags: ['tag1'],
+    },
+  });
+  return cache;
+};
 
 // ─── Tests
 
@@ -239,82 +257,122 @@ describe('_phaseWrite', () => {
     assertEquals(stats.success, 0);
     assertEquals(stats.fail, 0);
   });
-});
 
-/**
- * `_filterWriteEntries` のユニットテストスイート。
- *
- * `reviewOnly=false` のとき reviewed と need-review を返し、
- * `reviewOnly=true` のとき reviewed のみを返すことを検証する。
- * written および status 未設定のエントリは常に除外される。
- *
- * テスト ID 範囲: T-SF-FW-01 〜 T-SF-FW-04
- *
- * @see _filterWriteEntriesForTest
- */
-describe('_filterWriteEntries', () => {
-  /** 正常系: reviewOnly=false では reviewed と need-review が両方含まれる。 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-SF-FW-01-01: reviewOnly=false, mixed statuses → need-review のみ', async () => {
-      const yaml = 'a:\n  status: reviewed\nb:\n  status: need-review\nc:\n  status: written\n';
-      const cache = await _makeCache(yaml);
-      const entries = [
-        _makeEntry('/path/to/a.md'),
-        _makeEntry('/path/to/b.md'),
-        _makeEntry('/path/to/c.md'),
-      ];
+  /** dryRun=true: writeProvider は呼ばれない。 */
+  it('[Normal] T-SF-PW-06-01: dryRun=true → writeProvider は呼ばれない', async () => {
+    const filePath = '/path/to/a.md';
+    const cache = await _makeCacheWithEntry(filePath);
+    const { stub: writeStub, getCount } = _makeWriteStub();
+    const entries = [_makeEntry(filePath)];
 
-      const result = filterWriteEntries(entries, cache, false);
+    await phaseWrite(
+      entries,
+      cache,
+      { outputDir: '/out', inputDir: '/in', dryRun: true },
+      _makeStats(),
+      writeStub,
+    );
 
-      assertEquals(result.length, 1);
-      assertEquals(result.map((e) => e.filePath), ['/path/to/b.md']);
-    });
-
-    it('[Normal] T-SF-FW-02-01: reviewOnly=true, mixed statuses → reviewed のみ', async () => {
-      const yaml = 'a:\n  status: reviewed\nb:\n  status: need-review\nc:\n  status: reviewed\n';
-      const cache = await _makeCache(yaml);
-      const entries = [
-        _makeEntry('/path/to/a.md'),
-        _makeEntry('/path/to/b.md'),
-        _makeEntry('/path/to/c.md'),
-      ];
-
-      const result = filterWriteEntries(entries, cache, true);
-
-      assertEquals(result.length, 2);
-      assertEquals(result.map((e) => e.filePath), ['/path/to/a.md', '/path/to/c.md']);
-    });
+    assertEquals(getCount(), 0);
   });
 
-  /** エッジケース: written および status 未設定のエントリは除外される。 */
-  describe('When: エッジケース', () => {
-    it('[Edge] T-SF-FW-03-01: status=written → 除外される、status=reviewed も除外される (reviewOnly=false)', async () => {
-      const yaml = 'a:\n  status: written\nb:\n  status: reviewed\nc:\n  status: need-review\n';
-      const cache = await _makeCache(yaml);
-      const entries = [
-        _makeEntry('/path/to/a.md'),
-        _makeEntry('/path/to/b.md'),
-        _makeEntry('/path/to/c.md'),
-      ];
+  /** dryRun=true: stats.skip がインクリメントされる。 */
+  it('[Normal] T-SF-PW-06-02: dryRun=true → stats.skip === entries.length', async () => {
+    const paths = ['/path/to/a.md', '/path/to/b.md'];
+    const buf = new Map<string, string>();
+    const cache = new ChatlogWorks<SetfmCache>(
+      'fm-cache',
+      '/fake/cache',
+      undefined,
+      {
+        cache: {
+          readTextFile: (path) => {
+            const data = buf.get(path);
+            return data !== undefined ? Promise.resolve(data) : Promise.reject(new Error('not found'));
+          },
+          writeTextFile: (path, data) => {
+            buf.set(path, data);
+            return Promise.resolve();
+          },
+          mkdir: () => Promise.resolve(),
+        },
+      },
+    );
+    await cache.ready;
+    await Promise.all(
+      paths.map((p) =>
+        cache.write(p, {
+          type: 'tech',
+          category: 'backend',
+          frontmatter: { title: 'T', summary: 'S', topics: ['t'], tags: ['x'] },
+        })
+      ),
+    );
+    const { stub: writeStub } = _makeWriteStub();
+    const entries = paths.map(_makeEntry);
+    const stats = _makeStats();
 
-      const result = filterWriteEntries(entries, cache, false);
+    await phaseWrite(
+      entries,
+      cache,
+      { outputDir: '/out', inputDir: '/in', dryRun: true },
+      stats,
+      writeStub,
+    );
 
-      assertEquals(result.length, 1);
-      assertEquals(result[0].filePath, '/path/to/c.md');
+    assertEquals(stats.skip, 2);
+    assertEquals(stats.fail, 0);
+  });
+
+  /** dryRun=true かつキャッシュが空: stats.skip がインクリメントされる（fail は増えない）。 */
+  it('[Edge] T-SF-PW-06-03: dryRun=true, キャッシュ空 → stats.skip++ (fail は増えない)', async () => {
+    const cache = await _makeCache();
+    const { stub: writeStub } = _makeWriteStub();
+    const entries = [_makeEntry('/path/to/a.md')];
+    const stats = _makeStats();
+
+    await phaseWrite(
+      entries,
+      cache,
+      { outputDir: '/out', inputDir: '/in', dryRun: true },
+      stats,
+      writeStub,
+    );
+
+    assertEquals(stats.skip, 1);
+    assertEquals(stats.fail, 0);
+  });
+
+  /** dryRun=true: [dry-run] ログに type/category/ファイル名が含まれる。 */
+  describe('When: dryRun ログ出力', () => {
+    let loggerStub: LoggerStub;
+
+    beforeEach(() => {
+      loggerStub = makeLoggerStub();
     });
 
-    it('[Edge] T-SF-FW-04-01: status=undefined → 除外される', async () => {
-      const yaml = 'a:\n  type: chat\nb:\n  status: need-review\n';
-      const cache = await _makeCache(yaml);
-      const entries = [
-        _makeEntry('/path/to/a.md'),
-        _makeEntry('/path/to/b.md'),
-      ];
+    afterEach(() => {
+      loggerStub.restore();
+    });
 
-      const result = filterWriteEntries(entries, cache, false);
+    it('[Normal] T-SF-PW-06-04: dryRun=true → logger.info に type/category/filename が含まれる', async () => {
+      const filePath = '/path/to/a.md';
+      const cache = await _makeCacheWithEntry(filePath);
+      const { stub: writeStub } = _makeWriteStub();
+      const entries = [_makeEntry(filePath)];
 
-      assertEquals(result.length, 1);
-      assertEquals(result[0].filePath, '/path/to/b.md');
+      await phaseWrite(
+        entries,
+        cache,
+        { outputDir: '/out', inputDir: '/in', dryRun: true },
+        _makeStats(),
+        writeStub,
+      );
+
+      const dryRunLine = loggerStub.infoLogs.find((msg) => msg.includes('[dry-run]'));
+      assertStringIncludes(dryRunLine ?? '', 'tech');
+      assertStringIncludes(dryRunLine ?? '', 'backend');
+      assertStringIncludes(dryRunLine ?? '', 'a.md');
     });
   });
 });
