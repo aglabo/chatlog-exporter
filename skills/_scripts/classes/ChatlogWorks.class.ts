@@ -12,9 +12,13 @@ import { expandGlob } from '@std/fs';
 import { parse as parseYaml } from '@std/yaml';
 // libs
 import { findFilesFlat } from '../libs/file-ops/find-files.ts';
+import { logger } from '../libs/io/logger.ts';
 import { getBasename, isAbsolutePath, joinPath, normalizePath } from '../libs/path-utils/path-utils.ts';
+import { hasFrontmatter, parseFrontmatter } from '../libs/text/frontmatter-utils.ts';
 // classes
 import { GlobalConfig } from './GlobalConfig.class.ts';
+// constants
+import { CACHE_STATUSES } from '../types/cache-status.const.types.ts';
 // types
 import type {
   EnvProvider,
@@ -56,6 +60,8 @@ export interface ChatlogWorksProviders {
 export interface ChatlogWorksInitializer {
   /** YAML 文字列でキャッシュを初期化する場合に指定する。省略時はディレクトリから自動読み込み。 */
   yaml?: string;
+  /** 出力ディレクトリパス。`.md` ファイルを一覧して `hasFrontmatter` が true のファイルのみキャッシュに登録する。`yaml` が指定された場合は無視される。 */
+  outputDir?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -93,8 +99,8 @@ export class ChatlogWorks<T extends object> {
   constructor(
     subDir: string,
     cacheRoot = '',
-    providers?: ChatlogWorksProviders,
     initializer?: ChatlogWorksInitializer,
+    providers?: ChatlogWorksProviders,
   ) {
     this._initProviders(providers);
     this._hash = new Map<string, Partial<T>>();
@@ -130,6 +136,9 @@ export class ChatlogWorks<T extends object> {
     if (initializer?.yaml != null) {
       this.loadFromYaml(initializer.yaml);
     } else {
+      if (initializer?.outputDir != null) {
+        await this.initFromOutputDir(initializer.outputDir);
+      }
       await this.loadAll();
     }
   }
@@ -193,6 +202,38 @@ export class ChatlogWorks<T extends object> {
   }
 
   /**
+   * `outputDir` の `.md` ファイルを `isComplete(text)` で絞り込み、`meta + status: written` で初期化する。
+   *
+   * `findFilesFlat(outputDir)` でファイル一覧を取得し、テキストを読み込んで `isComplete` 述語が
+   * true のファイルのみ `parseFrontmatter` で解析した `meta` に `status: written` を加えて書き込む。
+   * 並列実行するため、glob の reject や writeFile / readTextFile の reject はそのまま伝播する。
+   *
+   * @param outputDir - `.md` ファイルを探索するディレクトリパス
+   * @param isComplete - テキストを受け取り書き込み対象か判定する述語（省略時は `hasFrontmatter`）
+   */
+  async initFromOutputDir(
+    outputDir: string,
+    isComplete: (text: string) => boolean = hasFrontmatter,
+  ): Promise<void> {
+    const _allFiles = await findFilesFlat(outputDir, { glob: this._glob });
+    const _targets = (
+      await Promise.all(
+        _allFiles.map(async (filePath) => {
+          const _text = await this._readTextFile(filePath);
+          if (!isComplete(_text)) { return null; }
+          const { meta } = parseFrontmatter(_text);
+          return { filePath, meta };
+        }),
+      )
+    ).filter((entry): entry is { filePath: string; meta: Record<string, unknown> } => entry !== null);
+    await Promise.all(
+      _targets.map(({ filePath, meta }) =>
+        this._writeFile(this._toHashKey(filePath), { ...meta, status: CACHE_STATUSES.WRITTEN } as unknown as Partial<T>)
+      ),
+    );
+  }
+
+  /**
    * `<cacheDir>/*.json` を全て読み込んで `_hash` を初期化する（1段のみ、再帰なし）。
    *
    * `findFilesFlat` で `.json` ファイル一覧を取得し、各ファイルを並列読み込みして格納する。
@@ -206,7 +247,9 @@ export class ChatlogWorks<T extends object> {
         try {
           const _text = await this._readTextFile(path);
           this._hash.set(getBasename(path), JSON.parse(_text) as Partial<T>);
-        } catch { /* スキップ */ }
+        } catch (e) {
+          logger.warn(`[ChatlogWorks] loadAll: skip ${path} — ${(e as Error).message}`);
+        }
       }),
     );
   }

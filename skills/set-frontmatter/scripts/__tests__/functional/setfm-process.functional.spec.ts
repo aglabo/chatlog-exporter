@@ -52,21 +52,21 @@ const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<Chat
   const cache = new ChatlogWorks<SetfmCache>(
     'fm-cache',
     '/fake/cache',
+    yaml != null ? { yaml } : undefined,
     {
       cache: {
-        readTextFile: (path) => {
+        readTextFile: (path: string) => {
           const data = buf.get(path);
           if (data === undefined) { return Promise.reject(new Error('not found')); }
           return Promise.resolve(data);
         },
-        writeTextFile: (path, data) => {
+        writeTextFile: (path: string, data: string) => {
           buf.set(path, data);
           return Promise.resolve();
         },
         mkdir: () => Promise.resolve(),
       },
     },
-    yaml != null ? { yaml } : undefined,
   );
   await cache.ready;
   return cache;

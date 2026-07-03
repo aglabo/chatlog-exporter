@@ -29,8 +29,11 @@ export const ENTRY_STATUSES = {
   MOVED: 'moved',
   REMOVED: 'removed',
   WRITTEN: 'written',
+  REVIEWED: 'reviewed',
   ERROR: 'error',
+  NEED_REVIEW: 'need-review',
+  EMPTY: '',
 } as const;
 
-/** `ENTRY_STATUSES` の値から派生したユニオン型。`'pre-skipped' | 'skipped' | 'kept' | 'moved' | 'removed' | 'written' | 'error'` と等価。 */
+/** `ENTRY_STATUSES` の値から派生したユニオン型。`'pre-skipped' | 'skipped' | 'kept' | 'moved' | 'removed' | 'written' | 'reviewed' | 'error'` と等価。 */
 export type EntryStatus = typeof ENTRY_STATUSES[keyof typeof ENTRY_STATUSES];

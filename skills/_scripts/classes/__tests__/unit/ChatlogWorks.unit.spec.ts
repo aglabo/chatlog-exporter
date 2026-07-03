@@ -6,18 +6,25 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
+// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-59
 
 // ─── BDD modules
-import { assertEquals, assertRejects, assertStrictEquals } from '@std/assert';
+import { assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { ChatlogWorks } from '../../ChatlogWorks.class.ts';
+// functions
+import { parseFrontmatter } from '../../../libs/text/frontmatter-utils.ts';
 
 // ─── Helpers
 // classes
 import { ChatlogError } from '../../ChatlogError.class.ts';
 import { GlobalConfig } from '../../GlobalConfig.class.ts';
+// functions
+import { makeLoggerStub } from '../../../__tests__/helpers/logger-stub.ts';
+// types
+import type { LoggerStub } from '../../../__tests__/helpers/logger-stub.ts';
 
 // ─── Internal Helpers
 
@@ -59,14 +66,27 @@ const _makeBufferProviders = (buf: Map<string, string> = new Map()) => ({
   mkdir: (_path: string, _opts?: { recursive?: boolean }): Promise<void> => Promise.resolve(),
 });
 
+/**
+ * `.md` パターンと `.json` パターンで異なるリストを返す glob プロバイダーを生成する。
+ *
+ * `loadAll()` は `*.json` パターンで呼ぶため、`mdList` と `jsonList` を分けることで
+ * コンストラクタの loadAll とテスト対象の initFromOutputDir 呼び出しを独立させる。
+ *
+ * @param mdList - `*.md` パターンで返すファイルパス一覧
+ * @param jsonList - `*.json` パターンで返すファイルパス一覧（loadAll 用）
+ * @returns GlobProvider
+ */
+const _makePatternGlob = (mdList: string[], jsonList: string[] = []) => (pattern: string): Promise<string[]> =>
+  pattern.endsWith('.md') ? Promise.resolve(mdList) : Promise.resolve(jsonList);
+
 // ─── Tests
 
 /**
  * `ChatlogWorks` クラスのユニットテストスイート。
  *
- * コンストラクタ・read・write メソッドの動作を検証する。
+ * コンストラクタ・read・write・initFromOutputDir メソッドの動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-36
+ * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-59
  *
  * @see ChatlogWorks
  */
@@ -85,8 +105,8 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Normal] T-CLS-CC-37: initializer に yaml を指定して new ChatlogWorks() がインスタンスを生成する', () => {
-        const _cache = new ChatlogWorks('test', '/tmp/test-cle-cache', { cache: _makeBufferProviders() }, {
-          yaml: 'key:\n  v: 1\n',
+        const _cache = new ChatlogWorks('test', '/tmp/test-cle-cache', { yaml: 'key:\n  v: 1\n' }, {
+          cache: _makeBufferProviders(),
         });
         assertEquals(_cache instanceof ChatlogWorks, true);
       });
@@ -95,14 +115,14 @@ describe('ChatlogWorks', () => {
     /** 環境変数が存在しない場合・mkdir 失敗のエラーケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-CLS-CC-04: TEMP が未設定のとき ready が ChatlogError(EnvVarNotSet) で reject される', async () => {
-        const _cache = new ChatlogWorks('set-frontmatter', '${TEMP}/cle-cache', { env: _noEnv });
+        const _cache = new ChatlogWorks('set-frontmatter', '${TEMP}/cle-cache', undefined, { env: _noEnv });
         const _err = await assertRejects(() => _cache.ready, ChatlogError);
         assertEquals(_err.kind, 'EnvVarNotSet');
       });
 
       it('[Error] T-CLS-CC-20: mkdir が失敗したとき ready が reject される', async () => {
         const _err = new Error('mkdir failed');
-        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -119,8 +139,8 @@ describe('ChatlogWorks', () => {
         const _cache = new ChatlogWorks<{ value: string; count: number }>(
           'test',
           '${TEMP}/cle-cache',
-          { env: _fakeEnv, cache: _makeBufferProviders() },
           { yaml: _FIXTURE_YAML },
+          { env: _fakeEnv, cache: _makeBufferProviders() },
         );
         await _cache.ready;
         assertEquals(_cache.read('chat-a'), { value: 'hello', count: 1 });
@@ -131,8 +151,8 @@ describe('ChatlogWorks', () => {
         const _cache = new ChatlogWorks<{ value: string }>(
           'test',
           '${TEMP}/cle-cache',
-          { env: _fakeEnv, cache: _makeBufferProviders() },
           { yaml: '' },
+          { env: _fakeEnv, cache: _makeBufferProviders() },
         );
         await _cache.ready;
         assertEquals(_cache.read('chat-a'), {});
@@ -143,7 +163,7 @@ describe('ChatlogWorks', () => {
     describe('When: ディレクトリ作成', () => {
       it('[Normal] T-CLS-CC-10: new ChatlogWorks() でキャッシュディレクトリが作成される', async () => {
         let _mkdirPath = '';
-        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks('sub', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -168,7 +188,7 @@ describe('ChatlogWorks', () => {
     describe('When: subDir が絶対パス', () => {
       it('[Normal] T-CLS-CC-18: subDir が絶対パスのとき cacheRoot を無視して subDir が _cacheDir になる', async () => {
         let _mkdirPath = '';
-        const _cache = new ChatlogWorks('/tmp/abs-subdir', '/tmp/ignored-root', {
+        const _cache = new ChatlogWorks('/tmp/abs-subdir', '/tmp/ignored-root', undefined, {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -183,7 +203,7 @@ describe('ChatlogWorks', () => {
 
       it('[Normal] T-CLS-CC-19: subDir に環境変数プレースホルダーを含み展開後が絶対パスのとき cacheRoot を無視する', async () => {
         let _mkdirPath = '';
-        const _cache = new ChatlogWorks('${TEMP}/abs-subdir', '/tmp/ignored-root', {
+        const _cache = new ChatlogWorks('${TEMP}/abs-subdir', '/tmp/ignored-root', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -216,7 +236,7 @@ describe('ChatlogWorks', () => {
       it('[Normal] T-CLS-CC-16: cacheRoot を省略すると GlobalConfig の cacheDir が使われる', async () => {
         await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
-        const _cache = new ChatlogWorks('sub', '', {
+        const _cache = new ChatlogWorks('sub', '', undefined, {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -232,7 +252,7 @@ describe('ChatlogWorks', () => {
       it('[Normal] T-CLS-CC-17: cacheRoot を明示指定すると GlobalConfig は無視される', async () => {
         await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
-        const _cache = new ChatlogWorks('sub', '/tmp/explicit-cache', {
+        const _cache = new ChatlogWorks('sub', '/tmp/explicit-cache', undefined, {
           cache: {
             ..._makeBufferProviders(),
             mkdir: (path: string, _opts?: { recursive?: boolean }): Promise<void> => {
@@ -259,7 +279,7 @@ describe('ChatlogWorks', () => {
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-02: write() した値を read() で取得できる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -270,7 +290,7 @@ describe('ChatlogWorks', () => {
 
       it('[Normal] T-CLS-CC-03: 同一ファイルを write() 2回すると2回目の値で上書きされる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ a?: string; b?: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ a?: string; b?: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -284,7 +304,7 @@ describe('ChatlogWorks', () => {
         let _readCount = 0;
         const _buf = new Map<string, string>();
         const _baseProv = _makeBufferProviders(_buf);
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._baseProv,
@@ -302,7 +322,7 @@ describe('ChatlogWorks', () => {
 
       it('[Normal] T-CLS-CC-06: 拡張子なしのキーで write() した値を拡張子なしの read() でも取得できる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -315,7 +335,7 @@ describe('ChatlogWorks', () => {
         const _buf = new Map<string, string>([
           ['/tmp/test-cle-cache/cle-cache/test/chat.json', JSON.stringify({ value: 'from-disk' })],
         ]);
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -330,7 +350,7 @@ describe('ChatlogWorks', () => {
         ]);
         const _baseProv = _makeBufferProviders(_buf);
         let _readCount = 0;
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._baseProv,
@@ -357,7 +377,7 @@ describe('ChatlogWorks', () => {
     /** ファイルが存在しない（未 write）の場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-05: 未 write のキーを read() すると {} を返す', async () => {
-        const _cache = new ChatlogWorks<{ key: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ key: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -367,7 +387,7 @@ describe('ChatlogWorks', () => {
 
       it('[Edge] T-CLS-CC-07: 拡張子あり/なしは同一キーとして扱われる', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -378,7 +398,7 @@ describe('ChatlogWorks', () => {
 
       it('[Edge] T-CLS-CC-08: 異なるファイルは独立して保持され値が混在しない', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -390,7 +410,7 @@ describe('ChatlogWorks', () => {
 
       it('[Edge] T-CLS-CC-09: write() は <cacheDir>/<key>.json にデータを書き込む', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ x: number }>('sub', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ x: number }>('sub', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -406,7 +426,7 @@ describe('ChatlogWorks', () => {
         const _buf = new Map<string, string>([
           ['/tmp/test-cle-cache/cle-cache/test/chat.json', 'invalid json {{{'],
         ]);
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
@@ -420,7 +440,7 @@ describe('ChatlogWorks', () => {
 
       it('[Error] T-CLS-CC-26: writeTextFile が失敗したとき write() が reject される', async () => {
         const _writeErr = new Error('disk full');
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -435,7 +455,7 @@ describe('ChatlogWorks', () => {
         const _buf = new Map<string, string>([
           ['/tmp/test-cle-cache/cle-cache/test/chat.json', 'invalid json {{{'],
         ]);
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
@@ -462,7 +482,7 @@ describe('ChatlogWorks', () => {
     /** YAML フィクスチャから _hash が正しく展開されるケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-11: YAML の各キーが _hash に展開され read() で取得できる', async () => {
-        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -473,7 +493,7 @@ describe('ChatlogWorks', () => {
 
       it('[Normal] T-CLS-CC-12: loadFromYaml() は既存の _hash を上書きする', async () => {
         const _buf = new Map<string, string>();
-        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string; count: number }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(_buf),
         });
@@ -486,7 +506,7 @@ describe('ChatlogWorks', () => {
     /** YAML が空・非オブジェクトの場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-13: 空 YAML を渡すと _hash は空のまま（未 read は {} を返す）', async () => {
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -495,7 +515,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Edge] T-CLS-CC-29: YAML が配列のとき _hash は空のまま', async () => {
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -504,7 +524,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Edge] T-CLS-CC-30: YAML がスカラー文字列のとき _hash は空のまま', async () => {
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -513,7 +533,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Edge] T-CLS-CC-32: YAML の value が null のとき {} として格納される', async () => {
-        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: _makeBufferProviders(),
         });
@@ -539,7 +559,7 @@ describe('ChatlogWorks', () => {
           ['/tmp/test-cle-cache/cle-cache/test/file-a.json', JSON.stringify({ type: 'A' })],
           ['/tmp/test-cle-cache/cle-cache/test/file-b.json', JSON.stringify({ type: 'B' })],
         ]);
-        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
@@ -554,12 +574,32 @@ describe('ChatlogWorks', () => {
         assertEquals(await _cache.read('file-a'), { type: 'A' });
         assertEquals(await _cache.read('file-b'), { type: 'B' });
       });
+
+      it('[Normal] T-CLS-CC-57: 全読み込み成功時は logger.warn が呼ばれない', async () => {
+        const _buf = new Map<string, string>([
+          ['/fake/file-ok.json', '{"type":"OK"}'],
+        ]);
+        const loggerStub: LoggerStub = makeLoggerStub();
+        try {
+          const _cache = new ChatlogWorks<{ type: string }>('test', '/fake', undefined, {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: (_pattern: string) => Promise.resolve(['/fake/file-ok.json']),
+            },
+          });
+          await _cache.ready;
+          assertEquals(_cache.read('file-ok'), { type: 'OK' });
+          assertEquals(loggerStub.warnLogs.length, 0);
+        } finally {
+          loggerStub.restore();
+        }
+      });
     });
 
     /** glob がファイルを返さない場合のケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-CLS-CC-15: glob が空リストを返すと _hash は空のまま', async () => {
-        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -571,7 +611,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Edge] T-CLS-CC-36: loadAll() は既存の _hash をクリアする（事前 loadFromYaml した値が消える）', async () => {
-        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(),
@@ -592,7 +632,7 @@ describe('ChatlogWorks', () => {
           ['/tmp/test-cle-cache/cle-cache/test/file-ok.json', JSON.stringify({ type: 'OK' })],
           ['/tmp/test-cle-cache/cle-cache/test/file-bad.json', 'invalid json {{{'],
         ]);
-        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', {
+        const _cache = new ChatlogWorks<{ type: string }>('test', '${TEMP}/cle-cache', undefined, {
           env: _fakeEnv,
           cache: {
             ..._makeBufferProviders(_buf),
@@ -606,6 +646,304 @@ describe('ChatlogWorks', () => {
         await _cache.loadAll();
         assertEquals(await _cache.read('file-ok'), { type: 'OK' });
         assertEquals(await _cache.read('file-bad'), {});
+      });
+
+      it('[Error] T-CLS-CC-58: readTextFile reject 時に logger.warn が呼ばれる', async () => {
+        const loggerStub: LoggerStub = makeLoggerStub();
+        try {
+          const _cache = new ChatlogWorks<{ type: string }>('test', '/fake', undefined, {
+            cache: {
+              ..._makeBufferProviders(),
+              readTextFile: (_path: string): Promise<string> =>
+                Promise.reject(new Deno.errors.NotFound('missing.json')),
+              glob: (_pattern: string) => Promise.resolve(['/fake/missing.json']),
+            },
+          });
+          await _cache.ready;
+          assertEquals(_cache.read('missing'), {});
+          assertEquals(loggerStub.warnLogs.length, 1);
+          assertStringIncludes(loggerStub.warnLogs[0], 'missing.json');
+          assertStringIncludes(loggerStub.warnLogs[0], 'skip');
+        } finally {
+          loggerStub.restore();
+        }
+      });
+
+      it('[Error] T-CLS-CC-59: JSON.parse 失敗時に logger.warn が呼ばれる', async () => {
+        const _buf = new Map<string, string>([
+          ['/fake/bad.json', 'invalid json {{{'],
+        ]);
+        const loggerStub: LoggerStub = makeLoggerStub();
+        try {
+          const _cache = new ChatlogWorks<{ type: string }>('test', '/fake', undefined, {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: (_pattern: string) => Promise.resolve(['/fake/bad.json']),
+            },
+          });
+          await _cache.ready;
+          assertEquals(_cache.read('bad'), {});
+          assertEquals(loggerStub.warnLogs.length, 1);
+          assertStringIncludes(loggerStub.warnLogs[0], 'bad.json');
+          assertStringIncludes(loggerStub.warnLogs[0], 'skip');
+        } finally {
+          loggerStub.restore();
+        }
+      });
+    });
+  });
+
+  /**
+   * `initFromOutputDir()` メソッドのテスト。
+   *
+   * outputDir の `.md` ファイルを `isComplete(text)` 述語でフィルタし、true のファイルのみ書き込むことを検証する。
+   * デフォルト述語は `hasFrontmatter`。glob プロバイダーは `.md` と `.json` パターンで返値を分岐させる。
+   *
+   * テスト ID 範囲: T-CLS-CC-43 〜 T-CLS-CC-56
+   */
+  describe('initFromOutputDir', () => {
+    /** outputDir の .md ファイルをフロントマターありのもののみ書き込むケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-CLS-CC-43: outputDir に .md 2件、キャッシュなし → meta+status:written が各ファイルに作成される', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/a.md', '---\ntitle: A\n---\nContent A\n'],
+          ['/out/b.md', '---\ntitle: B\n---\nContent B\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/a.md', '/out/b.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('a.md'), { title: 'A', status: 'written' });
+        assertEquals(_cache.read('b.md'), { title: 'B', status: 'written' });
+      });
+
+      it('[Normal] T-CLS-CC-52: .md にフロントマターあり → デフォルト述語 true → meta+status:written が書き込まれる', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/has-fm.md', '---\ntitle: Test\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/has-fm.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('has-fm.md'), { title: 'Test', status: 'written' });
+      });
+
+      it('[Normal] T-CLS-CC-55: カスタム述語 title 必須 → title 有ファイルのみ meta+status:written が書き込まれる', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/with-title.md', '---\ntitle: Hello\n---\n'],
+          ['/out/no-title.md', '---\ndate: 2026-01-01\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; date?: string; status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/with-title.md', '/out/no-title.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir(
+          '/out',
+          (text) => parseFrontmatter(text).meta['title'] !== undefined,
+        );
+        assertEquals(_cache.read('with-title.md'), { title: 'Hello', status: 'written' });
+        assertEquals(_cache.read('no-title.md'), {});
+      });
+
+      it('[Normal] T-CLS-CC-44: outputDir に .md 1件、フロントマターなし → isComplete false → 書き込まれない', async () => {
+        const _buf = new Map<string, string>([
+          ['/cache/sub/a.json', JSON.stringify({ status: 'kept' })],
+          ['/out/a.md', 'No frontmatter here.\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            // loadAll: *.json で a.json を返す。initFromOutputDir: *.md で a.md を返す。
+            glob: _makePatternGlob(['/out/a.md'], ['/cache/sub/a.json']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        // a.md はフロントマターなし → isComplete false → 上書きされない
+        assertEquals(_cache.read('a'), { status: 'kept' });
+      });
+    });
+
+    /** 境界条件と特殊入力の振る舞い。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-CLS-CC-51: .md にフロントマターなし → デフォルト述語 false → _hash に書き込まれない', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/no-fm.md', 'No frontmatter here.\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/no-fm.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('no-fm.md'), {});
+      });
+
+      it('[Edge] T-CLS-CC-53: 空フロントマター (---\\n---\\n) → meta: {} → 書き込まれない', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/empty-fm.md', '---\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/empty-fm.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('empty-fm.md'), {});
+      });
+
+      it('[Edge] T-CLS-CC-54: 不正 YAML フロントマター → parseFrontmatter は meta:{} を返す → 書き込まれない', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/bad-yaml.md', '---\nkey: [unclosed\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/bad-yaml.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('bad-yaml.md'), {});
+      });
+
+      it('[Edge] T-CLS-CC-46: glob が空リスト（outputDir が空）→ _hash 変更なし', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob([]),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('any'), {});
+      });
+
+      it('[Edge] T-CLS-CC-48: .md なし（.json のみ）→ _hash 変更なし', async () => {
+        // *.md パターンは [] を返すが *.json パターンでは json ファイルを返す（.md にはマッチしない）
+        const _buf = new Map<string, string>([
+          ['/cache/sub/existing.json', JSON.stringify({ status: 'kept' })],
+        ]);
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob([], ['/cache/sub/existing.json']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        // *.md が空なので新規書き込みは発生しない
+        assertEquals(_cache.read('any-new'), {});
+      });
+    });
+
+    /** ファイル操作失敗時の振る舞い。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-CLS-CC-49: glob が reject → initFromOutputDir が reject', async () => {
+        // *.md パターンで reject、*.json パターン（loadAll 用）は [] を返す
+        const _globErr = new Error('glob failed');
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(),
+            glob: (pattern: string): Promise<string[]> =>
+              pattern.endsWith('.md') ? Promise.reject(_globErr) : Promise.resolve([]),
+          },
+        });
+        await _cache.ready;
+        await assertRejects(() => _cache.initFromOutputDir('/out'));
+      });
+
+      it('[Error] T-CLS-CC-50: writeTextFile 失敗 → initFromOutputDir が reject', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/a.md', '---\ntitle: A\n---\n'],
+        ]);
+        const _writeErr = new Error('disk full');
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/a.md']),
+            writeTextFile: (_path: string, _data: string): Promise<void> => Promise.reject(_writeErr),
+          },
+        });
+        await _cache.ready;
+        await assertRejects(() => _cache.initFromOutputDir('/out'));
+      });
+
+      it('[Error] T-CLS-CC-56: readTextFile が reject → initFromOutputDir が reject', async () => {
+        const _readErr = new Error('read failed');
+        const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(),
+            glob: _makePatternGlob(['/out/a.md']),
+            readTextFile: (_path: string): Promise<string> => Promise.reject(_readErr),
+          },
+        });
+        await _cache.ready;
+        await assertRejects(() => _cache.initFromOutputDir('/out'));
+      });
+    });
+  });
+
+  /**
+   * `constructor` の `initializer.outputDir` 指定テスト。
+   *
+   * `_initCacheDir` の outputDir 分岐と yaml 優先度を検証する。
+   *
+   * テスト ID 範囲: T-CLS-CC-45, T-CLS-CC-47
+   */
+  describe('constructor outputDir', () => {
+    /** outputDir 指定時のコンストラクタ経由初期化ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-CLS-CC-45: initializer.outputDir 指定 → initFromOutputDir 後 loadAll が JSON を読み込み meta+status:written が反映される', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/a.md', '---\ntitle: A\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', { outputDir: '/out' }, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            // initFromOutputDir: *.md → a.md を返す。loadAll: *.json → 書き込まれた a.json を返す。
+            glob: _makePatternGlob(['/out/a.md'], ['/cache/sub/a.json']),
+          },
+        });
+        await _cache.ready;
+        assertEquals(_cache.read('a'), { title: 'A', status: 'written' });
+      });
+    });
+
+    /** yaml と outputDir 両方指定時の優先度ケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-CLS-CC-47: yaml と outputDir 両方指定 → yaml 優先、outputDir は処理されない', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ type?: string; status?: string }>('sub', '/cache', {
+          yaml: 'chat-a:\n  type: tech\n',
+          outputDir: '/out',
+        }, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/a.md']),
+          },
+        });
+        await _cache.ready;
+        // yaml ブランチに入るので outputDir は無視される
+        assertEquals(_cache.read('chat-a'), { type: 'tech' });
+        // a.md は initFromOutputDir が呼ばれないので status:written は設定されない
+        assertEquals(_cache.read('a'), {});
       });
     });
   });

@@ -9,6 +9,8 @@
 
 // cspell:words setfm
 
+import type { CacheStatus } from '../../../_scripts/types/cache-status.const.types.ts';
+
 /** フェーズ単位のキャッシュデータ。各フェーズ完了後に該当フィールドを追記する。 */
 export interface SetfmCache {
   /** Phase 2 (judgeType) で判定した type 値。 */
@@ -17,6 +19,6 @@ export interface SetfmCache {
   category?: string;
   /** Phase 3b (generateFrontmatter) で生成したフロントマターフィールド群。 */
   frontmatter?: Record<string, string | string[]>;
-  /** Phase 3.5 (reviewFrontmatter) でレビュー済みを示すフラグ。true のとき次回スキップ。 */
-  reviewed?: boolean;
+  /** Phase 4 (applyActions) で記録した処理結果ステータス。`'reviewed'` は Phase 3.5 合格後、`'review-failed'` は Phase 3.5 不合格後、`'written'` は Phase 4 書き込み成功後、`'need-review'` は要レビュー判定後にセットされる。 */
+  status?: CacheStatus;
 }

@@ -55,7 +55,7 @@ const _CONCURRENCY = 1;
  * @returns ready 完了済みの `ChatlogWorks<SetfmCache>` インスタンス
  */
 const _makeCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', {
+  const cache = new ChatlogWorks<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -310,7 +310,7 @@ describe('cache-hit fixtures', () => {
         );
 
         const cached = cache.read('/path/to/reviewed-miss.md');
-        assertEquals(cached.reviewed, true);
+        assertEquals(cached.status, 'reviewed');
         assertEquals(cached.frontmatter?.['topics'], correctedTopics);
         assertEquals(cached.frontmatter?.['tags'], correctedTags);
       });

@@ -1,6 +1,7 @@
 {
   "type": "coding",
   "category": "development",
+  "status": "reviewed",
   "frontmatter": {
     "title": "Reviewed Full Test",
     "date": "2026-06-30",
@@ -10,6 +11,5 @@
     "summary": "レビュー済み fixtures テスト用サンプル",
     "topics": ["development", "testing"],
     "tags": ["lang:typescript", "tool:deno"]
-  },
-  "reviewed": true
+  }
 }

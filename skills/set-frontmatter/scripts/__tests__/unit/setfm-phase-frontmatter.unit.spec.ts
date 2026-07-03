@@ -62,7 +62,7 @@ const _PROMPTS = {} as Prompts;
  * @returns キャッシュ空の `ChatlogWorks<SetfmCache>` インスタンス
  */
 const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', {
+  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
