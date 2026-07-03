@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
+import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers
@@ -35,7 +36,7 @@ const _ENTRY_PATH = '/some/dir/test-entry.md';
  * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
  */
 const _makeCache = async (buf: Map<string, string>, cacheRoot: string): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>('fm-cache', cacheRoot, {
+  const cache = new ChatlogWorks<SetfmCache>('fm-cache', cacheRoot, undefined, {
     cache: {
       readTextFile: (path) => {
         const data = buf.get(path);
@@ -121,6 +122,46 @@ describe('setfm-cache', () => {
       const result = await cache.read('/nonexistent/path.md');
 
       assertEquals(result, {});
+    });
+  });
+
+  /**
+   * status フィールドの書き込み・読み取りパターン。
+   *
+   * Phase 4 (applyActions) で記録するステータス値の保存と後方互換性を検証する。
+   */
+  describe('When: status フィールド', () => {
+    /** status:'written' を含むオブジェクトを write して read で返るケース。 */
+    describe('When: 正常系', () => {
+      it("[Normal] T-SF-CA-04-01: status:'written' を write → read で status フィールドが返る", async () => {
+        const cache = await _makeCache(buf, cacheRoot);
+
+        await cache.write(_ENTRY_PATH, { type: 'tech', status: CACHE_STATUSES.WRITTEN });
+        const result = await cache.read(_ENTRY_PATH);
+
+        assertEquals(result, { type: 'tech', status: 'written' });
+      });
+    });
+
+    /** status フィールドなしで write しても他フィールドが正常に返るケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-SF-CA-05-01: status フィールドなしで write → read でも他フィールドは正常', async () => {
+        const cache = await _makeCache(buf, cacheRoot);
+
+        await cache.write(_ENTRY_PATH, { type: 'tech', category: 'development' });
+        const result = await cache.read(_ENTRY_PATH);
+
+        assertEquals(result, { type: 'tech', category: 'development' });
+      });
+
+      it('[Edge] T-SF-CA-06-01: 既存キャッシュ（type あり）に status がない場合は undefined', async () => {
+        const cache = await _makeCache(buf, cacheRoot);
+
+        await cache.write(_ENTRY_PATH, { type: 'tech' });
+        const result = await cache.read(_ENTRY_PATH);
+
+        assertEquals(result.status, undefined);
+      });
     });
   });
 });
