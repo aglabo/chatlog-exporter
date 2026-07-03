@@ -44,7 +44,7 @@ const _UNIT_TEST_CACHE_DIR = normalizePath(
  * @returns キャッシュ空の `ChatlogWorks<SetfmCache>` インスタンス
  */
 const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', {
+  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -67,7 +67,7 @@ const _makeCacheWithHit = async (
   filePath: string,
   data: Partial<SetfmCache>,
 ): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', {
+  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -126,66 +126,67 @@ describe('_filterEntries', () => {
    *
    * @see _filterEntriesForTest
    */
-  describe('When: 全フィールド充足（cache MISS）', () => {
-    it('[Normal] T-SF-FE-01-01: 全フィールド充足エントリ → skipEntries に入る（generateEntries は空）', async () => {
+  describe('When: status 未設定（cache MISS）', () => {
+    it('[Normal] T-SF-FE-01-01: status 未設定エントリ → targetEntries に入る（skipEntries は空）', async () => {
       const entry = _makeFullEntry('/path/to/full.md');
       const cache = await _makeEmptyCache();
 
-      const { skipEntries, generateEntries } = filterEntries([entry], cache);
+      const { skipEntries, targetEntries } = filterEntries([entry], cache);
 
-      assertEquals(skipEntries.length, 1);
-      assertEquals(generateEntries.length, 0);
+      assertEquals(skipEntries.length, 0);
+      assertEquals(targetEntries.length, 1);
     });
   });
 
-  describe('When: reviewed=true キャッシュあり（フィールド不足）', () => {
-    it('[Normal] T-SF-FE-02-01: reviewed=true キャッシュ → skipEntries に入る（フィールド不足でも）', async () => {
+  describe('When: status=reviewed キャッシュあり', () => {
+    it('[Normal] T-SF-FE-02-01: status=reviewed キャッシュ → skipEntries に入る', async () => {
       const filePath = '/path/to/reviewed.md';
       const entry = _makeMissingTopicsEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { reviewed: true });
+      const cache = await _makeCacheWithHit(filePath, { status: 'reviewed' });
 
-      const { skipEntries, generateEntries } = filterEntries([entry], cache);
+      const { skipEntries, targetEntries } = filterEntries([entry], cache);
 
       assertEquals(skipEntries.length, 1);
-      assertEquals(generateEntries.length, 0);
+      assertEquals(targetEntries.length, 0);
     });
   });
 
   describe('When: フィールド不足（cache MISS）', () => {
-    it('[Normal] T-SF-FE-03-01: フィールド不足エントリ（cache miss）→ generateEntries に入る', async () => {
+    it('[Normal] T-SF-FE-03-01: フィールド不足エントリ（cache miss）→ targetEntries に入る', async () => {
       const entry = _makeMissingTopicsEntry('/path/to/incomplete.md');
       const cache = await _makeEmptyCache();
 
-      const { skipEntries, generateEntries } = filterEntries([entry], cache);
+      const { skipEntries, targetEntries } = filterEntries([entry], cache);
 
       assertEquals(skipEntries.length, 0);
-      assertEquals(generateEntries.length, 1);
+      assertEquals(targetEntries.length, 1);
     });
   });
 
   describe('When: 空配列入力（境界値）', () => {
-    it('[Edge] T-SF-FE-04-01: 空配列 entries → skipEntries も generateEntries も空', async () => {
+    it('[Edge] T-SF-FE-04-01: 空配列 entries → skipEntries も targetEntries も空', async () => {
       const cache = await _makeEmptyCache();
 
-      const { skipEntries, generateEntries } = filterEntries([], cache);
+      const { skipEntries, targetEntries } = filterEntries([], cache);
 
       assertEquals(skipEntries.length, 0);
-      assertEquals(generateEntries.length, 0);
+      assertEquals(targetEntries.length, 0);
     });
   });
 
-  describe('When: skip と generate の混在', () => {
-    it('[Edge] T-SF-FE-05-01: skip（充足済み）と generate（不足）の混在 → 正しく分割', async () => {
-      const fullEntry = _makeFullEntry('/path/to/full.md');
+  describe('When: skip と target の混在', () => {
+    it('[Edge] T-SF-FE-05-01: reviewed 済みと未レビューの混在 → 正しく分割', async () => {
+      const reviewedFilePath = '/path/to/reviewed.md';
+      const reviewedEntry = _makeFullEntry(reviewedFilePath);
       const incompleteEntry = _makeMissingTopicsEntry('/path/to/incomplete.md');
-      const cache = await _makeEmptyCache();
+      const cache = await _makeCacheWithHit(reviewedFilePath, { status: 'reviewed' });
 
-      const { skipEntries, generateEntries } = filterEntries([fullEntry, incompleteEntry], cache);
+      const { skipEntries, targetEntries } = filterEntries([reviewedEntry, incompleteEntry], cache);
 
       assertEquals(skipEntries.length, 1);
-      assertEquals(generateEntries.length, 1);
-      assertEquals(skipEntries[0].filePath, '/path/to/full.md');
-      assertEquals(generateEntries[0].filePath, '/path/to/incomplete.md');
+      assertEquals(targetEntries.length, 1);
+      assertEquals(skipEntries[0].filePath, reviewedFilePath);
+      assertEquals(targetEntries[0].filePath, '/path/to/incomplete.md');
     });
   });
 });
