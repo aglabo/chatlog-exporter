@@ -19,8 +19,9 @@ import { writeFrontmatter } from '../../modules/setfm-write.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
-import type { Stats } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../types/cache.types.ts';
 
 // ─── Internal Helpers
 
@@ -30,8 +31,34 @@ const _makeEntry = (md: string, filePath: string): ChatlogEntry => {
   return new ChatlogEntry(md, { filePath });
 };
 
-/** Stats の初期値を生成する */
-const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0 });
+/**
+ * テスト用 noop キャッシュを生成する。
+ *
+ * 一時ディレクトリを `subDir` に直接渡し、`GlobalConfig` の参照を回避する。
+ * write は実際にファイルを書かない（buf に保持する）。
+ *
+ * @param cacheDir - キャッシュ用一時ディレクトリ
+ * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ */
+const _makeNoopCache = async (cacheDir: string): Promise<ChatlogWorks<SetfmCache>> => {
+  const buf = new Map<string, string>();
+  const cache = new ChatlogWorks<SetfmCache>(cacheDir, '', undefined, {
+    cache: {
+      readTextFile: (path: string) => {
+        const data = buf.get(path);
+        if (data === undefined) { return Promise.reject(new Error('not found')); }
+        return Promise.resolve(data);
+      },
+      writeTextFile: (path: string, data: string) => {
+        buf.set(path, data);
+        return Promise.resolve();
+      },
+      mkdir: () => Promise.resolve(),
+    },
+  });
+  await cache.ready;
+  return cache;
+};
 
 // ─── Tests
 
@@ -42,9 +69,13 @@ const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0 });
  */
 describe('writeFrontmatter', () => {
   let tempFile: string;
+  let cacheDir: string;
+  let cache: ChatlogWorks<SetfmCache>;
 
   beforeEach(async () => {
     tempFile = await Deno.makeTempFile({ suffix: '.md' });
+    cacheDir = await Deno.makeTempDir();
+    cache = await _makeNoopCache(cacheDir);
   });
 
   afterEach(async () => {
@@ -54,6 +85,7 @@ describe('writeFrontmatter', () => {
     try {
       await Deno.remove(tempFile + '.tmp');
     } catch { /* ignore */ }
+    await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
   });
 
   // ─── T-01: dryRun=false でファイルが書き込まれる
@@ -69,48 +101,44 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('title', 'My Title');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('My Title'), true, 'title: "My Title" が出力ファイルに含まれていない');
       });
 
-      it('[Normal] T-SF-WR-01-02: stats.success が 1 増加する', async () => {
+      it('[Normal] T-SF-WR-01-02: 成功時に true を返す', async () => {
         const _md = '---\ntitle: "Old"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.success, 1);
+        assertEquals(_ok, true);
       });
 
-      it('[Normal] T-SF-WR-01-03: stats.fail は増加しない', async () => {
+      it('[Normal] T-SF-WR-01-03: 成功時に false を返さない', async () => {
         const _md = '---\ntitle: "Old"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 0);
+        assertEquals(_ok !== false, true);
       });
     });
 
-    /** title がないとき fail が増加するエラーケース */
+    /** title がないとき false が返るエラーケース */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-01-04: title なし → stats.fail が 1 増加する、ファイル書き込みは行われない', async () => {
+      it('[Error] T-SF-WR-01-04: title なし → false を返す、ファイル書き込みは行われない', async () => {
         const _original = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 1);
+        assertEquals(_ok, false);
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written, _original, 'ファイルが変更されている');
       });
@@ -124,9 +152,8 @@ describe('writeFrontmatter', () => {
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('title', 'A');
         _entry.frontmatter.set('summary', 'B');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('A'), true, 'title フィールドが含まれていない');
@@ -147,52 +174,47 @@ describe('writeFrontmatter', () => {
         const _original = '---\ntitle: "Original"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), true, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), true);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written, _original, 'dryRun=true でファイルが変更された');
       });
 
-      it('[Normal] T-SF-WR-02-02: dryRun=true → stats.success が 1 増加する', async () => {
+      it('[Normal] T-SF-WR-02-02: dryRun=true → true を返す', async () => {
         const _md = '---\ntitle: "Old"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), true, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), true);
 
-        assertEquals(_stats.success, 1);
+        assertEquals(_ok, true);
       });
     });
 
     /** dryRun=true でも title なしはエラー */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-02-03: dryRun=true, title なし → stats.fail が 1 増加する', async () => {
+      it('[Error] T-SF-WR-02-03: dryRun=true, title なし → false を返す', async () => {
         const _original = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), true, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), true);
 
-        assertEquals(_stats.fail, 1);
+        assertEquals(_ok, false);
       });
     });
 
-    /** dryRun=true でも stats.skip は増加しない */
+    /** dryRun=true → true を返す */
     describe('When: エッジケース', () => {
-      it('[Edge] T-SF-WR-02-04: dryRun=true → stats.skip は増加しない（stats.success が増加する）', async () => {
+      it('[Edge] T-SF-WR-02-04: dryRun=true, title あり → true を返す', async () => {
         const _md = '---\ntitle: "Old"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), true, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), true);
 
-        assertEquals(_stats.skip, 0);
-        assertEquals(_stats.success, 1);
+        assertEquals(_ok, true);
       });
     });
   });
@@ -221,9 +243,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('abc123'), true, 'session_id が含まれていない');
@@ -233,9 +254,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('2026-01-15'), true, 'date が含まれていない');
@@ -245,9 +265,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('myProject'), true, 'project が含まれていない');
@@ -257,9 +276,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('my-session'), true, 'slug が含まれていない');
@@ -272,9 +290,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('abc123'), true, 'session_id が含まれていない');
@@ -286,14 +303,13 @@ describe('writeFrontmatter', () => {
 
     /** title なしのとき既存フィールドは書き込まれない */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-03-06: title なし → 既存フィールドは書き込まれない（stats.fail が増加する）', async () => {
+      it('[Error] T-SF-WR-03-06: title なし → 既存フィールドは書き込まれない（false を返す）', async () => {
         await Deno.writeTextFile(tempFile, _baseMd);
         const _entry = _makeEntry(_baseMd, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 1);
+        assertEquals(_ok, false);
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written, _baseMd, 'ファイルが変更されている');
       });
@@ -314,9 +330,8 @@ describe('writeFrontmatter', () => {
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('type', 'refactoring');
         _entry.frontmatter.set('category', 'architecture');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('refactoring'), true, 'type: refactoring が含まれていない');
@@ -328,9 +343,8 @@ describe('writeFrontmatter', () => {
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('type', 'refactoring');
         _entry.frontmatter.set('category', 'architecture');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('architecture'), true, 'category: architecture が含まれていない');
@@ -339,17 +353,16 @@ describe('writeFrontmatter', () => {
 
     /** title なしのとき type/category は設定されない */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-04-04: title なし → type / category は設定されない（stats.fail が増加する）', async () => {
+      it('[Error] T-SF-WR-04-04: title なし → type / category は設定されない（false を返す）', async () => {
         const _original = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
         _entry.frontmatter.set('type', 'refactoring');
         _entry.frontmatter.set('category', 'architecture');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 1);
+        assertEquals(_ok, false);
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('refactoring'), false, 'type が設定されている');
         assertEquals(_written.includes('architecture'), false, 'category が設定されている');
@@ -357,49 +370,46 @@ describe('writeFrontmatter', () => {
     });
   });
 
-  // ─── T-05: title がないとき fail が増加しファイル書き込みが行われない
+  // ─── T-05: title がないとき false が返りファイル書き込みが行われない
 
   /**
-   * title がないとき stats.fail が増加しファイル書き込みが行われない
+   * title がないとき false が返りファイル書き込みが行われない
    */
   describe('When: entry.frontmatter に title がない', () => {
     /** title なしでエラーになるケース */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-05-01: title なし, dryRun=false → stats.fail が 1 増加する', async () => {
+      it('[Error] T-SF-WR-05-01: title なし, dryRun=false → false を返す', async () => {
         const _original = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 1);
+        assertEquals(_ok, false);
       });
 
       it('[Error] T-SF-WR-05-02: title なし, dryRun=false → ファイルへの書き込みは行われない', async () => {
         const _original = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _original);
         const _entry = _makeEntry(_original, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written, _original, 'ファイルが変更されている');
       });
     });
 
-    /** title がある場合は fail が増加しない正常ケース */
+    /** title がある場合は true が返る正常ケース */
     describe('When: 正常系', () => {
-      it('[Normal] T-SF-WR-05-03: title あり → stats.fail は増加しない', async () => {
+      it('[Normal] T-SF-WR-05-03: title あり → true を返す', async () => {
         const _md = '---\ntitle: "Old"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
-        assertEquals(_stats.fail, 0);
+        assertEquals(_ok, true);
       });
     });
   });
@@ -425,7 +435,7 @@ describe('writeFrontmatter', () => {
 
     /** outputDir 配下のサブディレクトリが自動作成される正常ケース */
     describe('When: 正常系', () => {
-      it('[Normal] T-SF-WR-06-01: outputDir 配下のサブディレクトリが自動作成されて stats.success が増加する', async () => {
+      it('[Normal] T-SF-WR-06-01: outputDir 配下のサブディレクトリが自動作成されて true が返る', async () => {
         const _subDir = `${tempInputDir}/sub`;
         await Deno.mkdir(_subDir);
         const _filePath = `${_subDir}/file.md`;
@@ -433,11 +443,10 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(_filePath, _md);
         const _entry = _makeEntry(_md, _filePath);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, tempOutputDir, tempInputDir, false, _stats);
+        const _ok = await writeFrontmatter(_entry, cache, tempOutputDir, tempInputDir, false);
 
-        assertEquals(_stats.success, 1);
+        assertEquals(_ok, true);
       });
 
       it('[Normal] T-SF-WR-06-02: outputDir 配下のサブディレクトリに出力ファイルが作成される', async () => {
@@ -448,9 +457,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(_filePath, _md);
         const _entry = _makeEntry(_md, _filePath);
         _entry.frontmatter.set('title', 'Test');
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, tempOutputDir, tempInputDir, false, _stats);
+        await writeFrontmatter(_entry, cache, tempOutputDir, tempInputDir, false);
 
         const _outputPath = `${tempOutputDir}/sub/file.md`;
         const _written = await Deno.readTextFile(_outputPath);
@@ -472,9 +480,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('tags', ['tag1', 'tag2', 'tag3']);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('tag1'), true, 'tag1 が含まれていない');
@@ -487,9 +494,8 @@ describe('writeFrontmatter', () => {
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('topics', ['topic-a', 'topic-b']);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('topic-a'), true, 'topic-a が含まれていない');
@@ -505,9 +511,8 @@ describe('writeFrontmatter', () => {
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('tags', ['tag1', 'tag2']);
         _entry.frontmatter.set('topics', ['topic-a', 'topic-b']);
-        const _stats = _makeStats();
 
-        await writeFrontmatter(_entry, dirname(tempFile), dirname(tempFile), false, _stats);
+        await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile), false);
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('tag1'), true, 'tag1 が含まれていない');
