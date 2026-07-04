@@ -85,13 +85,12 @@ const _makeEntry = (filePath: string, fmLines: string[], body: string): ChatlogE
   return new ChatlogEntry(text, { filePath });
 };
 
-/** 全フィールド充足エントリ（type/category/title/summary/topics/tags）。 */
+/** 全フィールド充足エントリ（type/category/title/topics/tags）。 */
 const _makeFullEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
