@@ -8,7 +8,7 @@
 #   ${tags_list}        — tags.dic から生成したtag一覧（カンマ区切り）
 #   ${result_type}      — 生成済みtype
 #   ${result_category}  — 生成済みcategory
-#   ${result_yaml}      — 生成済みYAML（title/summary/topics/tags）
+#   ${result_yaml}      — 生成済みYAML（title/topics/tags）
 
 system: |
   You are a strict frontmatter reviewer.
@@ -78,8 +78,6 @@ user: |
     type: string
     category: string
     title: string
-    summary: |
-      string
     topics:
       - string
     tags:
