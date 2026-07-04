@@ -269,7 +269,7 @@ describe('reviewFrontmatter', () => {
       assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
     });
 
-    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が throw → { validity: pass, errors: [] } を返す（フェイルセーフ）', async () => {
+    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → { validity: fail, errors: [YAML parse failed: ...] } を返す', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
           _enc.encode(
@@ -282,7 +282,9 @@ describe('reviewFrontmatter', () => {
       _entry.frontmatter.set('topics', ['original-topic']);
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
 
-      assertEquals(result, { validity: 'pass', errors: [] });
+      assertEquals(result.validity, 'fail');
+      assertEquals(result.errors.length > 0, true);
+      assertEquals(result.errors[0].startsWith('YAML parse failed:'), true);
       assertEquals(_entry.frontmatter.get('topics'), ['original-topic']);
     });
   });
