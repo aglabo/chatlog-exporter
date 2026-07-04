@@ -1,5 +1,5 @@
 // src: skills/_scripts/libs/__tests__/unit/frontmatter-utils.unit.spec.ts
-// @(#): frontmatter-utils ユニットテスト（parseFrontmatter / parseFrontmatterEntries / reorderFrontmatterEntries / divideEntry / renderFrontmatter / parseAiYaml）
+// @(#): frontmatter-utils ユニットテスト（parseFrontmatter / parseFrontmatterEntries / reorderFrontmatterEntries / divideEntry / renderFrontmatter / extractYaml）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -13,8 +13,8 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import {
   divideEntry,
+  extractYaml,
   hasFrontmatter,
-  parseAiYaml,
   parseFrontmatter,
   parseFrontmatterEntries,
   renderFrontmatter,
@@ -743,22 +743,22 @@ describe('hasFrontmatter', () => {
 // ─────────────────────────────────────────────
 
 /**
- * `parseAiYaml` のユニットテストスイート。
+ * `extractYaml` のユニットテストスイート。
  *
  * AI 出力の raw 文字列を YAML パースし Result 型で返す動作を検証する。
  *
  * テスト ID 範囲: T-FU-PAY-01 〜 T-FU-PAY-06
  *
- * @see parseAiYaml
+ * @see extractYaml
  */
-describe('parseAiYaml', () => {
+describe('extractYaml', () => {
   /**
    * 正常系: 有効な YAML を渡すと ok:true と value が返る。
    */
   describe('When: 正常系', () => {
     it('[Normal] T-FU-PAY-01: コードフェンスなし・有効 YAML → { ok: true, value: { title: "..." } }', () => {
       const _raw = 'title: "My Title"\ncategory: dev\n';
-      const _result = parseAiYaml(_raw, 'title');
+      const _result = extractYaml(_raw, 'title');
       assertEquals(_result.ok, true);
       if (_result.ok) {
         assertEquals(_result.value['title'], 'My Title');
@@ -767,7 +767,7 @@ describe('parseAiYaml', () => {
 
     it('[Normal] T-FU-PAY-02: コードフェンスあり（```yaml ... ```）・有効 YAML → { ok: true, value: ... }', () => {
       const _raw = '```yaml\ntitle: "Fenced"\ncategory: ai\n```';
-      const _result = parseAiYaml(_raw, 'title');
+      const _result = extractYaml(_raw, 'title');
       assertEquals(_result.ok, true);
       if (_result.ok) {
         assertEquals(_result.value['title'], 'Fenced');
@@ -780,7 +780,7 @@ describe('parseAiYaml', () => {
    */
   describe('When: 異常系', () => {
     it('[Error] T-FU-PAY-03: raw が空文字列 → cleanYaml が空を返す → { ok: false, error.message: "cleanYaml returned empty" }', () => {
-      const _result = parseAiYaml('', 'title');
+      const _result = extractYaml('', 'title');
       assertEquals(_result.ok, false);
       if (!_result.ok) {
         assertEquals(_result.error.message, 'cleanYaml returned empty');
@@ -789,7 +789,7 @@ describe('parseAiYaml', () => {
 
     it('[Error] T-FU-PAY-04: 構文エラー YAML → { ok: false, error が Error インスタンス }', () => {
       const _raw = 'title: test\n  invalid_indent: bad\n';
-      const _result = parseAiYaml(_raw, 'title');
+      const _result = extractYaml(_raw, 'title');
       assertEquals(_result.ok, false);
       if (!_result.ok) {
         assertEquals(_result.error instanceof Error, true);
@@ -798,7 +798,7 @@ describe('parseAiYaml', () => {
 
     it('[Error] T-FU-PAY-05: トップレベルが配列の YAML → { ok: false, error.message: "YAML top-level is not an object" }', () => {
       const _raw = '- item1\n- item2\n';
-      const _result = parseAiYaml(_raw, 'nonexistent');
+      const _result = extractYaml(_raw, 'nonexistent');
       assertEquals(_result.ok, false);
       if (!_result.ok) {
         assertEquals(_result.error.message, 'YAML top-level is not an object');
@@ -807,7 +807,7 @@ describe('parseAiYaml', () => {
 
     it('[Error] T-FU-PAY-06: トップレベルが null の YAML → { ok: false }', () => {
       const _raw = 'null\n';
-      const _result = parseAiYaml(_raw, 'nonexistent');
+      const _result = extractYaml(_raw, 'nonexistent');
       assertEquals(_result.ok, false);
     });
   });
