@@ -18,6 +18,7 @@ import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path
 import {
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_DICS_DIR,
+  DEFAULT_MAX_RETRY,
   DEFAULT_PROMPTS_DIR,
 } from '../../../_scripts/constants/defaults.constants.ts';
 // types
@@ -75,6 +76,7 @@ export const buildConfig = (
     throw new ChatlogError('InvalidArgs', `--concurrency は 1 以上の整数を指定してください: ${_rawConcurrency}`);
   }
   const _cacheDir = parsed.cacheDir ?? joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache');
+  const _maxRetry = (globalConfig.get('maxRetry') as number) ?? DEFAULT_MAX_RETRY;
   return {
     inputDir: _inputDir,
     outputDir: _outputDir,
@@ -84,5 +86,6 @@ export const buildConfig = (
     review: _review,
     concurrency: _concurrency,
     cacheDir: _cacheDir,
+    maxRetry: _maxRetry,
   };
 };
