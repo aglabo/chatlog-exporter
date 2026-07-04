@@ -54,6 +54,9 @@ export const DEFAULT_AI_MODEL = 'sonnet';
 /** runAI のデフォルトタイムアウト (ms)。0 = タイムアウトなし。 */
 export const DEFAULT_TIMEOUT_MS = 120_000;
 
+/** runAI の最大リトライ回数（0=リトライなし、上限 10）。 */
+export const DEFAULT_MAX_RETRY = 2;
+
 // ─────────────────────────────────────────────
 // 並列処理・バッチ処理系
 // ─────────────────────────────────────────────

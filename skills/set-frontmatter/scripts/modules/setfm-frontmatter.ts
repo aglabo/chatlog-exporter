@@ -11,6 +11,7 @@
 
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
@@ -33,6 +34,7 @@ export const generateFrontmatter = async (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
+  maxRetry: number,
 ): Promise<boolean> => {
   const type = (entry.frontmatter.get('type') as string) ?? DEFAULT_FALLBACK_TYPE;
   const category = (entry.frontmatter.get('category') as string) ?? DEFAULT_FALLBACK_CATEGORY;
@@ -46,19 +48,37 @@ export const generateFrontmatter = async (
     tags_list: dics.tags,
     body: entry.truncateContent(maxContentLength),
   });
-  let raw: string;
-  try {
-    raw = await runAI(system, user);
-  } catch (e) {
-    logger.warn(`generateFrontmatter: AI call failed: ${e}`);
-    return false;
+
+  const _maxRetry = Math.min(maxRetry, 10);
+  let _lastError: unknown;
+  let _parsed: FrontmatterFields | undefined;
+
+  for (let attempt = 0; attempt <= _maxRetry; attempt++) {
+    let _raw: string;
+    try {
+      _raw = await runAI(system, user);
+    } catch (e) {
+      if (e instanceof ChatlogError && e.kind === 'AiError') {
+        logger.warn(`generateFrontmatter: AI call failed (attempt ${attempt + 1}): ${e}`);
+        _lastError = e;
+        continue;
+      }
+      throw e;
+    }
+    const _fmResult = extractYaml(_raw, 'title');
+    if (!_fmResult.ok) {
+      logger.warn(`generateFrontmatter: YAML parse failed (attempt ${attempt + 1}): ${_fmResult.error.message}`);
+      _lastError = new ChatlogError('InvalidYaml', 'ParseFailed', _fmResult.error.message);
+      continue;
+    }
+    _parsed = _fmResult.value as FrontmatterFields;
+    break;
   }
-  const _fmResult = extractYaml(raw, 'title');
-  if (!_fmResult.ok) {
-    logger.warn(`generateFrontmatter: YAML parse failed: ${_fmResult.error.message}`);
-    return false;
+
+  if (_parsed === undefined) {
+    throw _lastError ?? new ChatlogError('InvalidYaml', 'ParseFailed', 'generateFrontmatter failed after retries');
   }
-  const _parsed = _fmResult.value as FrontmatterFields;
+
   for (const [key, val] of Object.entries(_parsed)) {
     if (key !== 'type' && key !== 'category') {
       entry.frontmatter.set(key, val);

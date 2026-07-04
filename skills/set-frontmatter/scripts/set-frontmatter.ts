@@ -60,12 +60,14 @@ type _GenerateProvider = (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
+  maxRetry: number,
 ) => Promise<boolean>;
 
 type _ReviewProvider = (
   entry: ChatlogEntry,
   dics: Dics,
   prompts: Prompts,
+  maxRetry: number,
 ) => Promise<ReviewResult>;
 
 type _WriteProvider = (
@@ -183,6 +185,7 @@ const _phaseFrontmatter = async (
   concurrency: number,
   dryRun: boolean,
   generateProvider?: _GenerateProvider,
+  maxRetry = 0,
 ): Promise<Set<string>> => {
   const _generatedFiles = new Set<string>();
 
@@ -243,7 +246,13 @@ const _phaseFrontmatter = async (
       if (dryRun) {
         logger.info(`  [dry-run] frontmatter: ${getFilename(entry.filePath!)}`);
       } else {
-        const _ok = await _generate(entry, maxContentLength, dics, prompts);
+        let _ok: boolean;
+        try {
+          _ok = await _generate(entry, maxContentLength, dics, prompts, maxRetry);
+        } catch (e) {
+          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
+          return;
+        }
         if (_ok) {
           const _fmSnapshot: Record<string, string | string[]> = {};
           _knownFields.forEach((k) => {
@@ -310,6 +319,7 @@ const _phaseReview = async (
   concurrency: number,
   dryRun: boolean,
   reviewProvider?: _ReviewProvider,
+  maxRetry = 0,
 ): Promise<void> => {
   const _hits = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
   const _misses = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.REVIEWED);
@@ -325,7 +335,13 @@ const _phaseReview = async (
       if (dryRun) {
         logger.info(`  [dry-run] review: ${getFilename(entry.filePath!)}`);
       } else {
-        const r = await _review(entry, dics, prompts);
+        let r: ReviewResult;
+        try {
+          r = await _review(entry, dics, prompts, maxRetry);
+        } catch (e) {
+          logger.warn(`  FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
+          return;
+        }
         if (r.validity === 'fail') {
           logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
           await cache.delete(entry.filePath!);
@@ -488,6 +504,8 @@ export const main = async (args: string[]): Promise<void> => {
       prompts,
       _config.concurrency,
       _config.dryRun,
+      undefined,
+      _config.maxRetry,
     );
 
     // Phase 3.5pre: ステータス設定
@@ -500,7 +518,16 @@ export const main = async (args: string[]): Promise<void> => {
         `\nPhase 3.5: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
       );
       const _reviewEntries = _filterReviewEntries(generateEntries, _cache);
-      await _phaseReview(_reviewEntries, _cache, dics, prompts, _config.concurrency, _config.dryRun);
+      await _phaseReview(
+        _reviewEntries,
+        _cache,
+        dics,
+        prompts,
+        _config.concurrency,
+        _config.dryRun,
+        undefined,
+        _config.maxRetry,
+      );
     } else {
       logger.info(`\nPhase 3.5: スキップ (--no-review)`);
     }

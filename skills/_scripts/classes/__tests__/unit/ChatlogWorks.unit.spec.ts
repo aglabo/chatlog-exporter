@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-65
+// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-68
 
 // ─── BDD modules
 import { assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
@@ -710,34 +710,44 @@ describe('ChatlogWorks', () => {
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-43: outputDir に .md 2件、キャッシュなし → meta+status:written が各ファイルに作成される', async () => {
         const _buf = new Map<string, string>([
-          ['/out/a.md', '---\ntitle: A\n---\nContent A\n'],
-          ['/out/b.md', '---\ntitle: B\n---\nContent B\n'],
+          ['/out/a.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\nContent A\n'],
+          ['/out/b.md', '---\ntitle: B\ntype: tech\ncategory: dev\n---\nContent B\n'],
         ]);
-        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', undefined, {
-          cache: {
-            ..._makeBufferProviders(_buf),
-            glob: _makePatternGlob(['/out/a.md', '/out/b.md']),
+        const _cache = new ChatlogWorks<{ title?: string; type?: string; category?: string; status: string }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/a.md', '/out/b.md']),
+            },
           },
-        });
+        );
         await _cache.ready;
         await _cache.initFromOutputDir('/out');
-        assertEquals(_cache.read('a.md'), { title: 'A', status: 'written' });
-        assertEquals(_cache.read('b.md'), { title: 'B', status: 'written' });
+        assertEquals(_cache.read('a.md'), { title: 'A', type: 'tech', category: 'dev', status: 'written' });
+        assertEquals(_cache.read('b.md'), { title: 'B', type: 'tech', category: 'dev', status: 'written' });
       });
 
-      it('[Normal] T-CLS-CC-52: .md にフロントマターあり → デフォルト述語 true → meta+status:written が書き込まれる', async () => {
+      it('[Normal] T-CLS-CC-52: .md にフロントマターあり（title/type/category 揃い）→ デフォルト述語 true → meta+status:written が書き込まれる', async () => {
         const _buf = new Map<string, string>([
-          ['/out/has-fm.md', '---\ntitle: Test\n---\n'],
+          ['/out/has-fm.md', '---\ntitle: Test\ntype: tech\ncategory: dev\n---\n'],
         ]);
-        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', undefined, {
-          cache: {
-            ..._makeBufferProviders(_buf),
-            glob: _makePatternGlob(['/out/has-fm.md']),
+        const _cache = new ChatlogWorks<{ title?: string; type?: string; category?: string; status: string }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/has-fm.md']),
+            },
           },
-        });
+        );
         await _cache.ready;
         await _cache.initFromOutputDir('/out');
-        assertEquals(_cache.read('has-fm.md'), { title: 'Test', status: 'written' });
+        assertEquals(_cache.read('has-fm.md'), { title: 'Test', type: 'tech', category: 'dev', status: 'written' });
       });
 
       it('[Normal] T-CLS-CC-55: カスタム述語 title 必須 → title 有ファイルのみ meta+status:written が書き込まれる', async () => {
@@ -875,7 +885,7 @@ describe('ChatlogWorks', () => {
 
       it('[Error] T-CLS-CC-50: writeTextFile 失敗 → initFromOutputDir が reject', async () => {
         const _buf = new Map<string, string>([
-          ['/out/a.md', '---\ntitle: A\n---\n'],
+          ['/out/a.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\n'],
         ]);
         const _writeErr = new Error('disk full');
         const _cache = new ChatlogWorks<{ status: string }>('sub', '/cache', undefined, {
@@ -900,6 +910,78 @@ describe('ChatlogWorks', () => {
         });
         await _cache.ready;
         await assertRejects(() => _cache.initFromOutputDir('/out'));
+      });
+    });
+  });
+
+  /**
+   * `initFromOutputDir()` の デフォルト述語による必須フィールドチェックのテスト。
+   *
+   * デフォルト述語は `title`/`type`/`category` が全て非 null のファイルのみ書き込む。
+   *
+   * テスト ID 範囲: T-CLS-CC-66 〜 T-CLS-CC-68
+   */
+  describe('initFromOutputDir default predicate required fields', () => {
+    /** title/type/category が全て揃っているファイルのみ書き込まれるケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-CLS-CC-66: title/type/category が全て揃った .md → meta+status:written が書き込まれる', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/complete.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\n'],
+          ['/out/missing-type.md', '---\ntitle: B\ncategory: dev\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; type?: string; category?: string; status: string }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/complete.md', '/out/missing-type.md']),
+            },
+          },
+        );
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('complete.md'), { title: 'A', type: 'tech', category: 'dev', status: 'written' });
+        assertEquals(_cache.read('missing-type.md'), {});
+      });
+    });
+
+    /** 必須フィールドが null のファイルはスキップされるケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-CLS-CC-67: title/type/category のうち type が null の .md はスキップされる', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/null-type.md', '---\ntitle: A\ntype: null\ncategory: dev\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; type?: string; category?: string; status: string }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/null-type.md']),
+            },
+          },
+        );
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('null-type.md'), {});
+      });
+
+      it('[Edge] T-CLS-CC-68: title のみある .md（type/category なし）はスキップされる', async () => {
+        const _buf = new Map<string, string>([
+          ['/out/title-only.md', '---\ntitle: A\n---\n'],
+        ]);
+        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/title-only.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('title-only.md'), {});
       });
     });
   });
@@ -1021,17 +1103,22 @@ describe('ChatlogWorks', () => {
     describe('When: 正常系', () => {
       it('[Normal] T-CLS-CC-45: initializer.outputDir 指定 → initFromOutputDir 後 loadAll が JSON を読み込み meta+status:written が反映される', async () => {
         const _buf = new Map<string, string>([
-          ['/out/a.md', '---\ntitle: A\n---\n'],
+          ['/out/a.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\n'],
         ]);
-        const _cache = new ChatlogWorks<{ title?: string; status: string }>('sub', '/cache', { outputDir: '/out' }, {
-          cache: {
-            ..._makeBufferProviders(_buf),
-            // initFromOutputDir: *.md → a.md を返す。loadAll: *.json → 書き込まれた a.json を返す。
-            glob: _makePatternGlob(['/out/a.md'], ['/cache/sub/a.json']),
+        const _cache = new ChatlogWorks<{ title?: string; type?: string; category?: string; status: string }>(
+          'sub',
+          '/cache',
+          { outputDir: '/out' },
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              // initFromOutputDir: *.md → a.md を返す。loadAll: *.json → 書き込まれた a.json を返す。
+              glob: _makePatternGlob(['/out/a.md'], ['/cache/sub/a.json']),
+            },
           },
-        });
+        );
         await _cache.ready;
-        assertEquals(_cache.read('a'), { title: 'A', status: 'written' });
+        assertEquals(_cache.read('a'), { title: 'A', type: 'tech', category: 'dev', status: 'written' });
       });
     });
 

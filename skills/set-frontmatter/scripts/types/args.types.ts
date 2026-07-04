@@ -28,6 +28,8 @@ export interface SetfmConfig {
   review: boolean;
   /** 同時実行する並列タスク数の上限。 */
   concurrency: number;
+  /** AI 呼び出し失敗時の最大リトライ回数（0=リトライなし、上限 10）。 */
+  maxRetry: number;
   /** フェーズ単位のキャッシュファイルを格納するディレクトリのパス。 */
   cacheDir: string;
 }

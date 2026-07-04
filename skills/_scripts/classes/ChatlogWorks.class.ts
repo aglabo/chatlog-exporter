@@ -29,6 +29,10 @@ import type {
   WriteTextFileProvider,
 } from '../types/providers.types.ts';
 
+/** `meta` に `title`/`type`/`category` が全て非 null で存在するか判定する。 */
+const _hasRequiredFields = (meta: Record<string, unknown>): boolean =>
+  meta['title'] != null && meta['type'] != null && meta['category'] != null;
+
 const _defaultGlob: GlobProvider = async (pattern) => {
   const _results: string[] = [];
   for await (const entry of expandGlob(pattern)) {
@@ -232,11 +236,12 @@ export class ChatlogWorks<T extends object> {
    * 並列実行するため、glob の reject や writeFile / readTextFile の reject はそのまま伝播する。
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
-   * @param isComplete - テキストを受け取り書き込み対象か判定する述語（省略時は `hasFrontmatter`）
+   * @param isComplete - テキストを受け取り書き込み対象か判定する述語（省略時は `hasFrontmatter` かつ `title`/`type`/`category` が全て非 null）
    */
   async initFromOutputDir(
     outputDir: string,
-    isComplete: (text: string) => boolean = hasFrontmatter,
+    isComplete: (text: string) => boolean = (text) =>
+      hasFrontmatter(text) && _hasRequiredFields(parseFrontmatter(text).meta),
   ): Promise<void> {
     const _allFiles = await findFilesFlat(outputDir, { glob: this._glob });
     const _targets = (

@@ -10,7 +10,7 @@
 // cspell:words setfm sess
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -20,10 +20,12 @@ import { reviewFrontmatter } from '../../setfm-review.ts';
 import {
   installCommandMock,
   makeFailMock,
+  makeFirstNFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
@@ -81,9 +83,9 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
 /**
  * `reviewFrontmatter` のユニットテストスイート。
  *
- * AI 出力に応じた validity 判定・errors 抽出・frontmatter 更新・フェイルセーフを検証する。
+ * AI 出力に応じた validity 判定・errors 抽出・frontmatter 更新・リトライを検証する。
  *
- * テスト ID 範囲: T-SF-RV-01 〜 T-SF-RV-04
+ * テスト ID 範囲: T-SF-RV-01 〜 T-SF-RV-10
  *
  * @see reviewFrontmatter
  */
@@ -104,24 +106,40 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, { validity: 'pass', errors: [] });
     });
   });
 
   /**
-   * `runAI` が例外を throw するとき `{ validity: 'pass', errors: [] }` を返すことを検証する（フェイルセーフ）。
-   * `runAI` が fail かつ errors: を含む YAML を返すとき errors を抽出して返すことを検証する。
+   * リトライ後に成功するケース。
+   */
+  describe('When: リトライ成功', () => {
+    it('[Normal] T-SF-RV-11-01: maxRetry=1, 1回目が AiError, 2回目成功 → { validity: pass, errors: [] } を返す', async () => {
+      commandHandle = installCommandMock(
+        makeFirstNFailMock(1, 'validity: pass\n'),
+      );
+
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 1);
+
+      assertEquals(result, { validity: 'pass', errors: [] });
+    });
+  });
+
+  /**
+   * AiError が throw されるケース。
    */
   describe('When: 異常系', () => {
-    it('[Error] T-SF-RV-01-01: runAI が例外を throw → { validity: pass, errors: [] } を返す（フェイルセーフ）', async () => {
+    it('[Error] T-SF-RV-01-01: maxRetry=0, runAI が AiError → AiError を throw', async () => {
       commandHandle = installCommandMock(makeFailMock(1));
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
-
-      assertEquals(result, { validity: 'pass', errors: [] });
+      await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      );
     });
 
     it('[Error] T-SF-RV-03-01: runAI が validity: fail + errors を返す → { validity: fail, errors: [wrong type] } を返す', async () => {
@@ -132,9 +150,29 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, { validity: 'fail', errors: ['wrong type'] });
+    });
+
+    it('[Error] T-SF-RV-12-01: AiError 以外の例外 → 即 throw (リトライしない)', async () => {
+      const _notFoundMock = class {
+        constructor(_cmd: string, _opts: unknown) {}
+        spawn(): never {
+          throw new Deno.errors.NotFound('claude: not found');
+        }
+        output(): never {
+          throw new Deno.errors.NotFound('claude: not found');
+        }
+      };
+      // deno-lint-ignore no-explicit-any
+      commandHandle = installCommandMock(_notFoundMock as any);
+
+      const _entry = _makeChatlogEntry();
+      await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 2),
+        Deno.errors.NotFound,
+      );
     });
   });
 
@@ -149,7 +187,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, { validity: 'pass', errors: [] });
     });
@@ -162,7 +200,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, { validity: 'fail', errors: ['wrong type', 'wrong category'] });
     });
@@ -175,7 +213,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('type'), 'tech');
     });
@@ -188,7 +226,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('category'), 'life');
     });
@@ -203,7 +241,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
     });
@@ -218,7 +256,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
     });
@@ -234,7 +272,7 @@ describe('reviewFrontmatter', () => {
 
       const _entry = _makeChatlogEntry();
       _entry.frontmatter.set('topics', ['existing-topic']);
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('topics'), ['existing-topic']);
     });
@@ -249,7 +287,7 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
     });
@@ -264,12 +302,12 @@ describe('reviewFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
       assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
     });
 
-    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → { validity: fail, errors: [YAML parse failed: ...] } を返す', async () => {
+    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → ChatlogError(InvalidYaml) を throw', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
           _enc.encode(
@@ -280,11 +318,10 @@ describe('reviewFrontmatter', () => {
 
       const _entry = _makeChatlogEntry();
       _entry.frontmatter.set('topics', ['original-topic']);
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
-
-      assertEquals(result.validity, 'fail');
-      assertEquals(result.errors.length > 0, true);
-      assertEquals(result.errors[0].startsWith('YAML parse failed:'), true);
+      await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      );
       assertEquals(_entry.frontmatter.get('topics'), ['original-topic']);
     });
   });

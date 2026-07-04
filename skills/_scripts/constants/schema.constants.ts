@@ -10,6 +10,7 @@ import {
   DEFAULT_CACHE_ROOT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_DICS_DIR,
+  DEFAULT_MAX_RETRY,
   DEFAULT_PROJECTS_DIC_PATH,
   DEFAULT_PROMPTS_DIR,
 } from './defaults.constants.ts';
@@ -53,6 +54,8 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   chatlogsDir: 'string',
   /** キャッシュルートディレクトリのパス。 */
   cacheDir: 'string',
+  /** runAI の最大リトライ回数（0=リトライなし、上限 10）。 */
+  maxRetry: 'number',
 };
 
 /** DEFAULT_SCHEMA のキーのユニオン型。 */
@@ -99,4 +102,6 @@ export const DEFAULT_VALUES = {
   maxContentLength: 4000,
   /** デフォルト DISCARD 閾値 */
   discardThreshold: 0.7,
+  /** デフォルト最大リトライ回数 */
+  maxRetry: DEFAULT_MAX_RETRY,
 } as const satisfies ConfigValues;

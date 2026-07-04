@@ -1,6 +1,6 @@
 export const ERROR_KIND_LABELS = {
   UnknownModel: 'Unknown Model',
-  CliError: 'CLI Error',
+  AiError: 'AI Error',
   TimedOut: 'Timed Out',
   TooManyBackups: 'Too Many Backups',
   InvalidPeriod: 'Invalid Period',

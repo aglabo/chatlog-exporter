@@ -272,6 +272,27 @@ describe('buildConfig', () => {
   });
 
   /**
+   * `maxRetry` の解決ロジックテスト。
+   *
+   * GlobalConfig.maxRetry を読み取る。未設定時は DEFAULT_MAX_RETRY (2) を使う。
+   */
+  describe('When: maxRetry の解決', () => {
+    /** GlobalConfig に maxRetry が設定されている正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-BC-11-01: globalConfig に maxRetry:3 → buildConfig().maxRetry === 3', async () => {
+        const gc = await _makeGlobalConfig('maxRetry: 3');
+        const result = buildConfig({}, gc);
+        assertEquals(result.maxRetry, 3);
+      });
+
+      it('[Normal] T-SF-BC-11-02: globalConfig に maxRetry 未設定 → DEFAULT_MAX_RETRY(2) が使われる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.maxRetry, 2);
+      });
+    });
+  });
+
+  /**
    * `concurrency` の解決ロジックテスト。
    *
    * 優先順位: parsed.concurrency > GlobalConfig.concurrency

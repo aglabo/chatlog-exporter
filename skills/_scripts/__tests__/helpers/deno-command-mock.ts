@@ -252,14 +252,76 @@ export function makeDelayedSuccessMock(delayMs: number, stdout: Uint8Array): Den
 }
 
 /**
+ * 最初の failCount 回だけ失敗させ、それ以降は successMessage を返すモックを返す。
+ * runAI リトライテストで「N 回失敗後に成功」シナリオを再現するために使用する。
+ *
+ * @param failCount - 失敗させる呼び出し回数（0 の場合は常に成功）
+ * @param successMessage - 成功時の stdout 文字列
+ */
+export function makeFirstNFailMock(
+  failCount: number,
+  successMessage: string,
+): DenoCommandLike {
+  let callCount = 0;
+  const _successBytes = new TextEncoder().encode(successMessage);
+
+  return class extends BaseMockCommand {
+    private readonly shouldFail: boolean;
+
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      callCount++;
+      this.shouldFail = callCount <= failCount;
+    }
+
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+      if (this.shouldFail) {
+        return Promise.resolve({ success: false, code: 1, stdout: new Uint8Array() });
+      }
+      return Promise.resolve({ success: true, code: 0, stdout: _successBytes });
+    }
+  } as unknown as DenoCommandLike;
+}
+
+/**
+ * 呼び出しごとに異なる stdout 文字列を順番に返すモックを返す。
+ * リストを使い切った後は最後の要素を繰り返す。
+ * YAML パース失敗リトライテストで「N 回異なる出力を返す」シナリオを再現するために使用する。
+ *
+ * @param responseSequence - 呼び出しごとに返す stdout 文字列の配列
+ */
+export function makeSequencedSuccessMock(
+  responseSequence: string[],
+): DenoCommandLike {
+  let callCount = 0;
+  const _seq = responseSequence.map((s) => new TextEncoder().encode(s));
+
+  return class extends BaseMockCommand {
+    private readonly stdout: Uint8Array;
+
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      const idx = Math.min(callCount, _seq.length - 1);
+      callCount++;
+      this.stdout = _seq[idx];
+    }
+
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+      return Promise.resolve({ success: true, code: 0, stdout: this.stdout });
+    }
+  } as unknown as DenoCommandLike;
+}
+
+/**
  * n 番目の呼び出しだけ失敗させるモックを返す。
- * それ以外の呼び出しは successBytes を返す正常終了モックとして動作する。
+ * それ以外の呼び出しは successMessage を返す正常終了モックとして動作する。
  */
 export function makeSelectiveFailMock(
   failOnNthCall: number,
-  successBytes: Uint8Array,
+  successMessage: string,
 ): DenoCommandLike {
   let callCount = 0;
+  const _successBytes = new TextEncoder().encode(successMessage);
 
   return class extends BaseMockCommand {
     private readonly shouldFail: boolean;
@@ -274,7 +336,7 @@ export function makeSelectiveFailMock(
       if (this.shouldFail) {
         return Promise.resolve({ success: false, code: 1, stdout: new Uint8Array() });
       }
-      return Promise.resolve({ success: true, code: 0, stdout: successBytes });
+      return Promise.resolve({ success: true, code: 0, stdout: _successBytes });
     }
   } as unknown as DenoCommandLike;
 }

@@ -8,6 +8,7 @@ agent: claude
 # AI execution
 model: "haiku"
 timeoutMs: 120_000 # 2 min (ms)
+maxRetry: 2 # runAI の最大リトライ回数（0=リトライなし、上限 10）
 
 # Hash generation
 hashLength: 8
