@@ -150,9 +150,10 @@ export const runAI = async (
     const _output = await _process.output();
     if (!_output.success) {
       const _stderr = new TextDecoder().decode(_output.stderr).trim();
+      const _isRateLimit = /rate.?limit|429/i.test(_stderr);
       throw new ChatlogError(
-        'CliError',
-        'ExitFailure',
+        'AiError',
+        _isRateLimit ? 'RateLimit' : 'ExitFailure',
         `${_spec.command} exited with code ${_output.code}: ${_stderr}`,
       );
     }
