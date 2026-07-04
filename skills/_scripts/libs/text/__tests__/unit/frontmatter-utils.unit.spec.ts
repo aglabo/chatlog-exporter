@@ -15,6 +15,7 @@ import {
   divideEntry,
   extractYaml,
   hasFrontmatter,
+  hasFrontmatterFields,
   parseFrontmatter,
   parseFrontmatterEntries,
   renderFrontmatter,
@@ -734,6 +735,86 @@ describe('hasFrontmatter', () => {
     it('[Edge] T-01-03-03: 不正 YAML フロントマター → false', () => {
       const _result = hasFrontmatter('---\n: invalid: yaml: {\n---\nbody');
       assertEquals(_result, false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// hasFrontmatterFields
+// ─────────────────────────────────────────────
+
+/**
+ * `hasFrontmatterFields` のユニットテストスイート。
+ *
+ * `FrontmatterFields` の 5 フィールド充足チェックを検証する。
+ *
+ * テスト ID 範囲: T-FU-HFF-01 〜 T-FU-HFF-05
+ *
+ * @see hasFrontmatterFields
+ */
+describe('hasFrontmatterFields', () => {
+  /** 5 フィールド全充足の正常ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FU-HFF-01: 5フィールド全充足 → true', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: ['topic-a'],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), true);
+    });
+
+    it('[Normal] T-FU-HFF-05: topics が複数要素 → true', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: ['topic-a', 'topic-b'],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), true);
+    });
+
+    it('[Normal] T-FU-HFF-06: fieldsを["title"]に限定 → titleのみチェック → true', () => {
+      const _fields: Record<string, string | string[]> = { title: 'Hello' };
+      assertEquals(hasFrontmatterFields(_fields, ['title']), true);
+    });
+  });
+
+  /** フィールド不足・空値のエラーケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-FU-HFF-02: string フィールド(title)が空文字 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: '',
+        topics: ['topic-a'],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it('[Error] T-FU-HFF-03: string フィールド(category)が欠如 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        title: 'My Title',
+        topics: ['topic-a'],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it('[Error] T-FU-HFF-04: 配列フィールド(tags)が空配列 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: ['topic-a'],
+        tags: [],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
     });
   });
 });
