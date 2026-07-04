@@ -146,6 +146,7 @@ describe('_phaseReview', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makePassReviewStub(),
       );
 
@@ -153,9 +154,9 @@ describe('_phaseReview', () => {
     });
   });
 
-  /** 異常系: reviewProvider が fail を返す → status = review-failed */
+  /** 異常系: reviewProvider が fail を返す → キャッシュエントリが削除される */
   describe('When: 異常系', () => {
-    it('[Error] T-SF-PR-02-01: reviewProvider が fail を返す → status = review-failed', async () => {
+    it('[Error] T-SF-PR-02-01: reviewProvider が fail を返す → キャッシュエントリが削除される', async () => {
       const filePath = '/path/to/fail.md';
       const entry = _makeFullEntry(filePath);
       const cache = await _makeCacheWithHit(filePath, {
@@ -170,10 +171,11 @@ describe('_phaseReview', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeFailReviewStub(['title が不正']),
       );
 
-      assertEquals(cache.read(filePath).status, 'review-failed');
+      assertEquals(cache.read(filePath), {});
     });
   });
 });
