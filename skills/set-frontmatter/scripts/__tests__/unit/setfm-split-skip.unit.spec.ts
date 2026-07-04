@@ -97,7 +97,7 @@ const _makeEntry = (filePath: string, fmLines: string[], body: string): ChatlogE
 /**
  * `_splitSkip` の skip/target 分割ロジックを検証する。
  *
- * テスト ID 範囲: T-SF-SS-01 〜 T-SF-SS-05
+ * テスト ID 範囲: T-SF-SS-01 〜 T-SF-SS-07
  *
  * @see _splitSkipForTest
  */
@@ -117,6 +117,17 @@ describe('_splitSkip', () => {
       ], '# Full entry body');
 
       const cache = await _makeCacheWithHit(filePath, { status: 'reviewed' });
+
+      const { skipEntries, targetEntries } = splitSkip([entry], cache);
+
+      assertEquals(skipEntries.length, 1);
+      assertEquals(targetEntries.length, 0);
+    });
+
+    it('[Normal] T-SF-SS-02: status=need-review → skipEntries に入る（targetEntries は空）', async () => {
+      const filePath = '/path/to/need-review.md';
+      const entry = _makeEntry(filePath, ['title: Need Review'], '# Need review body');
+      const cache = await _makeCacheWithHit(filePath, { status: 'need-review' });
 
       const { skipEntries, targetEntries } = splitSkip([entry], cache);
 
@@ -161,6 +172,33 @@ describe('_splitSkip', () => {
 
       assertEquals(skipEntries.length, 0);
       assertEquals(targetEntries.length, 0);
+    });
+
+    it('[Edge] T-SF-SS-07: skip（status=need-review）と target（cache miss）の混在 → 正しく分割', async () => {
+      const needReviewPath = '/path/to/need-review.md';
+      const missPath = '/path/to/cache-miss.md';
+      const needReviewEntry = _makeEntry(needReviewPath, ['title: Need Review'], '# Need review body');
+      const missEntry = _makeEntry(missPath, ['title: Cache Miss'], '# Cache miss body');
+
+      const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
+        cache: {
+          writeTextFile: () => Promise.resolve(),
+          mkdir: () => Promise.resolve(),
+          readTextFile: (path: string) => {
+            if (path.includes('need-review')) { return Promise.resolve(JSON.stringify({ status: 'need-review' })); }
+            return Promise.reject(new Error('not found'));
+          },
+          glob: (_pattern: string) => Promise.resolve([needReviewPath]),
+        },
+      });
+      await cache.ready;
+
+      const { skipEntries, targetEntries } = splitSkip([needReviewEntry, missEntry], cache);
+
+      assertEquals(skipEntries.length, 1);
+      assertEquals(targetEntries.length, 1);
+      assertEquals(skipEntries[0].filePath, needReviewPath);
+      assertEquals(targetEntries[0].filePath, missPath);
     });
 
     it('[Edge] T-SF-SS-05: skip（status=reviewed）と target（cache miss）の混在 → 正しく分割', async () => {
