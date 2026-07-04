@@ -11,15 +11,17 @@
 
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { _phaseStatusForTest as phaseStatus } from '../../set-frontmatter.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
+import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { SetfmCache } from '../../types/cache.types.ts';
 
 // ─── Internal Helpers
@@ -108,7 +110,7 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
  * status 値（`'need-review'` または `''`）がキャッシュに書き込まれることを検証する。
  * また、cache.status が `'written'` のエントリはスキップされることを検証する。
  *
- * テスト ID 範囲: T-SF-PS-01 〜 T-SF-PS-06
+ * テスト ID 範囲: T-SF-PS-01 〜 T-SF-PS-07
  *
  * @see _phaseStatusForTest
  */
@@ -123,7 +125,7 @@ describe('_phaseStatus', () => {
       const cache = await _makeCache(buf);
       const entry = _makeFullEntry('/path/to/full.md');
 
-      await phaseStatus([entry], cache);
+      await phaseStatus([entry], cache, false);
 
       assertEquals(cache.read('/path/to/full.md').status, 'need-review');
     });
@@ -136,7 +138,7 @@ describe('_phaseStatus', () => {
       const missingEntry = _makeMissingTitleEntry('/path/to/missing.md');
       const writtenEntry = _makeFullEntry('/path/to/written-entry.md');
 
-      await phaseStatus([fullEntry, missingEntry, writtenEntry], cache);
+      await phaseStatus([fullEntry, missingEntry, writtenEntry], cache, false);
 
       assertEquals(cache.read('/path/to/full.md').status, 'need-review');
       assertEquals(cache.read('/path/to/missing.md').status, '');
@@ -154,7 +156,7 @@ describe('_phaseStatus', () => {
       const cache = await _makeCache(buf);
       const entry = _makeMissingTitleEntry('/path/to/missing.md');
 
-      await phaseStatus([entry], cache);
+      await phaseStatus([entry], cache, false);
 
       assertEquals(cache.read('/path/to/missing.md').status, '');
     });
@@ -170,7 +172,7 @@ describe('_phaseStatus', () => {
       const cache = await _makeCache(buf, 'written:\n  status: written');
       const entry = _makeFullEntry('/path/to/written.md');
 
-      await phaseStatus([entry], cache);
+      await phaseStatus([entry], cache, false);
 
       assertEquals(cache.read('/path/to/written.md').status, 'written');
     });
@@ -179,9 +181,54 @@ describe('_phaseStatus', () => {
       const buf = new Map<string, string>();
       const cache = await _makeCache(buf);
 
-      await phaseStatus([], cache);
+      await phaseStatus([], cache, false);
 
       assertEquals(buf.size, 0);
+    });
+
+    it('[Edge] T-SF-PS-07: dryRun=true → cache.status は変更されない（書き込みなし）', async () => {
+      const buf = new Map<string, string>();
+      const cache = await _makeCache(buf);
+      const entry = _makeFullEntry('/path/to/full.md');
+
+      await phaseStatus([entry], cache, true);
+
+      assertEquals(cache.read('/path/to/full.md').status, undefined);
+    });
+
+    describe('T-SF-PS-08/09: dryRun=true ログ検証', () => {
+      let loggerStub: LoggerStub;
+
+      beforeEach(() => {
+        loggerStub = makeLoggerStub();
+      });
+
+      afterEach(() => {
+        loggerStub.restore();
+      });
+
+      it('[Edge] T-SF-PS-08: dryRun=true, written 以外のエントリ → "[dry-run] status:" がファイル名を含んでログ出力される', async () => {
+        const buf = new Map<string, string>();
+        const cache = await _makeCache(buf);
+        const entry = _makeFullEntry('/path/to/full.md');
+
+        await phaseStatus([entry], cache, true);
+
+        assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run] status:') && l.includes('full.md')), true);
+      });
+
+      it('[Edge] T-SF-PS-09: dryRun=true, cache.status === "written" のエントリ → "[dry-run] status:" ログなし', async () => {
+        const buf = new Map<string, string>();
+        const cache = await _makeCache(buf, 'written:\n  status: written');
+        const entry = _makeFullEntry('/path/to/written.md');
+
+        await phaseStatus([entry], cache, true);
+
+        assertEquals(
+          loggerStub.infoLogs.every((l) => !(l.includes('[dry-run] status:') && l.includes('written.md'))),
+          true,
+        );
+      });
     });
   });
 });
