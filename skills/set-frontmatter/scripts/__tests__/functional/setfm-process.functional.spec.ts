@@ -201,6 +201,7 @@ describe('_phaseTypeAndCategory', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         judgeStub,
       );
 
@@ -226,6 +227,7 @@ describe('_phaseTypeAndCategory', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         judgeStub,
       );
 
@@ -255,6 +257,7 @@ describe('_phaseTypeAndCategory', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         judgeStub,
       );
 
@@ -317,6 +320,7 @@ describe('_phaseFrontmatter', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         generateStub,
       );
 
@@ -344,6 +348,7 @@ describe('_phaseFrontmatter', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         generateStub,
       );
 
@@ -375,6 +380,7 @@ describe('_phaseFrontmatter', () => {
         _makeDics(),
         _makePrompts(),
         _CONCURRENCY,
+        false,
         failGenerate,
       );
 
