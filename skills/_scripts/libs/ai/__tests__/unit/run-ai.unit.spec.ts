@@ -43,6 +43,13 @@ const _makeCommandStub = (output: Deno.CommandOutput) => {
 };
 
 // constants
+/** レートリミット検出のテーブル駆動ケース (RA-13, RA-14, RA-15)。 */
+const _rateLimitCases = [
+  { id: 'T-LIB-AI-RA-13', label: 'Error', stderr: 'You have hit the rate limit', desc: '"rate limit"' },
+  { id: 'T-LIB-AI-RA-14', label: 'Error', stderr: 'HTTP 429 Too Many Requests', desc: '"429"' },
+  { id: 'T-LIB-AI-RA-15', label: 'Edge', stderr: 'Error code 4290', desc: '"4290" (部分マッチ仕様)' },
+] as const;
+
 const _cases: Array<{ model: string; expected: CommandSpec }> = [
   {
     model: 'sonnet',
@@ -185,7 +192,30 @@ describe('runAI', () => {
   describe('CLI execution', () => {
     /** CLI 非ゼロ終了時のエラーケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-LIB-AI-RA-11: runAI — CLI が非ゼロ終了 → stderr がエラーメッセージに含まれる', async () => {
+      for (const { id, label, stderr, desc } of _rateLimitCases) {
+        it(`[${label}] ${id}: runAI — stderr に ${desc} → AiError/RateLimit`, async () => {
+          const _origCommand = Deno.Command;
+          Deno.Command = _makeCommandStub({
+            success: false,
+            code: 1,
+            stdout: new Uint8Array(),
+            stderr: new TextEncoder().encode(stderr),
+            signal: null,
+          }) as unknown as typeof Deno.Command;
+          try {
+            const _err = await assertRejects(
+              () => runAI('sys', 'user', { model: 'sonnet' }),
+              ChatlogError,
+            ) as ChatlogError;
+            assertEquals(_err.kind, 'AiError');
+            assertEquals(_err.subindex, 'RateLimit');
+          } finally {
+            Deno.Command = _origCommand;
+          }
+        });
+      }
+
+      it('[Error] T-LIB-AI-RA-11: runAI — CLI が非ゼロ終了 → AiError/ExitFailure + stderr がメッセージに含まれる', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
           success: false,
@@ -199,7 +229,8 @@ describe('runAI', () => {
             () => runAI('sys', 'user', { model: 'sonnet' }),
             ChatlogError,
           ) as ChatlogError;
-          assertEquals(_err.kind, 'CliError');
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
           assertStringIncludes(_err.message, 'model not found');
         } finally {
           Deno.Command = _origCommand;
