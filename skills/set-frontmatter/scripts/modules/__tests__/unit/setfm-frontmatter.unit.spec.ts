@@ -185,7 +185,7 @@ describe('generateFrontmatter', () => {
       assertEquals(result, false);
     });
 
-    it('[Edge] T-SF-FM-03-02: parseAiYaml が { ok: false } を返す → logger.warn が呼ばれ false を返す', async () => {
+    it('[Edge] T-SF-FM-03-02: extractYaml が { ok: false } を返す → logger.warn が呼ばれ false を返す', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(_enc.encode('')),
       );
