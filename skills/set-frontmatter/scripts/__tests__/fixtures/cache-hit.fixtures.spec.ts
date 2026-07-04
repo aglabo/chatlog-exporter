@@ -230,7 +230,7 @@ describe('cache-hit fixtures', () => {
    */
   describe('_phaseFrontmatter', () => {
     describe('When: frontmatter キャッシュヒット', () => {
-      it('[Normal] T-SF-FX-02: frontmatter-full.json ヒット → generateProvider 未呼び出し、title/summary 等が復元', async () => {
+      it('[Normal] T-SF-FX-02: frontmatter-full.json ヒット → generateProvider 未呼び出し、title 等が復元', async () => {
         const entry = _makeEntry('/path/to/frontmatter-full.md', '# frontmatter full');
 
         const result = await phaseFrontmatter(
@@ -246,7 +246,7 @@ describe('cache-hit fixtures', () => {
 
         assertEquals(result.has('/path/to/frontmatter-full.md'), true);
         assertEquals(entry.frontmatter.get('title'), 'Fixtures Full Test');
-        assertEquals(entry.frontmatter.get('summary'), 'fixtures テスト用フロントマターサンプル');
+        assertEquals(entry.frontmatter.get('topics'), ['development', 'testing']);
         assertEquals(generateCallCount, 0);
       });
     });
