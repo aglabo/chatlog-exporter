@@ -26,15 +26,26 @@ user: |
   Must be one of: ${category_list}
 
   ## RULE 2 — topics
-  Must follow a 2-layer structure (domain + aspect). Must be from:
+  Must follow a 2-layer structure: exactly 1 domain + 0–2 aspects. Must be from:
   ${topic_list}
 
+  MUST   have exactly 1 domain entry — the same value as category
+         valid:   [development, behavior]
+         invalid: [development, behavior, development]   # domain duplicated as second entry
+         invalid: [development, development]             # domain listed twice, no aspect
+
   WHEN  domain is missing or does not match category → flag as error
+  WHEN  domain appears more than once in topics → flag as error
   WHEN  aspect violates group constraint → flag as error
   WHEN  type–aspect alignment is broken → flag as error:
-        type=decision requires "decision" aspect
-        type=incident requires "behavior" or "validation"
-        type=execution requires "behavior"
+        type=decision    requires "decision" aspect
+        type=incident    requires "behavior" or "validation"
+        type=execution   requires "behavior" as an aspect (not a second domain entry)
+          valid:   [development, behavior]
+          invalid: [development, behavior, development]  # domain must appear exactly once
+        type=discussion  strongly prefers "discussion" aspect
+          valid:   [development, discussion]
+          valid:   [development, discussion, architecture]
 
   WHILE reviewing aspects — apply group constraints:
         Thought/intent group (learning / decision / discussion / analysis): max 1
@@ -45,6 +56,7 @@ user: |
   NOT   allowing: debugging, troubleshooting, investigating, ci_cd, programming, configuring → expressed by type or category
   NOT   exceeding 3 topics total (domain 1 + aspect 0–2)
   NOT   putting design target type (API/CLI/data) in topics → use tags (dev:api-design, target:cli, etc.)
+  NOT   repeating the domain value as an aspect entry
 
   WHERE behavior vs validation:
         behavior   = observing or diagnosing how something works
