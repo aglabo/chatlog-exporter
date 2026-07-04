@@ -76,13 +76,12 @@ const _makeEntry = (filePath: string, fmLines: string[], body: string): ChatlogE
   return new ChatlogEntry(text, { filePath });
 };
 
-/** 全6フィールド充足エントリ: type/category/title/summary/topics[1]/tags[1] */
+/** 全5フィールド充足エントリ: type/category/title/topics[1]/tags[1] */
 const _makeFullEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -94,7 +93,6 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'category: development',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
