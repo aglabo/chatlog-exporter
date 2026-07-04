@@ -20,7 +20,9 @@ import { _phaseFrontmatterForTest as phaseFrontmatter } from '../../set-frontmat
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { logger } from '../../../../_scripts/libs/io/logger.ts';
 // types
 import type { SetfmCache } from '../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
@@ -180,11 +182,34 @@ describe('_phaseFrontmatter', () => {
     /** エッジケース: entries=[] → 空の Set が返る。 */
     it('[Edge] T-02-03-01: entries=[] / dryRun=true → Set.size === 0', async () => {
       const cache = await _makeCache();
-      const { stub } = _makeGenerateStub(true);
+      const { stub: generateStub } = _makeGenerateStub(true);
 
-      const result = await phaseFrontmatter([], cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, stub);
+      const result = await phaseFrontmatter([], cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, generateStub);
 
       assertEquals(result.size, 0);
+    });
+  });
+
+  /**
+   * generateProvider が throw したとき phase が継続するケース。
+   */
+  describe('When: generateProvider が throw する', () => {
+    it('[Normal] T-02-04-01: generateProvider が throw しても他エントリは処理継続し warn ログが出る', async () => {
+      const cache = await _makeCache();
+      const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
+        throw new ChatlogError('AiError', 'ExitFailure', 'simulated AI failure');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+      const warnSpy = spy(logger, 'warn');
+      try {
+        const result = await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 2, false, _throwingStub);
+        // Both entries fail (throw → catch in phase), result set is empty
+        assertEquals(result.size, 0);
+        // logger.warn was called at least once (for each failing entry)
+        assertEquals(warnSpy.calls.length >= 1, true);
+      } finally {
+        warnSpy.restore();
+      }
     });
   });
 });
