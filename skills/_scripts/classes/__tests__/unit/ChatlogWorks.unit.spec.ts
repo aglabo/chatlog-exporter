@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-59
+// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-65
 
 // ─── BDD modules
 import { assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
@@ -64,6 +64,10 @@ const _makeBufferProviders = (buf: Map<string, string> = new Map()) => ({
     return Promise.resolve();
   },
   mkdir: (_path: string, _opts?: { recursive?: boolean }): Promise<void> => Promise.resolve(),
+  removeFile: (path: string): Promise<void> => {
+    buf.delete(path);
+    return Promise.resolve();
+  },
 });
 
 /**
@@ -84,9 +88,9 @@ const _makePatternGlob = (mdList: string[], jsonList: string[] = []) => (pattern
 /**
  * `ChatlogWorks` クラスのユニットテストスイート。
  *
- * コンストラクタ・read・write・initFromOutputDir メソッドの動作を検証する。
+ * コンストラクタ・read・write・initFromOutputDir・delete メソッドの動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-59
+ * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-65
  *
  * @see ChatlogWorks
  */
@@ -896,6 +900,111 @@ describe('ChatlogWorks', () => {
         });
         await _cache.ready;
         await assertRejects(() => _cache.initFromOutputDir('/out'));
+      });
+    });
+  });
+
+  /**
+   * `delete()` メソッドのテスト。
+   *
+   * `_hash` からエントリを削除し、対応する `.json` ファイルを削除することを検証する。
+   * エントリやファイルが存在しない場合は no-op（冪等）であることも検証する。
+   *
+   * テスト ID 範囲: T-CLS-CC-60 〜 T-CLS-CC-64
+   */
+  describe('delete', () => {
+    /** delete() 後に read() が {} を返す正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-CLS-CC-60: write() 後に delete(filePath) を呼ぶと read() が {} を返す', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(_buf),
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { value: 'hello' });
+        await _cache.delete('chat.md');
+        assertEquals(_cache.read('chat.md'), {});
+      });
+
+      it('[Normal] T-CLS-CC-61: delete(filePath) を呼ぶと <cacheDir>/<key>.json が削除される', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ value: string }>('sub', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(_buf),
+        });
+        await _cache.ready;
+        await _cache.write('data.md', { value: 'stored' });
+        const _jsonPath = '/tmp/test-cle-cache/cle-cache/sub/data.json';
+        assertEquals(_buf.has(_jsonPath), true);
+        await _cache.delete('data.md');
+        assertEquals(_buf.has(_jsonPath), false);
+      });
+
+      it('[Normal] T-CLS-CC-62: removeFile プロバイダーがモックに差し替えられた場合、そのモックが呼ばれる', async () => {
+        let _removedPath = '';
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: {
+            ..._makeBufferProviders(_buf),
+            removeFile: (path: string): Promise<void> => {
+              _removedPath = path;
+              return Promise.resolve();
+            },
+          },
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { value: 'x' });
+        await _cache.delete('chat.md');
+        assertEquals(_removedPath, '/tmp/test-cle-cache/cle-cache/test/chat.json');
+      });
+    });
+
+    /** removeFile が NotFound 以外のエラーで reject するケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-CLS-CC-65: removeFile が NotFound 以外のエラーで reject すると delete() が reject する', async () => {
+        const _permErr = new Error('permission denied');
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: {
+            ..._makeBufferProviders(),
+            removeFile: (_path: string): Promise<void> => Promise.reject(_permErr),
+          },
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { value: 'x' });
+        const _err = await assertRejects(() => _cache.delete('chat.md'));
+        assertStrictEquals(_err, _permErr);
+      });
+    });
+
+    /** ファイル不在・_hash 不在などの境界条件のケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-CLS-CC-63: キャッシュファイルが存在しない (NotFound) 場合でも delete() は例外を throw しない', async () => {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: {
+            ..._makeBufferProviders(),
+            removeFile: (_path: string): Promise<void> => Promise.reject(new Deno.errors.NotFound('no file')),
+          },
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { value: 'x' });
+        // NotFound でも例外なし
+        await _cache.delete('chat.md');
+        assertEquals(_cache.read('chat.md'), {});
+      });
+
+      it('[Edge] T-CLS-CC-64: _hash にキーが存在しない場合でも delete() は例外を throw しない', async () => {
+        const _cache = new ChatlogWorks<{ value: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(),
+        });
+        await _cache.ready;
+        // write() なし → _hash にキーなし
+        await _cache.delete('nonexistent.md');
+        assertEquals(_cache.read('nonexistent.md'), {});
       });
     });
   });
