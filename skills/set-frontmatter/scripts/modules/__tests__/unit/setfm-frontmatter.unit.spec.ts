@@ -10,7 +10,7 @@
 // cspell:words setfm sess
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
@@ -24,10 +24,13 @@ import { generateFrontmatter } from '../../setfm-frontmatter.ts';
 import {
   installCommandMock,
   makeFailMock,
+  makeFirstNFailMock,
+  makeSequencedSuccessMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
@@ -87,9 +90,9 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
 /**
  * `generateFrontmatter` のユニットテストスイート。
  *
- * AI 出力に応じた frontmatter セット・スキップ・エラー耐性を検証する。
+ * AI 出力に応じた frontmatter セット・リトライ・エラー伝播を検証する。
  *
- * テスト ID 範囲: T-SF-FM-01 〜 T-SF-FM-03
+ * テスト ID 範囲: T-SF-FM-01 〜 T-SF-FM-04
  *
  * @see generateFrontmatter
  */
@@ -110,7 +113,7 @@ describe('generateFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
+      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, true);
       assertEquals(_entry.frontmatter.get('title'), 'test title');
@@ -124,7 +127,7 @@ describe('generateFrontmatter', () => {
       );
 
       const _entry = _makeChatlogEntry({ type: 'original-type', category: 'original-cat' });
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
+      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, true);
       assertEquals(_entry.frontmatter.get('type'), 'original-type');
@@ -134,58 +137,101 @@ describe('generateFrontmatter', () => {
   });
 
   /**
-   * `runAI` が例外を throw するとき `false` を返すことを検証する。
-   * `parseYaml` が不正 YAML で throw するとき `false` を返すことを検証する。
+   * リトライ後に成功するケース。
    */
-  describe('When: 異常系', () => {
-    it('[Error] T-SF-FM-02-01: runAI が例外を throw → false を返す', async () => {
-      commandHandle = installCommandMock(makeFailMock(1));
-
-      const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
-
-      assertEquals(result, false);
-    });
-
-    it('[Error] T-SF-FM-02-02: AI が複数ドキュメント YAML を返す → false を返す', async () => {
+  describe('When: リトライ成功', () => {
+    it('[Normal] T-SF-FM-04-01: maxRetry=1, 1回目が AiError, 2回目成功 → true を返す', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: "first doc"\n---\nother: value\n')),
+        makeFirstNFailMock(1, 'title: "retry success"\n'),
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
+      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 1);
 
-      assertEquals(result, false);
+      assertEquals(result, true);
+      assertEquals(_entry.frontmatter.get('title'), 'retry success');
+    });
+  });
+
+  /**
+   * リトライ上限に達したとき throw するケース。
+   */
+  describe('When: 異常系', () => {
+    it('[Error] T-SF-FM-02-01: maxRetry=0, runAI が AiError → AiError を throw', async () => {
+      commandHandle = installCommandMock(makeFailMock(1));
+
+      const _entry = _makeChatlogEntry();
+      await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      );
     });
 
-    it('[Error] T-SF-FM-02-03: AI が不正な YAML 構文を返す → false を返す', async () => {
+    it('[Error] T-SF-FM-02-02: maxRetry=2, 3回すべて YAML パース失敗 → ChatlogError(InvalidYaml) を throw', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(_enc.encode('title: test\n  invalid_indent: bad\n')),
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
+      await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 2),
+        ChatlogError,
+      );
+    });
 
-      assertEquals(result, false);
+    it('[Error] T-SF-FM-02-03: AiError 以外の例外(TimedOut) → 即 throw (リトライしない)', async () => {
+      // Deno.errors.NotFound は AiError ではないので即 throw
+      const _notFoundMock = class {
+        constructor(_cmd: string, _opts: unknown) {}
+        spawn(): never {
+          throw new Deno.errors.NotFound('claude: not found');
+        }
+        output(): never {
+          throw new Deno.errors.NotFound('claude: not found');
+        }
+      };
+      // deno-lint-ignore no-explicit-any
+      commandHandle = installCommandMock(_notFoundMock as any);
+
+      const _entry = _makeChatlogEntry();
+      await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 2),
+        Deno.errors.NotFound,
+      );
     });
   });
 
   /**
-   * `runAI` が空文字列を返すとき `cleanYaml` が空文字になり `false` を返すことを検証する。
+   * YAML パース失敗後にリトライして成功するエッジケース。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-SF-FM-03-01: runAI が空文字列を返す → cleanYaml が空文字になり false を返す', async () => {
+    it('[Edge] T-SF-FM-04-02: maxRetry=2, 最初の2回が YAML パース失敗, 3回目成功 → true を返す', async () => {
+      const _badYaml = 'title: test\n  invalid_indent: bad\n';
+      const _goodYaml = 'title: "finally succeeded"\n';
+      commandHandle = installCommandMock(
+        makeSequencedSuccessMock([_badYaml, _badYaml, _goodYaml]),
+      );
+
+      const _entry = _makeChatlogEntry();
+      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 2);
+
+      assertEquals(result, true);
+      assertEquals(_entry.frontmatter.get('title'), 'finally succeeded');
+    });
+
+    it('[Edge] T-SF-FM-03-01: maxRetry=0, runAI が空文字列を返す → ChatlogError(InvalidYaml) を throw', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(_enc.encode('')),
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
-
-      assertEquals(result, false);
+      await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      );
     });
 
-    it('[Edge] T-SF-FM-03-02: extractYaml が { ok: false } を返す → logger.warn が呼ばれ false を返す', async () => {
+    it('[Edge] T-SF-FM-03-02: extractYaml が { ok: false } を返す → logger.warn が呼ばれ ChatlogError を throw', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(_enc.encode('')),
       );
@@ -193,9 +239,10 @@ describe('generateFrontmatter', () => {
       try {
         warnStub = stub(logger, 'warn', () => {});
         const _entry = _makeChatlogEntry();
-        const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts);
-
-        assertEquals(result, false);
+        await assertRejects(
+          () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0),
+          ChatlogError,
+        );
         assertEquals(warnStub.calls.length >= 1, true);
       } finally {
         warnStub?.restore();
