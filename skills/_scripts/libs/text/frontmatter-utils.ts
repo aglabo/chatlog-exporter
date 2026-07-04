@@ -12,11 +12,13 @@ import { parse as parseYaml } from '@std/yaml';
 
 // --- libs
 import { normalizeLine } from './line-utils.ts';
+import { cleanYaml } from './markdown-utils.ts';
 import { toStringWithNull } from './string-utils.ts';
 import { stringifyFrontmatter } from './yaml-utils.ts';
 
 // types
 import type { FrontmatterEntries, FrontmatterFields, FrontmatterResult } from '../../types/frontmatter.types.ts';
+import type { Result } from '../../types/result.types.ts';
 
 // Error
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
@@ -171,4 +173,35 @@ export const renderFrontmatter = (fields: FrontmatterFields): string => {
   if (Object.keys(fields).length === 0) { return ''; }
   const _yamlBody = stringifyFrontmatter(fields);
   return `---\n${_yamlBody}---\n`;
+};
+
+/**
+ * AI 出力の raw 文字列をクリーニングして YAML パースし、Result 型で返す。
+ *
+ * - `cleanYaml` でコードフェンス除去・`firstField` 行から抽出する
+ * - `cleanYaml` が空文字列を返す場合は `{ ok: false }` を返す
+ * - `parseYaml` の結果がオブジェクト以外（null・配列）の場合は `{ ok: false }` を返す
+ * - YAML 構文エラーは catch して `{ ok: false }` を返す
+ *
+ * @param raw - AI が返した生テキスト
+ * @param firstField - 抽出開始フィールド名（例: `'title'`, `'validity'`）
+ * @returns パース成功時 `{ ok: true, value }` / 失敗時 `{ ok: false, error }`
+ */
+export const parseAiYaml = (
+  raw: string,
+  firstField: string,
+): Result<Record<string, unknown>> => {
+  const _yaml = cleanYaml(raw, firstField);
+  if (!_yaml) {
+    return { ok: false, error: new Error('cleanYaml returned empty') };
+  }
+  try {
+    const _result = parseYaml(_yaml);
+    if (_result === null || typeof _result !== 'object' || Array.isArray(_result)) {
+      return { ok: false, error: new Error('YAML top-level is not an object') };
+    }
+    return { ok: true, value: _result as Record<string, unknown> };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e : new Error(String(e)) };
+  }
 };
