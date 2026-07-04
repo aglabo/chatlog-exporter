@@ -183,11 +183,11 @@ export const renderFrontmatter = (fields: FrontmatterFields): string => {
  * - `parseYaml` の結果がオブジェクト以外（null・配列）の場合は `{ ok: false }` を返す
  * - YAML 構文エラーは catch して `{ ok: false }` を返す
  *
- * @param raw - AI が返した生テキスト
+ * @param raw - パース対象の生テキスト
  * @param firstField - 抽出開始フィールド名（例: `'title'`, `'validity'`）
  * @returns パース成功時 `{ ok: true, value }` / 失敗時 `{ ok: false, error }`
  */
-export const parseAiYaml = (
+export const extractYaml = (
   raw: string,
   firstField: string,
 ): Result<Record<string, unknown>> => {

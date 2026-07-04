@@ -13,7 +13,7 @@
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { parseAiYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── Local
 import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';
@@ -52,10 +52,10 @@ export const reviewFrontmatter = async (
     return { validity: 'pass', errors: [] };
   }
 
-  const _reviewResult = parseAiYaml(raw, 'validity');
+  const _reviewResult = extractYaml(raw, 'validity');
   if (!_reviewResult.ok) {
     logger.warn(`reviewFrontmatter: YAML parse failed: ${_reviewResult.error.message}`);
-    return { validity: 'pass', errors: [] };
+    return { validity: 'fail', errors: [`YAML parse failed: ${_reviewResult.error.message}`] };
   }
   const _parsed = _reviewResult.value;
 

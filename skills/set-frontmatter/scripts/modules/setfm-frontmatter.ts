@@ -14,7 +14,7 @@ import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { parseAiYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 // types
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
@@ -53,7 +53,7 @@ export const generateFrontmatter = async (
     logger.warn(`generateFrontmatter: AI call failed: ${e}`);
     return false;
   }
-  const _fmResult = parseAiYaml(raw, 'title');
+  const _fmResult = extractYaml(raw, 'title');
   if (!_fmResult.ok) {
     logger.warn(`generateFrontmatter: YAML parse failed: ${_fmResult.error.message}`);
     return false;
