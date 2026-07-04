@@ -20,7 +20,9 @@ import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { logger } from '../../../../_scripts/libs/io/logger.ts';
 // types
 import type { SetfmCache } from '../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
@@ -173,6 +175,27 @@ describe('_phaseReview', () => {
       await phaseReview([], cache, _dics, _prompts, 1, true, stub);
 
       assertEquals(getCount(), 0);
+    });
+  });
+
+  /**
+   * reviewProvider が throw したとき phase が継続するケース。
+   */
+  describe('When: reviewProvider が throw する', () => {
+    it('[Normal] T-04-04-01: reviewProvider が throw しても他エントリは処理継続する', async () => {
+      const cache = await _makeCache();
+      const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
+        throw new ChatlogError('AiError', 'ExitFailure', 'simulated AI failure');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+      const warnSpy = spy(logger, 'warn');
+      try {
+        // Should resolve without throwing (catch inside phase)
+        await phaseReview(entries, cache, _dics, _prompts, 2, false, _throwingStub);
+        assertEquals(warnSpy.calls.length >= 1, true);
+      } finally {
+        warnSpy.restore();
+      }
     });
   });
 });
