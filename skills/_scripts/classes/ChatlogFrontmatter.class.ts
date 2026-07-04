@@ -11,7 +11,7 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // --- shared
-import { divideEntry, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
+import { divideEntry, hasFrontmatterFields, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
 import { toStringWithNull } from '../libs/text/string-utils.ts';
 import { stringifyFrontmatter } from '../libs/text/yaml-utils.ts';
 
@@ -29,12 +29,11 @@ import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
 const _DEFAULT_FIELD_ORDER: string[] = [
   'title',
   'date',
+  'type',
+  'category',
   'session_id',
   'project',
   'slug',
-  'type',
-  'category',
-  'summary',
   'topics',
   'tags',
 ] as const;
@@ -109,6 +108,16 @@ export class ChatlogFrontmatter {
 
   remove(key: string): void {
     delete this._entries[key];
+  }
+
+  /** type / category / title / topics / tags の5フィールドがすべて充足しているか判定する。 */
+  hasRequiredFields(): boolean {
+    return hasFrontmatterFields(this._entries);
+  }
+
+  /** type / category / title の3フィールドがすべて充足しているか判定する。 */
+  hasBaseFields(): boolean {
+    return hasFrontmatterFields(this._entries, ['type', 'category', 'title']);
   }
 
   toFrontmatter(fieldOrder: string[] = _DEFAULT_FIELD_ORDER): string {

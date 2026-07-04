@@ -32,6 +32,7 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
+import { DEFAULT_FIELD_ORDER } from '../../_scripts/classes/ChatlogFrontmatter.class.ts';
 import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 // types
@@ -41,7 +42,7 @@ import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
-import { applyCacheToEntry, hasFrontmatterFields, writeFrontmatter } from './modules/setfm-write.ts';
+import { applyCacheToEntry, writeFrontmatter } from './modules/setfm-write.ts';
 import type { SetfmCache } from './types/cache.types.ts';
 import type { Dics, Prompts } from './types/dics.types.ts';
 // types
@@ -78,7 +79,6 @@ type _WriteProvider = (
 ) => Promise<boolean>;
 
 // ─── Internal constants
-const _knownFields = ['title', 'date', 'session_id', 'project', 'slug', 'summary', 'topics', 'tags'];
 
 // ─────────────────────────────────────────────
 // 内部関数
@@ -202,7 +202,7 @@ const _phaseFrontmatter = async (
     const _cached = cache.read(e.filePath!);
     Object.entries(_cached.frontmatter!).forEach(([k, v]) => e.frontmatter.set(k, v));
     _generatedFiles.add(e.filePath!);
-    if (hasFrontmatterFields(e) && !dryRun) {
+    if (e.frontmatter.hasRequiredFields() && !dryRun) {
       await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
     }
     if (dryRun) {
@@ -212,13 +212,13 @@ const _phaseFrontmatter = async (
     }
   }
 
-  const _alreadyFilled = _misses.filter((e) => hasFrontmatterFields(e));
-  const _needsGenerate = _misses.filter((e) => !hasFrontmatterFields(e));
+  const _alreadyFilled = _misses.filter((e) => e.frontmatter.hasRequiredFields());
+  const _needsGenerate = _misses.filter((e) => !e.frontmatter.hasRequiredFields());
 
   await Promise.all(
     _alreadyFilled.map(async (entry) => {
       const _fmSnapshot: Record<string, string | string[]> = {};
-      _knownFields.forEach((k) => {
+      DEFAULT_FIELD_ORDER.forEach((k) => {
         const v = entry.frontmatter.get(k);
         if (v !== undefined) { _fmSnapshot[k] = v; }
       });
@@ -255,12 +255,12 @@ const _phaseFrontmatter = async (
         }
         if (_ok) {
           const _fmSnapshot: Record<string, string | string[]> = {};
-          _knownFields.forEach((k) => {
+          DEFAULT_FIELD_ORDER.forEach((k) => {
             const v = entry.frontmatter.get(k);
             if (v !== undefined) { _fmSnapshot[k] = v; }
           });
           const _existing = cache.read(entry.filePath!);
-          const _statusUpdate = hasFrontmatterFields(entry) ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
+          const _statusUpdate = entry.frontmatter.hasRequiredFields() ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
           await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
           _generatedFiles.add(entry.filePath!);
           logger.info(`  generated: ${getFilename(entry.filePath!)}`);
@@ -279,7 +279,7 @@ const _phaseFrontmatter = async (
  * エントリ配列を走査し、各エントリのキャッシュ status を設定する。
  *
  * - `cache.read(e.filePath!).status === 'written'` → スキップ
- * - `hasFrontmatterFields(entry) === true` → `status: 'need-review'` を書き込む
+ * - `entry.frontmatter.hasRequiredFields() === true` → `status: 'need-review'` を書き込む
  * - それ以外 → `status: ''` を書き込む
  * - `dryRun === true` の場合は cache.write を実行しない
  *
@@ -302,7 +302,7 @@ const _phaseStatus = async (
         logger.info(`  [dry-run] status: ${getFilename(entry.filePath!)} - skipped`);
         return;
       }
-      const _status = hasFrontmatterFields(entry)
+      const _status = entry.frontmatter.hasRequiredFields()
         ? CACHE_STATUSES.NEED_REVIEW
         : CACHE_STATUSES.EMPTY;
       await cache.write(entry.filePath!, { ..._existing, status: _status });
@@ -349,7 +349,7 @@ const _phaseReview = async (
           logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
           const _existing = cache.read(entry.filePath!);
           const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
-          for (const k of _knownFields) {
+          for (const k of DEFAULT_FIELD_ORDER) {
             const v = entry.frontmatter.get(k);
             if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
           }
