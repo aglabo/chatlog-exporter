@@ -172,6 +172,58 @@ describe('main - dry-run モード', () => {
       });
     });
   });
+
+  // ─── T-SF-E2E-01-04: status=written ファイルは dry-run 後も変わらない ────────
+  describe('Given: status=written のファイルと dry-run フラグ', () => {
+    describe('When: main([--input-dir, --output-dir, --cache-dir, --dry-run, --no-review, --dics]) を呼び出す', () => {
+      describe('Then: T-SF-E2E-01-04 - status=written ファイルの内容が変わらない', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTargetDir('---\ntitle: Test\n---\n# body\n');
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await _makeCacheDir(['test']);
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-E2E-01-04: status=written のファイルは --dry-run 実行後も内容が変わらない', async () => {
+          const originalContent = await readTextFile(`${inputDir}/test.md`);
+
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          const updatedContent = await readTextFile(`${inputDir}/test.md`);
+          assertEquals(updatedContent, originalContent);
+        });
+      });
+    });
+  });
 });
 
 // ─── T-SF-E2E-02: --no-review → Phase 3.5 スキップ ───────────────────────────
@@ -393,6 +445,377 @@ describe('main - --cache-dir オプション', () => {
             exists = true;
           } catch { /* noop */ }
           assertEquals(exists, true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-SF-DR: dry-run 完了ログと dry-run ループ対象 ──────────────────────────
+
+/**
+ * 2件の .md ファイルを持つ inputDir を作成する。
+ * `written.md` と `target.md` を配置する。
+ */
+const _makeTwoFileDir = async (): Promise<string> => {
+  const dir = await Deno.makeTempDir();
+  await Deno.writeTextFile(`${dir}/written.md`, '# written\n本文');
+  await Deno.writeTextFile(`${dir}/target.md`, '# target\n本文');
+  return dir;
+};
+
+/**
+ * キャッシュディレクトリを作成し、指定キーに `{ status: 'written' }` の JSON を書き込む。
+ * @param basenames - 拡張子なしファイル名（例: `['written']`）
+ */
+const _makeCacheDir = async (basenames: string[]): Promise<string> => {
+  const cacheDir = await Deno.makeTempDir();
+  const fmCacheDir = `${cacheDir}/fm-cache`;
+  await Deno.mkdir(fmCacheDir, { recursive: true });
+  await Promise.all(
+    basenames.map((name) => Deno.writeTextFile(`${fmCacheDir}/${name}.json`, JSON.stringify({ status: 'written' }))),
+  );
+  return cacheDir;
+};
+
+describe('main - dry-run 完了ログ (T-SF-DR)', () => {
+  /**
+   * `dry-run` 時の完了ログと `[dry-run]` ループ対象の検証。
+   *
+   * Fix 1: dry-run ループを `targetEntries` に限定。
+   * Fix 2: 完了ログに `written=N target=N` を追加。
+   *
+   * テスト ID 範囲: T-SF-DR-01 〜 T-SF-DR-05
+   */
+
+  // ─── T-SF-DR-01: written=1/target=1 混在 ─────────────────────────────────
+  describe('Given: 2件の .md と cache に 1件 written', () => {
+    describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-01 - 完了ログに written=1 target=1 が含まれる', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTwoFileDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await _makeCacheDir(['written']);
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-DR-01-01: 完了ログに "written=1 target=1" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=1 target=1')), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-SF-DR-02: すべて written → target=0 ──────────────────────────────
+  describe('Given: 1件の .md と cache に 1件 written（全件 written）', () => {
+    describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-02 - 完了ログに written=1 target=0 が含まれる', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await _makeCacheDir(['test']);
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-DR-02-01: 完了ログに "written=1 target=0" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=1 target=0')), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-SF-DR-03: すべて target → written=0 ──────────────────────────────
+  describe('Given: 1件の .md と cache エントリなし（全件 target）', () => {
+    describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-03 - 完了ログに written=0 target=1 が含まれる', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-DR-03-01: 完了ログに "written=0 target=1" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=0 target=1')), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-SF-DR-04: [dry-run] ログが targetEntries のみを含む ───────────────
+  describe('Given: 2件の .md と cache に 1件 written', () => {
+    describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-04 - [dry-run] ログが target ファイル名を含み written を含まない', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTwoFileDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await _makeCacheDir(['written']);
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-DR-04-01: [dry-run] ログに target.md のファイル名が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('target.md')), true);
+        });
+
+        it('T-SF-DR-04-02: [dry-run] ログに written.md のファイル名が含まれない', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.every((l) => !(l.includes('[dry-run]') && l.includes('written.md'))), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-SF-DR-05: すべて written → [dry-run] ログなし ────────────────────
+  describe('Given: 1件の .md と全件 written のキャッシュ', () => {
+    describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-05 - [dry-run] ログが0件', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await _makeCacheDir(['test']);
+          dicsDir = await _makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('T-SF-DR-05-01: [dry-run] を含むログが0件', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.every((l) => !l.includes('[dry-run]')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-SF-E2E-DR-05: dry-run → FAIL(yaml空) が出ない ────────────────────────
+
+describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
+  /**
+   * `--dry-run` 実行時は Phase 4 の FAIL 判定をスキップし、
+   * `FAIL (yaml空)` のエラーログが出力されないことを検証する。
+   *
+   * テスト ID 範囲: T-SF-E2E-DR-05-01 〜 T-SF-E2E-DR-05-02
+   */
+  describe('Given: Claude CLI が空レスポンスを返し --dry-run フラグがある', () => {
+    describe('When: main([--input-dir, --output-dir, --dry-run, --no-review, --dics]) を呼び出す', () => {
+      describe('Then: T-SF-E2E-DR-05 - FAIL(yaml空) ログが出ない', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await _makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          dicsDir = await _makeDicsDir();
+          // 全フェーズで空文字を返す（status が空になる条件）
+          commandHandle = installCommandMock(
+            makeSuccessMock(_enc.encode('')),
+          );
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-E2E-DR-05-01: errorLogs に "FAIL (yaml空)" が含まれない', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.errorLogs.every((l) => !l.includes('FAIL (yaml空)')), true);
+        });
+
+        it('[Normal] T-SF-E2E-DR-05-02: infoLogs に "fail=0" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=0')), true);
         });
       });
     });
