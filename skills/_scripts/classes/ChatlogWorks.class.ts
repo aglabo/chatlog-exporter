@@ -25,6 +25,7 @@ import type {
   GlobProvider,
   MkdirProvider,
   ReadTextFileProvider,
+  RemoveProvider,
   WriteTextFileProvider,
 } from '../types/providers.types.ts';
 
@@ -46,6 +47,7 @@ export interface ChatlogWorksFileProviders {
   writeTextFile?: WriteTextFileProvider;
   mkdir?: MkdirProvider;
   glob?: GlobProvider;
+  removeFile?: RemoveProvider;
 }
 
 /** `ChatlogWorks` コンストラクタに渡す依存性注入プロバイダーのまとめ。 */
@@ -86,6 +88,7 @@ export class ChatlogWorks<T extends object> {
   private _writeTextFile!: WriteTextFileProvider;
   private _mkdir!: MkdirProvider;
   private _glob!: GlobProvider;
+  private _removeFile!: RemoveProvider;
 
   /** 初期化（ディレクトリ作成）完了を待つ Promise。`read`/`write` 前に await すること。 */
   readonly ready: Promise<void>;
@@ -113,6 +116,7 @@ export class ChatlogWorks<T extends object> {
     this._writeTextFile = providers?.cache?.writeTextFile ?? ((path, data) => Deno.writeTextFile(path, data));
     this._mkdir = providers?.cache?.mkdir ?? ((path, opts) => Deno.mkdir(path, opts));
     this._glob = providers?.cache?.glob ?? _defaultGlob;
+    this._removeFile = providers?.cache?.removeFile ?? ((path) => Deno.remove(path));
   }
 
   /**
@@ -182,6 +186,25 @@ export class ChatlogWorks<T extends object> {
   write(filePath: string, data: Partial<T>): Promise<void> {
     const _key = this._toHashKey(filePath);
     return this._writeFile(_key, data);
+  }
+
+  /**
+   * キャッシュエントリを削除する。
+   *
+   * `_hash` からエントリを削除し、対応する `.json` ファイルを削除する。
+   * エントリやファイルが存在しない場合は no-op（冪等）。
+   * ファイル削除が `Deno.errors.NotFound` で失敗した場合は無視する。
+   *
+   * @param filePath - ファイルパスまたはファイル名（拡張子あり・なし両可）
+   */
+  async delete(filePath: string): Promise<void> {
+    const _key = this._toHashKey(filePath);
+    this._hash.delete(_key);
+    try {
+      await this._removeFile(this._cachePath(_key));
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) { throw e; }
+    }
   }
 
   /**

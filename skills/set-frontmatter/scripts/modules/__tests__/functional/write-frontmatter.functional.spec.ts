@@ -108,7 +108,7 @@ afterEach(async () => {
 
 describe('writeFrontmatter', () => {
   describe('Given: 有効な yaml と dryRun=false', () => {
-    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir, false) を呼び出す', () => {
+    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir) を呼び出す', () => {
       describe('Then: T-SF-WF-01 - ファイルが更新され true が返る', () => {
         it('T-SF-WF-01-01: ファイルが更新される', async () => {
           const filePath = `${tempDir}/test.md`;
@@ -116,7 +116,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('---'), true);
@@ -128,7 +128,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          const ok = await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          const ok = await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           assertEquals(ok, true);
         });
@@ -139,7 +139,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('type: "research"'), true);
@@ -151,7 +151,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('category: "development"'), true);
@@ -163,7 +163,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated.includes('# テスト'), true);
@@ -172,49 +172,17 @@ describe('writeFrontmatter', () => {
     });
   });
 
-  // ─── dryRun=true: ファイルは変更されない ─────────────────────────────────
-
-  describe('Given: 有効な yaml と dryRun=true', () => {
-    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir, true) を呼び出す', () => {
-      describe('Then: T-SF-WF-02 - ファイルは変更されず true が返る', () => {
-        it('T-SF-WF-02-01: ファイルが変更されない', async () => {
-          const filePath = `${tempDir}/test.md`;
-          const originalContent = '# テスト\n本文';
-          await Deno.writeTextFile(filePath, originalContent);
-          const entry = _makeChatlogEntry(filePath);
-          _setAllFields(entry);
-
-          await writeFrontmatter(entry, cache, tempDir, tempDir, true);
-
-          const updated = await readTextFile(filePath);
-          assertEquals(updated, originalContent);
-        });
-
-        it('T-SF-WF-02-02: true を返す', async () => {
-          const filePath = `${tempDir}/test.md`;
-          await Deno.writeTextFile(filePath, '# テスト\n本文');
-          const entry = _makeChatlogEntry(filePath);
-          _setAllFields(entry);
-
-          const ok = await writeFrontmatter(entry, cache, tempDir, tempDir, true);
-
-          assertEquals(ok, true);
-        });
-      });
-    });
-  });
-
   // ─── yaml が空文字の場合 ──────────────────────────────────────────────────
 
   describe('Given: frontmatter が空（title 未設定）の entry', () => {
-    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir, false) を呼び出す', () => {
+    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir) を呼び出す', () => {
       describe('Then: T-SF-WF-03 - false が返る', () => {
         it('T-SF-WF-03-01: false を返す', async () => {
           const filePath = `${tempDir}/test.md`;
           await Deno.writeTextFile(filePath, '# テスト\n本文');
           const entry = _makeChatlogEntry(filePath);
 
-          const ok = await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          const ok = await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           assertEquals(ok, false);
         });
@@ -225,7 +193,7 @@ describe('writeFrontmatter', () => {
           await Deno.writeTextFile(filePath, originalContent);
           const entry = _makeChatlogEntry(filePath);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           const updated = await readTextFile(filePath);
           assertEquals(updated, originalContent);
@@ -237,7 +205,7 @@ describe('writeFrontmatter', () => {
   // ─── 一時ファイルが残らない ───────────────────────────────────────────────
 
   describe('Given: 正常な書き込み完了後', () => {
-    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir, false) を呼び出す', () => {
+    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir) を呼び出す', () => {
       describe('Then: T-SF-WF-04 - .tmp ファイルが残らない', () => {
         it('T-SF-WF-04-01: .tmp ファイルが残らない', async () => {
           const filePath = `${tempDir}/test.md`;
@@ -245,7 +213,7 @@ describe('writeFrontmatter', () => {
           const entry = _makeChatlogEntry(filePath);
           _setAllFields(entry);
 
-          await writeFrontmatter(entry, cache, tempDir, tempDir, false);
+          await writeFrontmatter(entry, cache, tempDir, tempDir);
 
           assertEquals(await fileOrDirExists(`${filePath}.tmp`), false);
         });

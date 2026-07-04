@@ -12,7 +12,8 @@
 // ─── Shared scripts
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { parseAiYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 
 // ─── Local
 import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';
@@ -46,42 +47,53 @@ export const reviewFrontmatter = async (
   let raw: string;
   try {
     raw = await runAI(system, user);
-  } catch {
+  } catch (e) {
+    logger.warn(`reviewFrontmatter: AI call failed: ${e}`);
     return { validity: 'pass', errors: [] };
   }
 
-  const _cleaned = cleanYaml(raw, 'validity');
+  const _reviewResult = parseAiYaml(raw, 'validity');
+  if (!_reviewResult.ok) {
+    logger.warn(`reviewFrontmatter: YAML parse failed: ${_reviewResult.error.message}`);
+    return { validity: 'pass', errors: [] };
+  }
+  const _parsed = _reviewResult.value;
 
-  const validityMatch = _cleaned.match(/^validity:\s*(pass|fail)/m);
-  const validity = (validityMatch?.[1] ?? 'pass') as 'pass' | 'fail';
+  const validity = ((_parsed['validity'] as string) ?? 'pass') as 'pass' | 'fail';
 
   if (validity === 'pass') {
     return { validity: 'pass', errors: [] };
   }
 
-  const errorsMatch = _cleaned.match(/^errors:\s*\n((?: {2}- .+\n?)*)/m);
-  const errors = errorsMatch
-    ? errorsMatch[1].split('\n').map((l) => l.replace(/^ {2}- /, '').trim()).filter(Boolean)
+  const _errorsRaw = _parsed['errors'];
+  const errors = Array.isArray(_errorsRaw)
+    ? _errorsRaw.map((e) => String(e)).filter(Boolean)
     : [];
 
-  const typeMatch = _cleaned.match(/^ {2}type:\s*(\S+)/m);
-  const correctedType = typeMatch?.[1]?.trim() ?? '';
-  if (correctedType) { entry.frontmatter.set('type', correctedType); }
+  const _corrected = _parsed['corrected'];
+  if (_corrected !== null && typeof _corrected === 'object' && !Array.isArray(_corrected)) {
+    const _c = _corrected as Record<string, unknown>;
+    const correctedType = typeof _c['type'] === 'string' ? _c['type'].trim() : '';
+    if (correctedType) { entry.frontmatter.set('type', correctedType); }
 
-  const categoryMatch = _cleaned.match(/^ {2}category:\s*(\S+)/m);
-  const correctedCategory = categoryMatch?.[1]?.trim() ?? '';
-  if (correctedCategory) { entry.frontmatter.set('category', correctedCategory); }
-
-  const topicsMatch = _cleaned.match(/^ {2}topics:\n((?:^ {4}- .+\n?)*)/m);
-  if (topicsMatch) {
-    const correctedTopics = topicsMatch[1].split('\n').map((l) => l.replace(/^ {4}- /, '').trim()).filter(Boolean);
-    if (correctedTopics.length > 0) { entry.frontmatter.set('topics', correctedTopics); }
+    const correctedCategory = typeof _c['category'] === 'string' ? _c['category'].trim() : '';
+    if (correctedCategory) { entry.frontmatter.set('category', correctedCategory); }
   }
 
-  const tagsMatch = _cleaned.match(/^ {2}tags:\n((?:^ {4}- .+\n?)*)/m);
-  if (tagsMatch) {
-    const correctedTags = tagsMatch[1].split('\n').map((l) => l.replace(/^ {4}- /, '').trim()).filter(Boolean);
-    if (correctedTags.length > 0) { entry.frontmatter.set('tags', correctedTags); }
+  const _correctedFm = _parsed['corrected_frontmatter'];
+  if (_correctedFm !== null && typeof _correctedFm === 'object' && !Array.isArray(_correctedFm)) {
+    const _cfm = _correctedFm as Record<string, unknown>;
+    const _topicsRaw = _cfm['topics'];
+    if (Array.isArray(_topicsRaw)) {
+      const correctedTopics = _topicsRaw.map((t) => String(t)).filter(Boolean);
+      if (correctedTopics.length > 0) { entry.frontmatter.set('topics', correctedTopics); }
+    }
+
+    const _tagsRaw = _cfm['tags'];
+    if (Array.isArray(_tagsRaw)) {
+      const correctedTags = _tagsRaw.map((t) => String(t)).filter(Boolean);
+      if (correctedTags.length > 0) { entry.frontmatter.set('tags', correctedTags); }
+    }
   }
 
   return { validity, errors };

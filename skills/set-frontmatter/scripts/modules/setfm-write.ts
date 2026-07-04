@@ -55,6 +55,29 @@ export const hasFrontmatterFields = (entry: ChatlogEntry): boolean => {
 };
 
 // ─────────────────────────────────────────────
+// キャッシュ適用
+// ─────────────────────────────────────────────
+
+/**
+ * キャッシュから frontmatter・type・category を `entry.frontmatter` に適用する。
+ *
+ * @param entry - 適用対象の `ChatlogEntry`
+ * @param cache - フェーズキャッシュ（frontmatter・type・category の供給元）
+ */
+export const applyCacheToEntry = (
+  entry: ChatlogEntry,
+  cache: ChatlogWorks<SetfmCache>,
+): void => {
+  const _inputPath = entry.filePath!;
+  const _cached = cache.read(_inputPath);
+  if (_cached.frontmatter) {
+    Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
+  }
+  if (_cached.type) { entry.frontmatter.set('type', _cached.type); }
+  if (_cached.category) { entry.frontmatter.set('category', _cached.category); }
+};
+
+// ─────────────────────────────────────────────
 // Phase 4: Markdownへ書き込み
 // ─────────────────────────────────────────────
 
@@ -62,7 +85,7 @@ export const hasFrontmatterFields = (entry: ChatlogEntry): boolean => {
  * エントリのフロントマターを Markdown ファイルに書き込む。
  *
  * `cache` からフロントマター・type・category を適用した後、6フィールド充足チェックを行い、
- * dryRun=false かつ全フィールドあり の場合は実際のファイル書き込みを実施する。
+ * 全フィールドありの場合は実際のファイル書き込みを実施する。
  * 書き込み成功後は `cache.status` を `WRITTEN` に更新する。
  * I/O エラーが発生した場合は一時ファイル（.tmp）を削除して例外を再 throw する。
  *
@@ -70,7 +93,6 @@ export const hasFrontmatterFields = (entry: ChatlogEntry): boolean => {
  * @param cache - フェーズキャッシュ（frontmatter・type・category の供給元）
  * @param outputDir - 出力先ディレクトリ
  * @param inputDir - 入力元ディレクトリ（相対パス計算用）
- * @param dryRun - true のとき実ファイル書き込みをスキップし標準出力に内容を表示する
  * @returns 書き込みに成功したとき `true`、フィールド不足のとき `false`
  * @throws フィールド充足チェック通過後にファイル I/O エラーが発生した場合
  */
@@ -79,29 +101,11 @@ export const writeFrontmatter = async (
   cache: ChatlogWorks<SetfmCache>,
   outputDir: string,
   inputDir: string,
-  dryRun: boolean,
 ): Promise<boolean> => {
   const _inputPath = entry.filePath!;
-  const _cached = cache.read(_inputPath);
-
-  if (_cached.frontmatter) {
-    Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
-  }
-  if (_cached.type) { entry.frontmatter.set('type', _cached.type); }
-  if (_cached.category) { entry.frontmatter.set('category', _cached.category); }
-
   if (!hasFrontmatterFields(entry)) {
     logger.error(`  FAIL (yaml空): ${getFilename(_inputPath)}`);
     return false;
-  }
-
-  const _type = (entry.frontmatter.get('type') as string) ?? '';
-  const _category = (entry.frontmatter.get('category') as string) ?? '';
-
-  if (dryRun) {
-    logger.log(`\n=== DRY RUN [${_type}/${_category}]: ${getFilename(_inputPath)} ===`);
-    logger.log(entry.frontmatter.toFrontmatter().trimEnd());
-    return true;
   }
 
   const _relPath = relative(inputDir, _inputPath);

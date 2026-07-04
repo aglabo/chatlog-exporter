@@ -184,6 +184,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           judgeStub,
         );
 
@@ -210,6 +211,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           judgeStub,
         );
 
@@ -238,6 +240,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           generateStub,
         );
 
@@ -266,6 +269,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           reviewStub,
         );
 
@@ -283,6 +287,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           reviewStub,
         );
 
@@ -306,6 +311,7 @@ describe('cache-hit fixtures', () => {
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
+          false,
           _reviewWithCorrection,
         );
 

@@ -238,5 +238,52 @@ describe('reviewFrontmatter', () => {
 
       assertEquals(_entry.frontmatter.get('topics'), ['existing-topic']);
     });
+
+    it('[Edge] T-SF-RV-09-01: runAI が validity: fail + 4スペースキー+6スペースリストの topics を含む → entry.frontmatter.get(topics) が更新される', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: fail\nerrors:\n  - wrong topics\ncorrected_frontmatter:\n    topics:\n      - software-engineering\n      - behavior\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
+    });
+
+    it('[Edge] T-SF-RV-09-02: runAI が validity: fail + 4スペースキー+6スペースリストの tags を含む → entry.frontmatter.get(tags) が更新される', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: fail\nerrors:\n  - wrong tags\ncorrected_frontmatter:\n    tags:\n      - lang:typescript\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
+    });
+
+    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が throw → { validity: pass, errors: [] } を返す（フェイルセーフ）', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(
+          _enc.encode(
+            'validity: fail\ncorrected_frontmatter:\n  topics:\n - bad-indent\n',
+          ),
+        ),
+      );
+
+      const _entry = _makeChatlogEntry();
+      _entry.frontmatter.set('topics', ['original-topic']);
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts);
+
+      assertEquals(result, { validity: 'pass', errors: [] });
+      assertEquals(_entry.frontmatter.get('topics'), ['original-topic']);
+    });
   });
 });

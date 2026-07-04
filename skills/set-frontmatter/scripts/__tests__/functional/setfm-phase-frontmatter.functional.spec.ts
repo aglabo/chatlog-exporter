@@ -295,6 +295,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -313,6 +314,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -330,6 +332,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -347,6 +350,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -364,6 +368,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -381,6 +386,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -398,6 +404,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -418,6 +425,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -435,6 +443,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -452,6 +461,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -472,6 +482,7 @@ describe('_phaseFrontmatter', () => {
         _DICS,
         _PROMPTS,
         _CONCURRENCY,
+        false,
         _makeGenerateStub(counter),
       );
 
@@ -512,6 +523,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeGenerateStub(counter),
         );
 
@@ -553,6 +565,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeGenerateStub(counter),
         );
 
@@ -576,6 +589,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeGenerateStub(counter),
         );
 
@@ -599,6 +613,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeGenerateStub(counter),
         );
 
@@ -621,6 +636,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeFullGenerateStub(counter),
         );
 
@@ -640,6 +656,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeFailGenerateStub(counter),
         );
 
@@ -659,6 +676,7 @@ describe('_phaseFrontmatter', () => {
           _DICS,
           _PROMPTS,
           _CONCURRENCY,
+          false,
           _makeGenerateStub(counter),
         );
 
