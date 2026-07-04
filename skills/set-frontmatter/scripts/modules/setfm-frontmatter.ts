@@ -9,14 +9,12 @@
 
 // cspell:words setfm
 
-// ─── External modules
-import { parse as parseYaml } from '@std/yaml';
-
 // ─── Shared scripts
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { cleanYaml } from '../../../_scripts/libs/text/markdown-utils.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { parseAiYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 // types
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
@@ -51,12 +49,16 @@ export const generateFrontmatter = async (
   let raw: string;
   try {
     raw = await runAI(system, user);
-  } catch {
+  } catch (e) {
+    logger.warn(`generateFrontmatter: AI call failed: ${e}`);
     return false;
   }
-  const _yaml = cleanYaml(raw, 'title');
-  if (!_yaml) { return false; }
-  const _parsed = (parseYaml(_yaml) ?? {}) as FrontmatterFields;
+  const _fmResult = parseAiYaml(raw, 'title');
+  if (!_fmResult.ok) {
+    logger.warn(`generateFrontmatter: YAML parse failed: ${_fmResult.error.message}`);
+    return false;
+  }
+  const _parsed = _fmResult.value as FrontmatterFields;
   for (const [key, val] of Object.entries(_parsed)) {
     if (key !== 'type' && key !== 'category') {
       entry.frontmatter.set(key, val);
