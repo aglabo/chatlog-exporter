@@ -22,21 +22,7 @@ import type { FrontmatterFields } from '../types/frontmatter.types.ts';
 import { ChatlogError } from './ChatlogError.class.ts';
 
 // Constants
-import { FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
-
-// --- Internal definitions
-// constants
-const _DEFAULT_FIELD_ORDER: string[] = [
-  'title',
-  'date',
-  'type',
-  'category',
-  'session_id',
-  'project',
-  'slug',
-  'topics',
-  'tags',
-] as const;
+import { DEFAULT_ORDERED_FIELDS, FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
 
 export class ChatlogFrontmatter {
   private _entries: FrontmatterFields;
@@ -120,7 +106,7 @@ export class ChatlogFrontmatter {
     return hasFrontmatterFields(this._entries, ['type', 'category', 'title']);
   }
 
-  toFrontmatter(fieldOrder: string[] = _DEFAULT_FIELD_ORDER): string {
+  toFrontmatter(fieldOrder: string[] = DEFAULT_ORDERED_FIELDS): string {
     if (fieldOrder.length === 0) {
       throw new ChatlogError('InvalidArgs', 'IsEmpty', 'fieldOrder must not be empty');
     }

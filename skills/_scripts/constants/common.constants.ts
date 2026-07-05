@@ -17,3 +17,16 @@ export const FM_FIELD_TYPES = {
   topics: 'array',
   tags: 'array',
 } as const satisfies Record<string, 'string' | 'array'>;
+
+/** フロントマターフィールドの標準出力順序。 */
+export const DEFAULT_ORDERED_FIELDS: string[] = [
+  'title',
+  'date',
+  'type',
+  'category',
+  'session_id',
+  'project',
+  'slug',
+  'topics',
+  'tags',
+];

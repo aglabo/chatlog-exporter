@@ -34,7 +34,7 @@ describe('ChatlogFrontmatter', () => {
         assertEquals(result, '---\n\n---\n');
       });
 
-      it('T-CLS-CF-23: fieldOrder 省略時は _DEFAULT_FIELD_ORDER が使われる', () => {
+      it('T-CLS-CF-23: fieldOrder 省略時は _DEFAULT_ORDERED_FIELDS が使われる', () => {
         const fm = new ChatlogFrontmatter('---\ntitle: "Hello"\ncategory: "dev"\n---\n');
         const result = fm.toFrontmatter();
         assertEquals(result, '---\ntitle: "Hello"\ncategory: "dev"\n---\n');

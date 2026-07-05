@@ -32,8 +32,8 @@ import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
-import { DEFAULT_FIELD_ORDER } from '../../_scripts/classes/ChatlogFrontmatter.class.ts';
 import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
+import { DEFAULT_ORDERED_FIELDS } from '../../_scripts/constants/common.constants.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 // types
 import { CACHE_STATUSES } from '../../_scripts/types/cache-status.const.types.ts';
@@ -218,7 +218,7 @@ const _phaseFrontmatter = async (
   await Promise.all(
     _alreadyFilled.map(async (entry) => {
       const _fmSnapshot: Record<string, string | string[]> = {};
-      DEFAULT_FIELD_ORDER.forEach((k) => {
+      DEFAULT_ORDERED_FIELDS.forEach((k) => {
         const v = entry.frontmatter.get(k);
         if (v !== undefined) { _fmSnapshot[k] = v; }
       });
@@ -255,7 +255,7 @@ const _phaseFrontmatter = async (
         }
         if (_ok) {
           const _fmSnapshot: Record<string, string | string[]> = {};
-          DEFAULT_FIELD_ORDER.forEach((k) => {
+          DEFAULT_ORDERED_FIELDS.forEach((k) => {
             const v = entry.frontmatter.get(k);
             if (v !== undefined) { _fmSnapshot[k] = v; }
           });
@@ -349,7 +349,7 @@ const _phaseReview = async (
           logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
           const _existing = cache.read(entry.filePath!);
           const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
-          for (const k of DEFAULT_FIELD_ORDER) {
+          for (const k of DEFAULT_ORDERED_FIELDS) {
             const v = entry.frontmatter.get(k);
             if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
           }
