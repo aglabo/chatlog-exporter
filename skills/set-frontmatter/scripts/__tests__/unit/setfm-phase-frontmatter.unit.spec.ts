@@ -179,14 +179,16 @@ describe('_phaseFrontmatter', () => {
    * エッジケース: entries が空の場合。
    */
   describe('When: エッジケース', () => {
-    /** エッジケース: entries=[] → 空の Set が返る。 */
-    it('[Edge] T-02-03-01: entries=[] / dryRun=true → Set.size === 0', async () => {
+    /** エッジケース: entries=[] → cache.write が呼ばれない。 */
+    it('[Edge] T-02-03-01: entries=[] / dryRun=true → cache.write 0回', async () => {
       const cache = await _makeCache();
+      const cacheSpy = spy(cache, 'write');
       const { stub: generateStub } = _makeGenerateStub(true);
 
-      const result = await phaseFrontmatter([], cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, generateStub);
+      await phaseFrontmatter([], cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, generateStub);
 
-      assertEquals(result.size, 0);
+      assertEquals(cacheSpy.calls.length, 0);
+      cacheSpy.restore();
     });
   });
 
@@ -201,14 +203,16 @@ describe('_phaseFrontmatter', () => {
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
       const warnSpy = spy(logger, 'warn');
+      const cacheSpy = spy(cache, 'write');
       try {
-        const result = await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 2, false, _throwingStub);
-        // Both entries fail (throw → catch in phase), result set is empty
-        assertEquals(result.size, 0);
+        await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 2, false, _throwingStub);
+        // Both entries fail (throw → catch in phase), no cache write happens
+        assertEquals(cacheSpy.calls.length, 0);
         // logger.warn was called at least once (for each failing entry)
         assertEquals(warnSpy.calls.length >= 1, true);
       } finally {
         warnSpy.restore();
+        cacheSpy.restore();
       }
     });
   });
