@@ -135,7 +135,6 @@ const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogWorks<Setfm
     category: 'backend',
     frontmatter: {
       title: 'Test Title',
-      summary: 'Test summary.',
       topics: ['topic-a'],
       tags: ['tag1'],
     },
@@ -304,7 +303,7 @@ describe('_phaseWrite', () => {
         cache.write(p, {
           type: 'tech',
           category: 'backend',
-          frontmatter: { title: 'T', summary: 'S', topics: ['t'], tags: ['x'] },
+          frontmatter: { title: 'T', topics: ['t'], tags: ['x'] },
         })
       ),
     );

@@ -19,7 +19,6 @@ user: |
   Log category: ${log_category}
 
   General requirements:
-  - Summary must read as a log summary (what happened, what was done, what was found)
   - Tags must be chosen only from the provided list based on actual content appearance
   - Output YAML only. No code fences, no extra text.
   - Do NOT ask questions. Do NOT add explanations. Generate metadata from the log as-is.
@@ -70,8 +69,6 @@ user: |
 
   Schema:
   title: string
-  summary: |
-    string (multiline, 2-4 sentences)
   topics:
     - string  # follow the when/not rules above
   tags:

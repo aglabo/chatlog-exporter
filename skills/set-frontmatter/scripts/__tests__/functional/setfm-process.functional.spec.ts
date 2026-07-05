@@ -310,7 +310,7 @@ describe('_phaseFrontmatter', () => {
    */
   describe('When: キャッシュヒット（事前スキップ）', () => {
     it('[Normal] T-SF-PF-01: frontmatter が設定済みのエントリ → generateProvider 未呼び出し、フロントマター復元、Set に追加', async () => {
-      cache = await _makeCache(buf, 'test:\n  frontmatter:\n    title: "Cached Title"\n    summary: "Cached Summary"');
+      cache = await _makeCache(buf, 'test:\n  frontmatter:\n    title: "Cached Title"');
       const entry = _makeEntry('/path/to/test.md', '# test');
 
       const result = await phaseFrontmatter(
@@ -326,7 +326,6 @@ describe('_phaseFrontmatter', () => {
 
       assertEquals(result.has('/path/to/test.md'), true);
       assertEquals(entry.frontmatter.get('title'), 'Cached Title');
-      assertEquals(entry.frontmatter.get('summary'), 'Cached Summary');
       assertEquals(generateCallCount, 0);
     });
   });

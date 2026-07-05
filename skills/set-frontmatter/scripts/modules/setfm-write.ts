@@ -17,42 +17,8 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
-// types
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
-
-// ─────────────────────────────────────────────
-// フィールド充足チェック
-// ─────────────────────────────────────────────
-
-/**
- * エントリの frontmatter に 6 フィールドすべてが充足しているか判定する。
- * - type: string かつ非空
- * - category: string かつ非空
- * - title: string かつ非空
- * - summary: string かつ非空
- * - topics: string[] かつ length >= 1
- * - tags: string[] かつ length >= 1
- *
- * @param entry - チェック対象の `ChatlogEntry`
- * @returns 6フィールドすべて充足しているとき `true`
- */
-export const hasFrontmatterFields = (entry: ChatlogEntry): boolean => {
-  const type = entry.frontmatter.get('type');
-  const category = entry.frontmatter.get('category');
-  const title = entry.frontmatter.get('title');
-  const summary = entry.frontmatter.get('summary');
-  const topics = entry.frontmatter.get('topics');
-  const tags = entry.frontmatter.get('tags');
-  return (
-    typeof type === 'string' && type.length > 0
-    && typeof category === 'string' && category.length > 0
-    && typeof title === 'string' && title.length > 0
-    && typeof summary === 'string' && summary.length > 0
-    && Array.isArray(topics) && topics.length >= 1
-    && Array.isArray(tags) && tags.length >= 1
-  );
-};
 
 // ─────────────────────────────────────────────
 // キャッシュ適用
@@ -103,7 +69,7 @@ export const writeFrontmatter = async (
   inputDir: string,
 ): Promise<boolean> => {
   const _inputPath = entry.filePath!;
-  if (!hasFrontmatterFields(entry)) {
+  if (!entry.frontmatter.hasRequiredFields()) {
     logger.error(`  FAIL (yaml空): ${getFilename(_inputPath)}`);
     return false;
   }

@@ -86,13 +86,12 @@ const _makeEntry = (filePath: string, fmLines: string[], body: string): ChatlogE
   return new ChatlogEntry(text, { filePath });
 };
 
-/** 全6フィールド充足エントリ: type/category/title/summary/topics[1]/tags[1] */
+/** 全5フィールド充足エントリ: type/category/title/topics[1]/tags[1] */
 const _makeFullEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -105,7 +104,6 @@ const _makeMissingTopicsEntry = (filePath: string): ChatlogEntry =>
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'tags:',
     '  - lang:typescript',
   ], '# body');
@@ -116,7 +114,6 @@ const _makeMissingTagsEntry = (filePath: string): ChatlogEntry =>
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
   ], '# body');
@@ -126,19 +123,6 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'category: development',
-    'summary: Test summary text',
-    'topics:',
-    '  - typescript',
-    'tags:',
-    '  - lang:typescript',
-  ], '# body');
-
-/** summary フィールドが存在しないエントリ */
-const _makeMissingSummaryEntry = (filePath: string): ChatlogEntry =>
-  _makeEntry(filePath, [
-    'type: research',
-    'category: development',
-    'title: Test Title',
     'topics:',
     '  - typescript',
     'tags:',
@@ -151,7 +135,6 @@ const _makeEmptyTopicsEntry = (filePath: string): ChatlogEntry =>
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics: []',
     'tags:',
     '  - lang:typescript',
@@ -163,7 +146,6 @@ const _makeEmptyTitleEntry = (filePath: string): ChatlogEntry =>
     'type: research',
     'category: development',
     "title: ''",
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -176,7 +158,6 @@ const _makeScalarTopicsEntry = (filePath: string): ChatlogEntry =>
     'type: research',
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics: typescript',
     'tags:',
     '  - lang:typescript',
@@ -187,7 +168,6 @@ const _makeMissingTypeEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -199,7 +179,6 @@ const _makeMissingCategoryEntry = (filePath: string): ChatlogEntry =>
   _makeEntry(filePath, [
     'type: research',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -212,7 +191,6 @@ const _makeEmptyTypeEntry = (filePath: string): ChatlogEntry =>
     "type: ''",
     'category: development',
     'title: Test Title',
-    'summary: Test summary text',
     'topics:',
     '  - typescript',
     'tags:',
@@ -233,7 +211,7 @@ const _makeGenerateStub =
   };
 
 /**
- * generateProvider スタブ。全6フィールド（type/category/title/summary/topics/tags）をセットして true を返す。
+ * generateProvider スタブ。全5フィールド（type/category/title/topics/tags）をセットして true を返す。
  * T-SF-PF-12 で「生成成功＋全フィールド充足」ケースに使用する。
  *
  * @param counter - `{ count: number }` オブジェクト（参照渡しでカウントを外部から観察する）
@@ -245,7 +223,6 @@ const _makeFullGenerateStub =
     e.frontmatter.set('type', 'research');
     e.frontmatter.set('category', 'development');
     e.frontmatter.set('title', 'Generated Title');
-    e.frontmatter.set('summary', 'Generated summary text');
     e.frontmatter.set('topics', ['typescript']);
     e.frontmatter.set('tags', ['lang:typescript']);
     return Promise.resolve(true);
@@ -357,8 +334,8 @@ describe('_phaseFrontmatter', () => {
       assertEquals(counter.count, 1);
     });
 
-    it('[Normal] T-SF-PF-05-01: summary なし → generateProvider が1回呼ばれる', async () => {
-      const entry = _makeMissingSummaryEntry('/path/to/no-summary.md');
+    it('[Normal] T-SF-PF-05-01: summary なし（5フィールド揃い）→ generateProvider 未呼び出し', async () => {
+      const entry = _makeMissingTopicsEntry('/path/to/no-topics.md');
       const counter = { count: 0 };
 
       await phaseFrontmatter(
@@ -506,7 +483,6 @@ describe('_phaseFrontmatter', () => {
             type: 'research',
             category: 'development',
             title: 'Failed Title',
-            summary: 'Failed summary',
             topics: ['typescript'],
             tags: ['lang:typescript'],
           },
@@ -549,7 +525,6 @@ describe('_phaseFrontmatter', () => {
             type: 'research',
             category: 'development',
             title: 'Cached Title',
-            summary: 'Cached summary',
             topics: ['typescript'],
             tags: ['lang:typescript'],
           },

@@ -102,7 +102,7 @@ describe('main - dry-run モード', () => {
           const phaseResponses = [
             'research',
             'development',
-            'title: テスト\nsummary: 概要',
+            'title: テスト',
             'validity: pass',
           ];
           commandHandle = installCommandMock(
@@ -369,7 +369,7 @@ describe('main - --cache-dir オプション', () => {
             _makeSequentialMock([
               _enc.encode('research\ndevelopment'),
               _enc.encode(
-                'title: Generated Title\nsummary: テスト概要\ntopics:\n  - development\ntags:\n  - lang:typescript\n',
+                'title: Generated Title\ntopics:\n  - development\ntags:\n  - lang:typescript\n',
               ),
             ]),
           );
@@ -406,7 +406,7 @@ describe('main - --cache-dir オプション', () => {
           assertEquals(exists, true);
         });
 
-        it('T-SF-E2E-10-02: 出力ファイルのフロントマターに type, category, title, summary が含まれる', async () => {
+        it('T-SF-E2E-10-02: 出力ファイルのフロントマターに type, category, title が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -423,7 +423,6 @@ describe('main - --cache-dir オプション', () => {
           assertStringIncludes(content, 'type:');
           assertStringIncludes(content, 'category:');
           assertStringIncludes(content, 'title:');
-          assertStringIncludes(content, 'summary:');
         });
 
         it('T-SF-E2E-10-03: cacheDir/fm-cache/test.json が生成される', async () => {
