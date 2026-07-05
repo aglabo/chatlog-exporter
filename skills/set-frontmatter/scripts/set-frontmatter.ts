@@ -33,7 +33,6 @@ import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../_scripts/classes/ChatlogWorks.class.ts';
-import { DEFAULT_ORDERED_FIELDS } from '../../_scripts/constants/common.constants.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 // types
 import { CACHE_STATUSES } from '../../_scripts/types/cache-status.const.types.ts';
@@ -42,7 +41,12 @@ import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import { generateFrontmatter } from './modules/setfm-frontmatter.ts';
 import { reviewFrontmatter } from './modules/setfm-review.ts';
 import { judgeTypeAndCategory } from './modules/setfm-type-category.ts';
-import { applyCacheToEntry, writeFrontmatter } from './modules/setfm-write.ts';
+import {
+  applyCacheToEntry,
+  extractEntryFrontmatter,
+  filterFrontmatterFields,
+  writeFrontmatter,
+} from './modules/setfm-write.ts';
 import type { SetfmCache } from './types/cache.types.ts';
 import type { Dics, Prompts } from './types/dics.types.ts';
 // types
@@ -85,46 +89,32 @@ type _WriteProvider = (
 // ─────────────────────────────────────────────
 
 /**
- * エントリ配列を writtenEntries と targetEntries に分割する。
+ * エントリ配列を writtenEntries・reviewedEntries・generateEntries の3グループに分割する。
  *
- * `cache.read(e.filePath!).status === 'written'` のエントリを writtenEntries に、
- * それ以外を targetEntries に分類する。
+ * - `writtenEntries`: `status === 'written'` のエントリ（書き込み済み・スキップ対象）
+ * - `reviewedEntries`: `status === 'reviewed'` のみのエントリ（書き込み待ち）
+ * - `generateEntries`: 上記以外のエントリ（`status === ''` / `'need-review'` / `'review-failed'` / `'set-types'` / キャッシュミス）
+ *
+ * 3グループは重複なし・漏れなし（エントリの総数が保たれる）。
  *
  * @param entries - 分割対象のエントリ配列
  * @param cache - フェーズキャッシュ
- * @returns `{ writtenEntries, targetEntries }` — 重複なし・漏れなしで分割されたエントリ配列
+ * @returns `{ writtenEntries, reviewedEntries, generateEntries }` — 互いに素な3グループ
  */
-const _splitWritten = (
+const _splitEntries = (
   entries: ChatlogEntry[],
   cache: ChatlogWorks<SetfmCache>,
-): { writtenEntries: ChatlogEntry[]; targetEntries: ChatlogEntry[] } => {
+): { writtenEntries: ChatlogEntry[]; reviewedEntries: ChatlogEntry[]; generateEntries: ChatlogEntry[] } => {
   const writtenEntries = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.WRITTEN);
-  const targetEntries = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.WRITTEN);
-  return { writtenEntries, targetEntries };
-};
-
-/**
- * エントリ配列を skipEntries と targetEntries に分割する。
- *
- * `cache.read(e.filePath!).status` が `'reviewed'` または `'need-review'` のエントリを skipEntries に、
- * それ以外を targetEntries に分類する。
- *
- * @param entries - 分割対象のエントリ配列
- * @param cache - フェーズキャッシュ
- * @returns `{ skipEntries, targetEntries }` — 重複なし・漏れなしで分割されたエントリ配列
- */
-const _splitSkip = (
-  entries: ChatlogEntry[],
-  cache: ChatlogWorks<SetfmCache>,
-): { skipEntries: ChatlogEntry[]; targetEntries: ChatlogEntry[] } => {
-  const _isSkipStatus = (e: ChatlogEntry): boolean => {
+  const reviewedEntries = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
+  const generateEntries = entries.filter((e) => {
     const status = cache.read(e.filePath!).status;
-    return status === CACHE_STATUSES.REVIEWED || status === CACHE_STATUSES.NEED_REVIEW;
-  };
-  return {
-    skipEntries: entries.filter(_isSkipStatus),
-    targetEntries: entries.filter((e) => !_isSkipStatus(e)),
-  };
+    return (
+      status === undefined
+      || (status !== CACHE_STATUSES.WRITTEN && status !== CACHE_STATUSES.REVIEWED)
+    );
+  });
+  return { writtenEntries, reviewedEntries, generateEntries };
 };
 
 const _phaseTypeAndCategory = async (
@@ -137,14 +127,17 @@ const _phaseTypeAndCategory = async (
   dryRun: boolean,
   judgeProvider?: _JudgeProvider,
 ): Promise<void> => {
-  const _hits = entries.filter((e) => {
+  const _needsReJudge = (e: ChatlogEntry): boolean => {
     const _cached = cache.read(e.filePath!);
-    return !!(_cached.type && _cached.category);
-  });
-  const _misses = entries.filter((e) => {
-    const _cached = cache.read(e.filePath!);
-    return !(_cached.type && _cached.category);
-  });
+    return (
+      _cached.status === undefined
+      || _cached.status === CACHE_STATUSES.EMPTY
+      || _cached.status === CACHE_STATUSES.REVIEW_FAILED
+      || !(_cached.type && _cached.category)
+    );
+  };
+  const _hits = entries.filter((e) => !_needsReJudge(e));
+  const _misses = entries.filter(_needsReJudge);
 
   _hits.forEach((e) => {
     const _cached = cache.read(e.filePath!);
@@ -161,10 +154,13 @@ const _phaseTypeAndCategory = async (
         logger.info(`  [dry-run] type/category: ${getFilename(entry.filePath!)}`);
       } else {
         await _judge(entry, maxContentLength, dics, prompts);
-        await cache.write(entry.filePath!, {
-          type: entry.frontmatter.get('type') as string,
-          category: entry.frontmatter.get('category') as string,
-        });
+        const _type = entry.frontmatter.get('type') as string;
+        const _category = entry.frontmatter.get('category') as string;
+        if (_type && _category) {
+          await cache.write(entry.filePath!, { type: _type, category: _category, status: CACHE_STATUSES.SET_TYPES });
+        } else {
+          await cache.delete(entry.filePath!);
+        }
         logger.info(
           `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
             getFilename(entry.filePath!)
@@ -186,22 +182,23 @@ const _phaseFrontmatter = async (
   dryRun: boolean,
   generateProvider?: _GenerateProvider,
   maxRetry = 0,
-): Promise<Set<string>> => {
-  const _generatedFiles = new Set<string>();
+): Promise<void> => {
+  const _isGenerated = (cache: SetfmCache): boolean => {
+    return cache.status === CACHE_STATUSES.SET_TYPES && !!cache.frontmatter;
+  };
 
   const _hits = entries.filter((e) => {
     const _cached = cache.read(e.filePath!);
-    return !!_cached.frontmatter && _cached.status !== CACHE_STATUSES.REVIEW_FAILED;
+    return _isGenerated(_cached);
   });
   const _misses = entries.filter((e) => {
     const _cached = cache.read(e.filePath!);
-    return !_cached.frontmatter || _cached.status === CACHE_STATUSES.REVIEW_FAILED;
+    return !_isGenerated(_cached);
   });
 
   for (const e of _hits) {
     const _cached = cache.read(e.filePath!);
-    Object.entries(_cached.frontmatter!).forEach(([k, v]) => e.frontmatter.set(k, v));
-    _generatedFiles.add(e.filePath!);
+    applyCacheToEntry(e, _cached);
     if (e.frontmatter.hasRequiredFields() && !dryRun) {
       await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
     }
@@ -217,11 +214,7 @@ const _phaseFrontmatter = async (
 
   await Promise.all(
     _alreadyFilled.map(async (entry) => {
-      const _fmSnapshot: Record<string, string | string[]> = {};
-      DEFAULT_ORDERED_FIELDS.forEach((k) => {
-        const v = entry.frontmatter.get(k);
-        if (v !== undefined) { _fmSnapshot[k] = v; }
-      });
+      const _fmSnapshot = extractEntryFrontmatter(entry);
       const _existing = cache.read(entry.filePath!);
       if (!dryRun) {
         await cache.write(entry.filePath!, {
@@ -229,7 +222,6 @@ const _phaseFrontmatter = async (
           frontmatter: _fmSnapshot,
           status: CACHE_STATUSES.NEED_REVIEW,
         });
-        _generatedFiles.add(entry.filePath!);
       }
       if (dryRun) {
         logger.info(`  [dry-run] frontmatter (existing): ${getFilename(entry.filePath!)}`);
@@ -254,15 +246,10 @@ const _phaseFrontmatter = async (
           return;
         }
         if (_ok) {
-          const _fmSnapshot: Record<string, string | string[]> = {};
-          DEFAULT_ORDERED_FIELDS.forEach((k) => {
-            const v = entry.frontmatter.get(k);
-            if (v !== undefined) { _fmSnapshot[k] = v; }
-          });
+          const _fmSnapshot = extractEntryFrontmatter(entry);
           const _existing = cache.read(entry.filePath!);
           const _statusUpdate = entry.frontmatter.hasRequiredFields() ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
           await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
-          _generatedFiles.add(entry.filePath!);
           logger.info(`  generated: ${getFilename(entry.filePath!)}`);
         } else {
           logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
@@ -271,8 +258,6 @@ const _phaseFrontmatter = async (
     },
     concurrency,
   );
-
-  return _generatedFiles;
 };
 
 /**
@@ -342,17 +327,10 @@ const _phaseReview = async (
           logger.warn(`  FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
         }
-        if (r.validity === 'fail') {
-          logger.warn(`  review FAIL: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
-          await cache.delete(entry.filePath!);
-        } else {
+        if (r.validity === 'pass') {
           logger.info(`  review OK: ${getFilename(entry.filePath!)}`);
           const _existing = cache.read(entry.filePath!);
-          const _fmSnapshot: Record<string, string | string[]> = { ...(_existing.frontmatter ?? {}) };
-          for (const k of DEFAULT_ORDERED_FIELDS) {
-            const v = entry.frontmatter.get(k);
-            if (v !== undefined) { _fmSnapshot[k] = v as string | string[]; }
-          }
+          const _fmSnapshot = { ...(_existing.frontmatter ?? {}), ...extractEntryFrontmatter(entry) };
           const _correctedType = (entry.frontmatter.get('type') as string | undefined) ?? _existing.type;
           const _correctedCategory = (entry.frontmatter.get('category') as string | undefined) ?? _existing.category;
           await cache.write(entry.filePath!, {
@@ -362,17 +340,34 @@ const _phaseReview = async (
             frontmatter: _fmSnapshot,
             status: CACHE_STATUSES.REVIEWED,
           });
+        } else if (r.validity === 'corrected') {
+          logger.info(`  review corrected: ${getFilename(entry.filePath!)}`);
+          const _existing = cache.read(entry.filePath!);
+          const _filtered = filterFrontmatterFields(r.corrected ?? {});
+          const _fmSnapshot = { ...(_existing.frontmatter ?? {}), ..._filtered };
+          const _correctedType = (_filtered['type'] as string | undefined) ?? _existing.type;
+          const _correctedCategory = (_filtered['category'] as string | undefined) ?? _existing.category;
+          await cache.write(entry.filePath!, {
+            ..._existing,
+            type: _correctedType,
+            category: _correctedCategory,
+            frontmatter: _fmSnapshot,
+            status: CACHE_STATUSES.REVIEWED,
+          });
+        } else {
+          // r.validity === 'error'
+          logger.warn(`  review error: ${getFilename(entry.filePath!)} — ${r.errors.join('; ')}`);
+          const _existing = cache.read(entry.filePath!);
+          await cache.write(entry.filePath!, {
+            ..._existing,
+            status: CACHE_STATUSES.REVIEW_FAILED,
+          });
         }
       }
     },
     concurrency,
   );
 };
-
-const _filterReviewEntries = (
-  entries: ChatlogEntry[],
-  cache: ChatlogWorks<SetfmCache>,
-): ChatlogEntry[] => entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.NEED_REVIEW);
 
 /**
  * エントリが書き込み対象かどうかを status で判定する predicate 関数。
@@ -410,7 +405,7 @@ const _phaseWrite = async (
   const _write = writeProvider ?? writeFrontmatter;
   // NOTE: for...of is intentional here — writes must be sequential to preserve existing behavior
   for (const entry of entries) {
-    applyCacheToEntry(entry, cache);
+    applyCacheToEntry(entry, cache.read(entry.filePath!));
     if (config.dryRun) {
       const _type = (entry.frontmatter.get('type') as string) ?? '';
       const _category = (entry.frontmatter.get('category') as string) ?? '';
@@ -469,14 +464,12 @@ export const main = async (args: string[]): Promise<void> => {
       return;
     }
 
-    // Phase 1.2: writtenフィルタ（outputDir書き込み済みを分離）
-    const { writtenEntries, targetEntries } = _splitWritten(entries, _cache);
+    // Phase 1.2: エントリ3分割（written / reviewed / generate）
+    const { writtenEntries, reviewedEntries, generateEntries } = _splitEntries(entries, _cache);
     stats.written = writtenEntries.length;
-    logger.info(`writtenフィルタ: written=${writtenEntries.length}件 target=${targetEntries.length}件`);
-
-    // Phase 1.5: 事前フィルタリング（skip / generate 分割）
-    const { skipEntries, targetEntries: generateEntries } = _splitSkip(targetEntries, _cache);
-    logger.info(`フィルタリング: skip=${skipEntries.length}件 generate=${generateEntries.length}件`);
+    logger.info(
+      `分割: written=${writtenEntries.length}件 reviewed=${reviewedEntries.length}件 generate=${generateEntries.length}件`,
+    );
 
     // Phase 2+3a: type・category同時判定（並列）
     if (!_config.dryRun) {
@@ -496,7 +489,7 @@ export const main = async (args: string[]): Promise<void> => {
 
     // Phase 3b: フロントマター生成（並列）
     logger.info(`\nPhase 3b: フロントマター生成開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`);
-    const _generatedFiles = await _phaseFrontmatter(
+    await _phaseFrontmatter(
       generateEntries,
       _cache,
       maxContentLength,
@@ -517,9 +510,8 @@ export const main = async (args: string[]): Promise<void> => {
       logger.info(
         `\nPhase 3.5: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
       );
-      const _reviewEntries = _filterReviewEntries(generateEntries, _cache);
       await _phaseReview(
-        _reviewEntries,
+        generateEntries,
         _cache,
         dics,
         prompts,
@@ -533,9 +525,10 @@ export const main = async (args: string[]): Promise<void> => {
     }
 
     // Phase 4: 書き込み
-    const _writeEntries = targetEntries.filter((e) => _filterWriteEntry(e.filePath!, _cache, _config.review));
+    const _candidateEntries = [...reviewedEntries, ...generateEntries];
+    const _writeEntries = _candidateEntries.filter((e) => _filterWriteEntry(e.filePath!, _cache, _config.review));
     if (!_config.dryRun) {
-      const _failEntries = targetEntries.filter((e) => !_filterWriteEntry(e.filePath!, _cache, _config.review));
+      const _failEntries = _candidateEntries.filter((e) => !_filterWriteEntry(e.filePath!, _cache, _config.review));
       _failEntries.forEach((e) => {
         logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
         stats.fail++;
@@ -544,7 +537,7 @@ export const main = async (args: string[]): Promise<void> => {
     await _phaseWrite(_writeEntries, _cache, _config, stats);
 
     logger.info(
-      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${targetEntries.length}`,
+      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {
@@ -565,7 +558,5 @@ export { _phaseFrontmatter as _phaseFrontmatterForTest };
 export { _phaseStatus as _phaseStatusForTest };
 export { _phaseReview as _phaseReviewForTest };
 export { _phaseWrite as _phaseWriteForTest };
-export { _splitSkip as _splitSkipForTest };
-export { _splitWritten as _splitWrittenForTest };
-export { _filterReviewEntries as _filterReviewEntriesForTest };
+export { _splitEntries as _splitEntriesForTest };
 export { _filterWriteEntry as _filterWriteEntryForTest };
