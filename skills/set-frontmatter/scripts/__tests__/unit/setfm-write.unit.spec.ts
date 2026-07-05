@@ -65,17 +65,16 @@ const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
   return cache;
 };
 
-/** 6フィールドをすべて entry.frontmatter にセットするヘルパー。 */
+/** 5フィールドをすべて entry.frontmatter にセットするヘルパー。 */
 const _setAllFields = (
   entry: ChatlogEntry,
   overrides: Partial<
-    { type: string; category: string; title: string; summary: string; topics: string[]; tags: string[] }
+    { type: string; category: string; title: string; topics: string[]; tags: string[] }
   > = {},
 ): void => {
   entry.frontmatter.set('type', overrides.type ?? 'tech');
   entry.frontmatter.set('category', overrides.category ?? 'backend');
   entry.frontmatter.set('title', overrides.title ?? 'Test Title');
-  entry.frontmatter.set('summary', overrides.summary ?? 'Test summary.');
   entry.frontmatter.set('topics', overrides.topics ?? ['topic-a']);
   entry.frontmatter.set('tags', overrides.tags ?? ['tag1']);
 };
@@ -214,13 +213,13 @@ describe('writeFrontmatter', () => {
         const _md = '---\ntitle: "A"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
-        _setAllFields(_entry, { title: 'A', summary: 'B' });
+        _setAllFields(_entry, { title: 'A', topics: ['topic-x'] });
 
         await writeFrontmatter(_entry, cache, dirname(tempFile), dirname(tempFile));
 
         const _written = await Deno.readTextFile(tempFile);
         assertEquals(_written.includes('A'), true, 'title フィールドが含まれていない');
-        assertEquals(_written.includes('B'), true, 'summary フィールドが含まれていない');
+        assertEquals(_written.includes('topic-x'), true, 'topics フィールドが含まれていない');
       });
     });
   });
@@ -591,15 +590,15 @@ describe('writeFrontmatter', () => {
     });
   });
 
-  // ─── T-17: 6フィールド不足時に false を返す
+  // ─── T-17: 5フィールド不足時に false を返す
 
   /**
-   * 6フィールド（type/category/title/summary/topics/tags）のいずれかが欠けているとき false を返す。
+   * 5フィールド（type/category/title/topics/tags）のいずれかが欠けているとき false を返す。
    */
   describe('When: 6フィールドの一部が欠けている', () => {
     /** フィールド不足でフィールドチェックを通過しないエラーケース */
     describe('When: 異常系', () => {
-      it('[Error] T-SF-WR-17-01: title のみ → false を返す（summary/topics/tags/type/category 欠如）', async () => {
+      it('[Error] T-SF-WR-17-01: title のみ → false を返す（topics/tags/type/category 欠如）', async () => {
         const _md = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
@@ -615,14 +614,13 @@ describe('writeFrontmatter', () => {
         assertEquals(result, false, 'フィールド不足なのに true を返した');
       });
 
-      it('[Error] T-SF-WR-17-02: 5フィールドあり（tags 欠如）→ false を返す', async () => {
+      it('[Error] T-SF-WR-17-02: 4フィールドあり（tags 欠如）→ false を返す', async () => {
         const _md = '---\nsession_id: "x"\n---\n\nContent.\n';
         await Deno.writeTextFile(tempFile, _md);
         const _entry = _makeEntry(_md, tempFile);
         _entry.frontmatter.set('type', 'tech');
         _entry.frontmatter.set('category', 'backend');
         _entry.frontmatter.set('title', 'T');
-        _entry.frontmatter.set('summary', 'S');
         _entry.frontmatter.set('topics', ['topic-a']);
         // tags なし
 
