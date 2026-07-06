@@ -17,12 +17,18 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { writeFrontmatter } from '../../modules/setfm-write.ts';
+import {
+  applyCacheToEntry,
+  extractEntryFrontmatter,
+  filterFrontmatterFields,
+  writeFrontmatter,
+} from '../../modules/setfm-write.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
+import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
 import type { SetfmCache } from '../../types/cache.types.ts';
 
 // ─── Internal Helpers
@@ -633,6 +639,205 @@ describe('writeFrontmatter', () => {
 
         assertEquals(result, false, 'tags 欠如なのに true を返した');
       });
+    });
+  });
+});
+
+// ─── Internal Helpers (applyCacheToEntry)
+
+// constants
+const _fullFm: FrontmatterFields = {
+  type: 'implementation',
+  category: 'dev-tooling',
+  title: 'My Title',
+  topics: ['topic-a'],
+  tags: ['lang:typescript'],
+};
+
+const _emptyTypeFm: FrontmatterFields = {
+  type: '',
+  category: 'dev-tooling',
+  title: 'My Title',
+  topics: ['topic-a'],
+  tags: ['lang:typescript'],
+};
+
+// ─── Tests
+
+/**
+ * `applyCacheToEntry` のユニットテストスイート。
+ *
+ * `Partial<SetfmCache>` から `entry.frontmatter` へのコピー動作を検証する。
+ * 空フィールドはコピーされないことを確認する。
+ */
+describe('applyCacheToEntry', () => {
+  /** フル frontmatter が entry に反映される正常ケース */
+  describe('When: 正常系', () => {
+    it('[Normal] T-SF-AC-01: type/category が fmCache にある → entry.frontmatter に反映される', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      const _fmCache: Partial<SetfmCache> = { type: 'implementation', category: 'dev-tooling' };
+
+      applyCacheToEntry(_entry, _fmCache);
+
+      assertEquals(_entry.frontmatter.get('type'), 'implementation');
+      assertEquals(_entry.frontmatter.get('category'), 'dev-tooling');
+    });
+
+    it('[Normal] T-SF-AC-02: fmCache.frontmatter のフィールドが entry.frontmatter に反映される', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      const _fmCache: Partial<SetfmCache> = { frontmatter: _fullFm };
+
+      applyCacheToEntry(_entry, _fmCache);
+
+      assertEquals(_entry.frontmatter.get('title'), 'My Title');
+    });
+  });
+
+  /** 空フィールドはコピーされないエッジケース */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-AC-03: fmCache.type が空文字 → entry.frontmatter の type は上書きされない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _entry.frontmatter.set('type', 'existing');
+      const _fmCache: Partial<SetfmCache> = { type: '', category: 'dev-tooling' };
+
+      applyCacheToEntry(_entry, _fmCache);
+
+      assertEquals(_entry.frontmatter.get('type'), 'existing');
+    });
+
+    it('[Edge] T-SF-AC-04: frontmatter の type が空文字 → entry.frontmatter の type は上書きされない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _entry.frontmatter.set('type', 'existing');
+      const _fmCache: Partial<SetfmCache> = { frontmatter: _emptyTypeFm };
+
+      applyCacheToEntry(_entry, _fmCache);
+
+      assertEquals(_entry.frontmatter.get('type'), 'existing');
+    });
+
+    it('[Edge] T-SF-AC-05: fmCache が空オブジェクト {} → entry.frontmatter は変化しない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _entry.frontmatter.set('type', 'existing');
+
+      applyCacheToEntry(_entry, {});
+
+      assertEquals(_entry.frontmatter.get('type'), 'existing');
+    });
+  });
+});
+
+// ─── Internal Helpers (extractEntryFrontmatter)
+
+// ─── Tests (extractEntryFrontmatter)
+
+/**
+ * `extractEntryFrontmatter` のユニットテストスイート。
+ *
+ * entry.frontmatter から DEFAULT_ORDERED_FIELDS フィールドを抽出し、
+ * null / 空文字列 / undefined のフィールドを除いた FrontmatterFields を返すことを検証する。
+ */
+describe('extractEntryFrontmatter', () => {
+  /** 有効フィールドが正しく抽出される正常ケース */
+  describe('When: 正常系', () => {
+    it('[Normal] T-SF-EF-01-01: 有効フィールドが返却オブジェクトに含まれる', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _entry.frontmatter.set('title', 'My Title');
+      _entry.frontmatter.set('type', 'tech');
+
+      const result = extractEntryFrontmatter(_entry);
+
+      assertEquals(result['title'], 'My Title');
+      assertEquals(result['type'], 'tech');
+    });
+
+    it('[Normal] T-SF-EF-01-02: _setAllFields 設定済みエントリ → 設定フィールドのみ返却される', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _setAllFields(_entry);
+
+      const result = extractEntryFrontmatter(_entry);
+      const _keys = Object.keys(result).sort();
+
+      assertEquals(
+        _keys.every((k) => ['title', 'type', 'category', 'topics', 'tags'].includes(k)),
+        true,
+      );
+      assertEquals('session_id' in result, false);
+      assertEquals('date' in result, false);
+    });
+  });
+
+  /** null / 空文字列 / undefined フィールドが除外されるエッジケース */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-EF-02-01: null フィールドは返却オブジェクトに含まれない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      (_entry.frontmatter as unknown as { set: (k: string, v: unknown) => void })
+        .set('title', null);
+
+      const result = extractEntryFrontmatter(_entry);
+
+      assertEquals('title' in result, false);
+    });
+
+    it('[Edge] T-SF-EF-03-01: 空文字列フィールドは返却オブジェクトに含まれない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+      _entry.frontmatter.set('title', '');
+
+      const result = extractEntryFrontmatter(_entry);
+
+      assertEquals('title' in result, false);
+    });
+
+    it('[Edge] T-SF-EF-04-01: 未設定フィールドは返却オブジェクトに含まれない', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+
+      const result = extractEntryFrontmatter(_entry);
+
+      assertEquals('title' in result, false);
+    });
+
+    it('[Edge] T-SF-EF-05-01: フロントマター未設定エントリ → 空オブジェクトを返す', () => {
+      const _entry = new ChatlogEntry('', { filePath: '/fake/a.md' });
+
+      const result = extractEntryFrontmatter(_entry);
+
+      assertEquals(Object.keys(result).length, 0);
+    });
+  });
+});
+
+// ─── Tests (filterFrontmatterFields)
+
+/**
+ * `filterFrontmatterFields` のユニットテストスイート。
+ *
+ * FrontmatterFields から空・null・空配列のフィールドを除いたコピーを返すことを検証する。
+ */
+describe('filterFrontmatterFields', () => {
+  /** 有効なフィールドのみのマップ → そのまま返す正常ケース */
+  describe('When: 正常系', () => {
+    it('[Normal] T-SF-FF-01-01: 有効なフィールドのみのマップ → そのまま返す', () => {
+      const result = filterFrontmatterFields({ type: 'tech', topics: ['x'] });
+      assertEquals(result['type'], 'tech');
+      assertEquals(result['topics'], ['x']);
+    });
+  });
+
+  /** 空値・空配列・空オブジェクトが除外されるエッジケース */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-FF-02-01: 空文字列フィールド → 除外される', () => {
+      const result = filterFrontmatterFields({ type: '', category: 'ai' });
+      assertEquals('type' in result, false);
+      assertEquals(result['category'], 'ai');
+    });
+
+    it('[Edge] T-SF-FF-02-02: 空配列フィールド → 除外される', () => {
+      const result = filterFrontmatterFields({ topics: [] });
+      assertEquals('topics' in result, false);
+    });
+
+    it('[Edge] T-SF-FF-02-03: 空オブジェクト → 空オブジェクトを返す', () => {
+      const result = filterFrontmatterFields({});
+      assertEquals(Object.keys(result).length, 0);
     });
   });
 });
