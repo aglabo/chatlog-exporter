@@ -95,6 +95,17 @@ const _makeReviewStub = (): { stub: _ReviewProvider; getCount: () => number } =>
   return { stub, getCount: () => _count };
 };
 
+/**
+ * 呼び出し時に指定した `ReviewResult` を返す reviewProvider スタブを返す。
+ *
+ * @param result - `reviewProvider` が返す `ReviewResult`
+ * @returns `{ stub }` — stub は `_ReviewProvider` 互換の非同期関数
+ */
+const _makeCorrectedStub = (result: ReviewResult): { stub: _ReviewProvider } => {
+  const stub: _ReviewProvider = (_entry, _dics, _prompts) => Promise.resolve(result);
+  return { stub };
+};
+
 /** テスト用の空 Dics / Prompts ダミー。 */
 const _dics = {} as Dics;
 const _prompts = {} as Prompts;
@@ -196,6 +207,162 @@ describe('_phaseReview', () => {
       } finally {
         warnSpy.restore();
       }
+    });
+  });
+
+  /**
+   * validity='corrected' のとき r.corrected を cache.frontmatter に書き込むケース。
+   */
+  describe('When: validity=corrected → r.corrected をキャッシュに書き込む', () => {
+    it('[Normal] T-03-01-01: corrected={type,category,title,topics,tags} → cache.frontmatter に反映', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { type: 'tech', category: 'ai', title: 'T', topics: ['x'], tags: ['y'] },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      const fm = cache.read(filePath).frontmatter;
+      assertEquals(fm?.['type'], 'tech');
+      assertEquals(fm?.['category'], 'ai');
+      assertEquals(fm?.['title'], 'T');
+    });
+
+    it('[Normal] T-03-01-02: corrected の type/category が cache.type/category に設定される', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { type: 'tech', category: 'ai' },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      assertEquals(cache.read(filePath).type, 'tech');
+      assertEquals(cache.read(filePath).category, 'ai');
+    });
+
+    it('[Edge] T-03-01-03: r.corrected に空文字フィールドがある → cache の既存値が保持される', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      await cache.write(filePath, {
+        status: 'need-review' as const,
+        frontmatter: { title: 'cached-title' },
+      });
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { title: '', type: 'tech' },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
+    });
+
+    it('[Edge] T-03-01-05: r.corrected.type が空文字 → cache.type は既存値のまま', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      await cache.write(filePath, {
+        status: 'need-review' as const,
+        type: 'existing-type',
+      });
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { type: '', category: 'ai' },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      assertEquals(cache.read(filePath).type, 'existing-type');
+    });
+
+    it('[Edge] T-03-01-04: r.corrected に空配列フィールドがある → cache の既存値が保持される', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      await cache.write(filePath, {
+        status: 'need-review' as const,
+        frontmatter: { topics: ['existing-topic'] },
+      });
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { topics: [], type: 'tech' },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      assertEquals(cache.read(filePath).frontmatter?.['topics'], ['existing-topic']);
+    });
+  });
+
+  /**
+   * validity='error' のとき cache.status が 'review-failed' になり cache.delete が呼ばれないケース。
+   */
+  describe('When: validity=error → status が review-failed になる', () => {
+    it('[Normal] T-03-03-01: validity=error → cache.status === review-failed', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      const { stub } = _makeCorrectedStub({ validity: 'error', errors: ['review failed'] });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      assertEquals(cache.read(filePath).status, 'review-failed');
+    });
+
+    it('[Normal] T-03-03-02: validity=error → cache.delete は呼ばれない', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      // pre-populate cache
+      await cache.write(filePath, { status: 'need-review' as const, frontmatter: { title: 'kept' } });
+      const deleteSpy = spy(cache, 'delete');
+      const { stub } = _makeCorrectedStub({ validity: 'error', errors: [] });
+      const entry = _makeEntry(filePath);
+      try {
+        await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+        assertEquals(deleteSpy.calls.length, 0);
+      } finally {
+        deleteSpy.restore();
+      }
+    });
+  });
+
+  /**
+   * entry.frontmatter に null / 空文字列フィールドがあるとき、キャッシュの既存値が保持されるケース。
+   */
+  describe('When: entry.frontmatter に null/空文字フィールドがある', () => {
+    it('[Edge] T-SF-PR-10-01: entry.title が null → cache の frontmatter.title は上書きされない', async () => {
+      const filePath = '/path/to/a.md';
+      const cache = await _makeCache();
+      await cache.write(filePath, {
+        frontmatter: { title: 'cached-title' },
+        status: 'need-review' as const,
+      });
+
+      const entry = _makeEntry(filePath);
+      (entry.frontmatter as unknown as { set: (k: string, v: unknown) => void })
+        .set('title', null);
+
+      const { stub } = _makeReviewStub();
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+
+      assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
+    });
+
+    it('[Edge] T-SF-PR-10-02: entry.title が空文字列 → cache の frontmatter.title は上書きされない', async () => {
+      const filePath = '/path/to/b.md';
+      const cache = await _makeCache();
+      await cache.write(filePath, {
+        frontmatter: { title: 'cached-title' },
+        status: 'need-review' as const,
+      });
+
+      const entry = _makeEntry(filePath);
+      entry.frontmatter.set('title', '');
+
+      const { stub } = _makeReviewStub();
+      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+
+      assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
     });
   });
 });
