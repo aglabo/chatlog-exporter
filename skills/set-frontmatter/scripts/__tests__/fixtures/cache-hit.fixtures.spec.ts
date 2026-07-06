@@ -1,6 +1,6 @@
 // src: scripts/__tests__/fixtures/cache-hit.fixtures.spec.ts
-// @(#): _phaseTypeAndCategory / _phaseFrontmatter / _phaseReview の fixtures テスト
-//       対象: _phaseTypeAndCategoryForTest, _phaseFrontmatterForTest, _phaseReviewForTest
+// @(#): _phaseReview の fixtures テスト
+//       対象: _phaseReviewForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,11 +14,7 @@ import { assertEquals } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import {
-  _phaseFrontmatterForTest as phaseFrontmatter,
-  _phaseReviewForTest as phaseReview,
-  _phaseTypeAndCategoryForTest as phaseTypeAndCategory,
-} from '../../set-frontmatter.ts';
+import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -127,128 +123,24 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
  * キャッシュヒット fixtures テストスイート。
  *
  * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogWorks.loadAll()` で読み込み、
- * `_phaseTypeAndCategory` / `_phaseFrontmatter` がキャッシュヒット時に AI 呼び出しを
- * スキップすることを検証する。
+ * `_phaseReview` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
  *
- * テスト ID 範囲: T-SF-FX-01 〜 T-SF-FX-03
+ * テスト ID 範囲: T-SF-FX-04 〜 T-SF-FX-06
  *
- * @see _phaseTypeAndCategoryForTest
- * @see _phaseFrontmatterForTest
+ * @see _phaseReviewForTest
  */
 describe('cache-hit fixtures', () => {
   let cache: ChatlogWorks<SetfmCache>;
-  let judgeCallCount: number;
-  let generateCallCount: number;
   let reviewCallCount: number;
-  let judgeStub: (entry: ChatlogEntry, maxLen: number, dics: Dics, prompts: Prompts) => Promise<void>;
-  let generateStub: (entry: ChatlogEntry, maxLen: number, dics: Dics, prompts: Prompts) => Promise<boolean>;
   let reviewStub: (entry: ChatlogEntry, dics: Dics, prompts: Prompts) => Promise<ReviewResult>;
 
   beforeEach(async () => {
     cache = await _makeCache();
-    judgeCallCount = 0;
-    generateCallCount = 0;
     reviewCallCount = 0;
-    judgeStub = (entry) => {
-      judgeCallCount++;
-      entry.frontmatter.set('type', 'stub-type');
-      entry.frontmatter.set('category', 'stub-category');
-      return Promise.resolve();
-    };
-    generateStub = (entry) => {
-      generateCallCount++;
-      entry.frontmatter.set('title', 'Generated Title');
-      return Promise.resolve(true);
-    };
     reviewStub = (_entry) => {
       reviewCallCount++;
       return Promise.resolve({ validity: 'pass', errors: [] });
     };
-  });
-
-  /**
-   * `_phaseTypeAndCategory` — type+category ヒット時のスキップ検証。
-   *
-   * `type-only.json` に type/category が存在するとき、judgeProvider は呼ばれず
-   * キャッシュ値が frontmatter にセットされることを検証する。
-   */
-  describe('_phaseTypeAndCategory', () => {
-    describe('When: type+category キャッシュヒット', () => {
-      it('[Normal] T-SF-FX-01: type-only.json ヒット → judgeProvider 未呼び出し、type/category がキャッシュ値でセット', async () => {
-        const entry = _makeEntry('/path/to/type-only.md', '# type only');
-
-        await phaseTypeAndCategory(
-          [entry],
-          cache,
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-          _CONCURRENCY,
-          false,
-          judgeStub,
-        );
-
-        assertEquals(entry.frontmatter.get('type'), 'coding');
-        assertEquals(entry.frontmatter.get('category'), 'development');
-        assertEquals(judgeCallCount, 0);
-      });
-    });
-
-    /**
-     * `_phaseTypeAndCategory` — type なし（partial-miss.json）のミス検証。
-     *
-     * `partial-miss.json` は category のみで type がないため、キャッシュミス扱いとなり
-     * judgeProvider が呼ばれることを検証する。
-     */
-    describe('When: type なしでキャッシュミス', () => {
-      it('[Normal] T-SF-FX-03: partial-miss.json (type なし) → judgeProvider が1回呼ばれる', async () => {
-        const entry = _makeEntry('/path/to/partial-miss.md', '# partial miss');
-
-        await phaseTypeAndCategory(
-          [entry],
-          cache,
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-          _CONCURRENCY,
-          false,
-          judgeStub,
-        );
-
-        assertEquals(judgeCallCount, 1);
-        assertEquals(entry.frontmatter.get('type'), 'stub-type');
-        assertEquals(entry.frontmatter.get('category'), 'stub-category');
-      });
-    });
-  });
-
-  /**
-   * `_phaseFrontmatter` — frontmatter ヒット時のスキップ検証。
-   *
-   * `frontmatter-full.json` に frontmatter が存在するとき、generateProvider は呼ばれず
-   * キャッシュ値が frontmatter に復元されることを検証する。
-   */
-  describe('_phaseFrontmatter', () => {
-    describe('When: frontmatter キャッシュヒット', () => {
-      it('[Normal] T-SF-FX-02: frontmatter-full.json ヒット → generateProvider 未呼び出し、title 等が復元', async () => {
-        const entry = _makeEntry('/path/to/frontmatter-full.md', '# frontmatter full');
-
-        await phaseFrontmatter(
-          [entry],
-          cache,
-          _MAX_CONTENT_LENGTH,
-          _makeDics(),
-          _makePrompts(),
-          _CONCURRENCY,
-          false,
-          generateStub,
-        );
-
-        assertEquals(entry.frontmatter.get('title'), 'Fixtures Full Test');
-        assertEquals(entry.frontmatter.get('topics'), ['development', 'testing']);
-        assertEquals(generateCallCount, 0);
-      });
-    });
   });
 
   /**
