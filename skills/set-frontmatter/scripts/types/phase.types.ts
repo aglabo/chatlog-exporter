@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+
 // ─────────────────────────────────────────────
 // フェーズ結果型
 // ─────────────────────────────────────────────
@@ -15,10 +17,12 @@ export type LogType = string;
 
 /** レビューフェーズ（Phase 3.5）の1ファイル分の結果。 */
 export interface ReviewResult {
-  /** レビュー判定結果。`'pass'` は問題なし、`'fail'` は修正あり。 */
-  validity: 'pass' | 'fail';
-  /** `validity === 'fail'` のときのエラーメッセージ一覧。 */
+  /** レビュー判定結果。`'pass'`: 修正不要, `'corrected'`: AI が修正あり, `'error'`: レビュー不可。 */
+  validity: 'pass' | 'corrected' | 'error';
+  /** `validity === 'corrected'` または `'error'` のときのエラーメッセージ一覧。 */
   errors: string[];
+  /** `validity === 'corrected'` のときのみ存在。AI が提案した修正後フロントマターフィールド。 */
+  corrected?: FrontmatterFields;
 }
 
 // ─────────────────────────────────────────────
