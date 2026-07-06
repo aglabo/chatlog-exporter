@@ -15,6 +15,7 @@ import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
 // ─── Local
 import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';
@@ -83,38 +84,35 @@ export const reviewFrontmatter = async (
       ? _errorsRaw.map((e) => String(e)).filter(Boolean)
       : [];
 
-    const _corrected = _parsed['corrected'];
-    if (_corrected !== null && typeof _corrected === 'object' && !Array.isArray(_corrected)) {
-      const _c = _corrected as Record<string, unknown>;
-      const correctedType = typeof _c['type'] === 'string' ? _c['type'].trim() : '';
-      if (correctedType) { entry.frontmatter.set('type', correctedType); }
-
-      const correctedCategory = typeof _c['category'] === 'string' ? _c['category'].trim() : '';
-      if (correctedCategory) { entry.frontmatter.set('category', correctedCategory); }
-    }
-
     const _correctedFm = _parsed['corrected_frontmatter'];
     if (_correctedFm !== null && typeof _correctedFm === 'object' && !Array.isArray(_correctedFm)) {
       const _cfm = _correctedFm as Record<string, unknown>;
-      const _topicsRaw = _cfm['topics'];
-      if (Array.isArray(_topicsRaw)) {
-        const correctedTopics = _topicsRaw.map((t) => String(t)).filter(Boolean);
-        if (correctedTopics.length > 0) { entry.frontmatter.set('topics', correctedTopics); }
+      const _corrected: FrontmatterFields = {};
+
+      // String fields: trim and skip empty
+      for (const field of ['type', 'category', 'title'] as const) {
+        const v = typeof _cfm[field] === 'string' ? (_cfm[field] as string).trim() : '';
+        if (v) { _corrected[field] = v; }
+      }
+      // Array fields: filter out empty strings
+      for (const field of ['topics', 'tags'] as const) {
+        const raw = _cfm[field];
+        if (Array.isArray(raw)) {
+          const arr = raw.map((t) => String(t)).filter(Boolean);
+          if (arr.length > 0) { _corrected[field] = arr; }
+        }
       }
 
-      const _tagsRaw = _cfm['tags'];
-      if (Array.isArray(_tagsRaw)) {
-        const correctedTags = _tagsRaw.map((t) => String(t)).filter(Boolean);
-        if (correctedTags.length > 0) { entry.frontmatter.set('tags', correctedTags); }
-      }
+      _result = { validity: 'corrected', errors, corrected: _corrected };
+      break;
     }
 
-    _result = { validity, errors };
+    _result = { validity: 'error', errors };
     break;
   }
 
   if (_result === undefined) {
-    throw _lastError ?? new ChatlogError('InvalidYaml', 'ParseFailed', 'reviewFrontmatter failed after retries');
+    return { validity: 'error', errors: ['reviewFrontmatter failed after retries'] };
   }
 
   return _result;

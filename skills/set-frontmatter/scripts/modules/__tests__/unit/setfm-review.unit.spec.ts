@@ -25,7 +25,6 @@ import {
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
@@ -129,20 +128,18 @@ describe('reviewFrontmatter', () => {
   });
 
   /**
-   * AiError が throw されるケース。
+   * AiError → retry 枯渇後 error を返すケース。
    */
   describe('When: 異常系', () => {
-    it('[Error] T-SF-RV-01-01: maxRetry=0, runAI が AiError → AiError を throw', async () => {
+    it('[Error] T-SF-RV-01-01: maxRetry=0, runAI が AiError → { validity: error } を返す (throw しない)', async () => {
       commandHandle = installCommandMock(makeFailMock(1));
 
       const _entry = _makeChatlogEntry();
-      await assertRejects(
-        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
-        ChatlogError,
-      );
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'error');
     });
 
-    it('[Error] T-SF-RV-03-01: runAI が validity: fail + errors を返す → { validity: fail, errors: [wrong type] } を返す', async () => {
+    it('[Error] T-SF-RV-03-01: runAI が validity: fail + errors を返す (corrected_frontmatter なし) → { validity: error, errors: [wrong type] } を返す', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
           _enc.encode('validity: fail\nerrors:\n  - wrong type\n'),
@@ -152,7 +149,7 @@ describe('reviewFrontmatter', () => {
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
-      assertEquals(result, { validity: 'fail', errors: ['wrong type'] });
+      assertEquals(result, { validity: 'error', errors: ['wrong type'] });
     });
 
     it('[Error] T-SF-RV-12-01: AiError 以外の例外 → 即 throw (リトライしない)', async () => {
@@ -177,8 +174,7 @@ describe('reviewFrontmatter', () => {
   });
 
   /**
-   * `runAI` が `fail` かつ corrected フィールドを含むとき entry.frontmatter が更新されることを検証する。
-   * また validity キーなし・errors 複数件のエッジケースも検証する。
+   * validity キーなし・errors 複数件・YAML 不整合などのエッジケース。
    */
   describe('When: エッジケース', () => {
     it('[Edge] T-SF-RV-05-01: runAI が validity: キーなしの YAML を返す → デフォルト pass → { validity: pass, errors: [] }', async () => {
@@ -192,7 +188,7 @@ describe('reviewFrontmatter', () => {
       assertEquals(result, { validity: 'pass', errors: [] });
     });
 
-    it('[Edge] T-SF-RV-06-01: runAI が validity: fail + errors 2件を返す → errors に2件が含まれる', async () => {
+    it('[Edge] T-SF-RV-06-01: runAI が validity: fail + errors 2件を返す (corrected_frontmatter なし) → { validity: error, errors に2件 }', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
           _enc.encode('validity: fail\nerrors:\n  - wrong type\n  - wrong category\n'),
@@ -202,63 +198,7 @@ describe('reviewFrontmatter', () => {
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
 
-      assertEquals(result, { validity: 'fail', errors: ['wrong type', 'wrong category'] });
-    });
-
-    it('[Edge] T-SF-RV-04-01: runAI が fail かつ corrected type: tech を含む → entry.frontmatter.get(type) が tech に更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode('validity: fail\nerrors:\n  - wrong type\ncorrected:\n  type: tech\n'),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('type'), 'tech');
-    });
-
-    it('[Edge] T-SF-RV-04-02: runAI が fail かつ corrected category: life を含む → entry.frontmatter.get(category) が life に更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode('validity: fail\nerrors:\n  - wrong category\ncorrected:\n  category: life\n'),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('category'), 'life');
-    });
-
-    it('[Edge] T-SF-RV-07-01: runAI が validity: fail + corrected_frontmatter.topics を含む → entry.frontmatter.get(topics) が更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: fail\nerrors:\n  - wrong topics\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n    - behavior\n',
-          ),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
-    });
-
-    it('[Edge] T-SF-RV-07-02: runAI が validity: fail + corrected_frontmatter.tags を含む → entry.frontmatter.get(tags) が更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: fail\nerrors:\n  - wrong tags\ncorrected_frontmatter:\n  tags:\n    - lang:typescript\n',
-          ),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
+      assertEquals(result, { validity: 'error', errors: ['wrong type', 'wrong category'] });
     });
 
     it('[Edge] T-SF-RV-08-01: runAI が validity: pass + corrected_frontmatter.topics を含む → entry.frontmatter.get(topics) は変更されない', async () => {
@@ -277,37 +217,7 @@ describe('reviewFrontmatter', () => {
       assertEquals(_entry.frontmatter.get('topics'), ['existing-topic']);
     });
 
-    it('[Edge] T-SF-RV-09-01: runAI が validity: fail + 4スペースキー+6スペースリストの topics を含む → entry.frontmatter.get(topics) が更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: fail\nerrors:\n  - wrong topics\ncorrected_frontmatter:\n    topics:\n      - software-engineering\n      - behavior\n',
-          ),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('topics'), ['software-engineering', 'behavior']);
-    });
-
-    it('[Edge] T-SF-RV-09-02: runAI が validity: fail + 4スペースキー+6スペースリストの tags を含む → entry.frontmatter.get(tags) が更新される', async () => {
-      commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: fail\nerrors:\n  - wrong tags\ncorrected_frontmatter:\n    tags:\n      - lang:typescript\n',
-          ),
-        ),
-      );
-
-      const _entry = _makeChatlogEntry();
-      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-
-      assertEquals(_entry.frontmatter.get('tags'), ['lang:typescript']);
-    });
-
-    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → ChatlogError(InvalidYaml) を throw', async () => {
+    it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → { validity: error } を返す', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
           _enc.encode(
@@ -318,11 +228,118 @@ describe('reviewFrontmatter', () => {
 
       const _entry = _makeChatlogEntry();
       _entry.frontmatter.set('topics', ['original-topic']);
-      await assertRejects(
-        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
-        ChatlogError,
-      );
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'error');
       assertEquals(_entry.frontmatter.get('topics'), ['original-topic']);
+    });
+  });
+
+  /**
+   * corrected_frontmatter → r.corrected フィールドに反映される正常系。
+   */
+  describe('When: corrected_frontmatter → corrected フィールドへ', () => {
+    it('[Normal] T-02-01-01: corrected_frontmatter に type/category/title → r.corrected に全フィールド', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n  category: ai\n  title: New Title\n',
+        )),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals((result.corrected as Record<string, unknown>)?.['type'], 'tech');
+      assertEquals((result.corrected as Record<string, unknown>)?.['category'], 'ai');
+      assertEquals((result.corrected as Record<string, unknown>)?.['title'], 'New Title');
+    });
+
+    it('[Normal] T-02-01-02: corrected_frontmatter に topics/tags → r.corrected に配列フィールド', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n  tags:\n    - lang:typescript\n',
+        )),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals((result.corrected as Record<string, unknown>)?.['topics'], ['software-engineering']);
+      assertEquals((result.corrected as Record<string, unknown>)?.['tags'], ['lang:typescript']);
+    });
+
+    it('[Normal] T-02-01-03: corrected_frontmatter 存在時 entry.frontmatter は変更されない', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n',
+        )),
+      );
+      const _entry = _makeChatlogEntry(); // initial type = 'research'
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(_entry.frontmatter.get('type'), 'research'); // must NOT be 'tech'
+    });
+  });
+
+  /**
+   * fail without corrected_frontmatter → validity='error'。
+   */
+  describe('When: fail + corrected_frontmatter なし → error', () => {
+    it('[Error] T-02-03-01: validity: fail + corrected_frontmatter なし → { validity: error, errors: [...] }', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('validity: fail\nerrors:\n  - wrong type\n')),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'error');
+      assertEquals(result.errors, ['wrong type']);
+    });
+  });
+
+  /**
+   * retry 枯渇 → throw ではなく { validity: 'error' } を返す。
+   */
+  describe('When: retry 枯渇 → error 返却', () => {
+    it('[Error] T-02-04-01: maxRetry=0, AI が AiError → { validity: error } を返す (throw しない)', async () => {
+      commandHandle = installCommandMock(makeFailMock(1));
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'error');
+    });
+  });
+
+  /**
+   * corrected フィールドの trim/filter エッジケース。
+   */
+  describe('When: corrected フィールドの trim/filter', () => {
+    it('[Edge] T-02-05-01: corrected_frontmatter.title が空白のみ → r.corrected に title 含まれない', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  title: "   "\n  type: tech\n',
+        )),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals('title' in (result.corrected ?? {}), false);
+    });
+
+    it('[Edge] T-02-05-02: corrected_frontmatter.topics に空文字列混在 → r.corrected.topics から除外', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n    - ""\n    - behavior\n',
+        )),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals(result.corrected?.['topics'], ['software-engineering', 'behavior']);
+    });
+
+    it('[Edge] T-02-06-01: corrected オブジェクトのみ (corrected_frontmatter なし) → entry.frontmatter 変化なし + validity=error', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('validity: fail\nerrors:\n  - wrong\ncorrected:\n  type: tech\n')),
+      );
+      const _entry = _makeChatlogEntry(); // initial type = 'research'
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(_entry.frontmatter.get('type'), 'research'); // NOT 'tech'
+      assertEquals(result.validity, 'error');
     });
   });
 });

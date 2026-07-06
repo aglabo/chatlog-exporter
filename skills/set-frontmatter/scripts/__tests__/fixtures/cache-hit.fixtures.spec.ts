@@ -233,7 +233,7 @@ describe('cache-hit fixtures', () => {
       it('[Normal] T-SF-FX-02: frontmatter-full.json ヒット → generateProvider 未呼び出し、title 等が復元', async () => {
         const entry = _makeEntry('/path/to/frontmatter-full.md', '# frontmatter full');
 
-        const result = await phaseFrontmatter(
+        await phaseFrontmatter(
           [entry],
           cache,
           _MAX_CONTENT_LENGTH,
@@ -244,7 +244,6 @@ describe('cache-hit fixtures', () => {
           generateStub,
         );
 
-        assertEquals(result.has('/path/to/frontmatter-full.md'), true);
         assertEquals(entry.frontmatter.get('title'), 'Fixtures Full Test');
         assertEquals(entry.frontmatter.get('topics'), ['development', 'testing']);
         assertEquals(generateCallCount, 0);

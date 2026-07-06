@@ -12,6 +12,7 @@ export const CACHE_STATUSES = {
   WRITTEN: 'written',
   NEED_REVIEW: 'need-review',
   REVIEW_FAILED: 'review-failed',
+  SET_TYPES: 'set-types',
   EMPTY: '',
 } as const;
 

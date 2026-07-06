@@ -17,8 +17,42 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
+import { DEFAULT_ORDERED_FIELDS } from '../../../_scripts/constants/common.constants.ts';
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
+import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
+
+// ─────────────────────────────────────────────
+// frontmatter 抽出
+// ─────────────────────────────────────────────
+
+/**
+ * エントリの frontmatter から DEFAULT_ORDERED_FIELDS のフィールドを抽出し、
+ * null / 空文字列 / undefined のフィールドを除いた FrontmatterFields を返す。
+ *
+ * @param entry - 抽出元の `ChatlogEntry`
+ * @returns フィルタ済みの frontmatter フィールドマップ
+ */
+export const extractEntryFrontmatter = (entry: ChatlogEntry): FrontmatterFields =>
+  Object.fromEntries(
+    DEFAULT_ORDERED_FIELDS
+      .map((k) => [k, entry.frontmatter.get(k)] as [string, string | string[] | undefined])
+      .filter(([, v]) => v !== undefined && v !== null && v !== ''),
+  ) as FrontmatterFields;
+
+/**
+ * FrontmatterFields から空・null・空配列のフィールドを除いたコピーを返す。
+ *
+ * @param fields - フィルタ対象の frontmatter フィールドマップ
+ * @returns フィルタ済みのフィールドマップ
+ */
+export const filterFrontmatterFields = (fields: FrontmatterFields): FrontmatterFields =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, v]) => {
+      if (Array.isArray(v)) { return v.length > 0; }
+      return v !== undefined && v !== null && v !== '';
+    }),
+  ) as FrontmatterFields;
 
 // ─────────────────────────────────────────────
 // キャッシュ適用
@@ -27,20 +61,22 @@ import type { SetfmCache } from '../types/cache.types.ts';
 /**
  * キャッシュから frontmatter・type・category を `entry.frontmatter` に適用する。
  *
+ * 値が空文字・null・undefined のフィールドはスキップし、既存の entry 値を上書きしない。
+ *
  * @param entry - 適用対象の `ChatlogEntry`
- * @param cache - フェーズキャッシュ（frontmatter・type・category の供給元）
+ * @param fmCache - フェーズキャッシュデータ（`cache.read()` の戻り値）
  */
 export const applyCacheToEntry = (
   entry: ChatlogEntry,
-  cache: ChatlogWorks<SetfmCache>,
+  fmCache: Partial<SetfmCache>,
 ): void => {
-  const _inputPath = entry.filePath!;
-  const _cached = cache.read(_inputPath);
-  if (_cached.frontmatter) {
-    Object.entries(_cached.frontmatter).forEach(([k, v]) => entry.frontmatter.set(k, v));
+  if (fmCache.frontmatter) {
+    Object.entries(fmCache.frontmatter)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .forEach(([k, v]) => entry.frontmatter.set(k, v));
   }
-  if (_cached.type) { entry.frontmatter.set('type', _cached.type); }
-  if (_cached.category) { entry.frontmatter.set('category', _cached.category); }
+  if (fmCache.type) { entry.frontmatter.set('type', fmCache.type); }
+  if (fmCache.category) { entry.frontmatter.set('category', fmCache.category); }
 };
 
 // ─────────────────────────────────────────────

@@ -98,14 +98,14 @@ const _makeFullEntry = (filePath: string): ChatlogEntry =>
   ], '# Full entry body');
 
 /**
- * `validity: 'fail'` を返す reviewProvider スタブ。
+ * `validity: 'error'` を返す reviewProvider スタブ。
  *
  * @param errors - 返すエラーメッセージ配列
  * @returns reviewProvider 互換の非同期関数
  */
 const _makeFailReviewStub =
   (errors: string[]) => (_entry: ChatlogEntry, _dics: Dics, _prompts: Prompts): Promise<ReviewResult> =>
-    Promise.resolve({ validity: 'fail', errors });
+    Promise.resolve({ validity: 'error', errors });
 
 /**
  * `validity: 'pass'` を返す reviewProvider スタブ。
@@ -120,7 +120,7 @@ const _makePassReviewStub = () => (_entry: ChatlogEntry, _dics: Dics, _prompts: 
 /**
  * `_phaseReview` の `review-failed` / `reviewed` ステータス書き込みユニットテストスイート。
  *
- * `reviewProvider` が `validity: 'fail'` を返した場合に `status: 'review-failed'` が書き込まれ、
+ * `reviewProvider` が `validity: 'error'` を返した場合に `status: 'review-failed'` が書き込まれ、
  * `validity: 'pass'` を返した場合に `status: 'reviewed'` が書き込まれることを検証する。
  *
  * テスト ID 範囲: T-SF-PR-01 〜 T-SF-PR-02
@@ -153,9 +153,9 @@ describe('_phaseReview', () => {
     });
   });
 
-  /** 異常系: reviewProvider が fail を返す → キャッシュエントリが削除される */
+  /** 異常系: reviewProvider が error を返す → status が review-failed になる */
   describe('When: 異常系', () => {
-    it('[Error] T-SF-PR-02-01: reviewProvider が fail を返す → キャッシュエントリが削除される', async () => {
+    it('[Error] T-SF-PR-02-01: reviewProvider が error を返す → status が review-failed に設定される', async () => {
       const filePath = '/path/to/fail.md';
       const entry = _makeFullEntry(filePath);
       const cache = await _makeCacheWithHit(filePath, {
@@ -174,7 +174,7 @@ describe('_phaseReview', () => {
         _makeFailReviewStub(['title が不正']),
       );
 
-      assertEquals(cache.read(filePath), {});
+      assertEquals(cache.read(filePath).status, 'review-failed');
     });
   });
 });

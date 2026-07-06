@@ -22,6 +22,8 @@ import {
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+// constants
+import { CACHE_STATUSES } from '../../../../_scripts/types/cache-status.const.types.ts';
 // types
 import type { SetfmCache } from '../../types/cache.types.ts';
 import type { DicEntry, Dics, Prompts } from '../../types/dics.types.ts';
@@ -65,6 +67,10 @@ const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<Chat
           return Promise.resolve();
         },
         mkdir: () => Promise.resolve(),
+        removeFile: (path: string) => {
+          buf.delete(path);
+          return Promise.resolve();
+        },
       },
     },
   );
@@ -156,7 +162,7 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
  * キャッシュヒット・キャッシュミス・混在の各シナリオで
  * type/category フロントマターフィールドの設定と judgeProvider の呼び出し有無を検証する。
  *
- * テスト ID 範囲: T-SF-PA-01 〜 T-SF-PA-03
+ * テスト ID 範囲: T-SF-PA-01 〜 T-SF-PA-08
  *
  * @see _phaseTypeAndCategoryForTest
  */
@@ -191,7 +197,7 @@ describe('_phaseTypeAndCategory', () => {
    */
   describe('When: キャッシュヒット（事前スキップ）', () => {
     it('[Normal] T-SF-PA-01: type が設定済みのエントリ → judgeProvider 未呼び出し、frontmatter にキャッシュ値がセット', async () => {
-      cache = await _makeCache(buf, 'test:\n  type: "coding"\n  category: "typescript"');
+      cache = await _makeCache(buf, 'test:\n  type: "coding"\n  category: "typescript"\n  status: "set-types"');
       const entry = _makeEntry('/path/to/test.md', '# test');
 
       await phaseTypeAndCategory(
@@ -246,7 +252,7 @@ describe('_phaseTypeAndCategory', () => {
    */
   describe('When: 混在（ヒット + ミスが混在）', () => {
     it('[Normal] T-SF-PA-03: ヒット1件 + ミス1件の混在 → ヒット分は judgeProvider 未呼び出し、ミス分のみ呼び出し', async () => {
-      cache = await _makeCache(buf, 'hit:\n  type: "coding"\n  category: "typescript"');
+      cache = await _makeCache(buf, 'hit:\n  type: "coding"\n  category: "typescript"\n  status: "set-types"');
       const hitEntry = _makeEntry('/path/to/hit.md', '# hit');
       const missEntry = _makeEntry('/path/to/miss.md', '# miss');
 
@@ -266,6 +272,142 @@ describe('_phaseTypeAndCategory', () => {
       assertEquals(missEntry.frontmatter.get('type'), 'stub-type');
       assertEquals(missEntry.frontmatter.get('category'), 'stub-category');
       assertEquals(judgeCallCount, 1);
+    });
+  });
+
+  /**
+   * `_phaseTypeAndCategory` — judgeProvider が type と category の両方をセットする正常ケース。
+   *
+   * judgeStub が type/category 両方をセットするとき、
+   * cache.write が SET_TYPES ステータス付きで呼ばれることを検証する。
+   */
+  describe('When: キャッシュミス judgeProvider が両方セット', () => {
+    it('[Normal] T-SF-PA-04: judgeStub が両方セット → buf に SET_TYPES ステータス付きで書き込まれる', async () => {
+      const entry = _makeEntry('/path/to/test.md', '# test');
+
+      await phaseTypeAndCategory(
+        [entry],
+        cache,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        _CONCURRENCY,
+        false,
+        judgeStub,
+      );
+
+      assertEquals(cache.read('/path/to/test.md').status, CACHE_STATUSES.SET_TYPES);
+      assertEquals(buf.size > 0, true);
+    });
+  });
+
+  /**
+   * `_phaseTypeAndCategory` — judgeProvider が type のみセットする異常ケース。
+   *
+   * category が undefined のとき、cache.delete が呼ばれ buf にエントリが存在しないことを検証する。
+   */
+  describe('When: キャッシュミス judgeProvider が type のみセット', () => {
+    it('[Error] T-SF-PA-05: judgeStub が type のみセット → buf にエントリが存在しない（delete）', async () => {
+      judgeStub = (entry) => {
+        entry.frontmatter.set('type', 'stub-type');
+        return Promise.resolve();
+      };
+      const entry = _makeEntry('/path/to/test.md', '# test');
+
+      await phaseTypeAndCategory(
+        [entry],
+        cache,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        _CONCURRENCY,
+        false,
+        judgeStub,
+      );
+
+      assertEquals(buf.size, 0);
+    });
+  });
+
+  /**
+   * `_phaseTypeAndCategory` — judgeProvider が category のみセットする異常ケース。
+   *
+   * type が undefined のとき、cache.delete が呼ばれ buf にエントリが存在しないことを検証する。
+   */
+  describe('When: キャッシュミス judgeProvider が category のみセット', () => {
+    it('[Error] T-SF-PA-06: judgeStub が category のみセット → buf にエントリが存在しない（delete）', async () => {
+      judgeStub = (entry) => {
+        entry.frontmatter.set('category', 'stub-category');
+        return Promise.resolve();
+      };
+      const entry = _makeEntry('/path/to/test.md', '# test');
+
+      await phaseTypeAndCategory(
+        [entry],
+        cache,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        _CONCURRENCY,
+        false,
+        judgeStub,
+      );
+
+      assertEquals(buf.size, 0);
+    });
+  });
+
+  /**
+   * `_phaseTypeAndCategory` — judgeProvider が何もセットしない異常ケース。
+   *
+   * type も category も undefined のとき、cache.delete が呼ばれ buf にエントリが存在しないことを検証する。
+   */
+  describe('When: キャッシュミス judgeProvider が何もセットしない', () => {
+    it('[Error] T-SF-PA-07: judgeStub が何もセットしない → buf にエントリが存在しない（delete）', async () => {
+      judgeStub = () => Promise.resolve();
+      const entry = _makeEntry('/path/to/test.md', '# test');
+
+      await phaseTypeAndCategory(
+        [entry],
+        cache,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        _CONCURRENCY,
+        false,
+        judgeStub,
+      );
+
+      assertEquals(buf.size, 0);
+    });
+  });
+
+  /**
+   * `_phaseTypeAndCategory` — type が空文字列（falsy）のエッジケース。
+   *
+   * type='' は falsy なので、cache.delete が呼ばれ buf にエントリが存在しないことを検証する。
+   */
+  describe('When: キャッシュミス judgeProvider が type=空文字をセット', () => {
+    it("[Edge] T-SF-PA-08: judgeStub が type='' をセット → buf にエントリが存在しない（delete）", async () => {
+      judgeStub = (entry) => {
+        entry.frontmatter.set('type', '');
+        entry.frontmatter.set('category', 'stub-category');
+        return Promise.resolve();
+      };
+      const entry = _makeEntry('/path/to/test.md', '# test');
+
+      await phaseTypeAndCategory(
+        [entry],
+        cache,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        _CONCURRENCY,
+        false,
+        judgeStub,
+      );
+
+      assertEquals(buf.size, 0);
     });
   });
 });
@@ -309,11 +451,11 @@ describe('_phaseFrontmatter', () => {
    * generateProvider は呼ばれないことを検証する。
    */
   describe('When: キャッシュヒット（事前スキップ）', () => {
-    it('[Normal] T-SF-PF-01: frontmatter が設定済みのエントリ → generateProvider 未呼び出し、フロントマター復元、Set に追加', async () => {
-      cache = await _makeCache(buf, 'test:\n  frontmatter:\n    title: "Cached Title"');
+    it('[Normal] T-SF-PF-01: frontmatter が設定済みのエントリ → generateProvider 未呼び出し、フロントマター復元', async () => {
+      cache = await _makeCache(buf, 'test:\n  status: "set-types"\n  frontmatter:\n    title: "Cached Title"');
       const entry = _makeEntry('/path/to/test.md', '# test');
 
-      const result = await phaseFrontmatter(
+      await phaseFrontmatter(
         [entry],
         cache,
         _MAX_CONTENT_LENGTH,
@@ -324,7 +466,6 @@ describe('_phaseFrontmatter', () => {
         generateStub,
       );
 
-      assertEquals(result.has('/path/to/test.md'), true);
       assertEquals(entry.frontmatter.get('title'), 'Cached Title');
       assertEquals(generateCallCount, 0);
     });
@@ -337,10 +478,10 @@ describe('_phaseFrontmatter', () => {
    * filePath が Set に追加され、バッファに frontmatter が書き込まれることを検証する。
    */
   describe('When: キャッシュミス 正常系', () => {
-    it('[Normal] T-SF-PF-02: cache が空のエントリ → generateProvider が呼ばれ、Set に追加、キャッシュに write', async () => {
+    it('[Normal] T-SF-PF-02: cache が空のエントリ → generateProvider が呼ばれ、キャッシュに write', async () => {
       const entry = _makeEntry('/path/to/test.md', '# test');
 
-      const result = await phaseFrontmatter(
+      await phaseFrontmatter(
         [entry],
         cache,
         _MAX_CONTENT_LENGTH,
@@ -351,7 +492,6 @@ describe('_phaseFrontmatter', () => {
         generateStub,
       );
 
-      assertEquals(result.has('/path/to/test.md'), true);
       assertEquals(entry.frontmatter.get('title'), 'Generated Title');
       assertEquals(generateCallCount, 1);
       assertEquals(buf.size > 0, true);
@@ -365,14 +505,14 @@ describe('_phaseFrontmatter', () => {
    * バッファへの書き込みが発生しないことを検証する。
    */
   describe('When: キャッシュミス 異常系', () => {
-    it('[Error] T-SF-PF-03: generateProvider が false → Set に追加されない、キャッシュに書き込みなし', async () => {
+    it('[Error] T-SF-PF-03: generateProvider が false → キャッシュに書き込みなし', async () => {
       const failGenerate = (_entry: ChatlogEntry) => {
         generateCallCount++;
         return Promise.resolve(false);
       };
       const entry = _makeEntry('/path/to/test.md', '# test');
 
-      const result = await phaseFrontmatter(
+      await phaseFrontmatter(
         [entry],
         cache,
         _MAX_CONTENT_LENGTH,
@@ -383,7 +523,6 @@ describe('_phaseFrontmatter', () => {
         failGenerate,
       );
 
-      assertEquals(result.has('/path/to/test.md'), false);
       assertEquals(buf.size, 0);
     });
   });

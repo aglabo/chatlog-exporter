@@ -1,5 +1,5 @@
 // src: scripts/__tests__/unit/setfm-phase-type-category.unit.spec.ts
-// @(#): _phaseTypeAndCategory dryRun パラメータのユニットテスト
+// @(#): _phaseTypeAndCategory dryRun パラメータ・キャッシュステータス別 hit/miss 判定のユニットテスト
 //       対象: _phaseTypeAndCategoryForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -21,7 +21,10 @@ import { _phaseTypeAndCategoryForTest as phaseTypeAndCategory } from '../../set-
 // ─── Helpers
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+// constants
+import { CACHE_STATUSES } from '../../../../_scripts/types/cache-status.const.types.ts';
 // types
+import type { CacheStatus } from '../../../../_scripts/types/cache-status.const.types.ts';
 import type { SetfmCache } from '../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../types/dics.types.ts';
 
@@ -95,6 +98,22 @@ const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
 const _makeEntry = (filePath: string): ChatlogEntry => new ChatlogEntry('---\ntitle: test\n---\n# body', { filePath });
 
 /**
+ * 指定ステータスで type/category をキャッシュに書き込み済みの `ChatlogWorks` を返す。
+ *
+ * @param filePath - キャッシュエントリのファイルパス
+ * @param status - キャッシュエントリのステータス
+ * @returns 書き込み済みの `ChatlogWorks<SetfmCache>` インスタンス
+ */
+const _makeCacheWithEntry = async (
+  filePath: string,
+  status: CacheStatus,
+): Promise<ChatlogWorks<SetfmCache>> => {
+  const cache = await _makeCache();
+  await cache.write(filePath, { type: 'cached-type', category: 'cached-cat', status });
+  return cache;
+};
+
+/**
  * 呼び出し回数をカウントする judgeProvider スタブを返す。
  *
  * AI 呼び出しは行わず、entry の frontmatter に `type: stub` / `category: stub` を設定する。
@@ -116,12 +135,12 @@ const _makeJudgeStub = (): { stub: _JudgeProvider; getCount: () => number } => {
 // ─── Tests
 
 /**
- * `_phaseTypeAndCategory` の dryRun パラメータに関するユニットテストスイート。
+ * `_phaseTypeAndCategory` のユニットテストスイート。
  *
- * dryRun=false の場合は judgeProvider と cache.write が呼ばれ、
- * dryRun=true の場合はどちらも呼ばれないことを検証する。
+ * dryRun フラグの動作、キャッシュヒット/ミスの判定、
+ * および `empty` / `review-failed` ステータス時の再判定、壊れたキャッシュの再判定を検証する。
  *
- * テスト ID 範囲: T-01-01-01 〜 T-01-03-01
+ * テスト ID 範囲: T-01-01-01 〜 T-01-04-07
  *
  * @see _phaseTypeAndCategoryForTest
  */
@@ -191,6 +210,151 @@ describe('_phaseTypeAndCategory', () => {
       await phaseTypeAndCategory([], cache, 1000, _DICS, _PROMPTS, 1, true, stub);
 
       assertEquals(getCount(), 0);
+    });
+  });
+
+  /**
+   * キャッシュステータスによる hit/miss 判定のテスト。
+   *
+   * `review-failed` はキャッシュに type/category があっても再判定する。
+   * それ以外のステータス（例: `set-types`）はキャッシュ値を適用してスキップする。
+   */
+  describe('キャッシュステータスによる hit/miss 判定', () => {
+    /** review-failed: type/category があっても再判定が必要なケース。 */
+    describe('When: 異常系', () => {
+      it(
+        '[Error] T-01-04-01: status=review-failed + type/category あり → judgeProvider が 1 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/a.md';
+          const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.REVIEW_FAILED);
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry(filePath)];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
+    });
+
+    /** type/category があり、status が review-failed 以外: キャッシュ値を適用してスキップ。 */
+    describe('When: 正常系', () => {
+      it(
+        '[Normal] T-01-04-02: status=set-types + type/category あり → judgeProvider が 0 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/b.md';
+          const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.SET_TYPES);
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry(filePath)];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 0);
+        },
+      );
+
+      it(
+        '[Normal] T-01-04-03: status=set-types + type/category あり → frontmatter にキャッシュ値が適用される',
+        async () => {
+          const filePath = '/path/to/b.md';
+          const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.SET_TYPES);
+          const { stub } = _makeJudgeStub();
+          const entry = _makeEntry(filePath);
+
+          await phaseTypeAndCategory([entry], cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(entry.frontmatter.get('type'), 'cached-type');
+          assertEquals(entry.frontmatter.get('category'), 'cached-cat');
+        },
+      );
+    });
+
+    /** type/category がない: status 問わず再判定。 */
+    describe('When: エッジケース', () => {
+      it(
+        '[Edge] T-01-04-04: type/category なし（status 問わず）→ judgeProvider が 1 回呼ばれる',
+        async () => {
+          const cache = await _makeCache();
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry('/path/to/c.md')];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
+
+      it(
+        '[Edge] T-01-04-05: status=empty + type/category あり（壊れたキャッシュ）→ judgeProvider が 1 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/broken.md';
+          const cache = await _makeCache();
+          // EMPTY ステータスだが type/category が存在する壊れたキャッシュを直接書き込む
+          await cache.write(filePath, { type: 'some-type', category: 'some-cat', status: CACHE_STATUSES.EMPTY });
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry(filePath)];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
+
+      it(
+        '[Edge] T-01-04-07: status=undefined（キャッシュミス）+ type/category あり → judgeProvider が 1 回呼ばれる（_needsReJudge の明示的 undefined 条件）',
+        async () => {
+          const filePath = '/path/to/undefined-status.md';
+          // status フィールドを持たないキャッシュエントリ（status=undefined）
+          // cache.write は常に status を付与するため、直接インメモリバッファを経由して
+          // status なしのエントリを再現するには _makeCache のバッファに JSON を書き込む。
+          // ここでは status=undefined ≒ cache miss（_makeCache でキャッシュヒットしない）状態で
+          // type/category だけ持たせる別キャッシュを使う。
+          const buf = new Map<string, string>();
+          buf.set(filePath + '.json', JSON.stringify({ type: 'some-type', category: 'some-cat' }));
+          const cacheWithNoStatus = new ChatlogWorks<SetfmCache>(
+            'fm-cache',
+            '/fake/cache',
+            undefined,
+            {
+              cache: {
+                readTextFile: (path) => {
+                  const data = buf.get(path);
+                  return data !== undefined ? Promise.resolve(data) : Promise.reject(new Error('not found'));
+                },
+                writeTextFile: (path, data) => {
+                  buf.set(path, data);
+                  return Promise.resolve();
+                },
+                mkdir: () => Promise.resolve(),
+                glob: () => Promise.resolve([]),
+              },
+            },
+          );
+          await cacheWithNoStatus.ready;
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry(filePath)];
+
+          await phaseTypeAndCategory(entries, cacheWithNoStatus, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
+
+      it(
+        '[Edge] T-01-04-06: status=set-types + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/partial.md';
+          const cache = await _makeCache();
+          // set-types ステータスだが category が欠けた壊れたキャッシュ
+          await cache.write(filePath, { type: 'some-type', category: '', status: CACHE_STATUSES.SET_TYPES });
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntry(filePath)];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
     });
   });
 });

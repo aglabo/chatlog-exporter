@@ -15,7 +15,7 @@ import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
+import { extractYaml, hasFrontmatterFields } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 // types
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 
@@ -79,6 +79,10 @@ export const generateFrontmatter = async (
     throw _lastError ?? new ChatlogError('InvalidYaml', 'ParseFailed', 'generateFrontmatter failed after retries');
   }
 
+  if (!hasFrontmatterFields(_parsed, { title: 'string', topics: 'array', tags: 'array' })) {
+    logger.warn(`generateFrontmatter: generated frontmatter missing required fields`);
+    return false;
+  }
   for (const [key, val] of Object.entries(_parsed)) {
     if (key !== 'type' && key !== 'category') {
       entry.frontmatter.set(key, val);

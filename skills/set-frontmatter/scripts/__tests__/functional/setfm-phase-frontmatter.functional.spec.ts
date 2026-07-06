@@ -261,13 +261,15 @@ describe('_phaseFrontmatter', () => {
    * `_hasFrontmatterFields` が常に false の実装では counter.count === 1 になるため FN 確認の役割も持つ。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-SF-PF-01-01: 全フィールド揃い → generateProvider 未呼び出し、result に filePath を含む', async () => {
-      const entry = _makeFullEntry('/path/to/full.md');
+    it('[Normal] T-SF-PF-01-01: 全フィールド揃い → generateProvider 未呼び出し、status が need-review', async () => {
+      const filePath = '/path/to/full.md';
+      const entry = _makeFullEntry(filePath);
       const counter = { count: 0 };
+      const cache = await _makeEmptyCache();
 
-      const result = await phaseFrontmatter(
+      await phaseFrontmatter(
         [entry],
-        await _makeEmptyCache(),
+        cache,
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
@@ -277,7 +279,7 @@ describe('_phaseFrontmatter', () => {
       );
 
       assertEquals(counter.count, 0);
-      assertEquals(result.has('/path/to/full.md'), true);
+      assertEquals(cache.read(filePath).status, 'need-review');
     });
 
     it('[Normal] T-SF-PF-02-01: topics なし → generateProvider が1回呼ばれる', async () => {
@@ -521,6 +523,7 @@ describe('_phaseFrontmatter', () => {
         const filePath = '/path/to/cached-full.md';
         const cache = await _makeEmptyCache();
         await cache.write(filePath, {
+          status: 'set-types',
           frontmatter: {
             type: 'research',
             category: 'development',

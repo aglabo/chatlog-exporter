@@ -14,12 +14,13 @@ import { parse as parseYaml } from '@std/yaml';
 import { findFilesFlat } from '../libs/file-ops/find-files.ts';
 import { logger } from '../libs/io/logger.ts';
 import { getBasename, isAbsolutePath, joinPath, normalizePath } from '../libs/path-utils/path-utils.ts';
-import { hasFrontmatter, parseFrontmatter } from '../libs/text/frontmatter-utils.ts';
+import { hasFrontmatter, hasFrontmatterFields, parseFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
 // classes
 import { GlobalConfig } from './GlobalConfig.class.ts';
 // constants
 import { CACHE_STATUSES } from '../types/cache-status.const.types.ts';
 // types
+import type { FrontmatterFields } from '../types/frontmatter.types.ts';
 import type {
   EnvProvider,
   GlobProvider,
@@ -29,9 +30,35 @@ import type {
   WriteTextFileProvider,
 } from '../types/providers.types.ts';
 
-/** `meta` に `title`/`type`/`category` が全て非 null で存在するか判定する。 */
-const _hasRequiredFields = (meta: Record<string, unknown>): boolean =>
-  meta['title'] != null && meta['type'] != null && meta['category'] != null;
+/** `meta` に `type`/`category`/`title` が全て非空文字列で存在するか判定する。 */
+const _hasBaseFields = (meta: FrontmatterFields): boolean => hasFrontmatterFields(meta, ['type', 'category', 'title']);
+
+/** テキストのフロントマターに全5フィールド（type/category/title/topics/tags）が揃っているか判定する。 */
+const _isComplete = (text: string): boolean => {
+  const { meta } = parseFrontmatterEntries(text);
+  return hasFrontmatterFields(meta);
+};
+
+/** `initFromOutputDir` のファイル分類結果。`written`/`empty` は書き込み対象、`delete` は削除対象。 */
+type _EntryStatus = 'written' | 'empty' | 'delete';
+
+/**
+ * テキストを分類して `_EntryStatus` と `meta` を返す。フロントマターなしの場合は `null` を返す（スキップ）。
+ *
+ * @param text - ファイルテキスト
+ * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語
+ * @returns 分類結果と解析済み meta、またはスキップ時 `null`
+ */
+const _classifyEntry = (
+  text: string,
+  isComplete: (text: string) => boolean,
+): { status: _EntryStatus; meta: FrontmatterFields } | null => {
+  if (!hasFrontmatter(text)) { return null; }
+  const { meta } = parseFrontmatterEntries(text);
+  if (isComplete(text)) { return { status: 'written', meta }; }
+  if (_hasBaseFields(meta)) { return { status: 'empty', meta }; }
+  return { status: 'delete', meta };
+};
 
 const _defaultGlob: GlobProvider = async (pattern) => {
   const _results: string[] = [];
@@ -144,10 +171,10 @@ export class ChatlogWorks<T extends object> {
     if (initializer?.yaml != null) {
       this.loadFromYaml(initializer.yaml);
     } else {
+      await this.loadAll();
       if (initializer?.outputDir != null) {
         await this.initFromOutputDir(initializer.outputDir);
       }
-      await this.loadAll();
     }
   }
 
@@ -229,36 +256,51 @@ export class ChatlogWorks<T extends object> {
   }
 
   /**
-   * `outputDir` の `.md` ファイルを `isComplete(text)` で絞り込み、`meta + status: written` で初期化する。
+   * `outputDir` の `.md` ファイルを4段階で判定し、キャッシュを初期化する。
    *
-   * `findFilesFlat(outputDir)` でファイル一覧を取得し、テキストを読み込んで `isComplete` 述語が
-   * true のファイルのみ `parseFrontmatter` で解析した `meta` に `status: written` を加えて書き込む。
+   * フロントマターなし → スキップ（既存キャッシュ保持）。
+   * フロントマターあり + `isComplete(text)` true → `{ ...meta, status: 'written' }` で書き込む。
+   * フロントマターあり + `isComplete` false + 基本3フィールド（type/category/title）あり → `{ ...meta, status: '' }` で書き込む。
+   * フロントマターあり + `isComplete` false + 基本3フィールド不足 → `this.delete(filePath)` で削除してスキップ。
+   *
    * 並列実行するため、glob の reject や writeFile / readTextFile の reject はそのまま伝播する。
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
-   * @param isComplete - テキストを受け取り書き込み対象か判定する述語（省略時は `hasFrontmatter` かつ `title`/`type`/`category` が全て非 null）
+   * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）
    */
   async initFromOutputDir(
     outputDir: string,
-    isComplete: (text: string) => boolean = (text) =>
-      hasFrontmatter(text) && _hasRequiredFields(parseFrontmatter(text).meta),
+    isComplete: (text: string) => boolean = _isComplete,
   ): Promise<void> {
     const _allFiles = await findFilesFlat(outputDir, { glob: this._glob });
-    const _targets = (
+
+    // step 1: 未キャッシュのファイルのみに絞る（同期 filter）
+    const _fresh = _allFiles
+      .map((filePath) => ({ filePath, key: this._toHashKey(filePath) }))
+      .filter(({ key }) => !this._hash.has(key));
+
+    // step 2: テキスト読み込み + 分類（並列）
+    const _classified = (
       await Promise.all(
-        _allFiles.map(async (filePath) => {
+        _fresh.map(async ({ filePath, key }) => {
           const _text = await this._readTextFile(filePath);
-          if (!isComplete(_text)) { return null; }
-          const { meta } = parseFrontmatter(_text);
-          return { filePath, meta };
+          const _entry = _classifyEntry(_text, isComplete);
+          return _entry !== null ? { filePath, key, ..._entry } : null;
         }),
       )
-    ).filter((entry): entry is { filePath: string; meta: Record<string, unknown> } => entry !== null);
-    await Promise.all(
-      _targets.map(({ filePath, meta }) =>
-        this._writeFile(this._toHashKey(filePath), { ...meta, status: CACHE_STATUSES.WRITTEN } as unknown as Partial<T>)
-      ),
-    );
+    ).filter((e): e is { filePath: string; key: string; status: _EntryStatus; meta: FrontmatterFields } => e !== null);
+
+    // step 3: 書き込み対象（written / empty）と削除対象に分けて実行
+    const _toWrite = _classified.filter(({ status }) => status !== 'delete');
+    const _toDelete = _classified.filter(({ status }) => status === 'delete');
+
+    await Promise.all([
+      ..._toWrite.map(({ key, status, meta }) => {
+        const _cacheStatus = status === 'written' ? CACHE_STATUSES.WRITTEN : CACHE_STATUSES.EMPTY;
+        return this._writeFile(key, { ...meta, status: _cacheStatus } as unknown as Partial<T>);
+      }),
+      ..._toDelete.map(({ filePath }) => this.delete(filePath)),
+    ]);
   }
 
   /**

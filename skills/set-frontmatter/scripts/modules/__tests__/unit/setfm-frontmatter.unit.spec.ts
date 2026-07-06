@@ -109,7 +109,7 @@ describe('generateFrontmatter', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-SF-FM-01-01: runAI が有効な YAML を返す → true を返し entry.frontmatter に title がセットされる', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: "test title"\ntopics:\n  - ai\n')),
+        makeSuccessMock(_enc.encode('title: "test title"\ntopics:\n  - ai\ntags:\n  - test\n')),
       );
 
       const _entry = _makeChatlogEntry();
@@ -122,7 +122,9 @@ describe('generateFrontmatter', () => {
     it('[Normal] T-SF-FM-01-02: runAI が type/category を含む YAML を返す → それらは entry.frontmatter に上書きされない', async () => {
       commandHandle = installCommandMock(
         makeSuccessMock(
-          _enc.encode('title: "overwrite test"\ntype: "new-type"\ncategory: "new-cat"\n'),
+          _enc.encode(
+            'title: "overwrite test"\ntype: "new-type"\ncategory: "new-cat"\ntopics:\n  - ai\ntags:\n  - test\n',
+          ),
         ),
       );
 
@@ -142,7 +144,7 @@ describe('generateFrontmatter', () => {
   describe('When: リトライ成功', () => {
     it('[Normal] T-SF-FM-04-01: maxRetry=1, 1回目が AiError, 2回目成功 → true を返す', async () => {
       commandHandle = installCommandMock(
-        makeFirstNFailMock(1, 'title: "retry success"\n'),
+        makeFirstNFailMock(1, 'title: "retry success"\ntopics:\n  - ai\ntags:\n  - test\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -179,6 +181,17 @@ describe('generateFrontmatter', () => {
       );
     });
 
+    it('[Error] T-SF-FM-02-04: AI が必須フィールド不足の YAML を返す → false を返す', async () => {
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('title: null\ntopics: null\n')),
+      );
+
+      const _entry = _makeChatlogEntry();
+      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
+
+      assertEquals(result, false);
+    });
+
     it('[Error] T-SF-FM-02-03: AiError 以外の例外(TimedOut) → 即 throw (リトライしない)', async () => {
       // Deno.errors.NotFound は AiError ではないので即 throw
       const _notFoundMock = class {
@@ -207,7 +220,7 @@ describe('generateFrontmatter', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-SF-FM-04-02: maxRetry=2, 最初の2回が YAML パース失敗, 3回目成功 → true を返す', async () => {
       const _badYaml = 'title: test\n  invalid_indent: bad\n';
-      const _goodYaml = 'title: "finally succeeded"\n';
+      const _goodYaml = 'title: "finally succeeded"\ntopics:\n  - ai\ntags:\n  - test\n';
       commandHandle = installCommandMock(
         makeSequencedSuccessMock([_badYaml, _badYaml, _goodYaml]),
       );
