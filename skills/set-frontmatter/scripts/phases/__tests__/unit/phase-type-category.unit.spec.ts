@@ -1,4 +1,4 @@
-// src: scripts/__tests__/unit/setfm-phase-type-category.unit.spec.ts
+// src: scripts/phases/__tests__/unit/phase-type-category.unit.spec.ts
 // @(#): _phaseTypeAndCategory dryRun パラメータ・キャッシュステータス別 hit/miss 判定のユニットテスト
 //       対象: _phaseTypeAndCategoryForTest
 //
@@ -16,17 +16,17 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { _phaseTypeAndCategoryForTest as phaseTypeAndCategory } from '../../set-frontmatter.ts';
+import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // constants
-import { CACHE_STATUSES } from '../../../../_scripts/types/cache-status.const.types.ts';
+import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 // types
-import type { CacheStatus } from '../../../../_scripts/types/cache-status.const.types.ts';
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Dics, Prompts } from '../../types/dics.types.ts';
+import type { CacheStatus } from '../../../../../_scripts/types/cache-status.const.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
