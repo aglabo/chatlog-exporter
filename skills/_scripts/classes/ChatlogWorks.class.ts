@@ -219,6 +219,40 @@ export class ChatlogWorks<T extends object> {
     return this._writeFile(_key, data);
   }
 
+  /** 2つの frontmatter オブジェクトを浅くマージする。どちらかが `undefined` の場合は `undefined` を返す。 */
+  private _mergeFrontmatter(
+    existing: object | undefined,
+    incoming: object | undefined,
+  ): object | undefined {
+    if (existing === undefined || incoming === undefined) { return undefined; }
+    return { ...existing, ...incoming };
+  }
+
+  /**
+   * キャッシュエントリを既存値とマージして更新する。
+   *
+   * 既存エントリに `data` を浅くマージする。`data.frontmatter` が指定され、かつ既存値の
+   * `frontmatter` がオブジェクトの場合のみ、`frontmatter` を内部マージ（2段階マージ）する。
+   * エントリが存在しない場合は `data` をそのまま書き込む。
+   *
+   * @param filePath - ファイルパスまたはファイル名（拡張子あり・なし両可）
+   * @param data - マージするデータ
+   */
+  update(filePath: string, data: Partial<T>): Promise<void> {
+    const _existing = this.read(filePath) as Record<string, unknown>;
+    const _dataRec = data as Record<string, unknown>;
+    const _fm = this._mergeFrontmatter(
+      _existing['frontmatter'] as object | undefined,
+      _dataRec['frontmatter'] as object | undefined,
+    );
+    const _merged = {
+      ..._existing,
+      ..._dataRec,
+      ...(_fm !== undefined && { frontmatter: _fm }),
+    };
+    return this.write(filePath, _merged as Partial<T>);
+  }
+
   /**
    * キャッシュエントリを削除する。
    *

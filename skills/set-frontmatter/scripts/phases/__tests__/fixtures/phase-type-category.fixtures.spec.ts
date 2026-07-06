@@ -1,6 +1,6 @@
-// src: scripts/__tests__/fixtures/cache-hit.fixtures.spec.ts
-// @(#): _phaseReview の fixtures テスト
-//       対象: _phaseReviewForTest
+// src: scripts/phases/__tests__/fixtures/phase-type-category.fixtures.spec.ts
+// @(#): _phaseTypeAndCategory の fixtures テスト
+//       対象: _phaseTypeAndCategoryForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,23 +14,22 @@ import { assertEquals } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
+import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { DicEntry, Dics, Prompts } from '../../types/dics.types.ts';
-import type { ReviewResult } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** fixtures-data/fm-cache ディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** fixtures-data/fm-type-category ディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
 const _FIXTURES_FM_CACHE_DIR = normalizePath(
-  new URL('./fixtures-data/fm-cache', import.meta.url).pathname,
+  new URL('./fixtures-data/fm-type-category', import.meta.url).pathname,
 );
 
 /** テスト用最大コンテンツ長。 */
@@ -120,96 +119,83 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
 // ─── Tests
 
 /**
- * キャッシュヒット fixtures テストスイート。
+ * `_phaseTypeAndCategory` の fixtures テストスイート。
  *
  * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogWorks.loadAll()` で読み込み、
- * `_phaseReview` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
+ * `_phaseTypeAndCategory` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
  *
- * テスト ID 範囲: T-SF-FX-04 〜 T-SF-FX-06
+ * テスト ID 範囲: T-SF-FX-01, T-SF-FX-03
  *
- * @see _phaseReviewForTest
+ * @see _phaseTypeAndCategoryForTest
  */
-describe('cache-hit fixtures', () => {
+describe('_phaseTypeAndCategory fixtures', () => {
   let cache: ChatlogWorks<SetfmCache>;
-  let reviewCallCount: number;
-  let reviewStub: (entry: ChatlogEntry, dics: Dics, prompts: Prompts) => Promise<ReviewResult>;
+  let judgeCallCount: number;
+  let judgeStub: (entry: ChatlogEntry, maxLen: number, dics: Dics, prompts: Prompts) => Promise<void>;
 
   beforeEach(async () => {
     cache = await _makeCache();
-    reviewCallCount = 0;
-    reviewStub = (_entry) => {
-      reviewCallCount++;
-      return Promise.resolve({ validity: 'pass', errors: [] });
+    judgeCallCount = 0;
+    judgeStub = (entry) => {
+      judgeCallCount++;
+      entry.frontmatter.set('type', 'stub-type');
+      entry.frontmatter.set('category', 'stub-category');
+      return Promise.resolve();
     };
   });
 
   /**
-   * `_phaseReview` — レビュー済みキャッシュヒット時のスキップ検証。
+   * `_phaseTypeAndCategory` — type+category ヒット時のスキップ検証。
    *
-   * `reviewed-full.json` に `status: 'reviewed'` が存在するとき、reviewProvider は呼ばれず
-   * スキップされることを検証する。また `reviewed-miss.json` では reviewProvider が1回呼ばれることを検証する。
+   * `type-only.json` に type/category が存在するとき、judgeProvider は呼ばれず
+   * キャッシュ値が frontmatter にセットされることを検証する。
    */
-  describe('_phaseReview', () => {
-    describe('When: reviewedキャッシュヒット', () => {
-      it('[Normal] T-SF-FX-04: reviewed-full.json ヒット → reviewProvider 未呼び出し', async () => {
-        const entry = _makeEntry('/path/to/reviewed-full.md', '# reviewed full');
+  describe('_phaseTypeAndCategory', () => {
+    describe('When: type+category キャッシュヒット', () => {
+      it('[Normal] T-SF-FX-01: type-only.json ヒット → judgeProvider 未呼び出し、type/category がキャッシュ値でセット', async () => {
+        const entry = _makeEntry('/path/to/type-only.md', '# type only');
 
-        await phaseReview(
+        await phaseTypeAndCategory(
           [entry],
           cache,
+          _MAX_CONTENT_LENGTH,
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
           false,
-          reviewStub,
+          judgeStub,
         );
 
-        assertEquals(reviewCallCount, 0);
+        assertEquals(entry.frontmatter.get('type'), 'coding');
+        assertEquals(entry.frontmatter.get('category'), 'development');
+        assertEquals(judgeCallCount, 0);
       });
     });
 
-    describe('When: reviewedキャッシュミス', () => {
-      it('[Normal] T-SF-FX-05: reviewed-miss.json ミス → reviewProvider が1回呼ばれる', async () => {
-        const entry = _makeEntry('/path/to/reviewed-miss.md', '# reviewed miss');
+    /**
+     * `_phaseTypeAndCategory` — type なし（partial-miss.json）のミス検証。
+     *
+     * `partial-miss.json` は category のみで type がないため、キャッシュミス扱いとなり
+     * judgeProvider が呼ばれることを検証する。
+     */
+    describe('When: type なしでキャッシュミス', () => {
+      it('[Normal] T-SF-FX-03: partial-miss.json (type なし) → judgeProvider が1回呼ばれる', async () => {
+        const entry = _makeEntry('/path/to/partial-miss.md', '# partial miss');
 
-        await phaseReview(
+        await phaseTypeAndCategory(
           [entry],
           cache,
+          _MAX_CONTENT_LENGTH,
           _makeDics(),
           _makePrompts(),
           _CONCURRENCY,
           false,
-          reviewStub,
+          judgeStub,
         );
 
-        assertEquals(reviewCallCount, 1);
-      });
-
-      it('[Normal] T-SF-FX-06: reviewed-miss.json ミス → reviewProvider の修正が cache.frontmatter に反映される', async () => {
-        const entry = _makeEntry('/path/to/reviewed-miss.md', '# reviewed miss');
-        const correctedTopics = ['corrected-topic'];
-        const correctedTags = ['corrected:tag'];
-        const _reviewWithCorrection = (e: ChatlogEntry, _dics: Dics, _prompts: Prompts): Promise<ReviewResult> => {
-          reviewCallCount++;
-          e.frontmatter.set('topics', correctedTopics);
-          e.frontmatter.set('tags', correctedTags);
-          return Promise.resolve({ validity: 'pass', errors: [] });
-        };
-
-        await phaseReview(
-          [entry],
-          cache,
-          _makeDics(),
-          _makePrompts(),
-          _CONCURRENCY,
-          false,
-          _reviewWithCorrection,
-        );
-
-        const cached = cache.read('/path/to/reviewed-miss.md');
-        assertEquals(cached.status, 'reviewed');
-        assertEquals(cached.frontmatter?.['topics'], correctedTopics);
-        assertEquals(cached.frontmatter?.['tags'], correctedTags);
+        assertEquals(judgeCallCount, 1);
+        assertEquals(entry.frontmatter.get('type'), 'stub-type');
+        assertEquals(entry.frontmatter.get('category'), 'stub-category');
       });
     });
   });

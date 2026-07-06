@@ -155,7 +155,7 @@ describe('main - dry-run モード', () => {
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
         });
 
-        it('T-SF-E2E-01-03: Phase 2 (type判定) が実行されない', async () => {
+        it('T-SF-E2E-01-03: dry-run 時は type/category エントリログに [dry-run] が付く', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -167,7 +167,7 @@ describe('main - dry-run モード', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.every((l) => !l.includes('Phase 2')), true);
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('type/category')), true);
         });
       });
     });

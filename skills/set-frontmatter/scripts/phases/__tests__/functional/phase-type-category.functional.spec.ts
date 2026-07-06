@@ -1,6 +1,6 @@
-// src: scripts/__tests__/functional/setfm-process.functional.spec.ts
-// @(#): _phaseTypeAndCategory / _phaseFrontmatter の functional テスト
-//       対象: _phaseTypeAndCategoryForTest, _phaseFrontmatterForTest
+// src: scripts/phases/__tests__/functional/phase-type-category.functional.spec.ts
+// @(#): _phaseTypeAndCategory の functional テスト
+//       対象: _phaseTypeAndCategoryForTest
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,19 +14,16 @@ import { assertEquals } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import {
-  _phaseFrontmatterForTest as phaseFrontmatter,
-  _phaseTypeAndCategoryForTest as phaseTypeAndCategory,
-} from '../../set-frontmatter.ts';
+import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // constants
-import { CACHE_STATUSES } from '../../../../_scripts/types/cache-status.const.types.ts';
+import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { DicEntry, Dics, Prompts } from '../../types/dics.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
@@ -405,122 +402,6 @@ describe('_phaseTypeAndCategory', () => {
         _CONCURRENCY,
         false,
         judgeStub,
-      );
-
-      assertEquals(buf.size, 0);
-    });
-  });
-});
-
-/**
- * `_phaseFrontmatter` の functional テストスイート。
- *
- * キャッシュヒット・キャッシュミス（正常系・異常系）の各シナリオで
- * フロントマターの復元・生成と generateProvider の呼び出し有無を検証する。
- *
- * テスト ID 範囲: T-SF-PF-01 〜 T-SF-PF-03
- *
- * @see _phaseFrontmatterForTest
- */
-describe('_phaseFrontmatter', () => {
-  let buf: Map<string, string>;
-  let cache: ChatlogWorks<SetfmCache>;
-  let generateCallCount: number;
-  let generateStub: (
-    entry: ChatlogEntry,
-    maxLen: number,
-    dics: Dics,
-    prompts: Prompts,
-  ) => Promise<boolean>;
-
-  beforeEach(async () => {
-    buf = new Map();
-    cache = await _makeCache(buf);
-    generateCallCount = 0;
-    generateStub = (entry) => {
-      generateCallCount++;
-      entry.frontmatter.set('title', 'Generated Title');
-      return Promise.resolve(true);
-    };
-  });
-
-  /**
-   * `_phaseFrontmatter` — キャッシュヒット時の正常ケース。
-   *
-   * キャッシュに frontmatter が存在するとき、エントリに復元されて Set に追加され
-   * generateProvider は呼ばれないことを検証する。
-   */
-  describe('When: キャッシュヒット（事前スキップ）', () => {
-    it('[Normal] T-SF-PF-01: frontmatter が設定済みのエントリ → generateProvider 未呼び出し、フロントマター復元', async () => {
-      cache = await _makeCache(buf, 'test:\n  status: "set-types"\n  frontmatter:\n    title: "Cached Title"');
-      const entry = _makeEntry('/path/to/test.md', '# test');
-
-      await phaseFrontmatter(
-        [entry],
-        cache,
-        _MAX_CONTENT_LENGTH,
-        _makeDics(),
-        _makePrompts(),
-        _CONCURRENCY,
-        false,
-        generateStub,
-      );
-
-      assertEquals(entry.frontmatter.get('title'), 'Cached Title');
-      assertEquals(generateCallCount, 0);
-    });
-  });
-
-  /**
-   * `_phaseFrontmatter` — キャッシュミス時の正常ケース。
-   *
-   * キャッシュが空で generateProvider が有効な frontmatter を生成するとき、
-   * filePath が Set に追加され、バッファに frontmatter が書き込まれることを検証する。
-   */
-  describe('When: キャッシュミス 正常系', () => {
-    it('[Normal] T-SF-PF-02: cache が空のエントリ → generateProvider が呼ばれ、キャッシュに write', async () => {
-      const entry = _makeEntry('/path/to/test.md', '# test');
-
-      await phaseFrontmatter(
-        [entry],
-        cache,
-        _MAX_CONTENT_LENGTH,
-        _makeDics(),
-        _makePrompts(),
-        _CONCURRENCY,
-        false,
-        generateStub,
-      );
-
-      assertEquals(entry.frontmatter.get('title'), 'Generated Title');
-      assertEquals(generateCallCount, 1);
-      assertEquals(buf.size > 0, true);
-    });
-  });
-
-  /**
-   * `_phaseFrontmatter` — キャッシュミス時の異常ケース。
-   *
-   * generateProvider が false を返すとき、filePath が Set に追加されず
-   * バッファへの書き込みが発生しないことを検証する。
-   */
-  describe('When: キャッシュミス 異常系', () => {
-    it('[Error] T-SF-PF-03: generateProvider が false → キャッシュに書き込みなし', async () => {
-      const failGenerate = (_entry: ChatlogEntry) => {
-        generateCallCount++;
-        return Promise.resolve(false);
-      };
-      const entry = _makeEntry('/path/to/test.md', '# test');
-
-      await phaseFrontmatter(
-        [entry],
-        cache,
-        _MAX_CONTENT_LENGTH,
-        _makeDics(),
-        _makePrompts(),
-        _CONCURRENCY,
-        false,
-        failGenerate,
       );
 
       assertEquals(buf.size, 0);

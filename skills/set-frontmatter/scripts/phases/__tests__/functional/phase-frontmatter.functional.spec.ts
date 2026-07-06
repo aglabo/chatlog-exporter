@@ -1,6 +1,6 @@
-// src: scripts/__tests__/functional/setfm-phase-frontmatter.functional.spec.ts
+// src: scripts/phases/__tests__/functional/phase-frontmatter.functional.spec.ts
 // @(#): _phaseFrontmatter フィールド充足チェックのユニットテスト
-//       対象: _phaseFrontmatterForTest (_hasFrontmatterFields 経由の分岐動作)
+//       対象: phaseFrontmatter (_hasFrontmatterFields 経由の分岐動作)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,15 +14,15 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseFrontmatterForTest as phaseFrontmatter } from '../../set-frontmatter.ts';
+import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Dics, Prompts } from '../../types/dics.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
@@ -30,7 +30,7 @@ import type { Dics, Prompts } from '../../types/dics.types.ts';
 
 /** テスト用キャッシュディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
 const _UNIT_TEST_CACHE_DIR = normalizePath(
-  new URL('./fixtures-data/fm-cache-unit', import.meta.url).pathname,
+  new URL('./fixtures-data/fm-frontmatter-unit', import.meta.url).pathname,
 );
 
 /** テスト用最大コンテンツ長。 */
@@ -246,14 +246,14 @@ const _makeFailGenerateStub = (_counter: { count: number }) =>
 // ─── Tests
 
 /**
- * `_phaseFrontmatter` のフィールド充足チェック（`_hasFrontmatterFields` 分岐）ユニットテストスイート。
+ * `phaseFrontmatter` のフィールド充足チェック（`_hasFrontmatterFields` 分岐）ユニットテストスイート。
  *
  * すべてのケースで cache MISS 状態（`_makeEmptyCache` 使用、`loadAll()` 未呼び出し）。
- * `_hasFrontmatterFields` は非 export のため、`_phaseFrontmatterForTest` 経由で振る舞いを検証する。
+ * `_hasFrontmatterFields` は非 export のため、`phaseFrontmatter` 経由で振る舞いを検証する。
  *
  * テスト ID 範囲: T-SF-PF-01 〜 T-SF-PF-06
  *
- * @see _phaseFrontmatterForTest
+ * @see phaseFrontmatter
  */
 describe('_phaseFrontmatter', () => {
   /**
@@ -513,7 +513,7 @@ describe('_phaseFrontmatter', () => {
   /**
    * NEED_REVIEW ステータス書き込みテスト (T-SF-PF-10〜13)。
    *
-   * `_phaseFrontmatter` の 3 パス（キャッシュヒット / _alreadyFilled / _needsGenerate）で
+   * `phaseFrontmatter` の 3 パス（キャッシュヒット / _alreadyFilled / _needsGenerate）で
    * 全フィールド充足時に `status: 'need-review'` が書き込まれることを検証する。
    */
   describe('NEED_REVIEW ステータス書き込み', () => {

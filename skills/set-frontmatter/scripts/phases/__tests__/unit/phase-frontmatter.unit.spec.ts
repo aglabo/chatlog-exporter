@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-phase-frontmatter.unit.spec.ts
+// src: scripts/phases/__tests__/unit/phase-frontmatter.unit.spec.ts
 // @(#): _phaseFrontmatter の dryRun ユニットテスト
-//       対象: _phaseFrontmatterForTest
+//       対象: phaseFrontmatter
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -16,16 +16,16 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { _phaseFrontmatterForTest as phaseFrontmatter } from '../../set-frontmatter.ts';
+import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Dics, Prompts } from '../../types/dics.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
@@ -107,14 +107,14 @@ const _makeGenerateStub = (returns = true): { stub: _GenerateProvider; getCount:
 // ─── Tests
 
 /**
- * `_phaseFrontmatter` の dryRun パラメータに関するユニットテストスイート。
+ * `phaseFrontmatter` の dryRun パラメータに関するユニットテストスイート。
  *
  * `_needsGenerate` パス（キャッシュミス・フロントマターフィールドなし）における
  * generateProvider と cache.write の呼び出し回数を検証する。
  *
  * テスト ID 範囲: T-02-01 〜 T-02-03
  *
- * @see _phaseFrontmatterForTest
+ * @see phaseFrontmatter
  */
 describe('_phaseFrontmatter', () => {
   /**
