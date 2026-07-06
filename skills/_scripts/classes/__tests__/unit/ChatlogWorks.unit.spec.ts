@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-73
+// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-81
 
 // ─── BDD modules
 import { assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
@@ -88,9 +88,9 @@ const _makePatternGlob = (mdList: string[], jsonList: string[] = []) => (pattern
 /**
  * `ChatlogWorks` クラスのユニットテストスイート。
  *
- * コンストラクタ・read・write・initFromOutputDir・delete メソッドの動作を検証する。
+ * コンストラクタ・read・write・initFromOutputDir・delete・update メソッドの動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-71
+ * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-81
  *
  * @see ChatlogWorks
  */
@@ -1246,6 +1246,140 @@ describe('ChatlogWorks', () => {
         // write() なし → _hash にキーなし
         await _cache.delete('nonexistent.md');
         assertEquals(_cache.read('nonexistent.md'), {});
+      });
+    });
+  });
+
+  /**
+   * `update()` メソッドのテスト。
+   *
+   * 既存キャッシュとのマージ動作を検証する。
+   * トップレベルは浅いマージ、`frontmatter` フィールドは既存値がオブジェクトの場合のみ内部マージする。
+   *
+   * テスト ID 範囲: T-CLS-CC-74 〜 T-CLS-CC-81
+   */
+  describe('update', () => {
+    /** update で新規追加・既存マージ・frontmatter 2段階マージを検証する正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-CLS-CC-74: 未書き込みキーへの update → data がそのまま書き込まれる', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ status: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(_buf),
+        });
+        await _cache.ready;
+        await _cache.update('new-file.md', { status: 'reviewed' });
+        assertEquals(_cache.read('new-file.md'), { status: 'reviewed' });
+      });
+
+      it('[Normal] T-CLS-CC-75: 既存キャッシュに disjoint なキーを追加マージする', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ status?: string; type?: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(_buf),
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { status: 'reviewed' });
+        await _cache.update('chat.md', { type: 'tech' });
+        assertEquals(_cache.read('chat.md'), { status: 'reviewed', type: 'tech' });
+      });
+
+      it('[Normal] T-CLS-CC-76: 同一トップレベルキーは data の値で上書きされ、他のキーは保持される', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ status?: string; type?: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: _makeBufferProviders(_buf),
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { status: 'reviewed', type: 'tech' });
+        await _cache.update('chat.md', { status: 'written' });
+        assertEquals(_cache.read('chat.md'), { status: 'written', type: 'tech' });
+      });
+
+      it('[Normal] T-CLS-CC-77: 既存に frontmatter あり + data に frontmatter → 内部マージ（2段階）', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ frontmatter?: Record<string, string> }>(
+          'test',
+          '${TEMP}/cle-cache',
+          undefined,
+          {
+            env: _fakeEnv,
+            cache: _makeBufferProviders(_buf),
+          },
+        );
+        await _cache.ready;
+        await _cache.write('chat.md', { frontmatter: { title: 'Old', type: 'tech' } });
+        await _cache.update('chat.md', { frontmatter: { title: 'New', category: 'dev' } });
+        assertEquals(_cache.read('chat.md'), { frontmatter: { title: 'New', type: 'tech', category: 'dev' } });
+      });
+    });
+
+    /** 境界値・特殊フィールド組み合わせのケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-CLS-CC-78: 既存に frontmatter なし + data に frontmatter → data.frontmatter をそのまま上書き', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ status?: string; frontmatter?: Record<string, string> }>(
+          'test',
+          '${TEMP}/cle-cache',
+          undefined,
+          { env: _fakeEnv, cache: _makeBufferProviders(_buf) },
+        );
+        await _cache.ready;
+        await _cache.write('chat.md', { status: 'reviewed' });
+        await _cache.update('chat.md', { frontmatter: { title: 'New', type: 'tech' } });
+        assertEquals(_cache.read('chat.md'), { status: 'reviewed', frontmatter: { title: 'New', type: 'tech' } });
+      });
+
+      it('[Edge] T-CLS-CC-79: data に frontmatter なし → 既存の frontmatter は保持される', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ frontmatter?: Record<string, string>; status?: string }>(
+          'test',
+          '${TEMP}/cle-cache',
+          undefined,
+          { env: _fakeEnv, cache: _makeBufferProviders(_buf) },
+        );
+        await _cache.ready;
+        await _cache.write('chat.md', { frontmatter: { title: 'Old', type: 'tech' }, status: 'reviewed' });
+        await _cache.update('chat.md', { status: 'written' });
+        assertEquals(_cache.read('chat.md'), { frontmatter: { title: 'Old', type: 'tech' }, status: 'written' });
+      });
+
+      it('[Edge] T-CLS-CC-80: 未書き込みキー（read が {}）+ data に frontmatter → 2段階マージ条件は発火しない', async () => {
+        const _buf = new Map<string, string>();
+        const _cache = new ChatlogWorks<{ frontmatter?: Record<string, string>; status?: string }>(
+          'test',
+          '${TEMP}/cle-cache',
+          undefined,
+          { env: _fakeEnv, cache: _makeBufferProviders(_buf) },
+        );
+        await _cache.ready;
+        await _cache.update('missing.md', { frontmatter: { title: 'X' }, status: 'reviewed' });
+        assertEquals(_cache.read('missing.md'), { frontmatter: { title: 'X' }, status: 'reviewed' });
+      });
+    });
+
+    /** I/O エラー時の振る舞い。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-CLS-CC-81: writeTextFile が reject → update() が reject を伝播する', async () => {
+        const _writeErr = new Error('disk full');
+        const _buf = new Map<string, string>();
+        const _baseProv = _makeBufferProviders(_buf);
+        let _failNext = false;
+        const _cache = new ChatlogWorks<{ status?: string }>('test', '${TEMP}/cle-cache', undefined, {
+          env: _fakeEnv,
+          cache: {
+            ..._baseProv,
+            writeTextFile: (path: string, data: string): Promise<void> => {
+              if (_failNext) { return Promise.reject(_writeErr); }
+              return _baseProv.writeTextFile(path, data);
+            },
+          },
+        });
+        await _cache.ready;
+        await _cache.write('chat.md', { status: 'reviewed' });
+        _failNext = true;
+        const _err = await assertRejects(() => _cache.update('chat.md', { status: 'written' }));
+        assertStrictEquals(_err, _writeErr);
       });
     });
   });
