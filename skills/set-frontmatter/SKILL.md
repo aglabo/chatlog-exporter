@@ -154,7 +154,7 @@ tags:
 
 - `assets/dics/category.dic`: category 選択肢
 - `assets/dics/topics.dic`: topics 選択肢
-- `assets/dics/tags.dic`: tags 選択肢 (namespace:value 形式)
+- `assets/dics/tags.dic`: tags 選択肢 (namespace/value 形式)
 - `assets/dics/namespaces.dic`: タグ名前空間の定義
 
 ## 関連スキル
