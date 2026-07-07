@@ -92,6 +92,11 @@ deno run --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変�
 - `fail > 0` の場合は失敗件数を警告として強調表示
 - dry-run モードの場合はその旨を明示する
 
+## 入力ディレクトリ
+
+`--chatlogs-dir` 未指定時、デフォルトの入力元は `chatlogs/originalLogs/<agent>/<year>/<yearMonth>` である
+（`--chatlogs-dir` 明示指定時は `originalLogs` を挟まず指定パスをそのまま使う）。
+
 ## 出力ディレクトリ構造
 
 入力が `chatlogs/<agent>/<year>/<yearMonth>` 形式の場合:
