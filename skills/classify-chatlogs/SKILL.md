@@ -110,7 +110,7 @@ category: dev
 topics:
   - tool-development
 tags:
-  - ai:claude
+  - ai/claude
 ---
 ```
 
