@@ -22,6 +22,7 @@ import {
   DEFAULT_AGENT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_NORMALIZE_DIR,
+  DEFAULT_ORIGINAL_LOGS_DIR,
   DEFAULT_TIMEOUT_MS,
 } from '../../_scripts/constants/defaults.constants.ts';
 
@@ -72,6 +73,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
       baseDir: config.baseDir ?? DEFAULT_CHATLOGS_DIR,
       agent: config.agent ?? DEFAULT_AGENT,
       period: config.period,
+      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
     });
     if (!dirExistsSync(inputDir)) {
       throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
