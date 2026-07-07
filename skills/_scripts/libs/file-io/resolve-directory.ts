@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // functions
-import { normalizePath } from '../path-utils/path-utils.ts';
+import { joinPath, normalizePath } from '../path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // チャットログパス構築
@@ -47,16 +47,22 @@ export type ResolveChatlogsDirOptions = {
   baseDir: string;
   agent: string;
   period?: string;
+  addOnDir?: string;
 };
 
 /**
  * チャットログディレクトリを解決する。
  *
- * - `chatlogsDir` が指定済み → そのまま返す（agent/period は無視）
- * - `chatlogsDir` が未定義 → `baseDir/agentPath(agent, period)` を返す
+ * - `chatlogsDir` が指定済み → そのまま返す（agent/period/addOnDir は無視）
+ * - `chatlogsDir` が未定義 → `baseDir` と `agentPath(agent, period)` の間に
+ *   `addOnDir`（指定時のみ）を挟んだパスを返す
  */
-export const resolveChatlogsDir = ({ chatlogsDir, baseDir, agent, period }: ResolveChatlogsDirOptions): string => {
-  return chatlogsDir ?? `${baseDir}/${agentPath(agent, period)}`;
+export const resolveChatlogsDir = (
+  { chatlogsDir, baseDir, agent, period, addOnDir }: ResolveChatlogsDirOptions,
+): string => {
+  if (chatlogsDir) { return chatlogsDir; }
+  const _base = addOnDir ? joinPath(baseDir, addOnDir) : baseDir;
+  return `${_base}/${agentPath(agent, period)}`;
 };
 
 // ─────────────────────────────────────────────
