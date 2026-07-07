@@ -107,6 +107,7 @@ node_modules/
 .beads/*
 !**/.gitignore
 !.beads/config.yaml
+!.beads/issues.jsonl
 
 
 # Beads / Dolt files (added by bd init)
