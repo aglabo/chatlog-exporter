@@ -1,9 +1,9 @@
 ---
 title: "Array Fields"
 tags:
-  - "foo"
-  - "bar"
-  - "baz"
+  - "#foo"
+  - "#bar"
+  - "#baz"
 ---
 
 First paragraph.
