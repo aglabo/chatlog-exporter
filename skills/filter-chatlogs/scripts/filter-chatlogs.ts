@@ -28,7 +28,9 @@ import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
+import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
 // types
 import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
@@ -60,7 +62,7 @@ export const parseArgs = (args: string[]): FilterParsedConfig => {
 /**
  * FilterParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')`
+ * - baseDir 優先順位: `parsed.baseDir` > `joinPath(globalConfig.get('chatlogsDir'), DEFAULT_ORIGINAL_LOGS_DIR)`
  * - chatlogsDir 優先順位: `parsed.chatlogsDir`（直接指定のみ、未指定なら `undefined`）
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
@@ -74,7 +76,7 @@ export const buildConfig = (
 ): FilterConfig => {
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
+  const _baseDir = parsed.baseDir ?? joinPath(_globalChatlogDir, DEFAULT_ORIGINAL_LOGS_DIR);
   const _chatlogsDir = parsed.chatlogsDir;
   const _chunkSize = parsed.chunkSize ?? globalConfig.get('chunkSize') as number;
   const _concurrency = parsed.concurrency ?? globalConfig.get('concurrency') as number;

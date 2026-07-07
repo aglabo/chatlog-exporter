@@ -9,6 +9,7 @@
 // ─── shared ───
 // functions
 import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 // classes
@@ -16,6 +17,7 @@ import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── internal ───
 // constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_PREFILTER_CONFIG } from '../constants/common.constants.ts';
 // types
 import type { PrefilterConfig, PrefilterParsedConfig } from '../types/prefilter.types.ts';
@@ -45,8 +47,8 @@ export const parseArgs = (args: string[]): PrefilterParsedConfig => {
 /**
  * PrefilterParsedConfig・GlobalConfig・デフォルト値から完全な PrefilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')`
- * - chatlogsDir 優先順位: `parsed.chatlogsDir` > `baseDir`
+ * - baseDir 優先順位: `parsed.baseDir` > `joinPath(globalConfig.get('chatlogsDir'), DEFAULT_ORIGINAL_LOGS_DIR)`
+ * - chatlogsDir 優先順位: `parsed.chatlogsDir` > `globalConfig.get('chatlogsDir')`
  * - `configFile` は PrefilterConfig に存在しないため結果に含まれない。
  */
 export const buildConfig = (
@@ -56,8 +58,8 @@ export const buildConfig = (
 ): PrefilterConfig => {
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
-  const _chatlogsDir = parsed.chatlogsDir ?? _baseDir;
+  const _baseDir = parsed.baseDir ?? joinPath(_globalChatlogDir, DEFAULT_ORIGINAL_LOGS_DIR);
+  const _chatlogsDir = parsed.chatlogsDir ?? _globalChatlogDir;
   const { configFile: _configFile, ...rest } = parsed;
   return {
     ...defaults,
