@@ -12,7 +12,7 @@
 
 # ── ai: 使用・言及したAIモデル・技術 ────────────────────
 
-ai:claude:
+ai/claude:
   namespace: ai
   def: Anthropic Claude was used as the primary AI model
   desc: Anthropic Claude を主として使用しているログ
@@ -22,7 +22,7 @@ ai:claude:
     not:
       - AIを話題にしただけ
 
-ai:chatgpt:
+ai/chatgpt:
   namespace: ai
   def: OpenAI ChatGPT was used as the primary AI model
   desc: OpenAI ChatGPT を主として使用しているログ
@@ -32,7 +32,7 @@ ai:chatgpt:
     not:
       - AIを話題にしただけ
 
-ai:codex:
+ai/codex:
   namespace: ai
   def: OpenAI Codex CLI was used for coding assistance
   desc: OpenAI Codex CLI を使用しているログ
@@ -40,7 +40,7 @@ ai:codex:
     when:
       - Codex CLIを直接操作した
 
-ai:copilot:
+ai/copilot:
   namespace: ai
   def: GitHub Copilot was used or evaluated
   desc: GitHub Copilot を使用・評価しているログ
@@ -48,7 +48,7 @@ ai:copilot:
     when:
       - GitHub Copilotを実際に使用・評価した
 
-ai:mcp:
+ai/mcp:
   namespace: ai
   def: MCP server or tools were designed, implemented, or operated
   desc: MCPサーバー・MCPツールの設計・実装・運用に関するログ
@@ -57,7 +57,7 @@ ai:mcp:
       - MCPサーバーの実装・設定・デバッグを行った
       - MCPツールの設計・呼び出しが主題
 
-ai:agent:
+ai/agent:
   namespace: ai
   def: An AI agent was designed, implemented, or orchestrated
   desc: AIエージェントのオーケストレーション・ツール呼び出し設計に関するログ
@@ -67,7 +67,7 @@ ai:agent:
     not:
       - 単にAIに質問した
 
-ai:prompt:
+ai/prompt:
   namespace: ai
   def: Prompt design or improvement was the primary purpose
   desc: プロンプト設計・改善・分析が主目的のログ
@@ -75,7 +75,7 @@ ai:prompt:
     when:
       - プロンプトの設計・改善・テストが主目的
 
-ai:character:
+ai/character:
   namespace: ai
   def: An AI character was defined or a roleplay session was conducted
   desc: AIキャラクター設定・ロールプレイに関するログ
@@ -85,7 +85,7 @@ ai:character:
 
 # ── lang: 実際に使用した言語・形式 ──────────────────────
 
-lang:bash:
+lang/bash:
   namespace: lang
   def: Bash scripts were actually written or debugged
   desc: Bashスクリプトを実際に書いた・デバッグしたログ
@@ -95,7 +95,7 @@ lang:bash:
     not:
       - Bashコマンドを実行しただけ（操作の道具）
 
-lang:powershell:
+lang/powershell:
   namespace: lang
   def: PowerShell scripts were actually written or debugged
   desc: PowerShellスクリプトを実際に書いた・デバッグしたログ
@@ -103,7 +103,7 @@ lang:powershell:
     when:
       - PowerShellスクリプトを実際に書いた・修正した
 
-lang:javascript:
+lang/javascript:
   namespace: lang
   def: JavaScript code was actually written or debugged
   desc: JavaScriptコードを実際に書いた・デバッグしたログ
@@ -111,7 +111,7 @@ lang:javascript:
     when:
       - JavaScriptコードを実際に書いた・修正した
 
-lang:typescript:
+lang/typescript:
   namespace: lang
   def: TypeScript code was actually written or debugged
   desc: TypeScriptコードを実際に書いた・デバッグしたログ
@@ -121,7 +121,7 @@ lang:typescript:
     not:
       - 設定ファイル（tsconfig等）の変更のみ（→ dev:configuration）
 
-lang:python:
+lang/python:
   namespace: lang
   def: Python code was actually written or debugged
   desc: Pythonコードを実際に書いた・デバッグしたログ
@@ -129,7 +129,7 @@ lang:python:
     when:
       - Pythonコードを実際に書いた・修正した
 
-lang:yaml:
+lang/yaml:
   namespace: lang
   def: YAML configuration files were designed or edited
   desc: YAML設定ファイルを実際に編集・設計したログ
@@ -139,7 +139,7 @@ lang:yaml:
     not:
       - フロントマターの編集のみ（→ doc:frontmatter）
 
-lang:markdown:
+lang/markdown:
   namespace: lang
   def: Markdown files were created or edited as primary content
   desc: Markdownファイルを実際に作成・編集したログ
@@ -151,7 +151,7 @@ lang:markdown:
 
 # ── tool: 実際に操作・設定したツール ────────────────────
 
-tool:git:
+tool/git:
   namespace: tool
   def: Git commands were directly operated for branching, commits, or tags
   desc: gitコマンドを実際に操作したログ（ブランチ・コミット・タグ等）
@@ -161,7 +161,7 @@ tool:git:
     not:
       - GitHubのUI操作（→ tool:github）
 
-tool:github:
+tool/github:
   namespace: tool
   def: GitHub UI, API, or settings were directly operated
   desc: GitHubのUI・API・設定を直接操作したログ
@@ -169,7 +169,7 @@ tool:github:
     when:
       - GitHubの設定・Issue・PR・Releasesを直接操作した
 
-tool:github-actions:
+tool/github-actions:
   namespace: tool
   def: GitHub Actions workflows were created, edited, or debugged
   desc: GitHub Actionsのワークフローを作成・編集・デバッグしたログ
@@ -178,7 +178,7 @@ tool:github-actions:
       - ワークフローYAMLを作成・編集した
       - CI失敗の調査・修正を行った
 
-tool:github-cli:
+tool/github-cli:
   namespace: tool
   def: The gh command was directly used
   desc: ghコマンドを実際に使用したログ
@@ -186,7 +186,7 @@ tool:github-cli:
     when:
       - gh コマンドを直接実行した
 
-tool:deno:
+tool/deno:
   namespace: tool
   def: Deno runtime was used to run or develop scripts
   desc: Denoランタイムでスクリプトを実行・開発したログ
@@ -194,7 +194,7 @@ tool:deno:
     when:
       - Denoでスクリプトを実行・開発した
 
-tool:pnpm:
+tool/pnpm:
   namespace: tool
   def: pnpm was used to manage or operate packages
   desc: pnpmでパッケージを管理・操作したログ
@@ -202,7 +202,7 @@ tool:pnpm:
     when:
       - pnpmコマンドでパッケージを操作した
 
-tool:shellspec:
+tool/shellspec:
   namespace: tool
   def: ShellSpec was used to write or run shell script tests
   desc: ShellSpecでシェルスクリプトのテストを書いた・実行したログ
@@ -210,7 +210,7 @@ tool:shellspec:
     when:
       - ShellSpecのテストを書いた・実行した
 
-tool:shellcheck:
+tool/shellcheck:
   namespace: tool
   def: ShellCheck was used to statically analyze shell scripts
   desc: ShellCheckでシェルスクリプトを静的解析したログ
@@ -218,7 +218,7 @@ tool:shellcheck:
     when:
       - ShellCheckを実行して警告を解消した
 
-tool:textlint:
+tool/textlint:
   namespace: tool
   def: textlint was used to proofread or configure text rules
   desc: textlintで文章を校正・ルール設定したログ
@@ -226,7 +226,7 @@ tool:textlint:
     when:
       - textlintを実行・設定した
 
-tool:ghalint:
+tool/ghalint:
   namespace: tool
   def: ghalint was used to validate GitHub Actions policies
   desc: ghalintでGitHub Actionsポリシーを検証したログ
@@ -234,7 +234,7 @@ tool:ghalint:
     when:
       - ghalintを実行・設定した
 
-tool:aplys:
+tool/aplys:
   namespace: tool
   def: aplys (the internal Bash tool system) was developed, operated, or designed
   desc: 内製ツール aplys を開発・運用・設計したログ
@@ -242,7 +242,7 @@ tool:aplys:
     when:
       - aplysの実装・設計・テスト・運用が主題
 
-tool:deckrd:
+tool/deckrd:
   namespace: tool
   def: deckrd (the internal document-driven framework) was used or developed
   desc: 内製フレームワーク deckrd を使用・開発したログ
@@ -250,7 +250,7 @@ tool:deckrd:
     when:
       - deckrdの設計・実装・運用が主題
 
-tool:ci-platform:
+tool/ci-platform:
   namespace: tool
   def: A CI/CD platform (other than GitHub Actions) was configured or operated
   desc: GitHub Actions以外のCIプラットフォームを設定・運用したログ
@@ -262,7 +262,7 @@ tool:ci-platform:
 
 # ── os: 対象OS・実行環境 ────────────────────────────────
 
-os:linux:
+os/linux:
   namespace: os
   def: Work was performed on a Linux environment
   desc: Linux環境上での作業・設定・動作確認を行ったログ
@@ -272,7 +272,7 @@ os:linux:
     not:
       - WSL環境（→ os:wsl）
 
-os:windows:
+os/windows:
   namespace: os
   def: Work was performed on a Windows environment
   desc: Windows環境上での作業・設定・動作確認を行ったログ
@@ -280,7 +280,7 @@ os:windows:
     when:
       - Windows固有のパス・設定・コマンドを扱った
 
-os:wsl:
+os/wsl:
   namespace: os
   def: WSL environment was configured or its interoperability was addressed
   desc: WSL環境の構築・設定・トラブルシューティングを行ったログ
@@ -288,7 +288,7 @@ os:wsl:
     when:
       - WSL固有の設定・相互運用・問題を扱った
 
-os:debian:
+os/debian:
   namespace: os
   def: Debian-specific package management or configuration was performed
   desc: Debian固有のパッケージ管理・設定を行ったログ
@@ -298,7 +298,7 @@ os:debian:
 
 # ── infra: 運用基盤の文脈 ───────────────────────────────
 
-infra:ci_cd:
+infra/ci_cd:
   namespace: infra
   def: A CI/CD pipeline was built, configured, or troubleshot
   desc: CIパイプラインの構築・設定・運用・トラブルシューティングを行ったログ
@@ -306,7 +306,7 @@ infra:ci_cd:
     when:
       - CIパイプラインの設計・構築・修正が主目的
 
-infra:security:
+infra/security:
   namespace: infra
   def: Security vulnerabilities, access control, or security policies were handled
   desc: 脆弱性対応・セキュリティ設定・権限管理・インシデント対応を行ったログ
@@ -314,7 +314,7 @@ infra:security:
     when:
       - セキュリティ上の問題・設定・対策が主題
 
-infra:runner:
+infra/runner:
   namespace: infra
   def: GitHub Actions runner environment was configured or diagnosed
   desc: GitHub Actionsランナー環境の設定・動作確認を行ったログ
@@ -324,7 +324,7 @@ infra:runner:
 
 # ── dev: 実装行為の文脈 ─────────────────────────────────
 
-dev:testing:
+dev/testing:
   namespace: dev
   def: Tests were designed, implemented, or executed as a primary activity
   desc: テストを設計・実装・実行した（テスト戦略・フレームワーク活用を含む）
@@ -334,7 +334,7 @@ dev:testing:
     not:
       - 動作確認のみ（修正の副産物）
 
-dev:debugging:
+dev/debugging:
   namespace: dev
   def: Bug root cause was investigated and identified without applying a fix
   desc: バグの原因を調査・特定した（エラーログ解析・再現手順確認を含む）。修正作業は含まない。
@@ -349,7 +349,7 @@ dev:debugging:
     where:
       - 「調査した」が主目的のとき。修正まで行ったなら不要
 
-dev:refactoring:
+dev/refactoring:
   namespace: dev
   def: Existing code was restructured or renamed without changing behavior
   desc: 既存コードを動作を保ちながら改善した（構造整理・命名改善等）
@@ -361,7 +361,7 @@ dev:refactoring:
     where:
       - 動作が変わる変更は refactoring ではない
 
-dev:configuration:
+dev/configuration:
   namespace: dev
   def: Configuration files or environment variables were managed or changed
   desc: 設定ファイル・環境変数・ツール設定を管理・変更した
@@ -375,7 +375,7 @@ dev:configuration:
     where:
       - 「何の値を変えたか」が主題。設計判断を伴う場合は dev:design-decision も追加
 
-dev:encoding:
+dev/encoding:
   namespace: dev
   def: Character encoding, Unicode, emoji, or line ending issues were handled
   desc: 文字コード・エンコーディング・Unicode・絵文字・改行コードなどの問題を扱ったログ
@@ -385,7 +385,7 @@ dev:encoding:
     where:
       - エンコーディングの問題が主題のとき。OS固有の問題なら os:* も追加
 
-dev:design-decision:
+dev/design-decision:
   namespace: dev
   def: Architecture, specification, or policy was discussed and decided
   desc: アーキテクチャ・仕様・方針を議論・検討・確定したログ（設計判断の記録として再参照価値が高い）
@@ -401,7 +401,7 @@ dev:design-decision:
     where:
       - 「決定した」が成立するとき。「検討した」だけなら dev:design-review
 
-dev:design-review:
+dev/design-review:
   namespace: dev
   def: A design or specification was critically reviewed — with feedback or revision
   desc: 設計・仕様のレビューと改善提案・修正が行われたログ
@@ -416,7 +416,7 @@ dev:design-review:
     where:
       - dev:design-decision との違い：review は「評価・改善」、decision は「確定」
 
-dev:api-design:
+dev/api-design:
   namespace: dev
   def: An API interface (REST, CLI flags, function signatures) was designed or revised
   desc: API・インタフェース設計（エンドポイント・フラグ・関数シグネチャ）を行ったログ
@@ -428,7 +428,7 @@ dev:api-design:
     where:
       - 内部コンポーネント間の契約は dev:interface-design。外部公開インタフェースが api-design
 
-dev:cli-design:
+dev/cli-design:
   namespace: dev
   def: A CLI command structure, subcommands, or options were designed or revised
   desc: CLIコマンド構造・サブコマンド・オプション設計を行ったログ
@@ -440,7 +440,7 @@ dev:cli-design:
     where:
       - dev:api-design との違い：cli-design はコマンドライン UX、api-design は API 契約
 
-dev:architecture-design:
+dev/architecture-design:
   namespace: dev
   def: System or module architecture was designed or restructured
   desc: システム・モジュールのアーキテクチャ設計・再構成を行ったログ
@@ -452,7 +452,7 @@ dev:architecture-design:
     where:
       - 単一コンポーネントの内部設計は dev:interface-design。システム全体の構成が architecture-design
 
-dev:data-model:
+dev/data-model:
   namespace: dev
   def: Data schema, data structure, or serialization format was designed or revised
   desc: データスキーマ・データ構造・シリアライズ形式の設計を行ったログ
@@ -464,7 +464,7 @@ dev:data-model:
     where:
       - データの型・構造・形式が主題のとき。DBスキーマも含む
 
-dev:interface-design:
+dev/interface-design:
   namespace: dev
   def: Internal interfaces, abstractions, or contracts between components were designed
   desc: コンポーネント間のインタフェース・抽象化・契約を設計したログ
@@ -480,7 +480,7 @@ dev:interface-design:
 
 # ── workflow: 開発プロセスの文脈 ────────────────────────
 
-workflow:pull-request:
+workflow/pull-request:
   namespace: workflow
   def: A pull request was created, reviewed, or merged
   desc: PRの作成・レビュー・マージのプロセスで動いていたログ
@@ -488,7 +488,7 @@ workflow:pull-request:
     when:
       - PRの作成・レビュー・マージが主題
 
-workflow:idd:
+workflow/idd:
   namespace: workflow
   def: Issue-driven development process was followed
   desc: Issue駆動開発（IDD）のプロセスで動いていたログ
@@ -496,7 +496,7 @@ workflow:idd:
     when:
       - IDD（Issue駆動）プロセスで進めていたログ
 
-workflow:code-review:
+workflow/code-review:
   namespace: workflow
   def: Code or document review feedback was given or addressed
   desc: コードレビュー・ドキュメントレビューのプロセスで動いていたログ
@@ -504,7 +504,7 @@ workflow:code-review:
     when:
       - コードレビューのフィードバック・対応が主題
 
-workflow:git-flow:
+workflow/git-flow:
   namespace: workflow
   def: Git branching strategy, commit conventions, or merge flow were the focus
   desc: Gitブランチ戦略・コミット規約・マージフローの文脈で動いていたログ
@@ -514,7 +514,7 @@ workflow:git-flow:
 
 # ── doc: 成果物の種別 ────────────────────────────────────
 
-doc:spec:
+doc/spec:
   namespace: doc
   def: A specification or design document was created or edited
   desc: 仕様書・設計文書を作成・編集したログ
@@ -524,7 +524,7 @@ doc:spec:
     not:
       - 仕様を読んで調査しただけ
 
-doc:architecture:
+doc/architecture:
   namespace: doc
   def: An architecture document or component structure definition was created or edited
   desc: アーキテクチャ設計・構造定義・コンポーネント関係を記述した文書を扱ったログ
@@ -533,7 +533,7 @@ doc:architecture:
       - アーキテクチャ文書・構造定義を作成・編集した
       - dev:design-decision と併用することが多い
 
-doc:readme:
+doc/readme:
   namespace: doc
   def: A README file was created or substantially updated
   desc: READMEを作成・更新したログ
@@ -543,7 +543,7 @@ doc:readme:
     not:
       - README を読んで調査した
 
-doc:blog:
+doc/blog:
   namespace: doc
   def: A technical blog article was written, edited, or prepared for publication
   desc: 技術ブログ記事を執筆・校閲・公開準備したログ
@@ -551,7 +551,7 @@ doc:blog:
     when:
       - 技術ブログ記事の執筆・校閲が主目的
 
-doc:frontmatter:
+doc/frontmatter:
   namespace: doc
   def: Markdown frontmatter or metadata was designed, added, or corrected
   desc: Markdownフロントマター・メタデータを設計・整備したログ
@@ -559,7 +559,7 @@ doc:frontmatter:
     when:
       - フロントマターの設計・付加・修正が主目的
 
-doc:refactoring:
+doc/refactoring:
   namespace: doc
   def: Existing documents were restructured or reorganized without changing content
   desc: 既存ドキュメントを内容を保ちながら構造を整理・再編したログ
@@ -569,7 +569,7 @@ doc:refactoring:
     not:
       - 内容の追記・修正を伴う（→ doc:spec や doc:readme 等）
 
-doc:restructure:
+doc/restructure:
   namespace: doc
   def: Document structure or directory layout was redesigned
   desc: ドキュメント構成・ディレクトリ構造を再設計したログ
@@ -577,7 +577,7 @@ doc:restructure:
     when:
       - 複数ドキュメントのディレクトリ構成・配置を変更・再設計した
 
-doc:split:
+doc/split:
   namespace: doc
   def: A document was divided into multiple separate documents
   desc: 単一ドキュメントを複数に分割したログ
@@ -587,7 +587,7 @@ doc:split:
 
 # ── meta: プロジェクト管理の文脈 ────────────────────────
 
-meta:planning:
+meta/planning:
   namespace: meta
   def: An implementation plan, task breakdown, or sprint plan was created
   desc: 実装計画・タスク分解・スプリント計画を立てたログ
@@ -597,7 +597,7 @@ meta:planning:
     not:
       - 計画を実際に実装した（→ task）
 
-meta:release:
+meta/release:
   namespace: meta
   def: A release was published, or release notes were created
   desc: リリース作業・バージョン公開・リリースノート作成を行ったログ
@@ -605,7 +605,7 @@ meta:release:
     when:
       - リリース作業・バージョン公開・リリースノート作成が主目的
 
-meta:versioning:
+meta/versioning:
   namespace: meta
   def: Version numbers or semantic versioning conventions were managed
   desc: バージョン番号管理・セマンティックバージョニングの文脈で動いていたログ
@@ -613,7 +613,7 @@ meta:versioning:
     when:
       - バージョン番号の管理・セマンティックバージョニングが主題
 
-meta:repository:
+meta/repository:
   namespace: meta
   def: Repository structure or project directory layout was organized
   desc: リポジトリ構成・プロジェクト構造の整備を行ったログ
@@ -625,7 +625,7 @@ meta:repository:
 # 「何に対して作業したか」を記録する軸
 # 設計ログの検索精度向上が主目的。実装ログにも適用可。
 
-target:cli:
+target/cli:
   namespace: target
   def: The CLI interface or command layer was the subject of the work
   desc: CLIインタフェース・コマンド層が作業対象のログ
@@ -635,7 +635,7 @@ target:cli:
     where:
       - 「CLIという層を触った」ことを表す。dev:cli-design と組み合わせて使う
 
-target:api:
+target/api:
   namespace: target
   def: An API (REST, internal, or library API) was the subject of the work
   desc: API（REST・内部API・ライブラリAPI）が作業対象のログ
@@ -645,7 +645,7 @@ target:api:
     where:
       - 「APIという層を触った」ことを表す。dev:api-design と組み合わせて使う
 
-target:registry:
+target/registry:
   namespace: target
   def: A registry or package management component was the subject of the work
   desc: レジストリ・パッケージ管理コンポーネントが作業対象のログ
@@ -655,7 +655,7 @@ target:registry:
     where:
       - コンポーネント名が「レジストリ」である場合。パッケージ管理の文脈で使う
 
-target:bundler:
+target/bundler:
   namespace: target
   def: A bundler or build pipeline component was the subject of the work
   desc: バンドラー・ビルドパイプラインが作業対象のログ
@@ -665,7 +665,7 @@ target:bundler:
     where:
       - ビルド・バンドル処理を担うコンポーネントが主題のとき
 
-target:provider:
+target/provider:
   namespace: target
   def: A provider or plugin abstraction layer was the subject of the work
   desc: プロバイダー・プラグイン抽象化層が作業対象のログ
@@ -675,7 +675,7 @@ target:provider:
     where:
       - 外部実装を差し替え可能にする抽象化層が主題のとき。concept:abstraction と併用する
 
-target:dispatcher:
+target/dispatcher:
   namespace: target
   def: A dispatcher, router, or event handler was the subject of the work
   desc: ディスパッチャー・ルーター・イベントハンドラーが作業対象のログ
@@ -689,7 +689,7 @@ target:dispatcher:
 # 「どのような設計思想・アーキテクチャ概念を扱ったか」を記録する軸
 # 設計ログの再参照性向上が主目的。
 
-concept:abstraction:
+concept/abstraction:
   namespace: concept
   def: Abstraction layers or interfaces were designed to hide implementation details
   desc: 実装詳細を隠蔽する抽象化層・インタフェースの設計を扱ったログ
@@ -701,7 +701,7 @@ concept:abstraction:
     where:
       - 「具体をどう隠すか」が設計の中心。concept:separation-of-concerns と組み合わせることが多い
 
-concept:layering:
+concept/layering:
   namespace: concept
   def: Architectural layers (e.g., presentation/domain/infra) were designed or restructured
   desc: アーキテクチャのレイヤー分割・階層構造を設計・再構成したログ
@@ -713,7 +713,7 @@ concept:layering:
     where:
       - レイヤー間の依存方向・責務配置が主題のとき。dev:architecture-design と併用する
 
-concept:separation-of-concerns:
+concept/separation-of-concerns:
   namespace: concept
   def: Responsibilities were separated between components or modules
   desc: コンポーネント・モジュール間の責務分離を設計・議論したログ
@@ -725,7 +725,7 @@ concept:separation-of-concerns:
     where:
       - concept:abstraction との違い：abstraction は「隠す」、separation-of-concerns は「分ける」
 
-concept:toolchain:
+concept/toolchain:
   namespace: concept
   def: A toolchain, pipeline, or tool composition strategy was designed
   desc: ツールチェーン・パイプライン・ツール組み合わせ戦略を設計したログ
