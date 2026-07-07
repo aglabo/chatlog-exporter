@@ -703,7 +703,7 @@ describe('ChatlogWorks', () => {
    * outputDir の `.md` ファイルを `isComplete(text)` 述語でフィルタし、true のファイルのみ書き込むことを検証する。
    * デフォルト述語は `hasFrontmatter`。glob プロバイダーは `.md` と `.json` パターンで返値を分岐させる。
    *
-   * テスト ID 範囲: T-CLS-CC-43 〜 T-CLS-CC-56
+   * テスト ID 範囲: T-CLS-CC-43 〜 T-CLS-CC-56, T-CLS-CC-82 〜 T-CLS-CC-83
    */
   describe('initFromOutputDir', () => {
     /** outputDir の .md ファイルをフロントマターありのもののみ書き込むケース。 */
@@ -778,6 +778,80 @@ describe('ChatlogWorks', () => {
         await _cache.ready;
         await _cache.initFromOutputDir('/out');
         assertEquals(_cache.read('full.md'), {
+          title: 'A',
+          type: 'tech',
+          category: 'dev',
+          topics: ['topic1'],
+          tags: ['tag1'],
+          status: 'written',
+        });
+      });
+
+      it("[Normal] T-CLS-CC-82: tags が #付きハッシュタグ形式（['#tag1', '#tag2']）→ 先頭の # が除去され ['tag1', 'tag2'] でキャッシュされる", async () => {
+        const _buf = new Map<string, string>([
+          [
+            '/out/hashtag.md',
+            '---\ntitle: A\ntype: tech\ncategory: dev\ntopics:\n  - topic1\ntags:\n  - "#tag1"\n  - "#tag2"\n---\n',
+          ],
+        ]);
+        const _cache = new ChatlogWorks<{
+          title?: string;
+          type?: string;
+          category?: string;
+          topics?: string[];
+          tags?: string[];
+          status: string;
+        }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/hashtag.md']),
+            },
+          },
+        );
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('hashtag.md'), {
+          title: 'A',
+          type: 'tech',
+          category: 'dev',
+          topics: ['topic1'],
+          tags: ['tag1', 'tag2'],
+          status: 'written',
+        });
+      });
+
+      it("[Normal] T-CLS-CC-83: tags が #なし（['tag1']）→ 変化せず ['tag1'] のままキャッシュされる（回帰確認）", async () => {
+        const _buf = new Map<string, string>([
+          [
+            '/out/no-hashtag.md',
+            '---\ntitle: A\ntype: tech\ncategory: dev\ntopics:\n  - topic1\ntags:\n  - tag1\n---\n',
+          ],
+        ]);
+        const _cache = new ChatlogWorks<{
+          title?: string;
+          type?: string;
+          category?: string;
+          topics?: string[];
+          tags?: string[];
+          status: string;
+        }>(
+          'sub',
+          '/cache',
+          undefined,
+          {
+            cache: {
+              ..._makeBufferProviders(_buf),
+              glob: _makePatternGlob(['/out/no-hashtag.md']),
+            },
+          },
+        );
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out');
+        assertEquals(_cache.read('no-hashtag.md'), {
           title: 'A',
           type: 'tech',
           category: 'dev',
