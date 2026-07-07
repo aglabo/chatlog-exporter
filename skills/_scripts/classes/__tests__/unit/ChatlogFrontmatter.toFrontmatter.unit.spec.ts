@@ -85,10 +85,10 @@ describe('ChatlogFrontmatter', () => {
           label: '配列値は2スペースインデント＋引用符でフォーマットされる',
           init: '',
           setup: (fm) => {
-            fm.set('tags', ['foo', 'bar', 'baz']);
+            fm.set('topics', ['foo', 'bar', 'baz']);
           },
-          fieldOrder: ['tags'],
-          expected: '---\ntags:\n  - "foo"\n  - "bar"\n  - "baz"\n---\n',
+          fieldOrder: ['topics'],
+          expected: '---\ntopics:\n  - "foo"\n  - "bar"\n  - "baz"\n---\n',
         },
       ];
 
@@ -99,6 +99,42 @@ describe('ChatlogFrontmatter', () => {
           assertEquals(fm.toFrontmatter(tc.fieldOrder), tc.expected);
         });
       }
+
+      it('T-CLS-CF-46: addTagHashes:true 指定時、tags の各要素に # が付与されて出力される', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', ['foo', 'bar']);
+        const result = fm.toFrontmatter(['tags'], { addTagHashes: true });
+        assertEquals(result, '---\ntags:\n  - "#foo"\n  - "#bar"\n---\n');
+      });
+
+      it('T-CLS-CF-47: addTagHashes:true 指定時、tags 以外のフィールドには # が付与されない', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('topics', ['foo', 'bar']);
+        fm.set('tags', ['baz']);
+        const result = fm.toFrontmatter(['topics', 'tags'], { addTagHashes: true });
+        assertEquals(result, '---\ntopics:\n  - "foo"\n  - "bar"\ntags:\n  - "#baz"\n---\n');
+      });
+
+      it('T-CLS-CF-48: addTagHashes:true 指定後も get で取得する内部値は # なしのまま', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', ['foo', 'bar']);
+        fm.toFrontmatter(['tags'], { addTagHashes: true });
+        assertEquals(fm.get('tags'), ['foo', 'bar']);
+      });
+
+      it('T-CLS-CF-49: opts 未指定時は tags に # が付与されない（デフォルト false）', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', ['foo', 'bar']);
+        const result = fm.toFrontmatter(['tags']);
+        assertEquals(result, '---\ntags:\n  - "foo"\n  - "bar"\n---\n');
+      });
+
+      it('T-CLS-CF-50: addTagHashes:false 明示指定時も tags に # が付与されない', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', ['foo', 'bar']);
+        const result = fm.toFrontmatter(['tags'], { addTagHashes: false });
+        assertEquals(result, '---\ntags:\n  - "foo"\n  - "bar"\n---\n');
+      });
     });
 
     describe('エッジケース', () => {
