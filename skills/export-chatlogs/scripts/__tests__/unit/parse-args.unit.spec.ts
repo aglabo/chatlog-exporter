@@ -24,7 +24,7 @@ import type { ParsedConfig } from '../../types/export-config.types.ts';
  * `parseArgs` のユニットテストスイート。
  *
  * CLI 引数配列を受け取り ExportConfig を返す関数の動作を検証する。
- * agent 名・period・--output/--base/--input オプションの各解析パターンと、
+ * agent 名・period・--output-dir/--base/--input-dir オプションの各解析パターンと、
  * 複数フィールドの組み合わせ・未知引数での ChatlogError スローをカバーする。
  *
  * @see parseArgs
@@ -48,25 +48,25 @@ describe('parseArgs', () => {
           { id: 'T-EC-PA-02-01', args: ['codex'], field: 'agent', expected: 'codex' },
           { id: 'T-EC-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
           { id: 'T-EC-PA-03-02', args: ['2026'], field: 'period', expected: '2026' },
-          { id: 'T-EC-PA-04-01', args: ['--output', '/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
-          { id: 'T-EC-PA-04-02', args: ['--output=/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
+          { id: 'T-EC-PA-04-01', args: ['--output-dir', '/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
+          { id: 'T-EC-PA-04-02', args: ['--output-dir=/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
           { id: 'T-EC-PA-08-01', args: ['--base', '/data/logs'], field: 'baseDir', expected: '/data/logs' },
           { id: 'T-EC-PA-08-02', args: ['--base=/data/logs'], field: 'baseDir', expected: '/data/logs' },
           {
             id: 'T-EC-PA-11-01',
-            args: ['--output', '/chatlog/claude'],
+            args: ['--output-dir', '/chatlog/claude'],
             field: 'outputDir',
             expected: '/chatlog/claude',
           },
           {
             id: 'T-EC-PA-12-01',
-            args: ['--input', '/data/chatgpt-export'],
+            args: ['--input-dir', '/data/chatgpt-export'],
             field: 'inputDir',
             expected: '/data/chatgpt-export',
           },
           {
             id: 'T-EC-PA-12-02',
-            args: ['--input=/data/chatgpt-export'],
+            args: ['--input-dir=/data/chatgpt-export'],
             field: 'inputDir',
             expected: '/data/chatgpt-export',
           },
@@ -97,24 +97,24 @@ describe('parseArgs', () => {
 
   /**
    * baseDir と outputDir を同時に指定する組み合わせケース。
-   * --base と --output が互いに干渉せず独立したフィールドに設定されることを確認する。
+   * --base と --output-dir が互いに干渉せず独立したフィールドに設定されることを確認する。
    */
-  describe('Given: ["--base", "/data", "--output", "/data/claude"]', () => {
+  describe('Given: ["--base", "/data", "--output-dir", "/data/claude"]', () => {
     it('T-EC-PA-09: baseDir と outputDir が同時に設定される', () => {
-      const result = parseArgs(['--base', '/data', '--output', '/data/claude']);
+      const result = parseArgs(['--base', '/data', '--output-dir', '/data/claude']);
       assertEquals(result.baseDir, '/data');
       assertEquals(result.outputDir, '/data/claude');
     });
   });
 
   /**
-   * agent・period・--output を同時に指定する3フィールド組み合わせケース。
-   * 位置引数（agent・period）とオプション引数（--output）が混在しても
+   * agent・period・--output-dir を同時に指定する3フィールド組み合わせケース。
+   * 位置引数（agent・period）とオプション引数（--output-dir）が混在しても
    * 正しく解析されることを確認する。
    */
-  describe('Given: ["claude", "2026-03", "--output", "/out"]', () => {
+  describe('Given: ["claude", "2026-03", "--output-dir", "/out"]', () => {
     it('T-EC-PA-07: agent・period・outputDir が同時に設定される', () => {
-      const result = parseArgs(['claude', '2026-03', '--output', '/out']);
+      const result = parseArgs(['claude', '2026-03', '--output-dir', '/out']);
       assertEquals(result.agent, 'claude');
       assertEquals(result.period, '2026-03');
       assertEquals(result.outputDir, '/out');
@@ -135,13 +135,13 @@ describe('parseArgs', () => {
   });
 
   /**
-   * chatgpt agent と --input を組み合わせるケース。
-   * ChatGPT エクスポートでは --input で入力ディレクトリを指定するため、
+   * chatgpt agent と --input-dir を組み合わせるケース。
+   * ChatGPT エクスポートでは --input-dir で入力ディレクトリを指定するため、
    * agent と inputDir が同時に正しく設定されることを確認する。
    */
-  describe('Given: ["chatgpt", "--input", "/data/export"]', () => {
+  describe('Given: ["chatgpt", "--input-dir", "/data/export"]', () => {
     it('T-EC-PA-14: agent と inputDir が同時に設定される', () => {
-      const result = parseArgs(['chatgpt', '--input', '/data/export']);
+      const result = parseArgs(['chatgpt', '--input-dir', '/data/export']);
       assertEquals(result.agent, 'chatgpt');
       assertEquals(result.inputDir, '/data/export');
     });
