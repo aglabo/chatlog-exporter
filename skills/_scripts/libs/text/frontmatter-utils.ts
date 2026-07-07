@@ -152,6 +152,14 @@ export const hasFrontmatterFields = (
   );
 };
 
+/** `entries.tags` の各要素から先頭の `#` を除去した新しい `FrontmatterFields` を返す。`tags` がない場合はそのまま返す。 */
+export const stripTagHashes = (entries: FrontmatterFields): FrontmatterFields => {
+  const _tags = entries['tags'];
+  if (_tags === undefined) { return entries; }
+  const _stripped = Array.isArray(_tags) ? _tags.map((tag) => tag.replace(/^#/, '')) : _tags.replace(/^#/, '');
+  return { ...entries, tags: _stripped };
+};
+
 /** Markdown テキストから frontmatter を抽出し、文字列または文字列配列に変換して返す。 */
 export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
   const { meta, content } = parseFrontmatter(text);
@@ -159,7 +167,7 @@ export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
   for (const key of Object.keys(meta)) {
     _typedMeta[key] = _unknownToStringOrArray(meta[key]);
   }
-  return { meta: _typedMeta, content };
+  return { meta: stripTagHashes(_typedMeta), content };
 };
 
 /**
