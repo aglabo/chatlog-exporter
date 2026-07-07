@@ -11,7 +11,7 @@
  *
  * 使い方:
  *   deno run --allow-read --allow-write --allow-env export_chatlogs.ts \
- *     [agent] [YYYY-MM|YYYY] [project] --output DIR
+ *     [agent] [YYYY-MM|YYYY] [project] --output-dir DIR
  *
  * 対応エージェント:
  *   claude  — ~/.claude/projects/ 以下のJSONL
@@ -26,7 +26,10 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // libs
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
 import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
+// constants
+import { DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // exporters
@@ -44,10 +47,9 @@ import type { ExportConfig, ParsedConfig } from './types/export-config.types.ts'
 
 /** export-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgsSchema = [
-  { option: '--output', field: 'outputDir', type: 'string' },
+  { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--base', field: 'baseDir', type: 'directory' },
-  { option: '--input', field: 'inputDir', type: 'string' },
-  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--input-dir', field: 'inputDir', type: 'directory' },
 ];
 
 /**
@@ -67,7 +69,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ExportConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - outputDir 優先順位: `parsed.outputDir` > `globalConfig.get('chatlogsDir')` > `defaults.outputDir`
+ * - outputDir 優先順位: `parsed.outputDir` > `join(globalConfig.get('chatlogsDir') ?? DEFAULT_CHATLOGS_DIR, 'originalLogs')`
  * - baseDir 優先順位: `parsed.baseDir` > `defaults.baseDir`
  * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `defaults.inputDir`
  * - period: `parsed.period` のみ (GlobalConfig に期間設定なし)
@@ -79,7 +81,8 @@ export function buildConfig(
 ): ExportConfig {
   const _defaults = defaults ?? DEFAULT_EXPORT_CONFIG;
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
-  const _outputDir = parsed.outputDir ?? globalConfig.get('chatlogsDir') as string;
+  const _chatlogsDir = (globalConfig.get('chatlogsDir') as string | undefined) ?? DEFAULT_CHATLOGS_DIR;
+  const _outputDir = parsed.outputDir ?? joinPath(_chatlogsDir, DEFAULT_ORIGINAL_LOGS_DIR);
   const _baseDir = parsed.baseDir ?? _defaults.baseDir;
   const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _defaults.inputDir;
   const { configFile: _configFile, ...parsedRest } = parsed;
@@ -139,7 +142,7 @@ export const main = async (argv?: string[]): Promise<void> => {
           throw new ChatlogError(
             'InvalidArgs',
             'NotSpecified',
-            'chatgpt エージェントには入力ディレクトリを指定してください (位置引数または --input)',
+            'chatgpt エージェントには入力ディレクトリを指定してください (位置引数または --input-dir)',
           );
         }
         result = await exportChatGPT(config);
