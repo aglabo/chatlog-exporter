@@ -92,7 +92,7 @@ export class ChatlogEntry {
    * @returns `---\n...\n---\n\n<content>` 形式の文字列。content が空の場合は frontmatter のみ。
    */
   renderEntry(fieldOrder?: string[]): string {
-    const _fm = this.frontmatter.toFrontmatter(fieldOrder);
+    const _fm = this.frontmatter.toFrontmatter(fieldOrder, { addTagHashes: true });
     return this.content === '' ? _fm : `${_fm}\n${this.content}`;
   }
 }

@@ -20,6 +20,7 @@ import {
   parseFrontmatterEntries,
   renderFrontmatter,
   reorderFrontmatterEntries,
+  stripTagHashes,
 } from '../../frontmatter-utils.ts';
 
 // ─── Helpers
@@ -315,6 +316,18 @@ describe('parseFrontmatterEntries', () => {
           const text = '---\ntags:\n  - foo\n  - ~\n  - bar\n---\nbody';
           const result = parseFrontmatterEntries(text);
           assertEquals(result.meta['tags'], ['foo', '', 'bar']);
+        });
+
+        it('T-LIB-FSM-06-05: tags に # が付いていない → そのまま返る（回帰確認）', () => {
+          const text = '---\ntags:\n  - foo\n  - bar\n---\nbody';
+          const result = parseFrontmatterEntries(text);
+          assertEquals(result.meta['tags'], ['foo', 'bar']);
+        });
+
+        it('T-LIB-FSM-06-06: tags に # が付いている → 先頭の # が除去されて返る', () => {
+          const text = '---\ntags:\n  - "#foo"\n  - "#bar"\n---\nbody';
+          const result = parseFrontmatterEntries(text);
+          assertEquals(result.meta['tags'], ['foo', 'bar']);
         });
       });
     });
@@ -890,6 +903,51 @@ describe('extractYaml', () => {
       const _raw = 'null\n';
       const _result = extractYaml(_raw, 'nonexistent');
       assertEquals(_result.ok, false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// stripTagHashes
+// ─────────────────────────────────────────────
+
+/**
+ * `stripTagHashes` のユニットテストスイート。
+ *
+ * `tags` の各要素から先頭の `#` を除去する動作を検証する。
+ *
+ * テスト ID 範囲: T-FU-STH-01 〜 T-FU-STH-04
+ *
+ * @see stripTagHashes
+ */
+describe('stripTagHashes', () => {
+  /** tags が配列・スカラーのいずれでも先頭の # が除去されることを確認する。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FU-STH-01: tags が # 付き配列 → 各要素の # が除去される', () => {
+      const _entries = { tags: ['#foo', '#bar'] };
+      const _result = stripTagHashes(_entries);
+      assertEquals(_result['tags'], ['foo', 'bar']);
+    });
+
+    it('[Normal] T-FU-STH-02: tags が # 付きスカラー文字列 → # が除去される', () => {
+      const _entries = { tags: '#foo' };
+      const _result = stripTagHashes(_entries);
+      assertEquals(_result['tags'], 'foo');
+    });
+  });
+
+  /** tags が未定義または # なしのケースを確認する。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FU-STH-03: tags が undefined → entries をそのまま返す', () => {
+      const _entries = { title: 'Hello' };
+      const _result = stripTagHashes(_entries);
+      assertEquals(_result, _entries);
+    });
+
+    it('[Edge] T-FU-STH-04: tags に # が付いていない → 変化せずそのまま返る', () => {
+      const _entries = { tags: ['foo', 'bar'] };
+      const _result = stripTagHashes(_entries);
+      assertEquals(_result['tags'], ['foo', 'bar']);
     });
   });
 });

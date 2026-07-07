@@ -145,7 +145,7 @@ export const attachFrontmatter = (
   frontmatter.set('title', segmentMeta.title);
   frontmatter.set('log_id', segmentMeta.log_id);
   frontmatter.set('summary', segmentMeta.summary);
-  const fmText = frontmatter.toFrontmatter(_ATTACH_FIELD_ORDER);
+  const fmText = frontmatter.toFrontmatter(_ATTACH_FIELD_ORDER, { addTagHashes: true });
   return `${fmText}\n${content}`;
 };
 
