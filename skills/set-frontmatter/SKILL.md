@@ -5,7 +5,7 @@ description: >
   /set-frontmatter で呼び出す。
   AIが会話内容を解析してtitle/summary/category/topics/tagsを生成。
   assets/dics/ の辞書を参照してcategory/topics/tagsを選定する。
-argument-hint: "<input-path> [output-path] | [agent] project [YYYY-MM] [--dry-run]"
+argument-hint: "<input-path> [output-path] | [agent] project [YYYY-MM] [--dry-run] [--no-review]"
 allowed-tools: Bash, Glob
 ---
 
@@ -32,17 +32,19 @@ allowed-tools: Bash, Glob
 - `agent project` → 指定 agent・指定プロジェクト・全年月
 - `agent project YYYY-MM` → 指定 agent・指定プロジェクト・指定年月
 - `--dry-run` → 実際には書き込まず出力のみ確認
+- `--no-review` → AIによるレビューフェーズ(Phase 3.1)をスキップする
 
 引数の判定ルール (優先順位順):
 
 1. `--dry-run` → DRY_RUN_FLAG
-2. 各引数の `\` を `/` に正規化する
-3. 非オプション引数をパス引数リスト (PATH_ARGS) とその他に分類する
+2. `--no-review` → REVIEW_FLAG
+3. 各引数の `\` を `/` に正規化する
+4. 非オプション引数をパス引数リスト (PATH_ARGS) とその他に分類する
    - `/` を含む引数 → PATH_ARGS に追加
-4. PATH_ARGS の数で分岐:
+5. PATH_ARGS の数で分岐:
    - 1つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR は未設定（スクリプトのデフォルト使用）
    - 2つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR=PATH_ARGS[1]
-5. PATH_ARGS が0の場合は非パスモードで処理:
+6. PATH_ARGS が0の場合は非パスモードで処理:
    - `YYYY-MM` パターン (`^[0-9]{4}-[0-9]{2}$`) → YEAR_MONTH
    - 既知のagentリスト (`claude`, `chatgpt`) に一致 → AGENT
    - それ以外最初の値 → PROJECT
@@ -54,13 +56,14 @@ allowed-tools: Bash, Glob
 - `/set-frontmatter dev-tooling 2026-03` → claude/dev-tooling/2026-03
 - `/set-frontmatter chatgpt dev-tooling 2026-03` → chatgpt/dev-tooling/2026-03
 - `/set-frontmatter deckrd --dry-run` → claude/deckrd 全年月 (dry-run)
+- `/set-frontmatter deckrd --no-review` → claude/deckrd 全年月 (レビューフェーズをスキップ)
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/commands/set-frontmatter.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/skills/set-frontmatter/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR   = <set-frontmatter.md が存在するディレクトリの絶対パス>
+SKILL_DIR   = <set-frontmatter/SKILL.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH = $SKILL_DIR/scripts/set-frontmatter.ts
 DICS_DIR    = <cwd>/temp/dics
 ```
@@ -75,15 +78,17 @@ AGENT="claude"   # デフォルト
 PROJECT=""
 YEAR_MONTH=""
 DRY_RUN_FLAG=""
+REVIEW_FLAG=""
 INPUT_DIR=""
 OUTPUT_DIR=""
 PATH_ARGS=()
 
 # $ARGUMENTS を解析:
 # 1. "--dry-run" → DRY_RUN_FLAG
-# 2. 各引数の \ を / に正規化する
-# 3. 正規化後に / を含む → PATH_ARGS に追加
-# 4. それ以外は YYYY-MM / AGENT / PROJECT として分類
+# 2. "--no-review" → REVIEW_FLAG="--no-review"
+# 3. 各引数の \ を / に正規化する
+# 4. 正規化後に / を含む → PATH_ARGS に追加
+# 5. それ以外は YYYY-MM / AGENT / PROJECT として分類
 
 # パス引数の数で分岐:
 # PATH_ARGS が1つ: INPUT_DIR=PATH_ARGS[0]（絶対パスならそのまま、相対なら $REPO_ROOT/$ARG）
@@ -102,14 +107,16 @@ PATH_ARGS=()
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --dics "$DICS_DIR" \
-  $DRY_RUN_FLAG
+  $DRY_RUN_FLAG \
+  $REVIEW_FLAG
 
 # INPUT_DIR と OUTPUT_DIR 両方指定:
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --output-dir "$OUTPUT_DIR" \
   --dics "$DICS_DIR" \
-  $DRY_RUN_FLAG
+  $DRY_RUN_FLAG \
+  $REVIEW_FLAG
 
 # 非パスモード・YEAR_MONTH が未指定の場合 (全年月):
 find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
@@ -117,7 +124,8 @@ find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 2 -maxdepth 2 -type d -name
   deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
     --input-dir "$dir" \
     --dics "$DICS_DIR" \
-    $DRY_RUN_FLAG
+    $DRY_RUN_FLAG \
+    $REVIEW_FLAG
 done
 ```
 
