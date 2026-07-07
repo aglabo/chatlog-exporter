@@ -11,7 +11,12 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // --- shared
-import { divideEntry, hasFrontmatterFields, reorderFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
+import {
+  divideEntry,
+  hasFrontmatterFields,
+  reorderFrontmatterEntries,
+  stripTagHashes,
+} from '../libs/text/frontmatter-utils.ts';
 import { toStringWithNull } from '../libs/text/string-utils.ts';
 import { stringifyFrontmatter } from '../libs/text/yaml-utils.ts';
 
@@ -23,6 +28,16 @@ import { ChatlogError } from './ChatlogError.class.ts';
 
 // Constants
 import { DEFAULT_ORDERED_FIELDS, FRONTMATTER_DELIMITER } from '../constants/common.constants.ts';
+
+/** `entries.tags` の各要素先頭に `#` を付与した新しい `FrontmatterFields` を返す。`tags` がない場合はそのまま返す。 */
+const _addTagHashes = (entries: FrontmatterFields): FrontmatterFields => {
+  const _tags = entries['tags'];
+  if (_tags === undefined) { return entries; }
+  const _prefixed = Array.isArray(_tags)
+    ? _tags.map((tag) => `#${tag}`)
+    : `#${_tags}`;
+  return { ...entries, tags: _prefixed };
+};
 
 export class ChatlogFrontmatter {
   private _entries: FrontmatterFields;
@@ -81,7 +96,7 @@ export class ChatlogFrontmatter {
     for (const key of Object.keys(parsed)) {
       _result[key] = this._toStringOrArray(parsed[key]);
     }
-    return _result;
+    return stripTagHashes(_result);
   }
 
   get(key: string): string | string[] | undefined {
@@ -106,7 +121,7 @@ export class ChatlogFrontmatter {
     return hasFrontmatterFields(this._entries, ['type', 'category', 'title']);
   }
 
-  toFrontmatter(fieldOrder: string[] = DEFAULT_ORDERED_FIELDS): string {
+  toFrontmatter(fieldOrder: string[] = DEFAULT_ORDERED_FIELDS, opts?: { addTagHashes?: boolean }): string {
     if (fieldOrder.length === 0) {
       throw new ChatlogError('InvalidArgs', 'IsEmpty', 'fieldOrder must not be empty');
     }
@@ -114,7 +129,8 @@ export class ChatlogFrontmatter {
     if (Object.keys(_ordered).length === 0) {
       return `${FRONTMATTER_DELIMITER}\n\n${FRONTMATTER_DELIMITER}\n`;
     }
-    const _yamlBody = stringifyFrontmatter(_ordered);
+    const _entriesForOutput = opts?.addTagHashes ? _addTagHashes(_ordered) : _ordered;
+    const _yamlBody = stringifyFrontmatter(_entriesForOutput);
     return `${FRONTMATTER_DELIMITER}\n${_yamlBody}${FRONTMATTER_DELIMITER}\n`;
   }
 }
