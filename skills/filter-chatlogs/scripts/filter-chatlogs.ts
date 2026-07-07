@@ -47,12 +47,7 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 // ─────────────────────────────────────────────
 
 /** filter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema = [
-  { option: '--base-dir', field: 'baseDir', type: 'directory' },
-  { option: '--config', field: 'configFile', type: 'string' },
-  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
-  { option: '--dry-run', field: 'dryRun', type: 'flag' },
-];
+const _SCHEMA: ArgsSchema = [];
 
 export const parseArgs = (args: string[]): FilterParsedConfig => {
   return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA) as FilterParsedConfig;
