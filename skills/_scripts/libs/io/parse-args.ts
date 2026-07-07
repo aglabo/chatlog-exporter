@@ -33,6 +33,10 @@ const _DEFAULT_SCHEMA: ArgsSchema = [
   { option: 'agent', field: 'agent', type: 'agent' },
   { option: 'chatlogsDir', field: 'chatlogsDir', type: 'directory' },
   { option: 'cacheDir', field: 'cacheDir', type: 'directory' },
+  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--dry-run', field: 'dryRun', type: 'flag' },
+  { option: '--base-dir', field: 'baseDir', type: 'directory' },
+  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
 ];
 
 /**

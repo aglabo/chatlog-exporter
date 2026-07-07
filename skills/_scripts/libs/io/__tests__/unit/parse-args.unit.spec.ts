@@ -76,6 +76,10 @@ describe('_initSchemaForTest', () => {
       const _map = _initSchemaForTest([{ option: '--dry-run', field: 'dryRun', type: 'flag' }]);
       assertEquals(_map.get('--dry-run')?.type, 'flag');
     });
+    it('[Normal] T-PA-22-04: 空スキーマ → --config がデフォルトエントリとして含まれる', () => {
+      const _map = _initSchemaForTest([]);
+      assert(_map.has('--config'));
+    });
   });
 });
 

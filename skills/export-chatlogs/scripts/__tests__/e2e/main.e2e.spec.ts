@@ -159,8 +159,8 @@ describe('main (export-chatlogs)', () => {
    * エクスポート全フロー（解析→探索→パース→書き出し）が疎通していることの基本確認。
    */
   describe('Given: ~/.claude/projects/ に有効な claude セッションJSONL', () => {
-    /** main(["claude", "--output", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
+    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
+    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-my-app`;
         await Deno.mkdir(projectsDir, { recursive: true });
@@ -173,13 +173,13 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-01: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-01 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-01-01: outputDir に .md ファイルが生成される', async () => {
-          await main(['claude', '--output', outputDir]);
+          await main(['claude', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length >= 1, true);
         });
 
         it('T-EC-E2E-01-02: logger.log に生成パスが出力される', async () => {
-          await main(['claude', '--output', outputDir]);
+          await main(['claude', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
         });
@@ -197,8 +197,8 @@ describe('main (export-chatlogs)', () => {
    * claude と異なるディレクトリ構造・JSONL フォーマットが正しく処理されることの基本確認。
    */
   describe('Given: ~/.codex/sessions/ に有効な codex セッションJSONL', () => {
-    /** main(["codex", "--output", outputDir]) を呼び出す */
-    describe('When: main(["codex", "--output", outputDir]) を呼び出す', () => {
+    /** main(["codex", "--output-dir", outputDir]) を呼び出す */
+    describe('When: main(["codex", "--output-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions/2026/03/15`;
         await Deno.mkdir(sessionsDir, { recursive: true });
@@ -221,7 +221,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-02: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-02 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-02-01: outputDir に .md ファイルが生成される', async () => {
-          await main(['codex', '--output', outputDir]);
+          await main(['codex', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
         });
@@ -276,7 +276,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-03-01: 範囲内セッションのみエクスポートされる */
       describe('Then: T-EC-E2E-03-01 - 範囲内セッションのみエクスポートされる', () => {
         it('T-EC-E2E-03-01: ファイルが1件生成される', async () => {
-          await main(['claude', '2026-03', '--output', outputDir]);
+          await main(['claude', '2026-03', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length, 1);
         });
@@ -288,7 +288,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-03-02: ファイルが生成されない */
       describe('Then: T-EC-E2E-03-02 - ファイルが生成されない', () => {
         it('T-EC-E2E-03-02: ファイルが0件', async () => {
-          await main(['claude', '2026-04', '--output', outputDir]);
+          await main(['claude', '2026-04', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length, 0);
         });
@@ -306,8 +306,8 @@ describe('main (export-chatlogs)', () => {
    * フォルダ整理に直結するため、形式の正確性が重要。
    */
   describe('Given: claude セッションと outputDir が指定される', () => {
-    /** main(["claude", "--output", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
+    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
+    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-struct-app`;
         await Deno.mkdir(projectsDir, { recursive: true });
@@ -326,7 +326,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-06: outputDir/claude/YYYY/YYYY-MM/ 構造が生成される */
       describe('Then: T-EC-E2E-06 - outputDir/claude/YYYY/YYYY-MM/ 構造が生成される', () => {
         it('T-EC-E2E-06-01: 出力パスに "claude/2026/2026-03" が含まれる', async () => {
-          await main(['claude', '--output', outputDir]);
+          await main(['claude', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length >= 1, true);
           assertStringIncludes(loggerStub.logLogs[0], 'claude');
@@ -347,8 +347,8 @@ describe('main (export-chatlogs)', () => {
    * isSkippable による除外ロジックが E2E 全フローで機能することの統合確認。
    */
   describe('Given: 全ユーザーメッセージがスキップ対象のJSONL', () => {
-    /** main(["claude", "--output", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output", outputDir]) を呼び出す', () => {
+    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
+    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-skip-app`;
         await Deno.mkdir(projectsDir, { recursive: true });
@@ -367,7 +367,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-07: ファイルが生成されない */
       describe('Then: T-EC-E2E-07 - ファイルが生成されない', () => {
         it('T-EC-E2E-07-01: ログパスが 0 件（スキップされた）', async () => {
-          await main(['claude', '--output', outputDir]);
+          await main(['claude', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length, 0);
         });
@@ -421,19 +421,19 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-08: 2つの yyyy-mm サブディレクトリに分散出力される */
       describe('Then: T-EC-E2E-08 - 2つの yyyy-mm サブディレクトリに分散出力される', () => {
         it('T-EC-E2E-08-01: ファイルが 2 件生成される', async () => {
-          await main(['claude', '2026', '--output', outputDir]);
+          await main(['claude', '2026', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length, 2);
         });
 
         it('T-EC-E2E-08-02: 一方のパスに "2026-01" が含まれる', async () => {
-          await main(['claude', '2026', '--output', outputDir]);
+          await main(['claude', '2026', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.includes('2026-01')), true);
         });
 
         it('T-EC-E2E-08-03: 他方のパスに "2026-03" が含まれる', async () => {
-          await main(['claude', '2026', '--output', outputDir]);
+          await main(['claude', '2026', '--output-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.includes('2026-03')), true);
         });

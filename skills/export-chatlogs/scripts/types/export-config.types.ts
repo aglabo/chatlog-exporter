@@ -38,6 +38,8 @@ export interface ExportConfig {
   outputDir: string;
   /** チャットログ格納ディレクトリ。位置引数のディレクトリパスが設定される。 */
   chatlogsDir?: string;
+  /** dry-run モード。`--dry-run` オプションの解析結果を保持する（現状 `main()` 側での書き込みスキップは未実装）。 */
+  dryRun?: boolean;
 }
 
 /**

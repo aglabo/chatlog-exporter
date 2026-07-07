@@ -26,10 +26,6 @@ import type { PrefilterConfig, PrefilterParsedConfig } from '../types/prefilter.
 
 /** prefilter-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgsSchema = [
-  { option: '--base-dir', field: 'baseDir', type: 'directory' },
-  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
-  { option: '--config', field: 'configFile', type: 'string' },
-  { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--report', field: 'report', type: 'flag' },
 ];
 
