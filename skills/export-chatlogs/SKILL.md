@@ -52,15 +52,25 @@ OUTPUT      = <cwd>/chatlogs
 解決した `SCRIPT_PATH` と `OUTPUT` を使い、Bash で実行する:
 
 ```bash
-deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period] --output "$OUTPUT"
+deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period] --output-dir "$OUTPUT"
 ```
 
 ### 引数からオプションを組み立てるルール
 
-- 引数なし → `deno run ... "$SCRIPT_PATH" --output "$OUTPUT"`
-- `agent` のみ → `deno run ... "$SCRIPT_PATH" codex --output "$OUTPUT"`
-- `YYYY-MM` のみ → `deno run ... "$SCRIPT_PATH" 2026-03 --output "$OUTPUT"`
-- `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" codex 2026-03 --output "$OUTPUT"`
+- 引数なし → `deno run ... "$SCRIPT_PATH" --output-dir "$OUTPUT"`
+- `agent` のみ → `deno run ... "$SCRIPT_PATH" codex --output-dir "$OUTPUT"`
+- `YYYY-MM` のみ → `deno run ... "$SCRIPT_PATH" 2026-03 --output-dir "$OUTPUT"`
+- `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" codex 2026-03 --output-dir "$OUTPUT"`
+- `chatlogsDir` 指定時 → `deno run ... "$SCRIPT_PATH" --chatlogs-dir "$CHATLOGS_DIR" --output-dir "$OUTPUT"`
+- dry-run 確認時 → `deno run ... "$SCRIPT_PATH" --dry-run --output-dir "$OUTPUT"`（※現状 `main()` 側で書き込みスキップは未実装のため、実際にはファイルが生成される点に注意）
+
+#### その他の利用可能なオプション
+
+以下のオプションもそのまま渡せる（`$ARGUMENTS` の位置引数ルールとは独立したフラグ）:
+
+- `--input-dir DIR` — 入力ディレクトリ（chatgpt エージェントの位置引数と同義）
+- `--chatlogs-dir DIR` — チャットログ格納ディレクトリ
+- `--dry-run` — dry-run モード（**現状未実装**: フラグは解析されるが、書き込みスキップの動作は行われない）
 
 #### chatgpt エージェントの場合
 
@@ -68,11 +78,11 @@ deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period] 
 `\` は `/` に自動正規化されるため Windows パスもそのまま渡せる。
 未指定の場合はエラーを出力して終了する。
 
-- `chatgpt /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt "$INPUT_DIR" --output "$OUTPUT"`
-- `chatgpt 2026-03 /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt 2026-03 "$INPUT_DIR" --output "$OUTPUT"`
+- `chatgpt /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt "$INPUT_DIR" --output-dir "$OUTPUT"`
+- `chatgpt 2026-03 /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt 2026-03 "$INPUT_DIR" --output-dir "$OUTPUT"`
 - `chatgpt /path/to/export 2026-03` → 順番を逆にしても同様に動作する
 
-フラグ形式（`--input DIR`）も引き続き使用可能。
+フラグ形式（`--input-dir DIR`）も引き続き使用可能。
 
 スクリプトは以下を除外してエクスポート:
 
