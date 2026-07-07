@@ -34,11 +34,9 @@ const _SCHEMA: ArgsSchema = [
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
-  { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--review', field: 'review', type: 'flag' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
   { option: '--cache-dir', field: 'cacheDir', type: 'string' },
-  { option: '--config', field: 'configFile', type: 'string' },
 ];
 
 export const parseArgs = (args: string[]): ParsedConfig => {
