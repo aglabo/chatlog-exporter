@@ -16,11 +16,16 @@ import { buildConfig } from '../../export-chatlogs.ts';
 // classes
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
-import { DEFAULT_EXPORT_CONFIG, DEFAULT_OUTPUT_DIR } from '../../constants/defaults.constants.ts';
+import {
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_ORIGINAL_LOGS_DIR,
+} from '../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_EXPORT_CONFIG } from '../../constants/defaults.constants.ts';
 // types
 import type { ParsedConfig } from '../../types/export-config.types.ts';
 // helpers
 import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
+import { joinPath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
@@ -60,12 +65,12 @@ const _EMPTY_PARSED: ParsedConfig = {};
  *
  * ## 優先順位ルール
  * - `agent`     : parsed > globalConfig > defaults
- * - `outputDir` : parsed > globalConfig.chatlogsDir > defaults
+ * - `outputDir` : parsed > (globalConfig.chatlogsDir > defaults) + 'originalLogs'
  * - `baseDir`   : parsed のみ（GlobalConfig 連携なし）
  * - `inputDir`  : parsed のみ（GlobalConfig 連携なし）
  * - `period`    : parsed のみ
  *
- * テスト ID 範囲: T-EC-BC-01 〜 T-EC-BC-14
+ * テスト ID 範囲: T-EC-BC-01 〜 T-EC-BC-16
  */
 describe('buildConfig', () => {
   afterEach(() => {
@@ -164,36 +169,36 @@ describe('buildConfig', () => {
    * `parsed.outputDir` が未設定である前提条件グループ。
    *
    * CLI 引数 `--output` が省略されたケースを表す。
-   * `globalConfig.chatlogsDir` が設定されていればそれを使い、
-   * なければ `DEFAULT_OUTPUT_DIR` にフォールバックすることを検証する。
+   * `globalConfig.chatlogsDir` が設定されていればそれを基準に `originalLogs` を付加し、
+   * なければ `DEFAULT_CHATLOGS_DIR` を基準に `originalLogs` を付加した値にフォールバックすることを検証する。
    */
   describe('Given: parsed.outputDir が未指定', () => {
     /** `globalConfig` に `chatlogsDir` が設定されているとき。 */
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
-      /** `globalConfig.chatlogsDir` が採用されることを検証する。 */
-      describe('Then: T-EC-BC-05 - GlobalConfig の chatlogsDir が使われる', () => {
+      /** `globalConfig.chatlogsDir` + `originalLogs` が採用されることを検証する。 */
+      describe('Then: T-EC-BC-05 - GlobalConfig の chatlogsDir + originalLogs が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-EC-BC-05-01: globalConfig.chatlogsDir=/global/chatlog → result.outputDir === /global/chatlog', () => {
+        it('T-EC-BC-05-01: globalConfig.chatlogsDir=/global/chatlog → result.outputDir === /global/chatlog/originalLogs', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, '/global/chatlog');
+          assertEquals(result.outputDir, joinPath('/global/chatlog', DEFAULT_ORIGINAL_LOGS_DIR));
         });
       });
     });
 
     /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
-      /** `DEFAULT_OUTPUT_DIR` にフォールバックされることを検証する。 */
-      describe('Then: T-EC-BC-06 - DEFAULT_OUTPUT_DIR が使われる', () => {
+      /** `DEFAULT_CHATLOGS_DIR` + `originalLogs` にフォールバックされることを検証する。 */
+      describe('Then: T-EC-BC-06 - DEFAULT_CHATLOGS_DIR + originalLogs が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-06-01: outputDir 未設定, chatlogsDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
+        it("T-EC-BC-06-01: outputDir 未設定, chatlogsDir 未登録 → result.outputDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, DEFAULT_OUTPUT_DIR);
+          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
         });
       });
     });
@@ -349,20 +354,20 @@ describe('buildConfig', () => {
    * `buildConfig` の第 3 引数 `defaults` が省略されている前提条件グループ。
    *
    * 省略時は内部で `DEFAULT_EXPORT_CONFIG` が使われる。
-   * `chatlogsDir` も未登録の場合に `DEFAULT_OUTPUT_DIR` にフォールバックすることを検証する。
+   * `chatlogsDir` も未登録の場合に `DEFAULT_CHATLOGS_DIR` + `originalLogs` にフォールバックすることを検証する。
    */
   describe('Given: defaults 引数が省略されている', () => {
     /** `globalConfig` のスキーマに `chatlogsDir` が登録されていないとき。 */
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
-      /** `DEFAULT_OUTPUT_DIR` が採用されることを検証する。 */
-      describe('Then: T-EC-BC-13 - DEFAULT_OUTPUT_DIR が使われる', () => {
+      /** `DEFAULT_CHATLOGS_DIR` + `originalLogs` が採用されることを検証する。 */
+      describe('Then: T-EC-BC-13 - DEFAULT_CHATLOGS_DIR + originalLogs が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.outputDir === DEFAULT_OUTPUT_DIR ('./chatlogs')", () => {
+        it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.outputDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, DEFAULT_OUTPUT_DIR);
+          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
         });
       });
     });
@@ -389,6 +394,31 @@ describe('buildConfig', () => {
           const _parsed: ParsedConfig = { agent: 'claude', configFile: '/path/to/config.yaml' };
           const result = buildConfig(_parsed, globalConfig);
           assertEquals((result as unknown as Record<string, unknown>).configFile, undefined);
+        });
+      });
+    });
+  });
+
+  // ─── dryRun の引き継ぎ ────────────────────────────────────────────────────────
+
+  /**
+   * `parsed.dryRun` が `result.dryRun` にそのまま引き継がれることを確認する。
+   *
+   * `--dry-run` は `_DEFAULT_SCHEMA` 経由で `parsed.dryRun` にセットされ、
+   * `buildConfig` のスプレッドで `ExportConfig` にそのまま反映される。
+   */
+  describe('Given: ParsedConfig に dryRun が指定されている', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** `result.dryRun` が `parsed.dryRun` と一致することを検証する。 */
+      describe('Then: T-EC-BC-16 - result.dryRun === parsed.dryRun', () => {
+        let globalConfig: GlobalConfig;
+        beforeEach(async () => {
+          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+        });
+        it('T-EC-BC-16-01: parsed.dryRun=true → result.dryRun === true', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, agent: 'claude', dryRun: true }, globalConfig);
+          assertEquals(result.dryRun, true);
         });
       });
     });
