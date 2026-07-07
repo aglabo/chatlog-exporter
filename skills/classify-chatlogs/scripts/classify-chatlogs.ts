@@ -22,6 +22,8 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
+// constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 
 // ─── Local
 import { loadProjectDic } from './libs/load-project-dic.ts';
@@ -75,6 +77,7 @@ export const main = async (argv?: string[]): Promise<void> => {
       baseDir: _config.baseDir,
       agent: _config.agent,
       period: _config.period,
+      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
     });
     if (!await dirExists(_agentDir)) {
       throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
@@ -98,6 +101,7 @@ export const main = async (argv?: string[]): Promise<void> => {
       baseDir: _config.baseDir,
       agent: _config.agent,
       period: _config.period,
+      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
     });
 
     const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };

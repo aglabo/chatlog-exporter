@@ -3,8 +3,8 @@
 //       main() 経由でのファイル分類フロー（Deno.Command モック・実 tempdir）
 //
 //       classify-chatlogs の動作:
-//         入力: baseDir/agent/YYYY/YYYY-MM/*.md
-//         出力: ファイルを baseDir/agent/YYYY/YYYY-MM/<project>/ サブディレクトリに移動
+//         入力: baseDir/originalLogs/agent/YYYY/YYYY-MM/*.md
+//         出力: ファイルを baseDir/originalLogs/agent/YYYY/YYYY-MM/<project>/ サブディレクトリに移動
 //               (normalize-chatlog と異なり、別出力ディレクトリはない)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -48,7 +48,7 @@ import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.t
  * inputDir / configsDir を作成して返す。
  * - configsDir/config.yaml: 空の設定ファイル（GlobalConfig 用）
  * - configsDir/projects.dic: テスト用プロジェクト辞書（YAML 形式）
- * - inputDir/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
+ * - inputDir/originalLogs/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
  */
 async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   inputDir: string;
@@ -60,7 +60,7 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   const configsDir = normalizePath(await Deno.makeTempDir());
   const configFile = `${configsDir}/config.yaml`;
   const year = period.slice(0, 4);
-  const monthDir = `${inputDir}/${agent}/${year}/${period}`;
+  const monthDir = `${inputDir}/originalLogs/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
   await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`);
   await Deno.writeTextFile(
@@ -354,7 +354,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile } = await _makeTestDirs());
           // 既に app1/ サブディレクトリに配置済み
-          const app1Dir = `${inputDir}/claude/2026/2026-03/app1`;
+          const app1Dir = `${inputDir}/originalLogs/claude/2026/2026-03/app1`;
           await Deno.mkdir(app1Dir, { recursive: true });
           await Deno.writeTextFile(
             `${app1Dir}/chat.md`,
@@ -391,7 +391,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
         it('T-CL-E2E-09-02: app1/app1/ ディレクトリが作成されない', async () => {
           await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
 
-          assertEquals(await fileOrDirExists(`${inputDir}/claude/2026/2026-03/app1/app1`), false);
+          assertEquals(await fileOrDirExists(`${inputDir}/originalLogs/claude/2026/2026-03/app1/app1`), false);
         });
       });
     });
