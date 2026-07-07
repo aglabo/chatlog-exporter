@@ -27,12 +27,8 @@ import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 // --- local
 // constants
 const _SCHEMA: ArgsSchema = [
-  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
-  { option: '--base-dir', field: 'baseDir', type: 'directory' },
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
-  { option: '--config', field: 'configFile', type: 'string' },
-  { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
   { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
   { option: '--normalize-dir', field: 'normalizeDir', type: 'directory' },
