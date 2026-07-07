@@ -24,6 +24,7 @@ import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts
 // types
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
 import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
 import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
@@ -359,11 +360,19 @@ describe('main (prefilter) - period 絞り込み', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          ({ tempDir, periodDir1: chatlogsDir03, periodDir2: chatlogsDir04 } = await makePeriodDir(
+          let periodDir1: string;
+          let periodDir2: string;
+          ({ tempDir, periodDir1, periodDir2 } = await makePeriodDir(
             'claude',
             '2026-03',
             '2026-04',
           ));
+          // baseDir は GlobalConfig.chatlogsDir + originalLogs から解決されるため、
+          // ノイズファイルは originalLogs 配下に作成する。
+          chatlogsDir03 = periodDir1.replace(`${tempDir}/`, `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/`);
+          chatlogsDir04 = periodDir2.replace(`${tempDir}/`, `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/`);
+          await Deno.mkdir(chatlogsDir03, { recursive: true });
+          await Deno.mkdir(chatlogsDir04, { recursive: true });
           await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
           loggerStub = makeLoggerStub();
         });
