@@ -46,7 +46,7 @@ allowed-tools: Bash, Glob
    - 2つ: INPUT_DIR=PATH_ARGS[0]、OUTPUT_DIR=PATH_ARGS[1]
 6. PATH_ARGS が0の場合は非パスモードで処理:
    - `YYYY-MM` パターン (`^[0-9]{4}-[0-9]{2}$`) → YEAR_MONTH
-   - 既知のagentリスト (`claude`, `chatgpt`) に一致 → AGENT
+   - 既知のagentリスト (`claude`, `chatgpt`, `codex`) に一致 → AGENT
    - それ以外最初の値 → PROJECT
 
 例:
@@ -96,7 +96,8 @@ PATH_ARGS=()
 # PATH_ARGS が0: 非パスモード（PROJECT/AGENT/YEAR_MONTH で INPUT_DIR を構築）
 
 # 非パスモードの INPUT_DIR 決定:
-#   YEAR_MONTH あり: $CHATLOGS_BASE/normalizelogs/$AGENT/$YEAR_MONTH/$PROJECT
+#   YEAR_MONTH あり: $CHATLOGS_BASE/normalizelogs/$AGENT/$YEAR/$YEAR_MONTH/$PROJECT
+#     （$YEAR は $YEAR_MONTH の先頭4文字）
 #   YEAR_MONTH なし: find で $CHATLOGS_BASE/normalizelogs/$AGENT 配下を列挙
 ```
 
@@ -119,7 +120,7 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   $REVIEW_FLAG
 
 # 非パスモード・YEAR_MONTH が未指定の場合 (全年月):
-find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 2 -maxdepth 2 -type d -name "$PROJECT" | sort | while read -r dir; do
+find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 3 -maxdepth 3 -type d -name "$PROJECT" | sort | while read -r dir; do
   echo "=== Processing: $dir ==="
   deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
     --input-dir "$dir" \

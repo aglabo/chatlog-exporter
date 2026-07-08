@@ -14,6 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import {
   agentPath,
+  extractChatlogBaseDir,
   extractChatlogPath,
   periodToPath,
   resolveChatlogsDir,
@@ -246,11 +247,13 @@ describe('resolveChatlogsDir', () => {
 /**
  * `extractChatlogPath` 関数のユニットテストスイート。
  *
- * ファイルパスから chatlogs/<agent>/<yyyy>/<yyyy-mm> セグメントを抽出する
- * 純粋関数の正常系・エッジケースを検証する。内部で normalizePath を呼ぶため
+ * ファイルパスから <agent>/<yyyy>/<yyyy-mm> セグメントを抽出する
+ * 純粋関数の正常系・エッジケースを検証する。`chatlogs/`・`originalLogs/` の
+ * ような固定リテラルに依存せず、任意の --chatlogs-dir パスや addOnDir名でも
+ * 動作することを確認する。内部で normalizePath を呼ぶため
  * Windows バックスラッシュ区切りパスも正しく処理する。
  *
- * テスト ID 範囲: T-ECP-01-01 〜 T-ECP-03-02
+ * テスト ID 範囲: T-ECP-01-01 〜 T-ECP-03-07
  *
  * @see extractChatlogPath
  */
@@ -271,6 +274,20 @@ describe('extractChatlogPath', () => {
 
     it('[Normal] T-ECP-01-04: バックスラッシュ区切りパスも正規化して claude/2026/2026-04 を返す', () => {
       assertEquals(extractChatlogPath('W:\\chatlogs\\claude\\2026\\2026-04\\chat.md'), 'claude/2026/2026-04');
+    });
+
+    it('[Normal] T-ECP-01-05: chatlogs/originalLogs/codex/2026/2026-04 を含むパスから codex/2026/2026-04 を返す', () => {
+      assertEquals(
+        extractChatlogPath('chatlogs/originalLogs/codex/2026/2026-04/chatlog-exporter/foo.md'),
+        'codex/2026/2026-04',
+      );
+    });
+
+    it('[Normal] T-ECP-01-06: chatlogs/originalLogs/claude/2025/2025-12 を含むパスから claude/2025/2025-12 を返す', () => {
+      assertEquals(
+        extractChatlogPath('chatlogs/originalLogs/claude/2025/2025-12/foo.md'),
+        'claude/2025/2025-12',
+      );
     });
   });
 
@@ -293,6 +310,90 @@ describe('extractChatlogPath', () => {
 
     it('[Edge] T-ECP-03-02: chatlogs直下にファイルがある（agent/yyyy/yyyy-mmなし）とき空文字列を返す', () => {
       assertEquals(extractChatlogPath('/chatlogs/chat.md'), '');
+    });
+
+    it('[Edge] T-ECP-03-03: originalLogs 以外の addOnDir（normalizelogs）でも agent/yyyy/yyyy-mm を返す', () => {
+      assertEquals(
+        extractChatlogPath('chatlogs/normalizelogs/codex/2026/2026-04/proj/f.md'),
+        'codex/2026/2026-04',
+      );
+    });
+
+    it('[Edge] T-ECP-03-04: chatlogs という文字列を含まない --chatlogs-dir 任意パスでも agent/yyyy/yyyy-mm を返す', () => {
+      assertEquals(
+        extractChatlogPath('/data/exports/chatgpt/2025/2025-12/f.md'),
+        'chatgpt/2025/2025-12',
+      );
+    });
+
+    it('[Edge] T-ECP-03-05: Windows ドライブレターパス（chatlogs 文字列なし）でも agent/yyyy/yyyy-mm を返す', () => {
+      assertEquals(
+        extractChatlogPath('W:/data/codex/2026/2026-04/f.md'),
+        'codex/2026/2026-04',
+      );
+    });
+
+    it('[Edge] T-ECP-03-06: yyyy/yyyy-mm 構造がなければ任意ディレクトリ名（normalize）でも空文字列を返す', () => {
+      assertEquals(extractChatlogPath('/tmp/normalize/notes.md'), '');
+    });
+
+    it('[Edge] T-ECP-03-07: yyyy/yyyy-mm 構造があれば直前のディレクトリ名（normalize）を agent として抽出する', () => {
+      assertEquals(
+        extractChatlogPath('/tmp/normalize/2026/2026-04/f.md'),
+        'normalize/2026/2026-04',
+      );
+    });
+  });
+});
+
+/**
+ * `extractChatlogBaseDir` 関数のユニットテストスイート。
+ *
+ * ファイルパスから `<agent>/<yyyy>/<yyyy-mm>` セグメントの手前までを
+ * ベースディレクトリとして抽出する純粋関数の正常系・エッジケースを検証する。
+ * 内部で normalizePath を呼ぶため Windows バックスラッシュ区切りパスも正しく処理する。
+ *
+ * テスト ID 範囲: T-ECB-01-01 〜 T-ECB-02-03
+ *
+ * @see extractChatlogBaseDir
+ */
+describe('extractChatlogBaseDir', () => {
+  /** `<agent>/<yyyy>/<yyyy-mm>` を含む正常ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-ECB-01-01: chatlogs/normalizelogs/codex/2026/2026-04 を含むパスから chatlogs/normalizelogs を返す', () => {
+      assertEquals(
+        extractChatlogBaseDir('chatlogs/normalizelogs/codex/2026/2026-04/chatlog-exporter/2026-04-03-xxx.md'),
+        'chatlogs/normalizelogs',
+      );
+    });
+
+    it('[Normal] T-ECB-01-02: Windows ドライブレターの絶対パスでも正しく解決される', () => {
+      assertEquals(
+        extractChatlogBaseDir('C:/work/chatlogs/normalizelogs/claude/2026/2026-03/proj/f.md'),
+        'C:/work/chatlogs/normalizelogs',
+      );
+    });
+
+    it('[Normal] T-ECB-01-03: バックスラッシュ区切りパスも正規化して解決される', () => {
+      assertEquals(
+        extractChatlogBaseDir('C:\\work\\chatlogs\\normalizelogs\\codex\\2026\\2026-04\\proj\\f.md'),
+        'C:/work/chatlogs/normalizelogs',
+      );
+    });
+  });
+
+  /** エッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-ECB-02-01: <agent>/<yyyy>/<yyyy-mm> パターンにマッチしないパスは空文字列を返す', () => {
+      assertEquals(extractChatlogBaseDir('/tmp/arbitrary/chat.md'), '');
+    });
+
+    it('[Edge] T-ECB-02-02: パスの先頭が agent セグメントの場合は空文字列を返す', () => {
+      assertEquals(extractChatlogBaseDir('codex/2026/2026-04/proj/f.md'), '');
+    });
+
+    it('[Edge] T-ECB-02-03: <agent>/<yyyy> のみ（月なし）のときは空文字列を返す', () => {
+      assertEquals(extractChatlogBaseDir('/chatlogs/normalizelogs/claude/2026/file.md'), '');
     });
   });
 });

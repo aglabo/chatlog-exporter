@@ -202,6 +202,31 @@ describe('writeFrontmatter', () => {
     });
   });
 
+  // ─── inputDir が normalizelogs ルートより深い絞り込み済みパスの場合 ─────────
+
+  describe('Given: inputDir が normalizelogs ルートより深い絞り込み済みパス', () => {
+    describe('When: writeFrontmatter(entry, cache, outputDir, inputDir) を呼び出す', () => {
+      describe('Then: T-SF-WF-05 - filePath から逆算した agent/yyyy/yyyy-mm 階層で出力される', () => {
+        it('T-SF-WF-05-01: outputDir/agent/yyyy/yyyy-mm/... に出力される', async () => {
+          const inputBaseDir = `${tempDir}/chatlogs/normalizelogs`;
+          const outputBaseDir = `${tempDir}/chatlogs/outputLogs`;
+          const narrowedInputDir = `${inputBaseDir}/codex/2026/2026-04`;
+          const filePath = `${narrowedInputDir}/chatlog-exporter/2026-04-03-xxx.md`;
+
+          await Deno.mkdir(`${narrowedInputDir}/chatlog-exporter`, { recursive: true });
+          await Deno.writeTextFile(filePath, '# テスト\n本文');
+          const entry = _makeChatlogEntry(filePath);
+          _setAllFields(entry);
+
+          await writeFrontmatter(entry, cache, outputBaseDir, narrowedInputDir);
+
+          const expectedOutputPath = `${outputBaseDir}/codex/2026/2026-04/chatlog-exporter/2026-04-03-xxx.md`;
+          assertEquals(await fileOrDirExists(expectedOutputPath), true);
+        });
+      });
+    });
+  });
+
   // ─── 一時ファイルが残らない ───────────────────────────────────────────────
 
   describe('Given: 正常な書き込み完了後', () => {

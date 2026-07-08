@@ -26,7 +26,7 @@ pre-commit:
 prepare-commit-msg:
   commands:
     prepare-message-script:
-      run: bash -c './scripts/prepare-commit-msg.sh --model gpt-5.5 --output "{1}"'
+      run: bash -c './scripts/prepare-commit-msg.sh --model opus --output "{1}"'
 
 # check commit message as Conventional Commit
 commit-msg:

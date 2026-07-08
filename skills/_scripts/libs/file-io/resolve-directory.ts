@@ -72,17 +72,41 @@ export const resolveChatlogsDir = (
 /**
  * Extracts the `<agent>/<yyyy>/<yyyy-mm>` path segment from a file path.
  *
- * Normalizes the path, then matches the `chatlogs/<agent>/<yyyy>/<yyyy-mm>`
- * pattern and returns `<agent>/<yyyy>/<yyyy-mm>`. Returns `''` if the pattern is not found.
+ * Normalizes the path, then matches the `<segment>/<yyyy>/<yyyy-mm>`
+ * structure (independent of any fixed `chatlogs/`/`originalLogs/` literal,
+ * so it also works with arbitrary `--chatlogs-dir` paths and any add-on
+ * directory name) and returns `<agent>/<yyyy>/<yyyy-mm>`. Returns `''` if
+ * the pattern is not found.
  *
  * @param filePath - Path to the source chatlog file
  * @returns Path segment like `'claude/2026/2026-04'`, or `''`
  */
 export const extractChatlogPath = (filePath: string): string => {
-  const match = normalizePath(filePath).match(/chatlogs\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
+  const match = normalizePath(filePath).match(/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
   if (match) {
     const [, agent, year, yearMonth] = match;
     return `${agent}/${year}/${yearMonth}`;
+  }
+  return '';
+};
+
+/**
+ * Extracts the base directory that precedes the `<agent>/<yyyy>/<yyyy-mm>`
+ * path segment in a file path.
+ *
+ * Normalizes the path, then matches the same `<agent>/<yyyy>/<yyyy-mm>`
+ * structure as `extractChatlogPath` and returns everything before that
+ * segment (with the trailing separator stripped). Returns `''` if the
+ * pattern is not found, or if it matches at the start of the path.
+ *
+ * @param filePath - Path to the source chatlog file
+ * @returns Base directory like `'chatlogs/normalizelogs'`, or `''`
+ */
+export const extractChatlogBaseDir = (filePath: string): string => {
+  const _normalized = normalizePath(filePath);
+  const match = _normalized.match(/([^/]+)\/(\d{4})\/(\d{4}-\d{2})/);
+  if (match && match.index) {
+    return _normalized.slice(0, match.index - 1);
   }
   return '';
 };
