@@ -13,6 +13,7 @@
 import { join, relative } from '@std/path';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogWorks } from '../../../_scripts/classes/ChatlogWorks.class.ts';
+import { extractChatlogBaseDir } from '../../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
@@ -110,8 +111,14 @@ export const writeFrontmatter = async (
     return false;
   }
 
-  const _relPath = relative(inputDir, _inputPath);
-  const _outputPath = join(outputDir, _relPath);
+  const _baseDir = extractChatlogBaseDir(_inputPath);
+  const _resolvedInputDir = _baseDir || inputDir;
+  const _resolvedOutputDir = _baseDir && _baseDir.endsWith('normalizelogs')
+    ? _baseDir.replace(/normalizelogs$/, 'outputLogs')
+    : outputDir;
+
+  const _relPath = relative(_resolvedInputDir, _inputPath);
+  const _outputPath = join(_resolvedOutputDir, _relPath);
   const _outputSubDir = getDirectory(_outputPath);
   const _tmpFile = _outputPath + '.tmp';
   try {
