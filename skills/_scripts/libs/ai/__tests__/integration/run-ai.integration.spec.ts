@@ -37,22 +37,6 @@ afterEach(() => {
 });
 
 describe('runAI', () => {
-  describe('Given: Claude CLI が "research" を返す成功モック', () => {
-    describe('When: runAI(system, user) を呼び出す', () => {
-      describe('Then: T-LIB-AI-RA-IT-01 - "research" が返る（trim済み）', () => {
-        beforeEach(() => {
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
-        });
-
-        it('T-LIB-AI-RA-IT-01-01: 返り値が "research" になる', async () => {
-          const result = await runAI('system prompt', 'user prompt');
-
-          assertEquals(result, 'research');
-        });
-      });
-    });
-  });
-
   // ─── 空白付き stdout の trim ─────────────────────────────────────────────
 
   describe('Given: Claude CLI が空白付き "  research  \\n" を返す成功モック', () => {
