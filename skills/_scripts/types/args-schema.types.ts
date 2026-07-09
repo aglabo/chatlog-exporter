@@ -10,11 +10,11 @@
 export type ArgFieldType = 'string' | 'agent' | 'integer' | 'directory' | 'number' | 'flag' | 'period';
 
 /** 1つのオプション定義。CLIオプション名・フィールド名・フィールド型を持つ。 */
-export interface ArgSchemaEntry {
+export interface ArgSchemaEntry<K extends string = string> {
   option: string; // CLI オプション名。例: '--input', '--dry-run'
-  field: string; // マッピング先フィールド名。例: 'inputDir', 'dryRun'
+  field: K; // マッピング先フィールド名。例: 'inputDir', 'dryRun'
   type: ArgFieldType;
 }
 
 /** parseArgs に渡すスキーマ。オプション定義の配列（複数スキーマを結合してから使う）。 */
-export type ArgsSchema = ArgSchemaEntry[];
+export type ArgsSchema<T = Record<string, unknown>> = ArgSchemaEntry<keyof T & string>[];
