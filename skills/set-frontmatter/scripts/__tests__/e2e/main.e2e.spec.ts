@@ -21,6 +21,7 @@ import {
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // ─── テスト用一時ディレクトリセットアップ ─────────────────────────────────────
@@ -815,6 +816,72 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
           ]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=0')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-SF-E2E-12: --input-dir 未指定 → resolveChatlogsDir による agent 絞り込み ────
+
+/**
+ * `--input-dir` を省略したとき、`chatlogsDir/normalizelogs/<agent>` が
+ * `resolveChatlogsDir` により算出され、そのディレクトリ配下のファイルが処理されることを検証する。
+ *
+ * テスト ID 範囲: T-SF-E2E-12-01
+ */
+describe('main - --input-dir 未指定（デフォルト絞り込み）', () => {
+  describe('Given: chatlogsDir/normalizelogs/claude 配下に .md ファイルを配置し --input-dir を省略', () => {
+    describe('When: main(["claude", "--output-dir", outDir, ...]) を呼び出す（GlobalConfig.chatlogsDir で注入）', () => {
+      describe('Then: T-SF-E2E-12 - chatlogsDir/normalizelogs/claude 配下のファイルが処理される', () => {
+        let chatlogsDir: string;
+        let outputDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          chatlogsDir = await Deno.makeTempDir();
+          const agentDir = `${chatlogsDir}/normalizelogs/claude`;
+          await Deno.mkdir(agentDir, { recursive: true });
+          await Deno.writeTextFile(`${agentDir}/test.md`, '# テスト\n本文テキスト');
+
+          outputDir = await Deno.makeTempDir();
+          dicsDir = await _makeDicsDir();
+
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({
+            readTextFileProvider: () => `chatlogsDir: '${chatlogsDir}'`,
+            configFile: 'dummy.yaml',
+          });
+
+          commandHandle = installCommandMock(
+            makeSuccessMock(_enc.encode('research\ndevelopment'), { value: [] }),
+          );
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(chatlogsDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-E2E-12-01: chatlogsDir/normalizelogs/claude/test.md がメタ読み込みされる', async () => {
+          await main([
+            'claude',
+            '--output-dir',
+            outputDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('メタ読み込み: 1件')), true);
         });
       });
     });
