@@ -16,10 +16,10 @@ export interface FilterConfig {
   agent: string;
   /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
   period?: string;
-  /** チャットログ基底ディレクトリのパス。GlobalConfig の chatlogsDir を CLI で上書きする。省略時は `undefined`。 */
-  baseDir?: string;
-  /** チャットログ最終探索パス直接指定。省略時は `undefined`。 */
-  chatlogsDir?: string;
+  /** チャットログが格納された基準ディレクトリのパス（GlobalConfig の chatlogsDir 由来）。 */
+  chatlogsDir: string;
+  /** 入力ディレクトリのフルパス直接指定。指定時は agent/period を無視してこのパスをそのまま使う。 */
+  inputDir?: string;
 
   // flags
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
