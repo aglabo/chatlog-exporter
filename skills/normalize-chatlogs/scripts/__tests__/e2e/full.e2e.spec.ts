@@ -19,6 +19,7 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
@@ -76,11 +77,12 @@ describe('normalize-chatlogs - full E2E', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     it('T-FULL-01: 3 件の入力から 3 件以上の出力ファイルが生成され success=3 がレポートされる', async () => {
-      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+      await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
       // IO: 出力ファイルが生成されている
       const files = await findFiles(outputDir);
@@ -123,11 +125,12 @@ describe('normalize-chatlogs - full E2E', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     it('T-FULL-02: 出力ファイルが YAML frontmatter・## Summary・project フィールドを含む', async () => {
-      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+      await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
       const files = await findFiles(outputDir);
       assertEquals(files.length >= 1, true);
@@ -169,6 +172,7 @@ describe('normalize-chatlogs - full E2E', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
@@ -176,11 +180,11 @@ describe('normalize-chatlogs - full E2E', () => {
       const fixedHash: HashProvider = () => '0000000';
 
       // 1 回目: 出力ファイルを生成
-      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
+      await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
       // 2 回目: normalize済みファイルをスキップ
       loggerStub.infoLogs.splice(0);
-      await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
+      await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
       // reproducibility: 2 回目は skip=1
       assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
