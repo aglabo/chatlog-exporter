@@ -10,7 +10,7 @@
  * filter-chatlogs.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
  *
  * 使い方:
- *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--base-dir DIR]
+ *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--input-dir DIR]
  */
 
 // ─────────────────────────────────────────────
@@ -26,9 +26,8 @@ import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-director
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgs as parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
-import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
@@ -49,10 +48,10 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 // ─────────────────────────────────────────────
 
 /** filter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema = [];
+const _SCHEMA: ArgsSchema<FilterParsedConfig> = [];
 
 export const parseArgs = (args: string[]): FilterParsedConfig => {
-  return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA) as FilterParsedConfig;
+  return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA);
 };
 
 // ─────────────────────────────────────────────
@@ -62,8 +61,8 @@ export const parseArgs = (args: string[]): FilterParsedConfig => {
 /**
  * FilterParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - baseDir 優先順位: `parsed.baseDir` > `joinPath(globalConfig.get('chatlogsDir'), DEFAULT_ORIGINAL_LOGS_DIR)`
- * - chatlogsDir 優先順位: `parsed.chatlogsDir`（直接指定のみ、未指定なら `undefined`）
+ * - chatlogsDir: `globalConfig.get('chatlogsDir')`（基準ディレクトリ）
+ * - inputDir: `parsed.inputDir`（指定時のみ設定される。フルパス直接指定の短絡パラメータ）
  * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
  * - period: `parsed` のみ（GlobalConfig 連携なし）
  * - discardThreshold: `globalConfig.get('discardThreshold')` > `defaults.discardThreshold`
@@ -75,9 +74,7 @@ export const buildConfig = (
   defaults: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): FilterConfig => {
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
-  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _baseDir = parsed.baseDir ?? joinPath(_globalChatlogDir, DEFAULT_ORIGINAL_LOGS_DIR);
-  const _chatlogsDir = parsed.chatlogsDir;
+  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
   const _chunkSize = parsed.chunkSize ?? globalConfig.get('chunkSize') as number;
   const _concurrency = parsed.concurrency ?? globalConfig.get('concurrency') as number;
   const _minCharCount = parsed.minCharCount ?? globalConfig.get('minCharCount') as number;
@@ -88,8 +85,8 @@ export const buildConfig = (
     ...defaults,
     ...rest,
     agent: _agent,
-    baseDir: _baseDir,
     chatlogsDir: _chatlogsDir,
+    inputDir: parsed.inputDir,
     chunkSize: _chunkSize,
     concurrency: _concurrency,
     minCharCount: _minCharCount,
@@ -105,32 +102,26 @@ export const buildConfig = (
 export const main = async (args?: string[]): Promise<void> => {
   try {
     const _parsed = parseArgs(args ?? Deno.args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
-    const _baseDir = _config.baseDir ?? _globalConfig.get('chatlogsDir') as string;
-    const _agentDir = resolveChatlogsDir({
+    const _searchDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
-      baseDir: _baseDir,
       agent: _config.agent,
       period: _config.period,
+      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+      override: _config.inputDir,
     });
 
     // 入力ディレクトリ確認
-    if (!await dirExists(_agentDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
+    if (!await dirExists(_searchDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_searchDir}`);
     }
 
     logger.info(`対象 agent: ${_config.agent}`);
     if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
 
     // ファイル列挙
-    const _searchDir = resolveChatlogsDir({
-      chatlogsDir: _config.chatlogsDir,
-      baseDir: _baseDir,
-      agent: _config.agent,
-      period: _config.period,
-    });
     const allFiles = await findFiles(_searchDir);
 
     // 事前フィルタ
