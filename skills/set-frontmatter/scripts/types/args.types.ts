@@ -14,10 +14,20 @@
 
 /** `buildConfig` が返す完全な設定（すべてのフィールドが必須）。 */
 export interface SetfmConfig {
-  /** チャットログを読み込む入力ディレクトリのパス。 */
+  /**
+   * チャットログを読み込む入力ディレクトリのパス。
+   * `--input-dir` 明示指定時のみ `buildConfig` が値を持つ（未指定時は空文字列）。
+   * 実際の入力ディレクトリは `main()` が `resolveChatlogsDir` で解決する。
+   */
   inputDir: string;
   /** フロントマター付きファイルの書き込み先ディレクトリのパス。 */
   outputDir: string;
+  /** 対象エージェント名。 */
+  agent: string;
+  /** 絞り込み対象の期間（`YYYY` または `YYYY-MM`）。未指定時は全期間対象。 */
+  period?: string;
+  /** チャットログの基準ディレクトリのパス（GlobalConfig 由来）。 */
+  chatlogsDir: string;
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: string;
   /** プロンプトファイルが置かれたディレクトリのパス。 */
