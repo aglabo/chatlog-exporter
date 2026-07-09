@@ -11,7 +11,7 @@
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
-import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 // types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 
@@ -22,21 +22,21 @@ import type { ClassifyConfig, ParsedConfig } from '../types/classify.types.ts';
 import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
 
 /** classify-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema = [
+const _SCHEMA: ArgsSchema<ParsedConfig> = [
   { option: '--period', field: 'period', type: 'period' },
   { option: '--model', field: 'model', type: 'string' },
 ];
 
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA);
 };
 
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な ClassifyConfig を構築する。
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - model 優先順位: `parsed.model` > `globalConfig.get('model')` > `defaults.model`
- * - baseDir 優先順位: `parsed.baseDir` > `globalConfig.get('chatlogsDir')` > `defaults.baseDir`
- * - chatlogsDir: `parsed.chatlogsDir`（指定時のみ設定される）
+ * - chatlogsDir: `globalConfig.get('chatlogsDir')`（基準ディレクトリ）
+ * - inputDir: `parsed.inputDir`（指定時のみ設定される。フルパス直接指定の短絡パラメータ）
  * - dicsDir 優先順位: `globalConfig.get('dicsDir')` > `defaults.dicsDir`
  * - projectsDic 優先順位: `globalConfig.get('projectsDic')` > `defaults.projectsDic`（`dicsDir` とは独立）
  * - 不正なモデル名は `ChatlogError('InvalidArgs')` をスローする。
@@ -54,9 +54,7 @@ export const buildConfig = (
   }
   const _agent = parsed.agent ?? globalConfig.get('agent') as string;
   const _dicsDir = globalConfig.get('dicsDir') as string;
-  const _globalChatlogDir = globalConfig.get('chatlogsDir') as string;
-  const _baseDir = parsed.baseDir ?? _globalChatlogDir;
-  const _chatlogsDir = parsed.chatlogsDir;
+  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
   const _projectsDic = globalConfig.get('projectsDic') as string;
   const _chunkSize = globalConfig.get('chunkSize') as number;
   const _concurrency = globalConfig.get('concurrency') as number;
@@ -68,8 +66,8 @@ export const buildConfig = (
     model: _model,
     dicsDir: _dicsDir,
     projectsDic: _projectsDic,
-    baseDir: _baseDir,
     chatlogsDir: _chatlogsDir,
+    inputDir: parsed.inputDir,
     chunkSize: _chunkSize,
     concurrency: _concurrency,
   };

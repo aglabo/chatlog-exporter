@@ -19,7 +19,7 @@ import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../constants/schema.constants.ts';
 // types
 import type { ConfigSchema, ConfigValues, DefaultSchemaKey, SchemaValueType } from '../constants/schema.constants.ts';
-import type { ReadTextFileProvider } from '../types/providers.types.ts';
+import type { ReadTextFileSyncProvider } from '../types/providers.types.ts';
 // classes
 import { ChatlogError } from './ChatlogError.class.ts';
 
@@ -27,13 +27,15 @@ import { ChatlogError } from './ChatlogError.class.ts';
  * グローバル設定シングルトン。スキーマ検証付き。
  * - `getInstance(options?)` でシングルトンインスタンスを取得する。既にインスタンスが存在する場合は既存のインスタンスを返す。
  * - `get(key: string): string | number` で値を取得する。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。
+ * - `values(): ConfigValues` で全フィールドの値を `{ field: value }` 形式で返す。
  * - `parseYaml(raw: Record<string, unknown>): Partial<ConfigValues>` で YAML パース結果を `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。
  * - テスト専用の `resetInstance()` メソッドでシングルトンインスタンスをリセットできる。プロダクションコードからは呼び出さないこと。
  */
 export class GlobalConfig {
   private static _instance: GlobalConfig | undefined;
   private static readonly _DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_FILE;
-  private static readonly _DEFAULT_READ_TEXT_FILE: ReadTextFileProvider = (path: string) => Deno.readTextFile(path);
+  private static readonly _DEFAULT_READ_TEXT_FILE: ReadTextFileSyncProvider = (path: string) =>
+    Deno.readTextFileSync(path);
   private _schema: ConfigSchema;
   private _fields: ConfigValues = {} as ConfigValues;
 
@@ -49,12 +51,12 @@ export class GlobalConfig {
    * - ファイルが存在しない場合 (`FileDirNotFound`) はエラーを無視して `DEFAULT_VALUES` のまま返す。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
    */
-  static async getInstance(options?: {
+  static getInstance(options?: {
     schema?: ConfigSchema;
     configFile?: string;
     yaml?: string;
-    readTextFileProvider?: ReadTextFileProvider;
-  }): Promise<GlobalConfig> {
+    readTextFileProvider?: ReadTextFileSyncProvider;
+  }): GlobalConfig {
     if (!GlobalConfig._instance) {
       GlobalConfig._instance = new GlobalConfig(options?.schema);
       if (options?.yaml !== undefined) {
@@ -65,7 +67,7 @@ export class GlobalConfig {
         // 空文字列 → DEFAULT_VALUES のまま継続
       } else if (options?.configFile) {
         try {
-          const _loaded = await GlobalConfig._instance.loadConfigFile({
+          const _loaded = GlobalConfig._instance.loadConfigFile({
             configPath: options.configFile,
             readTextFileProvider: options.readTextFileProvider,
           });
@@ -90,6 +92,11 @@ export class GlobalConfig {
   /** `key` に対応する値を返す。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。 */
   get(key: DefaultSchemaKey): string | number {
     return this._fields[key];
+  }
+
+  /** GlobalConfig が保持する全フィールドの値を `{ field: value }` 形式で返す。 */
+  values(): ConfigValues {
+    return { ...this._fields };
   }
 
   /**
@@ -135,18 +142,18 @@ export class GlobalConfig {
    * 設定ファイルを読み込み、`Partial<ConfigValues>` を返す。
    * `_fields` は変更しない（純粋関数）。
    */
-  async loadConfigFile(options?: {
+  loadConfigFile(options?: {
     configPath?: string;
-    readTextFileProvider?: ReadTextFileProvider;
-  }): Promise<Partial<ConfigValues>> {
+    readTextFileProvider?: ReadTextFileSyncProvider;
+  }): Partial<ConfigValues> {
     const _readTextFile = options?.readTextFileProvider ?? GlobalConfig._DEFAULT_READ_TEXT_FILE;
-    const _resolved = await resolveConfigPath({
+    const _resolved = resolveConfigPath({
       configPath: options?.configPath,
       defaultPath: GlobalConfig._DEFAULT_CONFIG_PATH,
     });
     let _text: string;
     try {
-      _text = await _readTextFile(_resolved);
+      _text = _readTextFile(_resolved);
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) {
         throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
@@ -158,4 +165,4 @@ export class GlobalConfig {
 }
 
 /** アプリケーション共通の GlobalConfig インスタンス。 */
-// export const globalConfig = await GlobalConfig.getInstance();
+// export const globalConfig = GlobalConfig.getInstance();

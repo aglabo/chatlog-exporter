@@ -17,17 +17,12 @@ import { buildConfig } from '../../../configs/prefilter-config.ts';
 import type { PrefilterConfig, PrefilterParsedConfig } from '../../../types/prefilter.types.ts';
 
 // ─── Helpers
-// constants
-import {
-  DEFAULT_CHATLOGS_DIR,
-  DEFAULT_ORIGINAL_LOGS_DIR,
-} from '../../../../../_scripts/constants/defaults.constants.ts';
-import { DEFAULT_PREFILTER_CONFIG } from '../../../constants/common.constants.ts';
 // classes
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// constants
+import { DEFAULT_PREFILTER_CONFIG } from '../../../constants/common.constants.ts';
 // helpers
 import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
-import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Internal Helpers
 
@@ -44,7 +39,7 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   resetProjectRoot('/home/user/project');
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
-    readTextFileProvider: () => Promise.resolve(yaml),
+    readTextFileProvider: () => yaml,
     configFile: 'dummy.yaml',
   });
 };
@@ -69,8 +64,8 @@ const _CUSTOM_DEFAULTS: PrefilterConfig = {
  *
  * ## 優先順位ルール
  * - `agent`      : parsed > globalConfig > defaults
- * - `chatlogsDir`: parsed > globalConfig.chatlogsDir > defaults.chatlogsDir
- * - `baseDir`    : parsed.baseDir > joinPath(globalConfig.chatlogsDir, 'originalLogs')
+ * - `chatlogsDir`: globalConfig.chatlogsDir（基準ディレクトリ）
+ * - `inputDir`   : parsed.inputDir（指定時のみ設定される）
  * - `period`     : parsed のみ（GlobalConfig 連携なし）
  * - `dryRun`     : parsed > defaults (false)
  * - `report`     : parsed > defaults (false)
@@ -148,33 +143,12 @@ describe('buildConfig (prefilter functional)', () => {
   // ─── chatlogsDir 優先順位 ────────────────────────────────────────────────────
 
   /**
-   * `parsed.chatlogsDir` がセットされている前提条件グループ。
+   * GlobalConfig に chatlogsDir が設定されている前提条件グループ。
    *
-   * `parsed.chatlogsDir` が GlobalConfig/defaults より優先されることを検証する。
+   * GlobalConfig.chatlogsDir がそのまま chatlogsDir になることを検証する。
    */
-  describe('Given: parsed.chatlogsDir が指定されている', () => {
+  describe('Given: GlobalConfig に chatlogsDir が設定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.chatlogsDir` が最優先されることを検証する。 */
-      describe('Then: T-PF-BC-09 - parsed.chatlogsDir が最優先される', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
-        });
-        it('T-PF-BC-09: parsed.chatlogsDir=/custom → result.chatlogsDir === /custom', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, chatlogsDir: '/custom' }, globalConfig);
-          assertEquals(result.chatlogsDir, '/custom');
-        });
-      });
-    });
-  });
-
-  /**
-   * `parsed.chatlogsDir` が未指定の前提条件グループ。
-   *
-   * GlobalConfig.chatlogsDir がある場合はその値が chatlogsDir になることを検証する。
-   */
-  describe('Given: parsed.chatlogsDir が未指定', () => {
-    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
       /** GlobalConfig.chatlogsDir が chatlogsDir に使われることを検証する。 */
       describe('Then: T-PF-BC-10 - GlobalConfig の chatlogsDir が chatlogsDir になる', () => {
         let globalConfig: GlobalConfig;
@@ -187,8 +161,15 @@ describe('buildConfig (prefilter functional)', () => {
         });
       });
     });
+  });
 
-    describe('When: GlobalConfig にも chatlogsDir が設定されていない', () => {
+  /**
+   * GlobalConfig に chatlogsDir が設定されていない前提条件グループ。
+   *
+   * DEFAULT_PREFILTER_CONFIG.chatlogsDir にフォールバックすることを検証する。
+   */
+  describe('Given: GlobalConfig にも chatlogsDir が設定されていない', () => {
+    describe('When: buildConfig を呼び出す', () => {
       /** DEFAULT_PREFILTER_CONFIG.chatlogsDir が使われることを検証する。 */
       describe('Then: T-PF-BC-11 - defaults.chatlogsDir にフォールバック', () => {
         let globalConfig: GlobalConfig;
@@ -203,59 +184,45 @@ describe('buildConfig (prefilter functional)', () => {
     });
   });
 
-  // ─── baseDir 優先順位 ─────────────────────────────────────────────────────────
+  // ─── inputDir ───────────────────────────────────────────────────────────────
 
   /**
-   * `parsed.baseDir` がセットされている前提条件グループ。
+   * `parsed.inputDir` がセットされている前提条件グループ。
    *
-   * `parsed.baseDir` が GlobalConfig.chatlogsDir より優先されることを検証する。
+   * `parsed.inputDir` が結果にそのまま反映されることを検証する。
    */
-  describe('Given: parsed.baseDir が指定されている', () => {
+  describe('Given: parsed.inputDir が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.baseDir` が最優先されることを検証する。 */
-      describe('Then: T-PF-BC-16 - parsed.baseDir が優先される', () => {
+      /** `parsed.inputDir` が結果に反映されることを検証する。 */
+      describe('Then: T-PF-BC-16 - parsed.inputDir が結果に反映される', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-PF-BC-16-01: parsed.baseDir=/custom → result.baseDir === /custom', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/custom' }, globalConfig);
-          assertEquals(result.baseDir, '/custom');
+        it('T-PF-BC-16-01: parsed.inputDir=/custom → result.inputDir === /custom', () => {
+          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom' }, globalConfig);
+          assertEquals(result.inputDir, '/custom');
         });
       });
     });
   });
 
   /**
-   * `parsed.baseDir` が未指定の前提条件グループ。
+   * `parsed.inputDir` が未指定の前提条件グループ。
    *
-   * GlobalConfig.chatlogsDir に `originalLogs` を付加した値が baseDir にフォールバックすることを検証する。
+   * `result.inputDir` が `undefined` のままであることを検証する。
    */
-  describe('Given: parsed.baseDir が未指定', () => {
-    describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
-      /** GlobalConfig.chatlogsDir + originalLogs が baseDir になることを検証する。 */
-      describe('Then: T-PF-BC-16-02 - GlobalConfig の chatlogsDir + originalLogs が baseDir になる', () => {
+  describe('Given: parsed.inputDir が未指定', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** `result.inputDir` が `undefined` になることを検証する。 */
+      describe('Then: T-PF-BC-16-02 - result.inputDir === undefined', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-PF-BC-16-02: globalConfig.chatlogsDir=/global → result.baseDir === /global/originalLogs', () => {
+        it('T-PF-BC-16-02: inputDir 未指定 → result.inputDir === undefined', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.baseDir, joinPath('/global', DEFAULT_ORIGINAL_LOGS_DIR));
-        });
-      });
-    });
-
-    describe('When: GlobalConfig にもデフォルトの chatlogsDir のみ設定されている', () => {
-      /** DEFAULT_CHATLOGS_DIR + originalLogs が baseDir になることを検証する。 */
-      describe('Then: T-PF-BC-16-03 - DEFAULT_CHATLOGS_DIR + originalLogs が baseDir になる', () => {
-        let globalConfig: GlobalConfig;
-        beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: claude');
-        });
-        it('T-PF-BC-16-03: chatlogsDir 未設定 → result.baseDir === DEFAULT_CHATLOGS_DIR/originalLogs', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.baseDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
+          assertEquals(result.inputDir, undefined);
         });
       });
     });

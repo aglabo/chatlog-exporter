@@ -8,55 +8,68 @@
 
 // -- BDD modules --
 import { assert, assertEquals, assertThrows } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
 import { parseArgs } from '../../classify-config.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 
 describe('parseArgs', () => {
-  // ─── T-CL-PA-02: --base-dir オプション ─────────────────────────────────────
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+  });
 
-  describe('Given: --base-dir または --base-dir=VALUE', () => {
+  // ─── T-CL-PA-02: --input-dir オプション ─────────────────────────────────────
+
+  describe('Given: --input-dir または --input-dir=VALUE', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-CL-PA-02 - baseDir に値が設定される', () => {
+      describe('Then: T-CL-PA-02 - inputDir に値が設定される', () => {
         const _cases: Array<[string, string[], string]> = [
-          ['T-CL-PA-02-01: --base-dir VALUE → baseDir が設定される', ['--base-dir', '/data/chatlog'], '/data/chatlog'],
-          ['T-CL-PA-02-02: --base-dir=VALUE → baseDir が設定される', ['--base-dir=/data/chatlog'], '/data/chatlog'],
+          [
+            'T-CL-PA-02-01: --input-dir VALUE → inputDir が設定される',
+            ['--input-dir', '/data/chatlog'],
+            '/data/chatlog',
+          ],
+          [
+            'T-CL-PA-02-02: --input-dir=VALUE → inputDir が設定される',
+            ['--input-dir=/data/chatlog'],
+            '/data/chatlog',
+          ],
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
             const result = parseArgs(args);
-            assertEquals(result.baseDir, expected);
+            assertEquals(result.inputDir, expected);
           });
         }
       });
     });
   });
 
-  // ─── T-CL-PA-07: --chatlogs-dir オプション ──────────────────────────────────
+  // ─── T-CL-PA-07: --input-dir フルパス直接指定オプション ──────────────────────
 
-  describe('Given: --chatlogs-dir または --chatlogs-dir=VALUE', () => {
+  describe('Given: --input-dir に月ディレクトリのフルパス', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-CL-PA-07 - chatlogsDir に値が設定される', () => {
+      describe('Then: T-CL-PA-07 - inputDir に値が設定される', () => {
         const _cases: Array<[string, string[], string]> = [
           [
-            'T-CL-PA-07-01: --chatlogs-dir VALUE → chatlogsDir が設定される',
-            ['--chatlogs-dir', '/data/chatlog/claude/2026/2026-04'],
+            'T-CL-PA-07-01: --input-dir VALUE → inputDir が設定される',
+            ['--input-dir', '/data/chatlog/claude/2026/2026-04'],
             '/data/chatlog/claude/2026/2026-04',
           ],
           [
-            'T-CL-PA-07-02: --chatlogs-dir=VALUE → chatlogsDir が設定される',
-            ['--chatlogs-dir=/data/chatlog/claude/2026/2026-04'],
+            'T-CL-PA-07-02: --input-dir=VALUE → inputDir が設定される',
+            ['--input-dir=/data/chatlog/claude/2026/2026-04'],
             '/data/chatlog/claude/2026/2026-04',
           ],
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
             const result = parseArgs(args);
-            assertEquals(result.chatlogsDir, expected);
+            assertEquals(result.inputDir, expected);
           });
         }
       });
@@ -122,14 +135,14 @@ describe('parseArgs', () => {
     });
   });
 
-  // ─── 正常系: --model 未指定時は undefined（globalConfig 解決は main() で行う） ─────
+  // ─── 正常系: --model 未指定時は GlobalConfig のデフォルト値が自動マージされる ─────
 
   describe('Given: --model 未指定', () => {
     describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-CL-PA-13 - model が undefined になる（globalConfig 解決は main() で行う）', () => {
-        it('T-CL-PA-13-01: --model 未指定時、model は undefined になる', () => {
+      describe('Then: T-CL-PA-13 - model が GlobalConfig のデフォルト値になる（parseArgs 内で自動マージ）', () => {
+        it('T-CL-PA-13-01: --model 未指定時、model は GlobalConfig のデフォルト値 "sonnet" になる', () => {
           const result = parseArgs([]);
-          assertEquals(result.model, undefined);
+          assertEquals(result.model, 'sonnet');
         });
 
         it('T-CL-PA-13-02: --model 明示指定は優先される', () => {
@@ -167,20 +180,23 @@ describe('parseArgs', () => {
 
   // ─── T-CL-PA-03: period 位置引数 ────────────────────────────────────────────
 
-  describe('Given: YYYY-MM または YYYY 形式の位置引数', () => {
+  describe('Given: YYYY-MM または YYYY 形式の位置引数（agent 省略）', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-CL-PA-03 - period に値が設定される', () => {
-        const _cases: Array<[string, string[], string | undefined]> = [
-          ['T-CL-PA-03-01: YYYY-MM 形式 → period が設定される', ['2026-04'], '2026-04'],
-          ['T-CL-PA-03-02: YYYY 形式 → period が設定される', ['2026'], '2026'],
-          ['T-CL-PA-03-03: 引数なし → period が undefined になる', [], undefined],
+      describe('Then: T-CL-PA-03 - period 単独は不明な引数としてエラーになる', () => {
+        const _cases: Array<[string, string[]]> = [
+          ['T-CL-PA-03-01: YYYY-MM 形式 → ChatlogError(InvalidArgs)', ['2026-04']],
+          ['T-CL-PA-03-02: YYYY 形式 → ChatlogError(InvalidArgs)', ['2026']],
         ];
-        for (const [id, args, expected] of _cases) {
+        for (const [id, args] of _cases) {
           it(id, () => {
-            const result = parseArgs(args);
-            assertEquals(result.period, expected);
+            assertThrows(() => parseArgs(args), ChatlogError);
           });
         }
+
+        it('T-CL-PA-03-03: 引数なし → period が undefined になる', () => {
+          const result = parseArgs([]);
+          assertEquals(result.period, undefined);
+        });
       });
     });
   });

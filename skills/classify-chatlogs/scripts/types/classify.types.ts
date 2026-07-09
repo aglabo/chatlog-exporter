@@ -66,16 +66,16 @@ export interface ClassifyConfig {
   period?: string;
   /** `true` のときファイルを移動せず分類結果のみ表示する。 */
   dryRun: boolean;
-  /** チャットログが格納されたベースディレクトリのパス。 */
-  baseDir: string;
   /** `projects.dic` が置かれた辞書ディレクトリのパス。 */
   dicsDir: string;
   /** プロジェクト辞書ファイルのパス。省略時は DEFAULT_PROJECTS_DIC_PATH。 */
   projectsDic?: string;
   /** claude CLI に渡すモデル名。 */
   model: string;
-  /** チャットログ格納ディレクトリ。位置引数のディレクトリパスが設定される。 */
-  chatlogsDir?: string;
+  /** チャットログが格納された基準ディレクトリのパス（GlobalConfig の chatlogsDir 由来）。 */
+  chatlogsDir: string;
+  /** 入力ディレクトリのフルパス直接指定。指定時は agent/period を無視してこのパスをそのまま使う。 */
+  inputDir?: string;
   /** バッチリクエスト1回あたりの最大ファイル数。 */
   chunkSize: number;
   /** 同時実行する並列タスク数の上限。 */

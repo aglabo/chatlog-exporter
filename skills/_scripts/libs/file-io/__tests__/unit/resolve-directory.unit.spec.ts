@@ -174,8 +174,8 @@ describe('agentPath', () => {
  * `resolveChatlogsDir` 関数のユニットテストスイート。
  *
  * `resolveChatlogsDir(options)` はチャットログディレクトリを解決する。
- * - `chatlogsDir` 指定あり → そのまま返す（agent/period は無視）
- * - `chatlogsDir` 未定義 → `baseDir/agentPath(agent, period)` を返す
+ * - `override` 指定あり → そのまま返す（agent/period/addOnDir は無視）
+ * - `override` 未指定 → `chatlogsDir/agentPath(agent, period)` を返す
  *
  * テスト ID 範囲: T-LIB-RD-03-01 〜 T-LIB-RD-03-06
  *
@@ -184,35 +184,35 @@ describe('agentPath', () => {
 describe('resolveChatlogsDir', () => {
   /** 正常系ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-LIB-RD-03-01: chatlogsDir 指定あり → chatlogsDir をそのまま返す', () => {
+    it('[Normal] T-LIB-RD-03-01: override 指定あり → override をそのまま返す', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        chatlogsDir: '/explicit/chatlogs',
-        baseDir: '/custom/chatlogs',
+        override: '/explicit/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
       };
       assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
     });
 
-    it('[Normal] T-LIB-RD-03-02: chatlogsDir 未定義、period なし → baseDir/agent', () => {
+    it('[Normal] T-LIB-RD-03-02: override 未指定、period なし → chatlogsDir/agent', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        baseDir: '/custom/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
       };
       assertEquals(resolveChatlogsDir(_opts), '/custom/chatlogs/claude');
     });
 
-    it('[Normal] T-LIB-RD-03-03: chatlogsDir 未定義、period=YYYY-MM → baseDir/agent/YYYY/YYYY-MM', () => {
+    it('[Normal] T-LIB-RD-03-03: override 未指定、period=YYYY-MM → chatlogsDir/agent/YYYY/YYYY-MM', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        baseDir: '/custom/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
         period: '2026-03',
       };
       assertEquals(resolveChatlogsDir(_opts), '/custom/chatlogs/claude/2026/2026-03');
     });
 
-    it('[Normal] T-LIB-RD-03-05: chatlogsDir 未定義、addOnDir 指定 → baseDir/addOnDir/agent', () => {
+    it('[Normal] T-LIB-RD-03-05: override 未指定、addOnDir 指定 → chatlogsDir/addOnDir/agent', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        baseDir: '/custom/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
         addOnDir: 'originalLogs',
       };
@@ -222,20 +222,20 @@ describe('resolveChatlogsDir', () => {
 
   /** エッジケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-LIB-RD-03-04: chatlogsDir 指定あり + period 指定 → chatlogsDir をそのまま返す（period 無視）', () => {
+    it('[Edge] T-LIB-RD-03-04: override 指定あり + period 指定 → override をそのまま返す（period 無視）', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        chatlogsDir: '/explicit/chatlogs',
-        baseDir: '/custom/chatlogs',
+        override: '/explicit/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
         period: '2026-03',
       };
       assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
     });
 
-    it('[Edge] T-LIB-RD-03-06: chatlogsDir 指定あり + addOnDir 指定 → chatlogsDir をそのまま返す（addOnDir 無視）', () => {
+    it('[Edge] T-LIB-RD-03-06: override 指定あり + addOnDir 指定 → override をそのまま返す（addOnDir 無視）', () => {
       const _opts: ResolveChatlogsDirOptions = {
-        chatlogsDir: '/explicit/chatlogs',
-        baseDir: '/custom/chatlogs',
+        override: '/explicit/chatlogs',
+        chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
         addOnDir: 'originalLogs',
       };

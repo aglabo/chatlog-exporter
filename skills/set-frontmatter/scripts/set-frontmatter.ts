@@ -28,6 +28,7 @@
 // ─── Shared scripts
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../_scripts/libs/parallel/concurrency.ts';
@@ -274,11 +275,18 @@ const _phaseWrite = async (
 export const main = async (args: string[]): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
+    const _inputDir = resolveChatlogsDir({
+      chatlogsDir: _config.chatlogsDir,
+      agent: _config.agent,
+      period: _config.period,
+      addOnDir: 'normalizelogs',
+      override: _config.inputDir || undefined,
+    });
 
-    if (!await dirExists(_config.inputDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_config.inputDir}`);
+    if (!await dirExists(_inputDir)) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_inputDir}`);
     }
 
     const _cache = new ChatlogWorks<SetfmCache>(
@@ -301,7 +309,7 @@ export const main = async (args: string[]): Promise<void> => {
     const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
 
     // Phase 1.1: メタ読み込み
-    const entries = await loadAllEntries(_config.inputDir, stats);
+    const entries = await loadAllEntries(_inputDir, stats);
     logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
     if (entries.length === 0) {
       logger.info('対象ファイルなし');
@@ -376,7 +384,7 @@ export const main = async (args: string[]): Promise<void> => {
         stats.fail++;
       });
     }
-    await _phaseWrite(_writeEntries, _cache, _config, stats);
+    await _phaseWrite(_writeEntries, _cache, { ..._config, inputDir: _inputDir }, stats);
 
     logger.info(
       `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,

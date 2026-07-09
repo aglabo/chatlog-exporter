@@ -25,7 +25,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // libs
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgs as parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
 import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
 import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
 // constants
@@ -46,10 +46,9 @@ import type { ExportConfig, ParsedConfig } from './types/export-config.types.ts'
 // ─────────────────────────────────────────────
 
 /** export-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema = [
+const _SCHEMA: ArgsSchema<ParsedConfig> = [
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--base', field: 'baseDir', type: 'directory' },
-  { option: '--input-dir', field: 'inputDir', type: 'directory' },
 ];
 
 /**
@@ -59,7 +58,7 @@ const _SCHEMA: ArgsSchema = [
  * @returns 解析済みの `ParsedConfig`
  */
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA);
 };
 
 // ─────────────────────────────────────────────
@@ -71,7 +70,7 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
  * - outputDir 優先順位: `parsed.outputDir` > `join(globalConfig.get('chatlogsDir') ?? DEFAULT_CHATLOGS_DIR, 'originalLogs')`
  * - baseDir 優先順位: `parsed.baseDir` > `defaults.baseDir`
- * - inputDir 優先順位: `parsed.inputDir` > `parsed.chatlogsDir` > `defaults.inputDir`
+ * - inputDir 優先順位: `parsed.inputDir` > `defaults.inputDir`
  * - period: `parsed.period` のみ (GlobalConfig に期間設定なし)
  */
 export function buildConfig(
@@ -84,7 +83,7 @@ export function buildConfig(
   const _chatlogsDir = (globalConfig.get('chatlogsDir') as string | undefined) ?? DEFAULT_CHATLOGS_DIR;
   const _outputDir = parsed.outputDir ?? joinPath(_chatlogsDir, DEFAULT_ORIGINAL_LOGS_DIR);
   const _baseDir = parsed.baseDir ?? _defaults.baseDir;
-  const _inputDir = parsed.inputDir ?? parsed.chatlogsDir ?? _defaults.inputDir;
+  const _inputDir = parsed.inputDir ?? _defaults.inputDir;
   const { configFile: _configFile, ...parsedRest } = parsed;
   return {
     ..._defaults,
@@ -121,7 +120,7 @@ export function buildConfig(
 export const main = async (argv?: string[]): Promise<void> => {
   try {
     const _parsed = parseArgs(argv ?? Deno.args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const config = buildConfig(_parsed, _globalConfig);
     const { agent, period, outputDir } = config;
 

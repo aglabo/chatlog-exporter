@@ -22,6 +22,7 @@ import {
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // test target
@@ -69,13 +70,14 @@ describe('main - aggregation', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-01-02 - withConcurrency を使ってファイルを並列処理する', () => {
         it('T-15-01-02-01: 全 4 件が処理されて結果レポートに success=4 が含まれる', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=4/);
         });
@@ -114,13 +116,14 @@ describe('main - aggregation', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-03-02 - AI バッチ呼び出し失敗でバッチ内全ファイルが fail にカウントされる', () => {
         it('T-15-03-02-01: fail=3 がレポートに含まれる', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch([...loggerStub.infoLogs, ...loggerStub.warnLogs].join('\n'), /fail=3/);
         });
@@ -147,13 +150,14 @@ describe('main - aggregation', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-04-01 - 空ディレクトリでも完了し 0 件レポートを出力する', () => {
         it('T-15-04-01-01: success=0, skip=0, fail=0 がレポートに含まれる', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=0.*skip=0.*fail=0/);
         });

@@ -46,8 +46,6 @@ describe('parseArgs', () => {
       describe('Then: 対応フィールドに値が設定される', () => {
         const _cases: { id: string; args: string[]; field: keyof ParsedConfig & string; expected: unknown }[] = [
           { id: 'T-EC-PA-02-01', args: ['codex'], field: 'agent', expected: 'codex' },
-          { id: 'T-EC-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
-          { id: 'T-EC-PA-03-02', args: ['2026'], field: 'period', expected: '2026' },
           { id: 'T-EC-PA-04-01', args: ['--output-dir', '/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
           { id: 'T-EC-PA-04-02', args: ['--output-dir=/tmp/out'], field: 'outputDir', expected: '/tmp/out' },
           { id: 'T-EC-PA-08-01', args: ['--base', '/data/logs'], field: 'baseDir', expected: '/data/logs' },
@@ -71,18 +69,6 @@ describe('parseArgs', () => {
             expected: '/data/chatgpt-export',
           },
           { id: 'T-EC-PA-13-01', args: ['chatgpt'], field: 'agent', expected: 'chatgpt' },
-          {
-            id: 'T-EC-PA-15-01',
-            args: ['chatgpt', '/path/to/export'],
-            field: 'chatlogsDir',
-            expected: '/path/to/export',
-          },
-          {
-            id: 'T-EC-PA-15-04',
-            args: ['chatgpt', 'C:\\Users\\foo\\export'],
-            field: 'chatlogsDir',
-            expected: 'C:/Users/foo/export',
-          },
         ];
         for (const { id, args, field, expected } of _cases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
@@ -147,32 +133,6 @@ describe('parseArgs', () => {
     });
   });
 
-  /**
-   * chatgpt + period + inputDir の3フィールド組み合わせケース。
-   * 位置引数として period と inputDir（パス）が並んでも
-   * パス判定（/ または ドライブレター:/ で始まる）により正しく区別されることを確認する。
-   */
-  describe('Given: ["chatgpt", "2026-03", "/path/to/export"]', () => {
-    it('T-EC-PA-15-02: period と chatlogsDir が同時に設定される', () => {
-      const result = parseArgs(['chatgpt', '2026-03', '/path/to/export']);
-      assertEquals(result.period, '2026-03');
-      assertEquals(result.chatlogsDir, '/path/to/export');
-    });
-  });
-
-  /**
-   * period と chatlogsDir の順番を逆にした境界値ケース。
-   * パスと期間文字列の順序に依存せず正しく解析されることを確認する。
-   * 順序不問の解析仕様を明示的に検証する。
-   */
-  describe('Given: ["chatgpt", "/path/to/export", "2026-03"]（順番逆）', () => {
-    it('T-EC-PA-15-03: 順番が逆でも period と chatlogsDir が正しく設定される', () => {
-      const result = parseArgs(['chatgpt', '/path/to/export', '2026-03']);
-      assertEquals(result.period, '2026-03');
-      assertEquals(result.chatlogsDir, '/path/to/export');
-    });
-  });
-
   // ─── T-EC-PA-16: --config オプション ────────────────────────────────────────
 
   /**
@@ -193,6 +153,36 @@ describe('parseArgs', () => {
           it(`${id}: ${args.join(' ')} → configFile が "${expected}" になる`, () => {
             const result = parseArgs(args);
             assertEquals(result.configFile, expected);
+          });
+        }
+      });
+    });
+  });
+
+  // ─── T-EC-PA-03: period 単独指定（agent なし）はエラー ──────────────────────
+
+  /**
+   * period 形式の位置引数のみ（agent なし）を渡した場合のエラー検証。
+   * インデックスベース方式では `positionals[0]` は directory 型または agent 型固定であり、
+   * period 形式は directory でも agent でもないため `ChatlogError(InvalidArgs)` がスローされる
+   * （`export-chatlog 2026-03` のような agent 省略・period 単独指定は非サポート）。
+   */
+  describe('Given: period 形式の位置引数のみ（agent なし）', () => {
+    /** `parseArgs(args)` を呼び出したときにエラーがスローされることを検証する。 */
+    describe('When: parseArgs(args) を呼び出す', () => {
+      /** ChatlogError(InvalidArgs) がスローされることを確認する。 */
+      describe('Then: T-EC-PA-03 - ChatlogError(InvalidArgs) がスローされる', () => {
+        const _cases: { id: string; args: string[] }[] = [
+          { id: 'T-EC-PA-03-01', args: ['2026-03'] },
+          { id: 'T-EC-PA-03-02', args: ['2026'] },
+        ];
+        for (const { id, args } of _cases) {
+          it(`${id}: ${args.join(' ')} → ChatlogError(InvalidArgs) がスローされる`, () => {
+            assertThrows(
+              () => parseArgs(args),
+              ChatlogError,
+              'Invalid Args',
+            );
           });
         }
       });

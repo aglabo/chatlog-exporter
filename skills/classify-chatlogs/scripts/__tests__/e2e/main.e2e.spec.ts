@@ -110,13 +110,13 @@ describe('main - dry-run モード', () => {
         });
 
         it('T-CL-E2E-01-01: 元ファイルが移動せず残っている', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
         it('T-CL-E2E-01-02: "[dry-run]" がログに出力される', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
         });
@@ -165,13 +165,13 @@ describe('main - 正常分類', () => {
         });
 
         it('T-CL-E2E-02-01: ファイルが app1/ サブディレクトリに移動している', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileExists(`${monthDir}/app1/chat.md`), true);
         });
 
         it('T-CL-E2E-02-02: 移動先ファイルに "project: \\"app1\\"" が含まれる', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           const content = await readTextFile(`${monthDir}/app1/chat.md`);
           assertStringIncludes(content, 'project: "app1"');
@@ -225,13 +225,13 @@ describe('main - project 設定済みファイルの移動', () => {
         });
 
         it('T-CL-E2E-03-01: 完了ログに moved=1 が含まれる', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(errLogs.some((l) => l.includes('moved=1')), true);
         });
 
         it('T-CL-E2E-03-02: 完了ログに skipped=0 が含まれる', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(errLogs.some((l) => l.includes('skipped=0')), true);
         });
@@ -276,7 +276,7 @@ describe('main - project 設定済みファイルの移動', () => {
         });
 
         it('T-CL-E2E-03-03: Deno.Command が一度も構築されない（counter.calls === 0）', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(counter.calls, 0);
         });
@@ -322,13 +322,13 @@ describe('main - project 設定済みファイルの実移動', () => {
         });
 
         it('T-CL-E2E-08-01: existing-project/ にファイルが移動している', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileExists(`${monthDir}/existing-project/chat.md`), true);
         });
 
         it('T-CL-E2E-08-02: 元のパスにファイルが存在しない', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileOrDirExists(`${monthDir}/chat.md`), false);
         });
@@ -346,13 +346,14 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
+        let monthDir: string;
         let commandHandle: CommandMockHandle;
         let errLogs: string[];
         let errStub: Stub;
         let exitStub: Stub;
 
         beforeEach(async () => {
-          ({ inputDir, configsDir, configFile } = await _makeTestDirs());
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
           // 既に app1/ サブディレクトリに配置済み
           const app1Dir = `${inputDir}/originalLogs/claude/2026/2026-03/app1`;
           await Deno.mkdir(app1Dir, { recursive: true });
@@ -383,13 +384,13 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
         });
 
         it('T-CL-E2E-09-01: 完了ログに skipped=1 が含まれる（二重ネストしない）', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(errLogs.some((l) => l.includes('skipped=1')), true);
         });
 
         it('T-CL-E2E-09-02: app1/app1/ ディレクトリが作成されない', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileOrDirExists(`${inputDir}/originalLogs/claude/2026/2026-03/app1/app1`), false);
         });
@@ -407,13 +408,14 @@ describe('main - 対象ファイルなし', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
+        let monthDir: string;
         let commandHandle: CommandMockHandle;
         let errLogs: string[];
         let errStub: Stub;
         let exitStub: Stub;
 
         beforeEach(async () => {
-          ({ inputDir, configsDir, configFile } = await _makeTestDirs());
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
           // monthDir は _makeTestDirs で作成済み、.md ファイルは置かない
           resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
@@ -438,7 +440,7 @@ describe('main - 対象ファイルなし', () => {
         });
 
         it('T-CL-E2E-04-01: "moved=0 movedByAI=0 skipped=0 error=0" がログに出力される', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 skipped=0 error=0')), true);
         });
@@ -447,10 +449,10 @@ describe('main - 対象ファイルなし', () => {
   });
 });
 
-// ─── T-CL-E2E-05: 存在しない --base-dir パス → exit(1) ───────────────────────
+// ─── T-CL-E2E-05: 存在しない --input-dir パス → exit(1) ──────────────────────
 
 describe('main - InputNotFound エラー', () => {
-  describe('Given: 存在しない --base-dir パス', () => {
+  describe('Given: 存在しない --input-dir パス', () => {
     describe('When: main([...args]) を呼び出す', () => {
       describe('Then: T-CL-E2E-05 - InputNotFound → exit(1)', () => {
         let configsDir: string;
@@ -484,7 +486,7 @@ describe('main - InputNotFound エラー', () => {
 
         it('T-CL-E2E-05-01: Deno.exit が 1 で呼ばれる', async () => {
           try {
-            await main(['claude', '2026-03', '--base-dir', '/nonexistent/path/xyz', '--config', configFile]);
+            await main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]);
           } catch { /* ChatlogError が漏れた場合も継続して検証する */ }
 
           assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
@@ -493,7 +495,7 @@ describe('main - InputNotFound エラー', () => {
 
         it('T-CL-E2E-05-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
           try {
-            await main(['claude', '2026-03', '--base-dir', '/nonexistent/path/xyz', '--config', configFile]);
+            await main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]);
           } catch { /* ChatlogError が漏れた場合も継続して検証する */ }
 
           assertEquals(
@@ -546,13 +548,13 @@ describe('main - AI 失敗フォールバック', () => {
         });
 
         it('T-CL-E2E-06-01: ファイルが元の場所に残っている', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
         it('T-CL-E2E-06-02: 完了ログに error=1 が含まれる', async () => {
-          await main(['claude', '2026-03', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(
             errLogs.some((l) => l.includes('error=1')),
@@ -581,15 +583,21 @@ describe('main - 期間フィルタ', () => {
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs('claude', '2026-03'));
+          // chatlogsDir を GlobalConfig 経由で inputDir に設定し、period による通常解決経路を通す
+          await Deno.writeTextFile(
+            configFile,
+            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`,
+          );
           // 2026-03 の対象ファイル
           await Deno.writeTextFile(
             `${monthDir}/in-scope.md`,
             '---\ntitle: 対象\ncategory: dev\n---\n本文',
           );
-          // 2026-02 の期間外ファイル
-          await Deno.mkdir(`${inputDir}/claude/2026-02`, { recursive: true });
+          // 2026-02 の期間外ファイル（resolveChatlogsDir で解決可能なツリー上に配置）
+          const outOfScopeDir = `${inputDir}/originalLogs/claude/2026/2026-02`;
+          await Deno.mkdir(outOfScopeDir, { recursive: true });
           await Deno.writeTextFile(
-            `${inputDir}/claude/2026-02/out-of-scope.md`,
+            `${outOfScopeDir}/out-of-scope.md`,
             '---\ntitle: 期間外\ncategory: dev\n---\n本文',
           );
           const response = JSON.stringify([
@@ -615,14 +623,14 @@ describe('main - 期間フィルタ', () => {
         });
 
         it('T-CL-E2E-07-01: 期間外ファイル（out-of-scope.md）がログに出力されない', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--config', configFile]);
 
           const allInfoLogs = loggerStub.infoLogs.join('\n');
           assertEquals(allInfoLogs.includes('out-of-scope.md'), false);
         });
 
         it('T-CL-E2E-07-02: 期間内ファイル（in-scope.md）の [dry-run] ログが出力される', async () => {
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', inputDir, '--config', configFile]);
+          await main(['claude', '2026-03', '--dry-run', '--config', configFile]);
 
           assertEquals(
             loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('in-scope.md')),
@@ -654,8 +662,8 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
    * Deno.exit(1) が発生することを確認する。
    */
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
-    /** `main(["claude", "2026-99", "--base-dir", inputDir, "--config", configFile])` を呼び出すとき。 */
-    describe('When: main(["claude", "2026-99", "--base-dir", inputDir, ...]) を呼び出す', () => {
+    /** `main(["claude", "2026-99", "--config", configFile])` を呼び出すとき（GlobalConfig の chatlogsDir 経由で解決）。 */
+    describe('When: main(["claude", "2026-99", "--config", configFile]) を呼び出す', () => {
       /** InputNotFound エラーが発生し Deno.exit(1) が呼ばれること。 */
       describe('Then: T-CL-E2E-11 - InputNotFound → exit(1)', () => {
         let inputDir: string;
@@ -668,6 +676,11 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
         beforeEach(async () => {
           // 2026-03 ディレクトリは作成されるが、2026-99 は存在しない
           ({ inputDir, configsDir, configFile } = await _makeTestDirs('claude', '2026-03'));
+          // chatlogsDir を GlobalConfig 経由で inputDir に設定し、resolveChatlogsDir の通常解決経路を通す
+          await Deno.writeTextFile(
+            configFile,
+            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`,
+          );
           errLogs = [];
           errStub = stub(console, 'error', (...args: unknown[]) => {
             errLogs.push(args.map(String).join(' '));
@@ -686,7 +699,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
 
         it('T-CL-E2E-11-01: Deno.exit が 1 で呼ばれる', async () => {
           try {
-            await main(['claude', '2026-99', '--base-dir', inputDir, '--config', configFile]);
+            await main(['claude', '2026-99', '--config', configFile]);
           } catch { /* ChatlogError が漏れた場合も継続 */ }
 
           assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
@@ -695,7 +708,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
 
         it('T-CL-E2E-11-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
           try {
-            await main(['claude', '2026-99', '--base-dir', inputDir, '--config', configFile]);
+            await main(['claude', '2026-99', '--config', configFile]);
           } catch { /* ChatlogError が漏れた場合も継続 */ }
 
           assertEquals(
@@ -708,10 +721,10 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
   });
 });
 
-// ─── T-CL-E2E-10: --chatlogs-dir フルパス直接指定 ────────────────────────────
+// ─── T-CL-E2E-10: --input-dir フルパス直接指定 ───────────────────────────────
 
-describe('main - --chatlogs-dir フルパス直接指定', () => {
-  describe('Given: --chatlogs-dir に月ディレクトリのフルパスを指定', () => {
+describe('main - --input-dir フルパス直接指定', () => {
+  describe('Given: --input-dir に月ディレクトリのフルパスを指定', () => {
     describe('When: main([...args, "--dry-run"]) を呼び出す', () => {
       describe('Then: T-CL-E2E-10 - dry-run でファイルが移動しない', () => {
         let inputDir: string;
@@ -747,13 +760,13 @@ describe('main - --chatlogs-dir フルパス直接指定', () => {
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-10-01: --chatlogs-dir フルパス dry-run → 元ファイルが残る', async () => {
-          await main(['--chatlogs-dir', monthDir, '--dry-run', '--config', configFile]);
+        it('T-CL-E2E-10-01: --input-dir フルパス dry-run → 元ファイルが残る', async () => {
+          await main(['--input-dir', monthDir, '--dry-run', '--config', configFile]);
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
         it('T-CL-E2E-10-02: "[dry-run]" がログに出力される', async () => {
-          await main(['--chatlogs-dir', monthDir, '--dry-run', '--config', configFile]);
+          await main(['--input-dir', monthDir, '--dry-run', '--config', configFile]);
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
         });
       });

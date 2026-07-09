@@ -12,6 +12,7 @@ import { isKnownAgent } from '../../constants/agents.constants.ts';
 import { normalizePath, toSlashPath } from '../path-utils/path-utils.ts';
 // classes
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 // types
 import type { ArgSchemaEntry, ArgsSchema } from '../../types/args-schema.types.ts';
 
@@ -31,12 +32,10 @@ export const isArgDirectory = (arg: string): boolean => {
 const _DEFAULT_SCHEMA: ArgsSchema = [
   { option: 'period', field: 'period', type: 'period' },
   { option: 'agent', field: 'agent', type: 'agent' },
-  { option: 'chatlogsDir', field: 'chatlogsDir', type: 'directory' },
-  { option: 'cacheDir', field: 'cacheDir', type: 'directory' },
   { option: '--config', field: 'configFile', type: 'string' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
-  { option: '--base-dir', field: 'baseDir', type: 'directory' },
-  { option: '--chatlogs-dir', field: 'chatlogsDir', type: 'directory' },
+  { option: '--input-dir', field: 'inputDir', type: 'directory' },
+  { option: '--output-dir', field: 'outputDir', type: 'directory' },
 ];
 
 /**
@@ -142,104 +141,197 @@ const _setByType = (
 };
 
 /**
- * `args[i]` を `--key`/`--key=value`/`--key next` 形式で分解して返す。
+ * schemaMap から option キーでエントリを取得し、`_setByType` で `config` にセットする。
+ * 取得失敗時（スキーマに存在しないキー）または `_setByType` がエラーを返した場合は throw する。
  *
- * - `--key` の場合（flag 型）: `_option=--key`, `_rawValue=undefined`, `_nextIndex=i`
- * - `--key=value` の場合（flag 型）: `_option=--key`, `_rawValue=value`, `_nextIndex=i`（エラー判定は呼び出し元）
- * - `--key=value` の場合（非 flag 型）: `_option=--key`, `_rawValue=value`, `_nextIndex=i`（`i` を進めない）
- * - `--key next` の場合: `_option=--key`, `_rawValue=next`, `_nextIndex=i+1`（次トークンを消費）
- * - 次トークンがない場合: `_rawValue=undefined`, `_nextIndex=i`
- *
- * @param args - CLI 引数配列全体
- * @param i - 現在のインデックス。`_nextIndex` を `i` に代入することで消費済みトークンをスキップできる
- * @param schemaMap - オプション名をキーとするスキーマ Map（flag 型の判定に使用）
- * @returns `_option`（`--key` 部分）、`_rawValue`（値、取得不能時 `undefined`）、`_nextIndex`（次に処理すべきインデックス）
+ * @param config - 値をセット対象となる設定オブジェクト（参照渡し、副作用あり）
+ * @param schemaMap - オプション名をキーとするスキーマ Map
+ * @param optionKey - 取得対象のオプションキー（例: `'--input-dir'`, `'agent'`）
+ * @param rawValue - CLI から取得した生文字列
  */
-const _getOptionAndValue = (
-  args: string[],
-  i: number,
+const _assignEntry = (
+  config: Record<string, string | boolean | number>,
   schemaMap: Map<string, ArgSchemaEntry>,
-): { _option: string; _rawValue?: string; _nextIndex: number } => {
-  const arg = args[i];
-  const _eqIdx = arg.indexOf('=');
-
-  // flag 型: = あり・なし両方を処理し、_rawValue に値を含めて返す
-  const _optionName = _eqIdx !== -1 ? arg.slice(0, _eqIdx) : arg;
-  const _exactEntry = schemaMap.get(_optionName);
-  if (_exactEntry?.type === 'flag') {
-    const _rawValue = _eqIdx !== -1 ? arg.slice(_eqIdx + 1) : undefined;
-    return { _option: _optionName, _rawValue, _nextIndex: i };
+  optionKey: string,
+  rawValue: string,
+): void => {
+  const _entry = schemaMap.get(optionKey);
+  if (_entry === undefined) {
+    throw new ChatlogError('InvalidArgs', `スキーマに存在しないエントリです: ${optionKey}`);
   }
-  if (_eqIdx !== -1) {
-    return { _option: arg.slice(0, _eqIdx), _rawValue: arg.slice(_eqIdx + 1), _nextIndex: i };
-  }
-  if (i + 1 < args.length) {
-    return { _option: arg, _rawValue: args[i + 1], _nextIndex: i + 1 };
-  }
-  return { _option: arg, _rawValue: undefined, _nextIndex: i };
+  const err = _setByType(config, _entry, rawValue);
+  if (err) { throw err; }
 };
 
-/** テスト専用エクスポート: `_setByType` の型検証・変換ロジックを直接テストするためのラッパー。 */
-export const _setByTypeForTest = _setByType;
-
-/** テスト専用エクスポート: `_initSchema` を直接テストするためのラッパー。 */
-export const _initSchemaForTest = _initSchema;
+/**
+ * output-dir 用の directory 引数を `config` にセットする。1個のみ許容し、
+ * 既に `outputDir` がセット済みの場合は「位置引数が多すぎます」で throw する。
+ * directory 型でない値は `_assignEntry`（`_setByType` の directory 検証）でエラーになる。
+ *
+ * @param config - 値をセット対象となる設定オブジェクト（参照渡し、副作用あり）
+ * @param schemaMap - オプション名をキーとするスキーマ Map
+ * @param rawValue - CLI から取得した生文字列
+ */
+const _assignOutputDirEntry = (
+  config: Record<string, string | boolean | number>,
+  schemaMap: Map<string, ArgSchemaEntry>,
+  rawValue: string,
+): void => {
+  if ('outputDir' in config) {
+    throw new ChatlogError('InvalidArgs', `位置引数が多すぎます（output-dir は1個のみ指定可能）: ${rawValue}`);
+  }
+  _assignEntry(config, schemaMap, '--output-dir', rawValue);
+};
 
 /**
- * CLI 引数を解析して Partial<T> を返す汎用パーサー。
+ * 位置引数配列をインデックスベースの固定パターンで解釈し、`config` にセットする。
  *
- * 位置引数の解釈は T が `period`/`agent`/`chatlogsDir` を持つことを前提とする。
- * - `YYYY-MM` 形式 → `period`
- * - 既知エージェント名 → `agent`
- * - ディレクトリパス → `chatlogsDir`
+ * 許可パターン（idx0 のみで判定、以降は無条件で output-dir 扱い）:
+ * - パターンA: idx0=directory(input-dir), idx1以降=directory(output-dir, 1個のみ許容)
+ * - パターンB: idx0=agent, idx1=period（存在する場合のみ）, idx2以降=directory(output-dir, 1個のみ許容)
+ * それ以外の型・順序はすべて `ChatlogError('InvalidArgs', ...)` を throw する。
+ *
+ * @param config - 値をセット対象となる設定オブジェクト（参照渡し、副作用あり）
+ * @param positionals - `parseOptions` が返す非 `--` 引数の配列（出現順）
+ * @param schemaMap - `_initSchema` が返すスキーマ Map（`_assignEntry` に渡すエントリ取得用）
  */
-export const parseArgsToConfig = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
+const _parsePositionals = (
+  config: Record<string, string | boolean | number>,
+  positionals: string[],
+  schemaMap: Map<string, ArgSchemaEntry>,
+): void => {
+  for (let idx = 0; idx < positionals.length; idx++) {
+    const _arg = positionals[idx];
+
+    if (idx === 0 && isArgDirectory(_arg)) {
+      // パターンA: idx0=input-dir
+      _assignEntry(config, schemaMap, '--input-dir', _arg);
+      continue;
+    }
+
+    if (idx === 0 && isKnownAgent(_arg)) {
+      // パターンB: idx0=agent, idx1=period(存在時は period 形式必須)
+      _assignEntry(config, schemaMap, 'agent', _arg);
+
+      if (idx + 1 < positionals.length) {
+        if (!isArgPeriod(positionals[idx + 1])) {
+          throw new ChatlogError(
+            'InvalidArgs',
+            `2番目の引数は期間形式である必要があります（YYYY または YYYY-MM）: ${positionals[idx + 1]}`,
+          );
+        }
+        _assignEntry(config, schemaMap, 'period', positionals[idx + 1]);
+        idx++;
+      }
+      continue;
+    }
+
+    if (idx === 0) {
+      // idx0 が directory でも agent でもない -> 即エラー
+      throw new ChatlogError('InvalidArgs', `不明な引数: ${_arg}`);
+    }
+
+    // idx1以降はすべて output-dir(directory, 1個のみ許容)
+    _assignOutputDirEntry(config, schemaMap, _arg);
+  }
+};
+
+/**
+ * CLI 引数から `--` オプションのみを解釈し、非 `--` 引数は意味付けせずに
+ * `positionals` へそのまま積んで返す。
+ *
+ * @param args - CLI 引数配列全体
+ * @param schema - 呼び出し元が追加するスキーマ
+ * @returns オプション解釈結果の `config`（`Partial<T>`）と、意味付けされていない `positionals`
+ */
+export const parseOptions = <T>(
   args: string[],
-  schema: ArgsSchema,
-): Partial<T> => {
+  schema: ArgsSchema<T>,
+): { config: Partial<T>; positionals: string[] } => {
   const _config: Record<string, string | boolean | number> = {};
+  const _positionals: string[] = [];
   const _schemaMap = _initSchema(schema);
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg.startsWith('--')) {
-      const _isNegation = arg.startsWith('--no-') && !_schemaMap.has(arg.split('=')[0]);
-      const _lookupKey = _isNegation ? '--' + arg.slice('--no-'.length) : arg;
+      const _eqIdx = arg.indexOf('=');
+      const _optionName = _eqIdx !== -1 ? arg.slice(0, _eqIdx) : arg;
+      const _isNegation = _optionName.startsWith('--no-') && !_schemaMap.has(_optionName);
+      const _lookupKey = _isNegation ? '--' + _optionName.slice('--no-'.length) : _optionName;
 
-      if (_isNegation && arg.includes('=')) {
+      if (_isNegation && _eqIdx !== -1) {
         throw new ChatlogError('InvalidArgs', `--no- フラグに値は指定できません: ${arg}`);
       }
 
-      const { _option, _rawValue, _nextIndex } = _isNegation
-        ? { _option: arg, _rawValue: undefined, _nextIndex: i }
-        : _getOptionAndValue(args, i, _schemaMap);
-      const _entry = _schemaMap.get(_isNegation ? _lookupKey : _option);
-
+      const _entry = _schemaMap.get(_lookupKey);
       if (_entry === undefined) {
         throw new ChatlogError('InvalidArgs', `不明なオプション: ${arg}`);
       }
 
+      let _rawValue: string | undefined;
+      if (_isNegation) {
+        _rawValue = undefined;
+      } else if (_entry.type !== 'flag' && _eqIdx === -1 && i + 1 < args.length) {
+        _rawValue = args[++i];
+      } else if (_eqIdx !== -1) {
+        _rawValue = arg.slice(_eqIdx + 1);
+      }
+
       const err = _setByType(_config, _entry, _rawValue, _isNegation);
       if (err) { throw err; }
-      i = _nextIndex;
       continue;
     }
 
-    // 位置パラメータ解釈
-    if (isArgPeriod(arg)) {
-      const err = _setByType(_config, _schemaMap.get('period')!, arg);
-      if (err) { throw err; }
-    } else if (isKnownAgent(arg)) {
-      const err = _setByType(_config, _schemaMap.get('agent')!, arg);
-      if (err) { throw err; }
-    } else if (isArgDirectory(arg)) {
-      const err = _setByType(_config, _schemaMap.get('chatlogsDir')!, arg);
-      if (err) { throw err; }
-    } else {
-      throw new ChatlogError('InvalidArgs', `不明な引数: ${arg}`);
-    }
+    _positionals.push(arg);
   }
 
-  return _config as Partial<T>;
+  return { config: _config as Partial<T>, positionals: _positionals };
 };
+
+/**
+ * CLI 引数を解析して Partial<T> を返す汎用パーサー。
+ *
+ * 位置引数の解釈はインデックス（出現順序）に基づく固定パターン判定で行う。
+ * - パターンA（directory 系）: `positionals[0]` が directory 型 → `input-dir`。
+ *   `positionals[1]` 以降はすべて directory 型（`output-dir`、1個のみ許容）。
+ * - パターンB（agent/period 系）: `positionals[0]` は agent 型固定、
+ *   `positionals[1]` は period 型固定（存在する場合のみ検査）。
+ *   `positionals[2]` 以降はすべて directory 型（`output-dir`、1個のみ許容）。
+ * - 上記以外の型混在・順序違反はすべて `ChatlogError('InvalidArgs', ...)` を throw する。
+ */
+export const parseArgs = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
+  args: string[],
+  schema: ArgsSchema<T>,
+  defaults: Partial<T> = {},
+): Partial<T> => {
+  const { config: _config, positionals: _positionals } = parseOptions<T>(args, schema) as unknown as {
+    config: Record<string, string | boolean | number>;
+    positionals: string[];
+  };
+  const _schemaMap = _initSchema(schema);
+
+  _parsePositionals(_config, _positionals, _schemaMap);
+
+  // 優先度: CLI 解析値 > GlobalConfig 値 > defaults
+  const _globalConfig = GlobalConfig.getInstance({ configFile: _config.configFile as string | undefined });
+  const _globalValues = _globalConfig.values();
+  const _merged: Record<string, string | boolean | number> = {
+    ...(defaults as Record<string, string | boolean | number>),
+    ..._globalValues,
+    ..._config,
+  };
+
+  return _merged as Partial<T>;
+};
+
+// --- Test-only exports ---
+/** テスト専用エクスポート: `_parsePositionals` を直接テストするためのラッパー。 */
+export const _parsePositionalsForTest = _parsePositionals;
+
+/** テスト専用エクスポート: `_setByType` の型検証・変換ロジックを直接テストするためのラッパー。 */
+export const _setByTypeForTest = _setByType;
+
+/** テスト専用エクスポート: `_initSchema` を直接テストするためのラッパー。 */
+export const _initSchemaForTest = _initSchema;

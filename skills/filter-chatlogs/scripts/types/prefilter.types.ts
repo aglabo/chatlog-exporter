@@ -12,10 +12,10 @@ export interface PrefilterConfig {
   agent: string;
   /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
   period?: string;
-  /** チャットログ基底ディレクトリのパス。`--base-dir` で指定するルートディレクトリ。 */
-  baseDir?: string;
-  /** チャットログ基底ディレクトリのパス。buildConfig 後のベースディレクトリ（GlobalConfig 由来 or --chatlogs-dir 直接指定）。 */
+  /** チャットログが格納された基準ディレクトリのパス（GlobalConfig の chatlogsDir 由来）。 */
   chatlogsDir: string;
+  /** 入力ディレクトリのフルパス直接指定。指定時は agent/period を無視してこのパスをそのまま使う。 */
+  inputDir?: string;
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
   dryRun: boolean;
   /** `true` のときノイズファイル一覧をタブ区切りで出力する（`dryRun` も暗示）。 */

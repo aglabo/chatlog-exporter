@@ -30,7 +30,7 @@ export const MIN_CLASSIFIABLE_LENGTH = 50;
 export const DEFAULT_CLASSIFY_CONFIG: ClassifyConfig = {
   agent: DEFAULT_AGENT,
   dryRun: false,
-  baseDir: DEFAULT_CHATLOGS_DIR,
+  chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dicsDir: DEFAULT_DICS_DIR,
   model: DEFAULT_AI_MODEL,
   chunkSize: DEFAULT_CHUNK_SIZE,

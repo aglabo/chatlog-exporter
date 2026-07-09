@@ -26,6 +26,7 @@ import {
   removeTempDirs,
   silenceLog,
 } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
@@ -73,6 +74,7 @@ describe('main - reproducibility', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
@@ -83,13 +85,13 @@ describe('main - reproducibility', () => {
           const fixedHash: HashProvider = () => '0000000';
 
           // First run: creates output
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
           // Reset log capture for second run
           loggerStub.infoLogs.splice(0);
 
           // Second run: should skip already-normalized file
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir], fixedHash);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
         });
@@ -125,13 +127,14 @@ describe('main - reproducibility', () => {
     afterEach(async () => {
       commandHandle.restore();
       logSilencer.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main() が完了する', () => {
       describe('Then: Task T-15-04-03 - 実行全体を通じて入力ファイルが変更されない', () => {
         it('T-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const afterContent = await readTextFile(`${inputDir}/input.md`);
           assertEquals(afterContent, inputContent);

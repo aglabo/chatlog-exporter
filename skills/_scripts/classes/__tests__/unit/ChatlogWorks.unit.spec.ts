@@ -238,7 +238,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Normal] T-CLS-CC-16: cacheRoot を省略すると GlobalConfig の cacheDir が使われる', async () => {
-        await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
+        GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
         const _cache = new ChatlogWorks('sub', '', undefined, {
           cache: {
@@ -254,7 +254,7 @@ describe('ChatlogWorks', () => {
       });
 
       it('[Normal] T-CLS-CC-17: cacheRoot を明示指定すると GlobalConfig は無視される', async () => {
-        await GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
+        GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/gc-cache\n' });
         let _mkdirPath = '';
         const _cache = new ChatlogWorks('sub', '/tmp/explicit-cache', undefined, {
           cache: {

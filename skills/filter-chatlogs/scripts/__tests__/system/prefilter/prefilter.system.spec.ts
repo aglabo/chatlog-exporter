@@ -27,7 +27,7 @@ describe('main - エラー終了コード', () => {
     describe('When: prefilter-chatlogs をサブプロセスで実行する', () => {
       describe('Then: T-PF-SYS-01 - プロセスが終了コード 1 で終了する', () => {
         it('T-PF-SYS-01-01: 終了コードが 1 である', async () => {
-          const code = await runPrefilter(['claude', '--input', '/nonexistent/path']);
+          const code = await runPrefilter(['claude', '--input-dir', '/nonexistent/path']);
           assertEquals(code, 1);
         });
       });

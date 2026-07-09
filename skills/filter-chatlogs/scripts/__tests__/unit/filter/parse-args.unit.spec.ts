@@ -9,7 +9,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertThrows } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { parseArgs } from '../../../filter-chatlogs.ts';
@@ -17,6 +17,9 @@ import { parseArgs } from '../../../filter-chatlogs.ts';
 // ─── Helpers
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// constants
+import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { FilterParsedConfig } from '../../../types/filter.types.ts';
 
@@ -28,23 +31,33 @@ type Args = FilterParsedConfig;
 // ─── Tests
 
 describe('parseArgs', () => {
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+  });
+
   // ─── T-FL-PA-01: デフォルト値 ───────────────────────────────────────────────
 
   describe('Given: 引数なしの空配列', () => {
     describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-FL-PA-01 - デフォルト値が適用される', () => {
+      describe('Then: T-FL-PA-01 - GlobalConfig が管理しないフィールドは undefined になる', () => {
         const _defaultCases: { id: string; field: keyof Args; expected: unknown }[] = [
-          { id: 'T-FL-PA-01-01', field: 'agent', expected: undefined },
           { id: 'T-FL-PA-01-02', field: 'dryRun', expected: undefined },
-          { id: 'T-FL-PA-01-03', field: 'baseDir', expected: undefined },
+          { id: 'T-FL-PA-01-03', field: 'inputDir', expected: undefined },
           { id: 'T-FL-PA-01-04', field: 'period', expected: undefined },
-          { id: 'T-FL-PA-01-05', field: 'chatlogsDir', expected: undefined },
         ];
         for (const { id, field, expected } of _defaultCases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
             assertEquals(parseArgs([])[field], expected);
           });
         }
+
+        it('T-FL-PA-01-01: agent が GlobalConfig のデフォルト値 "claude" になる', () => {
+          assertEquals(parseArgs([]).agent, 'claude');
+        });
+
+        it('T-FL-PA-01-05: chatlogsDir が GlobalConfig のデフォルト値になる', () => {
+          assertEquals(parseArgs([]).chatlogsDir, DEFAULT_CHATLOGS_DIR);
+        });
       });
     });
   });
@@ -56,10 +69,19 @@ describe('parseArgs', () => {
       describe('Then: 対応フィールドに値が設定される', () => {
         const _cases: { id: string; args: string[]; field: keyof Args; expected: unknown }[] = [
           { id: 'T-FL-PA-02-01', args: ['chatgpt'], field: 'agent', expected: 'chatgpt' },
-          { id: 'T-FL-PA-03-01', args: ['2026-03'], field: 'period', expected: '2026-03' },
           { id: 'T-FL-PA-05-01', args: ['--dry-run'], field: 'dryRun', expected: true },
-          { id: 'T-FL-PA-06-01', args: ['--base-dir', '/path/to/base'], field: 'baseDir', expected: '/path/to/base' },
-          { id: 'T-FL-PA-07-01', args: ['--base-dir=/path/to/base'], field: 'baseDir', expected: '/path/to/base' },
+          {
+            id: 'T-FL-PA-06-01',
+            args: ['--input-dir', '/path/to/input'],
+            field: 'inputDir',
+            expected: '/path/to/input',
+          },
+          {
+            id: 'T-FL-PA-07-01',
+            args: ['--input-dir=/path/to/input'],
+            field: 'inputDir',
+            expected: '/path/to/input',
+          },
         ];
         for (const { id, args, field, expected } of _cases) {
           it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
@@ -72,13 +94,13 @@ describe('parseArgs', () => {
 
   // ─── T-FL-PA-08: 複数オプション組み合わせ ────────────────────────────────────
 
-  describe('Given: claude 2026-03 --dry-run --base-dir /base を渡す', () => {
+  describe('Given: claude 2026-03 --dry-run --input-dir /input を渡す', () => {
     it('T-FL-PA-08-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['claude', '2026-03', '--dry-run', '--base-dir', '/base']);
+      const result = parseArgs(['claude', '2026-03', '--dry-run', '--input-dir', '/input']);
       assertEquals(result.agent, 'claude');
       assertEquals(result.period, '2026-03');
       assert(result.dryRun);
-      assertEquals(result.baseDir, '/base');
+      assertEquals(result.inputDir, '/input');
     });
   });
 
@@ -90,6 +112,13 @@ describe('parseArgs', () => {
         () => parseArgs(['--unknown']),
         ChatlogError,
         'Invalid Args',
+      );
+    });
+
+    it('T-FL-PA-03-01: period 単独指定（agent 省略）→ ChatlogError(InvalidArgs) がスローされる', () => {
+      assertThrows(
+        () => parseArgs(['2026-03']),
+        ChatlogError,
       );
     });
   });
@@ -110,31 +139,17 @@ describe('parseArgs', () => {
     });
   });
 
-  // ─── T-FL-PA-11: --chatlogs-dir オプション ───────────────────────────────────
+  // ─── T-FL-PA-11: --input-dir オプション ──────────────────────────────────────
 
-  describe('Given: --chatlogs-dir オプションが渡される', () => {
+  describe('Given: --input-dir オプションが渡される', () => {
     describe('When: parseArgs を呼び出す', () => {
-      describe('Then: chatlogsDir フィールドに値が設定される', () => {
-        it('T-FL-PA-11-01: --chatlogs-dir /base → chatlogsDir が "/base" になる', () => {
-          assertEquals(parseArgs(['--chatlogs-dir', '/base']).chatlogsDir, '/base');
+      describe('Then: inputDir フィールドに値が設定される', () => {
+        it('T-FL-PA-11-01: --input-dir /input → inputDir が "/input" になる', () => {
+          assertEquals(parseArgs(['--input-dir', '/input']).inputDir, '/input');
         });
 
-        it('T-FL-PA-11-02: --chatlogs-dir=/base → chatlogsDir が "/base" になる', () => {
-          assertEquals(parseArgs(['--chatlogs-dir=/base']).chatlogsDir, '/base');
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PA-12: --chatlogs-dir と --base-dir の組み合わせ ──────────────────────
-
-  describe('Given: --chatlogs-dir と --base-dir の両方が渡される', () => {
-    describe('When: parseArgs を呼び出す', () => {
-      describe('Then: 両フィールドに別々の値が設定される', () => {
-        it('T-FL-PA-12-01: --chatlogs-dir と --base-dir が同時指定できる', () => {
-          const result = parseArgs(['--chatlogs-dir', '/logs', '--base-dir', '/base']);
-          assertEquals(result.chatlogsDir, '/logs');
-          assertEquals(result.baseDir, '/base');
+        it('T-FL-PA-11-02: --input-dir=/input → inputDir が "/input" になる', () => {
+          assertEquals(parseArgs(['--input-dir=/input']).inputDir, '/input');
         });
       });
     });
@@ -142,37 +157,33 @@ describe('parseArgs', () => {
 
   // ─── T-FL-PA-13: 全オプション組み合わせ ─────────────────────────────────────
 
-  describe('Given: claude 2026-03 --dry-run --chatlogs-dir /base を渡す', () => {
+  describe('Given: claude 2026-03 --dry-run --input-dir /input を渡す', () => {
     describe('When: parseArgs を呼び出す', () => {
       describe('Then: 全フィールドが正しく解析される', () => {
         it('T-FL-PA-13-01: 全フィールドが正しく解析される', () => {
-          const result = parseArgs(['claude', '2026-03', '--dry-run', '--chatlogs-dir', '/base']);
+          const result = parseArgs(['claude', '2026-03', '--dry-run', '--input-dir', '/input']);
           assertEquals(result.agent, 'claude');
           assertEquals(result.period, '2026-03');
           assert(result.dryRun);
-          assertEquals(result.chatlogsDir, '/base');
-        });
-        it('T-FL-PA-13-02: chatlogsDir=/base のとき baseDir が undefined', () => {
-          const result = parseArgs(['claude', '2026-03', '--dry-run', '--chatlogs-dir', '/base']);
-          assertEquals(result.baseDir, undefined);
+          assertEquals(result.inputDir, '/input');
         });
       });
     });
   });
 
-  // ─── T-FL-PA-14: --chatlogs-dir バリデーション ───────────────────────────────
+  // ─── T-FL-PA-14: --input-dir バリデーション ──────────────────────────────────
 
   /**
-   * `--chatlogs-dir` にディレクトリパスでない値を渡した場合の異常系グループ。
+   * `--input-dir` にディレクトリパスでない値を渡した場合の異常系グループ。
    *
    * ディレクトリパス（`/` を含む正規化済みパス）でない値は `ChatlogError(InvalidArgs)` をスローする。
    */
-  describe('Given: --chatlogs-dir にディレクトリパスでない値を渡す', () => {
+  describe('Given: --input-dir にディレクトリパスでない値を渡す', () => {
     describe('When: parseArgs を呼び出す', () => {
       describe('Then: ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-FL-PA-14-01: --chatlogs-dir foo（スラッシュなし）→ ChatlogError(InvalidArgs) がスローされる', () => {
+        it('T-FL-PA-14-01: --input-dir foo（スラッシュなし）→ ChatlogError(InvalidArgs) がスローされる', () => {
           assertThrows(
-            () => parseArgs(['--chatlogs-dir', 'foo']),
+            () => parseArgs(['--input-dir', 'foo']),
             ChatlogError,
             'Invalid Args',
           );
@@ -181,79 +192,20 @@ describe('parseArgs', () => {
     });
   });
 
-  // ─── T-FL-PA-15: --base-dir オプション ──────────────────────────────────────
+  // ─── T-FL-PA-16: --input-dir 未指定 ──────────────────────────────────────────
 
   /**
-   * `--base-dir` オプションが `baseDir` フィールドに設定されることを検証するグループ。
+   * `--input-dir` が未指定のとき `chatlogsDir` は GlobalConfig のデフォルト値、
+   * `inputDir` は `undefined` になることを検証するグループ。
    */
-  describe('Given: --base-dir オプションが渡される', () => {
+  describe('Given: --input-dir が未指定', () => {
     describe('When: parseArgs を呼び出す', () => {
-      describe('Then: baseDir フィールドに値が設定される', () => {
-        it('T-FL-PA-15-01: --base-dir /base → baseDir が "/base" になる', () => {
-          assertEquals(parseArgs(['--base-dir', '/base']).baseDir, '/base');
+      describe('Then: chatlogsDir は GlobalConfig のデフォルト値、inputDir は undefined になる', () => {
+        it('T-FL-PA-16-01: 引数なし → chatlogsDir が GlobalConfig のデフォルト値になる', () => {
+          assertEquals(parseArgs([]).chatlogsDir, DEFAULT_CHATLOGS_DIR);
         });
-        it('T-FL-PA-15-02: --base-dir=/base → baseDir が "/base" になる', () => {
-          assertEquals(parseArgs(['--base-dir=/base']).baseDir, '/base');
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PA-16: --chatlogs-dir も --base-dir も未指定 ─────────────────────────
-
-  /**
-   * `--chatlogs-dir` も `--base-dir` も未指定のとき両フィールドが `undefined` になることを検証するグループ。
-   */
-  describe('Given: --chatlogs-dir も --base-dir も未指定', () => {
-    describe('When: parseArgs を呼び出す', () => {
-      describe('Then: chatlogsDir と baseDir が undefined になる', () => {
-        it('T-FL-PA-16-01: 引数なし → chatlogsDir が undefined になる', () => {
-          assertEquals(parseArgs([]).chatlogsDir, undefined);
-        });
-        it('T-FL-PA-16-02: 引数なし → baseDir が undefined になる', () => {
-          assertEquals(parseArgs([]).baseDir, undefined);
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PA-17: --chatlogs-dir 指定時に baseDir は undefined ────────────────
-
-  /**
-   * `--chatlogs-dir` のみ指定したとき `baseDir` が `undefined` のままであることを検証するグループ。
-   *
-   * `chatlogsDir` が指定されても `baseDir` は独立したフィールドであり、
-   * `--base-dir` を渡さない限り `undefined` になる。
-   */
-  describe('Given: --chatlogs-dir が指定されて --base-dir が未指定', () => {
-    describe('When: parseArgs を呼び出す', () => {
-      describe('Then: T-FL-PA-17 - baseDir が undefined のまま', () => {
-        it('T-FL-PA-17-01: --chatlogs-dir /base → baseDir が undefined', () => {
-          assertEquals(parseArgs(['--chatlogs-dir', '/base']).baseDir, undefined);
-        });
-        it('T-FL-PA-17-02: --chatlogs-dir /base → chatlogsDir が "/base"', () => {
-          assertEquals(parseArgs(['--chatlogs-dir', '/base']).chatlogsDir, '/base');
-        });
-      });
-    });
-  });
-
-  // ─── T-FL-PA-18: --base-dir バリデーション ──────────────────────────────────
-
-  /**
-   * `--base-dir` にディレクトリパスでない値を渡した場合の異常系グループ。
-   *
-   * ディレクトリパス（`/` を含む）でない値は `ChatlogError(InvalidArgs)` をスローする。
-   */
-  describe('Given: --base-dir にディレクトリパスでない値を渡す', () => {
-    describe('When: parseArgs を呼び出す', () => {
-      describe('Then: T-FL-PA-18 - ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-FL-PA-18-01: --base-dir foo（スラッシュなし）→ ChatlogError(InvalidArgs) がスローされる', () => {
-          assertThrows(
-            () => parseArgs(['--base-dir', 'foo']),
-            ChatlogError,
-            'Invalid Args',
-          );
+        it('T-FL-PA-16-02: 引数なし → inputDir が undefined になる', () => {
+          assertEquals(parseArgs([]).inputDir, undefined);
         });
       });
     });

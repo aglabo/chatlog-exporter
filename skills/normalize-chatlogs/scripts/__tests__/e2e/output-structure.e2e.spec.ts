@@ -18,6 +18,7 @@ import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/hel
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // test target
@@ -68,13 +69,14 @@ describe('main - output structure', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: Task T-15-01-01-02 - 各出力ファイルが YAML frontmatter を含む', () => {
         it('T-15-01-01-02-01: 各出力ファイルが ---\\n で始まる YAML frontmatter と ## Summary セクションを含む', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           await assertAllOutputFiles(files);
@@ -116,13 +118,14 @@ describe('main - output structure', () => {
     afterEach(async () => {
       commandHandle.restore();
       loggerStub.restore();
+      GlobalConfig.resetInstance();
       await removeTempDirs(inputDir, outputDir);
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
       describe('Then: 入力の project フィールドが出力 frontmatter に伝播される', () => {
         it('出力ファイルの frontmatter に project: my-project が含まれる', async () => {
-          await main(['--chatlogs-dir', inputDir, '--normalize-dir', outputDir]);
+          await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const files = await findFiles(outputDir);
           await assertAllOutputFiles(files, {

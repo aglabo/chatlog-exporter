@@ -12,10 +12,11 @@
 // ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
-import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import {
+  DEFAULT_AGENT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_DICS_DIR,
   DEFAULT_MAX_RETRY,
@@ -29,9 +30,7 @@ import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 import type { ParsedConfig, SetfmConfig } from '../types/args.types.ts';
 
 /** set-frontmatter の引数スキーマ。 */
-const _SCHEMA: ArgsSchema = [
-  { option: '--input-dir', field: 'inputDir', type: 'directory' },
-  { option: '--output-dir', field: 'outputDir', type: 'directory' },
+const _SCHEMA: ArgsSchema<ParsedConfig> = [
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--review', field: 'review', type: 'flag' },
@@ -40,14 +39,16 @@ const _SCHEMA: ArgsSchema = [
 ];
 
 export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig(args, _SCHEMA) as unknown as ParsedConfig;
+  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA);
 };
 
 /**
  * ParsedConfig・GlobalConfig・デフォルト値から完全な SetfmConfig を構築する。
- * - inputDir 優先順位: `parsed.inputDir` > `join(chatlogsDir, 'normalizelogs')`
+ * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `DEFAULT_AGENT`
+ * - period: `parsed.period`（そのまま、未指定なら全期間対象）
+ * - chatlogsDir 優先順位: `globalConfig.get('chatlogsDir')` > `DEFAULT_CHATLOGS_DIR`
+ * - inputDir: `parsed.inputDir` をそのまま通す（実際のディレクトリ解決は main() が `resolveChatlogsDir` で行う）
  * - outputDir: 絶対パスならそのまま使用、相対パスなら `join(chatlogsDir, outputDir)`、未指定なら `join(chatlogsDir, 'outputLogs')`
- * - chatlogsDir: `globalConfig.get('chatlogsDir')` > `DEFAULT_CHATLOGS_DIR`
  * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `DEFAULT_DICS_DIR`
  * - promptsDir 優先順位: `parsed.promptsDir` > `globalConfig.get('promptsDir')` > `DEFAULT_PROMPTS_DIR`
  * - dryRun: `parsed.dryRun ?? false`
@@ -59,7 +60,7 @@ export const buildConfig = (
   globalConfig: GlobalConfig,
 ): SetfmConfig => {
   const _chatlogsDir = (globalConfig.get('chatlogsDir') as string | undefined) ?? DEFAULT_CHATLOGS_DIR;
-  const _inputDir = parsed.inputDir || joinPath(_chatlogsDir, 'normalizelogs');
+  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? DEFAULT_AGENT;
   const _outputDir = parsed.outputDir
     ? (isAbsolutePath(parsed.outputDir) ? parsed.outputDir : joinPath(_chatlogsDir, parsed.outputDir))
     : joinPath(_chatlogsDir, 'outputLogs');
@@ -76,8 +77,11 @@ export const buildConfig = (
   const _cacheDir = parsed.cacheDir ?? joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache');
   const _maxRetry = (globalConfig.get('maxRetry') as number) ?? DEFAULT_MAX_RETRY;
   return {
-    inputDir: _inputDir,
+    inputDir: parsed.inputDir ?? '',
     outputDir: _outputDir,
+    agent: _agent,
+    period: parsed.period,
+    chatlogsDir: _chatlogsDir,
     dicsDir: _dicsDir,
     promptsDir: _promptsDir,
     dryRun: _dryRun,

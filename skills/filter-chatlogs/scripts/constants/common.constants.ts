@@ -37,6 +37,7 @@ export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
 /** filter-chatlogs の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
+  chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
   // config.yaml only
   chunkSize: DEFAULT_VALUES.chunkSize,

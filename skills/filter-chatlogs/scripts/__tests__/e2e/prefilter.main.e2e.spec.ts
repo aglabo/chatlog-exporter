@@ -56,7 +56,7 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   resetProjectRoot('/home/user/project');
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
-    readTextFileProvider: () => Promise.resolve(yaml),
+    readTextFileProvider: () => yaml,
     configFile: 'dummy.yaml',
   });
 };
@@ -83,8 +83,8 @@ describe('main (prefilter) - dry-run モード', () => {
    * dry-run 時にファイルが削除されず、パスがログに出力されることを確認する。
    */
   describe('Given: ノイズファイル名の .md ファイルと --dry-run フラグ', () => {
-    /** `main(["claude", "--dry-run", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--dry-run", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--dry-run", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--dry-run", "--input-dir", chatlogsDir]) を呼び出す', () => {
       /** ファイルが削除されず、stdout にノイズファイルのパスが出力されること。 */
       describe('Then: T-PF-E2E-01 - ファイルが削除されずパスが stdout に出力される', () => {
         let tempDir: string;
@@ -106,7 +106,7 @@ describe('main (prefilter) - dry-run モード', () => {
           const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, _makeValidContent());
 
-          await main(['claude', '2026-03', '--dry-run', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
           assertEquals(await fileExists(filePath), true);
           assertEquals(loggerStub.logLogs.some((line) => line.includes('say-ok-and-nothing-else.md')), true);
@@ -136,8 +136,8 @@ describe('main (prefilter) - report モード', () => {
    * ファイルの削除は発生しないことを確認する。
    */
   describe('Given: ノイズファイル名の .md ファイルと --report フラグ', () => {
-    /** `main(["claude", "--report", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--report", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--report", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--report", "--input-dir", chatlogsDir]) を呼び出す', () => {
       /** `NOISE\t{reason}\t{path}` 形式でログ出力され、ファイルが削除されないこと。 */
       describe('Then: T-PF-E2E-02 - NOISE タブ区切り形式で出力、削除なし', () => {
         let tempDir: string;
@@ -159,7 +159,7 @@ describe('main (prefilter) - report モード', () => {
           const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, _makeValidContent());
 
-          await main(['claude', '2026-03', '--report', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--report', '--input-dir', chatlogsDir]);
 
           const noiseLine = loggerStub.logLogs.find((line) => line.startsWith('NOISE\t'));
           assertEquals(noiseLine !== undefined, true);
@@ -191,8 +191,8 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
    * 通常実行時にノイズファイルのみが削除され、正常ファイルは残ることを確認する。
    */
   describe('Given: ノイズと正常ファイルが混在するディレクトリ', () => {
-    /** `main(["claude", "--base-dir", tempDir])` を通常モードで呼び出すとき。 */
-    describe('When: main(["claude", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--input-dir", chatlogsDir])` を通常モードで呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", chatlogsDir]) を呼び出す', () => {
       /** ノイズファイルが削除され、正常ファイルはファイルシステムに残ること。 */
       describe('Then: T-PF-E2E-03 - ノイズは削除、正常は残る', () => {
         let tempDir: string;
@@ -216,7 +216,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
           await Deno.writeTextFile(noisePath, _makeValidContent());
           await Deno.writeTextFile(validPath, _makeValidContent());
 
-          await main(['claude', '2026-03', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
           await assertFileNotExist(noisePath);
           assertEquals(await fileExists(validPath), true);
@@ -245,8 +245,8 @@ describe('main (prefilter) - 全件 keep', () => {
    * 全件 keep 時にファイルが削除されず、完了ログに `noise=0` が含まれることを確認する。
    */
   describe('Given: 正常ファイル 2 件', () => {
-    /** `main(["claude", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", chatlogsDir]) を呼び出す', () => {
       /** 全ファイルが残り、完了ログに `noise=0` が含まれること。 */
       describe('Then: T-PF-E2E-04 - 全ファイルが残っており keep=2 のログ', () => {
         let tempDir: string;
@@ -270,7 +270,7 @@ describe('main (prefilter) - 全件 keep', () => {
           await Deno.writeTextFile(path1, _makeValidContent());
           await Deno.writeTextFile(path2, _makeValidContent());
 
-          await main(['claude', '2026-03', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
           await assertFileExist(path1);
           await assertFileExist(path2);
@@ -300,8 +300,8 @@ describe('main (prefilter) - 空ディレクトリ', () => {
    * 対象ファイルが 0 件の場合の完了ログが適切に出力されることを確認する。
    */
   describe('Given: .md ファイルが 0 件のディレクトリ', () => {
-    /** `main(["claude", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--input-dir", agentDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", agentDir]) を呼び出す', () => {
       /** 完了ログに `noise=0` と `keep=0` が含まれること。 */
       describe('Then: T-PF-E2E-06 - "noise=0 keep=0 error=0" を含むログが出力される', () => {
         let tempDir: string;
@@ -319,9 +319,10 @@ describe('main (prefilter) - 空ディレクトリ', () => {
         });
 
         it('T-PF-E2E-06-01: 完了ログに "noise=0 keep=0 error=0" が含まれる', async () => {
-          await Deno.mkdir(`${tempDir}/claude`, { recursive: true });
+          const agentDir = `${tempDir}/claude`;
+          await Deno.mkdir(agentDir, { recursive: true });
 
-          await main(['claude', '--base-dir', tempDir]);
+          await main(['claude', '--input-dir', agentDir]);
 
           assertEquals(loggerStub.infoLogs.some((line) => line.includes('noise=0') && line.includes('keep=0')), true);
         });
@@ -367,7 +368,7 @@ describe('main (prefilter) - period 絞り込み', () => {
             '2026-03',
             '2026-04',
           ));
-          // baseDir は GlobalConfig.chatlogsDir + originalLogs から解決されるため、
+          // 探索ディレクトリは GlobalConfig.chatlogsDir + originalLogs から解決されるため、
           // ノイズファイルは originalLogs 配下に作成する。
           chatlogsDir03 = periodDir1.replace(`${tempDir}/`, `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/`);
           chatlogsDir04 = periodDir2.replace(`${tempDir}/`, `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/`);
@@ -417,8 +418,8 @@ describe('main (prefilter) - report 完了ログ', () => {
    * report モードの完了ログが `report` キーワードを含むことを確認する。
    */
   describe('Given: 正常ファイル 1 件と --report フラグ', () => {
-    /** `main(["claude", "--report", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--report", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "--report", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--report", "--input-dir", chatlogsDir]) を呼び出す', () => {
       /** 完了ログに `report` キーワードが含まれること。 */
       describe('Then: T-PF-E2E-08 - 完了ログに "report" が含まれる', () => {
         let tempDir: string;
@@ -439,7 +440,7 @@ describe('main (prefilter) - report 完了ログ', () => {
         it('T-PF-E2E-08-01: 完了ログに "report" が含まれる', async () => {
           await Deno.writeTextFile(`${chatlogsDir}/valid.md`, _makeValidContent());
 
-          await main(['claude', '2026-03', '--report', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--report', '--input-dir', chatlogsDir]);
 
           assertEquals(loggerStub.infoLogs.some((line) => line.includes('report')), true);
         });

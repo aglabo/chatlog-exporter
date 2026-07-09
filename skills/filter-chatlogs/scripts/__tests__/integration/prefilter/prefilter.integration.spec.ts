@@ -44,11 +44,11 @@ const _makeTestFile = async (path: string, content: string): Promise<void> => {
 };
 
 const _runPipeline = async (
-  baseDir: string,
+  chatlogsDir: string,
   agent: string,
   period?: string,
 ): Promise<{ noise: number; keep: number }> => {
-  const _searchDir = resolveChatlogsDir({ baseDir, agent, period });
+  const _searchDir = resolveChatlogsDir({ chatlogsDir, agent, period });
   const files = await findFiles(_searchDir);
   let noise = 0;
   let keep = 0;
@@ -108,7 +108,9 @@ describe('findMdFiles → classifyFile パイプライン', () => {
           await _makeTestFile(`${tempDir}/claude/2026/2026-03/chat.md`, _makeValidContent());
           await _makeTestFile(`${tempDir}/claude/2026/2026-04/chat.md`, _makeValidContent());
 
-          const files = await findFiles(resolveChatlogsDir({ baseDir: tempDir, agent: 'claude', period: '2026-03' }));
+          const files = await findFiles(
+            resolveChatlogsDir({ chatlogsDir: tempDir, agent: 'claude', period: '2026-03' }),
+          );
 
           assertEquals(files.length, 1);
           assertEquals(files[0].includes('2026-03'), true);
@@ -118,7 +120,9 @@ describe('findMdFiles → classifyFile パイプライン', () => {
           await _makeTestFile(`${tempDir}/claude/2026/2026-03/chat.md`, _makeValidContent());
           await _makeTestFile(`${tempDir}/claude/2026/2026-04/chat.md`, _makeValidContent());
 
-          const files = await findFiles(resolveChatlogsDir({ baseDir: tempDir, agent: 'claude', period: '2026-03' }));
+          const files = await findFiles(
+            resolveChatlogsDir({ chatlogsDir: tempDir, agent: 'claude', period: '2026-03' }),
+          );
 
           assertEquals(files.some((f) => f.includes('2026-04')), false);
         });

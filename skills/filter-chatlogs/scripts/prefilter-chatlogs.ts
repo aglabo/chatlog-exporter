@@ -26,7 +26,7 @@
  *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts codex 2026-01
  *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --dry-run
  *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --report
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --input ./temp/chatlogs
+ *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --input-dir ./temp/chatlogs
  */
 
 // ─── shared ───
@@ -40,6 +40,8 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── internal ───
+// constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 // types
 import type { PrefilterStats } from './types/prefilter.types.ts';
 // functions
@@ -53,13 +55,14 @@ import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
 export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { agent, period, baseDir, chatlogsDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const { agent, period, chatlogsDir, inputDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
     const _searchDir = resolveChatlogsDir({
-      chatlogsDir: _parsed.chatlogsDir,
-      baseDir: baseDir ?? chatlogsDir,
+      chatlogsDir,
       agent,
       period,
+      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+      override: inputDir,
     });
 
     if (!await dirExists(_searchDir)) {
