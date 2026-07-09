@@ -11,7 +11,7 @@
  *
  * 使い方:
  *   deno run --allow-read --allow-run --allow-write classify-chatlogs.ts \
- *     [agent] [YYYY-MM] [--dry-run] [--config FILE] [--base-dir DIR] [--chatlogs-dir DIR]
+ *     [agent] [YYYY-MM] [--dry-run] [--config FILE] [--input-dir DIR]
  */
 
 // cspell:words noai
@@ -68,16 +68,16 @@ export const processClassify = async (
 export const main = async (argv?: string[]): Promise<void> => {
   try {
     const _parsed = parseArgs(argv ?? Deno.args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
     // 入力ディレクトリ確認
     const _agentDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
-      baseDir: _config.baseDir,
       agent: _config.agent,
       period: _config.period,
       addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+      override: _config.inputDir,
     });
     if (!await dirExists(_agentDir)) {
       throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
@@ -98,10 +98,10 @@ export const main = async (argv?: string[]): Promise<void> => {
     // 対象ディレクトリ
     const _searchDir = resolveChatlogsDir({
       chatlogsDir: _config.chatlogsDir,
-      baseDir: _config.baseDir,
       agent: _config.agent,
       period: _config.period,
       addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+      override: _config.inputDir,
     });
 
     const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
