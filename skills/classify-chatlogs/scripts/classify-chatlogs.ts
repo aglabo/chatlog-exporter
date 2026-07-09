@@ -18,7 +18,6 @@
 
 // ─── Shared scripts
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
@@ -28,7 +27,7 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 // ─── Local
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
-import { buildConfig, parseArgs } from './modules/classify-config.ts';
+import { buildConfig } from './modules/classify-config.ts';
 import { processPreclassify } from './modules/classify-noai.ts';
 import { moveClassified } from './modules/file-ops.ts';
 import { findBufferEntries } from './modules/find-buffer-entries.ts';
@@ -67,9 +66,7 @@ export const processClassify = async (
  */
 export const main = async (argv?: string[]): Promise<void> => {
   try {
-    const _parsed = parseArgs(argv ?? Deno.args);
-    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const _config = buildConfig(_parsed, _globalConfig);
+    const _config = buildConfig(argv ?? Deno.args);
 
     // 入力ディレクトリ確認
     const _agentDir = resolveChatlogsDir({
