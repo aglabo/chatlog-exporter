@@ -43,25 +43,25 @@ export const agentPath = (agent: string, period?: string): string => {
 // ─────────────────────────────────────────────
 
 export type ResolveChatlogsDirOptions = {
-  chatlogsDir?: string;
-  baseDir: string;
+  chatlogsDir: string;
   agent: string;
   period?: string;
   addOnDir?: string;
+  override?: string;
 };
 
 /**
  * チャットログディレクトリを解決する。
  *
- * - `chatlogsDir` が指定済み → そのまま返す（agent/period/addOnDir は無視）
- * - `chatlogsDir` が未定義 → `baseDir` と `agentPath(agent, period)` の間に
+ * - `override` が指定済み → そのまま返す（agent/period/addOnDir は無視）
+ * - `override` が未定義 → `chatlogsDir` と `agentPath(agent, period)` の間に
  *   `addOnDir`（指定時のみ）を挟んだパスを返す
  */
 export const resolveChatlogsDir = (
-  { chatlogsDir, baseDir, agent, period, addOnDir }: ResolveChatlogsDirOptions,
+  { chatlogsDir, agent, period, addOnDir, override }: ResolveChatlogsDirOptions,
 ): string => {
-  if (chatlogsDir) { return chatlogsDir; }
-  const _base = addOnDir ? joinPath(baseDir, addOnDir) : baseDir;
+  if (override) { return override; }
+  const _base = addOnDir ? joinPath(chatlogsDir, addOnDir) : chatlogsDir;
   return `${_base}/${agentPath(agent, period)}`;
 };
 
