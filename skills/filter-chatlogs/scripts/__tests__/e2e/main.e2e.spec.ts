@@ -20,6 +20,8 @@ import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
 import { main } from '../../filter-chatlogs.ts';
+// classes
+import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
 import { LOGGER_HEADER } from '../../../../_scripts/constants/logger-header.constants.ts';
 
@@ -34,6 +36,7 @@ import {
 // stub
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -42,6 +45,8 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 import { assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
+// helpers
+import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 
@@ -52,6 +57,24 @@ const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(age
 
 /** `_makeValidContent` のラッパー。`FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
 const _makeValidContent = (title = 'テスト') => makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH, title);
+
+/**
+ * テスト用 `GlobalConfig` インスタンスを YAML 文字列から生成する。
+ *
+ * 毎回 `GlobalConfig.resetInstance()` でシングルトンをリセットしてから
+ * `resetProjectRoot` でプロジェクトルートをシードして初期化する。
+ *
+ * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'chatlogsDir: /tmp/test'`）
+ * @returns 初期化済みの `GlobalConfig` インスタンス
+ */
+const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
+  resetProjectRoot('/home/user/project');
+  GlobalConfig.resetInstance();
+  return await GlobalConfig.getInstance({
+    readTextFileProvider: () => yaml,
+    configFile: 'dummy.yaml',
+  });
+};
 
 // ─── Tests
 
@@ -105,7 +128,7 @@ describe('main - dry-run モード', () => {
           });
 
           it('T-FL-E2E-01-01: ファイルが削除されずに残り "[dry-run]" がログに出力される', async () => {
-            await main(['claude', '2026-03', '--dry-run', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
             assertEquals(loggerStub.logLogs.some((l) => l.includes('[dry-run]')), true);
@@ -166,7 +189,7 @@ describe('main - DISCARD 判定', () => {
           });
 
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             await assertFileNotExist(`${chatlogsDir}/discard.md`);
           });
@@ -225,7 +248,7 @@ describe('main - KEEP 判定', () => {
           });
 
           it('T-FL-E2E-03-01: ファイルが残っている', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
@@ -258,12 +281,13 @@ describe('main - 対象ファイルなし', () => {
       /** "対象ファイルなし" を含む info ログが出力されること。 */
       describe('Then: T-FL-E2E-04 - "対象ファイルなし" ログが出力される', () => {
         let tempDir: string;
+        let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
         let exitStub: Stub;
 
         beforeEach(async () => {
-          ({ tempDir } = await _makeTestDirs());
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('[]')),
           );
@@ -279,7 +303,7 @@ describe('main - 対象ファイルなし', () => {
         });
 
         it('T-FL-E2E-04-01: "対象ファイルなし" がログに出力される', async () => {
-          await main(['claude', '2026-03', '--base-dir', tempDir]);
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes(LOGGER_HEADER.NO_FILE_FOUND)), true);
         });
@@ -342,13 +366,13 @@ describe('main - DISCARD + KEEP 混在', () => {
           });
 
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             await assertFileNotExist(`${chatlogsDir}/discard.md`);
           });
 
           it('T-FL-E2E-05-02: keep.md が残っている', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
           });
@@ -398,28 +422,35 @@ describe('main - period 絞り込み', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: 2026-03/march.md と 2026-04/april.md を配置', () => {
           beforeEach(async () => {
-            const agentDir = `${tempDir}/claude`;
+            // 探索ディレクトリは GlobalConfig.chatlogsDir + originalLogs から解決されるため、
+            // ファイルは originalLogs 配下に作成する。
+            const agentDir = `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude`;
             await Deno.mkdir(`${agentDir}/2026/2026-03`, { recursive: true });
             await Deno.mkdir(`${agentDir}/2026/2026-04`, { recursive: true });
             await Deno.writeTextFile(`${agentDir}/2026/2026-03/march.md`, _makeValidContent('March'));
             await Deno.writeTextFile(`${agentDir}/2026/2026-04/april.md`, _makeValidContent('April'));
+            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
           });
 
           it('T-FL-E2E-06-01: 指定月 (2026-03) のファイルが削除される', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03']);
 
-            await assertFileNotExist(`${tempDir}/claude/2026/2026-03/march.md`);
+            await assertFileNotExist(`${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-06-02: 他の月 (2026-04) のファイルは残っている', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03']);
 
-            assertEquals(await fileExists(`${tempDir}/claude/2026/2026-04/april.md`), true);
+            assertEquals(
+              await fileExists(`${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude/2026/2026-04/april.md`),
+              true,
+            );
           });
         });
       });
@@ -474,7 +505,7 @@ describe('main - Claude CLI NotFound', () => {
           });
 
           it('T-FL-E2E-07-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
@@ -533,7 +564,7 @@ describe('main - confidence 閾値未満', () => {
           });
 
           it('T-FL-E2E-08-01: confidence=0.69 の DISCARD ファイルが削除されずに残っている', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/low-conf.md`), true);
           });
@@ -590,7 +621,7 @@ describe('main - Claude CLI 異常終了', () => {
           });
 
           it('T-FL-E2E-09-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
-            await main(['claude', '2026-03', '--base-dir', tempDir]);
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
           });
@@ -620,8 +651,8 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
    * Deno.exit(1) が発生することを確認する。
    */
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
-    /** `main(["claude", "2026-99", "--base-dir", tempDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "2026-99", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude", "2026-99"])` を呼び出すとき（GlobalConfig に chatlogsDir を設定）。 */
+    describe('When: main(["claude", "2026-99"]) を呼び出す', () => {
       /** InputNotFound エラーが発生し Deno.exit(1) が呼ばれること。 */
       describe('Then: T-FL-E2E-11 - InputNotFound → exit(1)', () => {
         let tempDir: string;
@@ -631,6 +662,11 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
         beforeEach(async () => {
           // agent ディレクトリは存在するが、2026-99 月ディレクトリは存在しない
           ({ tempDir } = await _makeTestDirs('claude', '2026-03'));
+          // 探索ディレクトリは GlobalConfig.chatlogsDir + originalLogs から解決されるため、
+          // agent ディレクトリは originalLogs 配下に作成する。
+          const originalLogsAgentDir = `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude/2026/2026-03`;
+          await Deno.mkdir(originalLogsAgentDir, { recursive: true });
+          await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
           loggerStub = makeLoggerStub();
           exitStub = stub(Deno, 'exit');
         });
@@ -638,12 +674,13 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
         afterEach(async () => {
           loggerStub.restore();
           exitStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         it('T-FL-E2E-11-01: Deno.exit が 1 で呼ばれる', async () => {
           try {
-            await main(['claude', '2026-99', '--base-dir', tempDir]);
+            await main(['claude', '2026-99']);
           } catch { /* ChatlogError が漏れた場合も継続 */ }
 
           assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
@@ -652,7 +689,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
 
         it('T-FL-E2E-11-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
           try {
-            await main(['claude', '2026-99', '--base-dir', tempDir]);
+            await main(['claude', '2026-99']);
           } catch { /* ChatlogError が漏れた場合も継続 */ }
 
           assertEquals(
@@ -683,8 +720,8 @@ describe('main - period 未指定', () => {
    * period 未指定時は全月のファイルが処理対象となり、両月のファイルが削除されることを確認する。
    */
   describe('Given: 複数月に DISCARD ファイルが存在し period 未指定', () => {
-    /** `main(["claude", "--base-dir", tempDir])` を period なしで呼び出すとき。 */
-    describe('When: main(["claude", "--base-dir", tempDir]) を呼び出す', () => {
+    /** `main(["claude"])` を period なしで呼び出すとき（GlobalConfig に chatlogsDir を設定）。 */
+    describe('When: main(["claude"]) を呼び出す', () => {
       /** 両月のファイルが削除対象になること。 */
       describe('Then: T-FL-E2E-10 - 全月のファイルが処理される', () => {
         let tempDir: string;
@@ -707,28 +744,32 @@ describe('main - period 未指定', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: 2026-03/march.md と 2026-04/april.md を配置', () => {
           beforeEach(async () => {
-            const agentDir = `${tempDir}/claude`;
+            // 探索ディレクトリは GlobalConfig.chatlogsDir + originalLogs から解決されるため、
+            // ファイルは originalLogs 配下に作成する。
+            const agentDir = `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude`;
             await Deno.mkdir(`${agentDir}/2026/2026-03`, { recursive: true });
             await Deno.mkdir(`${agentDir}/2026/2026-04`, { recursive: true });
             await Deno.writeTextFile(`${agentDir}/2026/2026-03/march.md`, _makeValidContent('March'));
             await Deno.writeTextFile(`${agentDir}/2026/2026-04/april.md`, _makeValidContent('April'));
+            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
           });
 
           it('T-FL-E2E-10-01: 2026-03 のファイルが削除される', async () => {
-            await main(['claude', '--base-dir', tempDir]);
+            await main(['claude']);
 
-            await assertFileNotExist(`${tempDir}/claude/2026/2026-03/march.md`);
+            await assertFileNotExist(`${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude/2026/2026-03/march.md`);
           });
 
           it('T-FL-E2E-10-02: 2026-04 のファイルが削除される', async () => {
-            await main(['claude', '--base-dir', tempDir]);
+            await main(['claude']);
 
-            await assertFileNotExist(`${tempDir}/claude/2026/2026-04/april.md`);
+            await assertFileNotExist(`${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/claude/2026/2026-04/april.md`);
           });
         });
       });
