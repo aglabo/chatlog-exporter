@@ -17,7 +17,7 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
 export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
   dryRun: false,
   concurrency: DEFAULT_CONCURRENCY,
-  normalizeDir: DEFAULT_NORMALIZE_DIR,
+  outputDir: DEFAULT_NORMALIZE_DIR,
 };
 
 /** Maximum number of segments per file. Segments returned by the AI are truncated to this count. */

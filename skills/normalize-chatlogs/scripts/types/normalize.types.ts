@@ -48,15 +48,15 @@ export type Stats = {
 };
 
 export interface NormalizeConfig {
-  chatlogsDir?: string;
-  baseDir?: string;
+  chatlogsDir: string;
+  inputDir?: string;
   agent?: string;
   period?: string;
   model?: string;
   timeoutMs?: number;
   dryRun: boolean;
   concurrency: number;
-  normalizeDir?: string;
+  outputDir?: string;
   failFast?: boolean;
   singleFile?: boolean;
 }
