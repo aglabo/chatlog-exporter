@@ -105,6 +105,24 @@ describe('moveClassified', () => {
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
     });
+
+    it('[Normal] T-CL-MC-09: action=error → stats.error++ のみ、ファイル移動なし', async () => {
+      const _buffer: ClassifyBuffer = [{
+        file: null,
+        filePath: '/tmp/input/broken.md',
+        action: CLASSIFY_ACTIONS.ERROR,
+        reason: 'AI 分類失敗',
+      }];
+      const _stats = _makeStats();
+
+      await moveClassified(_buffer, '/tmp/output', false, _stats);
+
+      assertEquals(_stats.error, 1);
+      assertEquals(_stats.moved, 0);
+      assertEquals(_stats.movedByAI, 0);
+      assertEquals(_stats.skipped, 0);
+      assertEquals(_stats.remaining, 0);
+    });
   });
 
   /**
