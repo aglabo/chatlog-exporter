@@ -17,6 +17,8 @@ import { buildConfig, parseArgs } from '../../../configs/prefilter-config.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// constants
+import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 // types
 import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
 
@@ -36,18 +38,22 @@ import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-ut
  * @see parseArgs
  */
 describe('parseArgs (prefilter)', () => {
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+  });
+
   /** 引数なし・agent/period・フラグ・オプション形式の正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-PF-PA-01-01: agent が undefined になる', () => {
-      assertEquals(parseArgs([]).agent, undefined);
+    it('[Normal] T-PF-PA-01-01: agent が GlobalConfig のデフォルト値 "claude" になる', () => {
+      assertEquals(parseArgs([]).agent, 'claude');
     });
 
     it('[Normal] T-PF-PA-01-02: dryRun が false になる', () => {
       assertFalse(parseArgs([]).dryRun);
     });
 
-    it('[Normal] T-PF-PA-01-03: chatlogsDir が undefined になる', () => {
-      assertEquals(parseArgs([]).chatlogsDir, undefined);
+    it('[Normal] T-PF-PA-01-03: chatlogsDir が GlobalConfig のデフォルト値になる', () => {
+      assertEquals(parseArgs([]).chatlogsDir, DEFAULT_CHATLOGS_DIR);
     });
 
     it('[Normal] T-PF-PA-01-04: period が undefined になる', () => {
@@ -60,10 +66,6 @@ describe('parseArgs (prefilter)', () => {
 
     it('[Normal] T-PF-PA-02-01: agent が "codex" になる', () => {
       assertEquals(parseArgs(['codex']).agent, 'codex');
-    });
-
-    it('[Normal] T-PF-PA-03-01: period が "2026-03" になる', () => {
-      assertEquals(parseArgs(['2026-03']).period, '2026-03');
     });
 
     it('[Normal] T-PF-PA-04-01: agent="claude", period="2026-03" が正しく解析される', () => {
@@ -97,25 +99,25 @@ describe('parseArgs (prefilter)', () => {
     });
 
     it('[Normal] T-PF-PA-10-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['codex', '2026-03', '--report', '--base-dir', '/path/to/base']);
+      const result = parseArgs(['codex', '2026-03', '--report', '--input-dir', '/path/to/input']);
 
       assertEquals(result.agent, 'codex');
       assertEquals(result.period, '2026-03');
       assert(result.report);
       assert(result.dryRun);
-      assertEquals(result.baseDir, '/path/to/base');
+      assertEquals(result.inputDir, '/path/to/input');
     });
 
-    it('[Normal] T-PF-PA-14-01: baseDir が "/path/to/base" になる', () => {
-      assertEquals(parseArgs(['--base-dir', '/path/to/base']).baseDir, '/path/to/base');
+    it('[Normal] T-PF-PA-14-01: inputDir が "/path/to/input" になる', () => {
+      assertEquals(parseArgs(['--input-dir', '/path/to/input']).inputDir, '/path/to/input');
     });
 
-    it('[Normal] T-PF-PA-14-02: --base-dir=value 形式のパース', () => {
-      assertEquals(parseArgs(['--base-dir=/path/to/base']).baseDir, '/path/to/base');
+    it('[Normal] T-PF-PA-14-02: --input-dir=value 形式のパース', () => {
+      assertEquals(parseArgs(['--input-dir=/path/to/input']).inputDir, '/path/to/input');
     });
 
-    it('[Normal] T-PF-PA-12-01: chatlogsDir が "/path/to/chatlogs" になる', () => {
-      assertEquals(parseArgs(['--chatlogs-dir', '/path/to/chatlogs']).chatlogsDir, '/path/to/chatlogs');
+    it('[Normal] T-PF-PA-12-01: inputDir が "/path/to/chatlogs" になる', () => {
+      assertEquals(parseArgs(['--input-dir', '/path/to/chatlogs']).inputDir, '/path/to/chatlogs');
     });
   });
 
@@ -137,9 +139,16 @@ describe('parseArgs (prefilter)', () => {
       );
     });
 
-    it('[Error] T-PF-PA-13-01: --chatlogs-dir にパスでない値 → ChatlogError がスローされる', () => {
+    it('[Error] T-PF-PA-13-01: --input-dir にパスでない値 → ChatlogError がスローされる', () => {
       assertThrows(
-        () => parseArgs(['--chatlogs-dir', 'notapath']),
+        () => parseArgs(['--input-dir', 'notapath']),
+        ChatlogError,
+      );
+    });
+
+    it('[Error] T-PF-PA-03-01: period 単独指定（agent 省略）→ ChatlogError(InvalidArgs) がスローされる', () => {
+      assertThrows(
+        () => parseArgs(['2026-03']),
         ChatlogError,
       );
     });
@@ -168,19 +177,19 @@ describe('buildConfig', () => {
    *
    * @returns 初期化済みの `GlobalConfig` インスタンス（空設定）
    */
-  const _makeEmptyGlobalConfig = async (): Promise<GlobalConfig> => {
+  const _makeEmptyGlobalConfig = (): GlobalConfig => {
     resetProjectRoot('/home/user/project');
     GlobalConfig.resetInstance();
-    return await GlobalConfig.getInstance({
-      readTextFileProvider: () => Promise.resolve('{}'),
+    return GlobalConfig.getInstance({
+      readTextFileProvider: () => '{}',
       configFile: 'dummy.yaml',
       schema: {},
     });
   };
 
   let globalConfig: GlobalConfig;
-  beforeEach(async () => {
-    globalConfig = await _makeEmptyGlobalConfig();
+  beforeEach(() => {
+    globalConfig = _makeEmptyGlobalConfig();
   });
   afterEach(() => {
     GlobalConfig.resetInstance();
@@ -212,9 +221,9 @@ describe('buildConfig', () => {
       assert(buildConfig({ dryRun: true, report: true }, globalConfig).report);
     });
 
-    it('[Normal] T-PF-BC-04-01: chatlogsDir が "/chat" になる', () => {
+    it('[Normal] T-PF-BC-04-01: inputDir が "/chat" になる', () => {
       assertEquals(
-        buildConfig({ chatlogsDir: '/chat', dryRun: false, report: false }, globalConfig).chatlogsDir,
+        buildConfig({ inputDir: '/chat', dryRun: false, report: false }, globalConfig).inputDir,
         '/chat',
       );
     });
