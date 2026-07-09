@@ -42,7 +42,7 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
   resetProjectRoot('/home/user/project');
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({
-    readTextFileProvider: () => Promise.resolve(yaml),
+    readTextFileProvider: () => yaml,
     configFile: 'dummy.yaml',
   });
 }
