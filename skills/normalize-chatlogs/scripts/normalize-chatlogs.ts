@@ -20,7 +20,6 @@ import type { HashProvider } from '../../_scripts/types/providers.types.ts';
 // -- constants --
 import {
   DEFAULT_AGENT,
-  DEFAULT_CHATLOGS_DIR,
   DEFAULT_NORMALIZE_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
   DEFAULT_TIMEOUT_MS,
@@ -62,23 +61,23 @@ import type { Stats } from './types/normalize.types.ts';
 export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void> => {
   try {
     const _parsed = parseArgs(argv ?? Deno.args);
-    const _globalConfig = await GlobalConfig.getInstance({ configFile: _parsed.configFile });
+    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _timeoutMs = Number(_globalConfig.get('timeoutMs') ?? DEFAULT_TIMEOUT_MS);
-    const config = buildConfig(_parsed, {
+    const config = buildConfig(_parsed, _globalConfig, {
       ...DEFAULT_NORMALIZE_CONFIG,
       timeoutMs: _timeoutMs,
     });
     const inputDir = resolveChatlogsDir({
       chatlogsDir: config.chatlogsDir,
-      baseDir: config.baseDir ?? DEFAULT_CHATLOGS_DIR,
       agent: config.agent ?? DEFAULT_AGENT,
       period: config.period,
       addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+      override: config.inputDir,
     });
     if (!dirExistsSync(inputDir)) {
       throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
     }
-    const outputBase = config.normalizeDir ?? DEFAULT_NORMALIZE_DIR;
+    const outputBase = config.outputDir ?? DEFAULT_NORMALIZE_DIR;
 
     const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
     await processFiles(inputDir, outputBase, config, stats, hashFn);
