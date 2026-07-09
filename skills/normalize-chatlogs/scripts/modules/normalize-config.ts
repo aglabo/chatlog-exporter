@@ -9,7 +9,10 @@
 
 // --- shared
 // functions
-import { parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+
+// classes
+import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
 // types
 import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
@@ -26,28 +29,33 @@ import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- local
 // constants
-const _SCHEMA: ArgsSchema = [
+const _SCHEMA: ArgsSchema<NormalizeParsedConfig> = [
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
   { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
-  { option: '--normalize-dir', field: 'normalizeDir', type: 'directory' },
+  { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--fail-fast', field: 'failFast', type: 'flag' },
   { option: '--single-file', field: 'singleFile', type: 'flag' },
 ];
 
 export const parseArgs = (args: string[]): NormalizeParsedConfig => {
-  return parseArgsToConfig<NormalizeParsedConfig>(args, _SCHEMA) as NormalizeParsedConfig;
+  return parseArgsToConfig<NormalizeParsedConfig>(args, _SCHEMA);
 };
 
 export const buildConfig = (
   parsed: NormalizeParsedConfig,
+  globalConfig: GlobalConfig,
   defaults: Partial<NormalizeConfig> = DEFAULT_NORMALIZE_CONFIG,
 ): NormalizeConfig => {
+  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
   const { configFile: _configFile, ...rest } = parsed;
   return {
     ...defaults,
     ...rest,
+    chatlogsDir: _chatlogsDir,
+    inputDir: parsed.inputDir,
+    outputDir: parsed.outputDir ?? defaults.outputDir,
     dryRun: parsed.dryRun ?? defaults.dryRun ?? false,
     concurrency: parsed.concurrency ?? defaults.concurrency ?? DEFAULT_CONCURRENCY,
   };
