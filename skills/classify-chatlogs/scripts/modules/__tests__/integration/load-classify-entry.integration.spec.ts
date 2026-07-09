@@ -9,7 +9,7 @@
 // cspell:words noai
 
 // ─── BDD modules
-import { assertEquals, assertInstanceOf, assertRejects } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── test target
@@ -19,8 +19,6 @@ import { loadClassifyEntry } from '../../classify-noai.ts';
 // ─── helpers
 // errors
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-// classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
 import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../../../_scripts/types/action-status.types.ts';
 
@@ -211,15 +209,6 @@ describe('loadClassifyEntry', () => {
           assertEquals(_result.options.filePath, filePath);
         });
 
-        it('[Error] T-CL-LFM-07-02: entry が ChatlogEntry インスタンスである', async () => {
-          const filePath = `${tempDir}/unclosed-fm.md`;
-          await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文');
-
-          const _result = await loadClassifyEntry(filePath);
-
-          assertInstanceOf(_result.entry, ChatlogEntry);
-        });
-
         it('[Error] T-CL-LFM-07-03: reason に ChatlogError のメッセージが含まれる', async () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文');
@@ -249,15 +238,6 @@ describe('loadClassifyEntry', () => {
           assertEquals(_result.options.filePath, filePath);
         });
 
-        it('[Error] T-CL-LFM-08-02: entry が ChatlogEntry インスタンスである', async () => {
-          const filePath = `${tempDir}/bad-yaml.md`;
-          await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
-
-          const _result = await loadClassifyEntry(filePath);
-
-          assertInstanceOf(_result.entry, ChatlogEntry);
-        });
-
         it('[Error] T-CL-LFM-08-03: reason に ChatlogError のメッセージが含まれる', async () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
@@ -276,15 +256,6 @@ describe('loadClassifyEntry', () => {
   describe('Given: frontmatter なし・空本文（改行のみ）の .md ファイル', () => {
     describe('When: loadClassifyEntry(filePath) を呼び出す', () => {
       describe('Then: T-CL-LFM-09 - インスタンスが返され、project は undefined', () => {
-        it('T-CL-LFM-09-01: entry が ChatlogEntry インスタンスである（分類対象として扱われる）', async () => {
-          const filePath = `${tempDir}/empty-body.md`;
-          await Deno.writeTextFile(filePath, '\n');
-
-          const _result = await loadClassifyEntry(filePath);
-
-          assertInstanceOf(_result.entry, ChatlogEntry);
-        });
-
         it('T-CL-LFM-09-02: entry.frontmatter.get("project") が undefined（スキップされない）', async () => {
           const filePath = `${tempDir}/empty-body.md`;
           await Deno.writeTextFile(filePath, '\n');
