@@ -152,7 +152,7 @@ export class ChatlogWorks<T extends object> {
 
   /**
    * `_cacheDir` を解決してディレクトリを作成する。
-   * `cacheRoot` が falsy のとき `GlobalConfig.cacheDir` を非同期で取得する。
+   * `cacheRoot` が falsy のとき `GlobalConfig.cacheDir` を取得する。
    */
   private async _initCacheDir(
     subDir: string,
@@ -164,7 +164,7 @@ export class ChatlogWorks<T extends object> {
     if (isAbsolutePath(_expandedSubDir)) {
       this._cacheDir = _expandedSubDir;
     } else {
-      const _root = cacheRoot || String((await GlobalConfig.getInstance()).get('cacheDir'));
+      const _root = cacheRoot || String(GlobalConfig.getInstance().get('cacheDir'));
       this._cacheDir = joinPath(normalizePath(_root, providers?.env), _expandedSubDir);
     }
     await this._mkdir(this._cacheDir, { recursive: true });
