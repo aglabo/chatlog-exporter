@@ -181,33 +181,69 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `inputDir` フィールドのデフォルト値と指定値テスト。
+   * `inputDir`・`agent`・`period`・`chatlogsDir` フィールドのテスト。
+   *
+   * `inputDir` の実際の解決（`resolveChatlogsDir` によるagent/period絞り込み）は
+   * main() 側の責務になったため、buildConfig は `parsed.inputDir` をそのまま通し、
+   * agent/period/chatlogsDir を「生の材料」として config に含めるだけになった。
    */
   describe('When: inputDir の設定', () => {
-    /** inputDir 未指定でデフォルト値が使われる正常ケース。 */
+    /** inputDir 未指定 → 空文字列（main() 側で resolveChatlogsDir により解決される）。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-SF-BC-07-01: inputDir undefined → joinPath(chatlogsDir, normalizelogs) が使われる', () => {
+      it('[Normal] T-SF-BC-07-01: inputDir undefined → 空文字列になる（main() が resolveChatlogsDir で解決する）', () => {
         const result = buildConfig({}, globalConfig);
-        assertEquals(result.inputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
+        assertEquals(result.inputDir, '');
       });
 
-      it('[Normal] T-SF-BC-07-02: parsed.inputDir 指定 → その値が使われる', () => {
+      it('[Normal] T-SF-BC-07-02: parsed.inputDir 指定 → その値がそのまま使われる', () => {
         const result = buildConfig({ inputDir: '/custom/input' }, globalConfig);
         assertEquals(result.inputDir, '/custom/input');
       });
-
-      it('[Normal] T-SF-BC-07-04: GlobalConfig.chatlogsDir=./custom → inputDir=joinPath(./custom, normalizelogs)', async () => {
-        const gc = await _makeGlobalConfig('chatlogsDir: ./custom');
-        const result = buildConfig({}, gc);
-        assertEquals(result.inputDir, joinPath('./custom', 'normalizelogs'));
-      });
     });
+  });
 
-    /** inputDir 空文字列のエッジケース。 */
-    describe('When: エッジケース', () => {
-      it('[Edge] T-SF-BC-07-03: inputDir 空文字列 → joinPath(chatlogsDir, normalizelogs) が使われる', () => {
-        const result = buildConfig({ inputDir: '' }, globalConfig);
-        assertEquals(result.inputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
+  /**
+   * `agent`/`period`/`chatlogsDir` フィールドの解決ロジックテスト。
+   *
+   * これらは `resolveChatlogsDir` の材料として main() 側で使われる。
+   */
+  describe('When: agent/period/chatlogsDir の設定', () => {
+    describe('When: 正常系', () => {
+      it('[Normal] T-SF-BC-12-01: agent 未指定 + GlobalConfig 未設定 → DEFAULT_AGENT が使われる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.agent, 'claude');
+      });
+
+      it('[Normal] T-SF-BC-12-02: parsed.agent 指定 → その値が使われる', () => {
+        const result = buildConfig({ agent: 'chatgpt' }, globalConfig);
+        assertEquals(result.agent, 'chatgpt');
+      });
+
+      it('[Normal] T-SF-BC-12-03: GlobalConfig.agent=chatgpt → agent=chatgpt が使われる', async () => {
+        const gc = await _makeGlobalConfig('agent: chatgpt');
+        const result = buildConfig({}, gc);
+        assertEquals(result.agent, 'chatgpt');
+      });
+
+      it('[Normal] T-SF-BC-12-04: parsed.period 指定 → その値がそのまま設定される', () => {
+        const result = buildConfig({ period: '2026-01' }, globalConfig);
+        assertEquals(result.period, '2026-01');
+      });
+
+      it('[Normal] T-SF-BC-12-05: period 未指定 → undefined になる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.period, undefined);
+      });
+
+      it('[Normal] T-SF-BC-12-06: chatlogsDir 未指定 → GlobalConfig.chatlogsDir が使われる', () => {
+        const result = buildConfig({}, globalConfig);
+        assertEquals(result.chatlogsDir, DEFAULT_CHATLOGS_DIR);
+      });
+
+      it('[Normal] T-SF-BC-12-10: GlobalConfig.chatlogsDir=/custom/chatlogs → その値が使われる', async () => {
+        const gc = await _makeGlobalConfig('chatlogsDir: /custom/chatlogs');
+        const result = buildConfig({}, gc);
+        assertEquals(result.chatlogsDir, '/custom/chatlogs');
       });
     });
   });
