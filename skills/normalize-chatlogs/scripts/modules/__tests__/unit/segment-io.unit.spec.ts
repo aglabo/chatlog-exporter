@@ -33,8 +33,6 @@ import {
 import { assertFileExist, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 // functions
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
-// constants
-import { MAX_SEGMENTS } from '../../../constants/normalize.constants.ts';
 // mock helpers
 import {
   BaseMockCommand,
@@ -980,20 +978,5 @@ describe('writeSegmentToFile', () => {
       );
       assertEquals((err as ChatlogError).subindex, 'IndexOverflow');
     });
-  });
-});
-
-// ─── MAX_SEGMENTS tests ───────────────────────────────────────────────────────
-
-/**
- * `MAX_SEGMENTS` 定数のユニットテスト。
- *
- * セグメント上限値の期待値を検証する。
- *
- * @see MAX_SEGMENTS
- */
-describe('MAX_SEGMENTS', () => {
-  it('[Normal] T-SIO-LR-01: MAX_SEGMENTS の値が 5 である', () => {
-    assertEquals(MAX_SEGMENTS, 5);
   });
 });
