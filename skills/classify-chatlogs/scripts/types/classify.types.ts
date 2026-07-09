@@ -82,12 +82,6 @@ export interface ClassifyConfig {
   concurrency: number;
 }
 
-/** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。`dicsDir` は GlobalConfig で管理するため含まない。 */
-export type ParsedConfig = Omit<Partial<ClassifyConfig>, 'dicsDir'> & {
-  /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
-  configFile?: string;
-};
-
 // ─────────────────────────────────────────────
 // 分類バッファ型
 // ─────────────────────────────────────────────
