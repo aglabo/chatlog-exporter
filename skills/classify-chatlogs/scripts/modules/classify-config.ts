@@ -22,7 +22,7 @@ import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
 
 // ─── internal
 /** classify-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<Partial<ClassifyConfig>> = [
+const _SCHEMA: ArgSchema<Partial<ClassifyConfig>> = [
   { option: '--period', field: 'period', type: 'period' },
   { option: '--model', field: 'model', type: 'string' },
 ];
