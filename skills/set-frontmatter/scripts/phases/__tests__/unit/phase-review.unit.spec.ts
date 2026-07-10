@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-phase-review.unit.spec.ts
-// @(#): _phaseReview の dryRun パラメータのユニットテスト
-//       対象: _phaseReviewForTest
+// src: scripts/phases/__tests__/unit/phase-review.unit.spec.ts
+// @(#): phaseReview の dryRun パラメータのユニットテスト
+//       対象: phaseReview
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -16,17 +16,17 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
+import { phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Dics, Prompts } from '../../types/dics.types.ts';
-import type { ReviewResult } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
+import type { ReviewResult } from '../../../types/phase.types.ts';
 
 // ─── Internal Helpers
 
@@ -44,11 +44,11 @@ type _ReviewProvider = (
  * yaml を指定した場合は YAML で初期化する。省略時はキャッシュミス状態（status 未設定）。
  *
  * @param yaml - キャッシュ初期値の YAML 文字列（省略時は空キャッシュ）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeCache = async (yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,
@@ -113,16 +113,16 @@ const _prompts = {} as Prompts;
 // ─── Tests
 
 /**
- * `_phaseReview` の dryRun パラメータのユニットテストスイート。
+ * `phaseReview` の dryRun パラメータのユニットテストスイート。
  *
  * dryRun=false では reviewProvider と cache.write が呼ばれ、
  * dryRun=true では両方とも呼ばれないことを検証する。
  *
  * テスト ID 範囲: T-04-01 〜 T-04-03
  *
- * @see _phaseReviewForTest
+ * @see phaseReview
  */
-describe('_phaseReview', () => {
+describe('phaseReview', () => {
   /**
    * dryRun=false の動作: reviewProvider と cache.write が実行される。
    */
