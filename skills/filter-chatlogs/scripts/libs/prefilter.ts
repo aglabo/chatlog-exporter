@@ -23,7 +23,7 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 // constants
-import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 
 // ─── internal ───
 // functions
@@ -71,14 +71,14 @@ export const isExcludedByFilename = (filename: string): boolean => checkFilename
  * 4. User ターンが 1 件のとき、Assistant 応答の合計文字数が `minAssistantChars` 未満
  *
  * @param body - 判定対象の本文テキスト（frontmatter を除いたコンテンツ部分）
- * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_VALUES.minCharCount`）
- * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_VALUES.minAssistantChars`）
+ * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
+ * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
  * @returns `excluded: true` の場合は除外対象。`reason` に除外理由を格納する。
  */
 export const isExcludedByContent = (
   body: string,
-  minCharCount = DEFAULT_VALUES.minCharCount as number,
-  minAssistantChars = DEFAULT_VALUES.minAssistantChars as number,
+  minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
+  minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
 ): { excluded: boolean; reason: string } => {
   if (body.length < minCharCount) {
     return { excluded: true, reason: `本文が短すぎる (${body.length} < ${minCharCount} 文字)` };
@@ -110,15 +110,15 @@ export const isExcludedByContent = (
  * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
  *
  * @param files - フィルタリング対象のファイルパス配列
- * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_VALUES.minCharCount`）
- * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_VALUES.minAssistantChars`）
+ * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
+ * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
  * @param stats - 処理統計オブジェクト（省略可）。指定時は `preSkipped` にスキップ数を代入する。
  * @returns フィルタリングを通過したファイルパスの配列
  */
 export const prefilterFiles = async (
   files: string[],
-  minCharCount = DEFAULT_VALUES.minCharCount as number,
-  minAssistantChars = DEFAULT_VALUES.minAssistantChars as number,
+  minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
+  minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
   stats?: FilterStats,
 ): Promise<string[]> => {
   const passed: string[] = [];
