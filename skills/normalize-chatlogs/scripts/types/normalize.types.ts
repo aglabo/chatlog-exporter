@@ -6,6 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// types
+import type { ArgsRecordEntry, DefaultSchemaFields } from '../../../_scripts/types/args-schema.types.ts';
+
 /**
  * {@link segmentChatlogs} が AI から受け取る 1 トピックセグメント。
  *
@@ -47,20 +50,20 @@ export type Stats = {
   fallback: number;
 };
 
-export interface NormalizeConfig {
+export type NormalizeConfig = DefaultSchemaFields & {
   chatlogsDir: string;
-  inputDir?: string;
-  agent?: string;
-  period?: string;
   model?: string;
   timeoutMs?: number;
   dryRun: boolean;
   concurrency: number;
-  outputDir?: string;
   failFast?: boolean;
   singleFile?: boolean;
-}
-
-export type NormalizeParsedConfig = Partial<NormalizeConfig> & {
-  configFile?: string;
 };
+
+export type NormalizeParsedConfig = Partial<NormalizeConfig>;
+
+/** T が ArgsValueEntry 互換であることをコンパイル時に強制するための恒等型。 */
+type _Assert<T extends Partial<ArgsRecordEntry>> = T;
+
+/** NormalizeConfig が ArgsValueEntry 互換であることの型チェック（実行時に影響なし）。 */
+type _NormalizeConfigCheck = _Assert<NormalizeConfig>;
