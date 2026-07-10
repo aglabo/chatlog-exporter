@@ -8,8 +8,8 @@
 
 // ─── shared ───
 // constants
+import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
-import { DEFAULT_VALUES } from '../../../_scripts/constants/schema.constants.ts';
 
 // ─── internal ───
 // types
@@ -40,9 +40,9 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
   // config.yaml only
-  chunkSize: DEFAULT_VALUES.chunkSize,
-  concurrency: DEFAULT_VALUES.concurrency,
-  minCharCount: DEFAULT_VALUES.minCharCount,
-  minAssistantChars: DEFAULT_VALUES.minAssistantChars,
-  discardThreshold: DEFAULT_VALUES.discardThreshold,
+  chunkSize: DEFAULT_CONFIG_VALUES.chunkSize,
+  concurrency: DEFAULT_CONFIG_VALUES.concurrency,
+  minCharCount: DEFAULT_CONFIG_VALUES.minCharCount,
+  minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
+  discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold,
 };
