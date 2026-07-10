@@ -12,7 +12,7 @@ import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
 import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 // types
-import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // ─── Local
 // types
@@ -20,8 +20,9 @@ import type { ClassifyConfig } from '../types/classify.types.ts';
 // constants
 import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
 
+// ─── internal
 /** classify-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<ClassifyConfig> = [
+const _SCHEMA: ArgsSchema<Partial<ClassifyConfig>> = [
   { option: '--period', field: 'period', type: 'period' },
   { option: '--model', field: 'model', type: 'string' },
 ];
@@ -29,7 +30,7 @@ const _SCHEMA: ArgsSchema<ClassifyConfig> = [
 /**
  * CLI 引数から完全な ClassifyConfig を構築する。
  * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
- *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの `Partial<ClassifyConfig>` を返すため、
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの `ClassifyParsedConfig` を返すため、
  *   GlobalConfig の値を個別に再取得しない。
  * - `model` は `isValidModel` で検証し、不正なモデル名は `ChatlogError('InvalidArgs', 'InvalidModel')` をスローする。
  */
@@ -40,9 +41,9 @@ export const buildConfig = (
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
   const parsed = parseArgsToConfig<ClassifyConfig>(args, _SCHEMA, _defaults) as ClassifyConfig;
 
-  if (!isValidModel(parsed.model)) {
+  const _model = parsed.model;
+  if (!isValidModel(_model)) {
     throw new ChatlogError('InvalidArgs', 'InvalidModel', `不正なモデル名: ${parsed.model}`);
   }
-
   return parsed;
 };
