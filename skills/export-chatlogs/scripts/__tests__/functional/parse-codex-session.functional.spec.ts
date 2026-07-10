@@ -18,6 +18,7 @@ import { parseCodexSession } from '../../exporter/codex-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
 
 // ─── Helpers
+import { writeJsonl } from '../_helpers/jsonl-writer.ts';
 // types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
@@ -25,15 +26,6 @@ import type { PeriodRange } from '../../types/filter.types.ts';
 
 /** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
-
-/**
- * 各要素を JSON.stringify して改行区切りで結合し、末尾に改行を付加して JSONL ファイルに書き込む。
- * 機能テストで実際の JSONL ファイルを一時ディレクトリに作成するために使用する。
- */
-async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
-  const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
-  await Deno.writeTextFile(filePath, content);
-}
 
 // ─── Tests
 
@@ -81,7 +73,7 @@ describe('parseCodexSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/codex-session.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             timestamp: '2026-03-15T11:00:00.000Z',
             type: 'session_meta',
@@ -154,7 +146,7 @@ describe('parseCodexSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/no-meta.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             timestamp: '2026-03-15T11:00:01.000Z',
             type: 'response_item',
@@ -199,7 +191,7 @@ describe('parseCodexSession', () => {
       beforeEach(async () => {
         filePath = `${tempDir}/outside-period.jsonl`;
         marchRange = parsePeriod('2026-03');
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             timestamp: '2026-02-15T11:00:00.000Z', // 期間外: 2月
             type: 'session_meta',
@@ -248,7 +240,7 @@ describe('parseCodexSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/agents-md.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             timestamp: '2026-03-15T11:00:00.000Z',
             type: 'session_meta',
@@ -307,6 +299,46 @@ describe('parseCodexSession', () => {
       describe('Then: T-EC-PX-06 - null を返す', () => {
         it('T-EC-PX-06-01: null を返す', async () => {
           const result = await parseCodexSession(`${tempDir}/no-such-file.jsonl`, ALL_PERIOD);
+          assertNull(result);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-07: スキップ対象のみ → null ───────────────────────────────────
+
+  /**
+   * 全ユーザーメッセージがスキップ対象のとき null を返すシナリオ。
+   * "yes" のような短文肯定しか含まないセッションは
+   * エクスポート価値がないため除外されることを確認する。
+   */
+  describe('Given: 全ユーザーメッセージがスキップ対象のJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+    describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
+      let filePath: string;
+
+      beforeEach(async () => {
+        filePath = `${tempDir}/skipped.jsonl`;
+        await writeJsonl(filePath, [
+          {
+            timestamp: '2026-03-15T11:00:00.000Z',
+            type: 'session_meta',
+            payload: { id: 'codex-sess-skip', cwd: '/home/user/projects/my-app', model: 'o4-mini' },
+          },
+          {
+            timestamp: '2026-03-15T11:00:01.000Z',
+            type: 'response_item',
+            payload: {
+              role: 'user',
+              content: [{ type: 'input_text', text: 'yes' }],
+            },
+          },
+        ]);
+      });
+
+      describe('Then: T-EC-PX-07 - null を返す', () => {
+        it('T-EC-PX-07-01: null を返す', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
           assertNull(result);
         });
       });

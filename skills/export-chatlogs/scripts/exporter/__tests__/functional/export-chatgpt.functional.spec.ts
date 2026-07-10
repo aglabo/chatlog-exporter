@@ -115,7 +115,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -164,7 +164,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -198,7 +198,7 @@ describe('exportChatGPT', () => {
       it('T-EC-GE-03: exportedCount=0, skippedCount=0, errorCount=0, outputPaths=[]', async () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -232,7 +232,7 @@ describe('exportChatGPT', () => {
       it('T-EC-GE-04: エラーをスローする', async () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: undefined,
           period: undefined,
         };
@@ -269,7 +269,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -337,7 +337,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -404,7 +404,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -474,7 +474,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -524,7 +524,7 @@ describe('exportChatGPT', () => {
       it('T-EC-GE-09: exportedCount=0, skippedCount=0, errorCount=2, outputPaths=[]', async () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
@@ -597,7 +597,7 @@ describe('exportChatGPT', () => {
 
         const config: ExportConfig = {
           agent: 'chatgpt',
-          outputDir,
+          exportDir: outputDir,
           baseDir: tempDir,
           period: undefined,
         };
