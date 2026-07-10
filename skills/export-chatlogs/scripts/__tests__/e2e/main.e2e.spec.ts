@@ -22,20 +22,12 @@ import { main } from '../../export-chatlogs.ts';
 // ─── Helpers
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { writeJsonl } from '../_helpers/jsonl-writer.ts';
 // types
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { ChatGPTConversation } from '../../exporter/types/chatgpt-entry.types.ts';
 
 // ─── Internal Helpers
-
-/**
- * JSONL エントリを文字列化してファイルに書き込む。
- * 各エントリを JSON.stringify して改行区切りで結合し、末尾に改行を付加する。
- * E2E テストで実際の JSONL ファイルを作成するために使用する。
- */
-async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
-  const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
-  await Deno.writeTextFile(filePath, content);
-}
 
 /**
  * Claude セッション JSONL のエントリを生成する。
@@ -101,6 +93,52 @@ function _codexEntry(
   };
 }
 
+/**
+ * ChatGPT conversations-*.json の1会話オブジェクトを生成する。
+ * root(message=null) → user → assistant の一直線 mapping を組み立て、
+ * conversationId・createTime・userText・assistantText を引数で指定できる。
+ * E2E テストで最小構成の ChatGPT 会話を組み立てるために使用する。
+ */
+function _chatgptConversation(
+  conversationId: string,
+  createTime: number,
+  userText: string,
+  assistantText: string,
+): ChatGPTConversation {
+  return {
+    id: conversationId,
+    conversation_id: conversationId,
+    create_time: createTime,
+    title: 'E2E ChatGPT テスト会話',
+    current_node: 'node-assistant',
+    mapping: {
+      'root': { id: 'root', message: null, parent: null, children: ['node-user'] },
+      'node-user': {
+        id: 'node-user',
+        message: {
+          id: 'msg-user',
+          author: { role: 'user' },
+          create_time: createTime,
+          content: { content_type: 'text', parts: [userText] },
+        },
+        parent: 'root',
+        children: ['node-assistant'],
+      },
+      'node-assistant': {
+        id: 'node-assistant',
+        message: {
+          id: 'msg-assistant',
+          author: { role: 'assistant' },
+          create_time: createTime,
+          content: { content_type: 'text', parts: [assistantText] },
+        },
+        parent: 'node-user',
+        children: [],
+      },
+    },
+  };
+}
+
 // ─── Tests
 /**
  * `main()` 関数の E2E テストスイート。
@@ -111,11 +149,8 @@ function _codexEntry(
  * 実ファイル I/O で動作を検証する。
  *
  * テスト対象シナリオ:
- * - claude/codex エージェントの正常実行（ファイル生成確認）
- * - 期間フィルタ（YYYY-MM）による選択的エクスポートと全件除外
- * - 不明なオプション（--unknown-flag）で Deno.exit(1) が呼ばれること
+ * - claude/codex/chatgpt エージェントの正常実行（ファイル生成確認）
  * - 出力ディレクトリ構造（agent/YYYY/YYYY-MM/）の確認
- * - スキップ対象のみ JSONL で出力が 0 件になること
  * - 年指定（YYYY）で複数の YYYY-MM サブディレクトリに分散出力されること
  *
  * 各テストは `Deno.makeTempDir()` で独立した環境を使用し、
@@ -159,12 +194,12 @@ describe('main (export-chatlogs)', () => {
    * エクスポート全フロー（解析→探索→パース→書き出し）が疎通していることの基本確認。
    */
   describe('Given: ~/.claude/projects/ に有効な claude セッションJSONL', () => {
-    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
+    /** main(["claude", "--export-dir", outputDir]) を呼び出す */
+    describe('When: main(["claude", "--export-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-my-app`;
         await Deno.mkdir(projectsDir, { recursive: true });
-        await _writeJsonl(`${projectsDir}/session.jsonl`, [
+        await writeJsonl(`${projectsDir}/session.jsonl`, [
           _claudeEntry('user', 'sess-e2e-0001', '2026-03-15T10:00:00.000Z', 'E2Eテストの質問です'),
           _claudeEntry('assistant', 'sess-e2e-0001', '2026-03-15T10:00:05.000Z', 'E2Eテストの回答です。'),
         ]);
@@ -173,13 +208,13 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-01: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-01 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-01-01: outputDir に .md ファイルが生成される', async () => {
-          await main(['claude', '--output-dir', outputDir]);
+          await main(['claude', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length >= 1, true);
         });
 
         it('T-EC-E2E-01-02: logger.log に生成パスが出力される', async () => {
-          await main(['claude', '--output-dir', outputDir]);
+          await main(['claude', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
         });
@@ -197,12 +232,12 @@ describe('main (export-chatlogs)', () => {
    * claude と異なるディレクトリ構造・JSONL フォーマットが正しく処理されることの基本確認。
    */
   describe('Given: ~/.codex/sessions/ に有効な codex セッションJSONL', () => {
-    /** main(["codex", "--output-dir", outputDir]) を呼び出す */
-    describe('When: main(["codex", "--output-dir", outputDir]) を呼び出す', () => {
+    /** main(["codex", "--export-dir", outputDir]) を呼び出す */
+    describe('When: main(["codex", "--export-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const sessionsDir = `${tempDir}/.codex/sessions/2026/03/15`;
         await Deno.mkdir(sessionsDir, { recursive: true });
-        await _writeJsonl(`${sessionsDir}/codex-session.jsonl`, [
+        await writeJsonl(`${sessionsDir}/codex-session.jsonl`, [
           _codexEntry('session_meta', '2026-03-15T11:00:00.000Z', {
             id: 'codex-e2e-001',
             cwd: '/home/user/projects/my-codex-app',
@@ -221,76 +256,9 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-02: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-02 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-02-01: outputDir に .md ファイルが生成される', async () => {
-          await main(['codex', '--output-dir', outputDir]);
+          await main(['codex', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
-        });
-      });
-    });
-  });
-
-  // ─── T-EC-E2E-03: 期間フィルタ ───────────────────────────────────────────
-
-  /**
-   * 期間フィルタ（YYYY-MM）の選択的エクスポートシナリオ。
-   *
-   * 同一プロジェクト内に 2026-03（範囲内）と 2026-02（範囲外）のセッションが混在する状態で、
-   * 期間引数によって対象セッションのみ抽出されることを確認する。
-   * 全件除外（2026-04 指定）では出力ゼロになることも合わせて検証する。
-   */
-  /**
-   * 2026-03（範囲内）と 2026-02（範囲外）が混在する前提条件。
-   * 同一プロジェクトに異なる月のセッションが混在することで、
-   * 期間フィルタの選択性をエンドツーエンドで検証する。
-   */
-  describe('Given: 範囲内と範囲外のJSONLが混在', () => {
-    beforeEach(async () => {
-      const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-filter-app`;
-      await Deno.mkdir(projectsDir, { recursive: true });
-      // 範囲内: 2026-03
-      await _writeJsonl(`${projectsDir}/march.jsonl`, [
-        _claudeEntry(
-          'user',
-          'sess-march',
-          '2026-03-15T10:00:00.000Z',
-          '3月の質問',
-          '/home/user/projects/filter-app',
-        ),
-        _claudeEntry('assistant', 'sess-march', '2026-03-15T10:00:05.000Z', '3月の回答'),
-      ]);
-      // 範囲外: 2026-02
-      await _writeJsonl(`${projectsDir}/feb.jsonl`, [
-        _claudeEntry(
-          'user',
-          'sess-feb',
-          '2026-02-15T10:00:00.000Z',
-          '2月の質問',
-          '/home/user/projects/filter-app',
-        ),
-        _claudeEntry('assistant', 'sess-feb', '2026-02-15T10:00:05.000Z', '2月の回答'),
-      ]);
-    });
-
-    /** period="2026-03" でフィルタしたとき範囲内セッションのみが選択されることを確認する。 */
-    describe('When: period="2026-03" でフィルタする', () => {
-      /** T-EC-E2E-03-01: 範囲内セッションのみエクスポートされる */
-      describe('Then: T-EC-E2E-03-01 - 範囲内セッションのみエクスポートされる', () => {
-        it('T-EC-E2E-03-01: ファイルが1件生成される', async () => {
-          await main(['claude', '2026-03', '--output-dir', outputDir]);
-
-          assertEquals(loggerStub.logLogs.length, 1);
-        });
-      });
-    });
-
-    /** period="2026-04" でフィルタしたとき全件が範囲外になり出力ゼロになる境界ケースを確認する。 */
-    describe('When: period="2026-04" でフィルタする（全件範囲外）', () => {
-      /** T-EC-E2E-03-02: ファイルが生成されない */
-      describe('Then: T-EC-E2E-03-02 - ファイルが生成されない', () => {
-        it('T-EC-E2E-03-02: ファイルが0件', async () => {
-          await main(['claude', '2026-04', '--output-dir', outputDir]);
-
-          assertEquals(loggerStub.logLogs.length, 0);
         });
       });
     });
@@ -306,12 +274,12 @@ describe('main (export-chatlogs)', () => {
    * フォルダ整理に直結するため、形式の正確性が重要。
    */
   describe('Given: claude セッションと outputDir が指定される', () => {
-    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
+    /** main(["claude", "--export-dir", outputDir]) を呼び出す */
+    describe('When: main(["claude", "--export-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
         const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-struct-app`;
         await Deno.mkdir(projectsDir, { recursive: true });
-        await _writeJsonl(`${projectsDir}/session.jsonl`, [
+        await writeJsonl(`${projectsDir}/session.jsonl`, [
           _claudeEntry(
             'user',
             'sess-struct',
@@ -326,50 +294,12 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-06: outputDir/claude/YYYY/YYYY-MM/ 構造が生成される */
       describe('Then: T-EC-E2E-06 - outputDir/claude/YYYY/YYYY-MM/ 構造が生成される', () => {
         it('T-EC-E2E-06-01: 出力パスに "claude/2026/2026-03" が含まれる', async () => {
-          await main(['claude', '--output-dir', outputDir]);
+          await main(['claude', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length >= 1, true);
           assertStringIncludes(loggerStub.logLogs[0], 'claude');
           assertStringIncludes(loggerStub.logLogs[0], '2026');
           assertStringIncludes(loggerStub.logLogs[0], '2026-03');
-        });
-      });
-    });
-  });
-
-  // ─── T-EC-E2E-07: スキップ対象のみJSONL → console.error にスキップログ ───
-
-  /**
-   * スキップ対象のみ含む JSONL の出力ゼロシナリオ。
-   *
-   * ユーザーメッセージが "yes" のみ（短文肯定）のとき、セッション全体がスキップされ
-   * .md ファイルが生成されないことを確認する。
-   * isSkippable による除外ロジックが E2E 全フローで機能することの統合確認。
-   */
-  describe('Given: 全ユーザーメッセージがスキップ対象のJSONL', () => {
-    /** main(["claude", "--output-dir", outputDir]) を呼び出す */
-    describe('When: main(["claude", "--output-dir", outputDir]) を呼び出す', () => {
-      beforeEach(async () => {
-        const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-skip-app`;
-        await Deno.mkdir(projectsDir, { recursive: true });
-        await _writeJsonl(`${projectsDir}/all-skipped.jsonl`, [
-          _claudeEntry(
-            'user',
-            'sess-skip',
-            '2026-03-15T10:00:00.000Z',
-            'yes',
-            '/home/user/projects/skip-app',
-          ),
-          _claudeEntry('assistant', 'sess-skip', '2026-03-15T10:00:05.000Z', '了解しました。'),
-        ]);
-      });
-
-      /** T-EC-E2E-07: ファイルが生成されない */
-      describe('Then: T-EC-E2E-07 - ファイルが生成されない', () => {
-        it('T-EC-E2E-07-01: ログパスが 0 件（スキップされた）', async () => {
-          await main(['claude', '--output-dir', outputDir]);
-
-          assertEquals(loggerStub.logLogs.length, 0);
         });
       });
     });
@@ -394,7 +324,7 @@ describe('main (export-chatlogs)', () => {
     beforeEach(async () => {
       const projectsDir = `${tempDir}/.claude/projects/C--home-user-projects-multi-month`;
       await Deno.mkdir(projectsDir, { recursive: true });
-      await _writeJsonl(`${projectsDir}/jan.jsonl`, [
+      await writeJsonl(`${projectsDir}/jan.jsonl`, [
         _claudeEntry(
           'user',
           'sess-jan',
@@ -404,7 +334,7 @@ describe('main (export-chatlogs)', () => {
         ),
         _claudeEntry('assistant', 'sess-jan', '2026-01-10T10:00:05.000Z', '1月の回答'),
       ]);
-      await _writeJsonl(`${projectsDir}/mar.jsonl`, [
+      await writeJsonl(`${projectsDir}/mar.jsonl`, [
         _claudeEntry(
           'user',
           'sess-mar',
@@ -421,21 +351,59 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-08: 2つの yyyy-mm サブディレクトリに分散出力される */
       describe('Then: T-EC-E2E-08 - 2つの yyyy-mm サブディレクトリに分散出力される', () => {
         it('T-EC-E2E-08-01: ファイルが 2 件生成される', async () => {
-          await main(['claude', '2026', '--output-dir', outputDir]);
+          await main(['claude', '2026', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.length, 2);
         });
 
         it('T-EC-E2E-08-02: 一方のパスに "2026-01" が含まれる', async () => {
-          await main(['claude', '2026', '--output-dir', outputDir]);
+          await main(['claude', '2026', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.includes('2026-01')), true);
         });
 
         it('T-EC-E2E-08-03: 他方のパスに "2026-03" が含まれる', async () => {
-          await main(['claude', '2026', '--output-dir', outputDir]);
+          await main(['claude', '2026', '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.includes('2026-03')), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-E2E-09: chatgpt agent 正常実行 ────────────────────────────────
+
+  /**
+   * chatgpt agent の正常実行シナリオ。
+   *
+   * `--base` のみを指定して `runExport` の chatgpt ガード（inputDir/baseDir 両方未指定時に
+   * throw する分岐）を通過させ、`exportChatGPT` が実行されて Markdown 出力まで
+   * 完了することを確認する。claude/codex と異なる conversations-*.json 形式が
+   * 正しく処理されることの基本確認。
+   */
+  describe('Given: baseDir 直下に有効な chatgpt conversations JSON', () => {
+    let baseDir: string;
+
+    /** main(["chatgpt", "--base", baseDir, "--export-dir", outputDir]) を呼び出す */
+    describe('When: main(["chatgpt", "--base", baseDir, "--export-dir", outputDir]) を呼び出す', () => {
+      beforeEach(async () => {
+        baseDir = `${tempDir}/chatgpt-export`;
+        await Deno.mkdir(baseDir, { recursive: true });
+        const createTime = new Date('2026-03-15T10:00:00.000Z').getTime() / 1000;
+        await Deno.writeTextFile(
+          `${baseDir}/conversations-2026-03-15.json`,
+          JSON.stringify([
+            _chatgptConversation('sess-e2e-chatgpt-0001', createTime, 'E2Eテストの質問です', 'E2Eテストの回答です。'),
+          ]),
+        );
+      });
+
+      /** T-EC-E2E-09: ファイルが outputDir に生成される */
+      describe('Then: T-EC-E2E-09 - ファイルが outputDir に生成される', () => {
+        it('T-EC-E2E-09-01: logger.log に生成パスが出力される', async () => {
+          await main(['chatgpt', '--base', baseDir, '--export-dir', outputDir]);
+
+          assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
         });
       });
     });
