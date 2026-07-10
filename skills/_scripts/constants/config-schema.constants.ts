@@ -1,4 +1,4 @@
-// src: skills/_scripts/constants/schema.constants.ts
+// src: skills/_scripts/constants/config-schema.constants.ts
 // @(#): GlobalConfig スキーマ定数
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -14,12 +14,11 @@ import {
   DEFAULT_PROJECTS_DIC_PATH,
   DEFAULT_PROMPTS_DIR,
 } from './defaults.constants.ts';
-
-export type SchemaValueType = string | number;
-export type SchemaValueTypeName = 'string' | 'number';
+// types
+import type { ConfigSchema, ConfigValues } from '../types/config-schema.types.ts';
 
 /** GlobalConfig のデフォルトスキーマ。登録済みキーと型を定義する。 */
-export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
+export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   /** 使用する AI エージェント識別子。例: "claude", "chatgpt" */
   agent: 'string',
   /** 使用するモデル名またはエイリアス。例: "sonnet", "opus" */
@@ -58,16 +57,11 @@ export const DEFAULT_SCHEMA: Record<string, SchemaValueTypeName> = {
   maxRetry: 'number',
 };
 
-/** DEFAULT_SCHEMA のキーのユニオン型。 */
-export type DefaultSchemaKey = keyof typeof DEFAULT_SCHEMA;
+/** DEFAULT_CONFIG_SCHEMA のキーのユニオン型。 */
+export type ConfigKey = keyof typeof DEFAULT_CONFIG_SCHEMA;
 
-/** GlobalConfig のスキーマ型。 */
-export type ConfigSchema = Record<DefaultSchemaKey, SchemaValueTypeName>;
-
-export type ConfigValues = Record<DefaultSchemaKey, SchemaValueType>;
-
-/** GlobalConfig のデフォルト値。DEFAULT_SCHEMA のすべてのキーに対する初期値を持つ。 */
-export const DEFAULT_VALUES = {
+/** GlobalConfig のデフォルト値。DEFAULT_CONFIG_SCHEMA のすべてのキーに対する初期値を持つ。 */
+export const DEFAULT_CONFIG_VALUES = {
   /** デフォルトエージェントは "claude" */
   agent: 'claude',
   /** デフォルトモデルは "sonnet" */
