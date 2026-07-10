@@ -11,6 +11,7 @@
 // ─── Imports
 // types
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
 import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
 
 // ─────────────────────────────────────────────
@@ -59,11 +60,9 @@ export interface ClassifyStats {
 // ─────────────────────────────────────────────
 
 /** `main` が使用する分類処理の設定。すべてのフィールドに値が入る。 */
-export interface ClassifyConfig {
+export type ClassifyConfig = DefaultArgFields & {
   /** 対象 AI エージェント名（例: `claude`, `chatgpt`）。 */
   agent: string;
-  /** 対象年月（`YYYY-MM` 形式）。省略時は全期間。 */
-  period?: string;
   /** `true` のときファイルを移動せず分類結果のみ表示する。 */
   dryRun: boolean;
   /** `projects.dic` が置かれた辞書ディレクトリのパス。 */
@@ -74,13 +73,20 @@ export interface ClassifyConfig {
   model: string;
   /** チャットログが格納された基準ディレクトリのパス（GlobalConfig の chatlogsDir 由来）。 */
   chatlogsDir: string;
-  /** 入力ディレクトリのフルパス直接指定。指定時は agent/period を無視してこのパスをそのまま使う。 */
-  inputDir?: string;
   /** バッチリクエスト1回あたりの最大ファイル数。 */
   chunkSize: number;
   /** 同時実行する並列タスク数の上限。 */
   concurrency: number;
-}
+};
+
+/** `classify-chatlogs` の `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
+export type ClassifyParsedConfig = Partial<ClassifyConfig>;
+
+/** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */
+type _Assert<T extends Partial<ParsedArgs>> = T;
+
+/** ClassifyConfig が ArgValue 互換であることの型チェック（実行時に影響なし）。 */
+type _ClassifyConfigCheck = _Assert<ClassifyConfig>;
 
 // ─────────────────────────────────────────────
 // 分類バッファ型
