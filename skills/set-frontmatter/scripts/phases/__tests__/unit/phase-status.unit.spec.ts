@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-phase-status.unit.spec.ts
-// @(#): _phaseStatus キャッシュステータス設定のユニットテスト
-//       対象: _phaseStatusForTest
+// src: scripts/phases/__tests__/unit/phase-status.unit.spec.ts
+// @(#): phaseStatus キャッシュステータス設定のユニットテスト
+//       対象: phaseStatus
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,32 +14,32 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseStatusForTest as phaseStatus } from '../../set-frontmatter.ts';
+import { phaseStatus } from '../../phase-status.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { SetfmCache } from '../../types/cache.types.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers
 
 // functions
 
 /**
- * バッファプロバイダーを使った `ChatlogWorks<SetfmCache>` インスタンスを生成する。
+ * バッファプロバイダーを使った `ChatlogCache<SetfmCache>` インスタンスを生成する。
  *
  * ファイルシステムに依存しないテストのため、`Map<string, string>` をバッファとして使用する。
  * `yaml` を渡すと ready 完了時に YAML でキャッシュが初期化される。
  *
  * @param buf - 読み書きを受け持つバッファ
  * @param yaml - 初期キャッシュ内容（省略時は空）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(
+const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,
@@ -102,7 +102,7 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
 // ─── Tests
 
 /**
- * `_phaseStatus` のユニットテストスイート。
+ * `phaseStatus` のユニットテストスイート。
  *
  * キャッシュ MISS 状態のエントリに対して、フロントマターフィールドの充足状態に応じた
  * status 値（`'need-review'` または `''`）がキャッシュに書き込まれることを検証する。
@@ -110,9 +110,9 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
  *
  * テスト ID 範囲: T-SF-PS-01 〜 T-SF-PS-07
  *
- * @see _phaseStatusForTest
+ * @see phaseStatus
  */
-describe('_phaseStatus', () => {
+describe('phaseStatus', () => {
   /**
    * フロントマターフィールド充足エントリの正常系。
    * 全6フィールドが揃っているとき `status: 'need-review'` がキャッシュに書き込まれる。
