@@ -10,7 +10,7 @@
 // functions
 import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 // types
-import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 // classes
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
@@ -25,7 +25,7 @@ import type { PrefilterConfig, PrefilterParsedConfig } from '../types/prefilter.
 // ─────────────────────────────────────────────
 
 /** prefilter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<PrefilterParsedConfig> = [
+const _SCHEMA: ArgSchema<PrefilterParsedConfig> = [
   { option: '--report', field: 'report', type: 'flag' },
 ];
 
