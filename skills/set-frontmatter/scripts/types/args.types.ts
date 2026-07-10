@@ -8,12 +8,15 @@
 
 // cspell:words setfm
 
+// types
+import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+
 // ─────────────────────────────────────────────
 // 設定型
 // ─────────────────────────────────────────────
 
 /** `buildConfig` が返す完全な設定（すべてのフィールドが必須）。 */
-export interface SetfmConfig {
+export type SetfmConfig = DefaultArgFields & {
   /**
    * チャットログを読み込む入力ディレクトリのパス。
    * `--input-dir` 明示指定時のみ `buildConfig` が値を持つ（未指定時は空文字列）。
@@ -24,8 +27,6 @@ export interface SetfmConfig {
   outputDir: string;
   /** 対象エージェント名。 */
   agent: string;
-  /** 絞り込み対象の期間（`YYYY` または `YYYY-MM`）。未指定時は全期間対象。 */
-  period?: string;
   /** チャットログの基準ディレクトリのパス（GlobalConfig 由来）。 */
   chatlogsDir: string;
   /** 辞書ファイルが置かれたディレクトリのパス。 */
@@ -42,10 +43,13 @@ export interface SetfmConfig {
   maxRetry: number;
   /** フェーズ単位のキャッシュファイルを格納するディレクトリのパス。 */
   cacheDir: string;
-}
+};
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
-export type ParsedConfig = Partial<SetfmConfig> & {
-  /** `--config` で指定された設定ファイルのパス。省略時は `undefined`。 */
-  configFile?: string;
-};
+export type ParsedConfig = Partial<SetfmConfig>;
+
+/** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */
+type _Assert<T extends Partial<ParsedArgs>> = T;
+
+/** SetfmConfig が ArgValue 互換であることの型チェック（実行時に影響なし）。 */
+type _SetfmConfigCheck = _Assert<SetfmConfig>;
