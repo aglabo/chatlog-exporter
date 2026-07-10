@@ -191,7 +191,7 @@ export const findCodexSessions = async (
  * `_providers` を省略した場合は実際のファイルシステム操作を行う。
  * テスト時は `_providers` に差し替え実装を渡すことで I/O なしに動作を検証できる。
  *
- * @param config エクスポート設定（agent, period, outputDir）
+ * @param config エクスポート設定（agent, period, exportDir）
  * @param _providers テスト用 Provider（省略時は実実装を使用）
  * @returns エクスポート結果（exportedCount, outputPaths）
  */
@@ -223,7 +223,7 @@ export const exportCodex = async (
         skippedCount++;
         continue;
       }
-      const outPath = await _writeSession(config.outputDir, config.agent, session);
+      const outPath = await _writeSession(config.exportDir, config.agent, session);
       outputPaths.push(outPath);
     } catch {
       errorCount++;

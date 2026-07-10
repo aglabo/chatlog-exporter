@@ -35,7 +35,7 @@ export interface ExportConfig {
    */
   inputDir?: string;
   /** 出力先ディレクトリのベースパス。デフォルトは "./chatlogs" */
-  outputDir: string;
+  exportDir: string;
   /** dry-run モード。`--dry-run` オプションの解析結果を保持する（現状 `main()` 側での書き込みスキップは未実装）。 */
   dryRun?: boolean;
 }
@@ -45,8 +45,16 @@ export interface ExportConfig {
  *
  * `configFile` は `GlobalConfig.getInstance()` に渡す設定ファイルパスを保持する専用フィールドであり、
  * `ExportConfig` には含まれない。
+ * `chatlogsDir` は共通 `parseArgs()` が GlobalConfig からマージする値を受け取る専用フィールドであり、
+ * `ExportConfig` には含まれない（`exportDir` の算出にのみ使用する）。
+ * `outputDir` は共通スキーマ（`--output-dir`）が書き込む専用フィールドであり、
+ * `ExportConfig` には含まれない（export-chatlogs では使用せず破棄する）。
  */
 export type ParsedConfig = Partial<ExportConfig> & {
   /** グローバル設定ファイルのパス。`--config` オプションで指定する。 */
   configFile?: string;
+  /** GlobalConfig から解決されたチャットログディレクトリ。`exportDir` 未指定時のフォールバック元。 */
+  chatlogsDir?: string;
+  /** 共通スキーマの `--output-dir` が書き込む値。export-chatlogs では使用せず破棄する。 */
+  outputDir?: string;
 };

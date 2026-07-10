@@ -18,6 +18,7 @@ import { parseClaudeSession } from '../../exporter/claude-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
 
 // ─── Helpers
+import { writeJsonl } from '../_helpers/jsonl-writer.ts';
 // types
 import type { PeriodRange } from '../../types/filter.types.ts';
 
@@ -25,15 +26,6 @@ import type { PeriodRange } from '../../types/filter.types.ts';
 
 /** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
-
-/**
- * 各要素を JSON.stringify して改行区切りで結合し、末尾に改行を付加して JSONL ファイルに書き込む。
- * 機能テストで実際の JSONL ファイルを一時ディレクトリに作成するために使用する。
- */
-async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> {
-  const content = lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
-  await Deno.writeTextFile(filePath, content);
-}
 
 // ─── Tests
 
@@ -81,7 +73,7 @@ describe('parseClaudeSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/session.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             type: 'user',
             isMeta: false,
@@ -159,7 +151,7 @@ describe('parseClaudeSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/skipped.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             type: 'user',
             isMeta: false,
@@ -211,7 +203,7 @@ describe('parseClaudeSession', () => {
       beforeEach(async () => {
         filePath = `${tempDir}/outside-period.jsonl`;
         marchRange = parsePeriod('2026-03');
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             type: 'user',
             isMeta: false,
@@ -273,7 +265,7 @@ describe('parseClaudeSession', () => {
 
       beforeEach(async () => {
         filePath = `${tempDir}/duplicate-assistant.jsonl`;
-        await _writeJsonl(filePath, [
+        await writeJsonl(filePath, [
           {
             type: 'user',
             isMeta: false,

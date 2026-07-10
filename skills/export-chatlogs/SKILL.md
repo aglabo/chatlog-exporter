@@ -54,7 +54,7 @@ SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlogs.ts
 deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 ```
 
-`--output-dir` は明示指定しない。未指定時は `buildConfig()` が
+`--export-dir` は明示指定しない。未指定時は `buildConfig()` が
 `<chatlogsDir ?? ./chatlogs>/originalLogs` を出力先として解決する。
 
 ### 引数からオプションを組み立てるルール
@@ -65,7 +65,7 @@ deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 - `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" codex 2026-03`
 - `chatlogsDir` 指定時 → `deno run ... "$SCRIPT_PATH" --chatlogs-dir "$CHATLOGS_DIR"`
 - dry-run 確認時 → `deno run ... "$SCRIPT_PATH" --dry-run`（※現状 `main()` 側で書き込みスキップは未実装のため、実際にはファイルが生成される点に注意）
-- `--output-dir DIR` を明示指定したい場合のみ追加する（この場合 `originalLogs` は挟まれず、指定パスがそのまま使われる）
+- `--export-dir DIR` を明示指定したい場合のみ追加する（この場合 `originalLogs` は挟まれず、指定パスがそのまま使われる）
 
 #### その他の利用可能なオプション
 
@@ -73,7 +73,7 @@ deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 
 - `--input-dir DIR` — 入力ディレクトリ（chatgpt エージェントの位置引数と同義）
 - `--chatlogs-dir DIR` — チャットログ格納ディレクトリ
-- `--output-dir DIR` — 出力先ディレクトリを明示指定（`originalLogs` を挟まない）
+- `--export-dir DIR` — 出力先ディレクトリを明示指定（`originalLogs` を挟まない）
 - `--dry-run` — dry-run モード（**現状未実装**: フラグは解析されるが、書き込みスキップの動作は行われない）
 
 #### chatgpt エージェントの場合

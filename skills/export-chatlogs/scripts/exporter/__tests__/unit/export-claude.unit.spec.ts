@@ -28,7 +28,7 @@ import type { ExportedSession } from '../../../types/session.types.ts';
 /** 基本の ExportConfig */
 const BASE_CONFIG: ExportConfig = {
   agent: 'claude',
-  outputDir: '/tmp/test-output',
+  exportDir: '/tmp/test-output',
   baseDir: undefined,
   period: undefined,
 };
