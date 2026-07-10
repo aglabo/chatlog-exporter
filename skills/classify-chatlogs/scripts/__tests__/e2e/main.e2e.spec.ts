@@ -12,7 +12,7 @@
 // This software is released under the MIT License.
 
 // ---  BDD modules  ---
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stubs
 import { stub } from '@std/testing/mock';
@@ -35,6 +35,7 @@ import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/d
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // exists
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
@@ -768,6 +769,88 @@ describe('main - --input-dir フルパス直接指定', () => {
         it('T-CL-E2E-10-02: "[dry-run]" がログに出力される', async () => {
           await main(['--input-dir', monthDir, '--dry-run', '--config', configFile]);
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-CL-E2E-12: 非 ChatlogError 例外 → exit せず再スロー ───────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（非 `ChatlogError` 例外の再スローパス）。
+ *
+ * `projects.dic` 読み込み時に `ChatlogError` ではない例外（`TypeError`）が
+ * 発生した場合、`catch` 節の `if (e instanceof ChatlogError)` 分岐に入らず
+ * `Deno.exit` を呼ばずにそのまま再スローされることを検証する。
+ *
+ * テスト ID 範囲: T-CL-E2E-12
+ *
+ * @see main
+ */
+describe('main - 非 ChatlogError 例外の再スロー', () => {
+  /** 入力ディレクトリは存在するが、projects.dic 読み込み時に予期しない TypeError が発生する前提。 */
+  describe('Given: projects.dic 読み込み時に TypeError が発生する', () => {
+    /** `main(["claude", "2026-03", "--input-dir", monthDir, "--config", configFile])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 非 ChatlogError 例外が再スローされ、Deno.exit は呼ばれないこと。 */
+      describe('Then: T-CL-E2E-12 - 非 ChatlogError → exit せず再スロー', () => {
+        let inputDir: string;
+        let configsDir: string;
+        let configFile: string;
+        let monthDir: string;
+        let readStub: Stub;
+        let errStub: Stub;
+        let exitStub: Stub;
+
+        beforeEach(async () => {
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          await Deno.writeTextFile(
+            `${monthDir}/chat.md`,
+            '---\ntitle: テスト\ncategory: development\n---\n本文',
+          );
+          resetProjectRoot(inputDir);
+          const originalReadTextFile = Deno.readTextFile.bind(Deno);
+          readStub = stub(
+            Deno,
+            'readTextFile',
+            ((path: string | URL, options?: Deno.ReadFileOptions) => {
+              if (String(path).includes('projects.dic')) {
+                throw new TypeError('予期しないエラー');
+              }
+              return originalReadTextFile(path, options);
+            }) as typeof Deno.readTextFile,
+          );
+          errStub = stub(console, 'error', () => {});
+          exitStub = stub(Deno, 'exit');
+          GlobalConfig.resetInstance();
+        });
+
+        afterEach(async () => {
+          readStub.restore();
+          resetProjectRoot();
+          errStub.restore();
+          exitStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(inputDir, { recursive: true });
+          await Deno.remove(configsDir, { recursive: true });
+        });
+
+        it('T-CL-E2E-12-01: main の呼び出しが TypeError で reject し、ChatlogError ではない', async () => {
+          const error = await assertRejects(() =>
+            main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile])
+          );
+
+          assertEquals(error instanceof TypeError, true);
+          assertEquals(error instanceof ChatlogError, false);
+        });
+
+        it('T-CL-E2E-12-02: Deno.exit が呼ばれない', async () => {
+          try {
+            await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+          } catch { /* TypeError が再スローされる想定 */ }
+
+          assertEquals(exitStub.calls.length, 0, 'Deno.exit が呼ばれてはいけない');
         });
       });
     });

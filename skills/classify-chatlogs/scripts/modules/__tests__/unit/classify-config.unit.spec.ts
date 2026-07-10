@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/classify-config.unit.spec.ts
-// @(#): parseArgs のユニットテスト
-//       classify 固有オプションのモデル名バリデーション
+// @(#): buildConfig の CLI 引数解析ユニットテスト
+//       classify 固有オプション（--input-dir, --config, --model, --dry-run, --period）の解析結果を検証する
 
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,12 +12,12 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- modules for test --
 // test target
-import { parseArgs } from '../../classify-config.ts';
+import { buildConfig } from '../../classify-config.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 
-describe('parseArgs', () => {
+describe('buildConfig (CLI 引数解析)', () => {
   beforeEach(() => {
     GlobalConfig.resetInstance();
   });
@@ -25,7 +25,7 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-02: --input-dir オプション ─────────────────────────────────────
 
   describe('Given: --input-dir または --input-dir=VALUE', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
+    describe('When: buildConfig(args) を呼び出す', () => {
       describe('Then: T-CL-PA-02 - inputDir に値が設定される', () => {
         const _cases: Array<[string, string[], string]> = [
           [
@@ -41,7 +41,7 @@ describe('parseArgs', () => {
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
-            const result = parseArgs(args);
+            const result = buildConfig(args);
             assertEquals(result.inputDir, expected);
           });
         }
@@ -52,7 +52,7 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-07: --input-dir フルパス直接指定オプション ──────────────────────
 
   describe('Given: --input-dir に月ディレクトリのフルパス', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
+    describe('When: buildConfig(args) を呼び出す', () => {
       describe('Then: T-CL-PA-07 - inputDir に値が設定される', () => {
         const _cases: Array<[string, string[], string]> = [
           [
@@ -68,35 +68,8 @@ describe('parseArgs', () => {
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
-            const result = parseArgs(args);
+            const result = buildConfig(args);
             assertEquals(result.inputDir, expected);
-          });
-        }
-      });
-    });
-  });
-
-  // ─── T-CL-PA-04: --config オプション ───────────────────────────────────────
-
-  describe('Given: --config または --config=VALUE', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
-      describe('Then: T-CL-PA-04 - configFile に値が設定される', () => {
-        const _cases: Array<[string, string[], string]> = [
-          [
-            'T-CL-PA-04-01: --config VALUE → configFile が設定される',
-            ['--config', '/etc/classify.yaml'],
-            '/etc/classify.yaml',
-          ],
-          [
-            'T-CL-PA-04-02: --config=VALUE → configFile が設定される',
-            ['--config=/etc/classify.yaml'],
-            '/etc/classify.yaml',
-          ],
-        ];
-        for (const [id, args, expected] of _cases) {
-          it(id, () => {
-            const result = parseArgs(args);
-            assertEquals(result.configFile, expected);
           });
         }
       });
@@ -106,7 +79,7 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-05: --model 正常系（有効モデル名） ──────────────────────────────
 
   describe('Given: --model または --model=VALUE（有効モデル名）', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
+    describe('When: buildConfig(args) を呼び出す', () => {
       describe('Then: T-CL-PA-05 - model に値が設定される（スローされない）', () => {
         const _cases: Array<[string, string[], string]> = [
           ['T-CL-PA-05-01: --model VALUE → model が設定される', ['--model', 'opus'], 'opus'],
@@ -114,7 +87,7 @@ describe('parseArgs', () => {
         ];
         for (const [id, args, expected] of _cases) {
           it(id, () => {
-            const result = parseArgs(args);
+            const result = buildConfig(args);
             assertEquals(result.model, expected);
           });
         }
@@ -125,10 +98,10 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-06: --dry-run フラグ ───────────────────────────────────────────
 
   describe('Given: --dry-run フラグ', () => {
-    describe('When: parseArgs(["--dry-run"]) を呼び出す', () => {
+    describe('When: buildConfig(["--dry-run"]) を呼び出す', () => {
       describe('Then: T-CL-PA-06 - dryRun が true になる', () => {
         it('T-CL-PA-06-01: --dry-run → dryRun が true になる', () => {
-          const result = parseArgs(['--dry-run']);
+          const result = buildConfig(['--dry-run']);
           assert(result.dryRun);
         });
       });
@@ -138,15 +111,10 @@ describe('parseArgs', () => {
   // ─── 正常系: --model 未指定時は GlobalConfig のデフォルト値が自動マージされる ─────
 
   describe('Given: --model 未指定', () => {
-    describe('When: parseArgs([]) を呼び出す', () => {
-      describe('Then: T-CL-PA-13 - model が GlobalConfig のデフォルト値になる（parseArgs 内で自動マージ）', () => {
+    describe('When: buildConfig([]) を呼び出す', () => {
+      describe('Then: T-CL-PA-13 - model が GlobalConfig のデフォルト値になる（内部で自動マージ）', () => {
         it('T-CL-PA-13-01: --model 未指定時、model は GlobalConfig のデフォルト値 "sonnet" になる', () => {
-          const result = parseArgs([]);
-          assertEquals(result.model, 'sonnet');
-        });
-
-        it('T-CL-PA-13-02: --model 明示指定は優先される', () => {
-          const result = parseArgs(['--model', 'sonnet']);
+          const result = buildConfig([]);
           assertEquals(result.model, 'sonnet');
         });
       });
@@ -156,21 +124,21 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-08: --period オプション ────────────────────────────────────────
 
   describe('Given: --period オプション', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
+    describe('When: buildConfig(args) を呼び出す', () => {
       describe('Then: T-CL-PA-08 - period に値が設定される、または不正値でエラー', () => {
         it('T-CL-PA-08-01: --period VALUE → period が設定される', () => {
-          const result = parseArgs(['--period', '2026-04']);
+          const result = buildConfig(['--period', '2026-04']);
           assertEquals(result.period, '2026-04');
         });
 
         it('T-CL-PA-08-02: --period=VALUE → period が設定される', () => {
-          const result = parseArgs(['--period=2026']);
+          const result = buildConfig(['--period=2026']);
           assertEquals(result.period, '2026');
         });
 
         it('T-CL-PA-08-03: --period 不正形式 → ChatlogError がスローされる', () => {
           assertThrows(
-            () => parseArgs(['--period', 'invalid-format']),
+            () => buildConfig(['--period', 'invalid-format']),
             ChatlogError,
           );
         });
@@ -181,7 +149,7 @@ describe('parseArgs', () => {
   // ─── T-CL-PA-03: period 位置引数 ────────────────────────────────────────────
 
   describe('Given: YYYY-MM または YYYY 形式の位置引数（agent 省略）', () => {
-    describe('When: parseArgs(args) を呼び出す', () => {
+    describe('When: buildConfig(args) を呼び出す', () => {
       describe('Then: T-CL-PA-03 - period 単独は不明な引数としてエラーになる', () => {
         const _cases: Array<[string, string[]]> = [
           ['T-CL-PA-03-01: YYYY-MM 形式 → ChatlogError(InvalidArgs)', ['2026-04']],
@@ -189,12 +157,12 @@ describe('parseArgs', () => {
         ];
         for (const [id, args] of _cases) {
           it(id, () => {
-            assertThrows(() => parseArgs(args), ChatlogError);
+            assertThrows(() => buildConfig(args), ChatlogError);
           });
         }
 
         it('T-CL-PA-03-03: 引数なし → period が undefined になる', () => {
-          const result = parseArgs([]);
+          const result = buildConfig([]);
           assertEquals(result.period, undefined);
         });
       });

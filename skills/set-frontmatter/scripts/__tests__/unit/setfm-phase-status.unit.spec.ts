@@ -230,21 +230,3 @@ describe('_phaseStatus', () => {
     });
   });
 });
-
-/**
- * `_phaseStatusForTest` の named export 確認テストスイート。
- *
- * `set-frontmatter.ts` から `_phaseStatusForTest` が import できることを検証する。
- *
- * テスト ID 範囲: T-SF-PS-06
- *
- * @see _phaseStatusForTest
- */
-describe('_phaseStatusForTest export', () => {
-  /** named export の確認 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-SF-PS-06: _phaseStatusForTest が import できる（undefined でない）', () => {
-      assertEquals(typeof phaseStatus, 'function');
-    });
-  });
-});

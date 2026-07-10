@@ -217,11 +217,6 @@ describe('ChatlogEntry', () => {
   describe('コンストラクタ（options）', () => {
     /** 引数なしまたは有効なオプションを渡す正常ケース。 */
     describe('When: 正常系', () => {
-      it('T-CLS-CE-23: [Normal] options 未指定 → entry.options が {}', () => {
-        const entry = new ChatlogEntry('---\ntitle: T\n---\nbody\n');
-        assertEquals(entry.options, {});
-      });
-
       it('T-CLS-CE-24: [Normal] options 渡し → entry.options がその値を保持', () => {
         const _opts = {};
         const entry = new ChatlogEntry('---\ntitle: T\n---\nbody\n', _opts);

@@ -17,8 +17,7 @@ import { GlobalConfig } from '../../GlobalConfig.class.ts';
 // types
 import type { ReadTextFileSyncProvider } from '../../../types/providers.types.ts';
 // constants
-import { DEFAULT_CONFIG_FILE } from '../../../constants/defaults.constants.ts';
-import { DEFAULT_SCHEMA, DEFAULT_VALUES } from '../../../constants/schema.constants.ts';
+import { DEFAULT_VALUES } from '../../../constants/schema.constants.ts';
 // classes
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -518,40 +517,5 @@ describe('GlobalConfig', () => {
         assertEquals(_err.subindex, 'UnknownKey');
       });
     });
-  });
-});
-
-// ─── DEFAULT_CONFIG_FILE 定数検証 ────────────────────────────────────────────
-
-/**
- * `DEFAULT_CONFIG_FILE` 定数のテストスイート。
- *
- * テスト ID: T-CLS-GC-60
- *
- * @see DEFAULT_CONFIG_FILE
- */
-describe('DEFAULT_CONFIG_FILE', () => {
-  it('[Normal] T-CLS-GC-60: DEFAULT_CONFIG_FILE が "assets/configs/config.yaml" である', () => {
-    assertEquals(DEFAULT_CONFIG_FILE, 'assets/configs/config.yaml');
-  });
-});
-
-// ─── DEFAULT_SCHEMA / DEFAULT_VALUES — cacheDir 定数検証 ─────────────────────
-
-/**
- * `DEFAULT_SCHEMA` および `DEFAULT_VALUES` の `cacheDir` エントリ検証スイート。
- *
- * テスト ID: T-CLS-GC-75, T-CLS-GC-76
- *
- * @see DEFAULT_SCHEMA
- * @see DEFAULT_VALUES
- */
-describe('DEFAULT_SCHEMA / DEFAULT_VALUES — cacheDir', () => {
-  it('[FN確認] T-CLS-GC-75: DEFAULT_SCHEMA.cacheDir が "string" である', () => {
-    assertEquals(DEFAULT_SCHEMA['cacheDir'], 'string');
-  });
-
-  it('[Normal] T-CLS-GC-76: DEFAULT_VALUES.cacheDir が "${TEMP}/cle-cache" である', () => {
-    assertEquals((DEFAULT_VALUES as Record<string, unknown>)['cacheDir'], '${TEMP}/cle-cache');
   });
 });

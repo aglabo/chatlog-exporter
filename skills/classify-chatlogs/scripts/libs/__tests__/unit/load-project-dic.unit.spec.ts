@@ -55,6 +55,12 @@ const _readEmpty = (_path: string) => Promise.resolve('');
 const _readNonStringProp = (_path: string) => Promise.resolve(_FIXTURE_TEXT_NON_STRING_PROP);
 const _readScalarProject = (_path: string) => Promise.resolve(_FIXTURE_TEXT_SCALAR_PROJECT);
 
+// 深くネストした flow シーケンス（未クローズの `[` を大量に連結）を与えると、
+// `@std/yaml` の再帰下降パーサがコールスタック上限に達し `RangeError` を throw する。
+// これは `parseYaml` が `SyntaxError` 以外の例外を投げる実例であり、
+// `loadProjectDic` の非 SyntaxError 再throwパス（T-CL-LPD-17）を駆動するために使用する。
+const _readDeeplyNestedYaml = (_path: string) => Promise.resolve('a: ' + '['.repeat(20000));
+
 // ─── loadProjectDic ───────────────────────────────────────────────────────────
 
 describe('loadProjectDic', () => {
@@ -250,6 +256,14 @@ describe('loadProjectDic', () => {
 
       assert(err instanceof ChatlogError);
       assertEquals((err as ChatlogError).subindex, 'YamlSyntaxError');
+    });
+
+    // T-CL-LPD-17: parseYaml が SyntaxError 以外の例外（RangeError）を throw → ChatlogError に変換されず素通しで再throw される
+    it('T-CL-LPD-17-01: parseYaml が RangeError を throw するとき ChatlogError ではなく RangeError がそのまま throw される', async () => {
+      await assertRejects(
+        () => loadProjectDic('assets/configs/projects.dic', _resolveToFixture, _readDeeplyNestedYaml),
+        RangeError,
+      );
     });
   });
 

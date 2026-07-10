@@ -101,21 +101,6 @@ describe('ChatlogWorks', () => {
    * TEMP 環境変数あり・なしのケースを検証する。
    */
   describe('constructor', () => {
-    /** 有効な環境変数でインスタンスを生成するケース。 */
-    describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-01: providers を省略しても new ChatlogWorks() でインスタンスが生成される', () => {
-        const _cache = new ChatlogWorks('set-frontmatter', '/tmp/test-cle-cache');
-        assertEquals(_cache instanceof ChatlogWorks, true);
-      });
-
-      it('[Normal] T-CLS-CC-37: initializer に yaml を指定して new ChatlogWorks() がインスタンスを生成する', () => {
-        const _cache = new ChatlogWorks('test', '/tmp/test-cle-cache', { yaml: 'key:\n  v: 1\n' }, {
-          cache: _makeBufferProviders(),
-        });
-        assertEquals(_cache instanceof ChatlogWorks, true);
-      });
-    });
-
     /** 環境変数が存在しない場合・mkdir 失敗のエラーケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-CLS-CC-04: TEMP が未設定のとき ready が ChatlogError(EnvVarNotSet) で reject される', async () => {

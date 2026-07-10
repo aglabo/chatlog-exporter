@@ -222,5 +222,26 @@ describe('processChunk', () => {
 
       assertEquals(buffer.length, 0);
     });
+
+    it('[Edge] T-CL-PC-06-01: AI応答に同じfile名が2件含まれる → 先頭要素のprojectが採用される', async () => {
+      mockHandle.restore();
+      loggerStub.restore();
+      loggerStub = makeLoggerStub();
+      const response = JSON.stringify([
+        { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched first' },
+        { file: 'a.md', project: 'app2', confidence: 0.8, reason: 'matched second' },
+      ]);
+      mockHandle = installCommandMock(
+        makeSuccessMock(new TextEncoder().encode(response)),
+      );
+
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
+
+      const buffer = await processChunk(metas, projects, model);
+
+      assertEquals(buffer.length, 1);
+      assertEquals(buffer[0].project, 'app1');
+    });
   });
 });

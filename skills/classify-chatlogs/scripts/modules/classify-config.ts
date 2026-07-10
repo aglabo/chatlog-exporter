@@ -9,7 +9,6 @@
 
 // ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
 import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 // types
@@ -17,58 +16,33 @@ import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // ─── Local
 // types
-import type { ClassifyConfig, ParsedConfig } from '../types/classify.types.ts';
+import type { ClassifyConfig } from '../types/classify.types.ts';
 // constants
 import { DEFAULT_CLASSIFY_CONFIG } from '../constants/classify.constants.ts';
 
 /** classify-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<ParsedConfig> = [
+const _SCHEMA: ArgsSchema<ClassifyConfig> = [
   { option: '--period', field: 'period', type: 'period' },
   { option: '--model', field: 'model', type: 'string' },
 ];
 
-export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA);
-};
-
 /**
- * ParsedConfig・GlobalConfig・デフォルト値から完全な ClassifyConfig を構築する。
- * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - model 優先順位: `parsed.model` > `globalConfig.get('model')` > `defaults.model`
- * - chatlogsDir: `globalConfig.get('chatlogsDir')`（基準ディレクトリ）
- * - inputDir: `parsed.inputDir`（指定時のみ設定される。フルパス直接指定の短絡パラメータ）
- * - dicsDir 優先順位: `globalConfig.get('dicsDir')` > `defaults.dicsDir`
- * - projectsDic 優先順位: `globalConfig.get('projectsDic')` > `defaults.projectsDic`（`dicsDir` とは独立）
- * - 不正なモデル名は `ChatlogError('InvalidArgs')` をスローする。
- * - `configFile` は ClassifyConfig に存在しないため結果に含まれない。
+ * CLI 引数から完全な ClassifyConfig を構築する。
+ * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの `Partial<ClassifyConfig>` を返すため、
+ *   GlobalConfig の値を個別に再取得しない。
+ * - `model` は `isValidModel` で検証し、不正なモデル名は `ChatlogError('InvalidArgs', 'InvalidModel')` をスローする。
  */
 export const buildConfig = (
-  parsed: ParsedConfig,
-  globalConfig: GlobalConfig,
+  args: string[],
   defaults?: ClassifyConfig,
 ): ClassifyConfig => {
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
-  const _model = parsed.model ?? globalConfig.get('model') as string;
-  if (!isValidModel(_model)) {
-    throw new ChatlogError('InvalidArgs', 'InvalidModel', `不正なモデル名: ${_model}`);
+  const parsed = parseArgsToConfig<ClassifyConfig>(args, _SCHEMA, _defaults) as ClassifyConfig;
+
+  if (!isValidModel(parsed.model)) {
+    throw new ChatlogError('InvalidArgs', 'InvalidModel', `不正なモデル名: ${parsed.model}`);
   }
-  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
-  const _dicsDir = globalConfig.get('dicsDir') as string;
-  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
-  const _projectsDic = globalConfig.get('projectsDic') as string;
-  const _chunkSize = globalConfig.get('chunkSize') as number;
-  const _concurrency = globalConfig.get('concurrency') as number;
-  const { configFile: _cf, ...rest } = parsed;
-  return {
-    ..._defaults,
-    ...rest,
-    agent: _agent,
-    model: _model,
-    dicsDir: _dicsDir,
-    projectsDic: _projectsDic,
-    chatlogsDir: _chatlogsDir,
-    inputDir: parsed.inputDir,
-    chunkSize: _chunkSize,
-    concurrency: _concurrency,
-  };
+
+  return parsed;
 };
