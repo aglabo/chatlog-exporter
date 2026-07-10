@@ -15,7 +15,7 @@ import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
 // types
-import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // constants
 import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
@@ -29,7 +29,7 @@ import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- local
 // constants
-const _SCHEMA: ArgsSchema<NormalizeParsedConfig> = [
+const _SCHEMA: ArgSchema<NormalizeParsedConfig> = [
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
