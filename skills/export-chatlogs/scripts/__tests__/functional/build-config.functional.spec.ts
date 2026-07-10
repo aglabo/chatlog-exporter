@@ -1,6 +1,6 @@
 // src: scripts/__tests__/functional/export-chatlogs.build-config.functional.spec.ts
 // @(#): buildConfig の機能テスト
-//       ParsedConfig + GlobalConfig + デフォルト値から ExportConfig を構築するロジック
+//       CLI 引数 + GlobalConfig + デフォルト値から ExportConfig を構築するロジック
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -8,12 +8,13 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
 import { buildConfig } from '../../export-chatlogs.ts';
 // classes
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
 import {
@@ -21,8 +22,6 @@ import {
   DEFAULT_ORIGINAL_LOGS_DIR,
 } from '../../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_EXPORT_CONFIG } from '../../constants/defaults.constants.ts';
-// types
-import type { ParsedConfig } from '../../types/export-config.types.ts';
 // helpers
 import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
 import { joinPath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
@@ -47,30 +46,23 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
   });
 }
 
-/**
- * 全フィールドが未指定の空の `ParsedConfig`。
- *
- * 各テストで「parsed 側が何も指定されていない」ケースを表すベース値として使用する。
- * スプレッド構文で特定フィールドだけ上書きして部分指定のケースも表現する。
- */
-const _EMPTY_PARSED: ParsedConfig = {};
-
 // ─── buildConfig テストスイート ────────────────────────────────────────────────
 
 /**
  * `buildConfig` 関数の機能テストスイート。
  *
- * `buildConfig(parsed, globalConfig, defaults?)` は
- * `ParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `ExportConfig` を構築する。
+ * `buildConfig(args, defaults?)` は CLI 引数配列を共通 `parseArgs`（CLI > GlobalConfig >
+ * defaults の優先度でマージ）に通し、`ExportConfig` を構築する。
  *
  * ## 優先順位ルール
- * - `agent`     : parsed > globalConfig > defaults
- * - `outputDir` : parsed > (globalConfig.chatlogsDir > defaults) + 'originalLogs'
- * - `baseDir`   : parsed のみ（GlobalConfig 連携なし）
- * - `inputDir`  : parsed のみ（GlobalConfig 連携なし）
- * - `period`    : parsed のみ
+ * - `agent`     : CLI > GlobalConfig > defaults
+ * - `exportDir` : CLI(--export-dir) > (GlobalConfig.chatlogsDir > defaults.chatlogsDir) + 'originalLogs'
+ *                 （共通スキーマ由来の `--output-dir` は破棄され `exportDir` には影響しない）
+ * - `baseDir`   : CLI(--base) のみ（GlobalConfig 連携なし）
+ * - `inputDir`  : CLI(--input-dir) のみ（GlobalConfig 連携なし）
+ * - `period`    : CLI 位置引数のみ
  *
- * テスト ID 範囲: T-EC-BC-01 〜 T-EC-BC-16
+ * テスト ID 範囲: T-EC-BC-01 〜 T-EC-BC-20
  */
 describe('buildConfig', () => {
   afterEach(() => {
@@ -80,22 +72,21 @@ describe('buildConfig', () => {
   // ─── agent 優先順位 ─────────────────────────────────────────────────────────
 
   /**
-   * `parsed.agent` がセットされている前提条件グループ。
+   * CLI で agent が指定されている前提条件グループ。
    *
-   * CLI 引数または呼び出しコードが明示的にエージェントを指定したケースを表す。
-   * `globalConfig` に agent が設定されていても `parsed.agent` が優先されることを検証する。
+   * `--agent` 相当の位置引数が明示的にエージェントを指定したケースを表す。
+   * `globalConfig` に agent が設定されていても CLI 指定が優先されることを検証する。
    */
-  describe('Given: parsed.agent が指定されている', () => {
+  describe('Given: CLI 引数に agent が指定されている', () => {
     /** `globalConfig` にも `agent` が設定されているとき。 */
     describe('When: GlobalConfig にも agent が設定されている', () => {
-      /** `parsed.agent` が `globalConfig.agent` より優先されることを検証する。 */
-      describe('Then: T-EC-BC-01 - parsed.agent が優先される', () => {
-        let globalConfig: GlobalConfig;
+      /** CLI の agent が `globalConfig.agent` より優先されることを検証する。 */
+      describe('Then: T-EC-BC-01 - CLI の agent が優先される', () => {
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: chatgpt');
+          await _makeGlobalConfig('agent: chatgpt');
         });
-        it('T-EC-BC-01-01: parsed.agent=codex → result.agent === codex', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, agent: 'codex' }, globalConfig);
+        it('T-EC-BC-01-01: args=["codex"] → result.agent === codex', () => {
+          const result = buildConfig(['codex']);
           assertEquals(result.agent, 'codex');
         });
       });
@@ -103,22 +94,21 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `parsed.agent` が未設定である前提条件グループ。
+   * CLI で agent が未指定である前提条件グループ。
    *
    * CLI 引数でエージェントが指定されなかったケースを表す。
    * `globalConfig` の agent 設定、さらに未設定の場合はデフォルト値にフォールバックすることを検証する。
    */
-  describe('Given: parsed.agent が未指定', () => {
+  describe('Given: CLI 引数に agent が未指定', () => {
     /** `globalConfig` に `agent` が設定されているとき。 */
     describe('When: GlobalConfig に agent が設定されている', () => {
       /** `globalConfig.agent` が採用されることを検証する。 */
       describe('Then: T-EC-BC-02 - GlobalConfig の agent が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: chatgpt');
+          await _makeGlobalConfig('agent: chatgpt');
         });
         it('T-EC-BC-02-01: globalConfig.agent=chatgpt → result.agent === chatgpt', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.agent, 'chatgpt');
         });
       });
@@ -128,63 +118,63 @@ describe('buildConfig', () => {
     describe('When: GlobalConfig にも agent が設定されていない', () => {
       /** `DEFAULT_EXPORT_CONFIG.agent` にフォールバックされることを検証する。 */
       describe('Then: T-EC-BC-03 - DEFAULT_EXPORT_CONFIG.agent が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('model: haiku');
+          await _makeGlobalConfig('model: haiku');
         });
         it("T-EC-BC-03-01: agent 未設定 → result.agent === DEFAULT_EXPORT_CONFIG.agent ('claude')", () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.agent, DEFAULT_EXPORT_CONFIG.agent);
         });
       });
     });
   });
 
-  // ─── outputDir 優先順位 ─────────────────────────────────────────────────────
+  // ─── exportDir 優先順位 ─────────────────────────────────────────────────────
 
   /**
-   * `parsed.outputDir` がセットされている前提条件グループ。
+   * CLI で exportDir が指定されている前提条件グループ。
    *
-   * CLI 引数 `--output` で出力ディレクトリが明示されたケースを表す。
-   * `globalConfig.chatlogsDir` より `parsed.outputDir` が優先されることを検証する。
+   * CLI 引数 `--export-dir` で出力ディレクトリが明示されたケースを表す。
+   * `globalConfig.chatlogsDir` より CLI 指定が優先されることを検証する。
    */
-  describe('Given: parsed.outputDir が指定されている', () => {
+  describe('Given: CLI 引数に --export-dir が指定されている', () => {
     /** `globalConfig` に `chatlogsDir` が設定されているとき。 */
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
-      /** `parsed.outputDir` が `globalConfig.chatlogsDir` より優先されることを検証する。 */
-      describe('Then: T-EC-BC-04 - parsed.outputDir が優先される', () => {
-        let globalConfig: GlobalConfig;
+      /** CLI の exportDir が `globalConfig.chatlogsDir` より優先されることを検証する。 */
+      describe('Then: T-EC-BC-04 - CLI の exportDir が優先される', () => {
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+          await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-EC-BC-04-01: parsed.outputDir=/out → result.outputDir === /out', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, outputDir: '/out' }, globalConfig);
-          assertEquals(result.outputDir, '/out');
+        it('T-EC-BC-04-01: args=["--export-dir", "/out"] → result.exportDir === /out', () => {
+          const result = buildConfig(['--export-dir', '/out']);
+          assertEquals(result.exportDir, '/out');
         });
       });
     });
   });
 
   /**
-   * `parsed.outputDir` が未設定である前提条件グループ。
+   * CLI で exportDir が未指定である前提条件グループ。
    *
-   * CLI 引数 `--output` が省略されたケースを表す。
+   * CLI 引数 `--export-dir` が省略されたケースを表す。
    * `globalConfig.chatlogsDir` が設定されていればそれを基準に `originalLogs` を付加し、
    * なければ `DEFAULT_CHATLOGS_DIR` を基準に `originalLogs` を付加した値にフォールバックすることを検証する。
    */
-  describe('Given: parsed.outputDir が未指定', () => {
+  describe('Given: CLI 引数に --export-dir が未指定', () => {
     /** `globalConfig` に `chatlogsDir` が設定されているとき。 */
     describe('When: GlobalConfig に chatlogsDir が設定されている', () => {
       /** `globalConfig.chatlogsDir` + `originalLogs` が採用されることを検証する。 */
       describe('Then: T-EC-BC-05 - GlobalConfig の chatlogsDir + originalLogs が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global/chatlog');
+          await _makeGlobalConfig('chatlogsDir: /global/chatlog');
         });
-        it('T-EC-BC-05-01: globalConfig.chatlogsDir=/global/chatlog → result.outputDir === /global/chatlog/originalLogs', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, joinPath('/global/chatlog', DEFAULT_ORIGINAL_LOGS_DIR));
-        });
+        it(
+          'T-EC-BC-05-01: globalConfig.chatlogsDir=/global/chatlog → result.exportDir === /global/chatlog/originalLogs',
+          () => {
+            const result = buildConfig([]);
+            assertEquals(result.exportDir, joinPath('/global/chatlog', DEFAULT_ORIGINAL_LOGS_DIR));
+          },
+        );
       });
     });
 
@@ -192,13 +182,62 @@ describe('buildConfig', () => {
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       /** `DEFAULT_CHATLOGS_DIR` + `originalLogs` にフォールバックされることを検証する。 */
       describe('Then: T-EC-BC-06 - DEFAULT_CHATLOGS_DIR + originalLogs が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-06-01: outputDir 未設定, chatlogsDir 未登録 → result.outputDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
+        it("T-EC-BC-06-01: exportDir 未設定, chatlogsDir 未登録 → result.exportDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
+          const result = buildConfig([]);
+          assertEquals(result.exportDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI で --export-dir が指定されている前提条件グループ。
+   *
+   * `--export-dir` は独立した `exportDir` フィールドにマッピングされる。
+   * `--output-dir` を指定しない場合でも `--export-dir` 単独で `exportDir` が反映されることを検証する。
+   */
+  describe('Given: CLI 引数に --export-dir が指定されている', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** `result.exportDir` が `--export-dir` の値と一致することを検証する。 */
+      describe('Then: T-EC-BC-19 - result.exportDir === CLI の --export-dir', () => {
+        beforeEach(async () => {
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
+        });
+        it('T-EC-BC-19-01: args=["--export-dir", "/foo"] → result.exportDir === /foo', () => {
+          const result = buildConfig(['--export-dir', '/foo']);
+          assertEquals(result.exportDir, '/foo');
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI で --output-dir が指定されている前提条件グループ。
+   *
+   * `--output-dir` は共通スキーマ由来のパースは通るが、export-chatlogs では
+   * `exportDir` の算出に一切使用されず破棄されることを検証する。
+   */
+  describe('Given: CLI 引数に --output-dir が指定されている', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** `--output-dir` の値が `result.exportDir` に反映されないことを検証する。 */
+      describe('Then: T-EC-BC-20 - --output-dir は exportDir に影響しない', () => {
+        beforeEach(async () => {
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
+        });
+        it('T-EC-BC-20-01: args=["--output-dir", "/foo"] → result.exportDir !== /foo（chatlogsDir 由来の導出値になる）', () => {
+          const result = buildConfig(['--output-dir', '/foo']);
+          assertEquals(result.exportDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
         });
       });
     });
@@ -207,22 +246,23 @@ describe('buildConfig', () => {
   // ─── baseDir 優先順位 ───────────────────────────────────────────────────────
 
   /**
-   * `parsed.baseDir` がセットされている前提条件グループ。
+   * CLI で baseDir が指定されている前提条件グループ。
    *
    * CLI 引数 `--base` でベースディレクトリが明示されたケースを表す。
-   * `baseDir` は `GlobalConfig` 連携がなく `parsed` の値のみが反映されることを検証する。
+   * `baseDir` は `GlobalConfig` 連携がなく CLI の値のみが反映されることを検証する。
    */
-  describe('Given: parsed.baseDir が指定されている', () => {
+  describe('Given: CLI 引数に --base が指定されている', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
-      /** `result.baseDir` が `parsed.baseDir` と一致することを検証する。 */
-      describe('Then: T-EC-BC-07 - result.baseDir === parsed.baseDir', () => {
-        let globalConfig: GlobalConfig;
+      /** `result.baseDir` が CLI の値と一致することを検証する。 */
+      describe('Then: T-EC-BC-07 - result.baseDir === CLI の baseDir', () => {
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-07-01: parsed.baseDir=/data → result.baseDir === /data', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, baseDir: '/data' }, globalConfig);
+        it('T-EC-BC-07-01: args=["--base", "/data"] → result.baseDir === /data', () => {
+          const result = buildConfig(['--base', '/data']);
           assertEquals(result.baseDir, '/data');
         });
       });
@@ -230,22 +270,23 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `parsed.baseDir` が未設定である前提条件グループ。
+   * CLI で baseDir が未指定である前提条件グループ。
    *
    * CLI 引数 `--base` が省略されたケースを表す。
    * `baseDir` は `GlobalConfig` 連携がないため、未指定時は `undefined` になることを検証する。
    */
-  describe('Given: parsed.baseDir が未指定', () => {
+  describe('Given: CLI 引数に --base が未指定', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
       /** `result.baseDir` が `undefined` になることを検証する。 */
       describe('Then: T-EC-BC-08 - result.baseDir === undefined', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
         it('T-EC-BC-08-01: baseDir 未指定 → result.baseDir === undefined', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.baseDir, undefined);
         });
       });
@@ -255,22 +296,23 @@ describe('buildConfig', () => {
   // ─── inputDir 優先順位 ──────────────────────────────────────────────────────
 
   /**
-   * `parsed.inputDir` がセットされている前提条件グループ。
+   * CLI で inputDir が指定されている前提条件グループ。
    *
-   * CLI 引数 `--input` または位置引数でパスが指定されたケースを表す。
-   * `inputDir` は `GlobalConfig` 連携がなく `parsed` の値のみが反映されることを検証する。
+   * CLI 引数 `--input-dir` でパスが指定されたケースを表す。
+   * `inputDir` は `GlobalConfig` 連携がなく CLI の値のみが反映されることを検証する。
    */
-  describe('Given: parsed.inputDir が指定されている', () => {
+  describe('Given: CLI 引数に --input-dir が指定されている', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
-      /** `result.inputDir` が `parsed.inputDir` と一致することを検証する。 */
-      describe('Then: T-EC-BC-09 - result.inputDir === parsed.inputDir', () => {
-        let globalConfig: GlobalConfig;
+      /** `result.inputDir` が CLI の値と一致することを検証する。 */
+      describe('Then: T-EC-BC-09 - result.inputDir === CLI の inputDir', () => {
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-09-01: parsed.inputDir=/input → result.inputDir === /input', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/input' }, globalConfig);
+        it('T-EC-BC-09-01: args=["--input-dir", "/input"] → result.inputDir === /input', () => {
+          const result = buildConfig(['--input-dir', '/input']);
           assertEquals(result.inputDir, '/input');
         });
       });
@@ -278,47 +320,49 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `parsed.inputDir` が未設定である前提条件グループ。
+   * CLI で inputDir が未指定である前提条件グループ。
    *
-   * CLI 引数 `--input` が省略されたケースを表す。
+   * CLI 引数 `--input-dir` が省略されたケースを表す。
    * `inputDir` は `GlobalConfig` 連携がないため、未指定時は `undefined` になることを検証する。
    */
-  describe('Given: parsed.inputDir が未指定', () => {
+  describe('Given: CLI 引数に --input-dir が未指定', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
       /** `result.inputDir` が `undefined` になることを検証する。 */
       describe('Then: T-EC-BC-10 - result.inputDir === undefined', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
         it('T-EC-BC-10-01: inputDir 未指定 → result.inputDir === undefined', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.inputDir, undefined);
         });
       });
     });
   });
 
-  // ─── period フィールド（parsedのみ） ─────────────────────────────────────────
+  // ─── period フィールド（CLIのみ） ─────────────────────────────────────────────
 
   /**
-   * `parsed.period` がセットされている前提条件グループ。
+   * CLI で period が指定されている前提条件グループ。
    *
    * CLI 引数で `YYYY-MM` または `YYYY` 形式の期間が指定されたケースを表す。
-   * `period` は `GlobalConfig` 連携がなく `parsed` の値のみが反映されることを検証する。
+   * `period` は `GlobalConfig` 連携がなく CLI の値のみが反映されることを検証する。
    */
-  describe('Given: parsed.period が指定されている', () => {
+  describe('Given: CLI 引数に period が指定されている', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
-      /** `result.period` が `parsed.period` と一致することを検証する。 */
-      describe('Then: T-EC-BC-11 - result.period === parsed.period', () => {
-        let globalConfig: GlobalConfig;
+      /** `result.period` が CLI の値と一致することを検証する。 */
+      describe('Then: T-EC-BC-11 - result.period === CLI の period', () => {
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-11-01: parsed.period=2026-01 → result.period === 2026-01', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, period: '2026-01' }, globalConfig);
+        it('T-EC-BC-11-01: args=["claude", "2026-01"] → result.period === 2026-01', () => {
+          const result = buildConfig(['claude', '2026-01']);
           assertEquals(result.period, '2026-01');
         });
       });
@@ -326,22 +370,23 @@ describe('buildConfig', () => {
   });
 
   /**
-   * `parsed.period` が未設定である前提条件グループ。
+   * CLI で period が未指定である前提条件グループ。
    *
    * CLI 引数で期間が指定されなかったケースを表す。
    * `period` は `GlobalConfig` 連携がないため、未指定時は `undefined` になることを検証する。
    */
-  describe('Given: parsed.period が未指定', () => {
+  describe('Given: CLI 引数に period が未指定', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
       /** `result.period` が `undefined` になることを検証する。 */
       describe('Then: T-EC-BC-12 - result.period === undefined', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
         it('T-EC-BC-12-01: period 未指定 → result.period === undefined', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.period, undefined);
         });
       });
@@ -351,7 +396,7 @@ describe('buildConfig', () => {
   // ─── defaults 引数 ──────────────────────────────────────────────────────────
 
   /**
-   * `buildConfig` の第 3 引数 `defaults` が省略されている前提条件グループ。
+   * `buildConfig` の第 2 引数 `defaults` が省略されている前提条件グループ。
    *
    * 省略時は内部で `DEFAULT_EXPORT_CONFIG` が使われる。
    * `chatlogsDir` も未登録の場合に `DEFAULT_CHATLOGS_DIR` + `originalLogs` にフォールバックすることを検証する。
@@ -361,13 +406,14 @@ describe('buildConfig', () => {
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       /** `DEFAULT_CHATLOGS_DIR` + `originalLogs` が採用されることを検証する。 */
       describe('Then: T-EC-BC-13 - DEFAULT_CHATLOGS_DIR + originalLogs が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.outputDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
+        it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.exportDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
+          const result = buildConfig([]);
+          assertEquals(result.exportDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
         });
       });
     });
@@ -378,21 +424,21 @@ describe('buildConfig', () => {
   /**
    * configFile フィールドが ExportConfig に混入しないことを確認する。
    *
-   * ParsedConfig の configFile は GlobalConfig 初期化専用フィールドであり、
+   * `--config` は GlobalConfig 初期化専用フィールドであり、
    * buildConfig の戻り値 ExportConfig には含まれてはならない。
    */
-  describe('Given: ParsedConfig に configFile が指定されている', () => {
+  describe('Given: CLI 引数に --config が指定されている', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
       /** `result` に `configFile` フィールドが含まれないことを検証する。 */
       describe('Then: T-EC-BC-15 - result に configFile フィールドが含まれない', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-15-01: configFile を含む ParsedConfig → result に configFile が含まれない', () => {
-          const _parsed: ParsedConfig = { agent: 'claude', configFile: '/path/to/config.yaml' };
-          const result = buildConfig(_parsed, globalConfig);
+        it('T-EC-BC-15-01: --config を含む CLI 引数 → result に configFile が含まれない', () => {
+          const result = buildConfig(['claude', '--config', '/path/to/config.yaml']);
           assertEquals((result as unknown as Record<string, unknown>).configFile, undefined);
         });
       });
@@ -402,23 +448,53 @@ describe('buildConfig', () => {
   // ─── dryRun の引き継ぎ ────────────────────────────────────────────────────────
 
   /**
-   * `parsed.dryRun` が `result.dryRun` にそのまま引き継がれることを確認する。
+   * CLI の `--dry-run` が `result.dryRun` にそのまま引き継がれることを確認する。
    *
-   * `--dry-run` は `_DEFAULT_SCHEMA` 経由で `parsed.dryRun` にセットされ、
-   * `buildConfig` のスプレッドで `ExportConfig` にそのまま反映される。
+   * `--dry-run` は共通スキーマ経由で解析され、`buildConfig` のスプレッドで
+   * `ExportConfig` にそのまま反映される。
    */
-  describe('Given: ParsedConfig に dryRun が指定されている', () => {
+  describe('Given: CLI 引数に --dry-run が指定されている', () => {
     /** `buildConfig` を呼び出すとき。 */
     describe('When: buildConfig を呼び出す', () => {
-      /** `result.dryRun` が `parsed.dryRun` と一致することを検証する。 */
-      describe('Then: T-EC-BC-16 - result.dryRun === parsed.dryRun', () => {
-        let globalConfig: GlobalConfig;
+      /** `result.dryRun` が `true` になることを検証する。 */
+      describe('Then: T-EC-BC-16 - result.dryRun === true', () => {
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance({ schema: {} });
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
         });
-        it('T-EC-BC-16-01: parsed.dryRun=true → result.dryRun === true', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, agent: 'claude', dryRun: true }, globalConfig);
+        it('T-EC-BC-16-01: args=["claude", "--dry-run"] → result.dryRun === true', () => {
+          const result = buildConfig(['claude', '--dry-run']);
           assertEquals(result.dryRun, true);
+        });
+      });
+    });
+  });
+
+  // ─── 異常系: 不正な引数 ────────────────────────────────────────────────────────
+
+  /**
+   * 未知のオプション・未知の位置引数に対するエラー仕様の検証。
+   * サイレントに無視するのではなく明示的に失敗する設計の確認。
+   */
+  describe('Given: 不正な CLI 引数', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** ChatlogError(InvalidArgs) がスローされることを確認する。 */
+      describe('Then: T-EC-BC-17/18 - ChatlogError(InvalidArgs) がスローされる', () => {
+        beforeEach(async () => {
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
+        });
+        it('T-EC-BC-17-01: args=["--unknown"] → ChatlogError(InvalidArgs) がスローされる', () => {
+          assertThrows(() => buildConfig(['--unknown']), ChatlogError, 'Invalid Args');
+        });
+        it('T-EC-BC-18-01: args=["my-project"] → ChatlogError(InvalidArgs) がスローされる', () => {
+          assertThrows(() => buildConfig(['my-project']), ChatlogError, 'Invalid Args');
+        });
+        it('T-EC-PA-03-01: args=["2026-03"]（period 単独・agent なし） → ChatlogError(InvalidArgs) がスローされる', () => {
+          assertThrows(() => buildConfig(['2026-03']), ChatlogError, 'Invalid Args');
         });
       });
     });
