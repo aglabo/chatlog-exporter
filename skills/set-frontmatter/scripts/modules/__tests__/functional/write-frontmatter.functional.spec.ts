@@ -20,8 +20,8 @@ import type { Stub } from '@std/testing/mock';
 import { writeFrontmatter } from '../../setfm-write.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // types
@@ -30,7 +30,7 @@ import type { SetfmCache } from '../../../types/cache.types.ts';
 // ─── Internal Helpers
 
 let tempDir: string;
-let cache: ChatlogWorks<SetfmCache>;
+let cache: ChatlogCache<SetfmCache>;
 let errStub: Stub<Console>;
 let logStub: Stub<Console>;
 
@@ -59,11 +59,11 @@ function _makeChatlogEntry(filePath: string): ChatlogEntry {
  * noop キャッシュを生成する。
  *
  * @param cacheDir - キャッシュ用ディレクトリ（`subDir` に直接渡す）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-async function _makeNoopCache(cacheDir: string): Promise<ChatlogWorks<SetfmCache>> {
+async function _makeNoopCache(cacheDir: string): Promise<ChatlogCache<SetfmCache>> {
   const buf = new Map<string, string>();
-  const c = new ChatlogWorks<SetfmCache>(cacheDir, '', undefined, {
+  const c = new ChatlogCache<SetfmCache>(cacheDir, '', undefined, {
     cache: {
       readTextFile: (path: string) => {
         const data = buf.get(path);
