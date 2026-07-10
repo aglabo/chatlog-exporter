@@ -19,8 +19,8 @@ import { spy } from '@std/testing/mock';
 import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // constants
 import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 // types
@@ -57,16 +57,16 @@ const _PROMPTS: Prompts = {
 // functions
 
 /**
- * インメモリバッファを使った `ChatlogWorks<SetfmCache>` を生成する。
+ * インメモリバッファを使った `ChatlogCache<SetfmCache>` を生成する。
  *
  * ファイルシステムに依存しない。`yaml` を渡すと初期キャッシュを設定できる。
  *
  * @param yaml - 初期キャッシュ YAML 文字列（省略時は空キャッシュ）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeCache = async (yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,
@@ -98,16 +98,16 @@ const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
 const _makeEntry = (filePath: string): ChatlogEntry => new ChatlogEntry('---\ntitle: test\n---\n# body', { filePath });
 
 /**
- * 指定ステータスで type/category をキャッシュに書き込み済みの `ChatlogWorks` を返す。
+ * 指定ステータスで type/category をキャッシュに書き込み済みの `ChatlogCache` を返す。
  *
  * @param filePath - キャッシュエントリのファイルパス
  * @param status - キャッシュエントリのステータス
- * @returns 書き込み済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 書き込み済みの `ChatlogCache<SetfmCache>` インスタンス
  */
 const _makeCacheWithEntry = async (
   filePath: string,
   status: CacheStatus,
-): Promise<ChatlogWorks<SetfmCache>> => {
+): Promise<ChatlogCache<SetfmCache>> => {
   const cache = await _makeCache();
   await cache.write(filePath, { type: 'cached-type', category: 'cached-cat', status });
   return cache;
@@ -311,7 +311,7 @@ describe('_phaseTypeAndCategory', () => {
           // type/category だけ持たせる別キャッシュを使う。
           const buf = new Map<string, string>();
           buf.set(filePath + '.json', JSON.stringify({ type: 'some-type', category: 'some-cat' }));
-          const cacheWithNoStatus = new ChatlogWorks<SetfmCache>(
+          const cacheWithNoStatus = new ChatlogCache<SetfmCache>(
             'fm-cache',
             '/fake/cache',
             undefined,
