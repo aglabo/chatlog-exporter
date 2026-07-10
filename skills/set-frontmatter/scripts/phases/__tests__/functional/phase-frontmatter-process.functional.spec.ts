@@ -17,8 +17,8 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
@@ -35,7 +35,7 @@ const _CONCURRENCY = 1;
 // functions
 
 /**
- * バッファプロバイダーを使った `ChatlogWorks<SetfmCache>` インスタンスを生成する。
+ * バッファプロバイダーを使った `ChatlogCache<SetfmCache>` インスタンスを生成する。
  *
  * ファイルシステムに依存しないテストのため、`Map<string, string>` をバッファとして使用する。
  * `cacheRoot` は固定の偽パス `'/fake/cache'` を使いディレクトリ作成をスキップする。
@@ -43,10 +43,10 @@ const _CONCURRENCY = 1;
  *
  * @param buf - 読み書きを受け持つバッファ
  * @param yaml - 初期キャッシュ内容（省略時はディレクトリ自動読み込み＝空）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(
+const _makeCache = async (buf: Map<string, string>, yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,
@@ -163,7 +163,7 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
  */
 describe('_phaseFrontmatter', () => {
   let buf: Map<string, string>;
-  let cache: ChatlogWorks<SetfmCache>;
+  let cache: ChatlogCache<SetfmCache>;
   let generateCallCount: number;
   let generateStub: (
     entry: ChatlogEntry,
