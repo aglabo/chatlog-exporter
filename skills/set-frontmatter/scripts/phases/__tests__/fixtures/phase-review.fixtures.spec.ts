@@ -1,6 +1,6 @@
-// src: scripts/__tests__/fixtures/cache-hit.fixtures.spec.ts
-// @(#): _phaseReview の fixtures テスト
-//       対象: _phaseReviewForTest
+// src: scripts/phases/__tests__/fixtures/phase-review.fixtures.spec.ts
+// @(#): phaseReview の fixtures テスト
+//       対象: phaseReview
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,21 +14,21 @@ import { assertEquals } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
+import { phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { DicEntry, Dics, Prompts } from '../../types/dics.types.ts';
-import type { ReviewResult } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
+import type { ReviewResult } from '../../../types/phase.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** fixtures-data/fm-cache ディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** fixtures-data/fm-cache ディレクトリの絶対パス。`ChatlogCache` の `subDir` に渡す。 */
 const _FIXTURES_FM_CACHE_DIR = normalizePath(
   new URL('./fixtures-data/fm-cache', import.meta.url).pathname,
 );
@@ -42,16 +42,16 @@ const _CONCURRENCY = 1;
 // functions
 
 /**
- * fixtures-data/fm-cache の実 JSON ファイルを読み込んだ `ChatlogWorks<SetfmCache>` を返す。
+ * fixtures-data/fm-cache の実 JSON ファイルを読み込んだ `ChatlogCache<SetfmCache>` を返す。
  *
  * `subDir` に絶対パスを渡すことで `cacheRoot` を無視し、fixtures ディレクトリを直接使用する。
  * `writeTextFile` は noop にして fixtures ファイルへの上書きを防ぐ。
  * ready 完了時に自動で loadAll() が実行される。
  *
- * @returns ready 完了済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns ready 完了済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', undefined, {
+const _makeCache = async (): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -122,15 +122,15 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
 /**
  * キャッシュヒット fixtures テストスイート。
  *
- * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogWorks.loadAll()` で読み込み、
- * `_phaseReview` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
+ * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogCache.loadAll()` で読み込み、
+ * `phaseReview` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
  *
  * テスト ID 範囲: T-SF-FX-04 〜 T-SF-FX-06
  *
- * @see _phaseReviewForTest
+ * @see phaseReview
  */
 describe('cache-hit fixtures', () => {
-  let cache: ChatlogWorks<SetfmCache>;
+  let cache: ChatlogCache<SetfmCache>;
   let reviewCallCount: number;
   let reviewStub: (entry: ChatlogEntry, dics: Dics, prompts: Prompts) => Promise<ReviewResult>;
 
@@ -144,12 +144,12 @@ describe('cache-hit fixtures', () => {
   });
 
   /**
-   * `_phaseReview` — レビュー済みキャッシュヒット時のスキップ検証。
+   * `phaseReview` — レビュー済みキャッシュヒット時のスキップ検証。
    *
    * `reviewed-full.json` に `status: 'reviewed'` が存在するとき、reviewProvider は呼ばれず
    * スキップされることを検証する。また `reviewed-miss.json` では reviewProvider が1回呼ばれることを検証する。
    */
-  describe('_phaseReview', () => {
+  describe('phaseReview', () => {
     describe('When: reviewedキャッシュヒット', () => {
       it('[Normal] T-SF-FX-04: reviewed-full.json ヒット → reviewProvider 未呼び出し', async () => {
         const entry = _makeEntry('/path/to/reviewed-full.md', '# reviewed full');
