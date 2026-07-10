@@ -23,14 +23,14 @@ import {
   DEFAULT_PROMPTS_DIR,
 } from '../../../_scripts/constants/defaults.constants.ts';
 // types
-import type { ArgsSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // ─── Local
 // types
 import type { ParsedConfig, SetfmConfig } from '../types/args.types.ts';
 
 /** set-frontmatter の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<ParsedConfig> = [
+const _SCHEMA: ArgSchema<ParsedConfig> = [
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--review', field: 'review', type: 'flag' },
