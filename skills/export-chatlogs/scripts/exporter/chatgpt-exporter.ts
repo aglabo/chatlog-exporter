@@ -295,7 +295,7 @@ const _mergeResults = (results: FileResult[]): ExportResult => {
  * `_providers` を省略した場合は実際のファイルシステム操作を行う。
  * テスト時は `_providers` に差し替え実装を渡すことで I/O なしに動作を検証できる。
  *
- * @param config エクスポート設定（agent, period, outputDir, inputDir, baseDir）
+ * @param config エクスポート設定（agent, period, exportDir, inputDir, baseDir）
  * @param _providers テスト用 Provider（省略時は実実装を使用）
  * @returns エクスポート結果（exportedCount, skippedCount, errorCount, outputPaths）
  */
@@ -325,7 +325,7 @@ export const exportChatGPT = async (
   const files = await _findFiles(inputDir);
 
   const results = await Promise.all(
-    files.map((file) => _processFile(file, range, config.outputDir, config.agent, _parseConversation, _writeSession)),
+    files.map((file) => _processFile(file, range, config.exportDir, config.agent, _parseConversation, _writeSession)),
   );
 
   return _mergeResults(results);
