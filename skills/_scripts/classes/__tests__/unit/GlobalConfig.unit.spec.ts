@@ -17,7 +17,7 @@ import { GlobalConfig } from '../../GlobalConfig.class.ts';
 // types
 import type { ReadTextFileSyncProvider } from '../../../types/providers.types.ts';
 // constants
-import { DEFAULT_VALUES } from '../../../constants/schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../constants/config-schema.constants.ts';
 // classes
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -93,7 +93,7 @@ describe('GlobalConfig', () => {
         assertEquals(_first.get('agent'), _second.get('agent'));
       });
 
-      it('[Normal] T-CLS-GC-40: 引数なしで呼ぶと get("agent") が DEFAULT_VALUES の値を返す', () => {
+      it('[Normal] T-CLS-GC-40: 引数なしで呼ぶと get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
         const _config = GlobalConfig.getInstance();
         assertEquals(_config.get('agent'), 'claude');
         assertEquals(_config.get('chatlogsDir'), './chatlogs');
@@ -200,7 +200,7 @@ describe('GlobalConfig', () => {
 
     /** 境界値・副作用・優先度など特殊なケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-CLS-GC-42: configFile 指定+存在しない → エラーなし、get("agent") が DEFAULT_VALUES の値を返す', () => {
+      it('[Edge] T-CLS-GC-42: configFile 指定+存在しない → エラーなし、get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
         const _config = GlobalConfig.getInstance({
           configFile: '/mock/missing.yaml',
           readTextFileProvider: _notFoundRead,
@@ -268,19 +268,19 @@ describe('GlobalConfig', () => {
   /**
    * `values` の全フィールド取得テスト。
    *
-   * DEFAULT_VALUES との一致・YAML 上書き後の反映を検証する。
+   * DEFAULT_CONFIG_VALUES との一致・YAML 上書き後の反映を検証する。
    */
   describe('values', () => {
     /** getInstance 直後・YAML 上書き後の全フィールド取得ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-GC-81: getInstance 直後は DEFAULT_VALUES と一致する全フィールドを返す', () => {
+      it('[Normal] T-CLS-GC-81: getInstance 直後は DEFAULT_CONFIG_VALUES と一致する全フィールドを返す', () => {
         const _config = GlobalConfig.getInstance();
-        assertEquals(_config.values(), DEFAULT_VALUES);
+        assertEquals(_config.values(), DEFAULT_CONFIG_VALUES);
       });
 
-      it('[Normal] T-CLS-GC-82: YAML で agent を上書き後、agent は新しい値・他は DEFAULT_VALUES のままの全フィールドを返す', () => {
+      it('[Normal] T-CLS-GC-82: YAML で agent を上書き後、agent は新しい値・他は DEFAULT_CONFIG_VALUES のままの全フィールドを返す', () => {
         const _config = GlobalConfig.getInstance({ yaml: 'agent: chatgpt\n' });
-        assertEquals(_config.values(), { ...DEFAULT_VALUES, agent: 'chatgpt' });
+        assertEquals(_config.values(), { ...DEFAULT_CONFIG_VALUES, agent: 'chatgpt' });
       });
     });
   });
@@ -440,7 +440,7 @@ describe('GlobalConfig', () => {
         assertEquals(_calledPath, '/mock/config.yaml');
       });
 
-      it('[Normal] T-CLS-GC-32: loadConfigFile 後も get("agent") は DEFAULT_VALUES の値のまま（純粋関数性）', () => {
+      it('[Normal] T-CLS-GC-32: loadConfigFile 後も get("agent") は DEFAULT_CONFIG_VALUES の値のまま（純粋関数性）', () => {
         const _config = GlobalConfig.getInstance();
         _config.loadConfigFile({
           configPath: '/mock/config.yaml',

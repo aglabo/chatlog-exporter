@@ -321,7 +321,7 @@ describe('buildConfig', () => {
     });
 
     describe('When: GlobalConfig にも chunkSize が設定されていない', () => {
-      /** GlobalConfig の DEFAULT_VALUES.chunkSize が使われることを検証する。 */
+      /** GlobalConfig の DEFAULT_CONFIG_VALUES.chunkSize が使われることを検証する。 */
       describe('Then: T-FL-BC-11b - GlobalConfig のデフォルト chunkSize が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
@@ -380,7 +380,7 @@ describe('buildConfig', () => {
     });
 
     describe('When: GlobalConfig にも concurrency が設定されていない', () => {
-      /** GlobalConfig の DEFAULT_VALUES.concurrency が使われることを検証する。 */
+      /** GlobalConfig の DEFAULT_CONFIG_VALUES.concurrency が使われることを検証する。 */
       describe('Then: T-FL-BC-16 - GlobalConfig のデフォルト concurrency が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
@@ -439,7 +439,7 @@ describe('buildConfig', () => {
     });
 
     describe('When: GlobalConfig にも minCharCount が設定されていない', () => {
-      /** GlobalConfig の DEFAULT_VALUES.minCharCount が使われることを検証する。 */
+      /** GlobalConfig の DEFAULT_CONFIG_VALUES.minCharCount が使われることを検証する。 */
       describe('Then: T-FL-BC-23 - GlobalConfig のデフォルト minCharCount が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
@@ -498,7 +498,7 @@ describe('buildConfig', () => {
     });
 
     describe('When: GlobalConfig にも minAssistantChars が設定されていない', () => {
-      /** GlobalConfig の DEFAULT_VALUES.minAssistantChars が使われることを検証する。 */
+      /** GlobalConfig の DEFAULT_CONFIG_VALUES.minAssistantChars が使われることを検証する。 */
       describe('Then: T-FL-BC-26 - GlobalConfig のデフォルト minAssistantChars が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {

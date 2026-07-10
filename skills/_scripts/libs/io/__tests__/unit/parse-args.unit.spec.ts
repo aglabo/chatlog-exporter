@@ -27,7 +27,7 @@ import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_CACHE_ROOT, DEFAULT_CHATLOGS_DIR } from '../../../../constants/defaults.constants.ts';
 // types
-import type { ArgsSchema } from '../../../../types/args-schema.types.ts';
+import type { ArgSchema, ParsedArgs } from '../../../../types/args-schema.types.ts';
 
 // ─── Internal Helpers
 
@@ -43,7 +43,7 @@ type TestConfig = {
 };
 
 // constants
-const TEST_SCHEMA: ArgsSchema<TestConfig> = [
+const TEST_SCHEMA: ArgSchema<TestConfig> = [
   { option: '--output', field: 'outputDir', type: 'string' },
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--verbose', field: 'verbose', type: 'flag' },
@@ -108,7 +108,7 @@ describe('_setByTypeForTest (negated)', () => {
   /** negated パラメータの正常系ケース。 */
   describe('When: 正常系', () => {
     it('[Normal] T-PA-ST-N-01: flag + negated=true → field が false にセットされる', () => {
-      const _config: Record<string, string | boolean | number> = {};
+      const _config: ParsedArgs = {};
       const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
       const _err = _setByTypeForTest(_config, _entry, undefined, true);
       assertEquals(_err, null);
@@ -116,7 +116,7 @@ describe('_setByTypeForTest (negated)', () => {
     });
 
     it('[Normal] T-PA-ST-N-04: flag + negated=false (未指定) → field が true にセットされる（既存回帰）', () => {
-      const _config: Record<string, string | boolean | number> = {};
+      const _config: ParsedArgs = {};
       const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
       const _err = _setByTypeForTest(_config, _entry, undefined);
       assertEquals(_err, null);
@@ -127,14 +127,14 @@ describe('_setByTypeForTest (negated)', () => {
   /** negated パラメータの異常系ケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-PA-ST-N-02: flag + negated=true + rawValue → ChatlogError が返る', () => {
-      const _config: Record<string, string | boolean | number> = {};
+      const _config: ParsedArgs = {};
       const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
       const _err = _setByTypeForTest(_config, _entry, 'true', true);
       assertEquals(_err instanceof ChatlogError, true);
     });
 
     it('[Error] T-PA-ST-N-03: string 型 + negated=true → ChatlogError が返る', () => {
-      const _config: Record<string, string | boolean | number> = {};
+      const _config: ParsedArgs = {};
       const _entry = { option: '--output', field: 'outputDir', type: 'string' as const };
       const _err = _setByTypeForTest(_config, _entry, undefined, true);
       assertEquals(_err instanceof ChatlogError, true);
@@ -508,7 +508,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --period オプションに不正な形式の値', () => {
     /** period 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_WITH_PERIOD: ArgsSchema<TestConfig> = [
+    const _SCHEMA_WITH_PERIOD: ArgSchema<TestConfig> = [
       { option: '--period', field: 'period', type: 'period' },
     ];
 
@@ -562,7 +562,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --agent オプションに不明なエージェント名', () => {
     /** agent 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_WITH_AGENT: ArgsSchema<TestConfig> = [
+    const _SCHEMA_WITH_AGENT: ArgSchema<TestConfig> = [
       { option: '--agent', field: 'agent', type: 'agent' },
     ];
 
@@ -589,7 +589,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --limit オプションに非数値の値', () => {
     /** integer 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_WITH_INTEGER: ArgsSchema<TestConfig & { limit?: string }> = [
+    const _SCHEMA_WITH_INTEGER: ArgSchema<TestConfig & { limit?: string }> = [
       { option: '--limit', field: 'limit', type: 'integer' },
     ];
 
@@ -616,7 +616,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --ratio オプションに非数値の値', () => {
     /** number 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_WITH_NUMBER: ArgsSchema<TestConfig & { ratio?: string }> = [
+    const _SCHEMA_WITH_NUMBER: ArgSchema<TestConfig & { ratio?: string }> = [
       { option: '--ratio', field: 'ratio', type: 'number' },
     ];
 
@@ -642,7 +642,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --chunk-size オプションに整数値', () => {
     /** integer 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_INT: ArgsSchema<TestConfigWithChunkSize> = [
+    const _SCHEMA_INT: ArgSchema<TestConfigWithChunkSize> = [
       { option: '--chunk-size', field: 'chunkSize', type: 'integer' },
     ];
 
@@ -671,7 +671,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --threshold オプションに浮動小数点値', () => {
     /** number 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_NUM: ArgsSchema<TestConfigWithThreshold> = [
+    const _SCHEMA_NUM: ArgSchema<TestConfigWithThreshold> = [
       { option: '--threshold', field: 'threshold', type: 'number' },
     ];
 
@@ -696,7 +696,7 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: --agent オプションに既知エージェント名', () => {
     /** agent 型エントリを含むテスト用スキーマ。 */
-    const _SCHEMA_AGENT: ArgsSchema<TestConfig> = [
+    const _SCHEMA_AGENT: ArgSchema<TestConfig> = [
       { option: '--agent', field: 'agent', type: 'agent' },
     ];
 
@@ -847,7 +847,7 @@ describe('parseArgsToConfig', () => {
    * テスト ID 範囲: T-PA-31-01 〜 T-PA-31-03
    */
   describe('Given: --cache-dir オプションの directory 型バリデーション', () => {
-    const _SCHEMA_WITH_CACHE: ArgsSchema<TestConfigWithCache> = [
+    const _SCHEMA_WITH_CACHE: ArgSchema<TestConfigWithCache> = [
       { option: '--cache-dir', field: 'cacheDir', type: 'directory' },
     ];
 

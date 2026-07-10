@@ -14,7 +14,12 @@ import { normalizePath, toSlashPath } from '../path-utils/path-utils.ts';
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 // types
-import type { ArgSchemaEntry, ArgsSchema } from '../../types/args-schema.types.ts';
+import type {
+  ArgSchema,
+  ArgSchemaEntry,
+  DefaultArgFields,
+  ParsedArgs,
+} from '../../types/args-schema.types.ts';
 
 // -- internal modules ---
 // functions
@@ -29,7 +34,7 @@ export const isArgDirectory = (arg: string): boolean => {
 // --- Public API ---
 
 /** デフォルトで有効な位置引数フィールド定義。 */
-const _DEFAULT_SCHEMA: ArgsSchema = [
+const _DEFAULT_ARG_SCHEMA: ArgSchema<DefaultArgFields> = [
   { option: 'period', field: 'period', type: 'period' },
   { option: 'agent', field: 'agent', type: 'agent' },
   { option: '--config', field: 'configFile', type: 'string' },
@@ -44,8 +49,8 @@ const _DEFAULT_SCHEMA: ArgsSchema = [
  * @param schema - 呼び出し元が追加するスキーマ
  * @returns オプション名をキーとする `ArgSchemaEntry` の Map
  */
-const _initSchema = (schema: ArgsSchema): Map<string, ArgSchemaEntry> => {
-  const _merged = [..._DEFAULT_SCHEMA, ...schema];
+const _initSchema = (schema: ArgSchema): Map<string, ArgSchemaEntry> => {
+  const _merged = [..._DEFAULT_ARG_SCHEMA, ...schema];
   return new Map(_merged.map((e) => [e.option, e]));
 };
 
@@ -61,7 +66,7 @@ const _initSchema = (schema: ArgsSchema): Map<string, ArgSchemaEntry> => {
  * @returns 成功時 `null`、失敗時 `ChatlogError`
  */
 const _setByType = (
-  config: Record<string, string | boolean | number>,
+  config: ParsedArgs,
   entry: ArgSchemaEntry,
   rawValue?: string,
   negated?: boolean,
@@ -150,7 +155,7 @@ const _setByType = (
  * @param rawValue - CLI から取得した生文字列
  */
 const _assignEntry = (
-  config: Record<string, string | boolean | number>,
+  config: ParsedArgs,
   schemaMap: Map<string, ArgSchemaEntry>,
   optionKey: string,
   rawValue: string,
@@ -173,7 +178,7 @@ const _assignEntry = (
  * @param rawValue - CLI から取得した生文字列
  */
 const _assignOutputDirEntry = (
-  config: Record<string, string | boolean | number>,
+  config: ParsedArgs,
   schemaMap: Map<string, ArgSchemaEntry>,
   rawValue: string,
 ): void => {
@@ -196,7 +201,7 @@ const _assignOutputDirEntry = (
  * @param schemaMap - `_initSchema` が返すスキーマ Map（`_assignEntry` に渡すエントリ取得用）
  */
 const _parsePositionals = (
-  config: Record<string, string | boolean | number>,
+  config: ParsedArgs,
   positionals: string[],
   schemaMap: Map<string, ArgSchemaEntry>,
 ): void => {
@@ -246,9 +251,9 @@ const _parsePositionals = (
  */
 export const parseOptions = <T>(
   args: string[],
-  schema: ArgsSchema<T>,
-): { config: Partial<T>; positionals: string[] } => {
-  const _config: Record<string, string | boolean | number> = {};
+  schema: ArgSchema<T>,
+): { config: ParsedArgs; positionals: string[] } => {
+  const _config: ParsedArgs = {};
   const _positionals: string[] = [];
   const _schemaMap = _initSchema(schema);
 
@@ -287,7 +292,7 @@ export const parseOptions = <T>(
     _positionals.push(arg);
   }
 
-  return { config: _config as Partial<T>, positionals: _positionals };
+  return { config: _config, positionals: _positionals };
 };
 
 /**
@@ -303,13 +308,10 @@ export const parseOptions = <T>(
  */
 export const parseArgs = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
   args: string[],
-  schema: ArgsSchema<T>,
+  schema: ArgSchema<T>,
   defaults: Partial<T> = {},
-): Partial<T> => {
-  const { config: _config, positionals: _positionals } = parseOptions<T>(args, schema) as unknown as {
-    config: Record<string, string | boolean | number>;
-    positionals: string[];
-  };
+): T => {
+  const { config: _config, positionals: _positionals } = parseOptions<T>(args, schema);
   const _schemaMap = _initSchema(schema);
 
   _parsePositionals(_config, _positionals, _schemaMap);
@@ -317,13 +319,13 @@ export const parseArgs = <T extends { period?: string; agent?: string; chatlogsD
   // 優先度: CLI 解析値 > GlobalConfig 値 > defaults
   const _globalConfig = GlobalConfig.getInstance({ configFile: _config.configFile as string | undefined });
   const _globalValues = _globalConfig.values();
-  const _merged: Record<string, string | boolean | number> = {
-    ...(defaults as Record<string, string | boolean | number>),
+  const _merged: ParsedArgs = {
+    ...(defaults as ParsedArgs),
     ..._globalValues,
     ..._config,
   };
 
-  return _merged as Partial<T>;
+  return _merged as T;
 };
 
 // --- Test-only exports ---

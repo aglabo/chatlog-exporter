@@ -18,13 +18,13 @@ import { _setByTypeForTest } from '../../parse-args.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 // types
-import type { ArgSchemaEntry } from '../../../../types/args-schema.types.ts';
+import type { ArgSchemaEntry, ParsedArgs } from '../../../../types/args-schema.types.ts';
 
 // ─── Internal Helpers
 
 // functions
 /** テスト用に空の config オブジェクトを生成する。 */
-const _makeConfig = (): Record<string, string | boolean | number> => ({});
+const _makeConfig = (): ParsedArgs => ({});
 
 /** 指定した type と field を持つ ArgSchemaEntry を生成する。 */
 const _entry = (type: ArgSchemaEntry['type'], field = 'result'): ArgSchemaEntry => ({

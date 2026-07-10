@@ -23,9 +23,9 @@
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 // libs
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgs as parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgs } from '../../_scripts/libs/io/parse-args.ts';
 import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
-import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 // constants
 import { DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 
@@ -45,7 +45,7 @@ import type { ExportResult } from './types/export-result.types.ts';
 // ─────────────────────────────────────────────
 
 /** export-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<ParsedConfig> = [
+const _SCHEMA: ArgSchema<ParsedConfig> = [
   { option: '--export-dir', field: 'exportDir', type: 'directory' },
   { option: '--base', field: 'baseDir', type: 'directory' },
 ];
@@ -71,15 +71,12 @@ export const buildConfig = (
   defaults?: ExportConfig,
 ): ExportConfig => {
   const _defaults = defaults ?? DEFAULT_EXPORT_CONFIG;
-  const parsed = parseArgsToConfig<ParsedConfig>(args, _SCHEMA) as ParsedConfig;
+  const { exportDir: _unusedExportDir, ..._defaultsWithoutExportDir } = _defaults;
+  const parsed = parseArgs<ExportConfig>(args, _SCHEMA, _defaultsWithoutExportDir as ExportConfig);
   const _chatlogsDir = parsed.chatlogsDir ?? DEFAULT_CHATLOGS_DIR;
   const _exportDir = parsed.exportDir ?? joinPath(_chatlogsDir, DEFAULT_ORIGINAL_LOGS_DIR);
-  const { configFile: _configFile, chatlogsDir: _chatlogsDirField, outputDir: _outputDir, ...parsedRest } = parsed;
-  return {
-    ..._defaults,
-    ...parsedRest,
-    exportDir: _exportDir,
-  };
+  const { configFile: _unusedConfigFile, ..._rest } = parsed;
+  return { ..._rest, exportDir: _exportDir } as ExportConfig;
 };
 
 // ─────────────────────────────────────────────

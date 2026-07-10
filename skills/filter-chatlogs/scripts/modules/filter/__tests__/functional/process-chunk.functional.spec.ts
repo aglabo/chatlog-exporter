@@ -25,7 +25,7 @@ import {
   makeNotFoundMock,
   makeSuccessMock,
 } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { DEFAULT_VALUES } from '../../../../../../_scripts/constants/schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/config-schema.constants.ts';
 // types
 import type { CommandMockHandle } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
@@ -43,8 +43,8 @@ import { fileExists, fileOrDirExists } from '../../../../../../_scripts/libs/fil
  * DISCARD/KEEP 判定に応じてファイル削除と統計更新を行う。
  *
  * ## 判定ルール
- * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_VALUES.discardThreshold` → ファイルを削除（dryRun=false 時）
- * - `confidence < DEFAULT_VALUES.discardThreshold` → DISCARD 判定でも KEEP 扱い
+ * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_CONFIG_VALUES.discardThreshold` → ファイルを削除（dryRun=false 時）
+ * - `confidence < DEFAULT_CONFIG_VALUES.discardThreshold` → DISCARD 判定でも KEEP 扱い
  * - CLI エラー・JSON パース失敗・ファイル名不一致 → 全件 KEEP 扱い
  *
  * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-08
@@ -105,7 +105,12 @@ describe('processChunk', () => {
         it('T-FL-PCK-01-01: ファイルが残っている', async () => {
           const filePath = await _createTempFile('a.md');
           const response = JSON.stringify([
-            { file: 'a.md', decision: 'DISCARD', confidence: DEFAULT_VALUES.discardThreshold, reason: 'trivial' },
+            {
+              file: 'a.md',
+              decision: 'DISCARD',
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -114,7 +119,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], true, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], true, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
@@ -124,7 +129,12 @@ describe('processChunk', () => {
         it('T-FL-PCK-01-02: stats.discarded が 1 になる', async () => {
           const filePath = await _createTempFile('a.md');
           const response = JSON.stringify([
-            { file: 'a.md', decision: 'DISCARD', confidence: DEFAULT_VALUES.discardThreshold, reason: 'trivial' },
+            {
+              file: 'a.md',
+              decision: 'DISCARD',
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -133,7 +143,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], true, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], true, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
@@ -156,7 +166,12 @@ describe('processChunk', () => {
         it('T-FL-PCK-02-01: ファイルが削除される', async () => {
           const filePath = await _createTempFile('b.md');
           const response = JSON.stringify([
-            { file: 'b.md', decision: 'DISCARD', confidence: DEFAULT_VALUES.discardThreshold, reason: 'trivial' },
+            {
+              file: 'b.md',
+              decision: 'DISCARD',
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -165,7 +180,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
@@ -175,7 +190,12 @@ describe('processChunk', () => {
         it('T-FL-PCK-02-02: stats.discarded が 1 になる', async () => {
           const filePath = await _createTempFile('c.md');
           const response = JSON.stringify([
-            { file: 'c.md', decision: 'DISCARD', confidence: DEFAULT_VALUES.discardThreshold, reason: 'trivial' },
+            {
+              file: 'c.md',
+              decision: 'DISCARD',
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -184,7 +204,7 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
@@ -215,7 +235,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -225,7 +245,7 @@ describe('processChunk', () => {
   });
 
   /**
-   * DISCARD 判定だが `confidence` が `DEFAULT_VALUES.discardThreshold`（0.7）未満の前提条件グループ。
+   * DISCARD 判定だが `confidence` が `DEFAULT_CONFIG_VALUES.discardThreshold`（0.7）未満の前提条件グループ。
    *
    * 信頼度不足の DISCARD は KEEP 扱いとなることを検証する。
    */
@@ -245,7 +265,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -272,7 +292,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([file1, file2], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([file1, file2], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 2);
@@ -299,7 +319,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -330,7 +350,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 1);
@@ -355,7 +375,7 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_VALUES.discardThreshold as number);
+          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
           assertEquals(stats.kept, 1);

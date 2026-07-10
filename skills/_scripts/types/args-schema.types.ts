@@ -17,4 +17,26 @@ export interface ArgSchemaEntry<K extends string = string> {
 }
 
 /** parseArgs に渡すスキーマ。オプション定義の配列（複数スキーマを結合してから使う）。 */
-export type ArgsSchema<T = Record<string, unknown>> = ArgSchemaEntry<keyof T & string>[];
+export type ArgSchema<T = Record<string, unknown>> = ArgSchemaEntry<keyof T & string>[];
+
+/** `parseArgs` の `_DEFAULT_ARG_SCHEMA` が生成するフィールド定義。全 parseArgs 呼び出しに共通で追加される。 */
+export type DefaultArgFields = {
+  period?: string;
+  agent?: string;
+  configFile?: string;
+  dryRun?: boolean;
+  inputDir?: string;
+  outputDir?: string;
+};
+
+/** parseArgs 内部でパース中に使う値の型（文字列・真偽値・数値のいずれか）。 */
+export type ArgValue = string | boolean | number;
+
+/** parseArgs 内部でパース中に構築される config オブジェクトの型。 */
+export type ParsedArgs = Record<string, ArgValue>;
+
+/** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */
+type _Assert<T extends Partial<ParsedArgs>> = T;
+
+/** DefaultArgFields が ArgValue 互換であることの型チェック（実行時に影響なし）。 */
+type _DefaultArgFieldsCheck = _Assert<DefaultArgFields>;
