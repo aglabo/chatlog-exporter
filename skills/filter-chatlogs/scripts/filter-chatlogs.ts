@@ -32,7 +32,7 @@ import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
 // types
-import type { ArgsSchema } from '../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // ─── internal ───
 // functions
@@ -48,7 +48,7 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 // ─────────────────────────────────────────────
 
 /** filter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgsSchema<FilterParsedConfig> = [];
+const _SCHEMA: ArgSchema<FilterParsedConfig> = [];
 
 export const parseArgs = (args: string[]): FilterParsedConfig => {
   return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA);
