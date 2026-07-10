@@ -25,8 +25,8 @@ import {
 } from '../../modules/setfm-write.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
 // types
 import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
 import type { SetfmCache } from '../../types/cache.types.ts';
@@ -42,12 +42,12 @@ const _makeEntry = (md: string, filePath: string): ChatlogEntry => {
 /**
  * テスト用の空キャッシュ（バッファバック）を生成する。
  *
- * ファイル I/O をせずにインメモリバッファで動作する `ChatlogWorks<SetfmCache>` を返す。
+ * ファイル I/O をせずにインメモリバッファで動作する `ChatlogCache<SetfmCache>` を返す。
  * @returns 初期化済みの空キャッシュ
  */
-const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeEmptyCache = async (): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     undefined,
@@ -95,7 +95,7 @@ const _setAllFields = (
 describe('writeFrontmatter', () => {
   let tempFile: string;
   let cacheDir: string;
-  let cache: ChatlogWorks<SetfmCache>;
+  let cache: ChatlogCache<SetfmCache>;
 
   beforeEach(async () => {
     tempFile = await Deno.makeTempFile({ suffix: '.md' });

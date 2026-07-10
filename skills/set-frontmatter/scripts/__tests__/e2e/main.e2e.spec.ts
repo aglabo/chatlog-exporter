@@ -324,7 +324,7 @@ describe('main - yaml 生成失敗', () => {
   });
 });
 
-// ─── T-SF-E2E-10: --cache-dir が ChatlogWorks に渡される ─────────────────────────
+// ─── T-SF-E2E-10: --cache-dir が ChatlogCache に渡される ─────────────────────────
 
 /**
  * フェーズごとに異なる stdout を返す sequential mock ファクトリ。
@@ -350,7 +350,7 @@ const _makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike => {
 describe('main - --cache-dir オプション', () => {
   describe('Given: inputDir に test.md を配置し、--cache-dir を明示指定', () => {
     describe('When: main() を呼び出す', () => {
-      describe('Then: T-SF-E2E-10 - cacheDir が ChatlogWorks に渡され、出力ファイルが生成される', () => {
+      describe('Then: T-SF-E2E-10 - cacheDir が ChatlogCache に渡され、出力ファイルが生成される', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;

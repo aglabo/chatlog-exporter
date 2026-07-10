@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/ChatlogWorks.class.ts
+// src: skills/_scripts/classes/ChatlogCache.class.ts
 // @(#): ファイルベース JSON キャッシュクラス（ディレクトリ状態をインスタンスに保持）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -72,8 +72,8 @@ const _defaultGlob: GlobProvider = async (pattern) => {
 // 型定義
 // ─────────────────────────────────────────────
 
-/** `ChatlogWorks` に渡すファイル操作プロバイダー。テスト時はバッファで差し替える。 */
-export interface ChatlogWorksFileProviders {
+/** `ChatlogCache` に渡すファイル操作プロバイダー。テスト時はバッファで差し替える。 */
+export interface ChatlogCacheFileProviders {
   readTextFile?: ReadTextFileProvider;
   writeTextFile?: WriteTextFileProvider;
   mkdir?: MkdirProvider;
@@ -81,16 +81,16 @@ export interface ChatlogWorksFileProviders {
   removeFile?: RemoveProvider;
 }
 
-/** `ChatlogWorks` コンストラクタに渡す依存性注入プロバイダーのまとめ。 */
-export interface ChatlogWorksProviders {
+/** `ChatlogCache` コンストラクタに渡す依存性注入プロバイダーのまとめ。 */
+export interface ChatlogCacheProviders {
   /** ファイル操作プロバイダー（省略時は Deno デフォルト）。 */
-  cache?: ChatlogWorksFileProviders;
+  cache?: ChatlogCacheFileProviders;
   /** 環境変数取得関数（省略時は `Deno.env.get`）。 */
   env?: EnvProvider;
 }
 
-/** `ChatlogWorks` コンストラクタに渡すキャッシュ初期化オプション。 */
-export interface ChatlogWorksInitializer {
+/** `ChatlogCache` コンストラクタに渡すキャッシュ初期化オプション。 */
+export interface ChatlogCacheInitializer {
   /** YAML 文字列でキャッシュを初期化する場合に指定する。省略時はディレクトリから自動読み込み。 */
   yaml?: string;
   /** 出力ディレクトリパス。`.md` ファイルを一覧して `hasFrontmatter` が true のファイルのみキャッシュに登録する。`yaml` が指定された場合は無視される。 */
@@ -98,7 +98,7 @@ export interface ChatlogWorksInitializer {
 }
 
 // ─────────────────────────────────────────────
-// ChatlogWorks クラス
+// ChatlogCache クラス
 // ─────────────────────────────────────────────
 
 /**
@@ -111,7 +111,7 @@ export interface ChatlogWorksInitializer {
  * `cacheRoot` が falsy の場合は `GlobalConfig` の `cacheDir` を使用する。
  * `read`/`write` 前に `await cache.ready` を呼ぶこと。
  */
-export class ChatlogWorks<T extends object> {
+export class ChatlogCache<T extends object> {
   private _cacheDir!: string;
   private readonly _hash: Map<string, Partial<T>>;
 
@@ -133,8 +133,8 @@ export class ChatlogWorks<T extends object> {
   constructor(
     subDir: string,
     cacheRoot = '',
-    initializer?: ChatlogWorksInitializer,
-    providers?: ChatlogWorksProviders,
+    initializer?: ChatlogCacheInitializer,
+    providers?: ChatlogCacheProviders,
   ) {
     this._initProviders(providers);
     this._hash = new Map<string, Partial<T>>();
@@ -142,7 +142,7 @@ export class ChatlogWorks<T extends object> {
   }
 
   /** ファイル操作プロバイダーを初期化する。省略時は Deno デフォルトを使用する。 */
-  private _initProviders(providers?: ChatlogWorksProviders): void {
+  private _initProviders(providers?: ChatlogCacheProviders): void {
     this._readTextFile = providers?.cache?.readTextFile ?? ((path) => Deno.readTextFile(path));
     this._writeTextFile = providers?.cache?.writeTextFile ?? ((path, data) => Deno.writeTextFile(path, data));
     this._mkdir = providers?.cache?.mkdir ?? ((path, opts) => Deno.mkdir(path, opts));
@@ -157,8 +157,8 @@ export class ChatlogWorks<T extends object> {
   private async _initCacheDir(
     subDir: string,
     cacheRoot: string,
-    providers?: ChatlogWorksProviders,
-    initializer?: ChatlogWorksInitializer,
+    providers?: ChatlogCacheProviders,
+    initializer?: ChatlogCacheInitializer,
   ): Promise<void> {
     const _expandedSubDir = normalizePath(subDir, providers?.env);
     if (isAbsolutePath(_expandedSubDir)) {
@@ -352,7 +352,7 @@ export class ChatlogWorks<T extends object> {
           const _text = await this._readTextFile(path);
           this._hash.set(getBasename(path), JSON.parse(_text) as Partial<T>);
         } catch (e) {
-          logger.warn(`[ChatlogWorks] loadAll: skip ${path} — ${(e as Error).message}`);
+          logger.warn(`[ChatlogCache] loadAll: skip ${path} — ${(e as Error).message}`);
         }
       }),
     );

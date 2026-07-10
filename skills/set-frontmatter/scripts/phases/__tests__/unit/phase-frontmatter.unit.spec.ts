@@ -19,9 +19,9 @@ import { spy } from '@std/testing/mock';
 import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
@@ -48,11 +48,11 @@ const _FAKE_PROMPTS = {} as Prompts;
  * yaml を指定した場合は YAML で初期化する。省略時はキャッシュミス状態。
  *
  * @param yaml - キャッシュ初期値の YAML 文字列（省略時は空キャッシュ）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeCache = async (yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,

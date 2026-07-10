@@ -1,6 +1,6 @@
-// src: scripts/__tests__/functional/setfm-phase-review.functional.spec.ts
-// @(#): _phaseReview の review-failed / reviewed ステータス書き込みユニットテスト
-//       対象: _phaseReviewForTest
+// src: scripts/phases/__tests__/functional/phase-review.functional.spec.ts
+// @(#): phaseReview の review-failed / reviewed ステータス書き込みユニットテスト
+//       対象: phaseReview
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,22 +14,22 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseReviewForTest as phaseReview } from '../../set-frontmatter.ts';
+import { phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Dics, Prompts } from '../../types/dics.types.ts';
-import type { ReviewResult } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Dics, Prompts } from '../../../types/dics.types.ts';
+import type { ReviewResult } from '../../../types/phase.types.ts';
 
 // ─── Internal Helpers
 
 // constants
 
-/** テスト用キャッシュディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** テスト用キャッシュディレクトリの絶対パス。`ChatlogCache` の `subDir` に渡す。 */
 const _UNIT_TEST_CACHE_DIR = normalizePath(
   new URL('./fixtures-data/fm-cache-pr-unit', import.meta.url).pathname,
 );
@@ -50,14 +50,14 @@ const _PROMPTS = {} as Prompts;
  *
  * @param filePath - キャッシュキーとなるファイルパス
  * @param data - `cache.read(filePath)` に返させる `SetfmCache` データ
- * @returns 指定ファイルにキャッシュヒットする `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 指定ファイルにキャッシュヒットする `ChatlogCache<SetfmCache>` インスタンス
  */
 const _makeCacheWithHit = async (
   filePath: string,
   data: Partial<SetfmCache>,
-): Promise<ChatlogWorks<SetfmCache>> => {
+): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
+  const cache = new ChatlogCache<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: (path, content) => {
         buf.set(path, content);
@@ -118,16 +118,16 @@ const _makePassReviewStub = () => (_entry: ChatlogEntry, _dics: Dics, _prompts: 
 // ─── Tests
 
 /**
- * `_phaseReview` の `review-failed` / `reviewed` ステータス書き込みユニットテストスイート。
+ * `phaseReview` の `review-failed` / `reviewed` ステータス書き込みユニットテストスイート。
  *
  * `reviewProvider` が `validity: 'error'` を返した場合に `status: 'review-failed'` が書き込まれ、
  * `validity: 'pass'` を返した場合に `status: 'reviewed'` が書き込まれることを検証する。
  *
  * テスト ID 範囲: T-SF-PR-01 〜 T-SF-PR-02
  *
- * @see _phaseReviewForTest
+ * @see phaseReview
  */
-describe('_phaseReview', () => {
+describe('phaseReview', () => {
   /** 正常系: reviewProvider が pass を返す → status = reviewed */
   describe('When: 正常系', () => {
     it('[Normal] T-SF-PR-01-01: reviewProvider が pass を返す → status = reviewed', async () => {

@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-phase-write.unit.spec.ts
-// @(#): _phaseWrite のユニットテスト
-//       対象: _phaseWriteForTest
+// src: scripts/phases/__tests__/unit/phase-write.unit.spec.ts
+// @(#): phaseWrite のユニットテスト
+//       対象: phaseWrite
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,24 +14,24 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _phaseWriteForTest as phaseWrite } from '../../set-frontmatter.ts';
+import { phaseWrite } from '../../phase-write.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
-import type { SetfmCache } from '../../types/cache.types.ts';
-import type { Stats } from '../../types/phase.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
+import type { Stats } from '../../../types/phase.types.ts';
 
 // ─── Internal Helpers
 
 // types
 type _WriteProvider = (
   entry: ChatlogEntry,
-  cache: ChatlogWorks<SetfmCache>,
+  cache: ChatlogCache<SetfmCache>,
   outputDir: string,
   inputDir: string,
 ) => Promise<boolean>;
@@ -43,11 +43,11 @@ type _WriteProvider = (
  * yaml を指定した場合は YAML で初期化する。省略時はキャッシュミス状態。
  *
  * @param yaml - キャッシュ初期値の YAML 文字列（省略時は空キャッシュ）
- * @returns 初期化済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 初期化済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (yaml?: string): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeCache = async (yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogWorks<SetfmCache>(
+  const cache = new ChatlogCache<SetfmCache>(
     'fm-cache',
     '/fake/cache',
     yaml != null ? { yaml } : undefined,
@@ -88,7 +88,7 @@ const _makeWriteStub = (): { stub: _WriteProvider; getCount: () => number } => {
   let _count = 0;
   const stub = (
     _entry: ChatlogEntry,
-    _cache: ChatlogWorks<SetfmCache>,
+    _cache: ChatlogCache<SetfmCache>,
     _outputDir: string,
     _inputDir: string,
   ): Promise<boolean> => {
@@ -109,7 +109,7 @@ const _makeWriteStubWithFails = (failCount: number): { stub: _WriteProvider } =>
   let _callCount = 0;
   const stub = (
     _entry: ChatlogEntry,
-    _cache: ChatlogWorks<SetfmCache>,
+    _cache: ChatlogCache<SetfmCache>,
     _outputDir: string,
     _inputDir: string,
   ): Promise<boolean> => {
@@ -126,9 +126,9 @@ const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0, writt
  * 6フィールドを持つキャッシュエントリを書き込んだキャッシュを返す。
  *
  * @param filePath - キャッシュのキー（エントリのファイルパス）
- * @returns 指定パスに6フィールドが書き込まれた `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns 指定パスに6フィールドが書き込まれた `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogWorks<SetfmCache>> => {
+const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogCache<SetfmCache>> => {
   const cache = await _makeCache();
   await cache.write(filePath, {
     type: 'tech',
@@ -145,7 +145,7 @@ const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogWorks<Setfm
 // ─── Tests
 
 /**
- * `_phaseWrite` のユニットテストスイート。
+ * `phaseWrite` のユニットテストスイート。
  *
  * フィルタリングは呼び出し元の責務となったため、渡されたエントリを
  * すべて writeProvider に渡すことを検証する。
@@ -153,9 +153,9 @@ const _makeCacheWithEntry = async (filePath: string): Promise<ChatlogWorks<Setfm
  *
  * テスト ID 範囲: T-SF-PW-01, T-SF-PW-03, T-SF-PW-04, T-SF-PW-05
  *
- * @see _phaseWriteForTest
+ * @see phaseWrite
  */
-describe('_phaseWrite', () => {
+describe('phaseWrite', () => {
   /** 正常系: 渡された全エントリが writeProvider に渡される。 */
   it('[Normal] T-SF-PW-01-01: entries 3件渡す → writeProvider 3回呼ばれる', async () => {
     const cache = await _makeCache();
@@ -279,7 +279,7 @@ describe('_phaseWrite', () => {
   it('[Normal] T-SF-PW-06-02: dryRun=true → stats.skip === entries.length', async () => {
     const paths = ['/path/to/a.md', '/path/to/b.md'];
     const buf = new Map<string, string>();
-    const cache = new ChatlogWorks<SetfmCache>(
+    const cache = new ChatlogCache<SetfmCache>(
       'fm-cache',
       '/fake/cache',
       undefined,

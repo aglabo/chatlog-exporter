@@ -1,6 +1,6 @@
-// src: scripts/__tests__/unit/setfm-filter-write-entries.unit.spec.ts
-// @(#): _filterWriteEntry Phase 4 書き込み判定predicate のユニットテスト
-//       対象: _filterWriteEntryForTest
+// src: scripts/phases/__tests__/unit/phase-write-filter.unit.spec.ts
+// @(#): filterWriteEntry Phase 4 書き込み判定predicate のユニットテスト
+//       対象: filterWriteEntry
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,21 +14,21 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _filterWriteEntryForTest as filterWriteEntry } from '../../set-frontmatter.ts';
+import { filterWriteEntry } from '../../phase-write.ts';
 
 // ─── Helpers
-import { ChatlogWorks } from '../../../../_scripts/classes/ChatlogWorks.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
-import { CACHE_STATUSES } from '../../../../_scripts/types/cache-status.const.types.ts';
+import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 // types
-import type { SetfmCache } from '../../types/cache.types.ts';
+import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers
 
 // constants
 
-/** テスト用キャッシュディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** テスト用キャッシュディレクトリの絶対パス。`ChatlogCache` の `subDir` に渡す。 */
 const _UNIT_TEST_CACHE_DIR = normalizePath(
   new URL('./fixtures-data/fw-cache-unit', import.meta.url).pathname,
 );
@@ -39,10 +39,10 @@ const _UNIT_TEST_CACHE_DIR = normalizePath(
  * 書き込みをすべて noop にしたインメモリキャッシュを返す。
  * `readTextFile` が常に reject するため、全パスがキャッシュミス（`cache.read()` → `{}`）になる。
  *
- * @returns キャッシュ空の `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns キャッシュ空の `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
+const _makeEmptyCache = async (): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -56,16 +56,16 @@ const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
 // ─── Tests
 
 /**
- * `_filterWriteEntry` の Phase 4 書き込み判定 predicate ユニットテストスイート。
+ * `filterWriteEntry` の Phase 4 書き込み判定 predicate ユニットテストスイート。
  *
  * `review=false` では `need-review` と `reviewed` で true を返し、
  * `review=true` では `reviewed` のみ true を返すことを検証する。
  *
  * テスト ID 範囲: T-SF-FWE-01 〜 T-SF-FWE-06
  *
- * @see _filterWriteEntryForTest
+ * @see filterWriteEntry
  */
-describe('_filterWriteEntry', () => {
+describe('filterWriteEntry', () => {
   /** 正常系: 書き込み対象となるステータスで true を返す。 */
   describe('When: 正常系', () => {
     it('[Normal] T-SF-FWE-01: review=false, status=need-review → true', async () => {

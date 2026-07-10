@@ -17,8 +17,8 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
@@ -27,7 +27,7 @@ import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 // ─── Internal Helpers
 
 // constants
-/** fixtures-data/fm-type-category ディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** fixtures-data/fm-type-category ディレクトリの絶対パス。`ChatlogCache` の `subDir` に渡す。 */
 const _FIXTURES_FM_CACHE_DIR = normalizePath(
   new URL('./fixtures-data/fm-type-category', import.meta.url).pathname,
 );
@@ -41,16 +41,16 @@ const _CONCURRENCY = 1;
 // functions
 
 /**
- * fixtures-data/fm-cache の実 JSON ファイルを読み込んだ `ChatlogWorks<SetfmCache>` を返す。
+ * fixtures-data/fm-cache の実 JSON ファイルを読み込んだ `ChatlogCache<SetfmCache>` を返す。
  *
  * `subDir` に絶対パスを渡すことで `cacheRoot` を無視し、fixtures ディレクトリを直接使用する。
  * `writeTextFile` は noop にして fixtures ファイルへの上書きを防ぐ。
  * ready 完了時に自動で loadAll() が実行される。
  *
- * @returns ready 完了済みの `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns ready 完了済みの `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', undefined, {
+const _makeCache = async (): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(_FIXTURES_FM_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),
@@ -121,7 +121,7 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
 /**
  * `_phaseTypeAndCategory` の fixtures テストスイート。
  *
- * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogWorks.loadAll()` で読み込み、
+ * `fixtures-data/fm-cache/` の実 JSON ファイルを `ChatlogCache.loadAll()` で読み込み、
  * `_phaseTypeAndCategory` がキャッシュヒット時に AI 呼び出しをスキップすることを検証する。
  *
  * テスト ID 範囲: T-SF-FX-01, T-SF-FX-03
@@ -129,7 +129,7 @@ const _makeEntry = (filePath: string, body: string): ChatlogEntry => {
  * @see _phaseTypeAndCategoryForTest
  */
 describe('_phaseTypeAndCategory fixtures', () => {
-  let cache: ChatlogWorks<SetfmCache>;
+  let cache: ChatlogCache<SetfmCache>;
   let judgeCallCount: number;
   let judgeStub: (entry: ChatlogEntry, maxLen: number, dics: Dics, prompts: Prompts) => Promise<void>;
 

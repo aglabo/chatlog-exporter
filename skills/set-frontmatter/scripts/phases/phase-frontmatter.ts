@@ -10,8 +10,8 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../_scripts/classes/ChatlogWorks.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -33,7 +33,7 @@ type _GenerateProvider = (
 
 export const phaseFrontmatter = async (
   entries: ChatlogEntry[],
-  cache: ChatlogWorks<SetfmCache>,
+  cache: ChatlogCache<SetfmCache>,
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,

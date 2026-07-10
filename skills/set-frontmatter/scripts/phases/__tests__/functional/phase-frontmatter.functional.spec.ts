@@ -17,8 +17,8 @@ import { describe, it } from '@std/testing/bdd';
 import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../../../_scripts/classes/ChatlogWorks.class.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
@@ -28,7 +28,7 @@ import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // constants
 
-/** テスト用キャッシュディレクトリの絶対パス。`ChatlogWorks` の `subDir` に渡す。 */
+/** テスト用キャッシュディレクトリの絶対パス。`ChatlogCache` の `subDir` に渡す。 */
 const _UNIT_TEST_CACHE_DIR = normalizePath(
   new URL('./fixtures-data/fm-frontmatter-unit', import.meta.url).pathname,
 );
@@ -59,10 +59,10 @@ const _PROMPTS = {} as Prompts;
  * `subDir` に絶対パスを渡すことで `GlobalConfig.getInstance()` を呼ばずに初期化できる。
  * `mkdir` は noop なのでディレクトリは作成されない。
  *
- * @returns キャッシュ空の `ChatlogWorks<SetfmCache>` インスタンス
+ * @returns キャッシュ空の `ChatlogCache<SetfmCache>` インスタンス
  */
-const _makeEmptyCache = async (): Promise<ChatlogWorks<SetfmCache>> => {
-  const cache = new ChatlogWorks<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
+const _makeEmptyCache = async (): Promise<ChatlogCache<SetfmCache>> => {
+  const cache = new ChatlogCache<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
     cache: {
       writeTextFile: () => Promise.resolve(),
       mkdir: () => Promise.resolve(),

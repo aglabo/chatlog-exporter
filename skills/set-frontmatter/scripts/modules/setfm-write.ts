@@ -11,8 +11,8 @@
 
 // ─── Shared scripts
 import { join, relative } from '@std/path';
+import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogWorks } from '../../../_scripts/classes/ChatlogWorks.class.ts';
 import { extractChatlogBaseDir } from '../../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -101,7 +101,7 @@ export const applyCacheToEntry = (
  */
 export const writeFrontmatter = async (
   entry: ChatlogEntry,
-  cache: ChatlogWorks<SetfmCache>,
+  cache: ChatlogCache<SetfmCache>,
   outputDir: string,
   inputDir: string,
 ): Promise<boolean> => {
