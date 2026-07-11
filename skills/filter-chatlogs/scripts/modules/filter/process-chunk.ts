@@ -17,6 +17,7 @@ import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 // ─── internal ───
 // functions
 import { buildBatchPrompt } from '../../libs/batch-prompt.ts';
+import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 // types
 import type { ClaudeResult, FilterStats } from '../../types/filter.types.ts';
 
@@ -79,7 +80,7 @@ export const processChunk = async (
 
     const { decision, confidence, reason } = result;
 
-    if (decision === 'DISCARD' && confidence >= discardThreshold) {
+    if (decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold) {
       if (dryRun) {
         logger.log(`[dry-run] DISCARD (conf=${confidence}): ${filePath}`);
         logger.info(`  reason: ${reason}`);
