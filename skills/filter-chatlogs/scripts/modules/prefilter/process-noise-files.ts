@@ -15,7 +15,7 @@ import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts'
 
 // ─── internal ───
 // types
-import type { PrefilterStats } from '../../types/prefilter.types.ts';
+import type { PrefilterStats } from '../../types/stats.types.ts';
 // functions
 import { classifyFile } from '../../libs/classify-file.ts';
 
@@ -47,14 +47,14 @@ export const processNoiseFiles = async (
     if (isNoise) {
       if (report) {
         logger.log(`NOISE\t${reason}\t${filePath}`);
-        stats.noise++;
+        stats.skip++;
       } else if (dryRun) {
         logger.log(filePath);
-        stats.noise++;
+        stats.skip++;
       } else {
         if (await removeFile(filePath)) {
           logger.info(`deleted: ${filePath}`);
-          stats.noise++;
+          stats.remove++;
         } else {
           logger.warn(`  Skipped (File not found): ${filename}`);
           stats.error++;

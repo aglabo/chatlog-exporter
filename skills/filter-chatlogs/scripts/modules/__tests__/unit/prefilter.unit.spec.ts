@@ -1,4 +1,4 @@
-// src: scripts/libs/__tests__/unit/prefilter.unit.spec.ts
+// src: scripts/modules/__tests__/unit/prefilter.unit.spec.ts
 // @(#): prefilter.ts のユニットテスト
 //       対象: isSystemOnlyMessage / isExcludedByFilename / isExcludedByContent
 //

@@ -19,7 +19,8 @@ import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 import { buildBatchPrompt } from '../../libs/batch-prompt.ts';
 import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 // types
-import type { ClaudeResult, FilterStats } from '../../types/filter.types.ts';
+import type { ClaudeResult } from '../../types/filter.types.ts';
+import type { FilterStats } from '../../types/stats.types.ts';
 
 // ─────────────────────────────────────────────
 // 内部定数
@@ -38,7 +39,6 @@ DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 
 export const processChunk = async (
   chunkFiles: string[],
-  dryRun: boolean,
   stats: FilterStats,
   discardThreshold: number,
 ): Promise<void> => {
@@ -52,7 +52,7 @@ export const processChunk = async (
     logger.warn(`  error: ${e}`);
     for (const f of chunkFiles) {
       logger.info(`  kept (claude error): ${getFilename(f)}`);
-      stats.kept++;
+      stats.keep++;
     }
     return;
   }
@@ -63,7 +63,7 @@ export const processChunk = async (
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
     for (const f of chunkFiles) {
       logger.info(`  kept (parse error): ${getFilename(f)}`);
-      stats.kept++;
+      stats.keep++;
     }
     return;
   }
@@ -74,29 +74,24 @@ export const processChunk = async (
 
     if (!result) {
       logger.info(`  kept (not in result): ${filename}`);
-      stats.kept++;
+      stats.keep++;
       continue;
     }
 
     const { decision, confidence, reason } = result;
 
     if (decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold) {
-      if (dryRun) {
-        logger.log(`[dry-run] DISCARD (conf=${confidence}): ${filePath}`);
-        logger.info(`  reason: ${reason}`);
-        stats.discarded++;
+      logger.log(`DISCARD (conf=${confidence}): ${filePath}`);
+      logger.info(`  reason: ${reason}`);
+      if (await removeFile(filePath)) {
+        stats.remove++;
       } else {
-        logger.log(`DISCARD (conf=${confidence}): ${filePath}`);
-        logger.info(`  reason: ${reason}`);
-        if (await removeFile(filePath)) {
-          stats.discarded++;
-        } else {
-          logger.warn(`  skip (File not found):${filePath}`);
-        }
+        logger.warn(`  skip (File not found):${filePath}`);
+        stats.error++;
       }
     } else {
       logger.info(`  kept (decision=${decision}, conf=${confidence}): ${filename}`);
-      stats.kept++;
+      stats.keep++;
     }
   }
 };

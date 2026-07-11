@@ -36,8 +36,8 @@ import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // ─── internal ───
 // functions
-import { prefilterFiles } from './libs/prefilter.ts';
 import { processChunk } from './modules/filter/process-chunk.ts';
+import { prefilterFiles } from './modules/prefilter.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
 // types
@@ -125,31 +125,43 @@ export const main = async (args?: string[]): Promise<void> => {
     const allFiles = await findFiles(_searchDir);
 
     // 事前フィルタ
-    const stats = { kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 };
-    const targetFiles = await prefilterFiles(allFiles, _config.minCharCount, _config.minAssistantChars, stats);
+    const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    const targetFiles = await prefilterFiles(allFiles, {
+      minCharCount: _config.minCharCount,
+      minAssistantChars: _config.minAssistantChars,
+      stats,
+      dryRun: _config.dryRun,
+    });
 
     const total = targetFiles.length;
     if (total === 0) {
       logger.info(`${LOGGER_HEADER.NO_FILE_FOUND}: 対象ファイルなし`);
-      logger.info(`完了: total=${allFiles.length} preSkipped=${stats.preSkipped} kept=0 discarded=0 skipped=0 error=0`);
+      logger.info(
+        `完了: total=${allFiles.length} keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
+      );
       return;
     }
 
     logger.info(`判定対象ファイル数: ${total}`);
-    if (_config.dryRun) { logger.info('dry-run モード: ファイルは削除しません'); }
 
-    // チャンク分割して並列処理
-    await runChunked(
-      targetFiles,
-      _config.chunkSize,
-      (chunk) => processChunk(chunk, _config.dryRun, stats, _config.discardThreshold),
-      _config.concurrency,
-    );
+    if (_config.dryRun) {
+      logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
+      targetFiles.forEach((filePath) => logger.info(`対象: ${filePath}`));
+      stats.skip += targetFiles.length;
+    } else {
+      // チャンク分割して並列処理
+      await runChunked(
+        targetFiles,
+        _config.chunkSize,
+        (chunk) => processChunk(chunk, stats, _config.discardThreshold),
+        _config.concurrency,
+      );
+    }
 
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';
     logger.info(
-      `\n完了${drySuffix}: total=${allFiles.length} preSkipped=${stats.preSkipped} kept=${stats.kept} discarded=${stats.discarded} skipped=${stats.skipped} error=${stats.error}`,
+      `\n完了${drySuffix}: total=${allFiles.length} keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
     );
   } catch (e) {
     if (e instanceof ChatlogError) {

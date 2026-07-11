@@ -16,7 +16,7 @@ import { stub } from '@std/testing/mock';
 // ─── Test target
 import { processChunk } from '../../process-chunk.ts';
 // types
-import type { FilterStats } from '../../../../types/filter.types.ts';
+import type { FilterStats } from '../../../../types/stats.types.ts';
 
 // ─── Helpers
 import {
@@ -30,7 +30,7 @@ import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/conf
 import type { CommandMockHandle } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 // exists
-import { fileExists, fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 
@@ -41,15 +41,15 @@ import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.
 /**
  * `processChunk` 関数の機能テストスイート。
  *
- * `processChunk(files, dryRun, stats, discardThreshold)` は Claude CLI にバッチ判定を依頼し、
+ * `processChunk(files, stats, discardThreshold)` は Claude CLI にバッチ判定を依頼し、
  * DISCARD/KEEP 判定に応じてファイル削除と統計更新を行う。
  *
  * ## 判定ルール
- * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_CONFIG_VALUES.discardThreshold` → ファイルを削除（dryRun=false 時）
+ * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_CONFIG_VALUES.discardThreshold` → ファイルを削除
  * - `confidence < DEFAULT_CONFIG_VALUES.discardThreshold` → DISCARD 判定でも KEEP 扱い
  * - CLI エラー・JSON パース失敗・ファイル名不一致 → 全件 KEEP 扱い
  *
- * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-08
+ * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-10
  *
  * @see processChunk
  */
@@ -66,10 +66,10 @@ describe('processChunk', () => {
   /**
    * 初期値がすべて 0 の `FilterStats` オブジェクトを生成する。
    *
-   * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の FilterStats
+   * @returns `{ keep: 0, skip: 0, remove: 0, error: 0 }` の FilterStats
    */
   function _makeStats(): FilterStats {
-    return { kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 };
+    return { keep: 0, skip: 0, remove: 0, error: 0 };
   }
 
   /**
@@ -95,76 +95,15 @@ describe('processChunk', () => {
   });
 
   /**
-   * DISCARD 判定を返す Claude モックと `dryRun=true` の前提条件グループ。
+   * DISCARD 判定を返す Claude モックの前提条件グループ。
    *
-   * dryRun モードではファイルを物理削除しないが、stats.discarded がインクリメントされることを検証する。
+   * ファイルが物理削除され、stats.remove がインクリメントされることを検証する。
    */
-  describe('Given: DISCARD 判定を返す Claude モックと dryRun=true', () => {
-    /** processChunk([file], true, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], true, stats) を呼び出す', () => {
-      /** ファイルが残り、stats.discarded が増えることを検証する。 */
-      describe('Then: T-FL-PCK-01 - ファイルが削除されず stats.discarded が増える', () => {
-        it('T-FL-PCK-01-01: ファイルが残っている', async () => {
-          const filePath = await _createTempFile('a.md');
-          const response = JSON.stringify([
-            {
-              file: 'a.md',
-              decision: FILTER_DECISIONS.DISCARD,
-              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
-              reason: 'trivial',
-            },
-          ]);
-          commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
-          );
-          const errStub = stub(console, 'error', () => {});
-          const logStub = stub(console, 'log', () => {});
-          const stats = _makeStats();
-
-          await processChunk([filePath], true, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
-          errStub.restore();
-          logStub.restore();
-
-          assertEquals(await fileExists(filePath), true);
-        });
-
-        it('T-FL-PCK-01-02: stats.discarded が 1 になる', async () => {
-          const filePath = await _createTempFile('a.md');
-          const response = JSON.stringify([
-            {
-              file: 'a.md',
-              decision: FILTER_DECISIONS.DISCARD,
-              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
-              reason: 'trivial',
-            },
-          ]);
-          commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
-          );
-          const errStub = stub(console, 'error', () => {});
-          const logStub = stub(console, 'log', () => {});
-          const stats = _makeStats();
-
-          await processChunk([filePath], true, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
-          errStub.restore();
-          logStub.restore();
-
-          assertEquals(stats.discarded, 1);
-        });
-      });
-    });
-  });
-
-  /**
-   * DISCARD 判定を返す Claude モックと `dryRun=false` の前提条件グループ。
-   *
-   * dryRun=false 時にはファイルが物理削除され、stats.discarded がインクリメントされることを検証する。
-   */
-  describe('Given: DISCARD 判定を返す Claude モックと dryRun=false', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** ファイルが削除され、stats.discarded が増えることを検証する。 */
-      describe('Then: T-FL-PCK-02 - ファイルが削除され stats.discarded が増える', () => {
+  describe('Given: DISCARD 判定を返す Claude モック', () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** ファイルが削除され、stats.remove が増えることを検証する。 */
+      describe('Then: T-FL-PCK-02 - ファイルが削除され stats.remove が増える', () => {
         it('T-FL-PCK-02-01: ファイルが削除される', async () => {
           const filePath = await _createTempFile('b.md');
           const response = JSON.stringify([
@@ -182,14 +121,14 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
           assertEquals(await fileOrDirExists(filePath), false);
         });
 
-        it('T-FL-PCK-02-02: stats.discarded が 1 になる', async () => {
+        it('T-FL-PCK-02-02: stats.remove が 1 になる', async () => {
           const filePath = await _createTempFile('c.md');
           const response = JSON.stringify([
             {
@@ -206,11 +145,11 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
           logStub.restore();
 
-          assertEquals(stats.discarded, 1);
+          assertEquals(stats.remove, 1);
         });
       });
     });
@@ -219,14 +158,14 @@ describe('processChunk', () => {
   /**
    * KEEP 判定を返す Claude モックの前提条件グループ。
    *
-   * ファイルが削除されず、stats.kept がインクリメントされることを検証する。
+   * ファイルが削除されず、stats.keep がインクリメントされることを検証する。
    */
   describe('Given: KEEP 判定を返す Claude モック', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** ファイルが残り、stats.kept が増えることを検証する。 */
-      describe('Then: T-FL-PCK-03 - ファイルが残り stats.kept が増える', () => {
-        it('T-FL-PCK-03-01: stats.kept が 1 になる', async () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** ファイルが残り、stats.keep が増えることを検証する。 */
+      describe('Then: T-FL-PCK-03 - ファイルが残り stats.keep が増える', () => {
+        it('T-FL-PCK-03-01: stats.keep が 1 になる', async () => {
           const filePath = await _createTempFile('d.md');
           const response = JSON.stringify([
             { file: 'd.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
@@ -237,10 +176,10 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 1);
+          assertEquals(stats.keep, 1);
         });
       });
     });
@@ -252,11 +191,11 @@ describe('processChunk', () => {
    * 信頼度不足の DISCARD は KEEP 扱いとなることを検証する。
    */
   describe('Given: DISCARD 判定だが confidence が 0.7 未満', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** KEEP 扱いとなり、stats.kept が増えることを検証する。 */
-      describe('Then: T-FL-PCK-04 - KEEP 扱いで stats.kept が増える', () => {
-        it('T-FL-PCK-04-01: confidence=0.6 の DISCARD → stats.kept が 1 になる', async () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** KEEP 扱いとなり、stats.keep が増えることを検証する。 */
+      describe('Then: T-FL-PCK-04 - KEEP 扱いで stats.keep が増える', () => {
+        it('T-FL-PCK-04-01: confidence=0.6 の DISCARD → stats.keep が 1 になる', async () => {
           const filePath = await _createTempFile('e.md');
           const response = JSON.stringify([
             { file: 'e.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'low conf' },
@@ -267,11 +206,11 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 1);
-          assertEquals(stats.discarded, 0);
+          assertEquals(stats.keep, 1);
+          assertEquals(stats.remove, 0);
         });
       });
     });
@@ -283,21 +222,21 @@ describe('processChunk', () => {
    * CLI 失敗時は全件 KEEP 扱いとなり、ファイルが削除されないことを検証する。
    */
   describe('Given: Claude CLI が失敗するモック', () => {
-    /** processChunk([file1, file2], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file1, file2], false, stats) を呼び出す', () => {
-      /** 全件 KEEP 扱いとなり、stats.kept が入力ファイル数と一致することを検証する。 */
-      describe('Then: T-FL-PCK-05 - 全件 KEEP 扱いで stats.kept が増える', () => {
-        it('T-FL-PCK-05-01: stats.kept が 2 になる（全件 KEEP）', async () => {
+    /** processChunk([file1, file2], stats) を呼び出すとき。 */
+    describe('When: processChunk([file1, file2], stats) を呼び出す', () => {
+      /** 全件 KEEP 扱いとなり、stats.keep が入力ファイル数と一致することを検証する。 */
+      describe('Then: T-FL-PCK-05 - 全件 KEEP 扱いで stats.keep が増える', () => {
+        it('T-FL-PCK-05-01: stats.keep が 2 になる（全件 KEEP）', async () => {
           const file1 = await _createTempFile('f1.md');
           const file2 = await _createTempFile('f2.md');
           commandHandle = installCommandMock(makeFailMock(1));
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([file1, file2], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 2);
+          assertEquals(stats.keep, 2);
         });
       });
     });
@@ -309,11 +248,11 @@ describe('processChunk', () => {
    * JSON パース失敗時は全件 KEEP 扱いとなることを検証する。
    */
   describe('Given: JSON でないテキストを返す Claude モック', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** 全件 KEEP 扱いとなり、stats.kept が増えることを検証する。 */
-      describe('Then: T-FL-PCK-06 - 全件 KEEP 扱いで stats.kept が増える', () => {
-        it('T-FL-PCK-06-01: stats.kept が 1 になる', async () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** 全件 KEEP 扱いとなり、stats.keep が増えることを検証する。 */
+      describe('Then: T-FL-PCK-06 - 全件 KEEP 扱いで stats.keep が増える', () => {
+        it('T-FL-PCK-06-01: stats.keep が 1 になる', async () => {
           const filePath = await _createTempFile('g.md');
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
@@ -321,10 +260,10 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 1);
+          assertEquals(stats.keep, 1);
         });
       });
     });
@@ -336,11 +275,11 @@ describe('processChunk', () => {
    * ファイル名不一致の場合は該当ファイルを KEEP 扱いとすることを検証する。
    */
   describe('Given: 対象ファイルと異なるファイル名の結果を返す Claude モック', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** KEEP 扱いとなり、stats.kept が増えることを検証する。 */
-      describe('Then: T-FL-PCK-07 - KEEP 扱いで stats.kept が増える', () => {
-        it('T-FL-PCK-07-01: ファイル名不一致 → stats.kept が 1 になる', async () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** KEEP 扱いとなり、stats.keep が増えることを検証する。 */
+      describe('Then: T-FL-PCK-07 - KEEP 扱いで stats.keep が増える', () => {
+        it('T-FL-PCK-07-01: ファイル名不一致 → stats.keep が 1 になる', async () => {
           const filePath = await _createTempFile('h.md');
           // 対象は h.md だが結果は other.md
           const response = JSON.stringify([
@@ -352,10 +291,10 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 1);
+          assertEquals(stats.keep, 1);
         });
       });
     });
@@ -367,20 +306,63 @@ describe('processChunk', () => {
    * CLI 未インストール時は KEEP 扱いとなり、ファイルが安全に保持されることを検証する。
    */
   describe('Given: claude CLI が見つからないモック', () => {
-    /** processChunk([file], false, stats) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats) を呼び出す', () => {
-      /** KEEP 扱いとなり、stats.kept が増えることを検証する。 */
-      describe('Then: T-FL-PCK-08 - KEEP 扱いで stats.kept が増える', () => {
-        it('T-FL-PCK-08-01: NotFound エラー → stats.kept が 1 になる', async () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** KEEP 扱いとなり、stats.keep が増えることを検証する。 */
+      describe('Then: T-FL-PCK-08 - KEEP 扱いで stats.keep が増える', () => {
+        it('T-FL-PCK-08-01: NotFound エラー → stats.keep が 1 になる', async () => {
           const filePath = await _createTempFile('i.md');
           commandHandle = installCommandMock(makeNotFoundMock());
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
           errStub.restore();
 
-          assertEquals(stats.kept, 1);
+          assertEquals(stats.keep, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * DISCARD 判定だが対象ファイルが削除実行前に既に存在しない前提条件グループ。
+   *
+   * `removeFile` が `false` を返すケースで stats.error がインクリメントされることを検証する。
+   */
+  describe('Given: DISCARD 判定だが対象ファイルが既に存在しない', () => {
+    /** processChunk([file], stats) を呼び出すとき。 */
+    describe('When: processChunk([file], stats) を呼び出す', () => {
+      /** stats.error が増え、stats.remove は増えないことを検証する。 */
+      describe('Then: T-FL-PCK-10 - stats.error が 1 になる', () => {
+        it('T-FL-PCK-10-01: removeFile が失敗 → stats.error === 1', async () => {
+          const filePath = await _createTempFile('k.md');
+          const response = JSON.stringify([
+            {
+              file: 'k.md',
+              decision: FILTER_DECISIONS.DISCARD,
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
+          ]);
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response)),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const warnStub = stub(console, 'warn', () => {});
+          const logStub = stub(console, 'log', () => {});
+          const stats = _makeStats();
+          // removeFile 内部の Deno.remove が NotFound を投げるようにし、"File not found" 分岐を発生させる
+          const removeStub = stub(Deno, 'remove', () => Promise.reject(new Deno.errors.NotFound()));
+
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          errStub.restore();
+          warnStub.restore();
+          logStub.restore();
+          removeStub.restore();
+
+          assertEquals(stats.error, 1);
+          assertEquals(stats.remove, 0);
         });
       });
     });
@@ -392,11 +374,11 @@ describe('processChunk', () => {
    * discardThreshold が引数で制御できることを確認する。
    */
   describe('Given: DISCARD 判定 confidence=0.6 と discardThreshold=0.5', () => {
-    /** processChunk([file], false, stats, 0.5) を呼び出すとき。 */
-    describe('When: processChunk([file], false, stats, 0.5) を呼び出す', () => {
-      /** confidence(0.6) >= threshold(0.5) なので DISCARD → stats.discarded が 1 になる。 */
-      describe('Then: T-FL-PCK-09 - stats.discarded が 1 になる', () => {
-        it('T-FL-PCK-09-01: threshold=0.5, confidence=0.6 → stats.discarded === 1', async () => {
+    /** processChunk([file], stats, 0.5) を呼び出すとき。 */
+    describe('When: processChunk([file], stats, 0.5) を呼び出す', () => {
+      /** confidence(0.6) >= threshold(0.5) なので DISCARD → stats.remove が 1 になる。 */
+      describe('Then: T-FL-PCK-09 - stats.remove が 1 になる', () => {
+        it('T-FL-PCK-09-01: threshold=0.5, confidence=0.6 → stats.remove === 1', async () => {
           const filePath = await _createTempFile('j.md');
           const response = JSON.stringify([
             { file: 'j.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'trivial' },
@@ -408,11 +390,11 @@ describe('processChunk', () => {
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
 
-          await processChunk([filePath], false, stats, 0.5);
+          await processChunk([filePath], stats, 0.5);
           errStub.restore();
           logStub.restore();
 
-          assertEquals(stats.discarded, 1);
+          assertEquals(stats.remove, 1);
         });
       });
     });

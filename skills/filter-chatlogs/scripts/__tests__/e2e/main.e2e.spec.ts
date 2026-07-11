@@ -29,6 +29,7 @@ import { LOGGER_HEADER } from '../../../../_scripts/constants/logger-header.cons
 // mocks
 import {
   installCommandMock,
+  makeCountingMock,
   makeFailMock,
   makeNotFoundMock,
   makeSuccessMock,
@@ -84,7 +85,8 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
 /**
  * `main` 関数の E2E テストスイート（dry-run モード）。
  *
- * `--dry-run` フラグを指定した際にファイルが削除されないことを検証する。
+ * `--dry-run` フラグを指定した際に claude CLI を呼び出さず、対象ファイルを一覧表示するだけで
+ * ファイルが削除されないことを検証する。
  *
  * テスト ID 範囲: T-FL-E2E-01
  *
@@ -94,31 +96,24 @@ describe('main - dry-run モード', () => {
   /**
    * 1 件の `.md` ファイルと claude agent が存在する前提。
    *
-   * `--dry-run` フラグ付きで main を呼び出した際に、DISCARD 判定でもファイルが
-   * 削除されないことを確認する。
+   * `--dry-run` フラグ付きで main を呼び出した際に、claude CLI が呼ばれず、
+   * ファイルも削除されないことを確認する。
    */
-  describe('Given: 1 件の .md ファイルと DISCARD 判定モック', () => {
+  describe('Given: 1 件の .md ファイル', () => {
     /** `main([...args, "--dry-run"])` を呼び出すとき。 */
     describe('When: main([...args, "--dry-run"]) を呼び出す', () => {
-      /** dry-run モードではファイルが削除されず、`[dry-run]` ログが出力されること。 */
-      describe('Then: T-FL-E2E-01 - dry-run → ファイルが削除されない', () => {
+      /** dry-run モードでは claude CLI が呼ばれず、対象ファイルがログに一覧表示され、ファイルも削除されない。 */
+      describe('Then: T-FL-E2E-01 - dry-run → claude CLI 未呼び出し・ファイル一覧表示・削除なし', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
+        let counter: { calls: number };
 
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
-          commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{
-                file: 'chat.md',
-                decision: FILTER_DECISIONS.DISCARD,
-                confidence: 0.9,
-                reason: 'trivial',
-              }]),
-            )),
-          );
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
           loggerStub = makeLoggerStub();
         });
 
@@ -133,11 +128,22 @@ describe('main - dry-run モード', () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
           });
 
-          it('T-FL-E2E-01-01: ファイルが削除されずに残り "[dry-run]" がログに出力される', async () => {
+          it('T-FL-E2E-01-01: ファイルが削除されずに残る', async () => {
             await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
-            assertEquals(loggerStub.logLogs.some((l) => l.includes('[dry-run]')), true);
+          });
+
+          it('T-FL-E2E-01-02: 対象ファイルパスがログに一覧表示される', async () => {
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('chat.md')), true);
+          });
+
+          it('T-FL-E2E-01-03: claude CLI が一度も呼ばれない', async () => {
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 0);
           });
         });
       });

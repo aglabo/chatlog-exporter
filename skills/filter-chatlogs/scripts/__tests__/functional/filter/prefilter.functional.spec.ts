@@ -14,23 +14,24 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { prefilterFiles } from '../../../libs/prefilter.ts';
-// types
-import type { FilterStats } from '../../../types/filter.types.ts';
+import { prefilterFiles } from '../../../modules/prefilter.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makePeriodDir, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
 // constants
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
+// types
+import type { BaseStats } from '../../../types/stats.types.ts';
 
 // ─── Internal Helpers
 
 /**
- * テスト用の初期化済み `FilterStats` オブジェクトを返す。
+ * テスト用の初期化済み `BaseStats` オブジェクトを返す。
  *
- * @returns `{ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 }` の FilterStats
+ * @returns `{ keep: 0, skip: 0, remove: 0, error: 0 }` の BaseStats
  */
-const _makeStats = (): FilterStats => ({ kept: 0, discarded: 0, skipped: 0, preSkipped: 0, error: 0 });
+const _makeStats = (): BaseStats => ({ keep: 0, skip: 0, remove: 0, error: 0 });
 
 // ─── Tests
 
@@ -44,7 +45,7 @@ const _makeStats = (): FilterStats => ({ kept: 0, discarded: 0, skipped: 0, preS
  * - ファイル名が除外パターンに一致する（例: `say-ok-and-nothing-else.md`）
  * - 本文（frontmatter を除いた部分）が空または 1000 文字未満
  *
- * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-08
+ * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-09
  *
  * @see prefilterFiles
  */
@@ -78,7 +79,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath]);
+          const result = await prefilterFiles([filePath], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -102,7 +103,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath]);
+          const result = await prefilterFiles([filePath], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -126,7 +127,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath]);
+          const result = await prefilterFiles([filePath], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -151,7 +152,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], 2428);
+          const result = await prefilterFiles([filePath], { minCharCount: 2428, stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -162,7 +163,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], 2426);
+          const result = await prefilterFiles([filePath], { minCharCount: 2426, stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -188,7 +189,11 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], 1000, 401);
+          const result = await prefilterFiles([filePath], {
+            minCharCount: 1000,
+            minAssistantChars: 401,
+            stats: _makeStats(),
+          });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -199,7 +204,11 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], 1000, 399);
+          const result = await prefilterFiles([filePath], {
+            minCharCount: 1000,
+            minAssistantChars: 399,
+            stats: _makeStats(),
+          });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -209,16 +218,16 @@ describe('prefilterFiles', () => {
   });
 
   /**
-   * stats 引数を渡した場合の preSkipped カウント検証グループ。
+   * stats 引数を渡した場合の keep カウント検証グループ。
    *
-   * スキップされたファイル数が stats.preSkipped に正しく反映されることを検証する。
+   * 事前段階で KEEP 確定したファイル数が stats.keep に正しく反映されることを検証する。
    */
   describe('Given: 3 ファイル（ファイル名パターン除外 1 + 本文短すぎ 1 + 正常 1）', () => {
     /** stats = _makeStats() を渡して prefilterFiles を呼び出すとき。 */
     describe('When: stats オブジェクトを渡して prefilterFiles を呼び出す', () => {
-      /** stats.preSkipped がスキップ数と一致し、戻り値が正常ファイルのみであることを検証する。 */
-      describe('Then: T-FL-PFF-07 - stats.preSkipped がスキップ数と一致する', () => {
-        it('T-FL-PFF-07-01: stats.preSkipped === 2 かつ 戻り値は 1 ファイル', async () => {
+      /** stats.keep が事前 KEEP 確定数と一致し、戻り値が正常ファイルのみであることを検証する。 */
+      describe('Then: T-FL-PFF-07 - stats.keep が事前 KEEP 確定数と一致する', () => {
+        it('T-FL-PFF-07-01: stats.keep === 2 かつ 戻り値は 1 ファイル', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -228,32 +237,32 @@ describe('prefilterFiles', () => {
           const errStub = stub(console, 'error', () => {});
 
           const _stats = _makeStats();
-          const result = await prefilterFiles([excludedPath, shortPath, validPath], undefined, undefined, _stats);
+          const result = await prefilterFiles([excludedPath, shortPath, validPath], { stats: _stats });
           errStub.restore();
 
           assertEquals(result.length, 1);
-          assertEquals(_stats.preSkipped, 2);
+          assertEquals(_stats.keep, 2);
         });
       });
     });
   });
 
   /**
-   * stats 引数を省略した場合でもエラーなく動作することを検証するグループ。
+   * stats を渡して prefilterFiles を呼び出したときの基本動作を検証するグループ。
    */
   describe('Given: 正常な 2 ファイル', () => {
-    /** stats なしで prefilterFiles を呼び出すとき。 */
-    describe('When: stats 引数を省略して prefilterFiles を呼び出す', () => {
+    /** stats を渡して prefilterFiles を呼び出すとき。 */
+    describe('When: stats を渡して prefilterFiles を呼び出す', () => {
       /** エラーなく 2 ファイルが戻ることを検証する。 */
       describe('Then: T-FL-PFF-08 - エラーなく動作する', () => {
-        it('T-FL-PFF-08-01: stats 省略時も 2 ファイルが返される', async () => {
+        it('T-FL-PFF-08-01: stats を渡すと2ファイルが返される', async () => {
           const validPath1 = `${periodDir1}/valid1.md`;
           const validPath2 = `${periodDir1}/valid2.md`;
           await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([validPath1, validPath2]);
+          const result = await prefilterFiles([validPath1, validPath2], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 2);
@@ -277,7 +286,7 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath]);
+          const result = await prefilterFiles([filePath], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -291,11 +300,61 @@ describe('prefilterFiles', () => {
           await Deno.writeTextFile(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([validPath, shortPath]);
+          const result = await prefilterFiles([validPath, shortPath], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
           assertEquals(result[0], validPath);
+        });
+      });
+    });
+  });
+
+  /**
+   * ファイル名パターン除外 1 件・本文短すぎ 1 件・正常 1 件が混在するファイルを入力とする前提条件グループ。
+   *
+   * `dryRun: true` を指定したときのログ抑制と、戻り値・stats の値が `dryRun: false` と一致することを検証する。
+   */
+  describe('Given: 3 ファイル（ファイル名パターン除外 1 + 本文短すぎ 1 + 正常 1）', () => {
+    /** dryRun: true を渡して prefilterFiles を呼び出すとき。 */
+    describe('When: dryRun: true を渡して prefilterFiles を呼び出す', () => {
+      /** ログ出力が抑制され、戻り値・stats は dryRun なし時と同じであることを検証する。 */
+      describe('Then: T-FL-PFF-09 - ログ出力が抑制され結果は変わらない', () => {
+        it('T-FL-PFF-09-01: [Normal] dryRun: true のとき logger.info が呼ばれない', async () => {
+          const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
+          const shortPath = `${periodDir1}/short-body.md`;
+          const validPath = `${periodDir1}/valid.md`;
+          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+
+          await prefilterFiles([excludedPath, shortPath, validPath], { stats: _makeStats(), dryRun: true });
+          loggerStub.restore();
+
+          assertEquals(loggerStub.infoLogs.length, 0);
+        });
+
+        it('T-FL-PFF-09-02: [Normal] dryRun: true でも戻り値と stats.keep は dryRun なし時と同じ', async () => {
+          const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
+          const shortPath = `${periodDir1}/short-body.md`;
+          const validPath = `${periodDir1}/valid.md`;
+          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+
+          const statsDryRun = _makeStats();
+          const resultDryRun = await prefilterFiles([excludedPath, shortPath, validPath], {
+            stats: statsDryRun,
+            dryRun: true,
+          });
+          const statsNormal = _makeStats();
+          const resultNormal = await prefilterFiles([excludedPath, shortPath, validPath], { stats: statsNormal });
+          loggerStub.restore();
+
+          assertEquals(resultDryRun, resultNormal);
+          assertEquals(statsDryRun.keep, statsNormal.keep);
         });
       });
     });
