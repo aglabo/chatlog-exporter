@@ -29,7 +29,6 @@ import type { ExportedSession } from '../../../types/session.types.ts';
 const BASE_CONFIG: ExportConfig = {
   agent: 'claude',
   exportDir: '/tmp/test-output',
-  baseDir: undefined,
   period: undefined,
 };
 
@@ -88,7 +87,7 @@ function _makeMockProviders(
  * - T-EC-CL-02: parseSession が null → exportedCount=0, skippedCount=1, errorCount=0
  * - T-EC-CL-03: findSessions が0件 → exportedCount=0, skippedCount=0, errorCount=0
  * - T-EC-CL-04: 3件中2件有効・1件スキップ → exportedCount=2, skippedCount=1, errorCount=0
- * - T-EC-CL-05: config.baseDir が存在しない → exportedCount=0
+ * - T-EC-CL-05: config.inputDir が存在しない → exportedCount=0
  * - T-EC-CL-06: writeSession が例外 → exportedCount=0, skippedCount=0, errorCount=1
  * - T-EC-CL-07: 3件中1件成功・1件スキップ・1件エラー → 各カウントが正確
  *
@@ -196,18 +195,18 @@ describe('exportClaude', () => {
     });
   });
 
-  // ─── T-EC-CL-05: config.baseDir が findClaudeSessions に渡される ─────────────
+  // ─── T-EC-CL-05: config.inputDir が findClaudeSessions に渡される ─────────────
 
   /**
-   * baseDir に存在しないディレクトリを渡してデフォルト provider を使うケース。
+   * inputDir に存在しないディレクトリを渡してデフォルト provider を使うケース。
    * デフォルト provider の findSessions が実ファイルシステムを参照するため、
    * 存在しないパスでは空配列が返り exportedCount=0 になることを確認する。
    */
-  describe('Given: config.baseDir に存在しないディレクトリを指定し、findSessions を省略する', () => {
+  describe('Given: config.inputDir に存在しないディレクトリを指定し、findSessions を省略する', () => {
     /** デフォルト provider で `exportClaude` を呼び出したときの戻り値を検証する。 */
     describe('When: exportClaude(config) をデフォルト provider で呼び出す', () => {
-      it('T-EC-CL-05: baseDir が空ディレクトリなら exportedCount=0, outputPaths=[]', async () => {
-        const config = { ...BASE_CONFIG, baseDir: '/nonexistent/custom/projects' };
+      it('T-EC-CL-05: inputDir が空ディレクトリなら exportedCount=0, outputPaths=[]', async () => {
+        const config = { ...BASE_CONFIG, inputDir: '/nonexistent/custom/projects' };
         const result = await exportClaude(config);
         assertEquals(result.exportedCount, 0);
         assertEquals(result.outputPaths, []);
