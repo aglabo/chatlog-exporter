@@ -232,7 +232,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
  * `main` 関数（prefilter）の E2E テストスイート（全件 keep）。
  *
  * ノイズファイルが存在しない場合に全ファイルが keep となり、
- * 完了ログに `noise=0` が含まれることを検証する。
+ * 完了ログに `keep=2` が含まれることを検証する。
  *
  * テスト ID 範囲: T-PF-E2E-04
  *
@@ -242,12 +242,12 @@ describe('main (prefilter) - 全件 keep', () => {
   /**
    * 正常ファイル 2 件のみが存在するディレクトリの前提。
    *
-   * 全件 keep 時にファイルが削除されず、完了ログに `noise=0` が含まれることを確認する。
+   * 全件 keep 時にファイルが削除されず、完了ログに `keep=2` が含まれることを確認する。
    */
   describe('Given: 正常ファイル 2 件', () => {
     /** `main(["claude", "--input-dir", chatlogsDir])` を呼び出すとき。 */
     describe('When: main(["claude", "--input-dir", chatlogsDir]) を呼び出す', () => {
-      /** 全ファイルが残り、完了ログに `noise=0` が含まれること。 */
+      /** 全ファイルが残り、完了ログに `keep=2` が含まれること。 */
       describe('Then: T-PF-E2E-04 - 全ファイルが残っており keep=2 のログ', () => {
         let tempDir: string;
         let chatlogsDir: string;
@@ -264,7 +264,7 @@ describe('main (prefilter) - 全件 keep', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        it('T-PF-E2E-04-01: 全ファイルが削除されずに残り、完了ログに "noise=0" が含まれる', async () => {
+        it('T-PF-E2E-04-01: 全ファイルが削除されずに残り、完了ログに "keep=2" が含まれる', async () => {
           const path1 = `${chatlogsDir}/valid-1.md`;
           const path2 = `${chatlogsDir}/valid-2.md`;
           await Deno.writeTextFile(path1, _makeValidContent());
@@ -274,19 +274,19 @@ describe('main (prefilter) - 全件 keep', () => {
 
           await assertFileExist(path1);
           await assertFileExist(path2);
-          assertEquals(loggerStub.infoLogs.some((line) => line.includes('noise=0')), true);
+          assertEquals(loggerStub.infoLogs.some((line) => line.includes('keep=2')), true);
         });
       });
     });
   });
 });
 
-// ─── T-PF-E2E-06: 空ディレクトリ → noise=0 keep=0 ログ ──────────────────────
+// ─── T-PF-E2E-06: 空ディレクトリ → keep=0 remove=0 error=0 ログ ─────────────
 
 /**
  * `main` 関数（prefilter）の E2E テストスイート（空ディレクトリ）。
  *
- * `.md` ファイルが 0 件の場合に `noise=0 keep=0 error=0` を含む
+ * `.md` ファイルが 0 件の場合に `keep=0 remove=0 error=0` を含む
  * 完了ログが出力されることを検証する。
  *
  * テスト ID 範囲: T-PF-E2E-06
@@ -302,8 +302,8 @@ describe('main (prefilter) - 空ディレクトリ', () => {
   describe('Given: .md ファイルが 0 件のディレクトリ', () => {
     /** `main(["claude", "--input-dir", agentDir])` を呼び出すとき。 */
     describe('When: main(["claude", "--input-dir", agentDir]) を呼び出す', () => {
-      /** 完了ログに `noise=0` と `keep=0` が含まれること。 */
-      describe('Then: T-PF-E2E-06 - "noise=0 keep=0 error=0" を含むログが出力される', () => {
+      /** 完了ログに `keep=0` と `remove=0` が含まれること。 */
+      describe('Then: T-PF-E2E-06 - "keep=0 remove=0 error=0" を含むログが出力される', () => {
         let tempDir: string;
         let loggerStub: LoggerStub;
 
@@ -318,13 +318,13 @@ describe('main (prefilter) - 空ディレクトリ', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        it('T-PF-E2E-06-01: 完了ログに "noise=0 keep=0 error=0" が含まれる', async () => {
+        it('T-PF-E2E-06-01: 完了ログに "keep=0 remove=0 error=0" が含まれる', async () => {
           const agentDir = `${tempDir}/claude`;
           await Deno.mkdir(agentDir, { recursive: true });
 
           await main(['claude', '--input-dir', agentDir]);
 
-          assertEquals(loggerStub.infoLogs.some((line) => line.includes('noise=0') && line.includes('keep=0')), true);
+          assertEquals(loggerStub.infoLogs.some((line) => line.includes('keep=0') && line.includes('remove=0')), true);
         });
       });
     });
