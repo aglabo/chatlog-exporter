@@ -38,7 +38,7 @@ const _BASE_CONFIG: ExportConfig = { agent: 'chatgpt', exportDir: '/tmp/out' };
 describe('runExport', () => {
   /** 不正な agent 指定・未対応 agent 指定によるエラー分岐。 */
   describe('When: 異常系', () => {
-    it('[Error] T-EC-RE-01: agent=chatgpt かつ inputDir・baseDir 未指定 → ChatlogError(InvalidArgs/NotSpecified)', async () => {
+    it('[Error] T-EC-RE-01: agent=chatgpt かつ inputDir 未指定 → ChatlogError(InvalidArgs/NotSpecified)', async () => {
       const _config: ExportConfig = { ..._BASE_CONFIG, agent: 'chatgpt' };
 
       const error = await assertRejects(() => runExport(_config), ChatlogError);
