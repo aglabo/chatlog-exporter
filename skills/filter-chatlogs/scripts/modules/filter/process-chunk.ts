@@ -39,7 +39,6 @@ DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 
 export const processChunk = async (
   chunkFiles: string[],
-  dryRun: boolean,
   stats: FilterStats,
   discardThreshold: number,
 ): Promise<void> => {
