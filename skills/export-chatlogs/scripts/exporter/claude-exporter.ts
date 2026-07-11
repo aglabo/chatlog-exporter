@@ -247,7 +247,7 @@ export const exportClaude = async (
   const range = parsePeriod(config.period);
 
   const _findSessions = _providers?.findSessions
-    ?? ((period: PeriodRange) => findClaudeSessions(period, config.baseDir));
+    ?? ((period: PeriodRange) => findClaudeSessions(period, config.inputDir));
   const _parseSession = _providers?.parseSession
     ?? ((filePath: string, r: PeriodRange) => parseClaudeSession(filePath, r));
   const _writeSession = _providers?.writeSession ?? writeSession;
@@ -265,7 +265,8 @@ export const exportClaude = async (
         skippedCount++;
         continue;
       }
-      const outPath = await _writeSession(config.exportDir, config.agent, session);
+      // buildConfig() が常に exportDir を string に解決するため non-null。
+      const outPath = await _writeSession(config.exportDir!, config.agent, session);
       outputPaths.push(outPath);
     } catch {
       errorCount++;
