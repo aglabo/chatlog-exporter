@@ -84,7 +84,7 @@ const _makeEmptyCache = async (): Promise<ChatlogCache<CLEResult>> => {
  * - `cache` にファイルの判定結果（DISCARD/KEEP）が既に存在する
  *   （dry-run 時は削除・stats 変更を行わず AI 対象からのみ除外する）
  *
- * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-14
+ * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-21
  *
  * @see prefilterFiles
  */
@@ -113,7 +113,7 @@ describe('prefilterFiles', () => {
     describe('When: prefilterFiles([file]) を呼び出す', () => {
       /** ファイルがスキップされ、結果に含まれないことを検証する。 */
       describe('Then: T-FL-PFF-01 - ファイルがスキップされる', () => {
-        it('T-FL-PFF-01-01: say-ok-and-nothing-else.md は通過しない', async () => {
+        it('T-FL-PFF-01-01: say-ok-and-nothing-else.md は通過せず実削除される', async () => {
           const filePath = `${periodDir1}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
@@ -122,6 +122,7 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(result.length, 0);
+          assertEquals(await Deno.stat(filePath).catch(() => null), null);
         });
       });
     });
@@ -266,7 +267,7 @@ describe('prefilterFiles', () => {
     describe('When: stats オブジェクトを渡して prefilterFiles を呼び出す', () => {
       /** stats.keep が事前 KEEP 確定数と一致し、戻り値が正常ファイルのみであることを検証する。 */
       describe('Then: T-FL-PFF-07 - stats.keep が事前 KEEP 確定数と一致する', () => {
-        it('T-FL-PFF-07-01: stats.keep === 2 かつ 戻り値は 1 ファイル', async () => {
+        it('T-FL-PFF-07-01: stats.keep === 1、stats.remove === 1 かつ 戻り値は 1 ファイル', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -280,7 +281,8 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(result.length, 1);
-          assertEquals(_stats.keep, 2);
+          assertEquals(_stats.keep, 1);
+          assertEquals(_stats.remove, 1);
         });
       });
     });
@@ -374,7 +376,7 @@ describe('prefilterFiles', () => {
           assertEquals(loggerStub.infoLogs.length, 0);
         });
 
-        it('T-FL-PFF-09-02: [Normal] dryRun: true でも戻り値と stats.keep は dryRun なし時と同じ', async () => {
+        it('T-FL-PFF-09-02: [Normal] dryRun: true でも戻り値と stats.keep/remove は dryRun なし時と同じ', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -394,6 +396,7 @@ describe('prefilterFiles', () => {
 
           assertEquals(resultDryRun, resultNormal);
           assertEquals(statsDryRun.keep, statsNormal.keep);
+          assertEquals(statsDryRun.remove, statsNormal.remove);
         });
       });
     });
@@ -600,6 +603,188 @@ describe('prefilterFiles', () => {
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
           await prefilterFiles([filePath], { stats, cache, discardThreshold: 0.7 });
+          errStub.restore();
+
+          assertEquals(stats.error, 1);
+          assertEquals(stats.remove, 0);
+        });
+      });
+    });
+  });
+
+  /**
+   * 本文読み込みに失敗する（実ファイルが存在しない）ファイルを cache 指定で処理する前提条件グループ。
+   *
+   * 読み込み失敗時に cache へ ERROR decision が記録されることを検証する。
+   */
+  describe('Given: 本文読み込みに失敗するファイル（cache 指定あり）', () => {
+    /** prefilterFiles([file], { cache }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { cache }) を呼び出す', () => {
+      /** cache に ERROR decision が記録され、stats.error が加算され、passed に含まれないことを検証する。 */
+      describe('Then: T-FL-PFF-16 - cache に ERROR decision が記録される', () => {
+        it('T-FL-PFF-16-01: cache.read(filePath).decision === FILTER_DECISIONS.ERROR になる', async () => {
+          const filePath = `${periodDir1}/missing-read.md`;
+          const cache = await _makeEmptyCache();
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          const result = await prefilterFiles([filePath], { stats, cache });
+          errStub.restore();
+
+          assertEquals(cache.read(filePath).decision, FILTER_DECISIONS.ERROR);
+          assertEquals(stats.error, 1);
+          assertEquals(result.includes(filePath), false);
+        });
+      });
+    });
+  });
+
+  /**
+   * 本文読み込みに失敗する（実ファイルが存在しない）ファイルを cache 指定なしで処理する前提条件グループ。
+   *
+   * cache 未指定でも従来通り例外を投げず stats.error が加算されることを検証する（回帰確認）。
+   */
+  describe('Given: 本文読み込みに失敗するファイル（cache 指定なし）', () => {
+    /** prefilterFiles([file], { stats }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { stats }) を呼び出す', () => {
+      /** 例外が投げられず stats.error が加算されることを検証する。 */
+      describe('Then: T-FL-PFF-17 - 例外が投げられず stats.error が加算される', () => {
+        it('T-FL-PFF-17-01: stats.error === 1 になる', async () => {
+          const filePath = `${periodDir1}/missing-read-nocache.md`;
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          await prefilterFiles([filePath], { stats });
+          errStub.restore();
+
+          assertEquals(stats.error, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * ファイル名除外 1 件・短本文除外 1 件・正常ファイル複数件が混在するファイルリストの前提条件グループ。
+   *
+   * ステージ分割リファクタリングによって戻り値の順序が入力順から崩れていないことを検証する
+   * characterization test（現行実装でも新実装でも PASS する想定）。
+   */
+  describe('Given: ファイル名除外1 + 短本文除外1 + 正常3件が混在するファイルリスト', () => {
+    /** prefilterFiles(files) を呼び出すとき。 */
+    describe('When: prefilterFiles(files) を呼び出す', () => {
+      /** 戻り値配列が入力 files の順序と一致することを検証する。 */
+      describe('Then: T-FL-PFF-19 - 戻り値の順序が入力順と一致する', () => {
+        it('T-FL-PFF-19-01: passed 配列が入力 files の順序と一致する', async () => {
+          const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
+          const shortPath = `${periodDir1}/short-order.md`;
+          const validPath1 = `${periodDir1}/order-valid1.md`;
+          const validPath2 = `${periodDir1}/order-valid2.md`;
+          const validPath3 = `${periodDir1}/order-valid3.md`;
+          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          await Deno.writeTextFile(validPath3, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const errStub = stub(console, 'error', () => {});
+
+          const files = [validPath3, excludedPath, validPath1, shortPath, validPath2];
+          const result = await prefilterFiles(files, { stats: _makeStats() });
+          errStub.restore();
+
+          assertEquals(result, [validPath3, validPath1, validPath2]);
+        });
+      });
+    });
+  });
+
+  /**
+   * cache に ERROR decision が既に記録されているファイル（実ファイルは正常）の前提条件グループ。
+   *
+   * ERROR キャッシュはヒットとみなさず、AI 判定対象（`passed`）に含めることを検証する。
+   */
+  describe('Given: cache に ERROR decision が既にあるファイル', () => {
+    /** prefilterFiles([file], { cache, discardThreshold }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { cache, discardThreshold }) を呼び出す', () => {
+      /** passed に含まれることを検証する。 */
+      describe('Then: T-FL-PFF-18 - passed に含まれる', () => {
+        it('T-FL-PFF-18-01: ERROR キャッシュは再読み込みされ passed に含まれる', async () => {
+          const filePath = `${periodDir1}/cached-error.md`;
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const cache = await _makeEmptyCache();
+          await cache.write(filePath, { decision: FILTER_DECISIONS.ERROR, confidence: 0, reason: 'read failure' });
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          const result = await prefilterFiles([filePath], { stats, cache, discardThreshold: 0.7 });
+          errStub.restore();
+
+          assertEquals(result.includes(filePath), true);
+        });
+      });
+    });
+  });
+
+  /**
+   * 除外パターンのファイル名を持つファイルを cache 指定で処理する前提条件グループ。
+   *
+   * ファイル名除外ファイルに対しても DISCARD decision が cache に書き込まれ、
+   * dry-run 時も書き込みだけは実行される（実削除は行わない）ことを検証する。
+   */
+  describe('Given: 除外パターンのファイル名を持つファイル（cache 指定あり）', () => {
+    /** prefilterFiles([file], { cache, discardThreshold }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { cache, discardThreshold }) を呼び出す', () => {
+      /** cache に DISCARD decision が書き込まれ、ファイルが実削除されることを検証する。 */
+      describe('Then: T-FL-PFF-20 - cache に DISCARD decision が書き込まれる', () => {
+        it('T-FL-PFF-20-01: cache.read(filePath).decision === FILTER_DECISIONS.DISCARD になり実削除される', async () => {
+          const filePath = `${periodDir1}/say-ok-and-nothing-else-cached.md`;
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const cache = await _makeEmptyCache();
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          await prefilterFiles([filePath], { stats, cache, discardThreshold: 0.7 });
+          errStub.restore();
+
+          assertEquals(cache.read(filePath).decision, FILTER_DECISIONS.DISCARD);
+          assertEquals(await Deno.stat(filePath).catch(() => null), null);
+          assertEquals(stats.remove, 1);
+        });
+
+        it('T-FL-PFF-20-02: dry-run 時も cache に DISCARD decision が書き込まれるがファイルは削除されない', async () => {
+          const filePath = `${periodDir1}/say-ok-and-nothing-else-cached-dryrun.md`;
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const cache = await _makeEmptyCache();
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+
+          await prefilterFiles([filePath], { stats, cache, discardThreshold: 0.7, dryRun: true });
+          loggerStub.restore();
+
+          assertEquals(cache.read(filePath).decision, FILTER_DECISIONS.DISCARD);
+          assertEquals(await Deno.stat(filePath).then(() => true).catch(() => false), true);
+          assertEquals(stats.remove, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * 除外パターンのファイル名を持つが、削除実行前にファイルが既に存在しない前提条件グループ。
+   *
+   * `removeFile` が `false` を返すケースで stats.error が加算されることを検証する。
+   */
+  describe('Given: 除外パターンのファイル名を持つファイルが実削除前に既に存在しない', () => {
+    /** prefilterFiles([file], { stats }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { stats }) を呼び出す', () => {
+      /** stats.error が増え、stats.remove は増えないことを検証する。 */
+      describe('Then: T-FL-PFF-21 - stats.error が 1 になる', () => {
+        it('T-FL-PFF-21-01: removeFile 失敗 → stats.error === 1, stats.remove === 0', async () => {
+          const filePath = `${periodDir1}/say-ok-and-nothing-else-missing.md`;
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
+          await prefilterFiles([filePath], { stats });
           errStub.restore();
 
           assertEquals(stats.error, 1);
