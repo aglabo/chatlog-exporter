@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // types
-import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+import type { DefaultArgFields } from '../../../_scripts/types/args-schema.types.ts';
 
 // --- type
 
