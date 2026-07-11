@@ -18,6 +18,8 @@ import { parseFrontmatterEntries } from '../../../../../_scripts/libs/text/front
 import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
 // types
 import type { ClaudeResult } from '../../../types/filter.types.ts';
+// constants
+import { FILTER_DECISIONS } from '../../../types/filter-decision.const.types.ts';
 
 // ─── Tests
 
@@ -97,30 +99,45 @@ describe('parseAiJsonArray', () => {
     describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-01 - 配列が返される', () => {
         it('T-FL-PJ-01-01: 有効な JSON 配列 → null でない', () => {
-          const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
+          const raw = JSON.stringify([{
+            file: 'a.md',
+            decision: FILTER_DECISIONS.KEEP,
+            confidence: 0.9,
+            reason: 'good',
+          }]);
           const result = parseAiJsonArray(raw);
 
           assertNotNull(result);
         });
 
         it('T-FL-PJ-01-02: 配列の最初の要素の file が "a.md" になる', () => {
-          const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
+          const raw = JSON.stringify([{
+            file: 'a.md',
+            decision: FILTER_DECISIONS.KEEP,
+            confidence: 0.9,
+            reason: 'good',
+          }]);
           const result = parseAiJsonArray<ClaudeResult>(raw);
 
           assertEquals(result![0].file, 'a.md');
         });
 
         it('T-FL-PJ-01-03: decision が "KEEP" になる', () => {
-          const raw = JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' }]);
+          const raw = JSON.stringify([{
+            file: 'a.md',
+            decision: FILTER_DECISIONS.KEEP,
+            confidence: 0.9,
+            reason: 'good',
+          }]);
           const result = parseAiJsonArray<ClaudeResult>(raw);
 
-          assertEquals(result![0].decision, 'KEEP');
+          assertEquals(result![0].decision, FILTER_DECISIONS.KEEP);
         });
 
         it('T-FL-PJ-01-04: 複数件の配列が正しくパースされる', () => {
           const raw = JSON.stringify([
-            { file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'good' },
-            { file: 'b.md', decision: 'DISCARD', confidence: 0.8, reason: 'bad' },
+            { file: 'a.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'good' },
+            { file: 'b.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.8, reason: 'bad' },
           ]);
           const result = parseAiJsonArray(raw);
 
@@ -136,7 +153,7 @@ describe('parseAiJsonArray', () => {
     describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-02 - フォールバックで配列が返される', () => {
         it('T-FL-PJ-02-01: 前置テキスト + JSON 配列 → null でない', () => {
-          const arr = [{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'ok' }];
+          const arr = [{ file: 'a.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'ok' }];
           const raw = `前置テキスト\n${JSON.stringify(arr)}\n後置テキスト`;
           const result = parseAiJsonArray(raw);
 
@@ -144,7 +161,7 @@ describe('parseAiJsonArray', () => {
         });
 
         it('T-FL-PJ-02-02: マークダウンコードブロック内の JSON → null でない', () => {
-          const arr = [{ file: 'b.md', decision: 'DISCARD', confidence: 0.8, reason: 'no' }];
+          const arr = [{ file: 'b.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.8, reason: 'no' }];
           const raw = `\`\`\`json\n${JSON.stringify(arr)}\n\`\`\``;
           const result = parseAiJsonArray(raw);
 
@@ -160,7 +177,7 @@ describe('parseAiJsonArray', () => {
     describe('When: parseAiJsonArray(raw) を呼び出す', () => {
       describe('Then: T-FL-PJ-03 - 貪欲マッチで配列が返される', () => {
         it('T-FL-PJ-03-01: ネストした配列を含む文字列 → null でない', () => {
-          const arr = [{ file: 'c.md', decision: 'KEEP', confidence: 0.7, reason: 'nested [x]' }];
+          const arr = [{ file: 'c.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.7, reason: 'nested [x]' }];
           const raw = `some text ${JSON.stringify(arr)} more text`;
           const result = parseAiJsonArray(raw);
 

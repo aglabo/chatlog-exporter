@@ -22,6 +22,8 @@ import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.t
 import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+// types
+import type { FilterDecision } from '../../../types/filter-decision.const.types.ts';
 
 // ─── Internal Helpers
 
@@ -44,13 +46,13 @@ const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
 // types
 interface FixtureOutput {
-  expected_decision: 'KEEP' | 'DISCARD';
+  expected_decision: FilterDecision;
   confidence_min: number;
   mock_response?: string;
 }
 
 interface ClaudeResult {
-  decision: 'KEEP' | 'DISCARD';
+  decision: FilterDecision;
   confidence: number;
 }
 
