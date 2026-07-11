@@ -10,6 +10,7 @@
 export const FILTER_DECISIONS = {
   KEEP: 'KEEP',
   DISCARD: 'DISCARD',
+  ERROR: 'ERROR',
 } as const;
 
 /** `FILTER_DECISIONS` の値から派生したユニオン型。`'KEEP' | 'DISCARD'` と等価。 */
