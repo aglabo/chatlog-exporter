@@ -286,7 +286,7 @@ const _mergeResults = (results: FileResult[]): ExportResult => {
  * ChatGPT エージェントのセッション履歴をエクスポートするオーケストレーション関数。
  *
  * 処理フロー:
- * 1. `config.inputDir ?? config.baseDir` が undefined → エラースロー
+ * 1. `config.inputDir` が undefined → エラースロー
  * 2. `parsePeriod(config.period)` で PeriodRange 取得
  * 3. `findFiles()` でファイル一覧を収集
  * 4. 全ファイルを Promise.all で並列処理（各ファイルは独立して読み込み・パース・書き出し）
@@ -295,7 +295,7 @@ const _mergeResults = (results: FileResult[]): ExportResult => {
  * `_providers` を省略した場合は実際のファイルシステム操作を行う。
  * テスト時は `_providers` に差し替え実装を渡すことで I/O なしに動作を検証できる。
  *
- * @param config エクスポート設定（agent, period, exportDir, inputDir, baseDir）
+ * @param config エクスポート設定（agent, period, exportDir, inputDir）
  * @param _providers テスト用 Provider（省略時は実実装を使用）
  * @returns エクスポート結果（exportedCount, skippedCount, errorCount, outputPaths）
  */
@@ -307,12 +307,12 @@ export const exportChatGPT = async (
     writeSession?: WriteSessionProvider;
   },
 ): Promise<ExportResult> => {
-  const inputDir = config.inputDir ?? config.baseDir;
+  const inputDir = config.inputDir;
   if (!inputDir) {
     throw new ChatlogError(
       'MissingArg',
       'NotSpecified',
-      'ChatGPT エクスポートには --input/--base でディレクトリを指定してください',
+      'ChatGPT エクスポートには --input-dir でディレクトリを指定してください',
     );
   }
 
@@ -325,7 +325,8 @@ export const exportChatGPT = async (
   const files = await _findFiles(inputDir);
 
   const results = await Promise.all(
-    files.map((file) => _processFile(file, range, config.exportDir, config.agent, _parseConversation, _writeSession)),
+    // buildConfig() が常に exportDir を string に解決するため non-null。
+    files.map((file) => _processFile(file, range, config.exportDir!, config.agent, _parseConversation, _writeSession)),
   );
 
   return _mergeResults(results);
