@@ -31,6 +31,8 @@ import type { CommandMockHandle } from '../../../../../../_scripts/__tests__/hel
 import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 // exists
 import { fileExists, fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+// constants
+import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 
 // ─── Internal Helpers
 
@@ -107,7 +109,7 @@ describe('processChunk', () => {
           const response = JSON.stringify([
             {
               file: 'a.md',
-              decision: 'DISCARD',
+              decision: FILTER_DECISIONS.DISCARD,
               confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
               reason: 'trivial',
             },
@@ -131,7 +133,7 @@ describe('processChunk', () => {
           const response = JSON.stringify([
             {
               file: 'a.md',
-              decision: 'DISCARD',
+              decision: FILTER_DECISIONS.DISCARD,
               confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
               reason: 'trivial',
             },
@@ -168,7 +170,7 @@ describe('processChunk', () => {
           const response = JSON.stringify([
             {
               file: 'b.md',
-              decision: 'DISCARD',
+              decision: FILTER_DECISIONS.DISCARD,
               confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
               reason: 'trivial',
             },
@@ -192,7 +194,7 @@ describe('processChunk', () => {
           const response = JSON.stringify([
             {
               file: 'c.md',
-              decision: 'DISCARD',
+              decision: FILTER_DECISIONS.DISCARD,
               confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
               reason: 'trivial',
             },
@@ -227,7 +229,7 @@ describe('processChunk', () => {
         it('T-FL-PCK-03-01: stats.kept が 1 になる', async () => {
           const filePath = await _createTempFile('d.md');
           const response = JSON.stringify([
-            { file: 'd.md', decision: 'KEEP', confidence: 0.9, reason: 'valuable' },
+            { file: 'd.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -257,7 +259,7 @@ describe('processChunk', () => {
         it('T-FL-PCK-04-01: confidence=0.6 の DISCARD → stats.kept が 1 になる', async () => {
           const filePath = await _createTempFile('e.md');
           const response = JSON.stringify([
-            { file: 'e.md', decision: 'DISCARD', confidence: 0.6, reason: 'low conf' },
+            { file: 'e.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'low conf' },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -342,7 +344,7 @@ describe('processChunk', () => {
           const filePath = await _createTempFile('h.md');
           // 対象は h.md だが結果は other.md
           const response = JSON.stringify([
-            { file: 'other.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' },
+            { file: 'other.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),
@@ -397,7 +399,7 @@ describe('processChunk', () => {
         it('T-FL-PCK-09-01: threshold=0.5, confidence=0.6 → stats.discarded === 1', async () => {
           const filePath = await _createTempFile('j.md');
           const response = JSON.stringify([
-            { file: 'j.md', decision: 'DISCARD', confidence: 0.6, reason: 'trivial' },
+            { file: 'j.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'trivial' },
           ]);
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(response)),

@@ -37,6 +37,7 @@ import {
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
+import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -110,7 +111,12 @@ describe('main - dry-run モード', () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{ file: 'chat.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' }]),
+              JSON.stringify([{
+                file: 'chat.md',
+                decision: FILTER_DECISIONS.DISCARD,
+                confidence: 0.9,
+                reason: 'trivial',
+              }]),
             )),
           );
           loggerStub = makeLoggerStub();
@@ -171,7 +177,12 @@ describe('main - DISCARD 判定', () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{ file: 'discard.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' }]),
+              JSON.stringify([{
+                file: 'discard.md',
+                decision: FILTER_DECISIONS.DISCARD,
+                confidence: 0.9,
+                reason: 'trivial',
+              }]),
             )),
           );
           loggerStub = makeLoggerStub();
@@ -230,7 +241,12 @@ describe('main - KEEP 判定', () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{ file: 'keep.md', decision: 'KEEP', confidence: 0.9, reason: 'valuable' }]),
+              JSON.stringify([{
+                file: 'keep.md',
+                decision: FILTER_DECISIONS.KEEP,
+                confidence: 0.9,
+                reason: 'valuable',
+              }]),
             )),
           );
           loggerStub = makeLoggerStub();
@@ -345,8 +361,8 @@ describe('main - DISCARD + KEEP 混在', () => {
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([
-                { file: 'discard.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' },
-                { file: 'keep.md', decision: 'KEEP', confidence: 0.9, reason: 'valuable' },
+                { file: 'discard.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
+                { file: 'keep.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
               ]),
             )),
           );
@@ -413,7 +429,12 @@ describe('main - period 絞り込み', () => {
           tempDir = await Deno.makeTempDir();
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{ file: 'march.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' }]),
+              JSON.stringify([{
+                file: 'march.md',
+                decision: FILTER_DECISIONS.DISCARD,
+                confidence: 0.9,
+                reason: 'trivial',
+              }]),
             )),
           );
           loggerStub = makeLoggerStub();
@@ -546,7 +567,12 @@ describe('main - confidence 閾値未満', () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
-              JSON.stringify([{ file: 'low-conf.md', decision: 'DISCARD', confidence: 0.69, reason: 'uncertain' }]),
+              JSON.stringify([{
+                file: 'low-conf.md',
+                decision: FILTER_DECISIONS.DISCARD,
+                confidence: 0.69,
+                reason: 'uncertain',
+              }]),
             )),
           );
           loggerStub = makeLoggerStub();
@@ -733,8 +759,8 @@ describe('main - period 未指定', () => {
           commandHandle = installCommandMock(
             makeSuccessMock(new TextEncoder().encode(
               JSON.stringify([
-                { file: 'march.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' },
-                { file: 'april.md', decision: 'DISCARD', confidence: 0.9, reason: 'trivial' },
+                { file: 'march.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
+                { file: 'april.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
               ]),
             )),
           );

@@ -6,6 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// types
+import type { FilterDecision } from './filter-decision.const.types.ts';
+
 // ─────────────────────────────────────────────
 // 分類設定型
 // ─────────────────────────────────────────────
@@ -51,7 +54,7 @@ export type FilterParsedConfig = Partial<FilterConfig> & {
 /** Claude CLI が返すファイル単位の判定結果。 */
 export interface ClaudeResult {
   file: string;
-  decision: 'KEEP' | 'DISCARD';
+  decision: FilterDecision;
   confidence: number;
   reason: string;
 }
