@@ -1,4 +1,4 @@
-// src: scripts/libs/prefilter.ts
+// src: scripts/modules/prefilter.ts
 // @(#): 内容ベース事前フィルタ関数群
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -27,12 +27,12 @@ import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema
 
 // ─── internal ───
 // functions
-import { checkFilename } from './classify-file.ts';
-import { extractConversation } from './common-utils.ts';
+import { checkFilename } from '../libs/classify-file.ts';
+import { extractConversation } from '../libs/common-utils.ts';
 // constants
 import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 // types
-import type { FilterStats } from '../types/filter.types.ts';
+import type { PrefilterFilesOptions } from '../types/filter.types.ts';
 
 // ─────────────────────────────────────────────
 // 事前フィルタ関数
@@ -110,26 +110,32 @@ export const isExcludedByContent = (
  * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
  *
  * @param files - フィルタリング対象のファイルパス配列
- * @param minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
- * @param minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
- * @param stats - 処理統計オブジェクト（省略可）。指定時は `preSkipped` にスキップ数を代入する。
+ * @param options - `prefilterFiles` のオプション
+ * @param options.minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
+ * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
+ * @param options.stats - 処理統計オブジェクト。事前段階での KEEP 確定数を `keep` に、読み込み失敗数を `error` に加算する。
+ * @param options.dryRun - `true` のとき、スキップ理由・サマリのログ出力を抑制する（デフォルト: `false`）
  * @returns フィルタリングを通過したファイルパスの配列
  */
 export const prefilterFiles = async (
   files: string[],
-  minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
-  minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
-  stats?: FilterStats,
+  options: PrefilterFilesOptions,
 ): Promise<string[]> => {
+  const {
+    minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
+    minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
+    stats,
+    dryRun = false,
+  } = options;
+
   const passed: string[] = [];
-  let skipped = 0;
 
   for (const filePath of files) {
     const filename = getFilename(filePath);
 
     if (isExcludedByFilename(filename)) {
-      logger.info(`  skipped (ファイル名パターン): ${filename}`);
-      skipped++;
+      if (!dryRun) { logger.info(`  skipped (ファイル名パターン): ${filename}`); }
+      stats.keep++;
       continue;
     }
 
@@ -137,33 +143,34 @@ export const prefilterFiles = async (
     try {
       text = await readTextFile(filePath);
     } catch {
-      skipped++;
+      stats.error++;
       continue;
     }
 
     const { content } = parseFrontmatterEntries(text);
     if (!content.trim()) {
-      skipped++;
+      stats.keep++;
       continue;
     }
 
     const { excluded, reason } = isExcludedByContent(content, minCharCount, minAssistantChars);
     if (excluded) {
-      logger.info(`  skipped (${reason}): ${filename}`);
-      skipped++;
+      if (!dryRun) { logger.info(`  skipped (${reason}): ${filename}`); }
+      stats.keep++;
       continue;
     }
 
     const bodyText = extractConversation(content);
     if (!bodyText.trim()) {
-      skipped++;
+      stats.keep++;
       continue;
     }
 
     passed.push(filePath);
   }
 
-  logger.info(`事前フィルタ: 対象=${files.length} 通過=${passed.length} スキップ=${skipped}`);
-  if (stats) { stats.preSkipped = skipped; }
+  if (!dryRun) {
+    logger.info(`事前フィルタ: 対象=${files.length} 通過=${passed.length} keep=${stats.keep}`);
+  }
   return passed;
 };
