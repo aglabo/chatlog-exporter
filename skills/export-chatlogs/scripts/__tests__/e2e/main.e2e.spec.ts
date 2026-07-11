@@ -376,22 +376,22 @@ describe('main (export-chatlogs)', () => {
   /**
    * chatgpt agent の正常実行シナリオ。
    *
-   * `--base` のみを指定して `runExport` の chatgpt ガード（inputDir/baseDir 両方未指定時に
+   * `--input-dir` のみを指定して `runExport` の chatgpt ガード（inputDir 未指定時に
    * throw する分岐）を通過させ、`exportChatGPT` が実行されて Markdown 出力まで
    * 完了することを確認する。claude/codex と異なる conversations-*.json 形式が
    * 正しく処理されることの基本確認。
    */
-  describe('Given: baseDir 直下に有効な chatgpt conversations JSON', () => {
-    let baseDir: string;
+  describe('Given: inputDir 直下に有効な chatgpt conversations JSON', () => {
+    let inputDir: string;
 
-    /** main(["chatgpt", "--base", baseDir, "--export-dir", outputDir]) を呼び出す */
-    describe('When: main(["chatgpt", "--base", baseDir, "--export-dir", outputDir]) を呼び出す', () => {
+    /** main(["chatgpt", "--input-dir", inputDir, "--export-dir", outputDir]) を呼び出す */
+    describe('When: main(["chatgpt", "--input-dir", inputDir, "--export-dir", outputDir]) を呼び出す', () => {
       beforeEach(async () => {
-        baseDir = `${tempDir}/chatgpt-export`;
-        await Deno.mkdir(baseDir, { recursive: true });
+        inputDir = `${tempDir}/chatgpt-export`;
+        await Deno.mkdir(inputDir, { recursive: true });
         const createTime = new Date('2026-03-15T10:00:00.000Z').getTime() / 1000;
         await Deno.writeTextFile(
-          `${baseDir}/conversations-2026-03-15.json`,
+          `${inputDir}/conversations-2026-03-15.json`,
           JSON.stringify([
             _chatgptConversation('sess-e2e-chatgpt-0001', createTime, 'E2Eテストの質問です', 'E2Eテストの回答です。'),
           ]),
@@ -401,7 +401,7 @@ describe('main (export-chatlogs)', () => {
       /** T-EC-E2E-09: ファイルが outputDir に生成される */
       describe('Then: T-EC-E2E-09 - ファイルが outputDir に生成される', () => {
         it('T-EC-E2E-09-01: logger.log に生成パスが出力される', async () => {
-          await main(['chatgpt', '--base', baseDir, '--export-dir', outputDir]);
+          await main(['chatgpt', '--input-dir', inputDir, '--export-dir', outputDir]);
 
           assertEquals(loggerStub.logLogs.some((p) => p.endsWith('.md')), true);
         });

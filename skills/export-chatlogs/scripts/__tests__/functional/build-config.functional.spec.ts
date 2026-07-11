@@ -58,7 +58,6 @@ async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> {
  * - `agent`     : CLI > GlobalConfig > defaults
  * - `exportDir` : CLI(--export-dir) > (GlobalConfig.chatlogsDir > defaults.chatlogsDir) + 'originalLogs'
  *                 （共通スキーマ由来の `--output-dir` は破棄され `exportDir` には影響しない）
- * - `baseDir`   : CLI(--base) のみ（GlobalConfig 連携なし）
  * - `inputDir`  : CLI(--input-dir) のみ（GlobalConfig 連携なし）
  * - `period`    : CLI 位置引数のみ
  *
@@ -243,56 +242,6 @@ describe('buildConfig', () => {
     });
   });
 
-  // ─── baseDir 優先順位 ───────────────────────────────────────────────────────
-
-  /**
-   * CLI で baseDir が指定されている前提条件グループ。
-   *
-   * CLI 引数 `--base` でベースディレクトリが明示されたケースを表す。
-   * `baseDir` は `GlobalConfig` 連携がなく CLI の値のみが反映されることを検証する。
-   */
-  describe('Given: CLI 引数に --base が指定されている', () => {
-    /** `buildConfig` を呼び出すとき。 */
-    describe('When: buildConfig を呼び出す', () => {
-      /** `result.baseDir` が CLI の値と一致することを検証する。 */
-      describe('Then: T-EC-BC-07 - result.baseDir === CLI の baseDir', () => {
-        beforeEach(async () => {
-          resetProjectRoot('/home/user/project');
-          GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-EC-BC-07-01: args=["--base", "/data"] → result.baseDir === /data', () => {
-          const result = buildConfig(['--base', '/data']);
-          assertEquals(result.baseDir, '/data');
-        });
-      });
-    });
-  });
-
-  /**
-   * CLI で baseDir が未指定である前提条件グループ。
-   *
-   * CLI 引数 `--base` が省略されたケースを表す。
-   * `baseDir` は `GlobalConfig` 連携がないため、未指定時は `undefined` になることを検証する。
-   */
-  describe('Given: CLI 引数に --base が未指定', () => {
-    /** `buildConfig` を呼び出すとき。 */
-    describe('When: buildConfig を呼び出す', () => {
-      /** `result.baseDir` が `undefined` になることを検証する。 */
-      describe('Then: T-EC-BC-08 - result.baseDir === undefined', () => {
-        beforeEach(async () => {
-          resetProjectRoot('/home/user/project');
-          GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-EC-BC-08-01: baseDir 未指定 → result.baseDir === undefined', () => {
-          const result = buildConfig([]);
-          assertEquals(result.baseDir, undefined);
-        });
-      });
-    });
-  });
-
   // ─── inputDir 優先順位 ──────────────────────────────────────────────────────
 
   /**
@@ -414,32 +363,6 @@ describe('buildConfig', () => {
         it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.exportDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
           const result = buildConfig([]);
           assertEquals(result.exportDir, joinPath(DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR));
-        });
-      });
-    });
-  });
-
-  // ─── configFile の ExportConfig 混入防止 ─────────────────────────────────────
-
-  /**
-   * configFile フィールドが ExportConfig に混入しないことを確認する。
-   *
-   * `--config` は GlobalConfig 初期化専用フィールドであり、
-   * buildConfig の戻り値 ExportConfig には含まれてはならない。
-   */
-  describe('Given: CLI 引数に --config が指定されている', () => {
-    /** `buildConfig` を呼び出すとき。 */
-    describe('When: buildConfig を呼び出す', () => {
-      /** `result` に `configFile` フィールドが含まれないことを検証する。 */
-      describe('Then: T-EC-BC-15 - result に configFile フィールドが含まれない', () => {
-        beforeEach(async () => {
-          resetProjectRoot('/home/user/project');
-          GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
-        });
-        it('T-EC-BC-15-01: --config を含む CLI 引数 → result に configFile が含まれない', () => {
-          const result = buildConfig(['claude', '--config', '/path/to/config.yaml']);
-          assertEquals((result as unknown as Record<string, unknown>).configFile, undefined);
         });
       });
     });

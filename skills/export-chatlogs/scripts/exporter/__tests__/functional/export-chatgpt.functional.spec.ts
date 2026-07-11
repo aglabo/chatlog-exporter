@@ -71,7 +71,7 @@ async function _writeConvFile(filePath: string, conversations: ChatGPTConversati
  * テストケース分類:
  * 正常系: T-EC-GE-01（1件）/ T-EC-GE-06（3件並列）/ T-EC-GE-10（順序保証）
  * スキップ: T-EC-GE-02（parseConversation が null）
- * 境界値: T-EC-GE-03（0件）/ T-EC-GE-04（baseDir 未設定）
+ * 境界値: T-EC-GE-03（0件）/ T-EC-GE-04（inputDir 未設定）
  * エラー系: T-EC-GE-05（writeSession 例外）/ T-EC-GE-09（全ファイル読み込み失敗）
  * 混在: T-EC-GE-07（エラー・正常・スキップ混在）/ T-EC-GE-08（複数会話・複数ファイル）
  *
@@ -116,7 +116,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -165,7 +165,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -199,7 +199,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -219,28 +219,28 @@ describe('exportChatGPT', () => {
     });
   });
 
-  // ─── T-EC-GE-04: config.baseDir が undefined → エラースロー ─────────────
+  // ─── T-EC-GE-04: config.inputDir が undefined → エラースロー ─────────────
 
   /**
-   * config.baseDir が未設定の必須パラメータ検証ケース。
+   * config.inputDir が未設定の必須パラメータ検証ケース。
    * ChatGPT エクスポートは入力ディレクトリが必須であるため、
-   * baseDir=undefined のときエラーがスローされることを検証する。
+   * inputDir=undefined のときエラーがスローされることを検証する。
    */
-  describe('Given: config.baseDir が undefined', () => {
+  describe('Given: config.inputDir が undefined', () => {
     /** `exportChatGPT` を呼び出したときにエラーがスローされることを検証する。 */
     describe('When: exportChatGPT(config) を呼び出す', () => {
       it('T-EC-GE-04: エラーをスローする', async () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: undefined,
+          inputDir: undefined,
           period: undefined,
         };
 
         await assertRejects(
           () => exportChatGPT(config),
           Error,
-          'ChatGPT エクスポートには --input/--base でディレクトリを指定してください',
+          'ChatGPT エクスポートには --input-dir でディレクトリを指定してください',
         );
       });
     });
@@ -270,7 +270,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -338,7 +338,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -405,7 +405,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -475,7 +475,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -525,7 +525,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 
@@ -598,7 +598,7 @@ describe('exportChatGPT', () => {
         const config: ExportConfig = {
           agent: 'chatgpt',
           exportDir: outputDir,
-          baseDir: tempDir,
+          inputDir: tempDir,
           period: undefined,
         };
 

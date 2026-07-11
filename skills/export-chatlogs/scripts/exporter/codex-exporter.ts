@@ -223,7 +223,8 @@ export const exportCodex = async (
         skippedCount++;
         continue;
       }
-      const outPath = await _writeSession(config.exportDir, config.agent, session);
+      // buildConfig() が常に exportDir を string に解決するため non-null。
+      const outPath = await _writeSession(config.exportDir!, config.agent, session);
       outputPaths.push(outPath);
     } catch {
       errorCount++;

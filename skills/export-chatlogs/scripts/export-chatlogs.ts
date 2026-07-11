@@ -47,7 +47,6 @@ import type { ExportResult } from './types/export-result.types.ts';
 /** export-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgSchema<ParsedConfig> = [
   { option: '--export-dir', field: 'exportDir', type: 'directory' },
-  { option: '--base', field: 'baseDir', type: 'directory' },
 ];
 
 /**
@@ -62,7 +61,6 @@ const _SCHEMA: ArgSchema<ParsedConfig> = [
  *
  * - agent 優先順位: CLI > GlobalConfig > defaults
  * - exportDir 優先順位: CLI(--export-dir) > (GlobalConfig.chatlogsDir > DEFAULT_CHATLOGS_DIR) + 'originalLogs'
- * - baseDir 優先順位: CLI(--base) のみ（GlobalConfig 連携なし）
  * - inputDir 優先順位: CLI(--input-dir) のみ（GlobalConfig 連携なし）
  * - period: CLI 位置引数のみ（GlobalConfig に期間設定なし）
  */
@@ -71,12 +69,11 @@ export const buildConfig = (
   defaults?: ExportConfig,
 ): ExportConfig => {
   const _defaults = defaults ?? DEFAULT_EXPORT_CONFIG;
-  const { exportDir: _unusedExportDir, ..._defaultsWithoutExportDir } = _defaults;
-  const parsed = parseArgs<ExportConfig>(args, _SCHEMA, _defaultsWithoutExportDir as ExportConfig);
+  const parsed = parseArgs<ExportConfig>(args, _SCHEMA, _defaults);
   const _chatlogsDir = parsed.chatlogsDir ?? DEFAULT_CHATLOGS_DIR;
   const _exportDir = parsed.exportDir ?? joinPath(_chatlogsDir, DEFAULT_ORIGINAL_LOGS_DIR);
-  const { configFile: _unusedConfigFile, ..._rest } = parsed;
-  return { ..._rest, exportDir: _exportDir } as ExportConfig;
+  parsed.exportDir = _exportDir;
+  return parsed;
 };
 
 // ─────────────────────────────────────────────
@@ -91,7 +88,7 @@ export type RunExportProvider = (config: ExportConfig) => Promise<ExportResult>;
  *
  * - `claude` → `exportClaude`
  * - `codex` → `exportCodex`
- * - `chatgpt` → `exportChatGPT`（`inputDir`・`baseDir` がともに未指定の場合は `ChatlogError` を throw）
+ * - `chatgpt` → `exportChatGPT`（`inputDir` が未指定の場合は `ChatlogError` を throw）
  * - 上記以外 → `ChatlogError('InvalidArgs', 'UnsupportedAgent')` を throw
  *
  * @param config `buildConfig()` が構築した `ExportConfig`
@@ -104,7 +101,7 @@ export const runExport: RunExportProvider = async (config) => {
     case 'codex':
       return await exportCodex(config);
     case 'chatgpt':
-      if (!config.inputDir && !config.baseDir) {
+      if (!config.inputDir) {
         throw new ChatlogError(
           'InvalidArgs',
           'NotSpecified',
