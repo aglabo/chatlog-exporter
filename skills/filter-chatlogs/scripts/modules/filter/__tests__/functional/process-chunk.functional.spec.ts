@@ -25,6 +25,7 @@ import {
   makeNotFoundMock,
   makeSuccessMock,
 } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { ChatlogCache } from '../../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/config-schema.constants.ts';
 // types
 import type { CommandMockHandle } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -33,21 +34,57 @@ import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 import { fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
+// types
+import type { CLEResult } from '../../../../types/cache.types.ts';
 
 // ─── Internal Helpers
+
+// functions
+/**
+ * テスト用の空キャッシュ（バッファバック）を生成する。
+ *
+ * ファイル I/O をせずにインメモリバッファで動作する `ChatlogCache<CLEResult>` を返す。
+ * @returns 初期化済みの空キャッシュ
+ */
+const _makeEmptyCache = async (): Promise<ChatlogCache<CLEResult>> => {
+  const buf = new Map<string, string>();
+  const cache = new ChatlogCache<CLEResult>(
+    'filter-cache',
+    '/fake/cache',
+    undefined,
+    {
+      cache: {
+        readTextFile: (path) => {
+          const data = buf.get(path);
+          if (data === undefined) { return Promise.reject(new Error('not found')); }
+          return Promise.resolve(data);
+        },
+        writeTextFile: (path, data) => {
+          buf.set(path, data);
+          return Promise.resolve();
+        },
+        mkdir: () => Promise.resolve(),
+        glob: () => Promise.resolve([]),
+      },
+    },
+  );
+  await cache.ready;
+  return cache;
+};
 
 // ─── Tests
 
 /**
  * `processChunk` 関数の機能テストスイート。
  *
- * `processChunk(files, stats, discardThreshold)` は Claude CLI にバッチ判定を依頼し、
- * DISCARD/KEEP 判定に応じてファイル削除と統計更新を行う。
+ * `processChunk(files, stats, discardThreshold, cache)` は Claude CLI にバッチ判定を依頼し、
+ * DISCARD/KEEP 判定に応じてファイル削除と統計更新を行う。判定結果は `removeFile` 呼び出し前に
+ * `cache.write` へ書き込まれる。
  *
  * ## 判定ルール
  * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_CONFIG_VALUES.discardThreshold` → ファイルを削除
  * - `confidence < DEFAULT_CONFIG_VALUES.discardThreshold` → DISCARD 判定でも KEEP 扱い
- * - CLI エラー・JSON パース失敗・ファイル名不一致 → 全件 KEEP 扱い
+ * - CLI エラー・JSON パース失敗・ファイル名不一致 → 全件 KEEP 扱い（cache へは書き込まない）
  *
  * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-10
  *
@@ -120,8 +157,9 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
           logStub.restore();
 
@@ -144,12 +182,42 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
           logStub.restore();
 
           assertEquals(stats.remove, 1);
+        });
+
+        it('T-FL-PCK-02-03: removeFile 呼び出し前に cache へ判定結果が書き込まれる', async () => {
+          const filePath = await _createTempFile('c2.md');
+          const response = JSON.stringify([
+            {
+              file: 'c2.md',
+              decision: FILTER_DECISIONS.DISCARD,
+              confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+              reason: 'trivial',
+            },
+          ]);
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response)),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const logStub = stub(console, 'log', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
+          errStub.restore();
+          logStub.restore();
+
+          assertEquals(cache.read(filePath), {
+            decision: FILTER_DECISIONS.DISCARD,
+            confidence: DEFAULT_CONFIG_VALUES.discardThreshold,
+            reason: 'trivial',
+          });
         });
       });
     });
@@ -175,11 +243,30 @@ describe('processChunk', () => {
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 1);
+        });
+
+        it('T-FL-PCK-03-02: KEEP 確定時も cache へ判定結果が書き込まれる', async () => {
+          const filePath = await _createTempFile('d2.md');
+          const response = JSON.stringify([
+            { file: 'd2.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
+          ]);
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response)),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
+          errStub.restore();
+
+          assertEquals(cache.read(filePath), { decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' });
         });
       });
     });
@@ -205,8 +292,9 @@ describe('processChunk', () => {
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 1);
@@ -232,11 +320,25 @@ describe('processChunk', () => {
           commandHandle = installCommandMock(makeFailMock(1));
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 2);
+        });
+
+        it('T-FL-PCK-05-02: cache へは書き込まれない', async () => {
+          const file1 = await _createTempFile('f3.md');
+          commandHandle = installCommandMock(makeFailMock(1));
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+
+          await processChunk([file1], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
+          errStub.restore();
+
+          assertEquals(cache.read(file1), {});
         });
       });
     });
@@ -259,11 +361,27 @@ describe('processChunk', () => {
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 1);
+        });
+
+        it('T-FL-PCK-06-02: cache へは書き込まれない', async () => {
+          const filePath = await _createTempFile('g2.md');
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
+          errStub.restore();
+
+          assertEquals(cache.read(filePath), {});
         });
       });
     });
@@ -290,8 +408,9 @@ describe('processChunk', () => {
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 1);
@@ -315,8 +434,9 @@ describe('processChunk', () => {
           commandHandle = installCommandMock(makeNotFoundMock());
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
 
           assertEquals(stats.keep, 1);
@@ -352,10 +472,11 @@ describe('processChunk', () => {
           const warnStub = stub(console, 'warn', () => {});
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
           // removeFile 内部の Deno.remove が NotFound を投げるようにし、"File not found" 分岐を発生させる
           const removeStub = stub(Deno, 'remove', () => Promise.reject(new Deno.errors.NotFound()));
 
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number);
+          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache);
           errStub.restore();
           warnStub.restore();
           logStub.restore();
@@ -363,6 +484,8 @@ describe('processChunk', () => {
 
           assertEquals(stats.error, 1);
           assertEquals(stats.remove, 0);
+          // removeFile が失敗しても cache.write は完了している（write-before-remove の再開可能性を保証する）
+          assertEquals(cache.read(filePath).decision, FILTER_DECISIONS.DISCARD);
         });
       });
     });
@@ -389,8 +512,9 @@ describe('processChunk', () => {
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
           const stats = _makeStats();
+          const cache = await _makeEmptyCache();
 
-          await processChunk([filePath], stats, 0.5);
+          await processChunk([filePath], stats, 0.5, cache);
           errStub.restore();
           logStub.restore();
 
