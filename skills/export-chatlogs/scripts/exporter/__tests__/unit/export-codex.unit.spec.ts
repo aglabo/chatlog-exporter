@@ -25,7 +25,6 @@ import type { ExportedSession } from '../../../types/session.types.ts';
 const BASE_CONFIG: ExportConfig = {
   agent: 'codex',
   exportDir: '/tmp/test-output',
-  baseDir: undefined,
   period: undefined,
 };
 
