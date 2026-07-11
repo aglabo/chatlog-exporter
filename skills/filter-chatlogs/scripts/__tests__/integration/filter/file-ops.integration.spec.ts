@@ -13,7 +13,9 @@ import { stub } from '@std/testing/mock';
 // test target
 import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
 import { buildBatchPrompt } from '../../../libs/batch-prompt.ts';
-import { prefilterFiles } from '../../../libs/prefilter.ts';
+import { prefilterFiles } from '../../../modules/prefilter.ts';
+// types
+import type { BaseStats } from '../../../types/stats.types.ts';
 
 // ─── Helpers
 import { makeRepeatedContent } from '../../_helpers/fixtures.ts';
@@ -36,6 +38,9 @@ afterEach(async () => {
 
 /** `FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
 const _makeValidContent = (title: string) => makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH, title);
+
+/** テスト用の初期化済み `BaseStats` オブジェクトを返す。 */
+const _makeStats = (): BaseStats => ({ keep: 0, skip: 0, remove: 0, error: 0 });
 
 // ─── T-FL-IO-01: findMdFiles → prefilterFiles パイプライン ───────────────────
 
@@ -60,7 +65,7 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
 
           const allFiles = await findFiles(tempDir);
           const errStub = stub(console, 'error', () => {});
-          const passed = await prefilterFiles(allFiles);
+          const passed = await prefilterFiles(allFiles, { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(passed.length, 2);
@@ -83,7 +88,7 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
           await Deno.writeTextFile(file2, _makeValidContent('Chat 2'));
 
           const errStub = stub(console, 'error', () => {});
-          const passed = await prefilterFiles([file1, file2]);
+          const passed = await prefilterFiles([file1, file2], { stats: _makeStats() });
           errStub.restore();
 
           const prompt = await buildBatchPrompt(passed);
