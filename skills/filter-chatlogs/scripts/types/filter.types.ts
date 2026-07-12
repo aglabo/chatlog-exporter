@@ -6,10 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// classes
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 // types
-import type { CLEResult } from './cache.types.ts';
 import type { FilterDecision } from './filter-decision.const.types.ts';
 import type { BaseStats } from './stats.types.ts';
 
@@ -67,6 +64,16 @@ export interface ClaudeResult {
 // prefilterFiles オプション型
 // ─────────────────────────────────────────────
 
+/** 削除確定ファイル。バッチ削除の入力単位。 */
+export interface DiscardFile {
+  filePath: string;
+  filename: string;
+  /** 削除理由（cache への DISCARD reason 書き込み・ログ出力に使用）。 */
+  reason: string;
+  /** 区別用の判定種別。ファイル名パターン除外は `FILTER_DECISIONS.DISCARD`、Phase2 読み込み失敗は `FILTER_DECISIONS.ERROR`。 */
+  decision: FilterDecision;
+}
+
 /** `prefilterFiles` のオプション引数。 */
 export interface PrefilterFilesOptions {
   /** 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）。 */
@@ -77,8 +84,4 @@ export interface PrefilterFilesOptions {
   stats: BaseStats;
   /** `true` のとき、スキップ理由・サマリのログ出力を抑制する。 */
   dryRun?: boolean;
-  /** DISCARD 判定に必要な最低信頼度スコア。キャッシュヒット時の DISCARD/KEEP 再判定に使用する。 */
-  discardThreshold?: number;
-  /** ファイル単位の判定結果キャッシュ。指定時は既存判定があれば AI 呼び出しをスキップする。 */
-  cache?: ChatlogCache<CLEResult>;
 }
