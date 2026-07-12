@@ -88,10 +88,9 @@ export const processChunk = async (
     if (decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold) {
       logger.log(`DISCARD (conf=${confidence}): ${filePath}`);
       logger.info(`  reason: ${reason}`);
-      if (await removeFile(filePath)) {
+      if (await removeFile(filePath, { throwFileIoError: false })) {
         stats.remove++;
       } else {
-        logger.warn(`  skip (File not found):${filePath}`);
         stats.error++;
       }
     } else {
