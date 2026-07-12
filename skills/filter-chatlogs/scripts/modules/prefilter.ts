@@ -181,7 +181,7 @@ export const _phase1_2DiscardByFilename = async (
         return;
       }
 
-      if (await removeFile(filePath)) {
+      if (await removeFile(filePath, { throwFileIoError: false })) {
         stats.remove++;
         logger.info(`  skipped (ファイル名パターン): ${filename}`);
       } else {
@@ -310,7 +310,7 @@ export const _phase4ResolveCache = async (
       const cached = cache.read(filePath);
       if (cached.decision !== undefined && cached.decision !== FILTER_DECISIONS.ERROR) {
         if (cached.decision === FILTER_DECISIONS.DISCARD && (cached.confidence ?? 0) >= discardThreshold) {
-          if (dryRun || await removeFile(filePath)) {
+          if (dryRun || await removeFile(filePath, { throwFileIoError: false })) {
             return { filePath, filename, outcome: 'cache-discard-removed' };
           }
           return { filePath, filename, outcome: 'cache-discard-error' };
