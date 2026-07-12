@@ -17,25 +17,58 @@ import type { ReadTextFileProvider } from '../../types/providers.types.ts';
 /** `Deno.readTextFile` をデフォルト実装として使う読み込みプロバイダ。 */
 const _DEFAULT_READ_PROVIDER: ReadTextFileProvider = (path: string) => Deno.readTextFile(path);
 
+/** ファイル I/O 操作で発生しうる `Deno.errors.*` エラークラスの一覧。 */
+const _FILE_IO_ERROR_CLASSES = [
+  Deno.errors.NotFound,
+  Deno.errors.PermissionDenied,
+  Deno.errors.IsADirectory,
+  Deno.errors.NotADirectory,
+  Deno.errors.FilesystemLoop,
+  Deno.errors.NotCapable,
+  Deno.errors.Busy,
+  Deno.errors.Interrupted,
+  Deno.errors.InvalidData,
+];
+
 // --- functions ---
 /**
+ * ファイル I/O 起因の Deno エラーかどうかを判定する。
+ *
+ * @param error - 判定対象の値
+ * @returns ファイル I/O 起因のエラーなら `true`
+ */
+export const isFileIoError = (error: unknown): boolean =>
+  _FILE_IO_ERROR_CLASSES.some((ErrorClass) => error instanceof ErrorClass);
+
+/**
  * ファイルを読み込み、行末文字を LF に正規化して返す。
- * - ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw する。
- * - その他のエラー（PermissionDenied 等）はそのまま再 throw する。
+ * - ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw する（`throwFileIoError: false` を除く）。
+ * - その他のファイル I/O 起因のエラー（PermissionDenied 等）はそのまま再 throw する（`throwFileIoError: false` を除く）。
+ * - `throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは throw せず空文字列を返す。
+ *   ファイル I/O 起因ではないエラーは `throwFileIoError` の値に関わらず常に再 throw する。
  *
  * @param path - 読み込むファイルの絶対パス
- * @param readProvider - テスト用注入可能な読み込み関数（デフォルト: `Deno.readTextFile`）
+ * @param options - テスト用注入可能な読み込み関数、およびエラー throw 挙動の指定
+ * @param options.readProvider - テスト用注入可能な読み込み関数（デフォルト: `Deno.readTextFile`）
+ * @param options.throwFileIoError - ファイル I/O 起因のエラーを throw するか（デフォルト: `true`）
  */
 export const readTextFile = async (
   path: string,
-  readProvider: ReadTextFileProvider = _DEFAULT_READ_PROVIDER,
+  options?: { readProvider?: ReadTextFileProvider; throwFileIoError?: boolean },
 ): Promise<string> => {
+  const { readProvider = _DEFAULT_READ_PROVIDER, throwFileIoError = true } = options ?? {};
   try {
     return normalizeLine(await readProvider(path));
   } catch (e) {
-    if (e instanceof Deno.errors.NotFound) {
-      throw new ChatlogError('FileDirNotFound', 'NotFound', path);
+    if (!isFileIoError(e)) {
+      throw e;
     }
-    throw e;
+    if (throwFileIoError) {
+      if (e instanceof Deno.errors.NotFound) {
+        throw new ChatlogError('FileDirNotFound', 'NotFound', path);
+      }
+      throw e;
+    }
+    return '';
   }
 };
