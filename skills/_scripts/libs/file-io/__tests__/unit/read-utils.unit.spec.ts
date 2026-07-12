@@ -57,7 +57,7 @@ const _genericErrorProvider: ReadTextFileProvider = (_path: string) => Promise.r
  * ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw し、
  * その他のエラー（PermissionDenied 等）はそのまま再 throw する。
  * `options.throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは
- * throw せず空文字列を返す（ファイル I/O 起因ではないエラーは throwFileIoError の値に関わらず re-throw する）。
+ * throw せず null を返す（ファイル I/O 起因ではないエラーは throwFileIoError の値に関わらず re-throw する）。
  *
  * テスト ID 範囲: T-LIB-U-RF-01 〜 T-LIB-U-RF-11
  *
@@ -214,19 +214,19 @@ describe('readTextFile', () => {
   /**
    * 存在しないファイルパスを渡し throwFileIoError: false を指定する前提条件グループ。
    *
-   * 例外を投げず空文字列が返ることを検証する。
+   * 例外を投げず null が返ることを検証する。
    */
   describe('Given: 存在しないファイルパスを渡し throwFileIoError: false を指定する', () => {
     /** readTextFile を実行するとき。 */
     describe('When: readTextFile を実行する', () => {
-      /** 例外を投げず空文字列が返ることを検証する。 */
-      describe('Then: T-LIB-U-RF-08 - 例外を投げず空文字列が返る', () => {
-        it('T-LIB-U-RF-08: NotFound は例外を投げず空文字列を返す', async () => {
+      /** 例外を投げず null が返ることを検証する。 */
+      describe('Then: T-LIB-U-RF-08 - 例外を投げず null が返る', () => {
+        it('T-LIB-U-RF-08: NotFound は例外を投げず null を返す', async () => {
           const _result = await readTextFile('/nonexistent/path.md', {
             readProvider: _notFoundProvider,
             throwFileIoError: false,
           });
-          assertEquals(_result, '');
+          assertEquals(_result, null);
         });
       });
     });
@@ -235,19 +235,19 @@ describe('readTextFile', () => {
   /**
    * 読み込み権限のないファイルを渡し throwFileIoError: false を指定する前提条件グループ。
    *
-   * 例外を投げず空文字列が返ることを検証する。
+   * 例外を投げず null が返ることを検証する。
    */
   describe('Given: 読み込み権限のないファイルを渡し throwFileIoError: false を指定する', () => {
     /** readTextFile を実行するとき。 */
     describe('When: readTextFile を実行する', () => {
-      /** 例外を投げず空文字列が返ることを検証する。 */
-      describe('Then: T-LIB-U-RF-09 - 例外を投げず空文字列が返る', () => {
-        it('T-LIB-U-RF-09: PermissionDenied は例外を投げず空文字列を返す', async () => {
+      /** 例外を投げず null が返ることを検証する。 */
+      describe('Then: T-LIB-U-RF-09 - 例外を投げず null が返る', () => {
+        it('T-LIB-U-RF-09: PermissionDenied は例外を投げず null を返す', async () => {
           const _result = await readTextFile('/restricted/path.md', {
             readProvider: _permissionDeniedProvider,
             throwFileIoError: false,
           });
-          assertEquals(_result, '');
+          assertEquals(_result, null);
         });
       });
     });
@@ -281,19 +281,19 @@ describe('readTextFile', () => {
   /**
    * NotADirectory エラーが発生し throwFileIoError: false を指定する前提条件グループ。
    *
-   * 中間パスコンポーネントがファイルであるケースを想定し、例外を投げず空文字列が返ることを検証する。
+   * 中間パスコンポーネントがファイルであるケースを想定し、例外を投げず null が返ることを検証する。
    */
   describe('Given: NotADirectory エラーが発生し throwFileIoError: false を指定する', () => {
     /** readTextFile を実行するとき。 */
     describe('When: readTextFile を実行する', () => {
-      /** 例外を投げず空文字列が返ることを検証する。 */
-      describe('Then: T-LIB-U-RF-11 - 例外を投げず空文字列が返る', () => {
-        it('T-LIB-U-RF-11: NotADirectory は例外を投げず空文字列を返す', async () => {
+      /** 例外を投げず null が返ることを検証する。 */
+      describe('Then: T-LIB-U-RF-11 - 例外を投げず null が返る', () => {
+        it('T-LIB-U-RF-11: NotADirectory は例外を投げず null を返す', async () => {
           const _result = await readTextFile('/tmp/file/child.md', {
             readProvider: _notADirProvider,
             throwFileIoError: false,
           });
-          assertEquals(_result, '');
+          assertEquals(_result, null);
         });
       });
     });
