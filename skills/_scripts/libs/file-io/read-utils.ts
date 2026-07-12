@@ -44,7 +44,7 @@ export const isFileIoError = (error: unknown): boolean =>
  * ファイルを読み込み、行末文字を LF に正規化して返す。
  * - ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw する（`throwFileIoError: false` を除く）。
  * - その他のファイル I/O 起因のエラー（PermissionDenied 等）はそのまま再 throw する（`throwFileIoError: false` を除く）。
- * - `throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは throw せず空文字列を返す。
+ * - `throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは throw せず null を返す。
  *   ファイル I/O 起因ではないエラーは `throwFileIoError` の値に関わらず常に再 throw する。
  *
  * @param path - 読み込むファイルの絶対パス
@@ -52,10 +52,18 @@ export const isFileIoError = (error: unknown): boolean =>
  * @param options.readProvider - テスト用注入可能な読み込み関数（デフォルト: `Deno.readTextFile`）
  * @param options.throwFileIoError - ファイル I/O 起因のエラーを throw するか（デフォルト: `true`）
  */
-export const readTextFile = async (
+export function readTextFile(
+  path: string,
+  options?: { readProvider?: ReadTextFileProvider; throwFileIoError?: true },
+): Promise<string>;
+export function readTextFile(
+  path: string,
+  options: { readProvider?: ReadTextFileProvider; throwFileIoError: false },
+): Promise<string | null>;
+export async function readTextFile(
   path: string,
   options?: { readProvider?: ReadTextFileProvider; throwFileIoError?: boolean },
-): Promise<string> => {
+): Promise<string | null> {
   const { readProvider = _DEFAULT_READ_PROVIDER, throwFileIoError = true } = options ?? {};
   try {
     return normalizeLine(await readProvider(path));
@@ -69,6 +77,6 @@ export const readTextFile = async (
       }
       throw e;
     }
-    return '';
+    return null;
   }
-};
+}
