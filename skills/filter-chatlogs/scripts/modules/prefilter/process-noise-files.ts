@@ -52,11 +52,10 @@ export const processNoiseFiles = async (
         logger.log(filePath);
         stats.skip++;
       } else {
-        if (await removeFile(filePath)) {
+        if (await removeFile(filePath, { throwFileIoError: false })) {
           logger.info(`deleted: ${filePath}`);
           stats.remove++;
         } else {
-          logger.warn(`  Skipped (File not found): ${filename}`);
           stats.error++;
         }
       }
