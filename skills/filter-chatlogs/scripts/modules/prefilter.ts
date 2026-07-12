@@ -22,13 +22,13 @@ import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { parseFrontmatterEntries } from '../../../_scripts/libs/text/frontmatter-utils.ts';
 // constants
 import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 
 // ─── internal ───
 // classes
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // functions
 import { checkFilename } from '../libs/classify-file.ts';
 import { extractConversation } from '../libs/common-utils.ts';
@@ -191,13 +191,6 @@ export const _phase1_2DiscardByFilename = async (
   );
 };
 
-/** `_phase2ReadSurvivors` を通過したファイルの本文情報。 */
-interface _ReadFileEntry {
-  filePath: string;
-  filename: string;
-  content: string;
-}
-
 /**
  * ファイルリストの本文を並列に読み込み、frontmatter を除いた content を取り出す。
  *
@@ -210,15 +203,14 @@ interface _ReadFileEntry {
 export const _phase2ReadSurvivors = async (
   survivors: string[],
   cache: ChatlogCache<CLEResult> | undefined,
-): Promise<{ readOk: _ReadFileEntry[]; results: _ClassifyResult[] }> => {
+): Promise<{ readOk: ChatlogEntry[]; results: _ClassifyResult[] }> => {
   const entries = await Promise.all(
     survivors.map(
-      async (filePath): Promise<{ ok: true; entry: _ReadFileEntry } | { ok: false; result: _ClassifyResult }> => {
+      async (filePath): Promise<{ ok: true; entry: ChatlogEntry } | { ok: false; result: _ClassifyResult }> => {
         const filename = getFilename(filePath);
         try {
           const text = await readTextFile(filePath);
-          const { content } = parseFrontmatterEntries(text);
-          return { ok: true, entry: { filePath, filename, content } };
+          return { ok: true, entry: new ChatlogEntry(text, { filePath }) };
         } catch {
           if (cache) {
             await cache.write(filePath, { decision: FILTER_DECISIONS.ERROR, confidence: 0, reason: '読み込み失敗' });
@@ -254,14 +246,18 @@ interface _ConversationEntry {
  * @returns 通過ファイル情報（`survivors`）と、この段階で確定した分類結果（`results`）
  */
 export const _phase3PartitionByContent = (
-  readOk: _ReadFileEntry[],
+  readOk: ChatlogEntry[],
   minCharCount: number,
   minAssistantChars: number,
 ): { survivors: _ConversationEntry[]; results: _ClassifyResult[] } => {
   const results: _ClassifyResult[] = [];
   const survivors: _ConversationEntry[] = [];
 
-  readOk.forEach(({ filePath, filename, content }) => {
+  readOk.forEach((entry) => {
+    const filePath = entry.filePath as string;
+    const filename = entry.filename as string;
+    const { content } = entry;
+
     if (!content.trim()) {
       results.push({ filePath, filename, outcome: 'excluded-content', reason: '本文が空' });
       return;
