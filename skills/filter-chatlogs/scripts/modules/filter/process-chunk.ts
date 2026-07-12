@@ -7,6 +7,8 @@
 // https://opensource.org/licenses/MIT
 
 // ─── shared ───
+// classes
+import type { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
 // functions
 import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
@@ -19,6 +21,7 @@ import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
 import { buildBatchPrompt } from '../../libs/batch-prompt.ts';
 import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 // types
+import type { CLEResult } from '../../types/cache.types.ts';
 import type { ClaudeResult } from '../../types/filter.types.ts';
 import type { FilterStats } from '../../types/stats.types.ts';
 
@@ -41,6 +44,7 @@ export const processChunk = async (
   chunkFiles: string[],
   stats: FilterStats,
   discardThreshold: number,
+  cache: ChatlogCache<CLEResult>,
 ): Promise<void> => {
   const batchPrompt = await buildBatchPrompt(chunkFiles);
 
@@ -79,6 +83,7 @@ export const processChunk = async (
     }
 
     const { decision, confidence, reason } = result;
+    await cache.write(filePath, { decision, confidence, reason });
 
     if (decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold) {
       logger.log(`DISCARD (conf=${confidence}): ${filePath}`);

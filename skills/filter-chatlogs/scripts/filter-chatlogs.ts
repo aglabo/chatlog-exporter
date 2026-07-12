@@ -19,6 +19,7 @@
 
 // ─── shared ───
 // classes
+import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // functions
@@ -26,7 +27,7 @@ import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-director
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgs as parseArgsToConfig } from '../../_scripts/libs/io/parse-args.ts';
+import { parseArgs } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
@@ -40,7 +41,9 @@ import { processChunk } from './modules/filter/process-chunk.ts';
 import { prefilterFiles } from './modules/prefilter.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
+import { FILTER_DECISIONS } from './types/filter-decision.const.types.ts';
 // types
+import type { CLEResult } from './types/cache.types.ts';
 import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 
 // ─────────────────────────────────────────────
@@ -49,10 +52,6 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 
 /** filter-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgSchema<FilterParsedConfig> = [];
-
-export const parseArgs = (args: string[]): FilterParsedConfig => {
-  return parseArgsToConfig<FilterParsedConfig>(args, _SCHEMA);
-};
 
 // ─────────────────────────────────────────────
 // 設定構築
@@ -101,7 +100,7 @@ export const buildConfig = (
 
 export const main = async (args?: string[]): Promise<void> => {
   try {
-    const _parsed = parseArgs(args ?? Deno.args);
+    const _parsed = parseArgs<FilterParsedConfig>(args ?? Deno.args, _SCHEMA, DEFAULT_FILTER_CONFIG);
     const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
     const _config = buildConfig(_parsed, _globalConfig);
 
@@ -124,13 +123,24 @@ export const main = async (args?: string[]): Promise<void> => {
     // ファイル列挙
     const allFiles = await findFiles(_searchDir);
 
+    // 判定結果キャッシュ
+    const _cache = new ChatlogCache<CLEResult>('filter-cache');
+    await _cache.ready;
+
     // 事前フィルタ
     const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
-    const targetFiles = await prefilterFiles(allFiles, {
+
+    // キャッシュ上 KEEP 済みのファイルを処理対象から除外する
+    const _targetEntries = allFiles.filter((filePath) => _cache.read(filePath).decision !== FILTER_DECISIONS.KEEP);
+    stats.keep += allFiles.length - _targetEntries.length;
+
+    const targetFiles = await prefilterFiles(_targetEntries, {
       minCharCount: _config.minCharCount,
       minAssistantChars: _config.minAssistantChars,
       stats,
       dryRun: _config.dryRun,
+      cache: _cache,
+      discardThreshold: _config.discardThreshold,
     });
 
     const total = targetFiles.length;
@@ -153,7 +163,7 @@ export const main = async (args?: string[]): Promise<void> => {
       await runChunked(
         targetFiles,
         _config.chunkSize,
-        (chunk) => processChunk(chunk, stats, _config.discardThreshold),
+        (chunk) => processChunk(chunk, stats, _config.discardThreshold, _cache),
         _config.concurrency,
       );
     }
@@ -173,5 +183,5 @@ export const main = async (args?: string[]): Promise<void> => {
 };
 
 if (import.meta.main) {
-  await main();
+  await main(Deno.args);
 }

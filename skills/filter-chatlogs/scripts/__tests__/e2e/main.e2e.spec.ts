@@ -808,3 +808,78 @@ describe('main - period 未指定', () => {
     });
   });
 });
+
+// ─── T-FL-E2E-12: キャッシュ KEEP 済み → claude CLI 未呼び出し ──────────────
+
+/**
+ * `main` 関数の E2E テストスイート（キャッシュ済み KEEP 判定）。
+ *
+ * ファイル単位の判定結果キャッシュに `decision: KEEP` が既に記録されている場合、
+ * `prefilterFiles` に渡す前に対象から除外され、claude CLI が呼び出されないことを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-12
+ *
+ * @see main
+ */
+describe('main - キャッシュ KEEP 済み', () => {
+  /**
+   * キャッシュに `keep.md` の判定結果として `decision: KEEP` が既に書き込まれている前提。
+   *
+   * キャッシュ済み KEEP ファイルは claude CLI 呼び出し前に除外され、
+   * ファイルシステム上にも残ることを確認する。
+   */
+  describe('Given: cacheDir に keep.md の KEEP キャッシュエントリを配置', () => {
+    /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI が呼び出されず、ファイルが残ること。 */
+      describe('Then: T-FL-E2E-12 - claude CLI 未呼び出し・ファイルが残る', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: keep.md を chatlogsDir に配置し、cacheDir に KEEP エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/keep.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-12-01: claude CLI が呼び出されない', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 0);
+          });
+
+          it('T-FL-E2E-12-02: keep.md が残っている', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
+          });
+        });
+      });
+    });
+  });
+});
