@@ -117,6 +117,32 @@ describe('withConcurrency', () => {
     });
   });
 
+  describe('Given: 先頭タスクが ctl.abort() を呼び、後続タスクは呼び出し有無を記録する', () => {
+    describe('When: withConcurrency(tasks, 1) を実行する（limit=1 で決定的な実行順にする）', () => {
+      describe('Then: T-LIB-C-18 - abort 後も未着手タスクが呼ばれ続け結果配列に穴が空かない', () => {
+        it('T-LIB-C-18-01: 全タスクが呼ばれ calls が [0, 1, 2] になる', async () => {
+          const _calls: number[] = [];
+          const _tasks = [0, 1, 2].map((n) => (ctl: AbortController) => {
+            _calls.push(n);
+            if (n === 0) { ctl.abort(); }
+            return Promise.resolve(n * 10);
+          });
+          await withConcurrency(_tasks, 1);
+          assertEquals(_calls, [0, 1, 2]);
+        });
+
+        it('T-LIB-C-18-02: 結果配列に穴が空かず [0, 10, 20] になる', async () => {
+          const _tasks = [0, 1, 2].map((n) => (ctl: AbortController) => {
+            if (n === 0) { ctl.abort(); }
+            return Promise.resolve(n * 10);
+          });
+          const _results = await withConcurrency(_tasks, 1);
+          assertEquals(_results, [0, 10, 20]);
+        });
+      });
+    });
+  });
+
   describe('Given: limit=1（順序実行）', () => {
     describe('When: withConcurrency を実行する', () => {
       describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
