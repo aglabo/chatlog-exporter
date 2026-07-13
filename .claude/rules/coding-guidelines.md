@@ -48,7 +48,7 @@ this.filename = getFilename(filePath);
 // Bad
 const results = [];
 for (const item of items) {
-  if (item.active) results.push(transform(item));
+  if (item.active) { results.push(transform(item)); }
 }
 
 // Good
