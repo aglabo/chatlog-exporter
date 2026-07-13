@@ -1,6 +1,6 @@
 // src: scripts/modules/noise-filter/__tests__/functional/process-noise-files.functional.spec.ts
 // @(#): noise-filter-chatlogs.ts の機能テスト
-//       対象: processNoiseFiles — filelist ループ処理（分類→削除/dry-run/report）
+//       対象: processNoiseFiles — filelist ループ処理（分類→削除/dry-run）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -41,8 +41,8 @@ const _makeValidContent = () => makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LEN
 /**
  * `processNoiseFiles` 関数の機能テストスイート。
  *
- * `processNoiseFiles(files, counts, { dryRun, report })` はファイルリストを受け取り、
- * 各ファイルを分類してノイズを削除（または dry-run/report 出力）し、counts を更新する。
+ * `processNoiseFiles(files, counts, { dryRun })` はファイルリストを受け取り、
+ * 各ファイルを分類してノイズを削除（または dry-run 出力）し、counts を更新する。
  *
  * テスト ID 範囲: T-PF-PNF-01 〜 T-PF-PNF-06
  *
@@ -73,7 +73,7 @@ describe('processNoiseFiles', () => {
    * ファイルが削除され、`counts.remove` が加算されることを検証する。
    */
   describe('Given: ノイズファイル 1 件', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: false, report: false })` を呼び出すとき。 */
+    /** `processNoiseFiles(files, counts, { dryRun: false })` を呼び出すとき。 */
     describe('When: processNoiseFiles を通常モードで呼び出す', () => {
       /** ファイルが削除され、counts.remove=1 になること。 */
       describe('Then: T-PF-PNF-01 - ファイルが削除され、counts.remove が 1 になる', () => {
@@ -82,7 +82,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: false });
 
           assertEquals(await fileExists(filePath), false);
         });
@@ -92,7 +92,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: false });
 
           assertEquals(counts.remove, 1);
         });
@@ -108,7 +108,7 @@ describe('processNoiseFiles', () => {
    * ファイルが残り、`counts.keep` が加算されることを検証する。
    */
   describe('Given: 正常ファイル 1 件', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: false, report: false })` を呼び出すとき。 */
+    /** `processNoiseFiles(files, counts, { dryRun: false })` を呼び出すとき。 */
     describe('When: processNoiseFiles を通常モードで呼び出す', () => {
       /** ファイルが削除されず、counts.keep=1 になること。 */
       describe('Then: T-PF-PNF-02 - ファイルが残り、counts.keep が 1 になる', () => {
@@ -117,7 +117,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: false });
 
           assertEquals(await fileExists(filePath), true);
         });
@@ -127,7 +127,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: false });
 
           assertEquals(counts.keep, 1);
         });
@@ -143,7 +143,7 @@ describe('processNoiseFiles', () => {
    * ファイルが削除されず、パスがログに出力されることを検証する。
    */
   describe('Given: ノイズファイル 1 件と dryRun=true', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: true, report: false })` を呼び出すとき。 */
+    /** `processNoiseFiles(files, counts, { dryRun: true })` を呼び出すとき。 */
     describe('When: processNoiseFiles を dry-run モードで呼び出す', () => {
       /** ファイルが削除されず、ログにファイルパスが含まれること。 */
       describe('Then: T-PF-PNF-03 - ファイルが削除されずパスがログに出力される', () => {
@@ -152,7 +152,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: true });
 
           assertEquals(await fileExists(filePath), true);
         });
@@ -162,7 +162,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: false });
+          await processNoiseFiles([filePath], counts, { dryRun: true });
 
           assertEquals(loggerStub.logLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
         });
@@ -172,54 +172,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: false });
-
-          assertEquals(counts.skip, 1);
-        });
-      });
-    });
-  });
-
-  // ─── T-PF-PNF-04: ノイズファイル + report → NOISE\t{reason}\t{path} 形式ログ ──
-
-  /**
-   * ノイズファイルが report モードで処理される前提グループ。
-   *
-   * `NOISE\t{reason}\t{path}` 形式のログが出力され、ファイルが削除されないことを検証する。
-   */
-  describe('Given: ノイズファイル 1 件と report=true', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: true, report: true })` を呼び出すとき。 */
-    describe('When: processNoiseFiles を report モードで呼び出す', () => {
-      /** NOISE タブ区切り形式のログが出力され、ファイルが残ること。 */
-      describe('Then: T-PF-PNF-04 - NOISE タブ区切り形式でログ出力、削除なし', () => {
-        it('T-PF-PNF-04-01: logLogs に "NOISE\\t..." 形式の行が含まれる', async () => {
-          const filePath = `${tempDir}/${_NOISE_FILENAME}`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
-          const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
-
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: true });
-
-          const noiseLine = loggerStub.logLogs.find((line) => line.startsWith('NOISE\t'));
-          assertEquals(noiseLine !== undefined, true);
-          assertEquals(noiseLine!.split('\t').length >= 3, true);
-        });
-
-        it('T-PF-PNF-04-02: ファイルが削除されずに残る', async () => {
-          const filePath = `${tempDir}/${_NOISE_FILENAME}`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
-          const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
-
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: true });
-
-          assertEquals(await fileExists(filePath), true);
-        });
-
-        it('T-PF-PNF-04-03: counts.skip が 1 になる', async () => {
-          const filePath = `${tempDir}/${_NOISE_FILENAME}`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
-          const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
-
-          await processNoiseFiles([filePath], counts, { dryRun: true, report: true });
+          await processNoiseFiles([filePath], counts, { dryRun: true });
 
           assertEquals(counts.skip, 1);
         });
@@ -235,7 +188,7 @@ describe('processNoiseFiles', () => {
    * `stats.error` が 1 増加し、ファイル削除が行われないことを検証する。
    */
   describe('Given: readTextFile が例外を throw するパス', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: false, report: false })` を呼び出すとき。 */
+    /** `processNoiseFiles(files, counts, { dryRun: false })` を呼び出すとき。 */
     describe('When: processNoiseFiles を通常モードで呼び出す', () => {
       /** stats.error が 1 になり、stats.remove と stats.keep が 0 のままであること。 */
       describe('When: 異常系', () => {
@@ -243,7 +196,7 @@ describe('processNoiseFiles', () => {
           const nonExistentPath = `${tempDir}/non-existent-file.md`;
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([nonExistentPath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([nonExistentPath], counts, { dryRun: false });
 
           assertEquals(counts.error, 1);
           assertEquals(counts.remove, 0);
@@ -261,7 +214,7 @@ describe('processNoiseFiles', () => {
    * `counts.remove` と `counts.keep` がそれぞれ正しく加算されることを検証する。
    */
   describe('Given: ノイズ 1 件 + 正常 1 件', () => {
-    /** `processNoiseFiles(files, counts, { dryRun: false, report: false })` を呼び出すとき。 */
+    /** `processNoiseFiles(files, counts, { dryRun: false })` を呼び出すとき。 */
     describe('When: processNoiseFiles を通常モードで呼び出す', () => {
       /** counts.remove=1、counts.keep=1 になること。 */
       describe('Then: T-PF-PNF-05 - remove=1, keep=1 になる', () => {
@@ -272,7 +225,7 @@ describe('processNoiseFiles', () => {
           await Deno.writeTextFile(keepPath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([noisePath, keepPath], counts, { dryRun: false, report: false });
+          await processNoiseFiles([noisePath, keepPath], counts, { dryRun: false });
 
           assertEquals(counts.remove, 1);
           assertEquals(counts.keep, 1);
