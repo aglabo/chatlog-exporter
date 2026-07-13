@@ -130,17 +130,28 @@ export const main = async (args?: string[]): Promise<void> => {
     // 事前フィルタ
     const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-    // キャッシュ上 KEEP 済みのファイルを処理対象から除外する
-    const _targetEntries = allFiles.filter((filePath) => _cache.read(filePath).decision !== FILTER_DECISIONS.KEEP);
-    stats.keep += allFiles.length - _targetEntries.length;
+    // キャッシュ済み判定が KEEP かどうかを判定する
+    const _isCachedKeep = (filePath: string): boolean => _cache.read(filePath).decision === FILTER_DECISIONS.KEEP;
+
+    // キャッシュ済み判定が DISCARD 確定済み（confidence が閾値以上）かどうかを判定する
+    const _isCachedDiscardConfirmed = (filePath: string): boolean => {
+      const cached = _cache.read(filePath);
+      return cached.decision === FILTER_DECISIONS.DISCARD && (cached.confidence ?? 0) >= _config.discardThreshold;
+    };
+
+    // キャッシュ上 KEEP 済み・DISCARD 確定済みのファイルを処理対象から除外する
+    const _targetEntries = allFiles.filter((filePath) =>
+      !_isCachedKeep(filePath) && !_isCachedDiscardConfirmed(filePath)
+    );
+
+    // キャッシュ済み KEEP 件数を集計
+    stats.keep += allFiles.filter(_isCachedKeep).length;
 
     const targetFiles = await prefilterFiles(_targetEntries, {
       minCharCount: _config.minCharCount,
       minAssistantChars: _config.minAssistantChars,
       stats,
       dryRun: _config.dryRun,
-      cache: _cache,
-      discardThreshold: _config.discardThreshold,
     });
 
     const total = targetFiles.length;
