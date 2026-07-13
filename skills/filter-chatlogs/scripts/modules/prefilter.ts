@@ -27,7 +27,6 @@ import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema
 
 // ─── internal ───
 // classes
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // functions
 import { checkFilename } from '../libs/classify-file.ts';
@@ -36,8 +35,7 @@ import { extractConversation } from '../libs/common-utils.ts';
 import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 import { FILTER_DECISIONS } from '../types/filter-decision.const.types.ts';
 // types
-import type { CLEResult } from '../types/cache.types.ts';
-import type { PrefilterFilesOptions } from '../types/filter.types.ts';
+import type { DiscardFile, PrefilterFilesOptions } from '../types/filter.types.ts';
 import type { BaseStats } from '../types/stats.types.ts';
 
 // ─────────────────────────────────────────────
@@ -112,127 +110,134 @@ export const isExcludedByContent = (
   return { excluded: false, reason: '' };
 };
 
-/** 分類結果の種別。stats 加算先・ログ出力・passed 抽出をこの値だけで判別する。 */
-type _PrefilterOutcome =
-  | 'read-error'
-  | 'excluded-content'
-  | 'cache-keep'
-  | 'cache-discard-removed'
-  | 'cache-discard-error'
-  | 'passed';
-
-/** 各ステージ関数の戻り値。1 ファイルにつき 1 件、stats 加算先が一意に定まる分類結果。 */
-interface _ClassifyResult {
-  filePath: string;
-  filename: string;
-  outcome: _PrefilterOutcome;
-  /** スキップ理由（`excluded-content` のときのみ意味を持つ）。 */
-  reason?: string;
-}
-
 /**
  * ファイルリストをファイル名パターンで分類する。
  *
- * 除外パターンに一致するファイルは `discarded` として確定し、
- * それ以外は本文チェックへ進む `survivors` として返す純粋関数。
- * cache 書き込み・実削除・stats 加算などの副作用は一切行わない。
+ * 除外パターンに一致するファイルは `discardFiles`（`filePath`/`filename`/`reason` を持つ）として確定し、
+ * それ以外は本文チェックへ進む `fileList` として返す純粋関数。副作用は一切行わない。
  *
  * @param files - 分類対象のファイルパス配列
- * @returns 通過ファイルパス配列（`survivors`）と、除外確定ファイルパス配列（`discarded`）
+ * @returns 通過ファイルパス配列（`fileList`）と、除外確定ファイル情報配列（`discardFiles`）
  */
-export const _phase1_1PartitionByFilename = (files: string[]): { survivors: string[]; discarded: string[] } => {
-  const discarded = files.filter((filePath) => isExcludedByFilename(getFilename(filePath)));
-  const survivors = files.filter((filePath) => !isExcludedByFilename(getFilename(filePath)));
-  return { survivors, discarded };
+export const _phase1PartitionByFilename = (
+  files: string[],
+): { fileList: string[]; discardFiles: DiscardFile[] } => {
+  const classified = files.map((filePath) => {
+    const filename = getFilename(filePath);
+    const reason = checkFilename(filename);
+    return { filePath, filename, reason };
+  });
+
+  const fileList = classified
+    .filter((c) => c.reason === null)
+    .map((c) => c.filePath);
+
+  const discardFiles = classified
+    .filter((c): c is { filePath: string; filename: string; reason: string } => c.reason !== null)
+    .map((c) => ({
+      filePath: c.filePath,
+      filename: c.filename,
+      reason: c.reason,
+      decision: FILTER_DECISIONS.DISCARD,
+    }));
+
+  return { fileList, discardFiles };
 };
 
 /**
- * ファイル名パターンで除外確定したファイルを、cache 書き込み・実削除・stats 加算まで一括処理する。
+ * 1 ファイルを読み込み `ChatlogEntry` を生成する。読み込み・パースに失敗した場合は `null` を返す。
  *
- * cache 指定時は dry-run でも DISCARD decision を書き込む。実削除は `dryRun === false` のときのみ行う。
- * `dryRun === true` のときは削除せず `stats.remove` に加算する（would-remove）。
- * `removeFile()` が NotFound（`false`）を返した場合は `stats.remove` ではなく `stats.error` に加算する。
+ * ファイル読み込み失敗、および `ChatlogEntry` コンストラクタでのパース失敗（不正な frontmatter 等）の
+ * いずれも「読み込み失敗」として扱う。
  *
- * @param discarded - `_phase1_1PartitionByFilename` が返したファイル名除外確定ファイルパス配列
- * @param cache - DISCARD decision を書き込むキャッシュ（未指定なら書き込みしない）
- * @param dryRun - `true` のとき実削除・ログ出力を行わない
- * @param discardThreshold - cache に書き込む DISCARD decision の confidence 値
+ * @param filePath - 読み込み対象のファイルパス
+ * @returns 読み込み・パースに成功した場合は `ChatlogEntry`、失敗した場合は `null`
  */
-export const _phase1_2DiscardByFilename = async (
-  discarded: string[],
-  cache: ChatlogCache<CLEResult> | undefined,
-  dryRun: boolean,
-  discardThreshold: number,
-  stats: BaseStats,
-): Promise<void> => {
-  await Promise.all(
-    discarded.map(async (filePath) => {
-      const filename = getFilename(filePath);
-      if (cache) {
-        await cache.write(filePath, {
-          decision: FILTER_DECISIONS.DISCARD,
-          confidence: discardThreshold,
-          reason: checkFilename(filename) ?? '',
-        });
-      }
-
-      if (dryRun) {
-        stats.remove++;
-        return;
-      }
-
-      if (await removeFile(filePath, { throwFileIoError: false })) {
-        stats.remove++;
-        logger.info(`  skipped (ファイル名パターン): ${filename}`);
-      } else {
-        stats.error++;
-      }
-    }),
-  );
+const _readEntry = async (filePath: string): Promise<ChatlogEntry | null> => {
+  const text = await readTextFile(filePath, { throwFileIoError: false });
+  if (text === null) {
+    return null;
+  }
+  try {
+    return new ChatlogEntry(text, { filePath });
+  } catch {
+    return null;
+  }
 };
 
 /**
  * ファイルリストの本文を並列に読み込み、frontmatter を除いた content を取り出す。
  *
- * 読み込みに失敗したファイルは `read-error` として確定する（cache 指定時は ERROR decision を書き込む）。
+ * 読み込みに失敗したファイルは `filePath` を `readError` に振り分ける。
  *
  * @param survivors - 読み込み対象のファイルパス配列
- * @param cache - 読み込み失敗時に ERROR decision を書き込むキャッシュ（未指定なら書き込みしない）
- * @returns 読み込みに成功したファイル情報（`readOk`）と、読み込み失敗として確定した分類結果（`results`）
+ * @returns 読み込みに成功したファイル情報（`readOk`）と、読み込みに失敗したファイル情報（`readError`）
  */
 export const _phase2ReadSurvivors = async (
   survivors: string[],
-  cache: ChatlogCache<CLEResult> | undefined,
-): Promise<{ readOk: ChatlogEntry[]; results: _ClassifyResult[] }> => {
-  const entries = await Promise.all(
-    survivors.map(
-      async (filePath): Promise<{ ok: true; entry: ChatlogEntry } | { ok: false; result: _ClassifyResult }> => {
-        const filename = getFilename(filePath);
-        try {
-          const text = await readTextFile(filePath);
-          return { ok: true, entry: new ChatlogEntry(text, { filePath }) };
-        } catch {
-          if (cache) {
-            await cache.write(filePath, { decision: FILTER_DECISIONS.ERROR, confidence: 0, reason: '読み込み失敗' });
-          }
-          return { ok: false, result: { filePath, filename, outcome: 'read-error' } };
-        }
-      },
-    ),
-  );
+): Promise<{ readOk: ChatlogEntry[]; readError: DiscardFile[] }> => {
+  const entries = await Promise.all(survivors.map((filePath) => _readEntry(filePath)));
 
-  const readOk = entries.filter((entry) => entry.ok).map((entry) => entry.entry);
-  const results = entries.filter((entry) => !entry.ok).map((entry) => entry.result);
+  const readOk = entries.filter((entry): entry is ChatlogEntry => entry !== null);
+  const readError = survivors
+    .filter((_filePath, i) => entries[i] === null)
+    .map((filePath) => ({
+      filePath,
+      filename: getFilename(filePath),
+      reason: '読み込み失敗',
+      decision: FILTER_DECISIONS.ERROR,
+    }));
 
-  return { readOk, results };
+  return { readOk, readError };
 };
 
-/** `_phase3PartitionByContent` を通過したファイルの会話本文情報。 */
-interface _ConversationEntry {
-  filePath: string;
-  filename: string;
-  bodyText: string;
-}
+/** `_classifyEntryByContent` の分類結果。除外確定（`excluded`）か通過（`survivor`）のいずれかを表す。 */
+type _ContentClassification =
+  | { kind: 'excluded'; result: DiscardFile }
+  | { kind: 'survivor'; entry: ChatlogEntry };
+
+/**
+ * 1 ファイルの本文を内容チェックで分類する。
+ *
+ * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当する場合は
+ * `excluded-content` の分類結果を、それ以外は入力エントリそのものを返す純粋関数。
+ *
+ * @param entry - `_phase2ReadSurvivors` で読み込み済みのファイル情報
+ * @param minCharCount - 本文の最小文字数
+ * @param minAssistantChars - User ターン 1 件のときの Assistant 応答最小文字数
+ * @returns 除外確定結果、または通過ファイルのエントリ
+ */
+const _classifyEntryByContent = (
+  entry: ChatlogEntry,
+  minCharCount: number,
+  minAssistantChars: number,
+): _ContentClassification => {
+  const filePath = entry.filePath as string;
+  const filename = entry.filename as string;
+  const { content } = entry;
+
+  if (!content.trim()) {
+    return {
+      kind: 'excluded',
+      result: { filePath, filename, reason: '本文が空', decision: FILTER_DECISIONS.DISCARD },
+    };
+  }
+
+  const { excluded, reason } = isExcludedByContent(content, minCharCount, minAssistantChars);
+  if (excluded) {
+    return { kind: 'excluded', result: { filePath, filename, reason, decision: FILTER_DECISIONS.DISCARD } };
+  }
+
+  const bodyText = extractConversation(content);
+  if (!bodyText.trim()) {
+    return {
+      kind: 'excluded',
+      result: { filePath, filename, reason: '会話本文が空', decision: FILTER_DECISIONS.DISCARD },
+    };
+  }
+
+  return { kind: 'survivor', entry };
+};
 
 /**
  * 読み込み済みファイルの本文を内容チェックで分類する。
@@ -249,86 +254,50 @@ export const _phase3PartitionByContent = (
   readOk: ChatlogEntry[],
   minCharCount: number,
   minAssistantChars: number,
-): { survivors: _ConversationEntry[]; results: _ClassifyResult[] } => {
-  const results: _ClassifyResult[] = [];
-  const survivors: _ConversationEntry[] = [];
+): { survivors: ChatlogEntry[]; results: DiscardFile[] } => {
+  const classified = readOk.map((entry) => _classifyEntryByContent(entry, minCharCount, minAssistantChars));
 
-  readOk.forEach((entry) => {
-    const filePath = entry.filePath as string;
-    const filename = entry.filename as string;
-    const { content } = entry;
+  const results = classified
+    .filter((c): c is { kind: 'excluded'; result: DiscardFile } => c.kind === 'excluded')
+    .map((c) => c.result);
 
-    if (!content.trim()) {
-      results.push({ filePath, filename, outcome: 'excluded-content', reason: '本文が空' });
-      return;
-    }
-
-    const { excluded, reason } = isExcludedByContent(content, minCharCount, minAssistantChars);
-    if (excluded) {
-      results.push({ filePath, filename, outcome: 'excluded-content', reason });
-      return;
-    }
-
-    const bodyText = extractConversation(content);
-    if (!bodyText.trim()) {
-      results.push({ filePath, filename, outcome: 'excluded-content', reason: '会話本文が空' });
-      return;
-    }
-
-    survivors.push({ filePath, filename, bodyText });
-  });
+  const survivors = classified
+    .filter((c): c is { kind: 'survivor'; entry: ChatlogEntry } => c.kind === 'survivor')
+    .map((c) => c.entry);
 
   return { survivors, results };
 };
 
 /**
- * 内容チェックを通過したファイルをキャッシュ判定で分類する。
+ * 削除確定ファイルをバッチで削除し、stats を加算する。
  *
- * cache 未指定の場合は全件 `passed` として確定する。
- * cache 指定時は既存判定（decision !== ERROR）があれば AI 呼び出しをスキップし、
- * DISCARD かつ confidence が閾値以上ならファイル削除（dry-run 時は削除しない）、
- * それ以外は KEEP として確定する。
+ * `dryRun === true` のときは削除せず `stats.skip` に加算し、ログ出力も行わない。
+ * `dryRun === false` のときは `removeFile()` を呼び、成功なら `stats.remove` に加算してログ出力し、
+ * NotFound（`false`）を返した場合は `stats.error` に加算する。
  *
- * @param survivors - `_phase3PartitionByContent` を通過したファイル情報
- * @param cache - ファイル単位の判定結果キャッシュ
- * @param dryRun - `true` のとき DISCARD 確定時もファイルを削除しない
- * @param discardThreshold - DISCARD 判定に必要な最低信頼度スコア
- * @returns この段階で確定した分類結果
+ * @param files - 削除対象の `DiscardFile` 配列
+ * @param dryRun - `true` のとき実削除・ログ出力を行わない
+ * @param stats - 加算対象の処理統計オブジェクト
  */
-export const _phase4ResolveCache = async (
-  survivors: _ConversationEntry[],
-  cache: ChatlogCache<CLEResult> | undefined,
+export const _discardFiles = async (
+  files: DiscardFile[],
   dryRun: boolean,
-  discardThreshold: number,
-): Promise<_ClassifyResult[]> => {
-  if (!cache) {
-    return survivors.map(({ filePath, filename }) => ({ filePath, filename, outcome: 'passed' as const }));
-  }
-
-  return await Promise.all(
-    survivors.map(async ({ filePath, filename }): Promise<_ClassifyResult> => {
-      const cached = cache.read(filePath);
-      if (cached.decision !== undefined && cached.decision !== FILTER_DECISIONS.ERROR) {
-        if (cached.decision === FILTER_DECISIONS.DISCARD && (cached.confidence ?? 0) >= discardThreshold) {
-          if (dryRun || await removeFile(filePath, { throwFileIoError: false })) {
-            return { filePath, filename, outcome: 'cache-discard-removed' };
-          }
-          return { filePath, filename, outcome: 'cache-discard-error' };
-        }
-        return { filePath, filename, outcome: 'cache-keep' };
+  stats: BaseStats,
+): Promise<void> => {
+  await Promise.all(
+    files.map(async ({ filePath, filename, reason }) => {
+      if (dryRun) {
+        stats.skip++;
+        return;
       }
-      return { filePath, filename, outcome: 'passed' };
+      if (await removeFile(filePath, { throwFileIoError: false })) {
+        stats.remove++;
+        logger.info(`  skipped (${reason}): ${filename}`);
+      } else {
+        stats.error++;
+      }
     }),
   );
-};
-
-/** `_ClassifyResult.outcome` から `BaseStats` の加算先フィールド名への対応表。 */
-const _OUTCOME_STATS_FIELD: Partial<Record<_PrefilterOutcome, 'keep' | 'remove' | 'error'>> = {
-  'read-error': 'error',
-  'excluded-content': 'keep',
-  'cache-keep': 'keep',
-  'cache-discard-removed': 'remove',
-  'cache-discard-error': 'error',
 };
 
 /**
@@ -338,12 +307,9 @@ const _OUTCOME_STATS_FIELD: Partial<Record<_PrefilterOutcome, 'keep' | 'remove' 
  * @param options - `prefilterFiles` のオプション
  * @param options.minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
  * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
- * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外の実削除数を `remove` に、
- *   事前段階での KEEP 確定数を `keep` に、読み込み失敗数を `error` に加算する。
+ * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
+ *   dry-run 時のスキップ数を `skip` に、読み込み失敗数を `error` に加算する。
  * @param options.dryRun - `true` のとき、スキップ理由・サマリのログ出力を抑制する（デフォルト: `false`）
- * @param options.cache - ファイル単位の判定結果キャッシュ。指定時は既存判定があれば AI 呼び出しをスキップし、
- *   `decision`/`confidence` からその場で KEEP/DISCARD を再導出する（dry-run 時は削除を行わない）。
- * @param options.discardThreshold - DISCARD 判定に必要な最低信頼度スコア。キャッシュヒット時の再判定に使用する。
  * @returns フィルタリングを通過したファイルパスの配列
  */
 export const prefilterFiles = async (
@@ -355,33 +321,25 @@ export const prefilterFiles = async (
     minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
     stats,
     dryRun = false,
-    cache,
-    discardThreshold = DEFAULT_CONFIG_VALUES.discardThreshold as number,
   } = options;
 
-  const byFilename = _phase1_1PartitionByFilename(files);
-  await _phase1_2DiscardByFilename(byFilename.discarded, cache, dryRun, discardThreshold, stats);
+  const { fileList, discardFiles } = _phase1PartitionByFilename(files);
 
-  const byRead = await _phase2ReadSurvivors(byFilename.survivors, cache);
+  const byRead = await _phase2ReadSurvivors(fileList);
   const byContent = _phase3PartitionByContent(byRead.readOk, minCharCount, minAssistantChars);
-  const byCache = await _phase4ResolveCache(byContent.survivors, cache, dryRun, discardThreshold);
 
-  const _results = [...byRead.results, ...byContent.results, ...byCache];
+  const allDiscards = [...discardFiles, ...byRead.readError, ...byContent.results];
+  const toDelete = allDiscards.filter((d) => d.decision !== FILTER_DECISIONS.ERROR);
+  stats.error += allDiscards.length - toDelete.length;
 
-  _results.forEach((result) => {
-    const statsField = _OUTCOME_STATS_FIELD[result.outcome];
-    if (statsField) { stats[statsField]++; }
+  await _discardFiles(toDelete, dryRun, stats);
 
-    if (dryRun) { return; }
-    if (result.outcome === 'excluded-content') {
-      logger.info(`  skipped (${result.reason}): ${result.filename}`);
-    }
-  });
-
-  const passed = _results.filter((result) => result.outcome === 'passed').map((result) => result.filePath);
+  const passed = byContent.survivors.map((entry) => entry.filePath as string);
 
   if (!dryRun) {
-    logger.info(`事前フィルタ: 対象=${files.length} 通過=${passed.length} keep=${stats.keep}`);
+    logger.info(
+      `事前フィルタ: 対象=${files.length} 通過=${passed.length} remove=${stats.remove} skip=${stats.skip} error=${stats.error}`,
+    );
   }
   return passed;
 };
