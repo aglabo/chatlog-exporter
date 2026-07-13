@@ -22,11 +22,12 @@ export const withConcurrency = async <T>(
   limit: number,
 ): Promise<T[]> => {
   const results: T[] = new Array(tasks.length);
+  const ctl = new AbortController();
   let idx = 0;
   const _worker = async (): Promise<void> => {
     while (idx < tasks.length) {
       const i = idx++;
-      results[i] = await tasks[i]();
+      results[i] = await tasks[i](ctl);
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, _worker));
@@ -42,9 +43,9 @@ export const withConcurrency = async <T>(
  */
 export const createTasks = <T, R>(
   items: T[],
-  fn: (item: T) => Promise<R>,
+  fn: (item: T, ctl: AbortController) => Promise<R>,
 ): Task<R>[] => {
-  return items.map((item) => () => fn(item));
+  return items.map((item) => (ctl) => fn(item, ctl));
 };
 
 /**
@@ -53,11 +54,11 @@ export const createTasks = <T, R>(
 export const createChunkedTasks = <T, R>(
   items: T[],
   chunkSize: number,
-  fn: (chunk: T[]) => Promise<R>,
+  fn: (chunk: T[], ctl: AbortController) => Promise<R>,
 ): Task<R>[] => {
   return Array.from(
     { length: Math.ceil(items.length / chunkSize) },
-    (_, i) => () => fn(items.slice(i * chunkSize, (i + 1) * chunkSize)),
+    (_, i) => (ctl) => fn(items.slice(i * chunkSize, (i + 1) * chunkSize), ctl),
   );
 };
 
@@ -70,7 +71,7 @@ export const createChunkedTasks = <T, R>(
  */
 export const runConcurrent = <T, R>(
   items: T[],
-  fn: (item: T) => Promise<R>,
+  fn: (item: T, ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
   return withConcurrency(createTasks(items, fn), limit);
@@ -82,7 +83,7 @@ export const runConcurrent = <T, R>(
 export const runChunked = <T, R>(
   items: T[],
   chunkSize: number,
-  fn: (chunk: T[]) => Promise<R>,
+  fn: (chunk: T[], ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
   return withConcurrency(createChunkedTasks(items, chunkSize, fn), limit);

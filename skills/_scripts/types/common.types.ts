@@ -33,4 +33,4 @@ export type EntryOptions = {
 // ─────────────────────────────────────────────
 
 /** 非同期タスク関数の型。`withConcurrency` の入力として使用する。 */
-export type Task<T> = () => Promise<T>;
+export type Task<T> = (ctl: AbortController) => Promise<T>;
