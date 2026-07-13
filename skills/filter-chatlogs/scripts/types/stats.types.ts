@@ -6,7 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/** filter-chatlogs / prefilter-chatlogs に共通する統計カウンターフィールド。 */
+/** filter-chatlogs / noise-filter-chatlogs に共通する統計カウンターフィールド。 */
 export interface BaseStats {
   /** 保存確定数（AI判定でKEEP、または事前段階で対象外と確定したもの）。 */
   keep: number;
@@ -21,5 +21,5 @@ export interface BaseStats {
 /** バッチ処理全体の処理統計。 */
 export interface FilterStats extends BaseStats {}
 
-/** prefilter 処理の統計情報。 */
-export interface PrefilterStats extends BaseStats {}
+/** noise-filter 処理の統計情報。 */
+export interface NoiseFilterStats extends BaseStats {}
