@@ -1,4 +1,4 @@
-// src: scripts/modules/prefilter/process-noise-files.ts
+// src: scripts/modules/noise-filter/process-noise-files.ts
 // @(#): ノイズファイルのリスト処理（分類・削除・dry-run・report）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -15,7 +15,7 @@ import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts'
 
 // ─── internal ───
 // types
-import type { PrefilterStats } from '../../types/stats.types.ts';
+import type { NoiseFilterStats } from '../../types/stats.types.ts';
 // functions
 import { classifyFile } from '../../libs/classify-file.ts';
 
@@ -25,7 +25,7 @@ import { classifyFile } from '../../libs/classify-file.ts';
 
 export const processNoiseFiles = async (
   files: string[],
-  stats: PrefilterStats,
+  stats: NoiseFilterStats,
   options: { dryRun: boolean; report: boolean },
 ): Promise<void> => {
   const { dryRun, report } = options;
