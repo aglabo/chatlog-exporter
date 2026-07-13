@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write
-// src: scripts/prefilter-chatlogs.ts
+// src: scripts/noise-filter-chatlogs.ts
 // @(#): チャットログの高速事前フィルタスクリプト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -7,7 +7,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 /**
- * prefilter-chatlogs.ts — チャットログの高速事前フィルタスクリプト
+ * noise-filter-chatlogs.ts — チャットログの高速事前フィルタスクリプト
  *
  * Claude API呼び出し前に、正規表現・テキストパターンで
  * 明らかなノイズファイルを削除候補として絞り込む。
@@ -22,11 +22,11 @@
  *   7. 短すぎる応答      : Assistantが100文字未満（1ターン限定）
  *
  * 使い方:
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts codex 2026-01
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --dry-run
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --report
- *   deno run --allow-read --allow-write scripts/prefilter-chatlogs.ts --input-dir ./temp/chatlogs
+ *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts
+ *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts codex 2026-01
+ *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --dry-run
+ *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --report
+ *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --input-dir ./temp/chatlogs
  */
 
 // ─── shared ───
@@ -43,10 +43,10 @@ import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 // types
-import type { PrefilterStats } from './types/stats.types.ts';
+import type { NoiseFilterStats } from './types/stats.types.ts';
 // functions
-import { buildConfig, parseArgs } from './configs/prefilter-config.ts';
-import { processNoiseFiles } from './modules/prefilter/process-noise-files.ts';
+import { buildConfig, parseArgs } from './configs/noise-filter-config.ts';
+import { processNoiseFiles } from './modules/noise-filter/process-noise-files.ts';
 
 // ─────────────────────────────────────────────
 // メイン
@@ -75,7 +75,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
       logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
     }
 
-    const stats: PrefilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
     await processNoiseFiles(files, stats, { dryRun, report });
 
     const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';

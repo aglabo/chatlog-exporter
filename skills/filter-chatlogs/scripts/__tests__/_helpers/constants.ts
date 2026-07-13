@@ -13,8 +13,8 @@ import { MAX_BODY_CHARS } from '../../constants/common.constants.ts';
 /** filter-chatlogs の KEEP 判定を通過する最小テキスト長（文字数）。 */
 export const FILTER_MIN_CONTENT_LENGTH = 500;
 
-/** prefilter-chatlogs のコンテンツフィルタを通過する最小テキスト長（文字数）。 */
-export const PREFILTER_MIN_CONTENT_LENGTH = 300;
+/** noise-filter-chatlogs のコンテンツフィルタを通過する最小テキスト長（文字数）。 */
+export const NOISE_FILTER_MIN_CONTENT_LENGTH = 300;
 
 /** MAX_BODY_CHARS（8000）を大幅に超える本文長。切り詰めメカニズムの検証に使用する。 */
 export const OVER_MAX_CHARS_LENGTH = 20000;

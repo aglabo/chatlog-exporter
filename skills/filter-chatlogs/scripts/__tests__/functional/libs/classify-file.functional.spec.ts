@@ -1,5 +1,5 @@
 // src: scripts/__tests__/functional/libs/classify-file.functional.spec.ts
-// @(#): prefilter-chatlogs.ts の機能テスト
+// @(#): classifyFile の機能テスト
 //       対象: classifyFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -17,7 +17,7 @@ import { classifyFile } from '../../../libs/classify-file.ts';
 // ─── Helpers
 import { makeRepeatedContent } from '../../_helpers/fixtures.ts';
 // constants
-import { PREFILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
+import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 
 // ─── Tests
 
@@ -51,7 +51,7 @@ describe('classifyFile', () => {
         it('T-PF-CL-01-01: isNoise が true になる', () => {
           const { isNoise } = classifyFile(
             'say-ok-and-nothing-else.md',
-            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH),
           );
 
           assertEquals(isNoise, true);
@@ -60,7 +60,7 @@ describe('classifyFile', () => {
         it('T-PF-CL-01-02: reason に "ファイル名パターン:" が含まれる', () => {
           const { reason } = classifyFile(
             'say-ok-and-nothing-else.md',
-            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH),
           );
 
           assertEquals(reason.includes('ファイル名パターン:'), true);
@@ -128,13 +128,13 @@ describe('classifyFile', () => {
       /** isNoise=false かつ reason が空文字列であることを検証する。 */
       describe('Then: T-PF-CL-04 - isNoise=false が返される', () => {
         it('T-PF-CL-04-01: isNoise が false になる', () => {
-          const { isNoise } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { isNoise } = classifyFile('valid-chat.md', makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH));
 
           assertEquals(isNoise, false);
         });
 
         it('T-PF-CL-04-02: reason が空文字列になる', () => {
-          const { reason } = classifyFile('valid-chat.md', makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH));
+          const { reason } = classifyFile('valid-chat.md', makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH));
 
           assertEquals(reason, '');
         });
@@ -160,7 +160,7 @@ describe('classifyFile', () => {
             'date: 2026-01-01',
             '---',
             '',
-            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH),
           ].join('\n');
           const { isNoise } = classifyFile('valid-chat.md', text);
 
@@ -185,7 +185,7 @@ describe('classifyFile', () => {
           const text = [
             '---',
             'title: 不正フォーマット',
-            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH),
           ].join('\n');
           let threw = false;
           try {
@@ -201,7 +201,7 @@ describe('classifyFile', () => {
           const text = [
             '---',
             'title: 不正フォーマット',
-            makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH),
+            makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH),
           ].join('\n');
           const { isNoise } = classifyFile('malformed.md', text);
 

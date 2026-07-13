@@ -1,5 +1,5 @@
-// src: scripts/__tests__/integration/prefilter/prefilter.integration.spec.ts
-// @(#): prefilter-chatlogs.ts の統合テスト
+// src: scripts/__tests__/integration/noise-filter/noise-filter.integration.spec.ts
+// @(#): noise-filter-chatlogs.ts の統合テスト
 //       findMdFiles → classifyFile パイプライン
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -18,7 +18,7 @@ import { resolveChatlogsDir } from '../../../../../_scripts/libs/file-io/resolve
 import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
 import { makeRepeatedContent } from '../../_helpers/fixtures.ts';
 // constants
-import { PREFILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
+import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 
 // ─── 共通セットアップ ──────────────────────────────────────────────────────────
 
@@ -34,8 +34,8 @@ afterEach(async () => {
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 
-/** `PREFILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
-const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH);
+/** `NOISE_FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = () => makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH);
 
 const _makeTestFile = async (path: string, content: string): Promise<void> => {
   const dir = path.replace(/\/[^/]+$/, '');

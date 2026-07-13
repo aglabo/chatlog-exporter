@@ -1,5 +1,5 @@
-// src: scripts/__tests__/functional/prefilter/build-config.functional.spec.ts
-// @(#): prefilter buildConfig の機能テスト
+// src: scripts/__tests__/functional/noise-filter/build-config.functional.spec.ts
+// @(#): noise-filter buildConfig の機能テスト
 //       対象: buildConfig
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -12,15 +12,15 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildConfig } from '../../../configs/prefilter-config.ts';
+import { buildConfig } from '../../../configs/noise-filter-config.ts';
 // types
-import type { PrefilterConfig, PrefilterParsedConfig } from '../../../types/prefilter.types.ts';
+import type { NoiseFilterConfig, NoiseFilterParsedConfig } from '../../../types/noise-filter.types.ts';
 
 // ─── Helpers
 // classes
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
-import { DEFAULT_PREFILTER_CONFIG } from '../../../constants/common.constants.ts';
+import { DEFAULT_NOISE_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // helpers
 import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
 
@@ -44,12 +44,12 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   });
 };
 
-/** 空の PrefilterParsedConfig。 */
-const _EMPTY_PARSED: PrefilterParsedConfig = {};
+/** 空の NoiseFilterParsedConfig。 */
+const _EMPTY_PARSED: NoiseFilterParsedConfig = {};
 
-/** `DEFAULT_PREFILTER_CONFIG` と異なる値を持つカスタムデフォルト設定。`defaults` パラメータの注入テストに使用する。 */
-const _CUSTOM_DEFAULTS: PrefilterConfig = {
-  ...DEFAULT_PREFILTER_CONFIG,
+/** `DEFAULT_NOISE_FILTER_CONFIG` と異なる値を持つカスタムデフォルト設定。`defaults` パラメータの注入テストに使用する。 */
+const _CUSTOM_DEFAULTS: NoiseFilterConfig = {
+  ...DEFAULT_NOISE_FILTER_CONFIG,
   agent: 'chatgpt',
   chatlogsDir: '/custom-default',
 };
@@ -60,7 +60,7 @@ const _CUSTOM_DEFAULTS: PrefilterConfig = {
  * `buildConfig` 関数の機能テストスイート。
  *
  * `buildConfig(parsed, globalConfig, defaults?)` は
- * `PrefilterParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `PrefilterConfig` を構築する。
+ * `NoiseFilterParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `NoiseFilterConfig` を構築する。
  *
  * ## 優先順位ルール
  * - `agent`      : parsed > globalConfig > defaults
@@ -69,13 +69,13 @@ const _CUSTOM_DEFAULTS: PrefilterConfig = {
  * - `period`     : parsed のみ（GlobalConfig 連携なし）
  * - `dryRun`     : parsed > defaults (false)
  * - `report`     : parsed > defaults (false)
- * - `configFile` は PrefilterConfig に存在しないため結果に含まれない
+ * - `configFile` は NoiseFilterConfig に存在しないため結果に含まれない
  *
  * テスト ID 範囲: T-PF-BC-06 〜 T-PF-BC-16
  *
  * @see buildConfig
  */
-describe('buildConfig (prefilter functional)', () => {
+describe('buildConfig (noise-filter functional)', () => {
   afterEach(() => {
     GlobalConfig.resetInstance();
   });
@@ -126,15 +126,15 @@ describe('buildConfig (prefilter functional)', () => {
     });
 
     describe('When: GlobalConfig にも agent が設定されていない', () => {
-      /** DEFAULT_PREFILTER_CONFIG.agent が使われることを検証する。 */
+      /** DEFAULT_NOISE_FILTER_CONFIG.agent が使われることを検証する。 */
       describe('Then: T-PF-BC-08 - defaults.agent にフォールバック', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('chatlogsDir: /some/dir');
         });
-        it('T-PF-BC-08: agent 未設定 → result.agent === DEFAULT_PREFILTER_CONFIG.agent', () => {
+        it('T-PF-BC-08: agent 未設定 → result.agent === DEFAULT_NOISE_FILTER_CONFIG.agent', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.agent, DEFAULT_PREFILTER_CONFIG.agent);
+          assertEquals(result.agent, DEFAULT_NOISE_FILTER_CONFIG.agent);
         });
       });
     });
@@ -166,19 +166,19 @@ describe('buildConfig (prefilter functional)', () => {
   /**
    * GlobalConfig に chatlogsDir が設定されていない前提条件グループ。
    *
-   * DEFAULT_PREFILTER_CONFIG.chatlogsDir にフォールバックすることを検証する。
+   * DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir にフォールバックすることを検証する。
    */
   describe('Given: GlobalConfig にも chatlogsDir が設定されていない', () => {
     describe('When: buildConfig を呼び出す', () => {
-      /** DEFAULT_PREFILTER_CONFIG.chatlogsDir が使われることを検証する。 */
+      /** DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir が使われることを検証する。 */
       describe('Then: T-PF-BC-11 - defaults.chatlogsDir にフォールバック', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await _makeGlobalConfig('agent: claude');
         });
-        it('T-PF-BC-11: chatlogsDir 未設定 → result.chatlogsDir === DEFAULT_PREFILTER_CONFIG.chatlogsDir', () => {
+        it('T-PF-BC-11: chatlogsDir 未設定 → result.chatlogsDir === DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir', () => {
           const result = buildConfig(_EMPTY_PARSED, globalConfig);
-          assertEquals(result.chatlogsDir, DEFAULT_PREFILTER_CONFIG.chatlogsDir);
+          assertEquals(result.chatlogsDir, DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir);
         });
       });
     });

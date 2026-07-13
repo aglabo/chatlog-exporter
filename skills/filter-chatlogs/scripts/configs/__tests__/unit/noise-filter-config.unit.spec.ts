@@ -1,5 +1,5 @@
-// src: scripts/configs/__tests__/unit/prefilter-config.unit.spec.ts
-// @(#): prefilter-config.ts のユニットテスト
+// src: scripts/configs/__tests__/unit/noise-filter-config.unit.spec.ts
+// @(#): noise-filter-config.ts のユニットテスト
 //       対象: parseArgs / buildConfig
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -12,7 +12,7 @@ import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildConfig, parseArgs } from '../../../configs/prefilter-config.ts';
+import { buildConfig, parseArgs } from '../../../configs/noise-filter-config.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
@@ -25,7 +25,7 @@ import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-ut
 // ─── Tests
 
 // ─────────────────────────────────────────────────────────────────────────────
-// parseArgs (prefilter)
+// parseArgs (noise-filter)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -37,7 +37,7 @@ import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-ut
  *
  * @see parseArgs
  */
-describe('parseArgs (prefilter)', () => {
+describe('parseArgs (noise-filter)', () => {
   beforeEach(() => {
     GlobalConfig.resetInstance();
   });

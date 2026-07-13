@@ -1,8 +1,8 @@
-// src: scripts/__tests__/e2e/prefilter.main.e2e.spec.ts
-// @(#): prefilter-chatlogs main() の E2E テスト
+// src: scripts/__tests__/e2e/noise-filter.main.e2e.spec.ts
+// @(#): noise-filter-chatlogs main() の E2E テスト
 //       main() 経由でのノイズフィルタリングフロー（実 tempdir・Deno.exit stub）
 //
-//       prefilter-chatlogs の動作:
+//       noise-filter-chatlogs の動作:
 //         入力: inputDir/agent/YYYY/YYYY-MM/*.md
 //         正規表現でノイズと判定したファイルを削除する
 //         --dry-run: 削除せず対象パスを stdout に出力
@@ -16,7 +16,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { main } from '../../prefilter-chatlogs.ts';
+import { main } from '../../noise-filter-chatlogs.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -25,7 +25,7 @@ import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
-import { PREFILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
+import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
 import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
@@ -40,8 +40,8 @@ import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils
 /** `_makeTestDirs` のラッパー。デフォルト引数付きで `makeTestDirs` を呼び出す。 */
 const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(agent, period);
 
-/** `_makeValidContent` のラッパー。`PREFILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
-const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH);
+/** `_makeValidContent` のラッパー。`NOISE_FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = () => makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH);
 
 /**
  * テスト用 `GlobalConfig` インスタンスを YAML 文字列から生成する。
@@ -66,7 +66,7 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
 // ─── T-PF-E2E-01: --dry-run → ファイル削除なし、パスが stdout に出力 ──────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（dry-run モード）。
+ * `main` 関数（noise-filter）の E2E テストスイート（dry-run モード）。
  *
  * `--dry-run` フラグを指定した際にファイルが削除されず、
  * ノイズと判定されたファイルのパスが stdout に出力されることを検証する。
@@ -75,7 +75,7 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
  *
  * @see main
  */
-describe('main (prefilter) - dry-run モード', () => {
+describe('main (noise-filter) - dry-run モード', () => {
   /**
    * ノイズファイル名（`say-ok-and-nothing-else.md`）の `.md` ファイルと
    * `--dry-run` フラグが存在する前提。
@@ -119,7 +119,7 @@ describe('main (prefilter) - dry-run モード', () => {
 // ─── T-PF-E2E-02: --report → NOISE\t{reason}\t{path} 形式、削除なし ──────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（report モード）。
+ * `main` 関数（noise-filter）の E2E テストスイート（report モード）。
  *
  * `--report` フラグを指定した際に `NOISE\t{reason}\t{path}` 形式で
  * stdout に出力され、ファイルが削除されないことを検証する。
@@ -128,7 +128,7 @@ describe('main (prefilter) - dry-run モード', () => {
  *
  * @see main
  */
-describe('main (prefilter) - report モード', () => {
+describe('main (noise-filter) - report モード', () => {
   /**
    * ノイズファイル名の `.md` ファイルと `--report` フラグが存在する前提。
    *
@@ -174,7 +174,7 @@ describe('main (prefilter) - report モード', () => {
 // ─── T-PF-E2E-03: 通常実行 → ノイズファイルが削除される ─────────────────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（通常実行・削除あり）。
+ * `main` 関数（noise-filter）の E2E テストスイート（通常実行・削除あり）。
  *
  * ノイズと正常ファイルが混在する場合に、ノイズファイルのみが削除され
  * 正常ファイルが残ることを検証する。
@@ -183,7 +183,7 @@ describe('main (prefilter) - report モード', () => {
  *
  * @see main
  */
-describe('main (prefilter) - 通常実行（削除あり）', () => {
+describe('main (noise-filter) - 通常実行（削除あり）', () => {
   /**
    * ノイズファイル（`say-ok-and-nothing-else.md`）と正常ファイル（`valid-chat.md`）が
    * 混在するディレクトリが存在する前提。
@@ -229,7 +229,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
 // ─── T-PF-E2E-04: 正常ファイルのみ → 全件 keep ───────────────────────────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（全件 keep）。
+ * `main` 関数（noise-filter）の E2E テストスイート（全件 keep）。
  *
  * ノイズファイルが存在しない場合に全ファイルが keep となり、
  * 完了ログに `keep=2` が含まれることを検証する。
@@ -238,7 +238,7 @@ describe('main (prefilter) - 通常実行（削除あり）', () => {
  *
  * @see main
  */
-describe('main (prefilter) - 全件 keep', () => {
+describe('main (noise-filter) - 全件 keep', () => {
   /**
    * 正常ファイル 2 件のみが存在するディレクトリの前提。
    *
@@ -284,7 +284,7 @@ describe('main (prefilter) - 全件 keep', () => {
 // ─── T-PF-E2E-06: 空ディレクトリ → keep=0 remove=0 error=0 ログ ─────────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（空ディレクトリ）。
+ * `main` 関数（noise-filter）の E2E テストスイート（空ディレクトリ）。
  *
  * `.md` ファイルが 0 件の場合に `keep=0 remove=0 error=0` を含む
  * 完了ログが出力されることを検証する。
@@ -293,7 +293,7 @@ describe('main (prefilter) - 全件 keep', () => {
  *
  * @see main
  */
-describe('main (prefilter) - 空ディレクトリ', () => {
+describe('main (noise-filter) - 空ディレクトリ', () => {
   /**
    * `.md` ファイルが存在しないエージェントディレクトリが存在する前提。
    *
@@ -334,7 +334,7 @@ describe('main (prefilter) - 空ディレクトリ', () => {
 // ─── T-PF-E2E-07: period 絞り込み → 指定月のみ削除対象 ──────────────────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（period 絞り込み）。
+ * `main` 関数（noise-filter）の E2E テストスイート（period 絞り込み）。
  *
  * period を指定した場合に指定月のファイルのみが削除対象となり、
  * 他月のファイルは影響を受けないことを検証する。
@@ -343,7 +343,7 @@ describe('main (prefilter) - 空ディレクトリ', () => {
  *
  * @see main
  */
-describe('main (prefilter) - period 絞り込み', () => {
+describe('main (noise-filter) - period 絞り込み', () => {
   /**
    * 2026-03 と 2026-04 の両月にノイズファイルが存在する前提。
    *
@@ -403,7 +403,7 @@ describe('main (prefilter) - period 絞り込み', () => {
 // ─── T-PF-E2E-08: --report → 完了ログに "report" が含まれる ─────────────────
 
 /**
- * `main` 関数（prefilter）の E2E テストスイート（report 完了ログ）。
+ * `main` 関数（noise-filter）の E2E テストスイート（report 完了ログ）。
  *
  * `--report` フラグを指定した際の完了ログに `report` が含まれることを検証する。
  *
@@ -411,7 +411,7 @@ describe('main (prefilter) - period 絞り込み', () => {
  *
  * @see main
  */
-describe('main (prefilter) - report 完了ログ', () => {
+describe('main (noise-filter) - report 完了ログ', () => {
   /**
    * 正常ファイル 1 件と `--report` フラグが存在する前提。
    *
