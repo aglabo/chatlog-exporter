@@ -38,6 +38,7 @@ import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 // ─── internal ───
 // functions
 import { processChunk } from './modules/filter/process-chunk.ts';
+import { sweepDiscards } from './modules/filter/sweep-discards.ts';
 import { prefilterFiles } from './modules/prefilter.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from './constants/common.constants.ts';
@@ -133,16 +134,11 @@ export const main = async (args?: string[]): Promise<void> => {
     // キャッシュ済み判定が KEEP かどうかを判定する
     const _isCachedKeep = (filePath: string): boolean => _cache.read(filePath).decision === FILTER_DECISIONS.KEEP;
 
-    // キャッシュ済み判定が DISCARD 確定済み（confidence が閾値以上）かどうかを判定する
-    const _isCachedDiscardConfirmed = (filePath: string): boolean => {
-      const cached = _cache.read(filePath);
-      return cached.decision === FILTER_DECISIONS.DISCARD && (cached.confidence ?? 0) >= _config.discardThreshold;
-    };
+    // キャッシュ済み判定が DISCARD とマークされているかどうかを判定する
+    const _isCachedDiscard = (filePath: string): boolean => _cache.read(filePath).decision === FILTER_DECISIONS.DISCARD;
 
-    // キャッシュ上 KEEP 済み・DISCARD 確定済みのファイルを処理対象から除外する
-    const _targetEntries = allFiles.filter((filePath) =>
-      !_isCachedKeep(filePath) && !_isCachedDiscardConfirmed(filePath)
-    );
+    // キャッシュ上 KEEP 済み・DISCARD マーク済みのファイルを処理対象から除外する
+    const _targetEntries = allFiles.filter((filePath) => !_isCachedKeep(filePath) && !_isCachedDiscard(filePath));
 
     // キャッシュ済み KEEP 件数を集計
     stats.keep += allFiles.filter(_isCachedKeep).length;
@@ -157,27 +153,26 @@ export const main = async (args?: string[]): Promise<void> => {
     const total = targetFiles.length;
     if (total === 0) {
       logger.info(`${LOGGER_HEADER.NO_FILE_FOUND}: 対象ファイルなし`);
-      logger.info(
-        `完了: total=${allFiles.length} keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
-      );
-      return;
-    }
-
-    logger.info(`判定対象ファイル数: ${total}`);
-
-    if (_config.dryRun) {
-      logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
-      targetFiles.forEach((filePath) => logger.info(`対象: ${filePath}`));
-      stats.skip += targetFiles.length;
     } else {
-      // チャンク分割して並列処理
-      await runChunked(
-        targetFiles,
-        _config.chunkSize,
-        (chunk) => processChunk(chunk, stats, _config.discardThreshold, _cache),
-        _config.concurrency,
-      );
+      logger.info(`判定対象ファイル数: ${total}`);
+
+      if (_config.dryRun) {
+        logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
+        targetFiles.forEach((filePath) => logger.info(`対象: ${filePath}`));
+        stats.skip += targetFiles.length;
+      } else {
+        // チャンク分割して並列処理（判定結果はキャッシュに書き込むのみ。削除は後続のスイープで行う）
+        await runChunked(
+          targetFiles,
+          _config.chunkSize,
+          (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl),
+          _config.concurrency,
+        );
+      }
     }
+
+    // DISCARD マーク済み（今回マーク分 + 前回削除されずに残ったゾンビファイル）をまとめて削除する
+    await sweepDiscards(allFiles, _cache, stats, _config.dryRun);
 
     // サマリー
     const drySuffix = _config.dryRun ? ' (dry-run)' : '';
