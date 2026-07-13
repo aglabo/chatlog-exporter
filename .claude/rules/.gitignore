@@ -1,0 +1,14 @@
+# src: .gitignore
+# @(#) : main ignore settings: template
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+
+##  General
+
+# deckrd
+deckrd-*
+
