@@ -14,7 +14,7 @@ import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants
 // ─── internal ───
 // types
 import type { FilterConfig } from '../types/filter.types.ts';
-import type { PrefilterConfig } from '../types/prefilter.types.ts';
+import type { NoiseFilterConfig } from '../types/noise-filter.types.ts';
 
 // ─────────────────────────────────────────────
 // filter-chatlogs 固有定数
@@ -23,11 +23,11 @@ import type { PrefilterConfig } from '../types/prefilter.types.ts';
 /** バッチプロンプトに含める本文の最大文字数。 */
 export const MAX_BODY_CHARS = 8000;
 
-/** prefilter-chatlogs の Assistant 応答最小文字数閾値（userTurns=1 時）。 */
+/** noise-filter-chatlogs の Assistant 応答最小文字数閾値（userTurns=1 時）。 */
 export const MIN_ASSISTANT_CHARS = 100;
 
-/** prefilter-chatlogs の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
-export const DEFAULT_PREFILTER_CONFIG: PrefilterConfig = {
+/** noise-filter-chatlogs の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
+export const DEFAULT_NOISE_FILTER_CONFIG: NoiseFilterConfig = {
   agent: DEFAULT_AGENT,
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
