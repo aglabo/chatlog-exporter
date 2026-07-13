@@ -271,33 +271,41 @@ export const _phase3PartitionByContent = (
 /**
  * 削除確定ファイルをバッチで削除し、stats を加算する。
  *
- * `dryRun === true` のときは削除せず `stats.skip` に加算し、ログ出力も行わない。
- * `dryRun === false` のときは `removeFile()` を呼び、成功なら `stats.remove` に加算してログ出力し、
- * NotFound（`false`）を返した場合は `stats.error` に加算する。
+ * `dryRun === true` のときは削除を行わず `stats.skip` に加算してログ出力する（`files` をそのまま返す）。
+ * `dryRun === false` のときは `removeFile()` を呼び、成功なら `stats.remove` に加算してログ出力し
+ * 戻り値から除く。NotFound（`false`）を返した場合は `stats.error` に加算し、
+ * `decision: FILTER_DECISIONS.ERROR` に書き替えたエントリを戻り値に残す
+ * （削除できなかったファイルは実在するため、呼び出し元で通過対象に戻せるようにする）。
  *
  * @param files - 削除対象の `DiscardFile` 配列
- * @param dryRun - `true` のとき実削除・ログ出力を行わない
+ * @param dryRun - `true` のとき実削除を行わない
  * @param stats - 加算対象の処理統計オブジェクト
+ * @returns 削除できなかった（未実施 or 失敗）ファイルの `DiscardFile` 配列
  */
 export const _discardFiles = async (
   files: DiscardFile[],
   dryRun: boolean,
   stats: BaseStats,
-): Promise<void> => {
-  await Promise.all(
-    files.map(async ({ filePath, filename, reason }) => {
+): Promise<DiscardFile[]> => {
+  const results = await Promise.all(
+    files.map(async (entry): Promise<DiscardFile | null> => {
+      const { filePath, filename, reason } = entry;
       if (dryRun) {
-        stats.skip++;
-        return;
-      }
-      if (await removeFile(filePath, { throwFileIoError: false })) {
-        stats.remove++;
         logger.info(`  skipped (${reason}): ${filename}`);
-      } else {
-        stats.error++;
+        stats.skip++;
+        return entry;
       }
+      if (!await removeFile(filePath, { throwFileIoError: false })) {
+        logger.warn(`  cant removed (${reason}): ${filename}`);
+        stats.error++;
+        return { ...entry, decision: FILTER_DECISIONS.ERROR };
+      }
+      stats.remove++;
+      logger.info(`  removed (${reason}): ${filename}`);
+      return null;
     }),
   );
+  return results.filter((entry): entry is DiscardFile => entry !== null);
 };
 
 /**
@@ -309,7 +317,7 @@ export const _discardFiles = async (
  * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
  * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
  *   dry-run 時のスキップ数を `skip` に、読み込み失敗数を `error` に加算する。
- * @param options.dryRun - `true` のとき、スキップ理由・サマリのログ出力を抑制する（デフォルト: `false`）
+ * @param options.dryRun - `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する（デフォルト: `false`）
  * @returns フィルタリングを通過したファイルパスの配列
  */
 export const prefilterFiles = async (
@@ -328,13 +336,16 @@ export const prefilterFiles = async (
   const byRead = await _phase2ReadSurvivors(fileList);
   const byContent = _phase3PartitionByContent(byRead.readOk, minCharCount, minAssistantChars);
 
-  const allDiscards = [...discardFiles, ...byRead.readError, ...byContent.results];
-  const toDelete = allDiscards.filter((d) => d.decision !== FILTER_DECISIONS.ERROR);
-  stats.error += allDiscards.length - toDelete.length;
+  const toDelete = [...discardFiles, ...byContent.results];
+  stats.error += byRead.readError.length;
 
-  await _discardFiles(toDelete, dryRun, stats);
+  const notDeleted = await _discardFiles(toDelete, dryRun, stats);
 
-  const passed = byContent.survivors.map((entry) => entry.filePath as string);
+  const notDeletedPaths = new Set(notDeleted.map((entry) => entry.filePath));
+  const deletedPaths = new Set(
+    toDelete.map((entry) => entry.filePath).filter((filePath) => !notDeletedPaths.has(filePath)),
+  );
+  const passed = files.filter((filePath) => !deletedPaths.has(filePath));
 
   if (!dryRun) {
     logger.info(
