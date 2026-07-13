@@ -25,7 +25,6 @@
  *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts
  *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts codex 2026-01
  *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --dry-run
- *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --report
  *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts --input-dir ./temp/chatlogs
  */
 
@@ -56,7 +55,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   try {
     const _parsed = parseArgs(args);
     const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { agent, period, chatlogsDir, inputDir, dryRun, report } = buildConfig(_parsed, _globalConfig);
+    const { agent, period, chatlogsDir, inputDir, dryRun } = buildConfig(_parsed, _globalConfig);
     const _searchDir = resolveChatlogsDir({
       chatlogsDir,
       agent,
@@ -72,13 +71,13 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     const files = await findFiles(_searchDir);
     logger.info(`対象ファイル数: ${files.length}`);
     if (dryRun) {
-      logger.info(`${report ? 'report' : 'dry-run'} モード: ファイルは削除しません`);
+      logger.info('dry-run モード: ファイルは削除しません');
     }
 
     const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
-    await processNoiseFiles(files, stats, { dryRun, report });
+    await processNoiseFiles(files, stats, { dryRun });
 
-    const suffix = dryRun ? ` (${report ? 'report' : 'dry-run'})` : '';
+    const suffix = dryRun ? ' (dry-run)' : '';
     logger.info(
       `\n完了${suffix}: keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
     );
