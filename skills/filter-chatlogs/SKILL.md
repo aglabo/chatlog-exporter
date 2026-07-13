@@ -5,7 +5,7 @@ description: >
   再利用価値の低いファイル（DISCARD）を削除する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[prefilter|filter] [agent] [YYYY-MM [project]] [--dry-run]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM [project]] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
@@ -25,7 +25,7 @@ allowed-tools: Bash, Glob
 
 `$ARGUMENTS` の先頭トークンでサブコマンドを判定する:
 
-- 先頭トークンが `prefilter` → prefilter モード（残りの引数を prefilter スクリプトに渡す）
+- 先頭トークンが `noise-filter` → noise-filter モード（残りの引数を noise-filter スクリプトに渡す）
 - 先頭トークンが `filter` → filter モード（先頭トークンを除いた残りの引数を filter スクリプトに渡す）
 - それ以外（サブコマンドなし）→ filter モード（`$ARGUMENTS` 全体を filter スクリプトに渡す）
 
@@ -38,7 +38,7 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM project`（例: `chatgpt 2026-03 aplys`）→ 指定 agent・指定月・プロジェクト
 - `--dry-run` → 削除せず判定結果のみ表示
 
-**prefilter モードの引数解析**（`prefilter` トークンを除いた残りの引数に適用）:
+**noise-filter モードの引数解析**（`noise-filter` トークンを除いた残りの引数に適用）:
 
 - 引数なし → `chatlogs/claude/` 全体を処理
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
@@ -52,29 +52,29 @@ allowed-tools: Bash, Glob
 Glob ツールで `**/commands/filter-chatlogs.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR      = <filter-chatlogs.md が存在するディレクトリの絶対パス>
-SCRIPT_PATH    = $SKILL_DIR/scripts/filter-chatlogs.ts
-PREFILTER_PATH = $SKILL_DIR/scripts/prefilter-chatlogs.ts
+SKILL_DIR         = <filter-chatlogs.md が存在するディレクトリの絶対パス>
+SCRIPT_PATH       = $SKILL_DIR/scripts/filter-chatlogs.ts
+NOISE_FILTER_PATH = $SKILL_DIR/scripts/noise-filter-chatlogs.ts
 ```
 
 ## ステップ2: スクリプト実行
 
 `$ARGUMENTS` の先頭トークンで分岐する。
 
-### prefilter サブコマンドの場合
+### noise-filter サブコマンドの場合
 
-先頭トークンが `prefilter` であれば、残りの引数 `$REST_ARGS` をそのまま渡す:
+先頭トークンが `noise-filter` であれば、残りの引数 `$REST_ARGS` をそのまま渡す:
 
 ```bash
-deno run --allow-read --allow-write "$PREFILTER_PATH" $REST_ARGS
+deno run --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
 ```
 
 引数からオプションを組み立てるルール（`--input` は**追加しない**）:
 
-- 引数なし → `deno run --allow-read --allow-write "$PREFILTER_PATH"`
-- `agent` のみ → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt`
-- `agent YYYY-MM` → `deno run --allow-read --allow-write "$PREFILTER_PATH" chatgpt 2026-03`
-- `path`（パス区切り含む）→ `deno run --allow-read --allow-write "$PREFILTER_PATH" chatlogs/claude/2026/2026-04`
+- 引数なし → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH"`
+- `agent` のみ → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt`
+- `agent YYYY-MM` → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt 2026-03`
+- `path`（パス区切り含む）→ `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatlogs/claude/2026/2026-04`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--report` を含む → 末尾に `--report` を追加
 
@@ -121,7 +121,7 @@ deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" $ARGS
 - dry-run モードの場合はその旨を明示する
 - DISCARDされたファイルのパスと理由を簡潔にまとめる
 
-**prefilter モードの通知形式**:
+**noise-filter モードの通知形式**:
 
 - noise / keep / error の件数を報告
 - dry-run / report モードの場合はその旨を明示する
