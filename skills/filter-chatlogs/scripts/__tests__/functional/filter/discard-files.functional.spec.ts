@@ -92,6 +92,21 @@ describe('_discardFiles', () => {
           assertEquals(await Deno.stat(filePath).catch(() => null), null);
           assertEquals(stats.remove, 1);
         });
+
+        it('T-FL-DF-01-02: ログに "removed" という文言が出力される', async () => {
+          const filePath = `${periodDir1}/discard-target2.md`;
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+          const files: DiscardFile[] = [
+            { filePath, filename: 'discard-target2.md', reason: 'trivial', decision: 'DISCARD' },
+          ];
+
+          await _discardFiles(files, false, stats);
+          loggerStub.restore();
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('removed')), true);
+        });
       });
     });
   });
@@ -104,7 +119,7 @@ describe('_discardFiles', () => {
   describe('Given: dryRun=true で 1 ファイルを処理する', () => {
     /** _discardFiles([file], true, stats) を呼び出すとき。 */
     describe('When: _discardFiles を呼び出す', () => {
-      /** 実ファイルが削除されず stats.skip が加算され、ログが出力されないことを検証する。 */
+      /** 実ファイルが削除されず stats.skip が加算され、削除予定のログが出力されることを検証する。 */
       describe('Then: T-FL-DF-02 - 実ファイルは削除されず stats.skip が加算される', () => {
         it('T-FL-DF-02-01: stats.skip が 1 になり実ファイルは削除されない', async () => {
           const filePath = `${periodDir1}/dryrun-target.md`;
@@ -120,7 +135,22 @@ describe('_discardFiles', () => {
 
           assertEquals(stats.skip, 1);
           assertEquals(await Deno.stat(filePath).then(() => true).catch(() => false), true);
-          assertEquals(loggerStub.infoLogs.length, 0);
+          assertEquals(loggerStub.infoLogs.length, 1);
+        });
+
+        it('T-FL-DF-02-02: ログに "skipped" という文言が出力される', async () => {
+          const filePath = `${periodDir1}/dryrun-target2.md`;
+          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+          const files: DiscardFile[] = [
+            { filePath, filename: 'dryrun-target2.md', reason: 'trivial', decision: 'DISCARD' },
+          ];
+
+          await _discardFiles(files, true, stats);
+          loggerStub.restore();
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('skipped')), true);
         });
       });
     });
@@ -154,6 +184,24 @@ describe('_discardFiles', () => {
 
           assertEquals(stats.error, 1);
           assertEquals(stats.remove, 0);
+        });
+
+        it('T-FL-DF-03-02: ログに "cant removed" という文言が warn で出力される', async () => {
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+          const files: DiscardFile[] = [
+            {
+              filePath: `${periodDir1}/missing-target2.md`,
+              filename: 'missing-target2.md',
+              reason: 'trivial',
+              decision: 'DISCARD',
+            },
+          ];
+
+          await _discardFiles(files, false, stats);
+          loggerStub.restore();
+
+          assertEquals(loggerStub.warnLogs.some((l) => l.includes('cant removed')), true);
         });
       });
     });
