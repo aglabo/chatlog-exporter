@@ -1,5 +1,5 @@
-// src: scripts/modules/prefilter/__tests__/functional/process-noise-files.functional.spec.ts
-// @(#): prefilter-chatlogs.ts の機能テスト
+// src: scripts/modules/noise-filter/__tests__/functional/process-noise-files.functional.spec.ts
+// @(#): noise-filter-chatlogs.ts の機能テスト
 //       対象: processNoiseFiles — filelist ループ処理（分類→削除/dry-run/report）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -21,7 +21,7 @@ import { makeRepeatedContent } from '../../../../__tests__/_helpers/fixtures.ts'
 // types
 import type { LoggerStub } from '../../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
-import { PREFILTER_MIN_CONTENT_LENGTH } from '../../../../__tests__/_helpers/constants.ts';
+import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../../../../__tests__/_helpers/constants.ts';
 
 // ─── Internal Helpers
 
@@ -34,7 +34,7 @@ const _KEEP_FILENAME = 'valid-chat.md';
 
 // functions
 /** KEEP 判定を通過する最小コンテンツを生成する。 */
-const _makeValidContent = () => makeRepeatedContent(PREFILTER_MIN_CONTENT_LENGTH);
+const _makeValidContent = () => makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH);
 
 // ─── Tests
 
