@@ -11,8 +11,8 @@ issue-prefix: "cle"
 
 # Use no-db mode: JSONL-only, no Dolt database
 # When true, bd will use .beads/issues.jsonl as the source of truth
+# This repo uses embedded Dolt mode (see .beads/metadata.json) — no-db is left unset.
 # no-db: false
-no-db: true
 no-daemon: true
 
 # Enable JSON output by default
