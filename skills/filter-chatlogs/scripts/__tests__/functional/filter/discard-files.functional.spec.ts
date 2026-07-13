@@ -20,6 +20,7 @@ import { _discardFiles } from '../../../modules/prefilter.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makePeriodDir, makeRepeatedContent } from '../../_helpers/fixtures.ts';
 // constants
+import { FILTER_DECISIONS } from '../../../types/filter-decision.const.types.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 // types
 import type { DiscardFile } from '../../../types/filter.types.ts';
@@ -223,6 +224,49 @@ describe('_discardFiles', () => {
           await _discardFiles([], false, stats);
 
           assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 0 });
+        });
+      });
+    });
+  });
+
+  /**
+   * `decision` が `DISCARD` 以外（`ERROR` 等）のエントリが誤って渡される前提条件グループ。
+   *
+   * 呼び出し元が `toDelete` の組み立てを誤った場合でも `_discardFiles` 自体が
+   * 誤削除を防ぐガードとして機能し、非 DISCARD エントリは削除されずそのまま戻り値に残ることを検証する。
+   */
+  describe('Given: decision が DISCARD 以外（ERROR）のエントリを含むファイルリスト', () => {
+    /** _discardFiles([discardEntry, errorEntry], false, stats) を呼び出すとき。 */
+    describe('When: _discardFiles を呼び出す', () => {
+      /** ERROR エントリは削除されず戻り値に残り、DISCARD エントリのみ削除されることを検証する。 */
+      describe('Then: T-FL-DF-05 - ERROR エントリは削除されず戻り値に残る', () => {
+        it('T-FL-DF-05-01: ERROR エントリは実削除されず、戻り値にそのまま含まれる', async () => {
+          const discardPath = `${periodDir1}/guard-discard-target.md`;
+          const errorPath = `${periodDir1}/guard-error-target.md`;
+          await Deno.writeTextFile(discardPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(errorPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+          const errorEntry: DiscardFile = {
+            filePath: errorPath,
+            filename: 'guard-error-target.md',
+            reason: '読み込み失敗',
+            decision: FILTER_DECISIONS.ERROR,
+          };
+          const discardEntry: DiscardFile = {
+            filePath: discardPath,
+            filename: 'guard-discard-target.md',
+            reason: 'trivial',
+            decision: FILTER_DECISIONS.DISCARD,
+          };
+
+          const result = await _discardFiles([discardEntry, errorEntry], false, stats);
+          loggerStub.restore();
+
+          assertEquals(await Deno.stat(errorPath).then(() => true).catch(() => false), true);
+          assertEquals(await Deno.stat(discardPath).catch(() => null), null);
+          assertEquals(result, [errorEntry]);
+          assertEquals(stats.remove, 1);
         });
       });
     });
