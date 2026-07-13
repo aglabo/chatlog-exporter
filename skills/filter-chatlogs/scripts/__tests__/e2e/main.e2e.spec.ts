@@ -11,7 +11,7 @@
 // This software is released under the MIT License.
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
@@ -492,13 +492,13 @@ describe('main - period 絞り込み', () => {
   });
 });
 
-// ─── T-FL-E2E-07: Claude CLI NotFound → 全件 KEEP 扱い ─────────────────────
+// ─── T-FL-E2E-07: Claude CLI NotFound → throw され main が reject される ────
 
 /**
  * `main` 関数の E2E テストスイート（Claude CLI NotFound）。
  *
- * claude コマンドが見つからない場合に全件 KEEP 扱いとなりファイルが
- * 削除されないことを検証する。
+ * claude コマンドが見つからない（`Deno.errors.NotFound`）場合、`ChatlogError` ではない
+ * 想定外の異常として握りつぶさず throw され、`main` が reject されることを検証する。
  *
  * テスト ID 範囲: T-FL-E2E-07
  *
@@ -508,14 +508,13 @@ describe('main - Claude CLI NotFound', () => {
   /**
    * claude コマンドが存在しない（NotFoundError）モックが設定されている前提。
    *
-   * Claude CLI が利用できない場合に全ファイルを KEEP 扱いとし、
-   * ファイルが削除されないことを確認する。
+   * Claude CLI が利用できない場合、`main` が `Deno.errors.NotFound` で reject されることを確認する。
    */
   describe('Given: claude コマンドが存在しないモック', () => {
     /** `main([...args])` を呼び出すとき。 */
     describe('When: main([...args]) を呼び出す', () => {
-      /** Claude CLI NotFound 時にファイルが全件 KEEP 扱いで残ること。 */
-      describe('Then: T-FL-E2E-07 - ファイルが削除されない', () => {
+      /** Claude CLI NotFound 時に main が reject されること。 */
+      describe('Then: T-FL-E2E-07 - main が NotFound で reject される', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
@@ -538,10 +537,11 @@ describe('main - Claude CLI NotFound', () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
           });
 
-          it('T-FL-E2E-07-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
-            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
-
-            assertEquals(await fileExists(`${chatlogsDir}/chat.md`), true);
+          it('T-FL-E2E-07-01: NotFound エラーで main が reject される', async () => {
+            await assertRejects(
+              () => main(['claude', '2026-03', '--input-dir', chatlogsDir]),
+              Deno.errors.NotFound,
+            );
           });
         });
       });
@@ -594,12 +594,15 @@ describe('main - confidence 閾値未満', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: low-conf.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/low-conf.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-08-01: confidence=0.69 の DISCARD ファイルが削除されずに残っている', async () => {
@@ -895,32 +898,33 @@ describe('main - キャッシュ KEEP 済み', () => {
 // ─── T-FL-E2E-13: キャッシュ DISCARD 確定済み → claude CLI 未呼び出し ───────
 
 /**
- * `main` 関数の E2E テストスイート（キャッシュ済み DISCARD 確定判定）。
+ * `main` 関数の E2E テストスイート（キャッシュ済み DISCARD マーク済み判定）。
  *
- * ファイル単位の判定結果キャッシュに `decision: DISCARD` かつ
- * `confidence >= discardThreshold`（確定済み）が既に記録されている場合、
- * `prefilterFiles` に渡す前に対象から除外され、claude CLI が呼び出されないことを検証する。
+ * ファイル単位の判定結果キャッシュに `decision: DISCARD` が既に記録されている場合、
+ * confidence の値によらず `prefilterFiles` に渡す前に対象から除外され、
+ * claude CLI が呼び出されないことを検証する。
+ * さらに、このマーク済み（ゾンビ）ファイルは `sweepDiscards` により削除されることを検証する。
  *
- * confidence が discardThreshold 未満の場合は引き続き判定対象に含まれることも
+ * confidence が discardThreshold 未満でもマーク済みとして扱われ削除されることも
  * 対比ケースとして検証する（T-FL-E2E-13-03, -04）。
  *
  * テスト ID 範囲: T-FL-E2E-13
  *
  * @see main
  */
-describe('main - キャッシュ DISCARD 確定済み', () => {
+describe('main - キャッシュ DISCARD マーク済み', () => {
   /**
    * キャッシュに `discard-cached.md` の判定結果として
-   * `decision: DISCARD, confidence: 0.9`（discardThreshold=0.7 以上）が既に書き込まれている前提。
+   * `decision: DISCARD, confidence: 0.9` が既に書き込まれている前提。
    *
-   * キャッシュ済み DISCARD 確定ファイルは claude CLI 呼び出し前に除外され、
-   * ファイルシステム上には残ることを確認する（削除は processChunk 経由でのみ行われるため）。
+   * キャッシュ済み DISCARD マーク済みファイルは claude CLI 呼び出し前に除外されるが、
+   * mark-then-sweep のスイープフェーズにより実ファイルは削除される（ゾンビファイル解消）。
    */
   describe('Given: cacheDir に discard-cached.md の DISCARD 確定キャッシュエントリを配置', () => {
     /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
     describe('When: main([...args]) を呼び出す', () => {
-      /** claude CLI が呼び出されず、ファイルが残ること。 */
-      describe('Then: T-FL-E2E-13 - claude CLI 未呼び出し・ファイルが残る', () => {
+      /** claude CLI が呼び出されず、ファイルが削除されること。 */
+      describe('Then: T-FL-E2E-13 - claude CLI 未呼び出し・ファイルが削除される', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
@@ -961,10 +965,10 @@ describe('main - キャッシュ DISCARD 確定済み', () => {
             assertEquals(counter.calls, 0);
           });
 
-          it('T-FL-E2E-13-02: discard-cached.md が残っている', async () => {
+          it('T-FL-E2E-13-02: discard-cached.md が削除される', async () => {
             await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
-            assertEquals(await fileExists(`${chatlogsDir}/discard-cached.md`), true);
+            await assertFileNotExist(`${chatlogsDir}/discard-cached.md`);
           });
         });
       });
@@ -975,14 +979,14 @@ describe('main - キャッシュ DISCARD 確定済み', () => {
    * キャッシュに `discard-low-conf.md` の判定結果として
    * `decision: DISCARD, confidence: 0.69`（discardThreshold=0.7 未満）が既に書き込まれている前提。
    *
-   * confidence が閾値未満の DISCARD は確定済みとは扱われず、引き続き claude CLI による
-   * 再判定対象に含まれることを確認する（対称性の確認）。
+   * mark フェーズ簡略化後は confidence を再チェックしないため、キャッシュ上 `decision: DISCARD` は
+   * confidence によらずマーク済みとして扱われ、claude CLI 呼び出し前に除外されスイープで削除される。
    */
-  describe('Given: cacheDir に discard-low-conf.md の DISCARD 未確定（confidence 閾値未満）キャッシュエントリを配置', () => {
+  describe('Given: cacheDir に discard-low-conf.md の DISCARD マーク済み（confidence 閾値未満）キャッシュエントリを配置', () => {
     /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
     describe('When: main([...args]) を呼び出す', () => {
-      /** claude CLI が呼び出され、ファイルが判定対象に含まれること。 */
-      describe('Then: T-FL-E2E-13 - claude CLI が呼び出される（再判定対象）', () => {
+      /** claude CLI が呼び出されず、ファイルが削除されること。 */
+      describe('Then: T-FL-E2E-13 - claude CLI 未呼び出し・ファイルが削除される（confidence によらずマーク済み扱い）', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
@@ -1003,7 +1007,7 @@ describe('main - キャッシュ DISCARD 確定済み', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        describe('Given: discard-low-conf.md を chatlogsDir に配置し、cacheDir に DISCARD 未確定エントリを書き込む', () => {
+        describe('Given: discard-low-conf.md を chatlogsDir に配置し、cacheDir に DISCARD マーク済みエントリを書き込む', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/discard-low-conf.md`, _makeValidContent());
 
@@ -1017,16 +1021,166 @@ describe('main - キャッシュ DISCARD 確定済み', () => {
             await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
-          it('T-FL-E2E-13-03: claude CLI が呼び出される（再判定対象に含まれる）', async () => {
+          it('T-FL-E2E-13-03: claude CLI が呼び出されない', async () => {
             await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
-            assertEquals(counter.calls, 1);
+            assertEquals(counter.calls, 0);
           });
 
-          it('T-FL-E2E-13-04: discard-low-conf.md が残っている（判定結果 KEEP 扱い）', async () => {
+          it('T-FL-E2E-13-04: discard-low-conf.md が削除される', async () => {
             await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
-            assertEquals(await fileExists(`${chatlogsDir}/discard-low-conf.md`), true);
+            await assertFileNotExist(`${chatlogsDir}/discard-low-conf.md`);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-14: 新規判定対象なし + ゾンビファイルあり → ゾンビも削除される ─
+
+/**
+ * `main` 関数の E2E テストスイート（新規判定対象なし・ゾンビファイルのみ）。
+ *
+ * `prefilterFiles` 通過後の新規判定対象が 0 件（`total === 0`）でも、
+ * キャッシュ上 DISCARD 確定済みで実ファイルが残っているゾンビファイルが存在する場合、
+ * スイープフェーズが実行され削除されることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-14
+ *
+ * @see main
+ */
+describe('main - 新規判定対象なし・ゾンビファイルのみ', () => {
+  /**
+   * `zombie-only.md` がキャッシュ上 DISCARD 確定済み（除外対象）で、他に新規判定対象ファイルがない前提。
+   *
+   * `total === 0` の早期分岐を通ってもスイープフェーズが実行され、
+   * ゾンビファイルが削除されることを確認する。
+   */
+  describe('Given: cacheDir に DISCARD 確定済みエントリのみが存在し新規判定対象がない', () => {
+    /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI が呼び出されず、ゾンビファイルが削除されること。 */
+      describe('Then: T-FL-E2E-14 - claude CLI 未呼び出し・ゾンビファイルが削除される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: zombie-only.md を chatlogsDir に配置し、cacheDir に DISCARD 確定エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/zombie-only.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/zombie-only.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-14-01: claude CLI が呼び出されない', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 0);
+          });
+
+          it('T-FL-E2E-14-02: zombie-only.md が削除される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            await assertFileNotExist(`${chatlogsDir}/zombie-only.md`);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-15: dry-run 時はゾンビファイルも削除されず stats.skip 計上 ────
+
+/**
+ * `main` 関数の E2E テストスイート（dry-run 時のゾンビファイル）。
+ *
+ * `--dry-run` フラグ指定時は、キャッシュ上 DISCARD 確定済みのゾンビファイルであっても
+ * 削除を実行せず、ログにも削除されない旨が確認できることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-15
+ *
+ * @see main
+ */
+describe('main - dry-run 時のゾンビファイル', () => {
+  /**
+   * `zombie-dry.md` がキャッシュ上 DISCARD 確定済みで、`--dry-run` フラグを指定する前提。
+   *
+   * dry-run 時はスイープフェーズでも削除を実行せず、ファイルが残ることを確認する。
+   */
+  describe('Given: cacheDir に DISCARD 確定済みエントリを配置し --dry-run を指定', () => {
+    /** `main(["claude", "2026-03", "--dry-run", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI が呼び出されず、ゾンビファイルが削除されずに残ること。 */
+      describe('Then: T-FL-E2E-15 - claude CLI 未呼び出し・ゾンビファイルが削除されない', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: zombie-dry.md を chatlogsDir に配置し、cacheDir に DISCARD 確定エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/zombie-dry.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/zombie-dry.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-15-01: claude CLI が呼び出されない', async () => {
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 0);
+          });
+
+          it('T-FL-E2E-15-02: zombie-dry.md が削除されずに残っている', async () => {
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
+
+            assertEquals(await fileExists(`${chatlogsDir}/zombie-dry.md`), true);
           });
         });
       });

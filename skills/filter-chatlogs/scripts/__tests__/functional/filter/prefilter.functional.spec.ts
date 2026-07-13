@@ -318,14 +318,15 @@ describe('prefilterFiles', () => {
   /**
    * ファイル名パターン除外 1 件・本文短すぎ 1 件・正常 1 件が混在するファイルを入力とする前提条件グループ。
    *
-   * `dryRun: true` を指定したときのログ抑制と、戻り値・stats の値が `dryRun: false` と一致することを検証する。
+   * `dryRun: true` を指定したときも削除予定ファイルのログ出力・`stats.skip` 計上が行われ、
+   * 実削除しないため `passed` に全ファイルが含まれることを検証する。
    */
   describe('Given: 3 ファイル（ファイル名パターン除外 1 + 本文短すぎ 1 + 正常 1）', () => {
     /** dryRun: true を渡して prefilterFiles を呼び出すとき。 */
     describe('When: dryRun: true を渡して prefilterFiles を呼び出す', () => {
-      /** ログ出力が抑制され、戻り値・stats は dryRun なし時と同じであることを検証する。 */
-      describe('Then: T-FL-PFF-09 - ログ出力が抑制され結果は変わらない', () => {
-        it('T-FL-PFF-09-01: [Normal] dryRun: true のとき logger.info が呼ばれない', async () => {
+      /** dryRun でも削除予定ファイルはログ出力・stats.skip に計上され、passed には全ファイルが含まれることを検証する。 */
+      describe('Then: T-FL-PFF-09 - 削除予定がログ出力され、passed に全ファイルが含まれる', () => {
+        it('T-FL-PFF-09-01: [Normal] dryRun: true のとき削除予定ファイルの logger.info が呼ばれる', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -337,10 +338,10 @@ describe('prefilterFiles', () => {
           await prefilterFiles([excludedPath, shortPath, validPath], { stats: _makeStats(), dryRun: true });
           loggerStub.restore();
 
-          assertEquals(loggerStub.infoLogs.length, 0);
+          assertEquals(loggerStub.infoLogs.length, 2);
         });
 
-        it('T-FL-PFF-09-02: [Normal] dryRun: true でも戻り値は dryRun なし時と同じで、stats.remove 相当は stats.skip に計上される', async () => {
+        it('T-FL-PFF-09-02: [Normal] dryRun: true では passed に全ファイルが含まれ、削除予定分は stats.skip に計上される', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -358,7 +359,8 @@ describe('prefilterFiles', () => {
           const resultNormal = await prefilterFiles([excludedPath, shortPath, validPath], { stats: statsNormal });
           loggerStub.restore();
 
-          assertEquals(resultDryRun, resultNormal);
+          assertEquals(resultDryRun, [excludedPath, shortPath, validPath]);
+          assertEquals(resultNormal, [validPath]);
           assertEquals(statsNormal.remove, 2);
           assertEquals(statsDryRun.remove, 0);
           assertEquals(statsDryRun.skip, 2);
@@ -411,6 +413,45 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(stats.error, 1);
+        });
+
+        it('T-FL-PFF-17-02: 読み込み失敗ファイルは削除されず passed に含まれる', async () => {
+          const filePath = `${periodDir1}/missing-read-passed.md`;
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          const result = await prefilterFiles([filePath], { stats });
+          errStub.restore();
+
+          assertEquals(result.includes(filePath), true);
+        });
+      });
+    });
+  });
+
+  /**
+   * 正常ファイルと読み込みエラーファイル（実ファイル未作成）が混在するファイルリストの前提条件グループ。
+   *
+   * 読み込みエラーファイルも passed に含めたうえで、入力 files の順序が維持されることを検証する。
+   */
+  describe('Given: 正常ファイルと読み込みエラーファイルが混在するファイルリスト', () => {
+    /** prefilterFiles(files) を呼び出すとき。 */
+    describe('When: prefilterFiles(files) を呼び出す', () => {
+      /** passed 配列が入力 files の順序と一致することを検証する。 */
+      describe('Then: T-FL-PFF-18 - 読み込みエラーファイルを含め passed の順序が入力順と一致する', () => {
+        it('T-FL-PFF-18-01: passed 配列が入力 files の順序と一致する（読み込みエラー混在）', async () => {
+          const validPath1 = `${periodDir1}/mixed-valid1.md`;
+          const missingPath = `${periodDir1}/mixed-missing.md`;
+          const validPath2 = `${periodDir1}/mixed-valid2.md`;
+          await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const errStub = stub(console, 'error', () => {});
+
+          const files = [validPath1, missingPath, validPath2];
+          const result = await prefilterFiles(files, { stats: _makeStats() });
+          errStub.restore();
+
+          assertEquals(result, [validPath1, missingPath, validPath2]);
         });
       });
     });
@@ -510,6 +551,18 @@ describe('prefilterFiles', () => {
 
           assertEquals(stats.error, 1);
           assertEquals(stats.remove, 0);
+        });
+
+        it('T-FL-PFF-21-02: removeFile 失敗ファイルは passed に含まれる', async () => {
+          const filePath = `${periodDir1}/say-ok-and-nothing-else-missing.md`;
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+
+          // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
+          const passed = await prefilterFiles([filePath], { stats });
+          errStub.restore();
+
+          assertEquals(passed, [filePath]);
         });
       });
     });

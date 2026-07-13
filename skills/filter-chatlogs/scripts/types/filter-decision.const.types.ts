@@ -11,7 +11,8 @@ export const FILTER_DECISIONS = {
   KEEP: 'KEEP',
   DISCARD: 'DISCARD',
   ERROR: 'ERROR',
+  EMPTY: '',
 } as const;
 
-/** `FILTER_DECISIONS` の値から派生したユニオン型。`'KEEP' | 'DISCARD'` と等価。 */
+/** `FILTER_DECISIONS` の値から派生したユニオン型。`'KEEP' | 'DISCARD' | 'ERROR' | ''` と等価。 */
 export type FilterDecision = typeof FILTER_DECISIONS[keyof typeof FILTER_DECISIONS];

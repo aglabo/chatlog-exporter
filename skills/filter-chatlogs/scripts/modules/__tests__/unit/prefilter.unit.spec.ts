@@ -8,11 +8,13 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertFalse } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { isExcludedByContent, isExcludedByFilename, isSystemOnlyMessage } from '../../prefilter.ts';
+// constants
+import { DEFAULT_CONFIG_VALUES } from '../../../../../_scripts/constants/config-schema.constants.ts';
 
 // ─── Internal Helpers
 
@@ -311,6 +313,55 @@ describe('isExcludedByContent', () => {
             'a'.repeat(300),
           ].join('\n');
           const { excluded } = isExcludedByContent(body);
+
+          assertFalse(excluded);
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-IC-06: User ターン複数件 → 1ターン限定チェックが免除される ─────────
+
+  describe('Given: User ターンが複数件で Assistant 応答が短いエントリ', () => {
+    describe('When: isExcludedByContent(body) を呼び出す', () => {
+      describe('Then: T-FL-IC-06 - 1ターン限定チェックが免除され excluded=false が返される', () => {
+        it('[Edge] T-FL-IC-06-01: 複数Userターン + Assistant短文 → excluded=false', () => {
+          const body = [
+            '### User',
+            'u'.repeat(300),
+            '',
+            '### Assistant',
+            'a'.repeat(300),
+            '',
+            '### User',
+            'u'.repeat(400),
+            '',
+            '### Assistant',
+            '短い',
+          ].join('\n');
+          const { excluded } = isExcludedByContent(body);
+
+          assertFalse(excluded);
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-IC-07: minCharCount のちょうど境界値 → excluded=false ──────────────
+
+  describe('Given: 本文の長さがちょうど minCharCount と一致するテキスト', () => {
+    describe('When: isExcludedByContent(body, minCharCount) を呼び出す', () => {
+      describe('Then: T-FL-IC-07 - 境界値では除外されず excluded=false が返される', () => {
+        it('[Edge] T-FL-IC-07-01: body.length === minCharCount → excluded=false', () => {
+          const userText = 'u'.repeat(500);
+          const assistantText = 'a'.repeat(400);
+          const unpadded = `### User\n${userText}\n\n### Assistant\n${assistantText}\n`;
+          const minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number;
+          const padding = 'x'.repeat(minCharCount - unpadded.length);
+          const body = `### User\n${userText}${padding}\n\n### Assistant\n${assistantText}\n`;
+
+          assertEquals(body.length, minCharCount);
+          const { excluded } = isExcludedByContent(body, minCharCount);
 
           assertFalse(excluded);
         });

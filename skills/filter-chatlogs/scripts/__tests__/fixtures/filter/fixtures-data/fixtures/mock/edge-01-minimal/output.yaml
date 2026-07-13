@@ -1,7 +1,0 @@
-# filter-chatlogs システムテスト期待値
-# Git のステージングエリア設計概念（エッジケース：会話が1往復で短いが再利用価値あり）
-# 短い会話でも概念説明として KEEP が期待される境界ケース
-# mock_response: claude 判定が非決定的なため、固定レスポンスで決定論的テストを実現
-expected_decision: KEEP
-confidence_min: 0.3
-mock_response: '[{"file":"input.md","decision":"KEEP","confidence":0.75,"reason":"Git のステージングエリアの設計意図を説明する短いが完結した概念説明。再利用価値がある。"}]'

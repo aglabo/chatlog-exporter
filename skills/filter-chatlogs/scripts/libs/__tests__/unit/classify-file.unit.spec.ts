@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertEquals, assertFalse } from '@std/assert';
+import { assert } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
@@ -24,11 +24,6 @@ import {
 // ─── Helpers
 // constants
 import { MIN_ASSISTANT_CHARS } from '../../../constants/common.constants.ts';
-import {
-  NOISE_USER_PATTERNS_CHATLOG,
-  NOISE_USER_PATTERNS_EXTERNAL,
-  NOISE_USER_PATTERNS_GENERIC,
-} from '../../../constants/patterns.constants.ts';
 // types
 import type { Turn } from '../../../../../_scripts/types/conversation.types.ts';
 
@@ -809,149 +804,5 @@ describe('checkPromptContent', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NOISE_USER_PATTERNS — スラッシュコマンドパターン
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * `NOISE_USER_PATTERNS` スラッシュコマンドパターンの単体テストスイート。
- *
- * NOISE_USER_PATTERNS が3つの分割定数（CHATLOG/EXTERNAL/GENERIC）のスプレッドを含むことを検証する。
- *
- * テスト ID 範囲: T-PF-NP-01 〜 T-PF-NP-04
- *
- * @see NOISE_USER_PATTERNS
- */
-describe('NOISE_USER_PATTERNS - スラッシュコマンドパターン', () => {
-  /** NOISE_USER_PATTERNS_CHATLOG の最初のエントリを使用する。 */
-  const _chatlogPattern = NOISE_USER_PATTERNS_CHATLOG[0];
-
-  /** 新スキル名がパターンにマッチするケース。 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-PF-NP-01-01: /filter-chatlogs（新スキル名）→ パターンにマッチする', () => {
-      assert(_chatlogPattern.entries[0].pattern!.test('/filter-chatlogs'));
-    });
-
-    it('[Normal] T-PF-NP-01-02: /export-chatlogs → パターンにマッチする', () => {
-      assert(_chatlogPattern.entries[0].pattern!.test('/export-chatlogs'));
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NOISE_USER_PATTERNS_CHATLOG
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * `NOISE_USER_PATTERNS_CHATLOG` の単体テストスイート。
- *
- * chatlog-exporter スラッシュコマンドパターンの label と正規表現マッチを検証する。
- *
- * テスト ID 範囲: T-PF-NP-02
- *
- * @see NOISE_USER_PATTERNS_CHATLOG
- */
-describe('NOISE_USER_PATTERNS_CHATLOG', () => {
-  /** 正しい label を持ち、chatlog-exporter コマンドにマッチするケース。 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-PF-NP-02-01: label が "chatlog-exporterコマンドのみ" である', () => {
-      assertEquals(NOISE_USER_PATTERNS_CHATLOG[0].label, 'chatlog-exporterコマンドのみ');
-    });
-
-    it('[Normal] T-PF-NP-02-02: /export-chatlogs → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/export-chatlogs'));
-    });
-
-    it('[Normal] T-PF-NP-02-03: /filter-chatlogs → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/filter-chatlogs'));
-    });
-
-    it('[Normal] T-PF-NP-02-04: /set-frontmatter → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/set-frontmatter'));
-    });
-
-    it('[Normal] T-PF-NP-02-05: /classify-chatlogs → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/classify-chatlogs'));
-    });
-
-    it('[Normal] T-PF-NP-02-06: /normalize-chatlogs → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/normalize-chatlogs'));
-    });
-
-    it('[Normal] T-PF-NP-02-07: /unknown-command → マッチしない', () => {
-      assertFalse(NOISE_USER_PATTERNS_CHATLOG[0].entries[0].pattern!.test('/unknown-command'));
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NOISE_USER_PATTERNS_EXTERNAL
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * `NOISE_USER_PATTERNS_EXTERNAL` の単体テストスイート。
- *
- * 外部システムスラッシュコマンドパターンの label と正規表現マッチを検証する。
- *
- * テスト ID 範囲: T-PF-NP-03
- *
- * @see NOISE_USER_PATTERNS_EXTERNAL
- */
-describe('NOISE_USER_PATTERNS_EXTERNAL', () => {
-  /** 正しい label を持ち、外部システムコマンドにマッチするケース。 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-PF-NP-03-01: label が "外部システムコマンドのみ" である', () => {
-      assertEquals(NOISE_USER_PATTERNS_EXTERNAL[0].label, '外部システムコマンドのみ');
-    });
-
-    it('[Normal] T-PF-NP-03-02: /deckrd → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/deckrd'));
-    });
-
-    it('[Normal] T-PF-NP-03-03: /idd → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/idd'));
-    });
-
-    it('[Normal] T-PF-NP-03-04: /unknown-command → マッチしない', () => {
-      assertFalse(NOISE_USER_PATTERNS_EXTERNAL[0].entries[0].pattern!.test('/unknown-command'));
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NOISE_USER_PATTERNS_GENERIC
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * `NOISE_USER_PATTERNS_GENERIC` の単体テストスイート。
- *
- * 汎用スラッシュコマンドパターンの label と正規表現マッチを検証する。
- *
- * テスト ID 範囲: T-PF-NP-04
- *
- * @see NOISE_USER_PATTERNS_GENERIC
- */
-describe('NOISE_USER_PATTERNS_GENERIC', () => {
-  /** 正しい label を持ち、汎用コマンドにマッチするケース。 */
-  describe('When: 正常系', () => {
-    it('[Normal] T-PF-NP-04-01: label が "汎用スラッシュコマンドのみ" である', () => {
-      assertEquals(NOISE_USER_PATTERNS_GENERIC[0].label, '汎用スラッシュコマンドのみ');
-    });
-
-    it('[Normal] T-PF-NP-04-02: /commit → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/commit'));
-    });
-
-    it('[Normal] T-PF-NP-04-03: /clear → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/clear'));
-    });
-
-    it('[Normal] T-PF-NP-04-04: /help → マッチする', () => {
-      assert(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/help'));
-    });
-
-    it('[Normal] T-PF-NP-04-05: /unknown-command → マッチしない', () => {
-      assertFalse(NOISE_USER_PATTERNS_GENERIC[0].entries[0].pattern!.test('/unknown-command'));
-    });
-  });
-});
+// NOTE: NOISE_USER_PATTERNS_* の定数直接参照テスト（T-PF-NP-01〜04）は削除済み。
+// checkUserContent 経由で同等ロジックを検証しているため再追加しないこと。
