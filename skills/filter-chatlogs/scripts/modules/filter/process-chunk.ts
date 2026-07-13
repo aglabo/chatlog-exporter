@@ -9,9 +9,9 @@
 // ─── shared ───
 // classes
 import type { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 // functions
 import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
-import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
@@ -45,31 +45,34 @@ export const processChunk = async (
   stats: FilterStats,
   discardThreshold: number,
   cache: ChatlogCache<CLEResult>,
-): Promise<void> => {
+  ctl: AbortController,
+): Promise<ChatlogError | undefined> => {
+  if (ctl.signal.aborted) {
+    logger.warn(`  レートリミット中のためスキップ。チャンク内ファイルをすべて error 扱い`);
+    stats.error += chunkFiles.length;
+    return;
+  }
+
   const batchPrompt = await buildBatchPrompt(chunkFiles);
 
   let rawResult: string;
   try {
     rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt);
   } catch (e) {
-    logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて KEEP 扱い`);
-    logger.warn(`  error: ${e}`);
-    for (const f of chunkFiles) {
-      logger.info(`  kept (claude error): ${getFilename(f)}`);
-      stats.keep++;
-    }
-    return;
+    if (!(e instanceof ChatlogError)) { throw e; }
+    logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて error 扱い`);
+    logger.warn(`  error: ${e.message}`);
+    stats.error += chunkFiles.length;
+    if (e.subindex === 'RateLimit') { ctl.abort(); }
+    return e;
   }
 
   const parsed = parseAiJsonArray<ClaudeResult>(rawResult);
   if (!parsed) {
-    logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて KEEP 扱い`);
+    logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて error 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
-    for (const f of chunkFiles) {
-      logger.info(`  kept (parse error): ${getFilename(f)}`);
-      stats.keep++;
-    }
-    return;
+    stats.error += chunkFiles.length;
+    return new ChatlogError('InvalidFormat', 'JsonParse', `raw output: ${rawResult.slice(0, 200)}`);
   }
 
   for (const filePath of chunkFiles) {
@@ -77,25 +80,29 @@ export const processChunk = async (
     const result = parsed.find((r) => r.file === filename);
 
     if (!result) {
-      logger.info(`  kept (not in result): ${filename}`);
-      stats.keep++;
+      logger.info(`  判定不能: ${filename} - skipped`);
+      stats.skip++;
       continue;
     }
 
     const { decision, confidence, reason } = result;
-    await cache.write(filePath, { decision, confidence, reason });
+    const isConfirmedDiscard = decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold;
+    const isGreyZoneDiscard = decision === FILTER_DECISIONS.DISCARD && confidence < discardThreshold;
 
-    if (decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold) {
-      logger.log(`DISCARD (conf=${confidence}): ${filePath}`);
+    if (isConfirmedDiscard) {
+      await cache.write(filePath, { decision: FILTER_DECISIONS.DISCARD, confidence, reason });
+      logger.info(`  discard confirmed (conf=${confidence}): ${filename}`);
       logger.info(`  reason: ${reason}`);
-      if (await removeFile(filePath, { throwFileIoError: false })) {
-        stats.remove++;
-      } else {
-        stats.error++;
-      }
+    } else if (isGreyZoneDiscard) {
+      await cache.write(filePath, { decision: FILTER_DECISIONS.EMPTY, confidence, reason });
+      logger.info(`  閾値未満 (decision=${decision}, conf=${confidence}): ${filename} - skipped`);
+      stats.skip++;
     } else {
+      await cache.write(filePath, { decision: FILTER_DECISIONS.KEEP, confidence, reason });
       logger.info(`  kept (decision=${decision}, conf=${confidence}): ${filename}`);
       stats.keep++;
     }
   }
+
+  return undefined;
 };
