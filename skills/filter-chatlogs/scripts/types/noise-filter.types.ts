@@ -17,8 +17,6 @@ export type NoiseFilterConfig = DefaultArgFields & {
   chatlogsDir: string;
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
   dryRun: boolean;
-  /** `true` のときノイズファイル一覧をタブ区切りで出力する（`dryRun` も暗示）。 */
-  report: boolean;
 };
 
 /** `noise-filter-chatlogs` の `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */

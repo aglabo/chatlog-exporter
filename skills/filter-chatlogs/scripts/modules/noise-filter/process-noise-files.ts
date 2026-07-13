@@ -1,5 +1,5 @@
 // src: scripts/modules/noise-filter/process-noise-files.ts
-// @(#): ノイズファイルのリスト処理（分類・削除・dry-run・report）
+// @(#): ノイズファイルのリスト処理（分類・削除・dry-run）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -26,9 +26,9 @@ import { classifyFile } from '../../libs/classify-file.ts';
 export const processNoiseFiles = async (
   files: string[],
   stats: NoiseFilterStats,
-  options: { dryRun: boolean; report: boolean },
+  options: { dryRun: boolean },
 ): Promise<void> => {
-  const { dryRun, report } = options;
+  const { dryRun } = options;
 
   for (const filePath of files) {
     const filename = getFilename(filePath);
@@ -42,13 +42,10 @@ export const processNoiseFiles = async (
       continue;
     }
 
-    const { isNoise, reason } = classifyFile(filename, text);
+    const { isNoise, reason: _reason } = classifyFile(filename, text);
 
     if (isNoise) {
-      if (report) {
-        logger.log(`NOISE\t${reason}\t${filePath}`);
-        stats.skip++;
-      } else if (dryRun) {
+      if (dryRun) {
         logger.log(filePath);
         stats.skip++;
       } else {

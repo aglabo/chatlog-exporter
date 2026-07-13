@@ -60,10 +60,6 @@ describe('parseArgs (noise-filter)', () => {
       assertEquals(parseArgs([]).period, undefined);
     });
 
-    it('[Normal] T-PF-PA-01-05: report が false になる', () => {
-      assertFalse(parseArgs([]).report);
-    });
-
     it('[Normal] T-PF-PA-02-01: agent が "codex" になる', () => {
       assertEquals(parseArgs(['codex']).agent, 'codex');
     });
@@ -79,31 +75,11 @@ describe('parseArgs (noise-filter)', () => {
       assert(parseArgs(['--dry-run']).dryRun);
     });
 
-    it('[Normal] T-PF-PA-05-02: report が false のまま', () => {
-      assertFalse(parseArgs(['--dry-run']).report);
-    });
-
-    it('[Normal] T-PF-PA-06-01: report が true になる', () => {
-      assert(parseArgs(['--report']).report);
-    });
-
-    it('[Normal] T-PF-PA-06-02: dryRun が true になる（--report は dryRun も暗示）', () => {
-      assert(parseArgs(['--report']).dryRun);
-    });
-
-    it('[Normal] T-PF-PA-07-01: report=true、dryRun=true になる', () => {
-      const result = parseArgs(['--report', '--dry-run']);
-
-      assert(result.report);
-      assert(result.dryRun);
-    });
-
     it('[Normal] T-PF-PA-10-01: 全フィールドが正しく解析される', () => {
-      const result = parseArgs(['codex', '2026-03', '--report', '--input-dir', '/path/to/input']);
+      const result = parseArgs(['codex', '2026-03', '--dry-run', '--input-dir', '/path/to/input']);
 
       assertEquals(result.agent, 'codex');
       assertEquals(result.period, '2026-03');
-      assert(result.report);
       assert(result.dryRun);
       assertEquals(result.inputDir, '/path/to/input');
     });
@@ -198,32 +174,28 @@ describe('buildConfig', () => {
   /** 空 Args・agent/chatlogsDir 指定・フラグ反映の正常ケース。 */
   describe('When: 正常系', () => {
     it('[Normal] T-PF-BC-01-01: agent が "claude" になる', () => {
-      assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).agent, 'claude');
+      assertEquals(buildConfig({ dryRun: false }, globalConfig).agent, 'claude');
     });
 
     it('[Normal] T-PF-BC-01-02: chatlogsDir が "./chatlogs" になる', () => {
-      assertEquals(buildConfig({ dryRun: false, report: false }, globalConfig).chatlogsDir, './chatlogs');
+      assertEquals(buildConfig({ dryRun: false }, globalConfig).chatlogsDir, './chatlogs');
     });
 
     it('[Normal] T-PF-BC-01-03: dryRun が false になる', () => {
-      assertFalse(buildConfig({ dryRun: false, report: false }, globalConfig).dryRun);
+      assertFalse(buildConfig({ dryRun: false }, globalConfig).dryRun);
     });
 
     it('[Normal] T-PF-BC-02-01: agent が "codex" になる', () => {
-      assertEquals(buildConfig({ agent: 'codex', dryRun: false, report: false }, globalConfig).agent, 'codex');
+      assertEquals(buildConfig({ agent: 'codex', dryRun: false }, globalConfig).agent, 'codex');
     });
 
     it('[Normal] T-PF-BC-03-01: dryRun が true になる', () => {
-      assert(buildConfig({ dryRun: true, report: true }, globalConfig).dryRun);
-    });
-
-    it('[Normal] T-PF-BC-03-02: report が true になる', () => {
-      assert(buildConfig({ dryRun: true, report: true }, globalConfig).report);
+      assert(buildConfig({ dryRun: true }, globalConfig).dryRun);
     });
 
     it('[Normal] T-PF-BC-04-01: inputDir が "/chat" になる', () => {
       assertEquals(
-        buildConfig({ inputDir: '/chat', dryRun: false, report: false }, globalConfig).inputDir,
+        buildConfig({ inputDir: '/chat', dryRun: false }, globalConfig).inputDir,
         '/chat',
       );
     });

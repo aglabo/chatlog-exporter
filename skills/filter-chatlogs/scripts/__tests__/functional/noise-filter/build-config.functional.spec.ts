@@ -68,7 +68,6 @@ const _CUSTOM_DEFAULTS: NoiseFilterConfig = {
  * - `inputDir`   : parsed.inputDir（指定時のみ設定される）
  * - `period`     : parsed のみ（GlobalConfig 連携なし）
  * - `dryRun`     : parsed > defaults (false)
- * - `report`     : parsed > defaults (false)
  * - `configFile` は NoiseFilterConfig に存在しないため結果に含まれない
  *
  * テスト ID 範囲: T-PF-BC-06 〜 T-PF-BC-16

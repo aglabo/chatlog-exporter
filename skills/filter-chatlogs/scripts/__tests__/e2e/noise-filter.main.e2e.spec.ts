@@ -6,7 +6,6 @@
 //         入力: inputDir/agent/YYYY/YYYY-MM/*.md
 //         正規表現でノイズと判定したファイルを削除する
 //         --dry-run: 削除せず対象パスを stdout に出力
-//         --report:  NOISE\t{reason}\t{path} 形式で stdout に出力（削除なし）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 // This software is released under the MIT License.
@@ -110,61 +109,6 @@ describe('main (noise-filter) - dry-run モード', () => {
 
           assertEquals(await fileExists(filePath), true);
           assertEquals(loggerStub.logLogs.some((line) => line.includes('say-ok-and-nothing-else.md')), true);
-        });
-      });
-    });
-  });
-});
-
-// ─── T-PF-E2E-02: --report → NOISE\t{reason}\t{path} 形式、削除なし ──────────
-
-/**
- * `main` 関数（noise-filter）の E2E テストスイート（report モード）。
- *
- * `--report` フラグを指定した際に `NOISE\t{reason}\t{path}` 形式で
- * stdout に出力され、ファイルが削除されないことを検証する。
- *
- * テスト ID 範囲: T-PF-E2E-02
- *
- * @see main
- */
-describe('main (noise-filter) - report モード', () => {
-  /**
-   * ノイズファイル名の `.md` ファイルと `--report` フラグが存在する前提。
-   *
-   * report モードでは NOISE タブ区切り形式の出力が行われ、
-   * ファイルの削除は発生しないことを確認する。
-   */
-  describe('Given: ノイズファイル名の .md ファイルと --report フラグ', () => {
-    /** `main(["claude", "--report", "--input-dir", chatlogsDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--report", "--input-dir", chatlogsDir]) を呼び出す', () => {
-      /** `NOISE\t{reason}\t{path}` 形式でログ出力され、ファイルが削除されないこと。 */
-      describe('Then: T-PF-E2E-02 - NOISE タブ区切り形式で出力、削除なし', () => {
-        let tempDir: string;
-        let chatlogsDir: string;
-        let loggerStub: LoggerStub;
-
-        beforeEach(async () => {
-          ({ tempDir, chatlogsDir } = await _makeTestDirs());
-          loggerStub = makeLoggerStub();
-        });
-
-        afterEach(async () => {
-          loggerStub.restore();
-          GlobalConfig.resetInstance();
-          await Deno.remove(tempDir, { recursive: true });
-        });
-
-        it('T-PF-E2E-02-01: NOISE タブ区切り形式で出力され、ファイルが削除されずに残っている', async () => {
-          const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
-          await Deno.writeTextFile(filePath, _makeValidContent());
-
-          await main(['claude', '2026-03', '--report', '--input-dir', chatlogsDir]);
-
-          const noiseLine = loggerStub.logLogs.find((line) => line.startsWith('NOISE\t'));
-          assertEquals(noiseLine !== undefined, true);
-          assertEquals(noiseLine!.split('\t').length >= 3, true);
-          assertEquals(await fileExists(filePath), true);
         });
       });
     });
@@ -394,55 +338,6 @@ describe('main (noise-filter) - period 絞り込み', () => {
 
           await assertFileNotExist(noisePath03);
           assertEquals(await fileExists(noisePath04), true);
-        });
-      });
-    });
-  });
-});
-
-// ─── T-PF-E2E-08: --report → 完了ログに "report" が含まれる ─────────────────
-
-/**
- * `main` 関数（noise-filter）の E2E テストスイート（report 完了ログ）。
- *
- * `--report` フラグを指定した際の完了ログに `report` が含まれることを検証する。
- *
- * テスト ID 範囲: T-PF-E2E-08
- *
- * @see main
- */
-describe('main (noise-filter) - report 完了ログ', () => {
-  /**
-   * 正常ファイル 1 件と `--report` フラグが存在する前提。
-   *
-   * report モードの完了ログが `report` キーワードを含むことを確認する。
-   */
-  describe('Given: 正常ファイル 1 件と --report フラグ', () => {
-    /** `main(["claude", "--report", "--input-dir", chatlogsDir])` を呼び出すとき。 */
-    describe('When: main(["claude", "--report", "--input-dir", chatlogsDir]) を呼び出す', () => {
-      /** 完了ログに `report` キーワードが含まれること。 */
-      describe('Then: T-PF-E2E-08 - 完了ログに "report" が含まれる', () => {
-        let tempDir: string;
-        let chatlogsDir: string;
-        let loggerStub: LoggerStub;
-
-        beforeEach(async () => {
-          ({ tempDir, chatlogsDir } = await _makeTestDirs());
-          loggerStub = makeLoggerStub();
-        });
-
-        afterEach(async () => {
-          loggerStub.restore();
-          GlobalConfig.resetInstance();
-          await Deno.remove(tempDir, { recursive: true });
-        });
-
-        it('T-PF-E2E-08-01: 完了ログに "report" が含まれる', async () => {
-          await Deno.writeTextFile(`${chatlogsDir}/valid.md`, _makeValidContent());
-
-          await main(['claude', '2026-03', '--report', '--input-dir', chatlogsDir]);
-
-          assertEquals(loggerStub.infoLogs.some((line) => line.includes('report')), true);
         });
       });
     });

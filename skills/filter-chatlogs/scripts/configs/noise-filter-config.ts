@@ -25,14 +25,11 @@ import type { NoiseFilterConfig, NoiseFilterParsedConfig } from '../types/noise-
 // ─────────────────────────────────────────────
 
 /** noise-filter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgSchema<NoiseFilterParsedConfig> = [
-  { option: '--report', field: 'report', type: 'flag' },
-];
+const _SCHEMA: ArgSchema<NoiseFilterParsedConfig> = [];
 
 export const parseArgs = (args: string[]): NoiseFilterParsedConfig => {
   const _parsed = parseArgsToConfig<NoiseFilterParsedConfig>(args, _SCHEMA);
-  _parsed.dryRun ??= (_parsed.dryRun ?? false) || (_parsed.report ?? false);
-  _parsed.report ??= false;
+  _parsed.dryRun ??= false;
   return {
     ..._parsed,
   };
