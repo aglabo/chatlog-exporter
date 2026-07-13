@@ -197,12 +197,15 @@ describe('main - DISCARD 判定', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: discard.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/discard.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-02-01: ファイルが削除される', async () => {
@@ -378,6 +381,7 @@ describe('main - DISCARD + KEEP 混在', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -385,6 +389,8 @@ describe('main - DISCARD + KEEP 混在', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/discard.md`, _makeValidContent());
             await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-05-01: discard.md が削除される', async () => {
@@ -462,7 +468,8 @@ describe('main - period 絞り込み', () => {
             await Deno.mkdir(`${agentDir}/2026/2026-04`, { recursive: true });
             await Deno.writeTextFile(`${agentDir}/2026/2026-03/march.md`, _makeValidContent('March'));
             await Deno.writeTextFile(`${agentDir}/2026/2026-04/april.md`, _makeValidContent('April'));
-            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'\ncacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-06-01: 指定月 (2026-03) のファイルが削除される', async () => {
@@ -789,7 +796,8 @@ describe('main - period 未指定', () => {
             await Deno.mkdir(`${agentDir}/2026/2026-04`, { recursive: true });
             await Deno.writeTextFile(`${agentDir}/2026/2026-03/march.md`, _makeValidContent('March'));
             await Deno.writeTextFile(`${agentDir}/2026/2026-04/april.md`, _makeValidContent('April'));
-            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`chatlogsDir: '${tempDir}'\ncacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-10-01: 2026-03 のファイルが削除される', async () => {
@@ -877,6 +885,148 @@ describe('main - キャッシュ KEEP 済み', () => {
             await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/keep.md`), true);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-13: キャッシュ DISCARD 確定済み → claude CLI 未呼び出し ───────
+
+/**
+ * `main` 関数の E2E テストスイート（キャッシュ済み DISCARD 確定判定）。
+ *
+ * ファイル単位の判定結果キャッシュに `decision: DISCARD` かつ
+ * `confidence >= discardThreshold`（確定済み）が既に記録されている場合、
+ * `prefilterFiles` に渡す前に対象から除外され、claude CLI が呼び出されないことを検証する。
+ *
+ * confidence が discardThreshold 未満の場合は引き続き判定対象に含まれることも
+ * 対比ケースとして検証する（T-FL-E2E-13-03, -04）。
+ *
+ * テスト ID 範囲: T-FL-E2E-13
+ *
+ * @see main
+ */
+describe('main - キャッシュ DISCARD 確定済み', () => {
+  /**
+   * キャッシュに `discard-cached.md` の判定結果として
+   * `decision: DISCARD, confidence: 0.9`（discardThreshold=0.7 以上）が既に書き込まれている前提。
+   *
+   * キャッシュ済み DISCARD 確定ファイルは claude CLI 呼び出し前に除外され、
+   * ファイルシステム上には残ることを確認する（削除は processChunk 経由でのみ行われるため）。
+   */
+  describe('Given: cacheDir に discard-cached.md の DISCARD 確定キャッシュエントリを配置', () => {
+    /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI が呼び出されず、ファイルが残ること。 */
+      describe('Then: T-FL-E2E-13 - claude CLI 未呼び出し・ファイルが残る', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: discard-cached.md を chatlogsDir に配置し、cacheDir に DISCARD 確定エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/discard-cached.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/discard-cached.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-13-01: claude CLI が呼び出されない', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 0);
+          });
+
+          it('T-FL-E2E-13-02: discard-cached.md が残っている', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(await fileExists(`${chatlogsDir}/discard-cached.md`), true);
+          });
+        });
+      });
+    });
+  });
+
+  /**
+   * キャッシュに `discard-low-conf.md` の判定結果として
+   * `decision: DISCARD, confidence: 0.69`（discardThreshold=0.7 未満）が既に書き込まれている前提。
+   *
+   * confidence が閾値未満の DISCARD は確定済みとは扱われず、引き続き claude CLI による
+   * 再判定対象に含まれることを確認する（対称性の確認）。
+   */
+  describe('Given: cacheDir に discard-low-conf.md の DISCARD 未確定（confidence 閾値未満）キャッシュエントリを配置', () => {
+    /** `main(["claude", "2026-03", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI が呼び出され、ファイルが判定対象に含まれること。 */
+      describe('Then: T-FL-E2E-13 - claude CLI が呼び出される（再判定対象）', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: discard-low-conf.md を chatlogsDir に配置し、cacheDir に DISCARD 未確定エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/discard-low-conf.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/discard-low-conf.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.DISCARD, confidence: 0.69, reason: 'uncertain' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-13-03: claude CLI が呼び出される（再判定対象に含まれる）', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(counter.calls, 1);
+          });
+
+          it('T-FL-E2E-13-04: discard-low-conf.md が残っている（判定結果 KEEP 扱い）', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(await fileExists(`${chatlogsDir}/discard-low-conf.md`), true);
           });
         });
       });
