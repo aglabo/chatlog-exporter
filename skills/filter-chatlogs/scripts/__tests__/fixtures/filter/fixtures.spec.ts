@@ -35,9 +35,6 @@ const _SYSTEM_PROMPT = `Output ONLY a JSON array. No markdown, no explanation, n
 KEEP: design decisions, reusable patterns, new concepts, architecture discussion
 DISCARD: execution-only, trivial Q&A, no reusable insight, context-dependent`;
 
-/** fixtures-data/fixtures/mock の絶対パス。 */
-const MOCK_FIXTURES_DIR = normalizePath(new URL('./fixtures-data/fixtures/mock', import.meta.url).pathname);
-
 /** fixtures-data/fixtures/real の絶対パス。 */
 const REAL_FIXTURES_DIR = normalizePath(new URL('./fixtures-data/fixtures/real', import.meta.url).pathname);
 
@@ -113,33 +110,6 @@ const _buildUserPrompt = (filename: string, body: string): string => {
 };
 
 /**
- * 1件の fixture を mock_response で検証する（常時実行）。
- *
- * @param fixture - mock_response を持つ FixtureInfo
- */
-const _runMockFixture = async (fixture: FixtureInfo): Promise<void> => {
-  const _inputContent = await readTextFile(fixture.inputPath);
-  const { body } = _parseFrontmatter(_inputContent);
-  const _prompt = _buildUserPrompt('input.md', body.slice(0, 8000));
-  void _prompt;
-
-  const _parsed = parseAiJsonArray<ClaudeResult>(fixture.expectedOutput.mock_response!);
-  if (!_parsed || _parsed.length === 0) { return; }
-  const _result = _parsed[0];
-
-  assertEquals(
-    _result.confidence >= fixture.expectedOutput.confidence_min,
-    true,
-    `confidence ${_result.confidence} が confidence_min ${fixture.expectedOutput.confidence_min} 未満`,
-  );
-  assertEquals(
-    _result.decision,
-    fixture.expectedOutput.expected_decision,
-    `decision "${_result.decision}" が期待値 "${fixture.expectedOutput.expected_decision}" と不一致`,
-  );
-};
-
-/**
  * 1件の fixture を実際の claude CLI で検証する（RUN_AI=1 のみ）。
  *
  * @param fixture - mock_response を持たない FixtureInfo
@@ -168,32 +138,10 @@ const _runRealFixture = async (fixture: FixtureInfo): Promise<void> => {
 
 // ─── Tests
 
-const _mockFixtures = await _loadFixtureInfos(MOCK_FIXTURES_DIR);
 const _realFixtures = await _loadFixtureInfos(REAL_FIXTURES_DIR);
 
-/**
- * mock_response を使った fixture ドリブンテストスイート（常時実行）。
- *
- * fixtures-data/fixtures/mock/ の各ディレクトリを mock_response で検証する。
- *
- * テスト ID 範囲: T-FL-FC-edge-01-minimal
- *
- * @see runAI
- * @see parseAiJsonArray
- */
-describe('Mock判定', () => {
-  for (const fixture of _mockFixtures) {
-    /** `${fixture.relPath}` を mock_response で検証する。 */
-    describe(`Given: ${fixture.relPath}`, () => {
-      it(
-        `T-FL-FC-${fixture.relPath}: 判定が expected_decision (${fixture.expectedOutput.expected_decision}) になる`,
-        async () => {
-          await _runMockFixture(fixture);
-        },
-      );
-    });
-  }
-});
+// NOTE: 「Mock判定」ブロック（mock_response を parseAiJsonArray に通し同じ fixture の期待値と比較するだけの自己参照テスト）は削除済み。
+// runAI 等の実装ロジックを経由しないため再追加しないこと。
 
 /**
  * 実 claude CLI を使った fixture ドリブンテストスイート（`RUN_AI=1` のみ実行）。
