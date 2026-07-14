@@ -41,10 +41,10 @@ const _FALLBACK_PROPS = {
 
 const _resolveToFixture = (_opts: ResolveConfigPathOptions): string => _FIXTURE_DIC_PATH;
 const _resolveFileDirNotFound = (_opts: ResolveConfigPathOptions): string => {
-  throw new ChatlogError('FileDirNotFound', 'テスト用: ファイル不在');
+  throw new ChatlogError('FileDirNotFound', 'TestStub', 'テスト用: ファイル不在');
 };
 const _resolveGitNotFound = (_opts: ResolveConfigPathOptions): string => {
-  throw new ChatlogError('GitNotFound', 'テスト用: git が見つからない');
+  throw new ChatlogError('GitNotFound', 'TestStub', 'テスト用: git が見つからない');
 };
 
 const _readPermissionError = (_path: string) =>
