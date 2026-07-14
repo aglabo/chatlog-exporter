@@ -21,6 +21,7 @@ import type { Stub } from '@std/testing/mock';
 // ─── Test target
 import { main } from '../../filter-chatlogs.ts';
 // classes
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // constants
 import { LOGGER_HEADER } from '../../../../_scripts/constants/logger-header.constants.ts';
@@ -679,7 +680,7 @@ describe('main - Claude CLI 異常終了', () => {
  * `main` 関数の E2E テストスイート（存在しない period ディレクトリ）。
  *
  * period を指定したとき、その月ディレクトリが存在しない場合に
- * InputNotFound エラーになることを検証する。
+ * `ChatlogError` が throw され、`main` が reject されることを検証する。
  *
  * テスト ID 範囲: T-FL-E2E-11
  *
@@ -689,17 +690,15 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
   /**
    * agent ディレクトリは存在するが、period ディレクトリ（2026-99）が存在しない前提。
    *
-   * period 込みで存在確認を行い、存在しない場合は InputNotFound エラーと
-   * Deno.exit(1) が発生することを確認する。
+   * period 込みで存在確認を行い、存在しない場合は `ChatlogError` が throw されることを確認する。
    */
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
     /** `main(["claude", "2026-99"])` を呼び出すとき（GlobalConfig に chatlogsDir を設定）。 */
     describe('When: main(["claude", "2026-99"]) を呼び出す', () => {
-      /** InputNotFound エラーが発生し Deno.exit(1) が呼ばれること。 */
-      describe('Then: T-FL-E2E-11 - InputNotFound → exit(1)', () => {
+      /** `ChatlogError` が throw され `main` が reject されること。 */
+      describe('Then: T-FL-E2E-11 - main が ChatlogError で reject される', () => {
         let tempDir: string;
         let loggerStub: LoggerStub;
-        let exitStub: Stub;
 
         beforeEach(async () => {
           // agent ディレクトリは存在するが、2026-99 月ディレクトリは存在しない
@@ -710,33 +709,18 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
           await Deno.mkdir(originalLogsAgentDir, { recursive: true });
           await _makeGlobalConfig(`chatlogsDir: '${tempDir}'`);
           loggerStub = makeLoggerStub();
-          exitStub = stub(Deno, 'exit');
         });
 
         afterEach(async () => {
           loggerStub.restore();
-          exitStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        it('T-FL-E2E-11-01: Deno.exit が 1 で呼ばれる', async () => {
-          try {
-            await main(['claude', '2026-99']);
-          } catch { /* ChatlogError が漏れた場合も継続 */ }
-
-          assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
-          assertEquals(exitStub.calls[0].args[0], 1);
-        });
-
-        it('T-FL-E2E-11-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
-          try {
-            await main(['claude', '2026-99']);
-          } catch { /* ChatlogError が漏れた場合も継続 */ }
-
-          assertEquals(
-            loggerStub.errorLogs.some((l) => l.includes('入力ディレクトリが見つかりません')),
-            true,
+        it('T-FL-E2E-11-01: ChatlogError で main が reject される', async () => {
+          await assertRejects(
+            () => main(['claude', '2026-99']),
+            ChatlogError,
           );
         });
       });

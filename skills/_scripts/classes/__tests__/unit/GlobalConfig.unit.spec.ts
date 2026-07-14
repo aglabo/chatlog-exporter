@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals, assertFalse, assertStrictEquals, assertThrows } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertStrictEquals, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -473,6 +473,7 @@ describe('GlobalConfig', () => {
           ChatlogError,
         );
         assertEquals(_err.kind, 'FileDirNotFound');
+        assert(_err.message.includes('/mock/missing.yaml'));
       });
 
       it('[Error] T-CLS-GC-35: 不正な YAML 文字列 → ChatlogError の kind が InvalidYaml でスローされる', () => {

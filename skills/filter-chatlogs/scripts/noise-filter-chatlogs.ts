@@ -52,35 +52,39 @@ import { processNoiseFiles } from './modules/noise-filter/process-noise-files.ts
 // ─────────────────────────────────────────────
 
 export const main = async (args: string[] = Deno.args): Promise<void> => {
+  const _parsed = parseArgs(args);
+  const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
+  const { agent, period, chatlogsDir, inputDir, dryRun } = buildConfig(_parsed, _globalConfig);
+  const _searchDir = resolveChatlogsDir({
+    chatlogsDir,
+    agent,
+    period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: inputDir,
+  });
+
+  if (!await dirExists(_searchDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_searchDir}`);
+  }
+
+  const files = await findFiles(_searchDir);
+  logger.info(`対象ファイル数: ${files.length}`);
+  if (dryRun) {
+    logger.info('dry-run モード: ファイルは削除しません');
+  }
+
+  const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
+  await processNoiseFiles(files, stats, { dryRun });
+
+  const suffix = dryRun ? ' (dry-run)' : '';
+  logger.info(
+    `\n完了${suffix}: keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
+  );
+};
+
+if (import.meta.main) {
   try {
-    const _parsed = parseArgs(args);
-    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const { agent, period, chatlogsDir, inputDir, dryRun } = buildConfig(_parsed, _globalConfig);
-    const _searchDir = resolveChatlogsDir({
-      chatlogsDir,
-      agent,
-      period,
-      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-      override: inputDir,
-    });
-
-    if (!await dirExists(_searchDir)) {
-      throw new ChatlogError('InputNotFound', `入力ディレクトリが見つかりません: ${_searchDir}`);
-    }
-
-    const files = await findFiles(_searchDir);
-    logger.info(`対象ファイル数: ${files.length}`);
-    if (dryRun) {
-      logger.info('dry-run モード: ファイルは削除しません');
-    }
-
-    const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
-    await processNoiseFiles(files, stats, { dryRun });
-
-    const suffix = dryRun ? ' (dry-run)' : '';
-    logger.info(
-      `\n完了${suffix}: keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
-    );
+    await main();
   } catch (e) {
     if (e instanceof ChatlogError) {
       logger.error(e.message);
@@ -88,8 +92,4 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     }
     throw e;
   }
-};
-
-if (import.meta.main) {
-  await main();
 }

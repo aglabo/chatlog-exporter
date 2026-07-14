@@ -131,6 +131,7 @@ describe('_setByTypeForTest (negated)', () => {
       const _entry = { option: '--dry-run', field: 'dryRun', type: 'flag' as const };
       const _err = _setByTypeForTest(_config, _entry, 'true', true);
       assertEquals(_err instanceof ChatlogError, true);
+      assert((_err as ChatlogError).message.includes('フラグに値は指定できません'));
     });
 
     it('[Error] T-PA-ST-N-03: string 型 + negated=true → ChatlogError が返る', () => {
@@ -138,6 +139,7 @@ describe('_setByTypeForTest (negated)', () => {
       const _entry = { option: '--output', field: 'outputDir', type: 'string' as const };
       const _err = _setByTypeForTest(_config, _entry, undefined, true);
       assertEquals(_err instanceof ChatlogError, true);
+      assert((_err as ChatlogError).message.includes('--no- は flag 型にのみ使用できます'));
     });
   });
 });
@@ -374,11 +376,11 @@ describe('parseArgsToConfig', () => {
   describe('Given: 不明な -- オプション', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: T-PA-09 - ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-PA-09-01: --unknown → ChatlogError がスローされる', () => {
+        it('T-PA-09-01: --unknown → ChatlogError がスローされる（不明なオプション の詳細を含む）', () => {
           assertThrows(
             () => parseArgs<TestConfig>(['--unknown'], TEST_SCHEMA),
             ChatlogError,
-            'Invalid Args',
+            '不明なオプション: --unknown',
           );
         });
       });
@@ -390,11 +392,11 @@ describe('parseArgsToConfig', () => {
   describe('Given: 不明な位置引数', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: T-PA-10 - ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-PA-10-01: "unknown-arg" → ChatlogError がスローされる', () => {
+        it('T-PA-10-01: "unknown-arg" → ChatlogError がスローされる（不明な引数 の詳細を含む）', () => {
           assertThrows(
             () => parseArgs<TestConfig>(['unknown-arg'], TEST_SCHEMA),
             ChatlogError,
-            'Invalid Args',
+            '不明な引数: unknown-arg',
           );
         });
       });
@@ -406,11 +408,11 @@ describe('parseArgsToConfig', () => {
   describe('Given: 値なしのキー付きオプション', () => {
     describe('When: parseArgs(["--output"]) を呼び出す', () => {
       describe('Then: T-PA-11 - ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-PA-11-01: --output のみ → ChatlogError がスローされる', () => {
+        it('T-PA-11-01: --output のみ → ChatlogError がスローされる（値が空です の詳細を含む）', () => {
           assertThrows(
             () => parseArgs<TestConfig>(['--output'], TEST_SCHEMA),
             ChatlogError,
-            'Invalid Args',
+            '値が空です',
           );
         });
       });
@@ -513,11 +515,11 @@ describe('parseArgsToConfig', () => {
     ];
 
     describe('When: 異常系', () => {
-      it('[Error] T-PA-17-01: --period invalid-format → ChatlogError(InvalidArgs) がスローされる', () => {
+      it('[Error] T-PA-17-01: --period invalid-format → ChatlogError(InvalidArgs) がスローされる（期間形式ではありません の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig>(['--period', 'invalid-format'], _SCHEMA_WITH_PERIOD),
           ChatlogError,
-          'Invalid Args',
+          '期間形式ではありません',
         );
       });
     });
@@ -567,11 +569,11 @@ describe('parseArgsToConfig', () => {
     ];
 
     describe('When: 異常系', () => {
-      it('[Error] T-PA-19-01: --agent unknown-bot → ChatlogError(InvalidArgs) がスローされる', () => {
+      it('[Error] T-PA-19-01: --agent unknown-bot → ChatlogError(InvalidArgs) がスローされる（不明なエージェント の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig>(['--agent', 'unknown-bot'], _SCHEMA_WITH_AGENT),
           ChatlogError,
-          'Invalid Args',
+          '不明なエージェント: unknown-bot',
         );
       });
     });
@@ -594,11 +596,11 @@ describe('parseArgsToConfig', () => {
     ];
 
     describe('When: 異常系', () => {
-      it('[Error] T-PA-20-01: --limit abc → ChatlogError(InvalidArgs) がスローされる', () => {
+      it('[Error] T-PA-20-01: --limit abc → ChatlogError(InvalidArgs) がスローされる（整数ではありません の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig & { limit?: string }>(['--limit', 'abc'], _SCHEMA_WITH_INTEGER),
           ChatlogError,
-          'Invalid Args',
+          '整数ではありません: abc',
         );
       });
     });
@@ -621,11 +623,11 @@ describe('parseArgsToConfig', () => {
     ];
 
     describe('When: 異常系', () => {
-      it('[Error] T-PA-21-01: --ratio xyz → ChatlogError(InvalidArgs) がスローされる', () => {
+      it('[Error] T-PA-21-01: --ratio xyz → ChatlogError(InvalidArgs) がスローされる（数値ではありません の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig & { ratio?: string }>(['--ratio', 'xyz'], _SCHEMA_WITH_NUMBER),
           ChatlogError,
-          'Invalid Args',
+          '数値ではありません: xyz',
         );
       });
     });
@@ -803,11 +805,11 @@ describe('parseArgsToConfig', () => {
           'Invalid Args',
         );
       });
-      it('[Error] T-PA-29-02: --no-dry-run=true → ChatlogError(InvalidArgs) がスローされる (=値指定不可)', () => {
+      it('[Error] T-PA-29-02: --no-dry-run=true → ChatlogError(InvalidArgs) がスローされる (=値指定不可、--no- フラグに値は指定できません の詳細を含む)', () => {
         assertThrows(
           () => parseArgs<TestConfig>(['--no-dry-run=true'], TEST_SCHEMA),
           ChatlogError,
-          'Invalid Args',
+          '--no- フラグに値は指定できません',
         );
       });
     });
@@ -866,11 +868,11 @@ describe('parseArgsToConfig', () => {
 
     /** ディレクトリ形式でない値を渡す異常系。 */
     describe('When: 異常系', () => {
-      it('[Error] T-PA-31-02: --cache-dir plain-value → ChatlogError(InvalidArgs) がスローされる', () => {
+      it('[Error] T-PA-31-02: --cache-dir plain-value → ChatlogError(InvalidArgs) がスローされる（ディレクトリ形式ではありません の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfigWithCache>(['--cache-dir', 'plain-value'], _SCHEMA_WITH_CACHE),
           ChatlogError,
-          'Invalid Args',
+          'ディレクトリ形式ではありません',
         );
       });
     });
@@ -926,11 +928,11 @@ describe('parseArgsToConfig', () => {
    */
   describe('Given: agent の次に agent 名を渡す（idx1 が period 形式でない）', () => {
     describe('When: 異常系', () => {
-      it('[Error] T-PA-33-01: "claude" "chatgpt" → idx1 が period 形式でないため ChatlogError(InvalidArgs)', () => {
+      it('[Error] T-PA-33-01: "claude" "chatgpt" → idx1 が period 形式でないため ChatlogError(InvalidArgs)（2番目の引数は期間形式である必要があります の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig>(['claude', 'chatgpt'], TEST_SCHEMA),
           ChatlogError,
-          'Invalid Args',
+          '2番目の引数は期間形式である必要があります',
         );
       });
     });
@@ -982,11 +984,11 @@ describe('parseArgsToConfig', () => {
         assertEquals(result.inputDir, 'in');
         assertEquals(result.outputDir, 'out');
       });
-      it('[Error] T-PA-POS-03: ["./in", "./out", "./extra"] → 3個目で ChatlogError(InvalidArgs)', () => {
+      it('[Error] T-PA-POS-03: ["./in", "./out", "./extra"] → 3個目で ChatlogError(InvalidArgs)（位置引数が多すぎます の詳細を含む）', () => {
         assertThrows(
           () => parseArgs<TestConfig>(['./in', './out', './extra'], TEST_SCHEMA),
           ChatlogError,
-          'Invalid Args',
+          '位置引数が多すぎます',
         );
       });
     });
