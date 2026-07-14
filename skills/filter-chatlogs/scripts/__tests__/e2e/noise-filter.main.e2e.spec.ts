@@ -25,23 +25,34 @@ import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
-import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // e2e helpers
 import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { makePeriodDir, makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
+import { makePeriodDir, makeRepeatedContent, makeTestDirs, makeValidContent } from '../_helpers/fixtures.ts';
 // helpers
 import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
+
+// constants
+
+/**
+ * `main`（prefilterFiles → processNoiseFiles）を通過する最小テキスト長（文字数）。
+ *
+ * `main()` は `prefilterFiles` の `minCharCount`（デフォルト 1000）を経由するため、
+ * `processNoiseFiles` 単体のテストで使う `NOISE_FILTER_MIN_CONTENT_LENGTH`（300）では
+ * 事前フィルタで除外されてしまう。`makeRepeatedContent(N)` は本文長 `2N+46` 程度になるため、
+ * N=500 で `minCharCount`（1000）と `minAssistantChars`（300）の両方を満たす。
+ */
+const _MAIN_MIN_CONTENT_LENGTH = 500;
 
 // functions
 
 /** `_makeTestDirs` のラッパー。デフォルト引数付きで `makeTestDirs` を呼び出す。 */
 const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(agent, period);
 
-/** `_makeValidContent` のラッパー。`NOISE_FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
-const _makeValidContent = () => makeRepeatedContent(NOISE_FILTER_MIN_CONTENT_LENGTH);
+/** `_makeValidContent` のラッパー。`_MAIN_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
+const _makeValidContent = () => makeRepeatedContent(_MAIN_MIN_CONTENT_LENGTH);
 
 /**
  * テスト用 `GlobalConfig` インスタンスを YAML 文字列から生成する。
@@ -165,6 +176,62 @@ describe('main (noise-filter) - 通常実行（削除あり）', () => {
 
           await assertFileNotExist(noisePath);
           assertEquals(await fileExists(validPath), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-PF-E2E-16: 内容が短いファイル → 事前フィルタで削除される ─────────────
+
+/**
+ * `main` 関数（noise-filter）の E2E テストスイート（事前フィルタによる内容ベース削除）。
+ *
+ * ファイル名はノイズパターンに一致しないが本文が `minCharCount`（デフォルト 1000）未満の
+ * ファイルが、`processNoiseFiles`（会話内容判定）に到達する前に `prefilterFiles` の
+ * 内容チェックで削除されることを検証する。
+ *
+ * テスト ID 範囲: T-PF-E2E-16
+ *
+ * @see main
+ */
+describe('main (noise-filter) - 事前フィルタによる内容ベース削除', () => {
+  /**
+   * ファイル名は正常だが本文が `minCharCount` 未満の短い会話ファイルが存在する前提。
+   *
+   * ファイル名パターンでは除外されないが、内容が短すぎるため事前フィルタで削除されることを確認する。
+   */
+  describe('Given: ファイル名は正常だが本文が短すぎるファイル', () => {
+    /** `main(["claude", "--input-dir", chatlogsDir])` を呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", chatlogsDir]) を呼び出す', () => {
+      /** ファイルが `processNoiseFiles` に到達する前に事前フィルタで削除されること。 */
+      describe('Then: T-PF-E2E-16 - 内容が短いファイルが事前フィルタで削除される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it('T-PF-E2E-16-01: 本文が短すぎるファイルが削除される', async () => {
+          const shortPath = `${chatlogsDir}/short-content.md`;
+          // Assistant応答は100文字以上（processNoiseFiles 単体の MIN_ASSISTANT_CHARS を通過する）が、
+          // 本文全体は minCharCount（デフォルト1000）未満のため、prefilterFiles で削除される想定。
+          const question = 'これは通常の質問文です。'.repeat(3);
+          const answer = 'これは通常の回答文です。'.repeat(15);
+          await Deno.writeTextFile(shortPath, makeValidContent('テスト', question, answer));
+
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          await assertFileNotExist(shortPath);
         });
       });
     });
@@ -368,6 +435,10 @@ describe('main (noise-filter) - 存在しない inputDir', () => {
     describe('When: main(["claude", "--input-dir", "/nonexistent/path"]) を呼び出す', () => {
       /** `ChatlogError` が throw され `main` が reject されること。 */
       describe('Then: T-PF-E2E-08 - main が ChatlogError で reject される', () => {
+        afterEach(() => {
+          GlobalConfig.resetInstance();
+        });
+
         it('T-PF-E2E-08-01: ChatlogError で main が reject される', async () => {
           await assertRejects(
             () => main(['claude', '--input-dir', '/nonexistent/path']),
