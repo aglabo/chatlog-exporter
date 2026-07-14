@@ -44,7 +44,7 @@ allowed-tools: Bash, Glob
 - `agent`（例: `chatgpt`）→ 指定 agent の全体
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
 - `path`（例: `chatlogs\claude\2026\2026-04`）→ 指定パスをそのまま渡す（agent/period の代わり）
-- `--dry-run` → 削除せず、ノイズ候補のパスを標準出力に表示
+- `--dry-run` → 削除せず、ノイズ候補のパスと判定理由をログ出力
 
 ## ステップ1: スクリプトパスの解決
 
@@ -89,19 +89,20 @@ deno run --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
 ### filter サブコマンドまたはサブコマンドなしの場合
 
 先頭トークンが `filter` なら除去し、それ以外（サブコマンドなし）はそのまま `$ARGS` として使用する。
-解決した `SCRIPT_PATH` を使い、Bash で実行する（`--input` は**追加しない**）:
+解決した `SCRIPT_PATH` を使い、Bash で実行する（`--input` は**追加しない**）。
+`ChatlogCache` の初期化で `TEMP` 環境変数を参照するため `--allow-env` が必須:
 
 ```bash
-deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" $ARGS
+deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
 ```
 
 引数からオプションを組み立てるルール:
 
-- 引数なし → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH"`
-- `agent` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt`
-- `YYYY-MM` のみ → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" 2026-03`
-- `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03`
-- `agent YYYY-MM project` → `deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" chatgpt 2026-03 aplys`
+- 引数なし → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH"`
+- `agent` のみ → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt`
+- `YYYY-MM` のみ → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" 2026-03`
+- `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt 2026-03`
+- `agent YYYY-MM project` → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt 2026-03 aplys`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 
 スクリプトは以下の基準でKEEP/DISCARDを判定し、DISCARDかつ confidence >= 0.7 のファイルを削除する:
