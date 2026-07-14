@@ -31,6 +31,9 @@ export const DEFAULT_NOISE_FILTER_CONFIG: NoiseFilterConfig = {
   agent: DEFAULT_AGENT,
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
+  // config.yaml only
+  minCharCount: DEFAULT_CONFIG_VALUES.minCharCount,
+  minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
 };
 
 /** filter-chatlogs の parseArgs で未指定のフィールドに適用するデフォルト設定。 */
