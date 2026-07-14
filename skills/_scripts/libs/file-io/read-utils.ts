@@ -44,7 +44,8 @@ export const isFileIoError = (error: unknown): boolean =>
  * ファイルを読み込み、行末文字を LF に正規化して返す。
  * - ファイルが存在しない場合は `ChatlogError('FileDirNotFound')` を throw する（`throwFileIoError: false` を除く）。
  * - その他のファイル I/O 起因のエラー（PermissionDenied 等）はそのまま再 throw する（`throwFileIoError: false` を除く）。
- * - `throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは throw せず null を返す。
+ * - `throwFileIoError: false` を指定すると、ファイル I/O 起因のエラーは throw せず、その内容を保持した
+ *   `Error` インスタンスを返す（`NotFound` の場合は `ChatlogError('FileDirNotFound')`）。
  *   ファイル I/O 起因ではないエラーは `throwFileIoError` の値に関わらず常に再 throw する。
  *
  * @param path - 読み込むファイルの絶対パス
@@ -59,11 +60,11 @@ export function readTextFile(
 export function readTextFile(
   path: string,
   options: { readProvider?: ReadTextFileProvider; throwFileIoError: false },
-): Promise<string | null>;
+): Promise<string | Error>;
 export async function readTextFile(
   path: string,
   options?: { readProvider?: ReadTextFileProvider; throwFileIoError?: boolean },
-): Promise<string | null> {
+): Promise<string | Error> {
   const { readProvider = _DEFAULT_READ_PROVIDER, throwFileIoError = true } = options ?? {};
   try {
     return normalizeLine(await readProvider(path));
@@ -71,12 +72,12 @@ export async function readTextFile(
     if (!isFileIoError(e)) {
       throw e;
     }
+    const ioError = e instanceof Deno.errors.NotFound
+      ? new ChatlogError('FileDirNotFound', 'NotFound', path)
+      : (e as Error);
     if (throwFileIoError) {
-      if (e instanceof Deno.errors.NotFound) {
-        throw new ChatlogError('FileDirNotFound', 'NotFound', path);
-      }
-      throw e;
+      throw ioError;
     }
-    return null;
+    return ioError;
   }
 }
