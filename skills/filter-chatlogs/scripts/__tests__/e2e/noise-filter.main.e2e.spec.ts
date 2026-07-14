@@ -11,7 +11,7 @@
 // This software is released under the MIT License.
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -19,6 +19,7 @@ import { main } from '../../noise-filter-chatlogs.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 // types
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -338,6 +339,48 @@ describe('main (noise-filter) - period 絞り込み', () => {
 
           await assertFileNotExist(noisePath03);
           assertEquals(await fileExists(noisePath04), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-PF-E2E-08: 存在しない inputDir → ChatlogError で reject される ───────
+
+/**
+ * `main` 関数（noise-filter）の E2E テストスイート（存在しない inputDir）。
+ *
+ * 入力ディレクトリが存在しない場合に `ChatlogError` が throw され、
+ * `main` が reject されることを検証する。
+ *
+ * テスト ID 範囲: T-PF-E2E-08
+ *
+ * @see main
+ */
+describe('main (noise-filter) - 存在しない inputDir', () => {
+  /**
+   * 存在しないディレクトリパスを `--input-dir` に指定する前提。
+   *
+   * 入力ディレクトリが見つからない場合に `ChatlogError` が throw されることを確認する。
+   */
+  describe('Given: 存在しない inputDir を指定', () => {
+    /** `main(["claude", "--input-dir", "/nonexistent/path"])` を呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", "/nonexistent/path"]) を呼び出す', () => {
+      /** `ChatlogError` が throw され `main` が reject されること。 */
+      describe('Then: T-PF-E2E-08 - main が ChatlogError で reject される', () => {
+        it('T-PF-E2E-08-01: ChatlogError で main が reject される', async () => {
+          await assertRejects(
+            () => main(['claude', '--input-dir', '/nonexistent/path']),
+            ChatlogError,
+          );
+        });
+
+        it('T-PF-E2E-08-02: エラーメッセージにパスの詳細が含まれる', async () => {
+          const error = await assertRejects(
+            () => main(['claude', '--input-dir', '/nonexistent/path']),
+            ChatlogError,
+          );
+          assertEquals(error.message.includes('/nonexistent/path'), true);
         });
       });
     });
