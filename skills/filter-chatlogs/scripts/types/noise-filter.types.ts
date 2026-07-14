@@ -8,6 +8,7 @@
 
 // types
 import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+import type { FilterDecision } from './filter-decision.const.types.ts';
 
 /** `noise-filter-chatlogs` の `main` が使用する設定。すべてのフィールドに値が入る。 */
 export type NoiseFilterConfig = DefaultArgFields & {
@@ -21,6 +22,20 @@ export type NoiseFilterConfig = DefaultArgFields & {
 
 /** `noise-filter-chatlogs` の `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
 export type NoiseFilterParsedConfig = Partial<NoiseFilterConfig>;
+
+// ─────────────────────────────────────────────
+// ノイズ判定確定ファイル型
+// ─────────────────────────────────────────────
+
+/** ノイズ判定確定ファイル。`processNoiseFiles` のフェーズ関数間で受け渡す削除対象単位。 */
+export interface NoiseDiscardFile {
+  filePath: string;
+  filename: string;
+  /** ノイズ判定理由（`classifyFile`/`classifyConversation` が返す判定理由）。 */
+  reason: string;
+  /** 区別用の判定種別。ノイズ判定確定は `FILTER_DECISIONS.DISCARD`、読み込み失敗は `FILTER_DECISIONS.ERROR`。 */
+  decision: FilterDecision;
+}
 
 /** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */
 type _Assert<T extends Partial<ParsedArgs>> = T;
