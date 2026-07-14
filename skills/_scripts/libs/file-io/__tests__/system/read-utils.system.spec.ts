@@ -56,7 +56,7 @@ describe('readTextFile', () => {
         await assertRejects(() => readTextFile(childPath));
       });
 
-      it('[Normal] T-LIB-S-RF-02: throwFileIoError: false → 例外を投げず null が返る', async () => {
+      it('[Normal] T-LIB-S-RF-02: throwFileIoError: false → 例外を投げず Error が返る', async () => {
         // arrange
         const filePath = `${tmpDir}/file.md`;
         await Deno.writeTextFile(filePath, 'content');
@@ -66,7 +66,7 @@ describe('readTextFile', () => {
         const result = await readTextFile(childPath, { throwFileIoError: false });
 
         // assert
-        assertEquals(result, null);
+        assertEquals(result instanceof Error, true);
       });
     });
   });
