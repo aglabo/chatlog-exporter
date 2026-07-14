@@ -157,7 +157,11 @@ export class GlobalConfig {
       _text = _readTextFile(_resolved);
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) {
-        throw new ChatlogError('FileDirNotFound', `設定ファイル/ディレクトリが見つかりません: ${_resolved}`);
+        throw new ChatlogError(
+          'FileDirNotFound',
+          'ConfigNotFound',
+          `設定ファイル/ディレクトリが見つかりません: ${_resolved}`,
+        );
       }
       throw e;
     }
