@@ -11,15 +11,20 @@
  *
  * Claude API呼び出し前に、正規表現・テキストパターンで
  * 明らかなノイズファイルを削除候補として絞り込む。
+ * 処理は2段階構成: 事前フィルタ（prefilterFiles）→ ノイズ判定（processNoiseFiles）。
  *
- * 対象パターン:
+ * 事前フィルタ段階（prefilterFiles）:
  *   1. ファイル名パターン  : say-ok, command-message-* 等
- *   2. Git操作ログのみ    : ===== GIT LOGS/DIFF ===== で始まるUser入力
- *   3. スキル呼び出し     : ---\nname: commit-message-generator 等のYAML先頭
- *   4. 定型APIプロンプト  : idd-framework の補助呼び出し（100-150文字生成等）
- *   5. スラッシュコマンド : /export-log, /deckrd 等のみのUser入力
- *   6. システムタグのみ   : <system-reminder> 等
- *   7. 短すぎる応答      : Assistantが100文字未満（1ターン限定）
+ *   2. 本文の最小文字数    : minCharCount 未満（デフォルト1000文字）
+ *   3. Assistant応答の最小文字数 : User1ターン時、minAssistantChars 未満（デフォルト300文字）
+ *
+ * ノイズ判定段階（processNoiseFiles）:
+ *   1. Git操作ログのみ    : ===== GIT LOGS/DIFF ===== で始まるUser入力
+ *   2. スキル呼び出し     : ---\nname: commit-message-generator 等のYAML先頭
+ *   3. 定型APIプロンプト  : idd-framework の補助呼び出し（100-150文字生成等）
+ *   4. スラッシュコマンド : /export-log, /deckrd 等のみのUser入力
+ *   5. システムタグのみ   : <system-reminder> 等
+ *   6. 短すぎる応答      : Assistantが100文字未満（1ターン限定、MIN_ASSISTANT_CHARS）
  *
  * 使い方:
  *   deno run --allow-read --allow-write scripts/noise-filter-chatlogs.ts
@@ -36,7 +41,6 @@ import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── internal ───
 // constants
@@ -44,17 +48,16 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 // types
 import type { NoiseFilterStats } from './types/stats.types.ts';
 // functions
-import { buildConfig, parseArgs } from './configs/noise-filter-config.ts';
+import { buildConfig } from './configs/noise-filter-config.ts';
 import { processNoiseFiles } from './modules/noise-filter/process-noise-files.ts';
+import { prefilterFiles } from './modules/prefilter.ts';
 
 // ─────────────────────────────────────────────
 // メイン
 // ─────────────────────────────────────────────
 
 export const main = async (args: string[] = Deno.args): Promise<void> => {
-  const _parsed = parseArgs(args);
-  const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-  const { agent, period, chatlogsDir, inputDir, dryRun } = buildConfig(_parsed, _globalConfig);
+  const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars } = buildConfig(args);
   const _searchDir = resolveChatlogsDir({
     chatlogsDir,
     agent,
@@ -74,7 +77,15 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   }
 
   const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
-  await processNoiseFiles(files, stats, { dryRun });
+
+  const targetFiles = await prefilterFiles(files, {
+    minCharCount,
+    minAssistantChars,
+    stats,
+    dryRun,
+  });
+
+  await processNoiseFiles(targetFiles, stats, { dryRun });
 
   const suffix = dryRun ? ' (dry-run)' : '';
   logger.info(
