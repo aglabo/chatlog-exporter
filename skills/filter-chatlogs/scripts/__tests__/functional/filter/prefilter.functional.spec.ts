@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
@@ -398,6 +398,7 @@ describe('prefilterFiles', () => {
    * 本文読み込みに失敗する（実ファイルが存在しない）ファイルを cache 指定なしで処理する前提条件グループ。
    *
    * cache 未指定でも従来通り例外を投げず stats.error が加算されることを検証する（回帰確認）。
+   * 読み込み失敗ファイルは実削除されず、ユーザーが気づけるよう passed に含めたまま返す。
    */
   describe('Given: 本文読み込みに失敗するファイル（cache 指定なし）', () => {
     /** prefilterFiles([file], { stats }) を呼び出すとき。 */
@@ -415,7 +416,7 @@ describe('prefilterFiles', () => {
           assertEquals(stats.error, 1);
         });
 
-        it('T-FL-PFF-17-02: 読み込み失敗ファイルは削除されず passed に含まれる', async () => {
+        it('T-FL-PFF-17-02: 読み込み失敗ファイルは passed に含まれる', async () => {
           const filePath = `${periodDir1}/missing-read-passed.md`;
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -423,7 +424,7 @@ describe('prefilterFiles', () => {
           const result = await prefilterFiles([filePath], { stats });
           errStub.restore();
 
-          assertEquals(result.includes(filePath), true);
+          assertEquals(result, [filePath]);
         });
       });
     });
@@ -432,14 +433,14 @@ describe('prefilterFiles', () => {
   /**
    * 正常ファイルと読み込みエラーファイル（実ファイル未作成）が混在するファイルリストの前提条件グループ。
    *
-   * 読み込みエラーファイルも passed に含めたうえで、入力 files の順序が維持されることを検証する。
+   * 読み込みエラーファイルはゾンビ化を防ぐため passed に残したうえで、通過ファイルの入力順序が維持されることを検証する。
    */
   describe('Given: 正常ファイルと読み込みエラーファイルが混在するファイルリスト', () => {
     /** prefilterFiles(files) を呼び出すとき。 */
     describe('When: prefilterFiles(files) を呼び出す', () => {
-      /** passed 配列が入力 files の順序と一致することを検証する。 */
+      /** passed 配列が読み込みエラーファイルを含み、入力順と一致することを検証する。 */
       describe('Then: T-FL-PFF-18 - 読み込みエラーファイルを含め passed の順序が入力順と一致する', () => {
-        it('T-FL-PFF-18-01: passed 配列が入力 files の順序と一致する（読み込みエラー混在）', async () => {
+        it('T-FL-PFF-18-01: passed に読み込みエラーファイルが含まれ、通過ファイルの順序が入力順と一致する', async () => {
           const validPath1 = `${periodDir1}/mixed-valid1.md`;
           const missingPath = `${periodDir1}/mixed-missing.md`;
           const validPath2 = `${periodDir1}/mixed-valid2.md`;
@@ -452,6 +453,51 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(result, [validPath1, missingPath, validPath2]);
+        });
+
+        it('T-FL-PFF-18-02: ファイル名除外・内容除外は削除され、読み込みエラーファイルは正常ファイルとともに passed に残る', async () => {
+          const validPath = `${periodDir1}/mixed-all-valid.md`;
+          const excludedPath = `${periodDir1}/say-ok-and-nothing-else-mixed.md`;
+          const shortPath = `${periodDir1}/mixed-short-body.md`;
+          const missingPath = `${periodDir1}/mixed-all-missing.md`;
+          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          const errStub = stub(console, 'error', () => {});
+
+          const files = [validPath, excludedPath, shortPath, missingPath];
+          const result = await prefilterFiles(files, { stats: _makeStats() });
+          errStub.restore();
+
+          assertEquals(result, [validPath, missingPath]);
+        });
+      });
+    });
+  });
+
+  /**
+   * 読み込みに失敗するファイルの前提条件グループ。
+   *
+   * 読み込み失敗の理由をユーザーが把握できるよう、logger.warn でファイル名と理由が出力されることを検証する。
+   */
+  describe('Given: 読み込みに失敗するファイル', () => {
+    /** prefilterFiles([file], { stats }) を呼び出すとき。 */
+    describe('When: prefilterFiles([file], { stats }) を呼び出す', () => {
+      /** logger.warn がファイル名と非空の理由を含めて呼ばれることを検証する。 */
+      describe('Then: T-FL-PFF-22 - logger.warn に理由とファイル名が出力される', () => {
+        it('T-FL-PFF-22-01: [Normal] logger.warn がファイル名と非空の理由を含めて呼ばれる', async () => {
+          const filePath = `${periodDir1}/missing-read-warn.md`;
+          const filename = 'missing-read-warn.md';
+          const loggerStub = makeLoggerStub();
+          const stats = _makeStats();
+
+          await prefilterFiles([filePath], { stats });
+          loggerStub.restore();
+
+          const warnLog = loggerStub.warnLogs.find((msg) => msg.includes(filename));
+          assert(warnLog !== undefined);
+          const reasonMatch = warnLog.match(/read failed \((.+)\): /);
+          assert(reasonMatch !== null && reasonMatch[1].length > 0);
         });
       });
     });

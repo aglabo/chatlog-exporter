@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -109,15 +109,17 @@ describe('_phase2ReadSurvivors', () => {
     describe('When: _phase2ReadSurvivors([filePath]) を呼び出す', () => {
       /** readOk が空になり、readError に filePath が含まれることを検証する。 */
       describe('Then: T-FL-P2-03 - readError に DiscardFile が含まれる', () => {
-        it('T-FL-P2-03-01: readOk は空、readError[0] が filePath/filename/reason/decision を持つ', async () => {
+        it('T-FL-P2-03-01: readOk は空、readError[0] が filePath/filename/decision と実際のエラーメッセージを持つ reason を持つ', async () => {
           const filePath = `${periodDir1}/missing.md`;
 
           const { readOk, readError } = await _phase2ReadSurvivors([filePath]);
 
           assertEquals(readOk, []);
-          assertEquals(readError, [
-            { filePath, filename: 'missing.md', reason: '読み込み失敗', decision: FILTER_DECISIONS.ERROR },
-          ]);
+          assertEquals(readError.length, 1);
+          assertEquals(readError[0].filePath, filePath);
+          assertEquals(readError[0].filename, 'missing.md');
+          assertEquals(readError[0].decision, FILTER_DECISIONS.ERROR);
+          assertNotEquals(readError[0].reason, '読み込み失敗');
         });
       });
     });
@@ -142,14 +144,11 @@ describe('_phase2ReadSurvivors', () => {
 
           assertEquals(readOk.length, 1);
           assertEquals(readOk[0].filePath, validPath);
-          assertEquals(readError, [
-            {
-              filePath: missingPath,
-              filename: 'mixed-missing.md',
-              reason: '読み込み失敗',
-              decision: FILTER_DECISIONS.ERROR,
-            },
-          ]);
+          assertEquals(readError.length, 1);
+          assertEquals(readError[0].filePath, missingPath);
+          assertEquals(readError[0].filename, 'mixed-missing.md');
+          assertEquals(readError[0].decision, FILTER_DECISIONS.ERROR);
+          assertNotEquals(readError[0].reason, '読み込み失敗');
         });
       });
     });
@@ -166,21 +165,18 @@ describe('_phase2ReadSurvivors', () => {
     describe('When: _phase2ReadSurvivors([filePath]) を呼び出す', () => {
       /** readOk が空になり、readError に filePath が含まれることを検証する。 */
       describe('Then: T-FL-P2-07 - readError に DiscardFile が含まれる', () => {
-        it('T-FL-P2-07-01: readOk は空、readError[0] が filePath/filename/reason/decision を持つ', async () => {
+        it('T-FL-P2-07-01: readOk は空、readError[0] が filePath/filename/decision と実際のパースエラーメッセージを持つ reason を持つ', async () => {
           const filePath = `${periodDir1}/unclosed-frontmatter.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: test\n本文...');
 
           const { readOk, readError } = await _phase2ReadSurvivors([filePath]);
 
           assertEquals(readOk, []);
-          assertEquals(readError, [
-            {
-              filePath,
-              filename: 'unclosed-frontmatter.md',
-              reason: '読み込み失敗',
-              decision: FILTER_DECISIONS.ERROR,
-            },
-          ]);
+          assertEquals(readError.length, 1);
+          assertEquals(readError[0].filePath, filePath);
+          assertEquals(readError[0].filename, 'unclosed-frontmatter.md');
+          assertEquals(readError[0].decision, FILTER_DECISIONS.ERROR);
+          assertNotEquals(readError[0].reason, '読み込み失敗');
         });
       });
     });
@@ -206,14 +202,11 @@ describe('_phase2ReadSurvivors', () => {
 
           assertEquals(readOk.length, 1);
           assertEquals(readOk[0].filePath, validPath);
-          assertEquals(readError, [
-            {
-              filePath: malformedPath,
-              filename: 'mixed-malformed.md',
-              reason: '読み込み失敗',
-              decision: FILTER_DECISIONS.ERROR,
-            },
-          ]);
+          assertEquals(readError.length, 1);
+          assertEquals(readError[0].filePath, malformedPath);
+          assertEquals(readError[0].filename, 'mixed-malformed.md');
+          assertEquals(readError[0].decision, FILTER_DECISIONS.ERROR);
+          assertNotEquals(readError[0].reason, '読み込み失敗');
         });
       });
     });

@@ -144,31 +144,45 @@ export const _phase1PartitionByFilename = (
   return { fileList, discardFiles };
 };
 
+/** `_readEntry` の読み込み結果。読み込み成功（`ok`）か失敗確定（`error`）のいずれかを表す。 */
+type _ReadEntryResult =
+  | { kind: 'ok'; entry: ChatlogEntry }
+  | { kind: 'error'; result: DiscardFile };
+
 /**
- * 1 ファイルを読み込み `ChatlogEntry` を生成する。読み込み・パースに失敗した場合は `null` を返す。
+ * 1 ファイルを読み込み `ChatlogEntry` を生成する。
  *
  * ファイル読み込み失敗、および `ChatlogEntry` コンストラクタでのパース失敗（不正な frontmatter 等）の
- * いずれも「読み込み失敗」として扱う。
+ * いずれも失敗として扱い、実際のエラーメッセージを `reason` に格納した `DiscardFile` を返す。
  *
  * @param filePath - 読み込み対象のファイルパス
- * @returns 読み込み・パースに成功した場合は `ChatlogEntry`、失敗した場合は `null`
+ * @returns 読み込み・パースに成功した場合は `{ kind: 'ok', entry }`、失敗した場合は `{ kind: 'error', result }`
  */
-const _readEntry = async (filePath: string): Promise<ChatlogEntry | null> => {
+const _readEntry = async (filePath: string): Promise<_ReadEntryResult> => {
+  const filename = getFilename(filePath);
   const text = await readTextFile(filePath, { throwFileIoError: false });
   if (text instanceof Error) {
-    return null;
+    return {
+      kind: 'error',
+      result: { filePath, filename, reason: text.message, decision: FILTER_DECISIONS.ERROR },
+    };
   }
   try {
-    return new ChatlogEntry(text, { filePath });
-  } catch {
-    return null;
+    const entry = new ChatlogEntry(text, { filePath });
+    return { kind: 'ok', entry };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      kind: 'error',
+      result: { filePath, filename, reason: message, decision: FILTER_DECISIONS.ERROR },
+    };
   }
 };
 
 /**
  * ファイルリストの本文を並列に読み込み、frontmatter を除いた content を取り出す。
  *
- * 読み込みに失敗したファイルは `filePath` を `readError` に振り分ける。
+ * 読み込みに失敗したファイルは実際のエラーメッセージを `reason` に持つ `DiscardFile` として `readError` に振り分ける。
  *
  * @param survivors - 読み込み対象のファイルパス配列
  * @returns 読み込みに成功したファイル情報（`readOk`）と、読み込みに失敗したファイル情報（`readError`）
@@ -176,17 +190,15 @@ const _readEntry = async (filePath: string): Promise<ChatlogEntry | null> => {
 export const _phase2ReadSurvivors = async (
   survivors: string[],
 ): Promise<{ readOk: ChatlogEntry[]; readError: DiscardFile[] }> => {
-  const entries = await Promise.all(survivors.map((filePath) => _readEntry(filePath)));
+  const results = await Promise.all(survivors.map((filePath) => _readEntry(filePath)));
 
-  const readOk = entries.filter((entry): entry is ChatlogEntry => entry !== null);
-  const readError = survivors
-    .filter((_filePath, i) => entries[i] === null)
-    .map((filePath) => ({
-      filePath,
-      filename: getFilename(filePath),
-      reason: '読み込み失敗',
-      decision: FILTER_DECISIONS.ERROR,
-    }));
+  const readOk = results
+    .filter((r): r is { kind: 'ok'; entry: ChatlogEntry } => r.kind === 'ok')
+    .map((r) => r.entry);
+
+  const readError = results
+    .filter((r): r is { kind: 'error'; result: DiscardFile } => r.kind === 'error')
+    .map((r) => r.result);
 
   return { readOk, readError };
 };
@@ -271,6 +283,10 @@ export const _phase3PartitionByContent = (
 /**
  * 削除確定ファイルをバッチで削除し、stats を加算する。
  *
+ * `decision === FILTER_DECISIONS.DISCARD` のエントリのみを削除処理の対象とする。
+ * それ以外（`FILTER_DECISIONS.ERROR` 等）が誤って渡された場合は削除を試みず、
+ * そのまま戻り値に残す（呼び出し元が `toDelete` の組み立てを誤った場合の誤削除防止ガード）。
+ *
  * `dryRun === true` のときは削除を行わず `stats.skip` に加算してログ出力する（`files` をそのまま返す）。
  * `dryRun === false` のときは `removeFile()` を呼び、成功なら `stats.remove` に加算してログ出力し
  * 戻り値から除く。NotFound（`false`）を返した場合は `stats.error` に加算し、
@@ -280,15 +296,18 @@ export const _phase3PartitionByContent = (
  * @param files - 削除対象の `DiscardFile` 配列
  * @param dryRun - `true` のとき実削除を行わない
  * @param stats - 加算対象の処理統計オブジェクト
- * @returns 削除できなかった（未実施 or 失敗）ファイルの `DiscardFile` 配列
+ * @returns 削除できなかった（未実施 or 失敗）ファイル、および非 DISCARD エントリの `DiscardFile` 配列
  */
 export const _discardFiles = async (
   files: DiscardFile[],
   dryRun: boolean,
   stats: BaseStats,
 ): Promise<DiscardFile[]> => {
+  const toDiscard = files.filter((entry) => entry.decision === FILTER_DECISIONS.DISCARD);
+  const nonDiscard = files.filter((entry) => entry.decision !== FILTER_DECISIONS.DISCARD);
+
   const results = await Promise.all(
-    files.map(async (entry): Promise<DiscardFile | null> => {
+    toDiscard.map(async (entry): Promise<DiscardFile | null> => {
       const { filePath, filename, reason } = entry;
       if (dryRun) {
         logger.info(`  skipped (${reason}): ${filename}`);
@@ -305,7 +324,7 @@ export const _discardFiles = async (
       return null;
     }),
   );
-  return results.filter((entry): entry is DiscardFile => entry !== null);
+  return [...results.filter((entry): entry is DiscardFile => entry !== null), ...nonDiscard];
 };
 
 /**
@@ -335,6 +354,10 @@ export const prefilterFiles = async (
 
   const byRead = await _phase2ReadSurvivors(fileList);
   const byContent = _phase3PartitionByContent(byRead.readOk, minCharCount, minAssistantChars);
+
+  byRead.readError.forEach(({ filename, reason }) => {
+    logger.warn(`  read failed (${reason}): ${filename}`);
+  });
 
   const toDelete = [...discardFiles, ...byContent.results];
   stats.error += byRead.readError.length;

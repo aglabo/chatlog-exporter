@@ -45,7 +45,6 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
 - `path`（例: `chatlogs\claude\2026\2026-04`）→ 指定パスをそのまま渡す（agent/period の代わり）
 - `--dry-run` → 削除せず、ノイズ候補のパスを標準出力に表示
-- `--report` → ノイズ理由付きで報告（`NOISE\t理由\tパス` 形式）
 
 ## ステップ1: スクリプトパスの解決
 
@@ -76,9 +75,8 @@ deno run --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
 - `agent YYYY-MM` → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt 2026-03`
 - `path`（パス区切り含む）→ `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatlogs/claude/2026/2026-04`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
-- `--report` を含む → 末尾に `--report` を追加
 
-スクリプトは以下のパターンで即座にノイズ判定し、該当ファイルを削除する（`--dry-run` / `--report` 時は削除しない）:
+スクリプトは以下のパターンで即座にノイズ判定し、該当ファイルを削除する（`--dry-run` 時は削除しない）:
 
 - ファイル名パターン（say-ok 等）
 - Git 操作ログのみの会話
@@ -124,5 +122,5 @@ deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" $ARGS
 **noise-filter モードの通知形式**:
 
 - noise / keep / error の件数を報告
-- dry-run / report モードの場合はその旨を明示する
+- dry-run モードの場合はその旨を明示する
 - ノイズ判定されたファイルのパスと判定理由を簡潔にまとめる
