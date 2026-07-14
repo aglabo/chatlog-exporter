@@ -140,13 +140,13 @@ describe('processNoiseFiles', () => {
   /**
    * ノイズファイルが dry-run モードで処理される前提グループ。
    *
-   * ファイルが削除されず、パスがログに出力されることを検証する。
+   * ファイルが削除されず、パスが info ログに出力されることを検証する。
    */
   describe('Given: ノイズファイル 1 件と dryRun=true', () => {
     /** `processNoiseFiles(files, counts, { dryRun: true })` を呼び出すとき。 */
     describe('When: processNoiseFiles を dry-run モードで呼び出す', () => {
-      /** ファイルが削除されず、ログにファイルパスが含まれること。 */
-      describe('Then: T-PF-PNF-03 - ファイルが削除されずパスがログに出力される', () => {
+      /** ファイルが削除されず、info ログにファイルパスが含まれること。 */
+      describe('Then: T-PF-PNF-03 - ファイルが削除されずパスが info ログに出力される', () => {
         it('T-PF-PNF-03-01: ファイルが削除されずに残る', async () => {
           const filePath = `${tempDir}/${_NOISE_FILENAME}`;
           await Deno.writeTextFile(filePath, _makeValidContent());
@@ -157,14 +157,14 @@ describe('processNoiseFiles', () => {
           assertEquals(await fileExists(filePath), true);
         });
 
-        it('T-PF-PNF-03-02: logLogs にファイルパスが含まれる', async () => {
+        it('T-PF-PNF-03-02: infoLogs にファイルパスが含まれる', async () => {
           const filePath = `${tempDir}/${_NOISE_FILENAME}`;
           await Deno.writeTextFile(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
           await processNoiseFiles([filePath], counts, { dryRun: true });
 
-          assertEquals(loggerStub.logLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
+          assertEquals(loggerStub.infoLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
         });
 
         it('T-PF-PNF-03-03: counts.skip が 1 になる', async () => {
@@ -201,6 +201,16 @@ describe('processNoiseFiles', () => {
           assertEquals(counts.error, 1);
           assertEquals(counts.remove, 0);
           assertEquals(counts.keep, 0);
+        });
+
+        it('[Error] T-PF-PNF-07-01: 読み込み失敗ファイル名を含むエラーログが出力される', async () => {
+          const filename = 'non-existent-file2.md';
+          const nonExistentPath = `${tempDir}/${filename}`;
+          const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
+
+          await processNoiseFiles([nonExistentPath], counts, { dryRun: false });
+
+          assertEquals(loggerStub.errorLogs.some((line) => line.includes(filename)), true);
         });
       });
     });

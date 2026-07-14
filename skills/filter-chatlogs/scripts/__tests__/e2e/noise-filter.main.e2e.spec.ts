@@ -84,8 +84,8 @@ describe('main (noise-filter) - dry-run モード', () => {
   describe('Given: ノイズファイル名の .md ファイルと --dry-run フラグ', () => {
     /** `main(["claude", "--dry-run", "--input-dir", chatlogsDir])` を呼び出すとき。 */
     describe('When: main(["claude", "--dry-run", "--input-dir", chatlogsDir]) を呼び出す', () => {
-      /** ファイルが削除されず、stdout にノイズファイルのパスが出力されること。 */
-      describe('Then: T-PF-E2E-01 - ファイルが削除されずパスが stdout に出力される', () => {
+      /** ファイルが削除されず、info ログにノイズファイルのパスが出力されること。 */
+      describe('Then: T-PF-E2E-01 - ファイルが削除されずパスが info ログに出力される', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let loggerStub: LoggerStub;
@@ -101,14 +101,14 @@ describe('main (noise-filter) - dry-run モード', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        it('T-PF-E2E-01-01: ファイルが削除されずに残り、stdout にパスが出力される', async () => {
+        it('T-PF-E2E-01-01: ファイルが削除されずに残り、info ログにパスが出力される', async () => {
           const filePath = `${chatlogsDir}/say-ok-and-nothing-else.md`;
           await Deno.writeTextFile(filePath, _makeValidContent());
 
           await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
           assertEquals(await fileExists(filePath), true);
-          assertEquals(loggerStub.logLogs.some((line) => line.includes('say-ok-and-nothing-else.md')), true);
+          assertEquals(loggerStub.infoLogs.some((line) => line.includes('say-ok-and-nothing-else.md')), true);
         });
       });
     });
