@@ -155,7 +155,7 @@ export const _phase1PartitionByFilename = (
  */
 const _readEntry = async (filePath: string): Promise<ChatlogEntry | null> => {
   const text = await readTextFile(filePath, { throwFileIoError: false });
-  if (text === null) {
+  if (text instanceof Error) {
     return null;
   }
   try {
