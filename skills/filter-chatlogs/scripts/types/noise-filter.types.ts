@@ -18,6 +18,10 @@ export type NoiseFilterConfig = DefaultArgFields & {
   chatlogsDir: string;
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
   dryRun: boolean;
+  /** 本文の最小文字数（GlobalConfig の minCharCount 由来）。 */
+  minCharCount: number;
+  /** User ターンが 1 件のとき、Assistant 応答の最小文字数（GlobalConfig の minAssistantChars 由来）。 */
+  minAssistantChars: number;
 };
 
 /** `noise-filter-chatlogs` の `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
