@@ -35,6 +35,8 @@ import {
   SYSTEM_TAG_REGEX,
 } from '../constants/patterns.constants.ts';
 // types
+import { FILTER_DECISIONS } from '../types/filter-decision.const.types.ts';
+import type { NoiseDiscardFile } from '../types/noise-filter.types.ts';
 import { ENTRY_CONTROL } from '../types/patterns.types.ts';
 import type {
   ConversationEntry,
@@ -171,40 +173,52 @@ export const checkAssistantContent = (conversation: Conversation): string | null
 // メイン判定関数
 // ─────────────────────────────────────────────
 
-export const classifyFile = (filename: string, text: string): { isNoise: boolean; reason: string } => {
-  // 1. ファイル名チェック
-  const filenameReason = checkFilename(filename);
-  if (filenameReason) { return { isNoise: true, reason: filenameReason }; }
-
-  // 2. ChatlogEntry インスタンス生成（frontmatter + content 読み込み）
-  //    不正フォーマット（閉じ区切りなし）の場合は先頭の区切り行を除去して再生成する
+/**
+ * テキストから `ChatlogEntry` を生成し、本文を会話ターンに解析する。
+ *
+ * frontmatter の閉じ区切りがない不正フォーマットの場合は、先頭の区切り行を除去して再生成する。
+ *
+ * @param text - チャットログの生テキスト（frontmatter + content）
+ * @returns 解析済みの会話ターン配列
+ */
+export const readConversation = (text: string): Conversation => {
   let _entry: ChatlogEntry;
   try {
     _entry = new ChatlogEntry(text);
   } catch {
     _entry = new ChatlogEntry(text.replace(/^---\n/, ''));
   }
+  return parseConversation(_entry.content);
+};
 
-  // 3. 会話ターン解析
-  const conversation = parseConversation(_entry.content);
+/**
+ * 会話に対して User本文・会話パターン・プロンプトパターン・Assistant応答長のチェックを順に適用する。
+ *
+ * @param conversation - 解析済みの会話ターン配列
+ * @returns 最初に一致したチェックの reason。いずれも一致しない場合は `null`
+ */
+export const classifyConversation = (conversation: Conversation): string | null =>
+  checkUserContent(conversation)
+    ?? checkConversationPattern(conversation)
+    ?? checkPromptContent(conversation)
+    ?? checkAssistantContent(conversation);
 
-  // 4. User本文チェック
-  const userReason = checkUserContent(conversation);
-  if (userReason) { return { isNoise: true, reason: userReason }; }
-
-  // 5. 会話パターンチェック
-  const conversationReason = checkConversationPattern(conversation);
-  if (conversationReason) { return { isNoise: true, reason: conversationReason }; }
-
-  // 6. プロンプトパターンチェック
-  const promptReason = checkPromptContent(conversation);
-  if (promptReason) { return { isNoise: true, reason: promptReason }; }
-
-  // 7. Assistant応答の長さチェック
-  const assistantReason = checkAssistantContent(conversation);
-  if (assistantReason) { return { isNoise: true, reason: assistantReason }; }
-
-  return { isNoise: false, reason: '' };
+/**
+ * ファイル名パターンのみでノイズ判定を行い、一致した場合は `NoiseDiscardFile` を返す。
+ *
+ * 会話内容の判定は行わない。呼び出し元が別途 `classifyConversation` を呼び出す想定。
+ * 複数ファイルに対するループ処理は呼び出し元が行う。
+ *
+ * @param file - ファイルパスとファイル名
+ * @returns ファイル名パターンに一致した場合は `NoiseDiscardFile`、一致しない場合は `null`
+ */
+export const classifyFile = (
+  file: { filePath: string; filename: string },
+): NoiseDiscardFile | null => {
+  const reason = checkFilename(file.filename);
+  return reason === null
+    ? null
+    : { filePath: file.filePath, filename: file.filename, reason, decision: FILTER_DECISIONS.DISCARD };
 };
 
 // テスト用エクスポート（本番コードでは使用しない）

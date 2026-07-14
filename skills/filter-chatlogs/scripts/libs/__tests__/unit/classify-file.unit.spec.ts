@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
 
@@ -19,6 +19,8 @@ import {
   checkFilename,
   checkPromptContent,
   checkUserContent,
+  classifyConversation,
+  readConversation,
 } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
@@ -801,6 +803,153 @@ describe('checkPromptContent', () => {
 
       assertNull(result);
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// readConversation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `readConversation` のユニットテストスイート。
+ *
+ * frontmatter 付きテキストの会話パース、および frontmatter の閉じ区切りがない
+ * 不正フォーマットに対する修復フォールバックを検証する。
+ *
+ * テスト ID 範囲: T-PF-RC-01 〜 T-PF-RC-02
+ *
+ * @see readConversation
+ */
+describe('readConversation', () => {
+  /** frontmatter を除いた content から会話ターンが正しく解析されるケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PF-RC-01-01: frontmatter 付きテキスト → content 部分の User/Assistant ターンが解析される', () => {
+      const text = [
+        '---',
+        'title: テスト会話',
+        '---',
+        '',
+        '### User',
+        '質問テキスト',
+        '',
+        '### Assistant',
+        '応答テキスト',
+        '',
+      ].join('\n');
+
+      const conversation = readConversation(text);
+
+      assertEquals(conversation.length, 2);
+      assertEquals(conversation[0].content, '質問テキスト');
+      assertEquals(conversation[1].content, '応答テキスト');
+    });
+  });
+
+  /** frontmatter の閉じ区切りがない不正フォーマットに対する修復フォールバックのケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-PF-RC-02-01: frontmatter の閉じ区切りがない → 例外をスローせず会話を返す', () => {
+      const text = [
+        '---',
+        'title: 不正フォーマット',
+        '',
+        '### User',
+        '質問テキスト',
+        '',
+        '### Assistant',
+        '応答テキスト',
+        '',
+      ].join('\n');
+
+      let threw = false;
+      let conversation: Turn[] = [];
+      try {
+        conversation = readConversation(text) as Turn[];
+      } catch {
+        threw = true;
+      }
+
+      assertEquals(threw, false);
+      assert(conversation.length > 0);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// classifyConversation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `classifyConversation` のユニットテストスイート。
+ *
+ * checkUserContent → checkConversationPattern → checkPromptContent → checkAssistantContent
+ * の優先順位で最初に一致した reason を返すこと、いずれも一致しない場合に null を返すことを検証する。
+ *
+ * テスト ID 範囲: T-PF-CC-01 〜 T-PF-CC-02
+ *
+ * @see classifyConversation
+ */
+describe('classifyConversation', () => {
+  /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
+    return turns;
+  }
+
+  /** 複数チェックに一致しうる会話で、より優先度の高い checkUserContent の reason が返るケース。 */
+  describe('When: 正常系', () => {
+    it(
+      '[Normal] T-PF-CC-01-01: Userターン不在（checkUserContent該当） → checkUserContentのreasonを返す',
+      () => {
+        const turns = _makeTurns([{ role: 'assistant', content: '回答' }]);
+
+        const result = classifyConversation(turns);
+
+        assertNotNull(result);
+        assert(result!.includes('Userターンが存在しない'));
+      },
+    );
+
+    it('[Normal] T-PF-CC-01-02: 通常の会話 → null を返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: 'この機能の設計についてどう思いますか？' },
+        { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS) },
+      ]);
+
+      const result = classifyConversation(turns);
+
+      assertNull(result);
+    });
+  });
+
+  /** checkUserContent は一致せず checkConversationPattern が一致するケース（優先順位の検証）。 */
+  describe('When: エッジケース', () => {
+    it(
+      '[Edge] T-PF-CC-02-01: Git操作ログパターン（checkConversationPattern該当）→ そのreasonを返す',
+      () => {
+        const turns = _makeTurns([
+          { role: 'user', content: '=== GIT LOGS ===\ngit log --oneline' },
+          { role: 'assistant', content: 'a'.repeat(MIN_ASSISTANT_CHARS) },
+        ]);
+
+        const result = classifyConversation(turns);
+
+        assertNotNull(result);
+      },
+    );
+
+    it(
+      '[Edge] T-PF-CC-03-01: checkUserContent と checkAssistantContent の両方が該当 → checkUserContentのreasonを優先する',
+      () => {
+        const turns = _makeTurns([
+          { role: 'user', content: '<system-reminder>x</system-reminder>' },
+          { role: 'assistant', content: '短い' },
+        ]);
+
+        const result = classifyConversation(turns);
+
+        assertNotNull(result);
+        assert(result!.includes('システムTag'));
+      },
+    );
   });
 });
 
