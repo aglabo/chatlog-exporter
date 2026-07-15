@@ -428,11 +428,11 @@ describe('buildConfig', () => {
           const result = buildConfig([]);
           assertEquals(result.projectsDic, '/custom/projects.dic');
         });
-        it('T-CL-BC-23-02: projectsDic 未設定 → result.projectsDic === ./assets/configs/projects.dic', async () => {
+        it('T-CL-BC-23-02: projectsDic 未設定 → result.projectsDic === .config/chatlog-exporter/projects.dic', async () => {
           GlobalConfig.resetInstance();
           await GlobalConfig.getInstance();
           const result = buildConfig([]);
-          assertEquals(result.projectsDic, './assets/configs/projects.dic');
+          assertEquals(result.projectsDic, '.config/chatlog-exporter/projects.dic');
         });
       });
     });
