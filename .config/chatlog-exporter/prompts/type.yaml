@@ -1,4 +1,4 @@
-# src: ./assets/prompts/type.yaml
+# src: .config/chatlog-exporter/prompts/type.yaml
 # @(#) Phase 2: type判定プロンプトテンプレート（1ファイル単位）
 #
 # 変数:

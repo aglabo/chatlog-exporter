@@ -1,4 +1,4 @@
-# src: ./assets/prompts/type-category.yaml
+# src: .config/chatlog-exporter/prompts/type-category.yaml
 # @(#) Phase 2+3a: type と category を同時判定するプロンプトテンプレート
 #
 # 変数:
