@@ -42,7 +42,7 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaul
 import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // types
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle, DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // e2e helpers
 import { assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
@@ -77,6 +77,51 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
     readTextFileProvider: () => yaml,
     configFile: 'dummy.yaml',
   });
+};
+
+/**
+ * 1 回目の呼び出しをレートリミット（stderr にレートリミット文言、非ゼロ終了）で失敗させ、
+ * 2 回目以降は `[]`（空判定結果）で成功させる `DenoCommandLike` を返す。
+ *
+ * `runAI` はレートリミット検出のため `stderr` を参照するため、`stderr` フィールドを持つ
+ * 完全な `Deno.CommandOutput` を返す必要があり、共通モックの `BaseMockCommand` は使わない。
+ *
+ * @param counter - 呼び出し回数を記録するカウンター
+ * @returns Deno.Command 互換のモッククラス
+ */
+const _makeRateLimitThenEmptyMock = (counter: { calls: number }): DenoCommandLike => {
+  return class {
+    private readonly isFirstCall: boolean;
+
+    constructor(_cmd: string, _opts: unknown) {
+      counter.calls++;
+      this.isFirstCall = counter.calls === 1;
+    }
+
+    spawn() {
+      return {
+        stdin: { getWriter: () => ({ write: () => Promise.resolve(), close: () => Promise.resolve() }) },
+        output: () => this.output(),
+      };
+    }
+
+    output(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+      if (this.isFirstCall) {
+        return Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: new TextEncoder().encode('rate limit exceeded'),
+        });
+      }
+      return Promise.resolve({
+        success: true,
+        code: 0,
+        stdout: new TextEncoder().encode('[]'),
+        stderr: new Uint8Array(),
+      });
+    }
+  } as unknown as DenoCommandLike;
 };
 
 // ─── Tests
@@ -1165,6 +1210,402 @@ describe('main - dry-run 時のゾンビファイル', () => {
             await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
             assertEquals(await fileExists(`${chatlogsDir}/zombie-dry.md`), true);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-16: レートリミット abort → 未実行チャンクが stats.skip に計上される ─
+
+/**
+ * `main` 関数の E2E テストスイート（レートリミットによる未実行チャンク）。
+ *
+ * `chunkSize=1, concurrency=1` の下で 3 件のファイルを処理する際、
+ * 1 チャンク目でレートリミットが発生し `ctl.abort()` が呼ばれた場合、
+ * 未着手の 2 チャンク（2 ファイル）が `stats.skip` に加算され、
+ * レートリミットを検出したチャンク自体は `stats.error` に計上される
+ * （二重計上されない）ことを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-16
+ *
+ * @see main
+ */
+describe('main - レートリミットによる未実行チャンク', () => {
+  /**
+   * 3 件の .md ファイルが存在し、claude CLI の 1 回目呼び出しがレートリミットで失敗する前提。
+   *
+   * chunkSize=1, concurrency=1 のため、1 ファイル = 1 チャンクとして扱われる。
+   * 1 チャンク目でレートリミットが発生し以降のチャンクが未実行になることを確認する。
+   */
+  describe('Given: 3 件の .md ファイルと chunkSize=1・concurrency=1・レートリミットモック', () => {
+    /** `main([...args])` を dryRun=false で呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 未実行チャンク分のファイル数が stats.skip に計上され、警告ログが 1 回出力されること。 */
+      describe('Then: T-FL-E2E-16 - 未実行チャンクが stats.skip に計上され警告ログが出る', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(_makeRateLimitThenEmptyMock(counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: file1.md, file2.md, file3.md を chatlogsDir に配置し chunkSize=1・concurrency=1 を設定', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/file1.md`, _makeValidContent('file1'));
+            await Deno.writeTextFile(`${chatlogsDir}/file2.md`, _makeValidContent('file2'));
+            await Deno.writeTextFile(`${chatlogsDir}/file3.md`, _makeValidContent('file3'));
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nchunkSize: 1\nconcurrency: 1`);
+          });
+
+          it('T-FL-E2E-16-01: 未実行チャンク分の 2 ファイルが stats.skip に計上される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('skip=2')), true);
+          });
+
+          it('T-FL-E2E-16-02: レートリミットを検出したチャンクは stats.error に計上される（二重計上なし）', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('error=1')), true);
+          });
+
+          it('T-FL-E2E-16-03: 未実行チャンク発生時に警告ログが 1 回出力される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            const matched = loggerStub.warnLogs.filter((l) => l.includes('チャンク') && l.includes('取りやめ'));
+            assertEquals(matched.length, 1);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-17: 全チャンク正常実行 → 判定対象数と判定済み数が一致 ─────────
+
+/**
+ * `main` 関数の E2E テストスイート（判定集計ログ・正常系）。
+ *
+ * RateLimit なしで全チャンクが正常実行された場合、判定候補数・判定対象数・判定済み数が
+ * ログに出力され、判定対象数と判定済み数が一致することを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-17
+ *
+ * @see main
+ */
+describe('main - 判定集計ログ（正常系）', () => {
+  /**
+   * 1 件の .md ファイルが存在し、claude CLI が正常に空の判定結果を返す前提。
+   *
+   * 全チャンクが正常実行されるため、判定対象数と判定済み数が一致することを確認する。
+   */
+  describe('Given: 1 件の .md ファイルと正常応答モック', () => {
+    /** `main([...args])` を dryRun=false で呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 判定候補数・判定対象数・判定済み数がログに出力され、判定対象数と判定済み数が一致すること。 */
+      describe('Then: T-FL-E2E-17 - 判定候補数・判定対象数・判定済み数がログに出力される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode('[]')),
+          );
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: chat.md を chatlogsDir に配置', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-17-01: 判定候補数（candidates=1）がログに出力される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('candidates=1')), true);
+          });
+
+          it('T-FL-E2E-17-02: 判定済み数（judged=1）がログに出力される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('judged=1')), true);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-18: レートリミット abort → 判定済み数が判定対象数を下回る ─────
+
+/**
+ * `main` 関数の E2E テストスイート（判定集計ログ・レートリミット）。
+ *
+ * RateLimit により一部チャンクが未実行になった場合、判定済み数が判定対象数より
+ * 小さくなり、その差分が未実行チャンクのファイル数と一致することを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-18
+ *
+ * @see main
+ */
+describe('main - 判定集計ログ（レートリミット）', () => {
+  /**
+   * 3 件の .md ファイルが存在し、claude CLI の 1 回目呼び出しがレートリミットで失敗する前提。
+   *
+   * chunkSize=1, concurrency=1 のため、1 チャンク目でレートリミットが発生し
+   * 残り 2 チャンク（2 ファイル）が未実行になる。判定済み数は 1 件になる。
+   */
+  describe('Given: 3 件の .md ファイルと chunkSize=1・concurrency=1・レートリミットモック', () => {
+    /** `main([...args])` を dryRun=false で呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 判定済み数が判定対象数より小さく、差分が未実行チャンクのファイル数と一致すること。 */
+      describe('Then: T-FL-E2E-18 - 判定済み数が判定対象数を下回る', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(_makeRateLimitThenEmptyMock(counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: file1.md, file2.md, file3.md を chatlogsDir に配置し chunkSize=1・concurrency=1 を設定', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/file1.md`, _makeValidContent('file1'));
+            await Deno.writeTextFile(`${chatlogsDir}/file2.md`, _makeValidContent('file2'));
+            await Deno.writeTextFile(`${chatlogsDir}/file3.md`, _makeValidContent('file3'));
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nchunkSize: 1\nconcurrency: 1`);
+          });
+
+          it('T-FL-E2E-18-01: 判定候補数（candidates=3）がログに出力される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('candidates=3')), true);
+          });
+
+          it('T-FL-E2E-18-02: 判定済み数（judged=1）がログに出力される（判定対象数 3 から未実行 2 件を差し引いた値）', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('judged=1')), true);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-19: 判定対象なし → 判定候補数のみログに出力される ─────────────
+
+/**
+ * `main` 関数の E2E テストスイート（判定集計ログ・判定対象なし）。
+ *
+ * `prefilterFiles` 通過後の判定対象が 0 件の場合でも、`total === 0` の早期分岐より前に
+ * 全体数・判定候補数がログに出力されることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-19
+ *
+ * @see main
+ */
+describe('main - 判定集計ログ（判定対象なし）', () => {
+  /**
+   * `.md` ファイルが 0 件のディレクトリが存在する前提。
+   *
+   * 判定候補数（candidates=0）が `total === 0` の早期分岐より前にログ出力されることを確認する。
+   */
+  describe('Given: .md ファイルが存在しないディレクトリ', () => {
+    /** `main([...args])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 判定候補数（candidates=0）がログに出力されること。 */
+      describe('Then: T-FL-E2E-19 - 判定候補数（candidates=0）がログに出力される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode('[]')),
+          );
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it('T-FL-E2E-19-01: 判定候補数（candidates=0）がログに出力される', async () => {
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('candidates=0')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-20: dry-run → 判定済み数が 0 になる ────────────────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（判定集計ログ・dry-run）。
+ *
+ * `--dry-run` フラグ指定時は claude CLI を呼び出さないため、判定済み数が 0 に
+ * なることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-20
+ *
+ * @see main
+ */
+describe('main - 判定集計ログ（dry-run）', () => {
+  /**
+   * 1 件の `.md` ファイルが存在し、`--dry-run` フラグを指定する前提。
+   *
+   * dry-run モードでは claude CLI 判定を実施しないため、判定済み数が 0 になることを確認する。
+   */
+  describe('Given: 1 件の .md ファイルと --dry-run 指定', () => {
+    /** `main([...args, "--dry-run"])` を呼び出すとき。 */
+    describe('When: main([...args, "--dry-run"]) を呼び出す', () => {
+      /** 判定済み数（judged=0）がログに出力されること。 */
+      describe('Then: T-FL-E2E-20 - 判定済み数（judged=0）がログに出力される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: chat.md を chatlogsDir に配置', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+          });
+
+          it('T-FL-E2E-20-01: 判定済み数（judged=0）がログに出力される', async () => {
+            await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('judged=0')), true);
+          });
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-21: 全ファイルキャッシュ済み → 判定候補数が 0 になる ──────────
+
+/**
+ * `main` 関数の E2E テストスイート（判定集計ログ・全ファイルキャッシュ済み）。
+ *
+ * 全ファイルがキャッシュ済み（KEEP/DISCARD 確定）で `_targetEntries` が空の場合、
+ * 判定候補数（candidates=0）がログに出力されることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-21
+ *
+ * @see main
+ */
+describe('main - 判定集計ログ（全ファイルキャッシュ済み）', () => {
+  /**
+   * `keep.md` がキャッシュ上 KEEP 確定済みで、他に新規判定対象ファイルがない前提。
+   *
+   * 全ファイルがキャッシュ済みのため `_targetEntries` が空になり、
+   * 判定候補数（candidates=0）がログに出力されることを確認する。
+   */
+  describe('Given: cacheDir に keep.md の KEEP キャッシュエントリのみが存在する', () => {
+    /** `main([...args])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** 判定候補数（candidates=0）がログに出力されること。 */
+      describe('Then: T-FL-E2E-21 - 判定候補数（candidates=0）がログに出力される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: keep.md を chatlogsDir に配置し、cacheDir に KEEP エントリを書き込む', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+
+            const cacheDir = `${tempDir}/cache/filter-cache`;
+            await Deno.mkdir(cacheDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${cacheDir}/keep.json`,
+              JSON.stringify({ decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' }),
+            );
+
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
+          });
+
+          it('T-FL-E2E-21-01: 判定候補数（candidates=0）がログに出力される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('candidates=0')), true);
           });
         });
       });
