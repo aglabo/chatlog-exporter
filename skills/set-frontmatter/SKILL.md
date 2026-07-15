@@ -4,7 +4,7 @@ description: >
   ChatLog Markdownファイルにフロントマターを一括付加・上書きする。
   /set-frontmatter で呼び出す。
   AIが会話内容を解析してtitle/summary/category/topics/tagsを生成。
-  assets/dics/ の辞書を参照してcategory/topics/tagsを選定する。
+  .config/chatlog-exporter/dics/ の辞書を参照してcategory/topics/tagsを選定する。
 argument-hint: "<input-path> [output-path] | [agent] project [YYYY-MM] [--dry-run] [--no-review]"
 allowed-tools: Bash, Glob
 ---
@@ -12,13 +12,13 @@ allowed-tools: Bash, Glob
 # set-frontmatter スキル
 
 `temp/chatlogs/<agent>/` 配下のChatLog Markdownに、AIが生成したフロントマターを並列付加・上書きする。
-`assets/dics/` の辞書ファイルを参照して category / topics / tags を選定する。
+`.config/chatlog-exporter/dics/` の辞書ファイルを参照して category / topics / tags を選定する。
 
 ## 前提条件
 
 - `claude` コマンドがPATHに存在すること (Claude Code CLIインストール済み)
 - `deno` コマンドが利用可能であること (TypeScript実行用)
-- `assets/dics/` に辞書ファイルが存在すること
+- `.config/chatlog-exporter/dics/` に辞書ファイルが存在すること
 
 ## 引数の処理
 
@@ -73,7 +73,7 @@ DICS_DIR    = <cwd>/temp/dics
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CHATLOGS_BASE="$REPO_ROOT/chatlogs"
-DICS_DIR="$REPO_ROOT/assets/dics"
+DICS_DIR="$REPO_ROOT/.config/chatlog-exporter/dics"
 AGENT="claude"   # デフォルト
 PROJECT=""
 YEAR_MONTH=""
@@ -161,10 +161,10 @@ tags:
 
 ## 辞書ファイル
 
-- `assets/dics/category.dic`: category 選択肢
-- `assets/dics/topics.dic`: topics 選択肢
-- `assets/dics/tags.dic`: tags 選択肢 (namespace/value 形式)
-- `assets/dics/namespaces.dic`: タグ名前空間の定義
+- `.config/chatlog-exporter/dics/category.dic`: category 選択肢
+- `.config/chatlog-exporter/dics/topics.dic`: topics 選択肢
+- `.config/chatlog-exporter/dics/tags.dic`: tags 選択肢 (namespace/value 形式)
+- `.config/chatlog-exporter/dics/namespaces.dic`: タグ名前空間の定義
 
 ## 関連スキル
 

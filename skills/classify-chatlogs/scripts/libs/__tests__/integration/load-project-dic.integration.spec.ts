@@ -83,7 +83,7 @@ describe('loadProjectDic', () => {
    * デフォルトの assets/configs/projects.dic を読み込み、YAMLトップレベルキーのみが
    * エントリとして返されることを検証する。
    */
-  describe('Given: デフォルトパス assets/configs/projects.dic（YAML形式）', () => {
+  describe('Given: デフォルトパス .config/chatlog-exporter/projects.dic（YAML形式）', () => {
     /** 引数なしで loadProjectDic() を呼び出すケース。 */
     describe('When: loadProjectDic() を引数なしで呼び出す', () => {
       /** T-CL-LPD-03: トップレベルキーのみが ProjectDicEntry に含まれることを確認する。 */

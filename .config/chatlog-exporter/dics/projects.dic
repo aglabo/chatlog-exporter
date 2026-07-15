@@ -1,4 +1,4 @@
-# src: ./assets/dics/projects.dic — プロジェクト辞書
+# src: .config/chatlog-exporter/projects.dic — プロジェクト辞書
 # @(#) プロジェクト分類用辞書
 #
 # 構造: key / def（AI判断用・キーを端的に定義する短文）/ category / desc（人間向け説明）/ rules（判断補助）

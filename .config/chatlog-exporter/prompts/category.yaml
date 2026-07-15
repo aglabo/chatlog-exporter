@@ -1,4 +1,4 @@
-# src: ./assets/prompts/category.yaml
+# src: .config/chatlog-exporter/prompts/category.yaml
 # @(#) Phase 3a: category判定プロンプトテンプレート
 #
 # 変数:

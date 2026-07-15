@@ -62,7 +62,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-86
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-97
  *
  * @see GlobalConfig
  */
@@ -155,6 +155,28 @@ describe('GlobalConfig', () => {
         });
         assertEquals(_config.get('agent'), 'chatgpt');
       });
+
+      it('[Normal] T-CLS-GC-87: appName 指定時、loadConfigFile は .config/<appName>/config.yaml を読む', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        const _config = GlobalConfig.getInstance({ appName: 'my-app' });
+        _config.loadConfigFile({ readTextFileProvider: _trackingRead });
+        assert(_calledPath.endsWith('.config/my-app/config.yaml'));
+      });
+
+      it('[Normal] T-CLS-GC-88: appName 未指定時、loadConfigFile が .config/chatlog-exporter/config.yaml を読む', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        const _config = GlobalConfig.getInstance();
+        _config.loadConfigFile({ readTextFileProvider: _trackingRead });
+        assert(_calledPath.endsWith('.config/chatlog-exporter/config.yaml'));
+      });
     });
 
     /** 不正な YAML でエラーがスローされるケース。 */
@@ -237,6 +259,19 @@ describe('GlobalConfig', () => {
         assertEquals(_second.get('agent'), 'claude');
       });
 
+      it('[Edge] T-CLS-GC-89: 既存インスタンスがある場合 appName オプションは無視される', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        const _first = GlobalConfig.getInstance();
+        const _second = GlobalConfig.getInstance({ appName: 'other-app' });
+        assertStrictEquals(_first, _second);
+        _second.loadConfigFile({ readTextFileProvider: _trackingRead });
+        assert(_calledPath.endsWith('.config/chatlog-exporter/config.yaml'));
+      });
+
       it('[Edge] T-CLS-GC-78: yaml で cacheDir: /tmp/my-cache を指定すると get("cacheDir") がその値を返す', () => {
         const _config = GlobalConfig.getInstance({ yaml: 'cacheDir: /tmp/my-cache\n' });
         assertEquals(_config.get('cacheDir'), '/tmp/my-cache');
@@ -260,6 +295,25 @@ describe('GlobalConfig', () => {
     it('[Normal] T-CLS-GC-03: 設定済みキーの値を返す', () => {
       const _config = GlobalConfig.getInstance();
       assertEquals(_config.get('model'), 'sonnet');
+    });
+  });
+
+  // ─── configDir ───────────────────────────────────────────────────────────
+
+  /**
+   * `configDir` getter のテスト。
+   *
+   * appName 未指定時は `.config/chatlog-exporter`、appName 指定時は `.config/<appName>` を返すことを検証する。
+   */
+  describe('configDir', () => {
+    it('[Normal] T-CLS-GC-96: appName 未指定時、configDir は ".config/chatlog-exporter" を返す', () => {
+      const _config = GlobalConfig.getInstance();
+      assertEquals(_config.configDir, '.config/chatlog-exporter');
+    });
+
+    it('[Normal] T-CLS-GC-97: appName 指定時、configDir は ".config/<appName>" を返す', () => {
+      const _config = GlobalConfig.getInstance({ appName: 'my-app' });
+      assertEquals(_config.configDir, '.config/my-app');
     });
   });
 

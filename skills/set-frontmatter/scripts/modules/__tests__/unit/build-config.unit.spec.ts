@@ -19,12 +19,10 @@ import { buildConfig } from '../../setfm-config.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { getProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
 import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
-import {
-  DEFAULT_CHATLOGS_DIR,
-  DEFAULT_PROMPTS_DIR,
-} from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CHATLOGS_DIR, DEFAULT_CONFIG_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 
@@ -39,6 +37,16 @@ const _makeGlobalConfig = async (yaml = ''): Promise<GlobalConfig> => {
   GlobalConfig.resetInstance();
   return await GlobalConfig.getInstance({ yaml });
 };
+
+/**
+ * `DEFAULT_CONFIG_DIR` を基準に相対パスを絶対パスへ解決した期待値を組み立てる。
+ * `buildConfig` の dicsDir/promptsDir 解決規則をテスト側で再現する。
+ *
+ * @param relativePath - `DEFAULT_CONFIG_DIR` からの相対パス（例: `'dics'`）
+ * @returns 解決済みの絶対パス文字列
+ */
+const _resolvedConfigDir = (relativePath: string): string =>
+  joinPath(getProjectRoot(), DEFAULT_CONFIG_DIR, relativePath);
 
 // ─── Tests
 
@@ -94,9 +102,9 @@ describe('buildConfig', () => {
         assertEquals(result.outputDir, '/target');
       });
 
-      it('[Normal] T-SF-BC-02-02: dicsDir のデフォルトは ./assets/dics', () => {
+      it('[Normal] T-SF-BC-02-02: dicsDir のデフォルトは .config/chatlog-exporter/dics に解決される', () => {
         const result = buildConfig({ outputDir: '/target' }, globalConfig);
-        assertEquals(result.dicsDir, './assets/dics');
+        assertEquals(result.dicsDir, _resolvedConfigDir('dics'));
       });
 
       it('[Normal] T-SF-BC-02-03: dryRun のデフォルトは false', () => {
@@ -141,23 +149,24 @@ describe('buildConfig', () => {
     /**
      * `dicsDir` の優先順位テスト。
      *
-     * 優先順位: parsed.dicsDir > GlobalConfig.dicsDir > DEFAULT_DICS_DIR
+     * 優先順位: parsed.dicsDir > GlobalConfig.dicsDir > `'dics'`。
+     * いずれも相対パスは `.config/<appName>/` 基準の絶対パスに解決される。
      */
     describe('When: dicsDir の優先順位', () => {
-      it('[Edge] T-SF-BC-08-01: GlobalConfig に dicsDir 設定済み → GlobalConfig の値が使われる', async () => {
-        const gc = await _makeGlobalConfig('dicsDir: ./gc/dics');
+      it('[Edge] T-SF-BC-08-01: GlobalConfig に dicsDir 設定済み → GlobalConfig の値が .config/ 基準で解決される', async () => {
+        const gc = await _makeGlobalConfig('dicsDir: gc/dics');
 
         const result = buildConfig({ outputDir: '/target' }, gc);
 
-        assertEquals(result.dicsDir, './gc/dics');
+        assertEquals(result.dicsDir, _resolvedConfigDir('gc/dics'));
       });
 
-      it('[Edge] T-SF-BC-08-02: parsed.dicsDir が GlobalConfig より優先される', async () => {
-        const gc = await _makeGlobalConfig('dicsDir: ./gc/dics');
+      it('[Edge] T-SF-BC-08-02: parsed.dicsDir が GlobalConfig より優先され .config/ 基準で解決される', async () => {
+        const gc = await _makeGlobalConfig('dicsDir: gc/dics');
 
-        const result = buildConfig({ outputDir: '/target', dicsDir: './parsed/dics' }, gc);
+        const result = buildConfig({ outputDir: '/target', dicsDir: 'parsed/dics' }, gc);
 
-        assertEquals(result.dicsDir, './parsed/dics');
+        assertEquals(result.dicsDir, _resolvedConfigDir('parsed/dics'));
       });
     });
 
@@ -251,38 +260,39 @@ describe('buildConfig', () => {
   /**
    * `promptsDir` フィールドの優先順位テスト。
    *
-   * 優先順位: parsed.promptsDir > GlobalConfig.promptsDir > DEFAULT_PROMPTS_DIR
+   * 優先順位: parsed.promptsDir > GlobalConfig.promptsDir > `'prompts'`。
+   * いずれも相対パスは `.config/<appName>/` 基準の絶対パスに解決される。
    */
   describe('When: promptsDir の優先順位', () => {
     /** promptsDir 未指定でデフォルト値が使われる正常ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-SFP-01-01: 引数なし + GlobalConfig 未設定 → DEFAULT_PROMPTS_DIR が使われる', () => {
+      it('[Normal] T-SFP-01-01: 引数なし + GlobalConfig 未設定 → .config/chatlog-exporter/prompts に解決される', () => {
         const result = buildConfig({ outputDir: '/target' }, globalConfig);
-        assertEquals(result.promptsDir, DEFAULT_PROMPTS_DIR);
+        assertEquals(result.promptsDir, _resolvedConfigDir('prompts'));
       });
 
-      it('[Normal] T-SFP-02-01: parsed.promptsDir 指定 → その値が使われる', () => {
-        const result = buildConfig({ outputDir: '/target', promptsDir: './custom/prompts' }, globalConfig);
-        assertEquals(result.promptsDir, './custom/prompts');
+      it('[Normal] T-SFP-02-01: parsed.promptsDir 指定 → .config/ 基準で解決される', () => {
+        const result = buildConfig({ outputDir: '/target', promptsDir: 'custom/prompts' }, globalConfig);
+        assertEquals(result.promptsDir, _resolvedConfigDir('custom/prompts'));
       });
     });
 
     /** GlobalConfig の値が使われるエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-SFP-03-01: GlobalConfig に promptsDir 設定済み → GlobalConfig の値が使われる', async () => {
-        const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
+      it('[Edge] T-SFP-03-01: GlobalConfig に promptsDir 設定済み → GlobalConfig の値が .config/ 基準で解決される', async () => {
+        const gc = await _makeGlobalConfig('promptsDir: gc/prompts');
 
         const result = buildConfig({ outputDir: '/target' }, gc);
 
-        assertEquals(result.promptsDir, './gc/prompts');
+        assertEquals(result.promptsDir, _resolvedConfigDir('gc/prompts'));
       });
 
-      it('[Edge] T-SFP-03-02: parsed.promptsDir が GlobalConfig より優先される', async () => {
-        const gc = await _makeGlobalConfig('promptsDir: ./gc/prompts');
+      it('[Edge] T-SFP-03-02: parsed.promptsDir が GlobalConfig より優先され .config/ 基準で解決される', async () => {
+        const gc = await _makeGlobalConfig('promptsDir: gc/prompts');
 
-        const result = buildConfig({ outputDir: '/target', promptsDir: './parsed/prompts' }, gc);
+        const result = buildConfig({ outputDir: '/target', promptsDir: 'parsed/prompts' }, gc);
 
-        assertEquals(result.promptsDir, './parsed/prompts');
+        assertEquals(result.promptsDir, _resolvedConfigDir('parsed/prompts'));
       });
     });
   });

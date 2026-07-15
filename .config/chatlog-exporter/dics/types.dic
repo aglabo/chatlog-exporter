@@ -1,4 +1,4 @@
-# src: ./assets/dics/types.dic
+# src: .config/chatlog-exporter/dics/types.dic
 # @(#) ログ種別分類用辞書
 #
 # 構造: key / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）

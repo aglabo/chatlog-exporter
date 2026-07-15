@@ -1,4 +1,4 @@
-# src: ./assets/prompts/category-rules.yaml
+# src: .config/chatlog-exporter/prompts/category-rules.yaml
 # @(#) typeごとのcategory判定フォーカスガイド
 #
 # 構造: type → フォーカスガイド文字列（プロンプトに直接埋め込まれる）

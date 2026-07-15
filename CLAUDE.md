@@ -39,8 +39,11 @@ skills/
 ├── filter-chatlog/    # ノイズフィルタ
 ├── normalize-chatlog/ # 形式正規化
 └── set-frontmatter/   # メタデータ付与
-assets/dics/           # 辞書ファイル（category, tags 等）
-assets/prompts/        # AI プロンプト
+.config/chatlog-exporter/
+├── config.yaml         # グローバル設定
+├── projects.dic        # プロジェクト分類辞書
+├── dics/               # 辞書ファイル（category, tags 等）
+└── prompts/            # AI プロンプト
 ```
 
 ## 禁止事項

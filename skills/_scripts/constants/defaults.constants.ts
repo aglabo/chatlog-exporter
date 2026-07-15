@@ -12,14 +12,11 @@ import type { KnownAgent } from './agents.constants.ts';
 // 設定ファイル
 // ─────────────────────────────────────────────
 
-/** GlobalConfig が読み込むデフォルト設定ファイルパス。 */
-export const DEFAULT_CONFIG_FILE = 'assets/configs/config.yaml';
+/** アプリ名が指定されなかった場合のデフォルトアプリ名。`.config/<appName>/` の組み立てに使用する。 */
+export const DEFAULT_APP_NAME = 'chatlog-exporter';
 
-/** プロジェクト辞書ファイルのデフォルトパス。 */
-export const DEFAULT_PROJECTS_DIC_PATH = './assets/configs/projects.dic';
-
-/** AI プロンプトファイルが置かれたデフォルトディレクトリ。 */
-export const DEFAULT_PROMPTS_DIR = './assets/prompts';
+/** 設定ファイル取得基準ディレクトリ */
+export const DEFAULT_CONFIG_DIR = `.config/${DEFAULT_APP_NAME}`;
 
 // ─────────────────────────────────────────────
 // ディレクトリ
@@ -36,9 +33,6 @@ export const DEFAULT_ORIGINAL_LOGS_DIR = 'originalLogs';
 
 /** set-frontmatter が出力するデフォルトディレクトリ。 */
 export const DEFAULT_OUTPUT_DIR = './outputLogs';
-
-/** 辞書ファイルが置かれたデフォルトディレクトリ。 */
-export const DEFAULT_DICS_DIR = './assets/dics';
 
 // ─────────────────────────────────────────────
 // エージェント

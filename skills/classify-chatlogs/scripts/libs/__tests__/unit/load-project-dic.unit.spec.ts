@@ -17,8 +17,6 @@ import type { ResolveConfigPathOptions } from '../../../../../_scripts/types/pat
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classed
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-// constants
-import { DEFAULT_PROJECTS_DIC_PATH } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Helpers
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
@@ -140,7 +138,7 @@ describe('loadProjectDic', () => {
       assertEquals(_capturedOpts?.configPath, undefined);
     });
 
-    it('T-CL-LPD-06-02: 引数なしで呼び出すと resolveProvider の defaultPath が DEFAULT_PROJECTS_DIC_PATH になる', async () => {
+    it('T-CL-LPD-06-02: 引数なしで呼び出すと resolveProvider の defaultPath が dics/projects.dic になる', async () => {
       let _capturedOpts: ResolveConfigPathOptions | undefined;
       const _captureResolve = (opts: ResolveConfigPathOptions): string => {
         _capturedOpts = opts;
@@ -149,7 +147,7 @@ describe('loadProjectDic', () => {
 
       await loadProjectDic(undefined, _captureResolve);
 
-      assertEquals(_capturedOpts?.defaultPath, DEFAULT_PROJECTS_DIC_PATH);
+      assertEquals(_capturedOpts?.defaultPath, 'dics/projects.dic');
     });
 
     // T-CL-LPD-12: resolveProvider の出力が readProvider に渡る

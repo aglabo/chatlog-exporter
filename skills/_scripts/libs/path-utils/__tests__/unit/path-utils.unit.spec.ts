@@ -25,6 +25,8 @@ import { isSafePath, resolveConfigPath } from '../../resolve-path.ts';
 // helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { resetProjectRoot } from '../../dir-utils.ts';
+// types
+import type { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 
 // ─────────────────────────────────────────────
 // normalizePath
@@ -563,15 +565,19 @@ describe('getBasename', () => {
 // resolveConfigPath
 // ─────────────────────────────────────────────
 
-describe('resolveConfigPath', () => {
-  beforeEach(() => resetProjectRoot('/home/user/project'));
+// ─── Internal Helpers
 
+// functions
+/** `configDir` のみを持つ `GlobalConfig` スタブを生成する。相対パス結合の基準ディレクトリ検証に使う。 */
+const _makeConfigStub = (configDir: string): GlobalConfig => ({ configDir }) as unknown as GlobalConfig;
+
+describe('resolveConfigPath', () => {
   describe('Given: configPath に Unix 絶対パスを指定する', () => {
     describe('When: resolveConfigPath を実行する', () => {
       describe('Then: T-LIB-U-14-01 - 絶対パスが正規化されて返る', () => {
-        it('T-LIB-U-14-01: Unix 絶対パスはそのまま正規化されて返る', async () => {
+        it('T-LIB-U-14-01: Unix 絶対パスはそのまま正規化されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '/home/user/config.yaml',
             }),
@@ -585,9 +591,9 @@ describe('resolveConfigPath', () => {
   describe('Given: configPath に Windows バックスラッシュ絶対パスを指定する', () => {
     describe('When: resolveConfigPath を実行する', () => {
       describe('Then: T-LIB-U-14-02 - バックスラッシュがスラッシュに正規化されて返る', () => {
-        it('T-LIB-U-14-02: Windows バックスラッシュ絶対パスはスラッシュに正規化されて返る', async () => {
+        it('T-LIB-U-14-02: Windows バックスラッシュ絶対パスはスラッシュに正規化されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'C:\\Users\\foo\\config.yaml',
             }),
@@ -599,13 +605,14 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath に相対パスを指定する', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-03 - プロジェクトルートと結合して正規化されて返る', () => {
-        it('T-LIB-U-14-03: 相対パスはプロジェクトルートと結合されて返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-03 - config.configDir と結合して正規化されて返る', () => {
+        it('T-LIB-U-14-03: 相対パスは config.configDir と結合されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'config/settings.yaml',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project/config/settings.yaml',
           );
@@ -617,9 +624,9 @@ describe('resolveConfigPath', () => {
   describe('Given: configPath が未指定で defaultPath が絶対パス', () => {
     describe('When: resolveConfigPath を実行する', () => {
       describe('Then: T-LIB-U-14-04 - defaultPath が正規化されて返る', () => {
-        it('T-LIB-U-14-04: configPath 省略のとき defaultPath 絶対パスが返る', async () => {
+        it('T-LIB-U-14-04: configPath 省略のとき defaultPath 絶対パスが返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: '/home/user/project/default.yaml',
             }),
             '/home/user/project/default.yaml',
@@ -630,12 +637,13 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath が未指定で defaultPath が相対パス', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-05 - defaultPath がプロジェクトルートと結合されて返る', () => {
-        it('T-LIB-U-14-05: configPath 省略のとき defaultPath 相対パスがルートと結合されて返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-05 - defaultPath が config.configDir と結合されて返る', () => {
+        it('T-LIB-U-14-05: configPath 省略のとき defaultPath 相対パスが config.configDir と結合されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'config/default.yaml',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project/config/default.yaml',
           );
@@ -645,13 +653,14 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath が空文字列', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-07 - プロジェクトルートが末尾スラッシュなしで返る', () => {
-        it('T-LIB-U-14-07: configPath="" のとき /home/user/project が返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-07 - config.configDir が末尾スラッシュなしで返る', () => {
+        it('T-LIB-U-14-07: configPath="" のとき /home/user/project が返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project',
           );
@@ -661,13 +670,14 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath に相対ディレクトリパスを指定する', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-08 - プロジェクトルートと結合されて返る', () => {
-        it('T-LIB-U-14-08: 相対ディレクトリパスはプロジェクトルートと結合されて返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-08 - config.configDir と結合されて返る', () => {
+        it('T-LIB-U-14-08: 相対ディレクトリパスは config.configDir と結合されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'assets/dics',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project/assets/dics',
           );
@@ -679,9 +689,9 @@ describe('resolveConfigPath', () => {
   describe('Given: configPath に Unix 絶対ディレクトリパスを指定する', () => {
     describe('When: resolveConfigPath を実行する', () => {
       describe('Then: T-LIB-U-14-09 - 絶対ディレクトリパスが正規化されて返る', () => {
-        it('T-LIB-U-14-09: Unix 絶対ディレクトリパスはそのまま返る', async () => {
+        it('T-LIB-U-14-09: Unix 絶対ディレクトリパスはそのまま返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '/home/user/data',
             }),
@@ -693,13 +703,14 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath に末尾スラッシュ付き相対ディレクトリパスを指定する', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-10 - 末尾スラッシュが除去されてプロジェクトルートと結合されて返る', () => {
-        it('T-LIB-U-14-10: 末尾スラッシュ付き相対ディレクトリパスは末尾スラッシュが除去されて返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-10 - 末尾スラッシュが除去されて config.configDir と結合されて返る', () => {
+        it('T-LIB-U-14-10: 末尾スラッシュ付き相対ディレクトリパスは末尾スラッシュが除去されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: 'assets/dics/',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project/assets/dics',
           );
@@ -709,12 +720,13 @@ describe('resolveConfigPath', () => {
   });
 
   describe('Given: configPath が未指定で defaultPath が相対ディレクトリパス', () => {
-    describe('When: resolveConfigPath を実行する（root=/home/user/project）', () => {
-      describe('Then: T-LIB-U-14-11 - defaultPath がプロジェクトルートと結合されて返る', () => {
-        it('T-LIB-U-14-11: configPath 省略のとき defaultPath 相対ディレクトリがルートと結合されて返る', async () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/home/user/project）', () => {
+      describe('Then: T-LIB-U-14-11 - defaultPath が config.configDir と結合されて返る', () => {
+        it('T-LIB-U-14-11: configPath 省略のとき defaultPath 相対ディレクトリが config.configDir と結合されて返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'assets/dics',
+              config: _makeConfigStub('/home/user/project'),
             }),
             '/home/user/project/assets/dics',
           );
@@ -728,13 +740,30 @@ describe('resolveConfigPath', () => {
     describe('When: resolveConfigPath を実行する', () => {
       /** statProvider 不要でも正規化パスが返ることを確認する。 */
       describe('Then: T-LIB-U-14-16 - statProvider 未指定でも正規化パスが返る', () => {
-        it('T-LIB-U-14-16: statProvider 未指定でも /home/user/config.yaml が返る', async () => {
+        it('T-LIB-U-14-16: statProvider 未指定でも /home/user/config.yaml が返る', () => {
           assertEquals(
-            await resolveConfigPath({
+            resolveConfigPath({
               defaultPath: 'default.yaml',
               configPath: '/home/user/config.yaml',
             }),
             '/home/user/config.yaml',
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: config.configDir が getProjectRoot() 以外の任意ディレクトリを指定する', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=/custom/base）', () => {
+      describe('Then: T-LIB-U-14-17 - config.configDir 基準で正規化されて返る', () => {
+        it('T-LIB-U-14-17: 相対パスは指定した config.configDir と結合されて返る（プロジェクトルート非依存）', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: 'default.yaml',
+              configPath: 'config/settings.yaml',
+              config: _makeConfigStub('/custom/base'),
+            }),
+            '/custom/base/config/settings.yaml',
           );
         });
       });

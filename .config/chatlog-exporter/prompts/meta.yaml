@@ -1,4 +1,4 @@
-# src: ./assets/prompts/meta.yaml
+# src: .config/chatlog-exporter/prompts/meta.yaml
 # @(#) Phase 3b: フロントマター生成プロンプトテンプレート
 #
 # 変数:

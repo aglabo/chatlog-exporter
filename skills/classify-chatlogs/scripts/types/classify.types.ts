@@ -67,7 +67,7 @@ export type ClassifyConfig = DefaultArgFields & {
   dryRun: boolean;
   /** `projects.dic` が置かれた辞書ディレクトリのパス。 */
   dicsDir: string;
-  /** プロジェクト辞書ファイルのパス。省略時は DEFAULT_PROJECTS_DIC_PATH。 */
+  /** プロジェクト辞書ファイルのパス。省略時は buildProjectsDicPath(DEFAULT_APP_NAME)。 */
   projectsDic?: string;
   /** claude CLI に渡すモデル名。 */
   model: string;

@@ -1,4 +1,4 @@
-# src: ./assets/prompts/review.yaml
+# src: .config/chatlog-exporter/prompts/review.yaml
 # @(#) Phase 3.5: フロントマターレビュープロンプトテンプレート
 #
 # 変数:
