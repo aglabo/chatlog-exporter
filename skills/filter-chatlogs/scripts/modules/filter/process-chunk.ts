@@ -47,12 +47,6 @@ export const processChunk = async (
   cache: ChatlogCache<CLEResult>,
   ctl: AbortController,
 ): Promise<ChatlogError | undefined> => {
-  if (ctl.signal.aborted) {
-    logger.warn(`  レートリミット中のためスキップ。チャンク内ファイルをすべて error 扱い`);
-    stats.error += chunkFiles.length;
-    return;
-  }
-
   const batchPrompt = await buildBatchPrompt(chunkFiles);
 
   let rawResult: string;
