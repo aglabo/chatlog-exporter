@@ -56,6 +56,7 @@ export const processChunk = async (
     if (!(e instanceof ChatlogError)) { throw e; }
     logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて error 扱い`);
     logger.warn(`  error: ${e.message}`);
+    chunkFiles.forEach((filePath) => logger.warn(`  error扱い: ${getFilename(filePath)}`));
     stats.error += chunkFiles.length;
     if (e.subindex === 'RateLimit') { ctl.abort(); }
     return e;
@@ -65,6 +66,7 @@ export const processChunk = async (
   if (!parsed) {
     logger.warn(`  JSON パース失敗。チャンク内ファイルをすべて error 扱い`);
     logger.warn(`  raw output: ${rawResult.slice(0, 200)}`);
+    chunkFiles.forEach((filePath) => logger.warn(`  error扱い: ${getFilename(filePath)}`));
     stats.error += chunkFiles.length;
     return new ChatlogError('InvalidFormat', 'JsonParse', `raw output: ${rawResult.slice(0, 200)}`);
   }
