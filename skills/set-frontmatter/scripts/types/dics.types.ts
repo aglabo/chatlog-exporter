@@ -13,7 +13,7 @@
 /** 辞書エントリの適用・除外ルール。各フィールドはキーワード配列。when / not / always 等、辞書ファイルに実在するフィールドをすべて保持する。 */
 export type DicRules = Record<string, string[]>;
 
-/** category / topic / tag 辞書の1エントリ。`assets/dics/` 配下の YAML から読み込む。 */
+/** category / topic / tag 辞書の1エントリ。`.config/<app-name>/dics/` 配下の YAML から読み込む。 */
 export interface DicEntry {
   /** 辞書キー（フロントマターに書き込む値）。 */
   key: string;
@@ -31,7 +31,7 @@ export interface DicEntry {
 // プロンプトテンプレート型
 // ─────────────────────────────────────────────
 
-/** フェーズごとの AI プロンプトテンプレート。`assets/prompts/` から読み込む。 */
+/** フェーズごとの AI プロンプトテンプレート。`.config/<app-name>/prompts/` から読み込む。 */
 export interface PromptTemplate {
   /** システムプロンプト（AI の役割・制約を定義する）。 */
   system: string;
