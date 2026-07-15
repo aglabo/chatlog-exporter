@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -20,6 +20,7 @@ import type { FilterConfig } from '../../../types/filter.types.ts';
 // constants
 import { DEFAULT_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // classes
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
 // helpers
 import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
@@ -67,10 +68,12 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `period`     : CLI のみ（GlobalConfig 連携なし）
  * - `configFile` は FilterConfig に存在しないため結果に含まれない
  *
- * - `chunkSize`/`concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
+ * - `chunkSize` は `_SCHEMA` に `--chunk-size` の CLI オプション定義があり、
+ *   CLI > GlobalConfig > defaults の優先順位で検証する。
+ * - `concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
  *   `_SCHEMA` に CLI オプション定義が無いため、GlobalConfig > defaults の優先順位のみ検証する。
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-32
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-35
  *
  * @see buildConfig
  */
@@ -299,6 +302,64 @@ describe('buildConfig', () => {
         it('T-FL-BC-11b: chunkSize 未設定 → result.chunkSize === GlobalConfig デフォルト値', () => {
           const result = buildConfig([]);
           assertEquals(result.chunkSize, DEFAULT_FILTER_CONFIG.chunkSize);
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数 `--chunk-size` と GlobalConfig の chunkSize が両方設定されている前提条件グループ。
+   *
+   * CLI 引数が GlobalConfig より優先されることを検証する（優先度マージの回帰防止）。
+   */
+  describe('Given: CLI 引数で --chunk-size が指定されている、GlobalConfig にも chunkSize が設定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** CLI 引数の --chunk-size が GlobalConfig.chunkSize より優先されることを検証する。 */
+      describe('Then: T-FL-BC-33 - CLI 引数の --chunk-size が優先される', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('chunkSize: 8');
+        });
+        it('T-FL-BC-33: args=[--chunk-size, 1], globalConfig.chunkSize=8 → result.chunkSize === 1', () => {
+          const result = buildConfig(['--chunk-size', '1']);
+          assertEquals(result.chunkSize, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数 `--chunk-size` に整数以外の値を指定した前提条件グループ。
+   */
+  describe('Given: CLI 引数の --chunk-size に整数以外の値を指定している', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** `ChatlogError('InvalidArgs', 'NotAnInteger', ...)` が throw されることを検証する。 */
+      describe('Then: T-FL-BC-34 - ChatlogError(InvalidArgs, NotAnInteger) が throw される', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-34: args=[--chunk-size, abc] → ChatlogError(InvalidArgs, NotAnInteger)', () => {
+          assertThrows(
+            () => buildConfig(['--chunk-size', 'abc']),
+            ChatlogError,
+          );
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数 `--chunk-size=1`（`=` 区切り記法）を指定した前提条件グループ。
+   */
+  describe('Given: CLI 引数で --chunk-size=1（=区切り記法）が指定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** `=` 区切り記法でも正しく chunkSize に反映されることを検証する。 */
+      describe('Then: T-FL-BC-35 - result.chunkSize === 1', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-35: args=[--chunk-size=1] → result.chunkSize === 1', () => {
+          const result = buildConfig(['--chunk-size=1']);
+          assertEquals(result.chunkSize, 1);
         });
       });
     });
