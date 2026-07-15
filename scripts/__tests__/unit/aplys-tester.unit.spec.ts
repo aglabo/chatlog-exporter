@@ -16,7 +16,6 @@ import {
   buildBaseGlob,
   buildDenoArgs,
   buildEnvFromConfig,
-  MODULE_GLOB_TABLE,
   parseArgs,
   TesterConfig,
   VALID_MODULES,
@@ -282,46 +281,6 @@ describe('buildBaseGlob', () => {
       describe('Then: T-AT-BG-08 - classes 用の特殊パスを返す', () => {
         it('T-AT-BG-08-01: 戻り値が "**/_scripts/classes/**/__tests__" である', () => {
           assertEquals(buildBaseGlob('classes'), '**/_scripts/classes/**/__tests__');
-        });
-      });
-    });
-  });
-});
-
-// ─────────────────────────────────────────────
-// MODULE_GLOB_TABLE
-// ─────────────────────────────────────────────
-
-describe('MODULE_GLOB_TABLE', () => {
-  describe('Given: MODULE_GLOB_TABLE の各エントリ', () => {
-    describe('When: エントリを参照する', () => {
-      describe('Then: T-AT-GT-01〜08 - 各モジュールの正しいGlobパターンが返る', () => {
-        it('T-AT-GT-01: "all" エントリが "**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['all'], '**/__tests__');
-        });
-        it('T-AT-GT-02: "libs" エントリが "**/_scripts/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['libs'], '**/_scripts/**/__tests__');
-        });
-        it('T-AT-GT-03: "scripts" エントリが "scripts/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['scripts'], 'scripts/**/__tests__');
-        });
-        it('T-AT-GT-04: "classify" エントリが "**/classify-chatlogs/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['classify'], '**/classify-chatlogs/**/__tests__');
-        });
-        it('T-AT-GT-05: "export" エントリが "**/export-chatlogs/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['export'], '**/export-chatlogs/**/__tests__');
-        });
-        it('T-AT-GT-06: "filter" エントリが "**/filter-chatlogs/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['filter'], '**/filter-chatlogs/**/__tests__');
-        });
-        it('T-AT-GT-07: "normalize" エントリが "**/normalize-chatlogs/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['normalize'], '**/normalize-chatlogs/**/__tests__');
-        });
-        it('T-AT-GT-08: "set" エントリが "**/set-frontmatter/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['set'], '**/set-frontmatter/**/__tests__');
-        });
-        it('T-AT-GT-09: "classes" エントリが "**/_scripts/classes/**/__tests__" である', () => {
-          assertEquals(MODULE_GLOB_TABLE['classes'], '**/_scripts/classes/**/__tests__');
         });
       });
     });
