@@ -12,7 +12,6 @@ import {
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_CONCURRENCY,
-  DEFAULT_DICS_DIR,
 } from '../../../_scripts/constants/defaults.constants.ts';
 import type { ClassifyConfig } from '../types/classify.types.ts';
 
@@ -31,7 +30,8 @@ export const DEFAULT_CLASSIFY_CONFIG: ClassifyConfig = {
   agent: DEFAULT_AGENT,
   dryRun: false,
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
-  dicsDir: DEFAULT_DICS_DIR,
+  /** 型定義上の整合性のためだけの値（classify-chatlogs は projectsDic のみを実際の辞書読み込みに使用する） */
+  dicsDir: 'dics',
   model: DEFAULT_AI_MODEL,
   chunkSize: DEFAULT_CHUNK_SIZE,
   concurrency: DEFAULT_CONCURRENCY,
