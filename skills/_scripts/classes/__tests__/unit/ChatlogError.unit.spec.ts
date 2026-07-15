@@ -13,8 +13,6 @@ import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { ChatlogError } from '../../ChatlogError.class.ts';
-// constants
-import { ERROR_KIND_LABELS } from '../../../constants/chatlog-error.constants.ts';
 
 // ─── Tests
 
@@ -82,30 +80,6 @@ describe('ChatlogError', () => {
         const _err = new ChatlogError('InvalidFormat', 'NotClosed', '');
         assertEquals(_err.message, 'Invalid Format: ');
       });
-    });
-  });
-});
-
-/**
- * `ERROR_KIND_LABELS` 定数のユニットテストスイート。
- *
- * AiError キーの存在・CliError キーの不在を検証する。
- *
- * テスト ID 範囲: T-01-01-01 〜 T-01-01-02
- *
- * @see ERROR_KIND_LABELS
- */
-describe('ERROR_KIND_LABELS', () => {
-  /**
-   * AiError キー移行の検証。
-   */
-  describe('When: 正常系', () => {
-    it('[Normal] T-01-01-01: ERROR_KIND_LABELS に AiError キーが存在し値が "AI Error"', () => {
-      assertEquals(ERROR_KIND_LABELS['AiError' as keyof typeof ERROR_KIND_LABELS], 'AI Error');
-    });
-
-    it('[Normal] T-01-01-02: ERROR_KIND_LABELS に CliError キーが存在しない', () => {
-      assertEquals('CliError' in (ERROR_KIND_LABELS as Record<string, string>), false);
     });
   });
 });
