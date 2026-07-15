@@ -364,11 +364,13 @@ export const prefilterFiles = async (
 
   const notDeleted = await _discardFiles(toDelete, dryRun, stats);
 
-  const notDeletedPaths = new Set(notDeleted.map((entry) => entry.filePath));
-  const deletedPaths = new Set(
-    toDelete.map((entry) => entry.filePath).filter((filePath) => !notDeletedPaths.has(filePath)),
+  const errorPaths = new Set(
+    notDeleted.filter((entry) => entry.decision === FILTER_DECISIONS.ERROR).map((entry) => entry.filePath),
   );
-  const passed = files.filter((filePath) => !deletedPaths.has(filePath));
+  const excludedPaths = new Set(
+    toDelete.map((entry) => entry.filePath).filter((filePath) => !errorPaths.has(filePath)),
+  );
+  const passed = files.filter((filePath) => !excludedPaths.has(filePath));
 
   if (!dryRun) {
     logger.info(
