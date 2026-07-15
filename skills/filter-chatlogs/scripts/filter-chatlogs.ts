@@ -36,6 +36,7 @@ import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // ─── internal ───
 // functions
+import { countUnexecutedChunkFiles } from './modules/filter/count-unexecuted-chunk-files.ts';
 import { processChunk } from './modules/filter/process-chunk.ts';
 import { sweepDiscards } from './modules/filter/sweep-discards.ts';
 import { prefilterFiles } from './modules/prefilter.ts';
@@ -118,6 +119,9 @@ export const main = async (args?: string[]): Promise<void> => {
   // キャッシュ済み KEEP 件数を集計
   stats.keep += allFiles.filter(_isCachedKeep).length;
 
+  // 全体数・判定候補数（キャッシュ除外後）を集計ログとして出力する
+  logger.info(`対象集計: total=${allFiles.length} candidates=${_targetEntries.length}`);
+
   const targetFiles = await prefilterFiles(_targetEntries, {
     minCharCount: _config.minCharCount,
     minAssistantChars: _config.minAssistantChars,
@@ -135,14 +139,26 @@ export const main = async (args?: string[]): Promise<void> => {
       logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
       targetFiles.forEach((filePath) => logger.info(`対象: ${filePath}`));
       stats.skip += targetFiles.length;
+      logger.info('判定済み: judged=0（dry-run）');
     } else {
       // チャンク分割して並列処理（判定結果はキャッシュに書き込むのみ。削除は後続のスイープで行う）
-      await runChunked(
+      const chunkResults = await runChunked(
         targetFiles,
         _config.chunkSize,
         (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl),
         _config.concurrency,
       );
+
+      // レートリミット等で abort された後、未着手のまま残ったチャンクのファイル数を skip に計上する
+      const unexecutedFileCount = countUnexecutedChunkFiles(targetFiles, _config.chunkSize, chunkResults);
+      if (unexecutedFileCount > 0) {
+        stats.skip += unexecutedFileCount;
+        logger.warn(
+          `レートリミットのため ${unexecutedFileCount} 件のチャンク未実行ファイルの実行を取りやめました（次回再判定対象）`,
+        );
+      }
+
+      logger.info(`判定済み: judged=${targetFiles.length - unexecutedFileCount}`);
     }
   }
 
@@ -156,6 +172,7 @@ export const main = async (args?: string[]): Promise<void> => {
   );
 };
 
+// --- main routine ---
 if (import.meta.main) {
   try {
     await main(Deno.args);
