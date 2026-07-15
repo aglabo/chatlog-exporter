@@ -16,7 +16,7 @@ import { resolveConfigPath } from '../libs/path-utils/resolve-path.ts';
 import { parseNumber, parseString } from '../libs/text/string-utils.ts';
 // constants
 import { DEFAULT_CONFIG_SCHEMA, DEFAULT_CONFIG_VALUES } from '../constants/config-schema.constants.ts';
-import { DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
+import { DEFAULT_APP_NAME } from '../constants/defaults.constants.ts';
 // types
 import type { ConfigKey } from '../constants/config-schema.constants.ts';
 import type { ConfigSchema, ConfigValue, ConfigValues } from '../types/config-schema.types.ts';
@@ -34,15 +34,16 @@ import { ChatlogError } from './ChatlogError.class.ts';
  */
 export class GlobalConfig {
   private static _instance: GlobalConfig | undefined;
-  private static readonly _DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_FILE;
   private static readonly _DEFAULT_READ_TEXT_FILE: ReadTextFileSyncProvider = (path: string) =>
     Deno.readTextFileSync(path);
   private _schema: ConfigSchema;
   private _fields: ConfigValues = {} as ConfigValues;
+  private _appName: string;
 
-  private constructor(schema?: ConfigSchema) {
+  private constructor(schema?: ConfigSchema, appName?: string) {
     this._schema = schema || DEFAULT_CONFIG_SCHEMA;
     this._fields = { ...DEFAULT_CONFIG_VALUES } as ConfigValues;
+    this._appName = appName ?? DEFAULT_APP_NAME;
   }
 
   /**
@@ -50,6 +51,7 @@ export class GlobalConfig {
    * - `yaml` が指定されていれば YAML 文字列を直接パースして `_fields` を上書きする（`configFile` より優先）。
    * - `configFile` が指定されていれば YAML を読み込んで `_fields` を上書きする（DEFAULT_CONFIG_VALUES + YAML 値）。
    * - ファイルが存在しない場合 (`FileDirNotFound`) はエラーを無視して `DEFAULT_CONFIG_VALUES` のまま返す。
+   * - `appName` はオプションとして受け付け、`configDir`（設定ファイル・辞書・プロンプトの基準ディレクトリ）の組み立てに使用する。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
    */
   static getInstance(options?: {
@@ -57,9 +59,10 @@ export class GlobalConfig {
     configFile?: string;
     yaml?: string;
     readTextFileProvider?: ReadTextFileSyncProvider;
+    appName?: string;
   }): GlobalConfig {
     if (!GlobalConfig._instance) {
-      GlobalConfig._instance = new GlobalConfig(options?.schema);
+      GlobalConfig._instance = new GlobalConfig(options?.schema, options?.appName);
       if (options?.yaml !== undefined) {
         if (options.yaml !== '') {
           const _loaded = GlobalConfig._instance._parseYamlText(options.yaml);
@@ -92,7 +95,13 @@ export class GlobalConfig {
 
   /** `key` に対応する値を返す。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。 */
   get(key: ConfigKey): string | number {
-    return this._fields[key];
+    const _value = this._fields[key];
+    return _value;
+  }
+
+  /** 設定ファイル・辞書・プロンプトの基準ディレクトリ（プロジェクトルート相対）。appName を反映する。 */
+  get configDir(): string {
+    return `.config/${this._appName}`;
   }
 
   /** GlobalConfig が保持する全フィールドの値を `{ field: value }` 形式で返す。 */
@@ -150,7 +159,8 @@ export class GlobalConfig {
     const _readTextFile = options?.readTextFileProvider ?? GlobalConfig._DEFAULT_READ_TEXT_FILE;
     const _resolved = resolveConfigPath({
       configPath: options?.configPath,
-      defaultPath: GlobalConfig._DEFAULT_CONFIG_PATH,
+      defaultPath: `${this.configDir}/config.yaml`,
+      config: this,
     });
     let _text: string;
     try {
@@ -168,6 +178,3 @@ export class GlobalConfig {
     return this._parseYamlText(_text);
   }
 }
-
-/** アプリケーション共通の GlobalConfig インスタンス。 */
-// export const globalConfig = GlobalConfig.getInstance();
