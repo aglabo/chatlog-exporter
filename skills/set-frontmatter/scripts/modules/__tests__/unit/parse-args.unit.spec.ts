@@ -18,8 +18,6 @@ import { parseArgs } from '../../setfm-config.ts';
 // ─── Helpers
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
-// constants
-import { DEFAULT_DICS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 
@@ -69,8 +67,8 @@ describe('parseArgs', () => {
           });
         }
 
-        it('T-SF-PA-01-02: dicsDir が GlobalConfig のデフォルト値になる', () => {
-          assertEquals(parseArgs([_TARGET, _PATH]).dicsDir, DEFAULT_DICS_DIR);
+        it('T-SF-PA-01-02: dicsDir が GlobalConfig のデフォルト値（未解決の相対値）になる', () => {
+          assertEquals(parseArgs([_TARGET, _PATH]).dicsDir, 'dics');
         });
       });
     });
