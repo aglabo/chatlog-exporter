@@ -319,13 +319,13 @@ describe('prefilterFiles', () => {
    * ファイル名パターン除外 1 件・本文短すぎ 1 件・正常 1 件が混在するファイルを入力とする前提条件グループ。
    *
    * `dryRun: true` を指定したときも削除予定ファイルのログ出力・`stats.skip` 計上が行われ、
-   * 実削除しないため `passed` に全ファイルが含まれることを検証する。
+   * DISCARD 確定ファイルは実削除しなくても `passed` から除外されることを検証する。
    */
   describe('Given: 3 ファイル（ファイル名パターン除外 1 + 本文短すぎ 1 + 正常 1）', () => {
     /** dryRun: true を渡して prefilterFiles を呼び出すとき。 */
     describe('When: dryRun: true を渡して prefilterFiles を呼び出す', () => {
-      /** dryRun でも削除予定ファイルはログ出力・stats.skip に計上され、passed には全ファイルが含まれることを検証する。 */
-      describe('Then: T-FL-PFF-09 - 削除予定がログ出力され、passed に全ファイルが含まれる', () => {
+      /** dryRun でも削除予定ファイルはログ出力・stats.skip に計上され、DISCARD 確定分は passed から除外されることを検証する。 */
+      describe('Then: T-FL-PFF-09 - 削除予定がログ出力され、DISCARD 確定分は passed から除外される', () => {
         it('T-FL-PFF-09-01: [Normal] dryRun: true のとき削除予定ファイルの logger.info が呼ばれる', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
@@ -341,7 +341,7 @@ describe('prefilterFiles', () => {
           assertEquals(loggerStub.infoLogs.length, 2);
         });
 
-        it('T-FL-PFF-09-02: [Normal] dryRun: true では passed に全ファイルが含まれ、削除予定分は stats.skip に計上される', async () => {
+        it('T-FL-PFF-09-02: [Normal] dryRun: true でも DISCARD 確定分は passed から除外され、stats.skip に計上される', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -359,7 +359,7 @@ describe('prefilterFiles', () => {
           const resultNormal = await prefilterFiles([excludedPath, shortPath, validPath], { stats: statsNormal });
           loggerStub.restore();
 
-          assertEquals(resultDryRun, [excludedPath, shortPath, validPath]);
+          assertEquals(resultDryRun, [validPath]);
           assertEquals(resultNormal, [validPath]);
           assertEquals(statsNormal.remove, 2);
           assertEquals(statsDryRun.remove, 0);

@@ -21,7 +21,6 @@
 // classes
 import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 // functions
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
@@ -59,40 +58,19 @@ const _SCHEMA: ArgSchema<FilterParsedConfig> = [];
 // ─────────────────────────────────────────────
 
 /**
- * FilterParsedConfig・GlobalConfig・デフォルト値から完全な FilterConfig を構築する。
- * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - chatlogsDir: `globalConfig.get('chatlogsDir')`（基準ディレクトリ）
- * - inputDir: `parsed.inputDir`（指定時のみ設定される。フルパス直接指定の短絡パラメータ）
- * - dryRun: `parsed.dryRun` > `defaults.dryRun`（false）
- * - period: `parsed` のみ（GlobalConfig 連携なし）
- * - discardThreshold: `globalConfig.get('discardThreshold')` > `defaults.discardThreshold`
- * - `configFile` は FilterConfig に存在しないため結果に含まれない。
+ * CLI 引数から完全な FilterConfig を構築する。
+ * - `parseArgs`（共通ライブラリ）が CLI 引数・GlobalConfig・defaults を
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの設定を返すため、
+ *   GlobalConfig の値を個別に再取得しない。
+ * - `configFile` は FilterConfig に存在しないため結果から除外する。
  */
 export const buildConfig = (
-  parsed: FilterParsedConfig,
-  globalConfig: GlobalConfig,
+  args: string[],
   defaults: FilterConfig = DEFAULT_FILTER_CONFIG,
 ): FilterConfig => {
-  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
-  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
-  const _chunkSize = parsed.chunkSize ?? globalConfig.get('chunkSize') as number;
-  const _concurrency = parsed.concurrency ?? globalConfig.get('concurrency') as number;
-  const _minCharCount = parsed.minCharCount ?? globalConfig.get('minCharCount') as number;
-  const _minAssistantChars = parsed.minAssistantChars ?? globalConfig.get('minAssistantChars') as number;
-  const _discardThreshold = globalConfig.get('discardThreshold') as number;
-  const { configFile: _cf, ...rest } = parsed;
-  return {
-    ...defaults,
-    ...rest,
-    agent: _agent,
-    chatlogsDir: _chatlogsDir,
-    inputDir: parsed.inputDir,
-    chunkSize: _chunkSize,
-    concurrency: _concurrency,
-    minCharCount: _minCharCount,
-    minAssistantChars: _minAssistantChars,
-    discardThreshold: _discardThreshold,
-  };
+  const _parsed = parseArgs<FilterParsedConfig>(args, _SCHEMA, defaults);
+  const { configFile: _configFile, ...rest } = _parsed;
+  return { ...rest } as FilterConfig;
 };
 
 // ─────────────────────────────────────────────
@@ -100,9 +78,7 @@ export const buildConfig = (
 // ─────────────────────────────────────────────
 
 export const main = async (args?: string[]): Promise<void> => {
-  const _parsed = parseArgs<FilterParsedConfig>(args ?? Deno.args, _SCHEMA, DEFAULT_FILTER_CONFIG);
-  const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-  const _config = buildConfig(_parsed, _globalConfig);
+  const _config = buildConfig(args ?? Deno.args);
 
   const _searchDir = resolveChatlogsDir({
     chatlogsDir: _config.chatlogsDir,

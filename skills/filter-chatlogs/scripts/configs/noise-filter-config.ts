@@ -11,8 +11,6 @@
 import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
-// classes
-import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── internal ───
 // constants
@@ -21,44 +19,26 @@ import { DEFAULT_NOISE_FILTER_CONFIG } from '../constants/common.constants.ts';
 import type { NoiseFilterConfig, NoiseFilterParsedConfig } from '../types/noise-filter.types.ts';
 
 // ─────────────────────────────────────────────
-// 引数解析
+// 設定構築
 // ─────────────────────────────────────────────
 
 /** noise-filter-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgSchema<NoiseFilterParsedConfig> = [];
 
-export const parseArgs = (args: string[]): NoiseFilterParsedConfig => {
-  const _parsed = parseArgsToConfig<NoiseFilterParsedConfig>(args, _SCHEMA);
-  _parsed.dryRun ??= false;
-  return {
-    ..._parsed,
-  };
-};
-
-// ─────────────────────────────────────────────
-// 設定構築
-// ─────────────────────────────────────────────
-
 /**
- * NoiseFilterParsedConfig・GlobalConfig・デフォルト値から完全な NoiseFilterConfig を構築する。
- * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `defaults.agent`
- * - chatlogsDir: `globalConfig.get('chatlogsDir')`（基準ディレクトリ）
- * - inputDir: `parsed.inputDir`（指定時のみ設定される。フルパス直接指定の短絡パラメータ）
- * - `configFile` は NoiseFilterConfig に存在しないため結果に含まれない。
+ * CLI 引数から完全な NoiseFilterConfig を構築する。
+ * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの設定を返すため、
+ *   GlobalConfig の値を個別に再取得しない。
+ * - `dryRun` は未指定時 `false` になる。
+ * - `configFile` は NoiseFilterConfig に存在しないため結果から除外する。
  */
 export const buildConfig = (
-  parsed: NoiseFilterParsedConfig,
-  globalConfig: GlobalConfig,
+  args: string[],
   defaults: NoiseFilterConfig = DEFAULT_NOISE_FILTER_CONFIG,
 ): NoiseFilterConfig => {
-  const _agent = parsed.agent ?? globalConfig.get('agent') as string;
-  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
-  const { configFile: _configFile, ...rest } = parsed;
-  return {
-    ...defaults,
-    ...rest,
-    agent: _agent,
-    chatlogsDir: _chatlogsDir,
-    inputDir: parsed.inputDir,
-  };
+  const _parsed = parseArgsToConfig<NoiseFilterParsedConfig>(args, _SCHEMA, defaults);
+  _parsed.dryRun ??= false;
+  const { configFile: _configFile, ...rest } = _parsed;
+  return { ...rest } as NoiseFilterConfig;
 };

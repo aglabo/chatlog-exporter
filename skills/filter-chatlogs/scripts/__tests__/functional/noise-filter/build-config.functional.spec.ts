@@ -13,8 +13,6 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { buildConfig } from '../../../configs/noise-filter-config.ts';
-// types
-import type { NoiseFilterConfig, NoiseFilterParsedConfig } from '../../../types/noise-filter.types.ts';
 
 // ─── Helpers
 // classes
@@ -44,30 +42,20 @@ const _makeGlobalConfig = async (yaml: string): Promise<GlobalConfig> => {
   });
 };
 
-/** 空の NoiseFilterParsedConfig。 */
-const _EMPTY_PARSED: NoiseFilterParsedConfig = {};
-
-/** `DEFAULT_NOISE_FILTER_CONFIG` と異なる値を持つカスタムデフォルト設定。`defaults` パラメータの注入テストに使用する。 */
-const _CUSTOM_DEFAULTS: NoiseFilterConfig = {
-  ...DEFAULT_NOISE_FILTER_CONFIG,
-  agent: 'chatgpt',
-  chatlogsDir: '/custom-default',
-};
-
 // ─── Tests
 
 /**
  * `buildConfig` 関数の機能テストスイート。
  *
- * `buildConfig(parsed, globalConfig, defaults?)` は
- * `NoiseFilterParsedConfig`・`GlobalConfig`・デフォルト値の 3 層から `NoiseFilterConfig` を構築する。
+ * `buildConfig(args, defaults?)` は CLI 引数・GlobalConfig・デフォルト値の 3 層から
+ * `NoiseFilterConfig` を構築する。
  *
  * ## 優先順位ルール
- * - `agent`      : parsed > globalConfig > defaults
- * - `chatlogsDir`: globalConfig.chatlogsDir（基準ディレクトリ）
- * - `inputDir`   : parsed.inputDir（指定時のみ設定される）
- * - `period`     : parsed のみ（GlobalConfig 連携なし）
- * - `dryRun`     : parsed > defaults (false)
+ * - `agent`      : CLI > GlobalConfig > defaults
+ * - `chatlogsDir`: GlobalConfig.chatlogsDir（基準ディレクトリ）
+ * - `inputDir`   : CLI の `--input-dir`（指定時のみ設定される）
+ * - `period`     : CLI のみ（GlobalConfig 連携なし）
+ * - `dryRun`     : CLI の `--dry-run` > defaults (false)
  * - `configFile` は NoiseFilterConfig に存在しないため結果に含まれない
  *
  * テスト ID 範囲: T-PF-BC-06 〜 T-PF-BC-16
@@ -82,21 +70,20 @@ describe('buildConfig (noise-filter functional)', () => {
   // ─── agent 優先順位 ─────────────────────────────────────────────────────────
 
   /**
-   * `parsed.agent` がセットされている前提条件グループ。
+   * CLI 引数で agent が指定されている前提条件グループ。
    *
    * CLI 引数が明示的にエージェントを指定したケースを表す。
-   * `globalConfig` に agent が設定されていても `parsed.agent` が優先されることを検証する。
+   * `globalConfig` に agent が設定されていても CLI 引数が優先されることを検証する。
    */
-  describe('Given: parsed.agent が指定されている', () => {
+  describe('Given: CLI 引数で agent が指定されている', () => {
     describe('When: GlobalConfig にも agent が設定されている', () => {
-      /** `parsed.agent` が `globalConfig.agent` より優先されることを検証する。 */
-      describe('Then: T-PF-BC-06 - parsed.agent が優先される', () => {
-        let globalConfig: GlobalConfig;
+      /** CLI 引数の agent が `globalConfig.agent` より優先されることを検証する。 */
+      describe('Then: T-PF-BC-06 - CLI 引数の agent が優先される', () => {
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: codex');
+          await _makeGlobalConfig('agent: codex');
         });
-        it('T-PF-BC-06: parsed.agent=chatgpt → result.agent === chatgpt', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, agent: 'chatgpt' }, globalConfig);
+        it('T-PF-BC-06: args=[chatgpt] → result.agent === chatgpt', () => {
+          const result = buildConfig(['chatgpt']);
           assertEquals(result.agent, 'chatgpt');
         });
       });
@@ -104,21 +91,20 @@ describe('buildConfig (noise-filter functional)', () => {
   });
 
   /**
-   * `parsed.agent` が未指定の前提条件グループ。
+   * CLI 引数で agent が未指定の前提条件グループ。
    *
    * CLI 引数でエージェントが省略されたケースを表す。
    * GlobalConfig にある場合はその値が、ない場合はデフォルト値が使われることを検証する。
    */
-  describe('Given: parsed.agent が未指定', () => {
+  describe('Given: CLI 引数で agent が未指定', () => {
     describe('When: GlobalConfig に agent が設定されている', () => {
       /** GlobalConfig の agent が使われることを検証する。 */
       describe('Then: T-PF-BC-07 - GlobalConfig の agent が使われる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: chatgpt');
+          await _makeGlobalConfig('agent: chatgpt');
         });
         it('T-PF-BC-07: globalConfig.agent=chatgpt → result.agent === chatgpt', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.agent, 'chatgpt');
         });
       });
@@ -127,12 +113,11 @@ describe('buildConfig (noise-filter functional)', () => {
     describe('When: GlobalConfig にも agent が設定されていない', () => {
       /** DEFAULT_NOISE_FILTER_CONFIG.agent が使われることを検証する。 */
       describe('Then: T-PF-BC-08 - defaults.agent にフォールバック', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /some/dir');
+          await _makeGlobalConfig('chatlogsDir: /some/dir');
         });
         it('T-PF-BC-08: agent 未設定 → result.agent === DEFAULT_NOISE_FILTER_CONFIG.agent', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.agent, DEFAULT_NOISE_FILTER_CONFIG.agent);
         });
       });
@@ -150,12 +135,11 @@ describe('buildConfig (noise-filter functional)', () => {
     describe('When: buildConfig を呼び出す', () => {
       /** GlobalConfig.chatlogsDir が chatlogsDir に使われることを検証する。 */
       describe('Then: T-PF-BC-10 - GlobalConfig の chatlogsDir が chatlogsDir になる', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+          await _makeGlobalConfig('chatlogsDir: /global');
         });
         it('T-PF-BC-10: globalConfig.chatlogsDir=/global → result.chatlogsDir === /global', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.chatlogsDir, '/global');
         });
       });
@@ -171,12 +155,11 @@ describe('buildConfig (noise-filter functional)', () => {
     describe('When: buildConfig を呼び出す', () => {
       /** DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir が使われることを検証する。 */
       describe('Then: T-PF-BC-11 - defaults.chatlogsDir にフォールバック', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: claude');
+          await _makeGlobalConfig('agent: claude');
         });
         it('T-PF-BC-11: chatlogsDir 未設定 → result.chatlogsDir === DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.chatlogsDir, DEFAULT_NOISE_FILTER_CONFIG.chatlogsDir);
         });
       });
@@ -186,20 +169,19 @@ describe('buildConfig (noise-filter functional)', () => {
   // ─── inputDir ───────────────────────────────────────────────────────────────
 
   /**
-   * `parsed.inputDir` がセットされている前提条件グループ。
+   * CLI 引数で `--input-dir` が指定されている前提条件グループ。
    *
-   * `parsed.inputDir` が結果にそのまま反映されることを検証する。
+   * `--input-dir` が結果にそのまま反映されることを検証する。
    */
-  describe('Given: parsed.inputDir が指定されている', () => {
+  describe('Given: CLI 引数で --input-dir が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      /** `parsed.inputDir` が結果に反映されることを検証する。 */
-      describe('Then: T-PF-BC-16 - parsed.inputDir が結果に反映される', () => {
-        let globalConfig: GlobalConfig;
+      /** `--input-dir` が結果に反映されることを検証する。 */
+      describe('Then: T-PF-BC-16 - --input-dir が結果に反映される', () => {
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+          await _makeGlobalConfig('chatlogsDir: /global');
         });
-        it('T-PF-BC-16-01: parsed.inputDir=/custom → result.inputDir === /custom', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, inputDir: '/custom' }, globalConfig);
+        it('T-PF-BC-16-01: args=[--input-dir, /custom] → result.inputDir === /custom', () => {
+          const result = buildConfig(['--input-dir', '/custom']);
           assertEquals(result.inputDir, '/custom');
         });
       });
@@ -207,43 +189,41 @@ describe('buildConfig (noise-filter functional)', () => {
   });
 
   /**
-   * `parsed.inputDir` が未指定の前提条件グループ。
+   * CLI 引数で `--input-dir` が未指定の前提条件グループ。
    *
    * `result.inputDir` が `undefined` のままであることを検証する。
    */
-  describe('Given: parsed.inputDir が未指定', () => {
+  describe('Given: CLI 引数で --input-dir が未指定', () => {
     describe('When: buildConfig を呼び出す', () => {
       /** `result.inputDir` が `undefined` になることを検証する。 */
       describe('Then: T-PF-BC-16-02 - result.inputDir === undefined', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('chatlogsDir: /global');
+          await _makeGlobalConfig('chatlogsDir: /global');
         });
         it('T-PF-BC-16-02: inputDir 未指定 → result.inputDir === undefined', () => {
-          const result = buildConfig(_EMPTY_PARSED, globalConfig);
+          const result = buildConfig([]);
           assertEquals(result.inputDir, undefined);
         });
       });
     });
   });
 
-  // ─── period (parsed のみ) ────────────────────────────────────────────────────
+  // ─── period (CLI のみ) ───────────────────────────────────────────────────────
 
   /**
-   * `parsed.period` が結果に反映されることを検証するグループ。
+   * CLI 引数で period が結果に反映されることを検証するグループ。
    *
    * period は GlobalConfig と連携しない。
    */
-  describe('Given: parsed.period が指定されている', () => {
+  describe('Given: CLI 引数で period が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      /** `result.period` に `parsed.period` が設定されることを検証する。 */
+      /** `result.period` に CLI の period が設定されることを検証する。 */
       describe('Then: T-PF-BC-15 - 結果の period に反映される（GlobalConfig 無関係）', () => {
-        let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await _makeGlobalConfig('agent: claude');
+          await _makeGlobalConfig('agent: claude');
         });
-        it('T-PF-BC-15: parsed.period=2026-03 → result.period === 2026-03', () => {
-          const result = buildConfig({ ..._EMPTY_PARSED, period: '2026-03' }, globalConfig);
+        it('T-PF-BC-15: args=[claude, 2026-03] → result.period === 2026-03', () => {
+          const result = buildConfig(['claude', '2026-03']);
           assertEquals(result.period, '2026-03');
         });
       });
