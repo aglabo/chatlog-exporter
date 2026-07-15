@@ -12,13 +12,13 @@ allowed-tools: Bash, Glob
 # classify-chatlogs スキル
 
 `chatlogs/<agent>/` 配下のフラットなチャットログをプロジェクト別サブディレクトリに分類する。
-`assets/configs/projects.dic` の辞書を参照してプロジェクトを選定する。
+`.config/chatlog-exporter/projects.dic` の辞書を参照してプロジェクトを選定する。
 
 ## 前提条件
 
 - `claude` コマンドがPATHに存在すること（Claude Code CLIインストール済み）
 - `deno` コマンドが利用可能であること（TypeScript実行用）
-- `assets/configs/projects.dic` にプロジェクト名が定義されていること
+- `.config/chatlog-exporter/projects.dic` にプロジェクト名が定義されていること
 
 ## 引数の処理
 
@@ -126,7 +126,7 @@ tags:
 
 ## 辞書ファイル
 
-- `assets/configs/projects.dic`: プロジェクト名の選択肢（GlobalConfig の `projectsDic` で変更可能）
+- `.config/chatlog-exporter/projects.dic`: プロジェクト名の選択肢（GlobalConfig の `projectsDic` で変更可能）
 
 ## 関連スキル
 
