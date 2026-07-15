@@ -13,14 +13,13 @@
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { getProjectRoot } from '../../../_scripts/libs/path-utils/dir-utils.ts';
 import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import {
   DEFAULT_AGENT,
   DEFAULT_CHATLOGS_DIR,
-  DEFAULT_DICS_DIR,
   DEFAULT_MAX_RETRY,
-  DEFAULT_PROMPTS_DIR,
 } from '../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
@@ -49,8 +48,10 @@ export const parseArgs = (args: string[]): ParsedConfig => {
  * - chatlogsDir 優先順位: `globalConfig.get('chatlogsDir')` > `DEFAULT_CHATLOGS_DIR`
  * - inputDir: `parsed.inputDir` をそのまま通す（実際のディレクトリ解決は main() が `resolveChatlogsDir` で行う）
  * - outputDir: 絶対パスならそのまま使用、相対パスなら `join(chatlogsDir, outputDir)`、未指定なら `join(chatlogsDir, 'outputLogs')`
- * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `DEFAULT_DICS_DIR`
- * - promptsDir 優先順位: `parsed.promptsDir` > `globalConfig.get('promptsDir')` > `DEFAULT_PROMPTS_DIR`
+ * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `'dics'`。
+ *   相対パスは `globalConfig.configDir` 基準の絶対パスに解決する。
+ * - promptsDir 優先順位: `parsed.promptsDir` > `globalConfig.get('promptsDir')` > `'prompts'`。
+ *   相対パスは `globalConfig.configDir` 基準の絶対パスに解決する。
  * - dryRun: `parsed.dryRun ?? false`
  * - review: `parsed.review ?? true` — デフォルト true
  * - concurrency: `globalConfig.get('concurrency') as number`
@@ -64,9 +65,11 @@ export const buildConfig = (
   const _outputDir = parsed.outputDir
     ? (isAbsolutePath(parsed.outputDir) ? parsed.outputDir : joinPath(_chatlogsDir, parsed.outputDir))
     : joinPath(_chatlogsDir, 'outputLogs');
-  const _dicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? DEFAULT_DICS_DIR;
-  const _promptsDir = parsed.promptsDir ?? (globalConfig.get('promptsDir') as string | undefined)
-    ?? DEFAULT_PROMPTS_DIR;
+  const _configBaseDir = joinPath(getProjectRoot(), globalConfig.configDir);
+  const _rawDicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? 'dics';
+  const _dicsDir = isAbsolutePath(_rawDicsDir) ? _rawDicsDir : joinPath(_configBaseDir, _rawDicsDir);
+  const _rawPromptsDir = parsed.promptsDir ?? (globalConfig.get('promptsDir') as string | undefined) ?? 'prompts';
+  const _promptsDir = isAbsolutePath(_rawPromptsDir) ? _rawPromptsDir : joinPath(_configBaseDir, _rawPromptsDir);
   const _dryRun = parsed.dryRun ?? false;
   const _review = parsed.review ?? true;
   const _rawConcurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number);
