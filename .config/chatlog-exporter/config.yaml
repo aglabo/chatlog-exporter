@@ -27,9 +27,9 @@ maxContentLength: 4000 # Maximum content length
 # DISCARD threshold (filter-chatlog)
 discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value
 
-# Asset directories
-dicsDir: "./assets/dics"
-promptsDir: "./assets/prompts"
+# Asset directories (relative to .config/<app-name>/)
+dicsDir: "dics"
+promptsDir: "prompts"
 chatlogsDir: "./chatlogs"
 
 # Temporary cache
