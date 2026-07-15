@@ -9,10 +9,8 @@
 import {
   DEFAULT_CACHE_ROOT,
   DEFAULT_CHATLOGS_DIR,
-  DEFAULT_DICS_DIR,
+  DEFAULT_CONFIG_DIR,
   DEFAULT_MAX_RETRY,
-  DEFAULT_PROJECTS_DIC_PATH,
-  DEFAULT_PROMPTS_DIR,
 } from './defaults.constants.ts';
 // types
 import type { ConfigSchema, ConfigValues } from '../types/config-schema.types.ts';
@@ -78,12 +76,12 @@ export const DEFAULT_CONFIG_VALUES = {
   chunkSize: 10,
   /** デフォルト並列数は 4 タスク */
   concurrency: 4,
-  /** デフォルト辞書ディレクトリ */
-  dicsDir: DEFAULT_DICS_DIR,
+  /** デフォルト辞書ディレクトリ（`.config/<appName>/` からの相対値。GlobalConfig.get() が絶対パスに解決する） */
+  dicsDir: 'dics',
   /** デフォルトプロジェクト辞書パス */
-  projectsDic: DEFAULT_PROJECTS_DIC_PATH,
-  /** デフォルトプロンプトディレクトリ */
-  promptsDir: DEFAULT_PROMPTS_DIR,
+  projectsDic: `${DEFAULT_CONFIG_DIR}/projects.dic`,
+  /** デフォルトプロンプトディレクトリ（`.config/<appName>/` からの相対値。GlobalConfig.get() が絶対パスに解決する） */
+  promptsDir: 'prompts',
   /** デフォルトチャットログディレクトリ */
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
   /** デフォルトキャッシュルートディレクトリ */
