@@ -427,6 +427,23 @@ describe('processChunk', () => {
 
           assertEquals(cache.read(file1), {});
         });
+
+        it('T-FL-PCK-05-04: error 扱いになった各ファイル名がログに出力される', async () => {
+          const file1 = await _createTempFile('f5.md');
+          const file2 = await _createTempFile('f6.md');
+          commandHandle = installCommandMock(makeFailMock(1));
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
+          assertEquals(logged.includes('f5.md'), true);
+          assertEquals(logged.includes('f6.md'), true);
+        });
       });
     });
   });
@@ -532,6 +549,25 @@ describe('processChunk', () => {
           errStub.restore();
 
           assertEquals(cache.read(filePath), {});
+        });
+
+        it('T-FL-PCK-06-04: error 扱いになった各ファイル名がログに出力される', async () => {
+          const file1 = await _createTempFile('g4.md');
+          const file2 = await _createTempFile('g5.md');
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
+          assertEquals(logged.includes('g4.md'), true);
+          assertEquals(logged.includes('g5.md'), true);
         });
       });
     });
