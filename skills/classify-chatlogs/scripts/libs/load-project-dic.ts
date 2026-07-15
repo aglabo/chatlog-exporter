@@ -18,7 +18,6 @@ import { resolveConfigPath } from '../../../_scripts/libs/path-utils/resolve-pat
 // types
 import type { ProjectDicEntry } from '../types/classify.types.ts';
 // constants
-import { DEFAULT_PROJECTS_DIC_PATH } from '../../../_scripts/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 
 /**
@@ -92,7 +91,7 @@ const _ensureFallbackProject = (dic: ProjectDicEntry): ProjectDicEntry => {
  * parses the YAML, and returns a `ProjectDicEntry` with the fallback project guaranteed to be present.
  * If the YAML content is empty or null, returns a dictionary containing only the fallback project.
  *
- * @param filePath - Path to the project dictionary YAML file. Defaults to `DEFAULT_PROJECTS_DIC_PATH` if omitted.
+ * @param filePath - Path to the project dictionary YAML file. Defaults to `${DEFAULT_CONFIG_DIR}/projects.dic` if omitted.
  * @param resolveProvider - Path resolver function (injectable for testing). Defaults to `resolveConfigPath`.
  * @param readProvider - File reader function (injectable for testing). Defaults to `readTextFile`.
  * @returns A promise resolving to the parsed `ProjectDicEntry` with the fallback project entry guaranteed.
@@ -108,7 +107,7 @@ export const loadProjectDic = async (
 ): Promise<ProjectDicEntry> => {
   const _resolved = resolveProvider({
     configPath: filePath,
-    defaultPath: DEFAULT_PROJECTS_DIC_PATH,
+    defaultPath: `dics/projects.dic`,
   });
 
   const text = await readProvider(_resolved);
