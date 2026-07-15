@@ -52,7 +52,9 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 // ─────────────────────────────────────────────
 
 /** filter-chatlogs の引数スキーマ。 */
-const _SCHEMA: ArgSchema<FilterParsedConfig> = [];
+const _SCHEMA: ArgSchema<FilterParsedConfig> = [
+  { option: '--chunk-size', field: 'chunkSize', type: 'integer' },
+];
 
 // ─────────────────────────────────────────────
 // 設定構築
