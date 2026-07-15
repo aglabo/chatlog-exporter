@@ -16,6 +16,9 @@ export type { Task } from '../../types/common.types.ts';
 
 /**
  * 非同期タスク配列を並列度 `limit` で実行し、入力順の結果配列を返す。
+ *
+ * `ctl.abort()` が呼ばれた後は未着手タスクを実行せず、結果配列の該当インデックスは
+ * 穴（未代入）のまま残る。
  */
 export const withConcurrency = async <T>(
   tasks: Task<T>[],
@@ -25,7 +28,7 @@ export const withConcurrency = async <T>(
   const ctl = new AbortController();
   let idx = 0;
   const _worker = async (): Promise<void> => {
-    while (idx < tasks.length) {
+    while (idx < tasks.length && !ctl.signal.aborted) {
       const i = idx++;
       results[i] = await tasks[i](ctl);
     }

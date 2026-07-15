@@ -119,9 +119,8 @@ function _makeRateLimitMock(): DenoCommandLike {
  * - ファイル名不一致 → 判定不能として stats.skip に計上（cache へは書き込まず、次回再判定される）
  * - CLI エラー（`ChatlogError`）・JSON パース失敗 → 全件 `stats.error` に計上し `ChatlogError` を返す（cache へは書き込まない）。RateLimit の場合は `ctl.abort()` を呼ぶ
  * - 非 `ChatlogError`（CLI バイナリ不在等）→ 握りつぶさず throw する
- * - 呼び出し前から `ctl.signal.aborted` が true → AI 呼び出しをせず即座に `stats.error` へ計上する
  *
- * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-11
+ * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-10
  *
  * @see processChunk
  */
@@ -428,6 +427,23 @@ describe('processChunk', () => {
 
           assertEquals(cache.read(file1), {});
         });
+
+        it('T-FL-PCK-05-04: error 扱いになった各ファイル名がログに出力される', async () => {
+          const file1 = await _createTempFile('f5.md');
+          const file2 = await _createTempFile('f6.md');
+          commandHandle = installCommandMock(makeFailMock(1));
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
+          assertEquals(logged.includes('f5.md'), true);
+          assertEquals(logged.includes('f6.md'), true);
+        });
       });
     });
   });
@@ -534,6 +550,25 @@ describe('processChunk', () => {
 
           assertEquals(cache.read(filePath), {});
         });
+
+        it('T-FL-PCK-06-04: error 扱いになった各ファイル名がログに出力される', async () => {
+          const file1 = await _createTempFile('g4.md');
+          const file2 = await _createTempFile('g5.md');
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([file1, file2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
+          assertEquals(logged.includes('g4.md'), true);
+          assertEquals(logged.includes('g5.md'), true);
+        });
       });
     });
   });
@@ -632,43 +667,6 @@ describe('processChunk', () => {
           assertEquals(cache.read(filePath).decision, FILTER_DECISIONS.DISCARD);
           assertEquals(stats.remove, 0);
           assertEquals(stats.keep, 0);
-        });
-      });
-    });
-  });
-
-  /**
-   * 呼び出し前から `ctl.signal.aborted` が true な前提条件グループ（RateLimit 後の未着手チャンク相当）。
-   *
-   * AI 呼び出しを一切行わず、即座に stats.error へ計上して return することを検証する。
-   */
-  describe('Given: 呼び出し前から ctl.signal.aborted が true', () => {
-    /** processChunk([file], stats, threshold, cache, ctl) を呼び出すとき。 */
-    describe('When: processChunk([file], stats, threshold, cache, ctl) を呼び出す', () => {
-      /** AI 呼び出しをせず stats.error に計上して return することを検証する。 */
-      describe('Then: T-FL-PCK-11 - AI 呼び出しをせず stats.error に計上する', () => {
-        it('T-FL-PCK-11-01: stats.error が 1 になる', async () => {
-          const filePath = await _createTempFile('k.md');
-          const stats = _makeStats();
-          const cache = await _makeEmptyCache();
-          const ctl = new AbortController();
-          ctl.abort();
-
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
-
-          assertEquals(stats.error, 1);
-        });
-
-        it('T-FL-PCK-11-02: cache へは書き込まれない', async () => {
-          const filePath = await _createTempFile('k2.md');
-          const stats = _makeStats();
-          const cache = await _makeEmptyCache();
-          const ctl = new AbortController();
-          ctl.abort();
-
-          await processChunk([filePath], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
-
-          assertEquals(cache.read(filePath), {});
         });
       });
     });
