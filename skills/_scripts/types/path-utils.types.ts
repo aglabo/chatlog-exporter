@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { GlobalConfig } from '../classes/GlobalConfig.class.ts';
 // ─────────────────────────────────────────────
 // パス解決系
 // ─────────────────────────────────────────────
@@ -16,4 +17,6 @@ export interface ResolveConfigPathOptions {
   configPath?: string;
   /** デフォルトパス */
   defaultPath: string;
+  /** 相対パス解決の基準ディレクトリ（絶対パス） */
+  config?: GlobalConfig;
 }

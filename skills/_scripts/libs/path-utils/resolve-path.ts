@@ -9,9 +9,13 @@
 // utils
 import { getProjectRoot } from './dir-utils.ts';
 import { isAbsolutePath, normalizePath, toUnixPath } from './path-utils.ts';
+// constants
+import { DEFAULT_CONFIG_DIR } from '../../constants/defaults.constants.ts';
 // types
 import type { ResolveConfigPathOptions } from '../../types/path-utils.types.ts';
 import type { EnvProvider } from '../../types/providers.types.ts';
+// classes
+import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 
 // ─────────────────────────────────────────────
 // パス解決
@@ -19,22 +23,21 @@ import type { EnvProvider } from '../../types/providers.types.ts';
 
 /**
  * configPath が絶対パスなら正規化して返す。
- * 相対パスなら getProjectRootDir() と結合して正規化して返す。
+ * 相対パスなら baseDir と結合して正規化して返す。
  * configPath が未指定のときは defaultPath を使用する。
  */
 export const resolveConfigPath = ({
   configPath,
   defaultPath,
+  config,
 }: ResolveConfigPathOptions): string => {
   const _path = configPath ?? defaultPath;
-  let _resolved: string;
   if (isAbsolutePath(_path)) {
-    _resolved = normalizePath(_path);
-  } else {
-    const _root = getProjectRoot();
-    _resolved = normalizePath(`${_root}/${_path}`);
+    return normalizePath(_path);
   }
-  return _resolved;
+  const _globalConfig = config ?? GlobalConfig.getInstance();
+  const baseDir = _globalConfig.configDir ?? DEFAULT_CONFIG_DIR;
+  return normalizePath(`${baseDir}/${_path}`);
 };
 
 // ─────────────────────────────────────────────
