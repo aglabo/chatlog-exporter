@@ -15,9 +15,11 @@ import { parse as parseYaml } from '@std/yaml';
 // ─── Shared scripts
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { resolveConfigPath } from '../../../_scripts/libs/path-utils/resolve-path.ts';
 import { toStringArrayWithNull, toStringWithNull } from '../../../_scripts/libs/text/string-utils.ts';
 // classes
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
 
 // ─── Local
 // types
@@ -80,11 +82,16 @@ const _loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
 };
 
 export const loadDics = async (dicsDir: string): Promise<Dics> => {
+  const _resolvedDicsDir = resolveConfigPath({
+    configPath: dicsDir,
+    defaultPath: dicsDir,
+    config: GlobalConfig.getInstance(),
+  });
   const [categoryRaw, topicsRaw, tagsRaw, typesRaw] = await Promise.all([
-    _readAssetFile(`${dicsDir}/category.dic`),
-    _readAssetFile(`${dicsDir}/topics.dic`),
-    _readAssetFile(`${dicsDir}/tags.dic`),
-    _readAssetFile(`${dicsDir}/types.dic`),
+    _readAssetFile(`${_resolvedDicsDir}/category.dic`),
+    _readAssetFile(`${_resolvedDicsDir}/topics.dic`),
+    _readAssetFile(`${_resolvedDicsDir}/tags.dic`),
+    _readAssetFile(`${_resolvedDicsDir}/types.dic`),
   ]);
 
   const _category = Object.keys(_parseYamlDic(categoryRaw)).join(',');
@@ -100,6 +107,11 @@ export const loadDics = async (dicsDir: string): Promise<Dics> => {
 };
 
 export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
+  const _resolvedPromptsDir = resolveConfigPath({
+    configPath: promptsDir,
+    defaultPath: promptsDir,
+    config: GlobalConfig.getInstance(),
+  });
   const [
     categoryRulesRaw,
     typePromptRaw,
@@ -108,12 +120,12 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
     metaPromptRaw,
     reviewPromptRaw,
   ] = await Promise.all([
-    _readAssetFile(`${promptsDir}/category-rules.yaml`),
-    _readAssetFile(`${promptsDir}/type.yaml`),
-    _readAssetFile(`${promptsDir}/category.yaml`),
-    _readAssetFile(`${promptsDir}/type-category.yaml`),
-    _readAssetFile(`${promptsDir}/meta.yaml`),
-    _readAssetFile(`${promptsDir}/review.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/category-rules.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/type.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/category.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/type-category.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/meta.yaml`),
+    _readAssetFile(`${_resolvedPromptsDir}/review.yaml`),
   ]);
 
   const categoryRulesObj = _parseYamlDic(categoryRulesRaw);
