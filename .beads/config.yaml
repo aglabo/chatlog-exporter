@@ -8,17 +8,14 @@
 # Example: issue-prefix: "myProject" creates issues like "myProject-1", "myProject-2", etc.
 # issue-prefix: ""
 issue-prefix: "cle"
-
 # Use no-db mode: JSONL-only, no Dolt database
 # When true, bd will use .beads/issues.jsonl as the source of truth
 # This repo uses embedded Dolt mode (see .beads/metadata.json) — no-db is left unset.
 # no-db: false
 no-daemon: true
-
 # Enable JSON output by default
 # json: false
 json: false
-
 # Feedback title formatting for mutating commands (create/update/close/dep/edit)
 # 0 = hide titles, N > 0 = truncate to N characters
 # output:
@@ -27,6 +24,8 @@ json: false
 # Default actor for audit trails (overridden by BEADS_ACTOR or --actor)
 # actor: ""
 actor: "atsushifx"
+sync:
+    remote: "git+https://github.com/atsushifx/chatlog-exporter.git"
 
 # Export events (audit trail) to .beads/events.jsonl on each flush/sync
 # When enabled, new events are appended incrementally using a high-water mark.
