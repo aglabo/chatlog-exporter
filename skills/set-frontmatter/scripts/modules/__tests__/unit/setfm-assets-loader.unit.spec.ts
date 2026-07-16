@@ -16,6 +16,11 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { loadDics, loadPrompts } from '../../setfm-assets-loader.ts';
 
+// ─── Helpers
+import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+// constants
+import { DEFAULT_CONFIG_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
+
 // ─── Internal Helpers
 
 // constants
@@ -178,6 +183,32 @@ describe('setfm-assets-loader', () => {
         assertEquals(result.topicEntries, []);
       });
     });
+
+    /** 相対パスを渡したとき `.config/<appName>/` 基準に解決されるケース。 */
+    describe('When: dicsDir に相対パスを指定する', () => {
+      let originalCwd: string;
+
+      beforeEach(async () => {
+        originalCwd = Deno.cwd();
+        Deno.chdir(tempDir);
+        GlobalConfig.resetInstance();
+        const configDicsDir = `${tempDir}/${DEFAULT_CONFIG_DIR}/dics`;
+        await Deno.mkdir(configDicsDir, { recursive: true });
+        await _writeDicFiles(configDicsDir);
+      });
+
+      afterEach(() => {
+        GlobalConfig.resetInstance();
+        Deno.chdir(originalCwd);
+      });
+
+      it('[Normal] T-SF-AL-05-01: 相対パス "dics" → .config/<appName>/dics 配下から読み込まれる', async () => {
+        const result = await loadDics('dics');
+
+        assertEquals(result.category, 'tech,life');
+        assertEquals(result.tags, 'typescript');
+      });
+    });
   });
 
   /**
@@ -229,6 +260,34 @@ describe('setfm-assets-loader', () => {
         assertEquals(result.prompts.get('type'), { system: '', user: '' });
         assertEquals(result.prompts.get('category'), { system: '', user: '' });
         assertEquals(result.categoryPrompts.size, 0);
+      });
+    });
+
+    /** 相対パスを渡したとき `.config/<appName>/` 基準に解決されるケース。 */
+    describe('When: promptsDir に相対パスを指定する', () => {
+      let originalCwd: string;
+
+      beforeEach(async () => {
+        originalCwd = Deno.cwd();
+        Deno.chdir(tempDir);
+        GlobalConfig.resetInstance();
+        const configPromptsDir = `${tempDir}/${DEFAULT_CONFIG_DIR}/prompts`;
+        await Deno.mkdir(configPromptsDir, { recursive: true });
+        await _writePromptFiles(configPromptsDir);
+      });
+
+      afterEach(() => {
+        GlobalConfig.resetInstance();
+        Deno.chdir(originalCwd);
+      });
+
+      it('[Normal] T-SF-AL-06-01: 相対パス "prompts" → .config/<appName>/prompts 配下から読み込まれる', async () => {
+        const result = await loadPrompts('prompts');
+
+        assertEquals(result.prompts.get('type'), {
+          system: 'You are a helpful assistant.',
+          user: 'Classify the following: {{body}}',
+        });
       });
     });
   });

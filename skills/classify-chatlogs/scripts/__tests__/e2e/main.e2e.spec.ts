@@ -455,12 +455,9 @@ describe('main - 対象ファイルなし', () => {
 describe('main - InputNotFound エラー', () => {
   describe('Given: 存在しない --input-dir パス', () => {
     describe('When: main([...args]) を呼び出す', () => {
-      describe('Then: T-CL-E2E-05 - InputNotFound → exit(1)', () => {
+      describe('Then: T-CL-E2E-05 - InputNotFound → ChatlogError で reject される', () => {
         let configsDir: string;
         let configFile: string;
-        let errLogs: string[];
-        let errStub: Stub;
-        let exitStub: Stub;
 
         beforeEach(async () => {
           configsDir = normalizePath(await Deno.makeTempDir());
@@ -470,40 +467,28 @@ describe('main - InputNotFound エラー', () => {
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\n',
           );
-          errLogs = [];
-          errStub = stub(console, 'error', (...args: unknown[]) => {
-            errLogs.push(args.map(String).join(' '));
-          });
-          exitStub = stub(Deno, 'exit');
           GlobalConfig.resetInstance();
         });
 
         afterEach(async () => {
-          errStub.restore();
-          exitStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-05-01: Deno.exit が 1 で呼ばれる', async () => {
-          try {
-            await main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]);
-          } catch { /* ChatlogError が漏れた場合も継続して検証する */ }
-
-          assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
-          assertEquals(exitStub.calls[0].args[0], 1);
+        it('T-CL-E2E-05-01: ChatlogError で main() が reject される', async () => {
+          await assertRejects(
+            () => main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]),
+            ChatlogError,
+          );
         });
 
-        it('T-CL-E2E-05-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
-          try {
-            await main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]);
-          } catch { /* ChatlogError が漏れた場合も継続して検証する */ }
-
-          assertEquals(
-            errLogs.some((l) => l.includes('入力ディレクトリが見つかりません')),
-            true,
-            'errorLogs に 入力ディレクトリが見つかりません が含まれていない',
+        it('T-CL-E2E-05-02: エラーメッセージに "入力ディレクトリが見つかりません" が含まれる', async () => {
+          const rejected = await assertRejects(
+            () => main(['claude', '2026-03', '--input-dir', '/nonexistent/path/xyz', '--config', configFile]),
+            ChatlogError,
           );
+
+          assertStringIncludes((rejected as ChatlogError).message, '入力ディレクトリが見つかりません');
         });
       });
     });
@@ -665,14 +650,11 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
     /** `main(["claude", "2026-99", "--config", configFile])` を呼び出すとき（GlobalConfig の chatlogsDir 経由で解決）。 */
     describe('When: main(["claude", "2026-99", "--config", configFile]) を呼び出す', () => {
-      /** InputNotFound エラーが発生し Deno.exit(1) が呼ばれること。 */
-      describe('Then: T-CL-E2E-11 - InputNotFound → exit(1)', () => {
+      /** InputNotFound エラーが発生し ChatlogError で reject されること。 */
+      describe('Then: T-CL-E2E-11 - InputNotFound → ChatlogError で reject される', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
-        let errLogs: string[];
-        let errStub: Stub;
-        let exitStub: Stub;
 
         beforeEach(async () => {
           // 2026-03 ディレクトリは作成されるが、2026-99 は存在しない
@@ -682,40 +664,29 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
             configFile,
             `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`,
           );
-          errLogs = [];
-          errStub = stub(console, 'error', (...args: unknown[]) => {
-            errLogs.push(args.map(String).join(' '));
-          });
-          exitStub = stub(Deno, 'exit');
           GlobalConfig.resetInstance();
         });
 
         afterEach(async () => {
-          errStub.restore();
-          exitStub.restore();
           GlobalConfig.resetInstance();
           await Deno.remove(inputDir, { recursive: true });
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-11-01: Deno.exit が 1 で呼ばれる', async () => {
-          try {
-            await main(['claude', '2026-99', '--config', configFile]);
-          } catch { /* ChatlogError が漏れた場合も継続 */ }
-
-          assertEquals(exitStub.calls.length >= 1, true, 'Deno.exit が呼ばれていない');
-          assertEquals(exitStub.calls[0].args[0], 1);
+        it('T-CL-E2E-11-01: ChatlogError で main() が reject される', async () => {
+          await assertRejects(
+            () => main(['claude', '2026-99', '--config', configFile]),
+            ChatlogError,
+          );
         });
 
-        it('T-CL-E2E-11-02: errorLogs に "入力ディレクトリが見つかりません" が含まれる', async () => {
-          try {
-            await main(['claude', '2026-99', '--config', configFile]);
-          } catch { /* ChatlogError が漏れた場合も継続 */ }
-
-          assertEquals(
-            errLogs.some((l) => l.includes('入力ディレクトリが見つかりません')),
-            true,
+        it('T-CL-E2E-11-02: エラーメッセージに "入力ディレクトリが見つかりません" が含まれる', async () => {
+          const rejected = await assertRejects(
+            () => main(['claude', '2026-99', '--config', configFile]),
+            ChatlogError,
           );
+
+          assertStringIncludes((rejected as ChatlogError).message, '入力ディレクトリが見つかりません');
         });
       });
     });
@@ -781,8 +752,8 @@ describe('main - --input-dir フルパス直接指定', () => {
  * `main` 関数の E2E テストスイート（非 `ChatlogError` 例外の再スローパス）。
  *
  * `projects.dic` 読み込み時に `ChatlogError` ではない例外（`TypeError`）が
- * 発生した場合、`catch` 節の `if (e instanceof ChatlogError)` 分岐に入らず
- * `Deno.exit` を呼ばずにそのまま再スローされることを検証する。
+ * 発生した場合、`main()` は catch せず、`Deno.exit` を呼ばずに
+ * そのまま呼び出し元へ再スローすることを検証する。
  *
  * テスト ID 範囲: T-CL-E2E-12
  *

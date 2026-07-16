@@ -12,7 +12,6 @@
 
 // -- classes --
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
 
 // -- types --
 import type { HashProvider } from '../../_scripts/types/providers.types.ts';
@@ -22,15 +21,11 @@ import {
   DEFAULT_AGENT,
   DEFAULT_NORMALIZE_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
-  DEFAULT_TIMEOUT_MS,
 } from '../../_scripts/constants/defaults.constants.ts';
 
 // -- file-io --
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
-
-// -- io --
-import { logger } from '../../_scripts/libs/io/logger.ts';
 
 // ─────────────────────────────────────────────
 // local modules
@@ -41,7 +36,7 @@ import { DEFAULT_NORMALIZE_CONFIG } from './constants/normalize.constants.ts';
 
 // -- modules --
 import { reportResults } from './modules/file-io.ts';
-import { buildConfig, parseArgs } from './modules/normalize-config.ts';
+import { buildConfig } from './modules/normalize-config.ts';
 import { processFiles } from './modules/process-files.ts';
 
 // -- local types --
@@ -59,36 +54,22 @@ import type { Stats } from './types/normalize.types.ts';
  * @param hashFn - Optional hash generator for output file names (injectable for testing)
  */
 export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void> => {
-  try {
-    const _parsed = parseArgs(argv ?? Deno.args);
-    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const _timeoutMs = Number(_globalConfig.get('timeoutMs') ?? DEFAULT_TIMEOUT_MS);
-    const config = buildConfig(_parsed, _globalConfig, {
-      ...DEFAULT_NORMALIZE_CONFIG,
-      timeoutMs: _timeoutMs,
-    });
-    const inputDir = resolveChatlogsDir({
-      chatlogsDir: config.chatlogsDir,
-      agent: config.agent ?? DEFAULT_AGENT,
-      period: config.period,
-      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-      override: config.inputDir,
-    });
-    if (!dirExistsSync(inputDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
-    }
-    const outputBase = config.outputDir ?? DEFAULT_NORMALIZE_DIR;
-
-    const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-    await processFiles(inputDir, outputBase, config, stats, hashFn);
-    reportResults(stats);
-  } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
+  const config = buildConfig(argv ?? Deno.args, DEFAULT_NORMALIZE_CONFIG);
+  const inputDir = resolveChatlogsDir({
+    chatlogsDir: config.chatlogsDir,
+    agent: config.agent ?? DEFAULT_AGENT,
+    period: config.period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: config.inputDir,
+  });
+  if (!dirExistsSync(inputDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
+  const outputBase = config.outputDir ?? DEFAULT_NORMALIZE_DIR;
+
+  const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+  await processFiles(inputDir, outputBase, config, stats, hashFn);
+  reportResults(stats);
 };
 
 if (import.meta.main) {

@@ -43,7 +43,7 @@ import { phaseTypeAndCategory } from './phases/phase-type-category.ts';
 import { filterWriteEntry, phaseWrite } from './phases/phase-write.ts';
 // types
 import { CACHE_STATUSES } from '../../_scripts/types/cache-status.const.types.ts';
-import { buildConfig, parseArgs } from './modules/setfm-config.ts';
+import { buildConfig } from './modules/setfm-config.ts';
 import { loadAllEntries } from './modules/setfm-entry-loader.ts';
 import type { SetfmCache } from './types/cache.types.ts';
 // types
@@ -89,76 +89,94 @@ const _splitEntries = (
 // ─────────────────────────────────────────────
 
 export const main = async (args: string[]): Promise<void> => {
-  try {
-    const _parsed = parseArgs(args);
-    const _globalConfig = GlobalConfig.getInstance({ configFile: _parsed.configFile });
-    const _config = buildConfig(_parsed, _globalConfig);
-    const _inputDir = resolveChatlogsDir({
-      chatlogsDir: _config.chatlogsDir,
-      agent: _config.agent,
-      period: _config.period,
-      addOnDir: 'normalizelogs',
-      override: _config.inputDir || undefined,
-    });
+  const _config = buildConfig(args);
+  const _globalConfig = GlobalConfig.getInstance();
+  const _inputDir = resolveChatlogsDir({
+    chatlogsDir: _config.chatlogsDir,
+    agent: _config.agent,
+    period: _config.period,
+    addOnDir: 'normalizelogs',
+    override: _config.inputDir || undefined,
+  });
 
-    if (!await dirExists(_inputDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_inputDir}`);
-    }
+  if (!await dirExists(_inputDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_inputDir}`);
+  }
 
-    const _cache = new ChatlogCache<SetfmCache>(
-      'fm-cache',
-      _config.cacheDir,
-      { outputDir: _config.outputDir },
-    );
-    await _cache.ready;
+  const _cache = new ChatlogCache<SetfmCache>(
+    'fm-cache',
+    _config.cacheDir,
+    { outputDir: _config.outputDir },
+  );
+  await _cache.ready;
 
-    const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
+  const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
+  logger.info(
+    `辞書読み込み完了: category=${dics.category.split(',').length}件 `
+      + `topics=${dics.topicEntries.length}件 tags=${dics.tags.split(',').length}件 `
+      + `types=${dics.typeEntries.length}件`,
+  );
+
+  if (!_config.review) { logger.info('--no-review モード: Phase 3.1 をスキップします'); }
+
+  const maxContentLength = _globalConfig.get('maxContentLength') as number;
+  const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
+
+  // Phase 1.1: メタ読み込み
+  const entries = await loadAllEntries(_inputDir, stats);
+  logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
+  if (entries.length === 0) {
+    logger.info('対象ファイルなし');
+    return;
+  }
+
+  // Phase 1.2: エントリ3分割（written / reviewed / generate）
+  const { writtenEntries, reviewedEntries, generateEntries } = _splitEntries(entries, _cache);
+  stats.written = writtenEntries.length;
+  logger.info(
+    `分割: written=${writtenEntries.length}件 reviewed=${reviewedEntries.length}件 generate=${generateEntries.length}件`,
+  );
+
+  // Phase 2.1: type・category同時判定（並列）
+  logger.info(
+    `\nPhase 2.1: type・category判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
+  );
+  await phaseTypeAndCategory(
+    generateEntries,
+    _cache,
+    maxContentLength,
+    dics,
+    prompts,
+    _config.concurrency,
+    _config.dryRun,
+  );
+
+  // Phase 2.2: フロントマター生成（並列）
+  logger.info(`\nPhase 2.2: フロントマター生成開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`);
+  await phaseFrontmatter(
+    generateEntries,
+    _cache,
+    maxContentLength,
+    dics,
+    prompts,
+    _config.concurrency,
+    _config.dryRun,
+    undefined,
+    _config.maxRetry,
+  );
+
+  // Phase 2.3: ステータス設定
+  logger.info(`\nPhase 2.3: ステータス設定 (${generateEntries.length}件)`);
+  await phaseStatus(generateEntries, _cache, _config.dryRun);
+
+  // Phase 3.1: レビュー（並列）
+  if (_config.review) {
     logger.info(
-      `辞書読み込み完了: category=${dics.category.split(',').length}件 `
-        + `topics=${dics.topicEntries.length}件 tags=${dics.tags.split(',').length}件 `
-        + `types=${dics.typeEntries.length}件`,
+      `\nPhase 3.1: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
     );
-
-    if (!_config.review) { logger.info('--no-review モード: Phase 3.1 をスキップします'); }
-
-    const maxContentLength = _globalConfig.get('maxContentLength') as number;
-    const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
-
-    // Phase 1.1: メタ読み込み
-    const entries = await loadAllEntries(_inputDir, stats);
-    logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
-    if (entries.length === 0) {
-      logger.info('対象ファイルなし');
-      return;
-    }
-
-    // Phase 1.2: エントリ3分割（written / reviewed / generate）
-    const { writtenEntries, reviewedEntries, generateEntries } = _splitEntries(entries, _cache);
-    stats.written = writtenEntries.length;
-    logger.info(
-      `分割: written=${writtenEntries.length}件 reviewed=${reviewedEntries.length}件 generate=${generateEntries.length}件`,
-    );
-
-    // Phase 2.1: type・category同時判定（並列）
-    logger.info(
-      `\nPhase 2.1: type・category判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
-    );
-    await phaseTypeAndCategory(
+    await phaseReview(
       generateEntries,
       _cache,
-      maxContentLength,
-      dics,
-      prompts,
-      _config.concurrency,
-      _config.dryRun,
-    );
-
-    // Phase 2.2: フロントマター生成（並列）
-    logger.info(`\nPhase 2.2: フロントマター生成開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`);
-    await phaseFrontmatter(
-      generateEntries,
-      _cache,
-      maxContentLength,
       dics,
       prompts,
       _config.concurrency,
@@ -166,52 +184,25 @@ export const main = async (args: string[]): Promise<void> => {
       undefined,
       _config.maxRetry,
     );
-
-    // Phase 2.3: ステータス設定
-    logger.info(`\nPhase 2.3: ステータス設定 (${generateEntries.length}件)`);
-    await phaseStatus(generateEntries, _cache, _config.dryRun);
-
-    // Phase 3.1: レビュー（並列）
-    if (_config.review) {
-      logger.info(
-        `\nPhase 3.1: フロントマターレビュー開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
-      );
-      await phaseReview(
-        generateEntries,
-        _cache,
-        dics,
-        prompts,
-        _config.concurrency,
-        _config.dryRun,
-        undefined,
-        _config.maxRetry,
-      );
-    } else {
-      logger.info(`\nPhase 3.1: スキップ (--no-review)`);
-    }
-
-    // Phase 4.1: 書き込み
-    const _candidateEntries = [...reviewedEntries, ...generateEntries];
-    const _writeEntries = _candidateEntries.filter((e) => filterWriteEntry(e.filePath!, _cache, _config.review));
-    if (!_config.dryRun) {
-      const _failEntries = _candidateEntries.filter((e) => !filterWriteEntry(e.filePath!, _cache, _config.review));
-      _failEntries.forEach((e) => {
-        logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
-        stats.fail++;
-      });
-    }
-    await phaseWrite(_writeEntries, _cache, { ..._config, inputDir: _inputDir }, stats);
-
-    logger.info(
-      `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,
-    );
-  } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
+  } else {
+    logger.info(`\nPhase 3.1: スキップ (--no-review)`);
   }
+
+  // Phase 4.1: 書き込み
+  const _candidateEntries = [...reviewedEntries, ...generateEntries];
+  const _writeEntries = _candidateEntries.filter((e) => filterWriteEntry(e.filePath!, _cache, _config.review));
+  if (!_config.dryRun) {
+    const _failEntries = _candidateEntries.filter((e) => !filterWriteEntry(e.filePath!, _cache, _config.review));
+    _failEntries.forEach((e) => {
+      logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
+      stats.fail++;
+    });
+  }
+  await phaseWrite(_writeEntries, _cache, { ..._config, inputDir: _inputDir }, stats);
+
+  logger.info(
+    `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,
+  );
 };
 
 if (import.meta.main) {

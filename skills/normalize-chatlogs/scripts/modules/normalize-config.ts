@@ -9,16 +9,10 @@
 
 // --- shared
 // functions
-import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
-
-// classes
-import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
+import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
 
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
-
-// constants
-import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
 
 // --- internal
 // types
@@ -39,24 +33,21 @@ const _SCHEMA: ArgSchema<NormalizeParsedConfig> = [
   { option: '--single-file', field: 'singleFile', type: 'flag' },
 ];
 
-export const parseArgs = (args: string[]): NormalizeParsedConfig => {
-  return parseArgsToConfig<NormalizeParsedConfig>(args, _SCHEMA);
-};
-
+/**
+ * CLI 引数から完全な NormalizeConfig を構築する。
+ * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの設定を返すため、
+ *   GlobalConfig の値を個別に再取得しない。
+ * - `dryRun` は未指定時 `false` になる。
+ */
 export const buildConfig = (
-  parsed: NormalizeParsedConfig,
-  globalConfig: GlobalConfig,
+  args: string[],
   defaults: Partial<NormalizeConfig> = DEFAULT_NORMALIZE_CONFIG,
 ): NormalizeConfig => {
-  const _chatlogsDir = globalConfig.get('chatlogsDir') as string;
-  const { configFile: _configFile, ...rest } = parsed;
+  const _parsed = parseArgs<NormalizeParsedConfig>(args, _SCHEMA, defaults);
+  const { configFile: _configFile, ...rest } = _parsed;
   return {
-    ...defaults,
     ...rest,
-    chatlogsDir: _chatlogsDir,
-    inputDir: parsed.inputDir,
-    outputDir: parsed.outputDir ?? defaults.outputDir,
-    dryRun: parsed.dryRun ?? defaults.dryRun ?? false,
-    concurrency: parsed.concurrency ?? defaults.concurrency ?? DEFAULT_CONCURRENCY,
-  };
+    dryRun: rest.dryRun ?? false,
+  } as NormalizeConfig;
 };

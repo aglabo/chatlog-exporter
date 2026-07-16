@@ -8,7 +8,7 @@
 
 // ─── shared ───
 // functions
-import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
@@ -37,7 +37,7 @@ export const buildConfig = (
   args: string[],
   defaults: NoiseFilterConfig = DEFAULT_NOISE_FILTER_CONFIG,
 ): NoiseFilterConfig => {
-  const _parsed = parseArgsToConfig<NoiseFilterParsedConfig>(args, _SCHEMA, defaults);
+  const _parsed = parseArgs<NoiseFilterParsedConfig>(args, _SCHEMA, defaults);
   _parsed.dryRun ??= false;
   const { configFile: _configFile, ...rest } = _parsed;
   return { ...rest } as NoiseFilterConfig;

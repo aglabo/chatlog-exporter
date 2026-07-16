@@ -62,73 +62,65 @@ export const processClassify = async (
 /**
  * classify-chatlogs スクリプトのエントリポイント。
  * - `--config` で指定された YAML を GlobalConfig に読み込み、model/chunkSize/concurrency のデフォルト値を解決する。
- * - `ChatlogError` はログに出力して `exit(1)` する。その他の例外は再スローする。
+ * - 例外は catch せずそのまま呼び出し元に伝播する。
  */
 export const main = async (argv?: string[]): Promise<void> => {
-  try {
-    const _config = buildConfig(argv ?? Deno.args);
+  const _config = buildConfig(argv ?? Deno.args);
 
-    // 入力ディレクトリ確認
-    const _agentDir = resolveChatlogsDir({
-      chatlogsDir: _config.chatlogsDir,
-      agent: _config.agent,
-      period: _config.period,
-      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-      override: _config.inputDir,
-    });
-    if (!await dirExists(_agentDir)) {
-      throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
-    }
-
-    // プロジェクト辞書読み込み
-    const projects = await loadProjectDic(_config.projectsDic);
-    const _projectNames = Object.keys(projects);
-    if (_projectNames.every((name) => name === FALLBACK_PROJECT)) {
-      logger.warn('projects.dic にプロジェクトが定義されていません。すべて misc に分類されます。');
-    }
-
-    logger.info(`対象 agent: ${_config.agent}`);
-    if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
-    if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
-    logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
-
-    // 対象ディレクトリ
-    const _searchDir = resolveChatlogsDir({
-      chatlogsDir: _config.chatlogsDir,
-      agent: _config.agent,
-      period: _config.period,
-      addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-      override: _config.inputDir,
-    });
-
-    const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
-
-    // Step 1: バッファ取得
-    const _buffer = await findBufferEntries(_searchDir, undefined, stats);
-    if (_buffer.length === 0) {
-      logger.info('対象ファイルなし');
-      logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
-      return;
-    }
-
-    // Step 2: 分類（AI なし + AI あり）
-    const _classified = await processClassify(_buffer, projects, _config);
-
-    // Step 3: ファイル移動
-    await moveClassified(_classified, _searchDir, _config.dryRun, stats);
-
-    // サマリー
-    const drySuffix = _config.dryRun ? ' (dry-run)' : '';
-    logger.info(
-      `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
-    );
-  } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
+  // 入力ディレクトリ確認
+  const _agentDir = resolveChatlogsDir({
+    chatlogsDir: _config.chatlogsDir,
+    agent: _config.agent,
+    period: _config.period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: _config.inputDir,
+  });
+  if (!await dirExists(_agentDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
   }
+
+  // プロジェクト辞書読み込み
+  const projects = await loadProjectDic(_config.projectsDic);
+  const _projectNames = Object.keys(projects);
+  if (_projectNames.every((name) => name === FALLBACK_PROJECT)) {
+    logger.warn('projects.dic にプロジェクトが定義されていません。すべて misc に分類されます。');
+  }
+
+  logger.info(`対象 agent: ${_config.agent}`);
+  if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
+  if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
+  logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
+
+  // 対象ディレクトリ
+  const _searchDir = resolveChatlogsDir({
+    chatlogsDir: _config.chatlogsDir,
+    agent: _config.agent,
+    period: _config.period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: _config.inputDir,
+  });
+
+  const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
+
+  // Step 1: バッファ取得
+  const _buffer = await findBufferEntries(_searchDir, undefined, stats);
+  if (_buffer.length === 0) {
+    logger.info('対象ファイルなし');
+    logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
+    return;
+  }
+
+  // Step 2: 分類（AI なし + AI あり）
+  const _classified = await processClassify(_buffer, projects, _config);
+
+  // Step 3: ファイル移動
+  await moveClassified(_classified, _searchDir, _config.dryRun, stats);
+
+  // サマリー
+  const drySuffix = _config.dryRun ? ' (dry-run)' : '';
+  logger.info(
+    `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
+  );
 };
 
 if (import.meta.main) { await main(); }
