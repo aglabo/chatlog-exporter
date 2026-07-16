@@ -63,7 +63,7 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   const year = period.slice(0, 4);
   const monthDir = `${inputDir}/originalLogs/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
-  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`);
+  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
   await Deno.writeTextFile(
     `${configsDir}/projects.dic`,
     'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
@@ -462,7 +462,7 @@ describe('main - InputNotFound エラー', () => {
         beforeEach(async () => {
           configsDir = normalizePath(await Deno.makeTempDir());
           configFile = `${configsDir}/defaults.yaml`;
-          await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`);
+          await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\n',
@@ -572,7 +572,7 @@ describe('main - 期間フィルタ', () => {
           // chatlogsDir を GlobalConfig 経由で inputDir に設定し、period による通常解決経路を通す
           await Deno.writeTextFile(
             configFile,
-            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`,
+            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\n`,
           );
           // 2026-03 の対象ファイル
           await Deno.writeTextFile(
@@ -662,7 +662,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
           // chatlogsDir を GlobalConfig 経由で inputDir に設定し、resolveChatlogsDir の通常解決経路を通す
           await Deno.writeTextFile(
             configFile,
-            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\n`,
+            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\n`,
           );
           GlobalConfig.resetInstance();
         });
