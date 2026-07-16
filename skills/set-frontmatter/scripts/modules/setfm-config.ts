@@ -10,87 +10,52 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
-import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
-import { getProjectRoot } from '../../../_scripts/libs/path-utils/dir-utils.ts';
+import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
 import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
-import {
-  DEFAULT_AGENT,
-  DEFAULT_CHATLOGS_DIR,
-  DEFAULT_MAX_RETRY,
-} from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // ─── Local
 // types
-import type { ParsedConfig, SetfmConfig } from '../types/args.types.ts';
+import type { SetfmConfig } from '../types/args.types.ts';
 
 /** set-frontmatter の引数スキーマ。 */
-const _SCHEMA: ArgSchema<ParsedConfig> = [
+const _SCHEMA: ArgSchema<SetfmConfig> = [
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--review', field: 'review', type: 'flag' },
-  { option: '--concurrency', field: 'concurrency', type: 'integer' },
+  { option: '--concurrency', field: 'concurrency', type: 'integer', min: 1 },
   { option: '--cache-dir', field: 'cacheDir', type: 'string' },
 ];
 
-export const parseArgs = (args: string[]): ParsedConfig => {
-  return parseArgsToConfig<ParsedConfig>(args, _SCHEMA);
+/** `buildConfig` のデフォルト値。GlobalConfig スキーマにないフィールドのみここで補う。 */
+const _DEFAULT_SETFM_CONFIG: SetfmConfig = {
+  ...DEFAULT_CONFIG_VALUES,
+  inputDir: '',
+  outputDir: 'outputLogs',
+  dryRun: false,
+  review: true,
 };
 
 /**
- * ParsedConfig・GlobalConfig・デフォルト値から完全な SetfmConfig を構築する。
- * - agent 優先順位: `parsed.agent` > `globalConfig.get('agent')` > `DEFAULT_AGENT`
- * - period: `parsed.period`（そのまま、未指定なら全期間対象）
- * - chatlogsDir 優先順位: `globalConfig.get('chatlogsDir')` > `DEFAULT_CHATLOGS_DIR`
- * - inputDir: `parsed.inputDir` をそのまま通す（実際のディレクトリ解決は main() が `resolveChatlogsDir` で行う）
- * - outputDir: 絶対パスならそのまま使用、相対パスなら `join(chatlogsDir, outputDir)`、未指定なら `join(chatlogsDir, 'outputLogs')`
- * - dicsDir 優先順位: `parsed.dicsDir` > `globalConfig.get('dicsDir')` > `'dics'`。
- *   相対パスは `globalConfig.configDir` 基準の絶対パスに解決する。
- * - promptsDir 優先順位: `parsed.promptsDir` > `globalConfig.get('promptsDir')` > `'prompts'`。
- *   相対パスは `globalConfig.configDir` 基準の絶対パスに解決する。
- * - dryRun: `parsed.dryRun ?? false`
- * - review: `parsed.review ?? true` — デフォルト true
- * - concurrency: `globalConfig.get('concurrency') as number`
+ * CLI 引数・GlobalConfig から完全な SetfmConfig を構築する。
+ * - `parseArgs`（共通ライブラリ）が CLI 引数・GlobalConfig・defaults を
+ *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの `SetfmConfig` を返す。
+ * - outputDir: 絶対パスならそのまま使用、相対パスなら `joinPath(chatlogsDir, outputDir)`、
+ *   未指定なら `joinPath(chatlogsDir, 'outputLogs')` に解決する。
+ * - dicsDir/promptsDir/cacheDir はパス解決を行わず、値をそのまま透過する。
+ * - concurrency の範囲検証（1 以上）は `_SCHEMA` の `min: 1` に委譲する。
  */
 export const buildConfig = (
-  parsed: ParsedConfig,
-  globalConfig: GlobalConfig,
+  args: string[],
+  defaults?: SetfmConfig,
 ): SetfmConfig => {
-  const _chatlogsDir = (globalConfig.get('chatlogsDir') as string | undefined) ?? DEFAULT_CHATLOGS_DIR;
-  const _agent = parsed.agent ?? (globalConfig.get('agent') as string | undefined) ?? DEFAULT_AGENT;
-  const _outputDir = parsed.outputDir
-    ? (isAbsolutePath(parsed.outputDir) ? parsed.outputDir : joinPath(_chatlogsDir, parsed.outputDir))
-    : joinPath(_chatlogsDir, 'outputLogs');
-  const _configBaseDir = joinPath(getProjectRoot(), globalConfig.configDir);
-  const _rawDicsDir = parsed.dicsDir ?? (globalConfig.get('dicsDir') as string | undefined) ?? 'dics';
-  const _dicsDir = isAbsolutePath(_rawDicsDir) ? _rawDicsDir : joinPath(_configBaseDir, _rawDicsDir);
-  const _rawPromptsDir = parsed.promptsDir ?? (globalConfig.get('promptsDir') as string | undefined) ?? 'prompts';
-  const _promptsDir = isAbsolutePath(_rawPromptsDir) ? _rawPromptsDir : joinPath(_configBaseDir, _rawPromptsDir);
-  const _dryRun = parsed.dryRun ?? false;
-  const _review = parsed.review ?? true;
-  const _rawConcurrency = parsed.concurrency ?? (globalConfig.get('concurrency') as number);
-  const _concurrency = Math.floor(_rawConcurrency);
-  if (_concurrency < 1) {
-    throw new ChatlogError('InvalidArgs', `--concurrency は 1 以上の整数を指定してください: ${_rawConcurrency}`);
-  }
-  const _cacheDir = parsed.cacheDir ?? joinPath(Deno.env.get('TEMP') ?? '.', 'setfm-cache');
-  const _maxRetry = (globalConfig.get('maxRetry') as number) ?? DEFAULT_MAX_RETRY;
-  return {
-    inputDir: parsed.inputDir ?? '',
-    outputDir: _outputDir,
-    agent: _agent,
-    period: parsed.period,
-    chatlogsDir: _chatlogsDir,
-    dicsDir: _dicsDir,
-    promptsDir: _promptsDir,
-    dryRun: _dryRun,
-    review: _review,
-    concurrency: _concurrency,
-    cacheDir: _cacheDir,
-    maxRetry: _maxRetry,
-  };
+  const _defaults = defaults ?? _DEFAULT_SETFM_CONFIG;
+  const _parsed = parseArgs<SetfmConfig>(args, _SCHEMA, _defaults);
+  const _outputDir = _parsed.outputDir
+    ? (isAbsolutePath(_parsed.outputDir) ? _parsed.outputDir : joinPath(_parsed.chatlogsDir, _parsed.outputDir))
+    : joinPath(_parsed.chatlogsDir, 'outputLogs');
+  return { ..._parsed, outputDir: _outputDir };
 };
