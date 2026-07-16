@@ -29,19 +29,19 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 type NormalCase = {
   id: string;
   label: string;
-  input: Record<string, unknown>;
+  input: string;
   expected: Record<string, string | number>;
 };
 
 /** テストケース: 異常系 */
 // deno-lint-ignore no-explicit-any
-type ErrorCase = { id: string; label: string; input: Record<string, unknown>; errorType: new(...args: any[]) => Error };
+type ErrorCase = { id: string; label: string; input: string; errorType: new(...args: any[]) => Error };
 
 /** テストケース: エッジケース */
 type EdgeCase = {
   id: string;
   label: string;
-  input: Record<string, unknown>;
+  input: string;
   expected: Record<string, string | number>;
 };
 
@@ -342,7 +342,7 @@ describe('GlobalConfig', () => {
   // ─── parseYaml ───────────────────────────────────────────────────────────
 
   /**
-   * `parseYaml` のスキーマ検証・型変換テスト。
+   * `parseYaml` の YAML テキストパース・スキーマ検証・型変換テスト。
    *
    * string/number フィールドの変換・未知キーのエラー・null/undefined 境界値を検証する。
    */
@@ -354,160 +354,159 @@ describe('GlobalConfig', () => {
       {
         id: 'T-CLS-GC-10',
         label: 'string フィールドはそのまま返す',
-        input: { agent: 'claude' },
+        input: 'agent: claude\n',
         expected: { agent: 'claude' },
       },
       {
         id: 'T-CLS-GC-11',
         label: 'number フィールドの数値型はそのまま返す',
-        input: { timeoutMs: 120000 },
+        input: 'timeoutMs: 120000\n',
         expected: { timeoutMs: 120000 },
       },
       {
         id: 'T-CLS-GC-12',
         label: 'number フィールドの数値文字列は数値に変換',
-        input: { timeoutMs: '120_000' },
+        input: "timeoutMs: '120_000'\n",
         expected: { timeoutMs: 120000 },
       },
       {
         id: 'T-CLS-GC-13',
         label: '複数フィールドを正しく変換して返す',
-        input: { agent: 'claude', timeoutMs: 30000 },
+        input: 'agent: claude\ntimeoutMs: 30000\n',
         expected: { agent: 'claude', timeoutMs: 30000 },
       },
-      { id: 'T-CLS-GC-14', label: '空オブジェクトは空オブジェクトを返す', input: {}, expected: {} },
+      { id: 'T-CLS-GC-14', label: '空オブジェクトは空オブジェクトを返す', input: '{}\n', expected: {} },
       {
         id: 'T-CLS-GC-104',
         label: 'chunkSize: 1（下限境界値）は範囲チェックでエラーにならない',
-        input: { chunkSize: 1 },
+        input: 'chunkSize: 1\n',
         expected: { chunkSize: 1 },
       },
       {
         id: 'T-CLS-GC-105',
         label: 'chunkSize: 10（上限境界値）は範囲チェックでエラーにならない',
-        input: { chunkSize: 10 },
+        input: 'chunkSize: 10\n',
         expected: { chunkSize: 10 },
       },
       {
         id: 'T-CLS-GC-106',
         label: 'concurrency: 1（下限境界値）は範囲チェックでエラーにならない',
-        input: { concurrency: 1 },
+        input: 'concurrency: 1\n',
         expected: { concurrency: 1 },
       },
       {
         id: 'T-CLS-GC-107',
         label: 'concurrency: 10（上限境界値）は範囲チェックでエラーにならない',
-        input: { concurrency: 10 },
+        input: 'concurrency: 10\n',
         expected: { concurrency: 10 },
       },
       {
         id: 'T-CLS-GC-110',
         label: 'timeoutMs: 0（下限境界値）は範囲チェックでエラーにならない',
-        input: { timeoutMs: 0 },
+        input: 'timeoutMs: 0\n',
         expected: { timeoutMs: 0 },
       },
       {
         id: 'T-CLS-GC-111',
         label: 'timeoutMs: 600000（上限境界値）は範囲チェックでエラーにならない',
-        input: { timeoutMs: 600000 },
+        input: 'timeoutMs: 600000\n',
         expected: { timeoutMs: 600000 },
       },
       {
         id: 'T-CLS-GC-112',
         label: 'hashLength: 1（下限境界値）は範囲チェックでエラーにならない',
-        input: { hashLength: 1 },
+        input: 'hashLength: 1\n',
         expected: { hashLength: 1 },
       },
       {
         id: 'T-CLS-GC-113',
         label: 'hashLength: 64（上限境界値）は範囲チェックでエラーにならない',
-        input: { hashLength: 64 },
+        input: 'hashLength: 64\n',
         expected: { hashLength: 64 },
       },
       {
         id: 'T-CLS-GC-114',
         label: 'minRandomLength: 1（下限境界値）は範囲チェックでエラーにならない',
-        input: { minRandomLength: 1 },
+        input: 'minRandomLength: 1\n',
         expected: { minRandomLength: 1 },
       },
       {
         id: 'T-CLS-GC-115',
         label: 'minRandomLength: 64（上限境界値）は範囲チェックでエラーにならない',
-        input: { minRandomLength: 64 },
+        input: 'minRandomLength: 64\n',
         expected: { minRandomLength: 64 },
       },
       {
         id: 'T-CLS-GC-116',
         label: 'maxRandomLength: 1（下限境界値）は範囲チェックでエラーにならない',
-        input: { maxRandomLength: 1 },
+        input: 'maxRandomLength: 1\n',
         expected: { maxRandomLength: 1 },
       },
       {
         id: 'T-CLS-GC-117',
         label: 'maxRandomLength: 64（上限境界値）は範囲チェックでエラーにならない',
-        input: { maxRandomLength: 64 },
+        input: 'maxRandomLength: 64\n',
         expected: { maxRandomLength: 64 },
       },
       {
         id: 'T-CLS-GC-118',
         label: 'minCharCount: 0（下限境界値）は範囲チェックでエラーにならない',
-        input: { minCharCount: 0 },
+        input: 'minCharCount: 0\n',
         expected: { minCharCount: 0 },
       },
       {
         id: 'T-CLS-GC-119',
         label: 'minCharCount: 100000（上限境界値）は範囲チェックでエラーにならない',
-        input: { minCharCount: 100000 },
+        input: 'minCharCount: 100000\n',
         expected: { minCharCount: 100000 },
       },
       {
         id: 'T-CLS-GC-120',
         label: 'minAssistantChars: 0（下限境界値）は範囲チェックでエラーにならない',
-        input: { minAssistantChars: 0 },
+        input: 'minAssistantChars: 0\n',
         expected: { minAssistantChars: 0 },
       },
       {
         id: 'T-CLS-GC-121',
         label: 'minAssistantChars: 100000（上限境界値）は範囲チェックでエラーにならない',
-        input: { minAssistantChars: 100000 },
+        input: 'minAssistantChars: 100000\n',
         expected: { minAssistantChars: 100000 },
       },
       {
         id: 'T-CLS-GC-122',
         label: 'maxContentLength: 0（下限境界値）は範囲チェックでエラーにならない',
-        input: { maxContentLength: 0 },
+        input: 'maxContentLength: 0\n',
         expected: { maxContentLength: 0 },
       },
       {
         id: 'T-CLS-GC-123',
         label: 'maxContentLength: 100000（上限境界値）は範囲チェックでエラーにならない',
-        input: { maxContentLength: 100000 },
+        input: 'maxContentLength: 100000\n',
         expected: { maxContentLength: 100000 },
       },
       {
         id: 'T-CLS-GC-124',
         label: 'discardThreshold: 0（下限境界値）は範囲チェックでエラーにならない',
-        input: { discardThreshold: 0 },
+        input: 'discardThreshold: 0\n',
         expected: { discardThreshold: 0 },
       },
       {
         id: 'T-CLS-GC-125',
         label: 'discardThreshold: 1（上限境界値）は範囲チェックでエラーにならない',
-        input: { discardThreshold: 1 },
+        input: 'discardThreshold: 1\n',
         expected: { discardThreshold: 1 },
       },
     ];
 
     /** エッジケーステストケーステーブル。 */
     const _edgeCases: EdgeCase[] = [
-      { id: 'T-CLS-GC-15', label: 'undefined 値のキーは結果に含まれない', input: { agent: undefined }, expected: {} },
       {
         id: 'T-CLS-GC-16',
         label: "string フィールドの null は '' に変換される",
-        input: { agent: null },
+        input: 'agent: null\n',
         expected: { agent: '' },
       },
-      { id: 'T-CLS-GC-17', label: 'number フィールドの null は省略される', input: { timeoutMs: null }, expected: {} },
+      { id: 'T-CLS-GC-17', label: 'number フィールドの null は省略される', input: 'timeoutMs: null\n', expected: {} },
     ];
 
     /** 異常系テストケーステーブル。 */
@@ -515,169 +514,169 @@ describe('GlobalConfig', () => {
       {
         id: 'T-CLS-GC-18',
         label: '未知キーは ChatlogError をスローする',
-        input: { unknownKey: 'value' },
+        input: 'unknownKey: value\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-19',
         label: 'string フィールドに number 型は TypeError をスローする',
-        input: { agent: 42 },
+        input: 'agent: 42\n',
         errorType: TypeError,
       },
       {
         id: 'T-CLS-GC-20',
         label: 'number フィールドに非数値文字列は TypeError をスローする',
-        input: { timeoutMs: 'abc' },
+        input: 'timeoutMs: abc\n',
         errorType: TypeError,
       },
       {
         id: 'T-CLS-GC-21',
         label: 'number フィールドに boolean は TypeError をスローする',
-        input: { timeoutMs: true },
+        input: 'timeoutMs: true\n',
         errorType: TypeError,
       },
       {
         id: 'T-CLS-GC-22',
         label: '不明キーが混在しても ChatlogError をスローする',
-        input: { agent: 'claude', badKey: 'x' },
+        input: 'agent: claude\nbadKey: x\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-80',
         label: 'string フィールド cacheDir に number 型は TypeError をスローする',
-        input: { cacheDir: 42 },
+        input: 'cacheDir: 42\n',
         errorType: TypeError,
       },
       {
         id: 'T-CLS-GC-98',
         label: 'chunkSize: 0 は範囲外のため ChatlogError をスローする',
-        input: { chunkSize: 0 },
+        input: 'chunkSize: 0\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-99',
         label: 'chunkSize: 11 は範囲外のため ChatlogError をスローする',
-        input: { chunkSize: 11 },
+        input: 'chunkSize: 11\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-100',
         label: 'chunkSize: -1 は範囲外のため ChatlogError をスローする',
-        input: { chunkSize: -1 },
+        input: 'chunkSize: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-101',
         label: 'concurrency: 0 は範囲外のため ChatlogError をスローする',
-        input: { concurrency: 0 },
+        input: 'concurrency: 0\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-102',
         label: 'concurrency: 11 は範囲外のため ChatlogError をスローする',
-        input: { concurrency: 11 },
+        input: 'concurrency: 11\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-103',
         label: 'concurrency: -1 は範囲外のため ChatlogError をスローする',
-        input: { concurrency: -1 },
+        input: 'concurrency: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-126',
         label: 'timeoutMs: -1 は範囲外のため ChatlogError をスローする',
-        input: { timeoutMs: -1 },
+        input: 'timeoutMs: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-127',
         label: 'timeoutMs: 600001 は範囲外のため ChatlogError をスローする',
-        input: { timeoutMs: 600001 },
+        input: 'timeoutMs: 600001\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-128',
         label: 'hashLength: 0 は範囲外のため ChatlogError をスローする',
-        input: { hashLength: 0 },
+        input: 'hashLength: 0\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-129',
         label: 'hashLength: 65 は範囲外のため ChatlogError をスローする',
-        input: { hashLength: 65 },
+        input: 'hashLength: 65\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-130',
         label: 'minRandomLength: 0 は範囲外のため ChatlogError をスローする',
-        input: { minRandomLength: 0 },
+        input: 'minRandomLength: 0\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-131',
         label: 'minRandomLength: 65 は範囲外のため ChatlogError をスローする',
-        input: { minRandomLength: 65 },
+        input: 'minRandomLength: 65\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-132',
         label: 'maxRandomLength: 0 は範囲外のため ChatlogError をスローする',
-        input: { maxRandomLength: 0 },
+        input: 'maxRandomLength: 0\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-133',
         label: 'maxRandomLength: 65 は範囲外のため ChatlogError をスローする',
-        input: { maxRandomLength: 65 },
+        input: 'maxRandomLength: 65\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-134',
         label: 'minCharCount: -1 は範囲外のため ChatlogError をスローする',
-        input: { minCharCount: -1 },
+        input: 'minCharCount: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-135',
         label: 'minCharCount: 100001 は範囲外のため ChatlogError をスローする',
-        input: { minCharCount: 100001 },
+        input: 'minCharCount: 100001\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-136',
         label: 'minAssistantChars: -1 は範囲外のため ChatlogError をスローする',
-        input: { minAssistantChars: -1 },
+        input: 'minAssistantChars: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-137',
         label: 'minAssistantChars: 100001 は範囲外のため ChatlogError をスローする',
-        input: { minAssistantChars: 100001 },
+        input: 'minAssistantChars: 100001\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-138',
         label: 'maxContentLength: -1 は範囲外のため ChatlogError をスローする',
-        input: { maxContentLength: -1 },
+        input: 'maxContentLength: -1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-139',
         label: 'maxContentLength: 100001 は範囲外のため ChatlogError をスローする',
-        input: { maxContentLength: 100001 },
+        input: 'maxContentLength: 100001\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-140',
         label: 'discardThreshold: -0.1 は範囲外のため ChatlogError をスローする',
-        input: { discardThreshold: -0.1 },
+        input: 'discardThreshold: -0.1\n',
         errorType: ChatlogError,
       },
       {
         id: 'T-CLS-GC-141',
         label: 'discardThreshold: 1.1 は範囲外のため ChatlogError をスローする',
-        input: { discardThreshold: 1.1 },
+        input: 'discardThreshold: 1.1\n',
         errorType: ChatlogError,
       },
     ];
@@ -703,14 +702,14 @@ describe('GlobalConfig', () => {
 
       it('[Error] T-CLS-GC-108: chunkSize: 0 → ChatlogError(InvalidYaml/OutOfRange) がスローされる', () => {
         const _config = GlobalConfig.getInstance();
-        const _err = assertThrows(() => _config.parseYaml({ chunkSize: 0 }), ChatlogError);
+        const _err = assertThrows(() => _config.parseYaml('chunkSize: 0\n'), ChatlogError);
         assertEquals(_err.kind, 'InvalidYaml');
         assertEquals(_err.subindex, 'OutOfRange');
       });
 
       it('[Error] T-CLS-GC-109: concurrency: 11 → ChatlogError(InvalidYaml/OutOfRange) がスローされる', () => {
         const _config = GlobalConfig.getInstance();
-        const _err = assertThrows(() => _config.parseYaml({ concurrency: 11 }), ChatlogError);
+        const _err = assertThrows(() => _config.parseYaml('concurrency: 11\n'), ChatlogError);
         assertEquals(_err.kind, 'InvalidYaml');
         assertEquals(_err.subindex, 'OutOfRange');
       });
@@ -777,6 +776,16 @@ describe('GlobalConfig', () => {
           readTextFileProvider: _makeReadOk(_yaml),
         });
         assertEquals(_result, { agent: 'chatgpt', timeoutMs: 60000 });
+      });
+
+      it('[Normal] T-CLS-GC-142: throwFileNotFound: false 指定+ファイル未存在 → 例外をスローせず {} を返す', () => {
+        const _config = GlobalConfig.getInstance();
+        const _result = _config.loadConfigFile({
+          configPath: '/mock/missing.yaml',
+          readTextFileProvider: _notFoundRead,
+          throwFileNotFound: false,
+        });
+        assertEquals(_result, {});
       });
     });
 
