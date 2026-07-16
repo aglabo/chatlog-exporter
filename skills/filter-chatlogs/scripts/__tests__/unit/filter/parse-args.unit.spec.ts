@@ -12,7 +12,7 @@ import { assert, assertEquals, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { parseArgs } from '../../../../../_scripts/libs/io/parse-args.ts';
+import { _setByTypeForTest, parseArgs } from '../../../../../_scripts/libs/io/parse-args.ts';
 
 // ─── Helpers
 // classes
@@ -22,13 +22,22 @@ import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class
 import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // types
-import type { ArgSchema } from '../../../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema, ArgSchemaEntry, ParsedArgs } from '../../../../../_scripts/types/args-schema.types.ts';
 import type { FilterParsedConfig } from '../../../types/filter.types.ts';
 
 // ─── Internal Helpers
 
 // constants
 const _SCHEMA: ArgSchema<FilterParsedConfig> = [];
+
+/** min=1, max=10 の範囲チェック付き integer 型スキーマエントリ（`--chunk-size` 相当）。 */
+const _CHUNK_SIZE_ENTRY: ArgSchemaEntry = {
+  option: '--chunk-size',
+  field: 'chunkSize',
+  type: 'integer',
+  min: 1,
+  max: 10,
+};
 
 // types
 type Args = FilterParsedConfig;
@@ -220,6 +229,77 @@ describe('parseArgs', () => {
         it('T-FL-PA-16-02: 引数なし → inputDir が undefined になる', () => {
           assertEquals(parseArgs([], _SCHEMA, DEFAULT_FILTER_CONFIG).inputDir, undefined);
         });
+      });
+    });
+  });
+
+  // ─── T-FL-PA-17: _setByType integer 型の min/max 範囲チェック ────────────────
+
+  /**
+   * `entry.type === 'integer'` に `min`/`max` を指定した場合の範囲チェックを検証するグループ。
+   *
+   * `min`/`max` を満たす値は `config` にセットされ、範囲外の値は
+   * `ChatlogError('InvalidArgs', 'OutOfRange', ...)` を返す。
+   */
+  describe('Given: integer 型スキーマに min/max が指定されている', () => {
+    describe('When: _setByType を呼び出す', () => {
+      describe('Then: T-FL-PA-17 - 範囲内の値は config にセットされる', () => {
+        const _inRangeCases: { id: string; rawValue: string; expected: number }[] = [
+          { id: 'T-FL-PA-17-01', rawValue: '1', expected: 1 },
+          { id: 'T-FL-PA-17-02', rawValue: '10', expected: 10 },
+        ];
+        for (const { id, rawValue, expected } of _inRangeCases) {
+          it(`${id}: min=1, max=10, rawValue="${rawValue}" → config.chunkSize === ${expected}`, () => {
+            const config: ParsedArgs = {};
+            const err = _setByTypeForTest(config, _CHUNK_SIZE_ENTRY, rawValue);
+            assertEquals(err, null);
+            assertEquals(config.chunkSize, expected);
+          });
+        }
+      });
+
+      describe('Then: T-FL-PA-18 - 範囲外の値は ChatlogError(InvalidArgs, OutOfRange) を返す', () => {
+        const _outOfRangeCases: { id: string; rawValue: string }[] = [
+          { id: 'T-FL-PA-18-01', rawValue: '0' },
+          { id: 'T-FL-PA-18-02', rawValue: '-1' },
+          { id: 'T-FL-PA-18-03', rawValue: '11' },
+        ];
+        for (const { id, rawValue } of _outOfRangeCases) {
+          it(`${id}: min=1, max=10, rawValue="${rawValue}" → ChatlogError(InvalidArgs)`, () => {
+            const config: ParsedArgs = {};
+            const err = _setByTypeForTest(config, _CHUNK_SIZE_ENTRY, rawValue);
+            assert(err instanceof ChatlogError);
+          });
+        }
+      });
+    });
+  });
+
+  // ─── T-FL-PA-19: _setByType integer 型で min/max 未指定（回帰確認） ──────────
+
+  /**
+   * `min`/`max` を指定しない integer 型エントリでは範囲チェックが行われないことを検証するグループ
+   * （既存動作の回帰確認）。
+   */
+  describe('Given: integer 型スキーマに min/max が指定されていない', () => {
+    describe('When: _setByType を呼び出す', () => {
+      describe('Then: T-FL-PA-19 - 範囲チェックが行われず値がそのままセットされる', () => {
+        const _noRangeCheckCases: { id: string; rawValue: string; expected: number }[] = [
+          { id: 'T-FL-PA-19-01', rawValue: '0', expected: 0 },
+          { id: 'T-FL-PA-19-02', rawValue: '-100', expected: -100 },
+        ];
+        for (const { id, rawValue, expected } of _noRangeCheckCases) {
+          it(`${id}: min/max 未指定, rawValue="${rawValue}" → config.someField === ${expected}（エラーなし）`, () => {
+            const config: ParsedArgs = {};
+            const err = _setByTypeForTest(
+              config,
+              { option: '--some-int', field: 'someField', type: 'integer' },
+              rawValue,
+            );
+            assertEquals(err, null);
+            assertEquals(config.someField, expected);
+          });
+        }
       });
     });
   });
