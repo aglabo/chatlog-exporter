@@ -107,6 +107,13 @@ const _setByType = (
       if (isNaN(_n)) {
         return new ChatlogError('InvalidArgs', 'NotAnInteger', `整数ではありません: ${rawValue}`);
       }
+      if ((entry.min !== undefined && _n < entry.min) || (entry.max !== undefined && _n > entry.max)) {
+        return new ChatlogError(
+          'InvalidArgs',
+          'OutOfRange',
+          `範囲外の値です（${entry.min ?? '-∞'}〜${entry.max ?? '∞'}）: ${rawValue}`,
+        );
+      }
       config[entry.field] = _n;
       return null;
     }

@@ -14,6 +14,8 @@ export interface ArgSchemaEntry<K extends string = string> {
   option: string; // CLI オプション名。例: '--input', '--dry-run'
   field: K; // マッピング先フィールド名。例: 'inputDir', 'dryRun'
   type: ArgFieldType;
+  min?: number; // 'integer' 型のみ実装済み。指定時、値がこれ未満なら OutOfRange エラー（'number' 型は未対応）
+  max?: number; // 'integer' 型のみ実装済み。指定時、値がこれを超えると OutOfRange エラー（'number' 型は未対応）
 }
 
 /** parseArgs に渡すスキーマ。オプション定義の配列（複数スキーマを結合してから使う）。 */

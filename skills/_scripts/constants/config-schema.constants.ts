@@ -22,25 +22,25 @@ export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   /** 使用するモデル名またはエイリアス。例: "sonnet", "opus" */
   model: 'string',
   /** AI 実行タイムアウト (ms)。0 = タイムアウトなし。 */
-  timeoutMs: 'number',
+  timeoutMs: { type: 'number', min: 0, max: 600000 },
   /** generateHash が返す16進数文字列の長さ。 */
-  hashLength: 'number',
+  hashLength: { type: 'number', min: 1, max: 64 },
   /** ランダム文字列生成の最小長。 */
-  minRandomLength: 'number',
+  minRandomLength: { type: 'number', min: 1, max: 64 },
   /** ランダム文字列生成の最大長。 */
-  maxRandomLength: 'number',
+  maxRandomLength: { type: 'number', min: 1, max: 64 },
   /** バッチリクエスト1回あたりの最大ファイル数。 */
-  chunkSize: 'number',
+  chunkSize: { type: 'number', min: 1, max: 10 },
   /** 同時実行する並列タスク数の上限。 */
-  concurrency: 'number',
+  concurrency: { type: 'number', min: 1, max: 10 },
   /** コンテンツ最小文字数フィルタ閾値。 */
-  minCharCount: 'number',
+  minCharCount: { type: 'number', min: 0, max: 100000 },
   /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
-  minAssistantChars: 'number',
+  minAssistantChars: { type: 'number', min: 0, max: 100000 },
   /** コンテンツ最大文字数フィルタ閾値。 */
-  maxContentLength: 'number',
+  maxContentLength: { type: 'number', min: 0, max: 100000 },
   /** DISCARD 判定に必要な最低信頼度スコア（filter-chatlog 使用）。 */
-  discardThreshold: 'number',
+  discardThreshold: { type: 'number', min: 0, max: 1 },
   /** 辞書ファイルが置かれたディレクトリのパス。 */
   dicsDir: 'string',
   /** プロジェクト分類辞書ファイルのパス。classify-chatlogs が使用する。 */
@@ -52,7 +52,7 @@ export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   /** キャッシュルートディレクトリのパス。 */
   cacheDir: 'string',
   /** runAI の最大リトライ回数（0=リトライなし、上限 10）。 */
-  maxRetry: 'number',
+  maxRetry: { type: 'number', min: 0, max: 10 },
 };
 
 /** DEFAULT_CONFIG_SCHEMA のキーのユニオン型。 */
@@ -79,7 +79,7 @@ export const DEFAULT_CONFIG_VALUES = {
   /** デフォルト辞書ディレクトリ（`.config/<appName>/` からの相対値。GlobalConfig.get() が絶対パスに解決する） */
   dicsDir: 'dics',
   /** デフォルトプロジェクト辞書パス */
-  projectsDic: `${DEFAULT_CONFIG_DIR}/projects.dic`,
+  projectsDic: `${DEFAULT_CONFIG_DIR}/dics/projects.dic`,
   /** デフォルトプロンプトディレクトリ（`.config/<appName>/` からの相対値。GlobalConfig.get() が絶対パスに解決する） */
   promptsDir: 'prompts',
   /** デフォルトチャットログディレクトリ */

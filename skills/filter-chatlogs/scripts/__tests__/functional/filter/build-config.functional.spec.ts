@@ -73,7 +73,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
  *   `_SCHEMA` に CLI オプション定義が無いため、GlobalConfig > defaults の優先順位のみ検証する。
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-35
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-38
  *
  * @see buildConfig
  */
@@ -360,6 +360,42 @@ describe('buildConfig', () => {
         it('T-FL-BC-35: args=[--chunk-size=1] → result.chunkSize === 1', () => {
           const result = buildConfig(['--chunk-size=1']);
           assertEquals(result.chunkSize, 1);
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数 `--chunk-size` に範囲外の値を指定した前提条件グループ。
+   *
+   * `chunkSize` は 1〜10 の範囲のみ許容する。範囲外の値は
+   * `ChatlogError('InvalidArgs', 'OutOfRange', ...)` を throw する。
+   */
+  describe('Given: CLI 引数の --chunk-size に範囲外の値を指定している', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      describe('Then: T-FL-BC-36 - ChatlogError(InvalidArgs, OutOfRange) が throw される', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-36: args=[--chunk-size, 0] → ChatlogError(InvalidArgs, OutOfRange)', () => {
+          assertThrows(
+            () => buildConfig(['--chunk-size', '0']),
+            ChatlogError,
+          );
+        });
+
+        it('T-FL-BC-37: args=[--chunk-size, -1] → ChatlogError(InvalidArgs, OutOfRange)', () => {
+          assertThrows(
+            () => buildConfig(['--chunk-size', '-1']),
+            ChatlogError,
+          );
+        });
+
+        it('T-FL-BC-38: args=[--chunk-size, 11] → ChatlogError(InvalidArgs, OutOfRange)', () => {
+          assertThrows(
+            () => buildConfig(['--chunk-size', '11']),
+            ChatlogError,
+          );
         });
       });
     });
