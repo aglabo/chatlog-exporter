@@ -15,8 +15,8 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { buildConfig } from '../../normalize-config.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
@@ -88,8 +88,8 @@ describe('buildConfig', () => {
     describe('Given: 空配列', () => {
       describe('When: buildConfig([]) を呼び出す', () => {
         describe('Then: T-NC-BC-04 - outputDir のデフォルト値が適用される', () => {
-          it('T-NC-BC-04-01: outputDir が "./chatlogs/normalizelogs" になる', () => {
-            assertEquals(buildConfig([]).outputDir, './chatlogs/normalizelogs');
+          it('T-NC-BC-04-01: outputDir が joinPath(chatlogsDir, normalizelogs) になる', () => {
+            assertEquals(buildConfig([]).outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
           });
         });
       });
@@ -136,13 +136,21 @@ describe('buildConfig', () => {
             { id: 'T-NC-BC-10-02', args: ['--agent', 'claude'], field: 'agent', expected: 'claude' },
             { id: 'T-NC-BC-10-03', args: ['--period', '2026-03'], field: 'period', expected: '2026-03' },
             { id: 'T-NC-BC-10-04', args: ['--dry-run'], field: 'dryRun', expected: true },
-            { id: 'T-NC-BC-10-05', args: ['--output-dir', './out'], field: 'outputDir', expected: 'out' },
           ] as const;
           for (const { id, args, field, expected } of _cases) {
             it(`${id}: ${field} が ${JSON.stringify(expected)} になる`, () => {
               assertEquals(buildConfig([...args])[field], expected);
             });
           }
+          it('T-NC-BC-10-05: --output-dir ./out → outputDir = joinPath(chatlogsDir, out)', () => {
+            assertEquals(
+              buildConfig(['--output-dir', './out']).outputDir,
+              joinPath(DEFAULT_CHATLOGS_DIR, 'out'),
+            );
+          });
+          it('T-NC-BC-10-06: --output-dir /abs/out → outputDir = "/abs/out"（絶対パスはそのまま使用）', () => {
+            assertEquals(buildConfig(['--output-dir', '/abs/out']).outputDir, '/abs/out');
+          });
         });
       });
     });
@@ -176,7 +184,7 @@ describe('buildConfig', () => {
           assertEquals(result.period, '2026-03');
           assertEquals(result.dryRun, true);
           assertEquals(result.concurrency, 8);
-          assertEquals(result.outputDir, 'out');
+          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'out'));
         });
       });
     });
@@ -224,12 +232,12 @@ describe('buildConfig', () => {
         ]);
         assertEquals(result.concurrency, 8);
         assertEquals(result.dryRun, true);
-        assertEquals(result.outputDir, 'out');
+        assertEquals(result.outputDir, joinPath('/full', 'out'));
       });
 
       it('[Edge] T-NC-BC-06-01: defaults を明示指定したとき CLI 引数がない値（GlobalConfig 非管理フィールド）は defaults が適用される', () => {
         const result = buildConfig([], { dryRun: true, outputDir: './custom' });
-        assertEquals(result.outputDir, './custom');
+        assertEquals(result.outputDir, joinPath('/full', 'custom'));
         assertEquals(result.dryRun, true);
       });
     });
