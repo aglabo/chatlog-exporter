@@ -19,7 +19,6 @@ import type { HashProvider } from '../../_scripts/types/providers.types.ts';
 // -- constants --
 import {
   DEFAULT_AGENT,
-  DEFAULT_NORMALIZE_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
 } from '../../_scripts/constants/defaults.constants.ts';
 
@@ -65,10 +64,8 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   if (!dirExistsSync(inputDir)) {
     throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
-  const outputBase = config.outputDir ?? DEFAULT_NORMALIZE_DIR;
-
   const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-  await processFiles(inputDir, outputBase, config, stats, hashFn);
+  await processFiles(inputDir, config.outputDir!, config, stats, hashFn);
   reportResults(stats);
 };
 
