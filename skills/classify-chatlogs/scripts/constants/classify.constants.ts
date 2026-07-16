@@ -30,7 +30,7 @@ export const DEFAULT_CLASSIFY_CONFIG: ClassifyConfig = {
   agent: DEFAULT_AGENT,
   dryRun: false,
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
-  /** 型定義上の整合性のためだけの値（classify-chatlogs は projectsDic のみを実際の辞書読み込みに使用する） */
+  /** projects.dic の既定配置。buildConfig で projectsDic 未指定時の導出元として使用する。 */
   dicsDir: 'dics',
   model: DEFAULT_AI_MODEL,
   chunkSize: DEFAULT_CHUNK_SIZE,
