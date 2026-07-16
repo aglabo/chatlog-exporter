@@ -9,25 +9,33 @@
 
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { afterEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { processClassify } from '../../classify-chatlogs.ts';
 
 // ─── Helpers
-import { _makeEntry } from '../_helpers/classify-test-helpers.ts';
+import { _makeClassifyChatlogEntry, _makeEmptyClassifyCache } from '../_helpers/classify-test-helpers.ts';
+// classes
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { ClassifyBuffer, ProjectDicEntry } from '../../types/classify.types.ts';
+import type { ClassifyPartition, ProjectDicEntry } from '../../types/classify.types.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../types/classify.types.ts';
 
 // ─── Internal Helpers
+import {
+  installCommandMock,
+  makeCountingMock,
+} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// types
+import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // constants
 /** プロジェクト辞書（AI を呼び出さないテスト用に proj-a のみ定義）。 */
 const _PROJECTS: ProjectDicEntry = { 'proj-a': {} };
 
-/** processClassify に渡す最小 config（AI 分類は空配列になるので実際には使われない）。 */
+/** processClassify に渡す最小 config。 */
 const _CONFIG = { chunkSize: 10, concurrency: 1, model: 'opus' };
 
 // ─── Tests
@@ -35,8 +43,9 @@ const _CONFIG = { chunkSize: 10, concurrency: 1, model: 'opus' };
 /**
  * `processClassify` のユニットテストスイート。
  *
- * AI なし事前分類 → AI 分類のパイプラインを検証する。
- * テスト対象を `_remaining=[]` になるケースに限定し、実 AI CLI を呼ばない。
+ * `ClassifyPartition` を受け取り、`uncached` のみを AI 分類に委譲し、
+ * `resolved`・`cached`・AI 分類結果を結合して返す contract を検証する。
+ * `partitionClassifyEntries` 側の責務（preclassify・キャッシュ振り分け）は検証しない。
  *
  * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-02
  *
@@ -44,42 +53,59 @@ const _CONFIG = { chunkSize: 10, concurrency: 1, model: 'opus' };
  */
 describe('processClassify', () => {
   /**
-   * 正常系: AI なし事前分類ですべて解決するケース。
+   * `resolved`/`cached` はそのまま結果に含まれ、AI 分類は行われないケース。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-CL-PC-01: frontmatter に project あり(MOVE) + 本文短小(FALLBACK MOVE) → result.length=2, 両方 MOVE', async () => {
-      // frontmatter に project: 'proj-a' あり、パスは proj-a サブディレクトリ外 → MOVE
-      const _entryMove = _makeEntry('/tmp/input/test.md', { project: 'proj-a' }, '');
-      // frontmatter なし、本文が短い (5文字 < 50) → FALLBACK MOVE
-      const _entryShort = _makeEntry('/tmp/input/short.md', {}, 'short');
+    it('[Normal] T-CL-PC-01: uncached が空 → resolved と cached がそのまま結合されて返る', async () => {
+      const _resolvedEntry = {
+        file: new ChatlogEntry('', { filePath: '/tmp/input/resolved.md' }),
+        action: CLASSIFY_ACTIONS.MOVE,
+      };
+      const _cachedEntry = {
+        file: new ChatlogEntry('', { filePath: '/tmp/input/cached.md' }),
+        project: 'proj-a',
+        action: CLASSIFY_ACTIONS.MOVEBYAI,
+      };
+      const _partition: ClassifyPartition = { resolved: [_resolvedEntry], cached: [_cachedEntry], uncached: [] };
+      const _cache = await _makeEmptyClassifyCache();
 
-      const _buffer: ClassifyBuffer = [
-        { file: _entryMove, filePath: _entryMove.filePath! },
-        { file: _entryShort, filePath: _entryShort.filePath! },
-      ];
+      const result = await processClassify(_partition, _PROJECTS, _CONFIG, _cache);
 
-      const result = await processClassify(_buffer, _PROJECTS, _CONFIG);
-
-      assertEquals(result.length, 2);
-      assertEquals(result[0].action, CLASSIFY_ACTIONS.MOVE);
-      assertEquals(result[1].action, CLASSIFY_ACTIONS.MOVE);
+      assertEquals(result, [_resolvedEntry, _cachedEntry]);
     });
   });
 
   /**
-   * エッジケース: already-in-subdir でスキップになるケース。
+   * `uncached` の件数分だけ `classifyByAI` に委譲され、claude CLI が呼び出されることを検証する。
    */
-  describe('When: エッジケース', () => {
-    it('[Edge] T-CL-PC-02: frontmatter に project あり、パスが proj-a サブディレクトリ内 → result.length=1, SKIP', async () => {
-      // srcDir '/tmp/input/proj-a' は '/proj-a' で終わる → SKIP
-      const _entrySkip = _makeEntry('/tmp/input/proj-a/test.md', { project: 'proj-a' }, '');
+  describe('When: uncached エントリの AI 分類委譲', () => {
+    let mockHandle: CommandMockHandle;
+    let counter: { calls: number };
 
-      const _buffer: ClassifyBuffer = [{ file: _entrySkip, filePath: _entrySkip.filePath! }];
+    afterEach(() => {
+      mockHandle.restore();
+    });
 
-      const result = await processClassify(_buffer, _PROJECTS, _CONFIG);
+    it('[Normal] T-CL-PC-02: uncached に1件 → claude CLI が1回呼び出され、AI 分類結果が結果に含まれる', async () => {
+      counter = { calls: 0 };
+      const response = JSON.stringify([
+        { file: 'uncached.md', project: 'proj-a', confidence: 0.8, reason: 'matched' },
+      ]);
+      mockHandle = installCommandMock(makeCountingMock(response, counter));
 
+      const _entryUncached = _makeClassifyChatlogEntry('uncached.md');
+      const _partition: ClassifyPartition = {
+        resolved: [],
+        cached: [],
+        uncached: [{ file: _entryUncached, action: CLASSIFY_ACTIONS.REMAINING }],
+      };
+      const _cache = await _makeEmptyClassifyCache();
+
+      const result = await processClassify(_partition, _PROJECTS, _CONFIG, _cache);
+
+      assertEquals(counter.calls, 1);
       assertEquals(result.length, 1);
-      assertEquals(result[0].action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(result[0].action, CLASSIFY_ACTIONS.MOVEBYAI);
     });
   });
 });
