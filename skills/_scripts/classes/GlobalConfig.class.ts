@@ -139,13 +139,28 @@ export class GlobalConfig {
     }
     const _result: Partial<ConfigValues> = {};
     for (const [key, value] of Object.entries(raw)) {
-      const _typeName = this._schema[key as keyof ConfigSchema];
+      const _fieldSchema = this._schema[key as keyof ConfigSchema];
+      const _typeName = typeof _fieldSchema === 'string' ? _fieldSchema : _fieldSchema.type;
       const _parsed: ConfigValue | undefined = _typeName === 'string' ? parseString(value) : parseNumber(value);
       if (_parsed !== undefined) {
+        if (typeof _parsed === 'number' && typeof _fieldSchema === 'object') {
+          this._assertInRange(key, _parsed, _fieldSchema.min, _fieldSchema.max);
+        }
         (_result as Record<string, ConfigValue>)[key] = _parsed;
       }
     }
     return _result;
+  }
+
+  /** `value` が `min`〜`max`（両端含む）の範囲内であることを検証する。範囲外の場合は `ChatlogError('InvalidYaml', 'OutOfRange')` をスローする。 */
+  private _assertInRange(key: string, value: number, min: number | undefined, max: number | undefined): void {
+    if ((min !== undefined && value < min) || (max !== undefined && value > max)) {
+      throw new ChatlogError(
+        'InvalidYaml',
+        'OutOfRange',
+        `範囲外の値です（${min ?? '-∞'}〜${max ?? '∞'}）: ${key}=${value}`,
+      );
+    }
   }
 
   /**
