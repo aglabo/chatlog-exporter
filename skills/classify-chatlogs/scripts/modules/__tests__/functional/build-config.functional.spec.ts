@@ -432,7 +432,7 @@ describe('buildConfig', () => {
           GlobalConfig.resetInstance();
           await GlobalConfig.getInstance();
           const result = buildConfig([]);
-          assertEquals(result.projectsDic, '.config/chatlog-exporter/projects.dic');
+          assertEquals(result.projectsDic, '.config/chatlog-exporter/dics/projects.dic');
         });
       });
     });
