@@ -60,8 +60,6 @@ export type NormalizeConfig = DefaultArgFields & {
   singleFile?: boolean;
 };
 
-export type NormalizeParsedConfig = Partial<NormalizeConfig>;
-
 /** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */
 type _Assert<T extends Partial<ParsedArgs>> = T;
 
