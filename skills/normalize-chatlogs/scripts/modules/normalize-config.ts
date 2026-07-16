@@ -10,20 +10,22 @@
 // --- shared
 // functions
 import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
+import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
 // --- internal
 // types
-import type { NormalizeConfig, NormalizeParsedConfig } from '../types/normalize.types.ts';
+import type { NormalizeConfig } from '../types/normalize.types.ts';
 
 // constants
+import { DEFAULT_NORMALIZE_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- local
 // constants
-const _SCHEMA: ArgSchema<NormalizeParsedConfig> = [
+const _SCHEMA: ArgSchema<NormalizeConfig> = [
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
@@ -44,10 +46,14 @@ export const buildConfig = (
   args: string[],
   defaults: Partial<NormalizeConfig> = DEFAULT_NORMALIZE_CONFIG,
 ): NormalizeConfig => {
-  const _parsed = parseArgs<NormalizeParsedConfig>(args, _SCHEMA, defaults);
+  const _parsed = parseArgs<NormalizeConfig>(args, _SCHEMA, defaults);
   const { configFile: _configFile, ...rest } = _parsed;
+  const _outputDir = rest.outputDir
+    ? (isAbsolutePath(rest.outputDir) ? rest.outputDir : joinPath(rest.chatlogsDir, rest.outputDir))
+    : joinPath(rest.chatlogsDir, DEFAULT_NORMALIZE_DIR);
   return {
     ...rest,
     dryRun: rest.dryRun ?? false,
+    outputDir: _outputDir,
   } as NormalizeConfig;
 };
