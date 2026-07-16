@@ -10,7 +10,7 @@
 // ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
-import { parseArgs as parseArgsToConfig } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 
@@ -39,7 +39,7 @@ export const buildConfig = (
   defaults?: ClassifyConfig,
 ): ClassifyConfig => {
   const _defaults = defaults ?? DEFAULT_CLASSIFY_CONFIG;
-  const parsed = parseArgsToConfig<ClassifyConfig>(args, _SCHEMA, _defaults) as ClassifyConfig;
+  const parsed = parseArgs<ClassifyConfig>(args, _SCHEMA, _defaults) as ClassifyConfig;
 
   const _model = parsed.model;
   if (!isValidModel(_model)) {
