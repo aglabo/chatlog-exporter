@@ -9,6 +9,7 @@
 
 // ─── Shared scripts
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
 import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
 // types
@@ -28,6 +29,21 @@ const _SCHEMA: ArgSchema<Partial<ClassifyConfig>> = [
 ];
 
 /**
+ * projectsDic が既定値のままなら dicsDir 配下の projects.dic に寄せる。
+ * パス解決（configDir との結合）は行わず、生のパス文字列を格納する。
+ * 実際のパス解決は `loadProjectDic` 内の `resolveConfigPath` に一元化されている。
+ */
+const _deriveProjectsDic = (config: ClassifyConfig): ClassifyConfig => {
+  if (config.projectsDic !== DEFAULT_CONFIG_VALUES.projectsDic) {
+    return config;
+  }
+  return {
+    ...config,
+    projectsDic: `${config.dicsDir}/projects.dic`,
+  };
+};
+
+/**
  * CLI 引数から完全な ClassifyConfig を構築する。
  * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
  *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの `ClassifyParsedConfig` を返すため、
@@ -45,5 +61,5 @@ export const buildConfig = (
   if (!isValidModel(_model)) {
     throw new ChatlogError('InvalidArgs', 'InvalidModel', `不正なモデル名: ${parsed.model}`);
   }
-  return parsed;
+  return _deriveProjectsDic(parsed);
 };
