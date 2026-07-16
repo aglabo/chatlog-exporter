@@ -29,7 +29,7 @@ import { ChatlogError } from './ChatlogError.class.ts';
  * - `getInstance(options?)` でシングルトンインスタンスを取得する。既にインスタンスが存在する場合は既存のインスタンスを返す。
  * - `get(key: string): string | number` で値を取得する。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。
  * - `values(): ConfigValues` で全フィールドの値を `{ field: value }` 形式で返す。
- * - `parseYaml(raw: Record<string, unknown>): Partial<ConfigValues>` で YAML パース結果を `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。
+ * - `parseYaml(text: string): Partial<ConfigValues>` で YAML テキストをパースし `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。
  * - テスト専用の `resetInstance()` メソッドでシングルトンインスタンスをリセットできる。プロダクションコードからは呼び出さないこと。
  */
 export class GlobalConfig {
@@ -61,29 +61,21 @@ export class GlobalConfig {
     readTextFileProvider?: ReadTextFileSyncProvider;
     appName?: string;
   }): GlobalConfig {
-    if (!GlobalConfig._instance) {
-      GlobalConfig._instance = new GlobalConfig(options?.schema, options?.appName);
-      if (options?.yaml !== undefined) {
-        if (options.yaml !== '') {
-          const _loaded = GlobalConfig._instance._parseYamlText(options.yaml);
-          GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
-        }
-        // 空文字列 → DEFAULT_CONFIG_VALUES のまま継続
-      } else if (options?.configFile) {
-        try {
-          const _loaded = GlobalConfig._instance.loadConfigFile({
-            configPath: options.configFile,
-            readTextFileProvider: options.readTextFileProvider,
-          });
-          GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
-        } catch (e) {
-          if (e instanceof ChatlogError && e.kind === 'FileDirNotFound') {
-            // ファイル未存在 → DEFAULT_CONFIG_VALUES のまま継続
-          } else {
-            throw e;
-          }
-        }
-      }
+    if (GlobalConfig._instance) {
+      return GlobalConfig._instance;
+    }
+
+    GlobalConfig._instance = new GlobalConfig(options?.schema, options?.appName);
+    if (options?.yaml !== undefined) {
+      const _loaded = GlobalConfig._instance.parseYaml(options.yaml);
+      GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
+    } else if (options?.configFile) {
+      const _loaded = GlobalConfig._instance.loadConfigFile({
+        configPath: options.configFile,
+        readTextFileProvider: options.readTextFileProvider,
+        throwFileNotFound: false,
+      });
+      GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
     }
     return GlobalConfig._instance;
   }
@@ -112,31 +104,40 @@ export class GlobalConfig {
   /**
    * YAML テキストを受け取り、`Partial<ConfigValues>` を返す。
    * ルートがオブジェクトでない場合は `ChatlogError('InvalidYaml')` をスローする。
-   * 空文字列のチェックは呼び出し元の責務とする。
+   * 空文字列の場合は `{}` を返す。
    */
-  private _parseYamlText(text: string): Partial<ConfigValues> {
-    let _raw: unknown;
+  parseYaml(text: string): Partial<ConfigValues> {
+    if (text === '') {
+      return {};
+    }
+    let _parsedYaml: unknown;
     try {
-      _raw = parse(text);
+      _parsedYaml = parse(text);
     } catch (e) {
       if (e instanceof SyntaxError) {
         throw new ChatlogError('InvalidYaml', 'YamlSyntaxError', `YAML 構文エラー: ${e.message}`);
       }
       throw e;
     }
-    if (typeof _raw !== 'object' || _raw === null || Array.isArray(_raw)) {
+    if (typeof _parsedYaml !== 'object' || _parsedYaml === null || Array.isArray(_parsedYaml)) {
       throw new ChatlogError('InvalidYaml', 'NotObject', `YAML ルートはオブジェクトである必要があります`);
     }
-    return this.parseYaml(_raw as Record<string, unknown>);
+    const _rawObject = _parsedYaml as Record<string, unknown>;
+    this._assertKnownKeys(_rawObject);
+    return this._convertFields(_rawObject);
   }
 
-  /** YAML パース結果を `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。 */
-  parseYaml(raw: Record<string, unknown>): Partial<ConfigValues> {
+  /** `raw` のキーがすべてスキーマに存在することを検証する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。 */
+  private _assertKnownKeys(raw: Record<string, unknown>): void {
     for (const key of Object.keys(raw)) {
       if (!(key in this._schema)) {
         throw new ChatlogError('InvalidYaml', 'UnknownKey', `不明なキー: ${key}`);
       }
     }
+  }
+
+  /** `raw` の各フィールドをスキーマの型定義に従い変換し、`Partial<ConfigValues>` を返す。 */
+  private _convertFields(raw: Record<string, unknown>): Partial<ConfigValues> {
     const _result: Partial<ConfigValues> = {};
     for (const [key, value] of Object.entries(raw)) {
       const _fieldSchema = this._schema[key as keyof ConfigSchema];
@@ -166,12 +167,15 @@ export class GlobalConfig {
   /**
    * 設定ファイルを読み込み、`Partial<ConfigValues>` を返す。
    * `_fields` は変更しない（純粋関数）。
+   * `throwFileNotFound` が `false` の場合、ファイル未存在時に例外をスローせず `{}` を返す（デフォルト `true`）。
    */
   loadConfigFile(options?: {
     configPath?: string;
     readTextFileProvider?: ReadTextFileSyncProvider;
+    throwFileNotFound?: boolean;
   }): Partial<ConfigValues> {
     const _readTextFile = options?.readTextFileProvider ?? GlobalConfig._DEFAULT_READ_TEXT_FILE;
+    const _throwFileNotFound = options?.throwFileNotFound ?? true;
     const _resolved = resolveConfigPath({
       configPath: options?.configPath,
       defaultPath: `${this.configDir}/config.yaml`,
@@ -182,6 +186,9 @@ export class GlobalConfig {
       _text = _readTextFile(_resolved);
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) {
+        if (!_throwFileNotFound) {
+          return {};
+        }
         throw new ChatlogError(
           'FileDirNotFound',
           'ConfigNotFound',
@@ -190,6 +197,6 @@ export class GlobalConfig {
       }
       throw e;
     }
-    return this._parseYamlText(_text);
+    return this.parseYaml(_text);
   }
 }
