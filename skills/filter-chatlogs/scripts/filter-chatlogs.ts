@@ -176,13 +176,5 @@ export const main = async (args?: string[]): Promise<void> => {
 
 // --- main routine ---
 if (import.meta.main) {
-  try {
-    await main(Deno.args);
-  } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
-  }
+  await main(Deno.args);
 }
