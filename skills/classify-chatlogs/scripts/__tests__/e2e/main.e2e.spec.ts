@@ -63,7 +63,10 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   const year = period.slice(0, 4);
   const monthDir = `${inputDir}/originalLogs/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
-  await Deno.writeTextFile(configFile, `dicsDir: "${configsDir}"\n`);
+  await Deno.writeTextFile(
+    configFile,
+    `dicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\ncacheDir: "${configsDir}/cache"\n`,
+  );
   await Deno.writeTextFile(
     `${configsDir}/projects.dic`,
     'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
@@ -338,12 +341,12 @@ describe('main - project 設定済みファイルの実移動', () => {
   });
 });
 
-// ─── T-CL-E2E-09: 既に正しいサブディレクトリにある → skipped ────────────────
+// ─── T-CL-E2E-09: サブディレクトリ内のファイルは走査対象外（直下1階層のみ走査） ─
 
-describe('main - 既に正しいサブディレクトリにあるファイル → skipped', () => {
-  describe('Given: project=app1 のファイルが月ディレクトリ/app1/ に存在', () => {
+describe('main - サブディレクトリ内のファイルは走査対象外', () => {
+  describe('Given: project=app1 のファイルが月ディレクトリ/app1/ に存在（月ディレクトリ直下には .md なし）', () => {
     describe('When: main([...args]) を呼び出す', () => {
-      describe('Then: T-CL-E2E-09 - 二重ネストせず skipped になる', () => {
+      describe('Then: T-CL-E2E-09 - 直下1階層のみ走査され、対象ファイルなしとして完了する', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
@@ -355,7 +358,7 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
-          // 既に app1/ サブディレクトリに配置済み
+          // 既に app1/ サブディレクトリに配置済み（月ディレクトリ直下には .md ファイルなし）
           const app1Dir = `${inputDir}/originalLogs/claude/2026/2026-03/app1`;
           await Deno.mkdir(app1Dir, { recursive: true });
           await Deno.writeTextFile(
@@ -384,16 +387,19 @@ describe('main - 既に正しいサブディレクトリにあるファイル �
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-09-01: 完了ログに skipped=1 が含まれる（二重ネストしない）', async () => {
+        it('T-CL-E2E-09-01: 完了ログに moved=0 movedByAI=0 skipped=0 error=0 が含まれる（サブディレクトリは走査対象外）', async () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(errLogs.some((l) => l.includes('skipped=1')), true);
+          assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 skipped=0 error=0')), true);
         });
 
-        it('T-CL-E2E-09-02: app1/app1/ ディレクトリが作成されない', async () => {
+        it('T-CL-E2E-09-02: app1/ 内のファイルは移動されず、そのまま残る', async () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(await fileOrDirExists(`${inputDir}/originalLogs/claude/2026/2026-03/app1/app1`), false);
+          assertEquals(
+            await fileOrDirExists(`${inputDir}/originalLogs/claude/2026/2026-03/app1/chat.md`),
+            true,
+          );
         });
       });
     });
@@ -572,7 +578,7 @@ describe('main - 期間フィルタ', () => {
           // chatlogsDir を GlobalConfig 経由で inputDir に設定し、period による通常解決経路を通す
           await Deno.writeTextFile(
             configFile,
-            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\n`,
+            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\ncacheDir: "${configsDir}/cache"\n`,
           );
           // 2026-03 の対象ファイル
           await Deno.writeTextFile(
@@ -822,6 +828,84 @@ describe('main - 非 ChatlogError 例外の再スロー', () => {
           } catch { /* TypeError が再スローされる想定 */ }
 
           assertEquals(exitStub.calls.length, 0, 'Deno.exit が呼ばれてはいけない');
+        });
+      });
+    });
+  });
+});
+
+// ─── T-CL-E2E-13: キャッシュ済みファイル → claude CLI 未呼び出し ─────────────
+
+/**
+ * `main` 関数の E2E テストスイート（キャッシュ済み AI 分類判定）。
+ *
+ * `classify-cache` に対象ファイルの判定結果（`project`）が既に書き込まれている場合、
+ * `processClassify` が AI 呼び出し前にそのファイルを除外し、claude CLI を呼ばずに
+ * キャッシュの `project` でファイルを移動することを検証する。
+ *
+ * テスト ID 範囲: T-CL-E2E-13
+ *
+ * @see main
+ */
+describe('main - キャッシュ済み AI 分類判定', () => {
+  /**
+   * `chat.md` に対する分類結果として `project: 'app1'` が `classify-cache` に既に書き込まれている前提。
+   *
+   * キャッシュ済みファイルは claude CLI 呼び出し前に除外され、キャッシュの project で移動されることを確認する。
+   */
+  describe('Given: classify-cache に chat.md の判定結果（project: app1）を配置', () => {
+    /** `main(["claude", "2026-03", "--input-dir", monthDir, "--config", configFile])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す（dryRun=false）', () => {
+      /** claude CLI が呼び出されず、ファイルが app1/ サブディレクトリに移動されること。 */
+      describe('Then: T-CL-E2E-13 - claude CLI 未呼び出し・キャッシュの project で移動される', () => {
+        let inputDir: string;
+        let configsDir: string;
+        let configFile: string;
+        let monthDir: string;
+        let commandHandle: CommandMockHandle;
+        let counter: { calls: number };
+        let errStub: Stub;
+
+        beforeEach(async () => {
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          await Deno.writeTextFile(
+            `${monthDir}/chat.md`,
+            '---\ntitle: テスト\ncategory: development\n---\n本文',
+          );
+
+          const cacheDir = `${configsDir}/cache/classify-cache`;
+          await Deno.mkdir(cacheDir, { recursive: true });
+          await Deno.writeTextFile(
+            `${cacheDir}/chat.json`,
+            JSON.stringify({ project: 'app1', confidence: 0.9, reason: 'cached decision' }),
+          );
+
+          counter = { calls: 0 };
+          resetProjectRoot(inputDir);
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          errStub = stub(console, 'error', () => {});
+          GlobalConfig.resetInstance();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          resetProjectRoot();
+          errStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(inputDir, { recursive: true });
+          await Deno.remove(configsDir, { recursive: true });
+        });
+
+        it('T-CL-E2E-13-01: claude CLI が呼び出されない', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(counter.calls, 0);
+        });
+
+        it('T-CL-E2E-13-02: ファイルが app1/ サブディレクトリに移動している', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(await fileExists(`${monthDir}/app1/chat.md`), true);
         });
       });
     });
