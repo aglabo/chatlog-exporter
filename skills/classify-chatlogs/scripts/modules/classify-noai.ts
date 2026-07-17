@@ -17,8 +17,9 @@ import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
+import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ActionStatusEntry } from '../../../_scripts/types/action-status-entry.types.ts';
-import type { ClassifyBufferEntry } from '../types/classify.types.ts';
+import type { ClassifyBufferEntry, ClassifyCache } from '../types/classify.types.ts';
 // constants
 import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../_scripts/types/action-status.types.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
@@ -27,16 +28,21 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 /**
  * ファイルを読み込み、分類処理に必要なメタデータを `ActionStatusEntry` として返す。
  * - ファイルシステムエラー（`NotFound`, `PermissionDenied` 等）はそのままスロー（致命的エラー）。
- * - フロントマターの解析エラー（`InvalidFormat`, `InvalidYaml`）は `options.action: 'error'` のエントリを返す。
+ * - フロントマターの解析エラー（`InvalidFormat`, `InvalidYaml`）は `cache` に `action: ERROR` と `reason` を
+ *   書き込んだうえで `options.action: 'error'` のエントリを返す。
  * - 正常時は `entry: ChatlogEntry, options: { filePath }` を持つ `ActionStatusEntry` を返す。
  */
-export const loadClassifyEntry = async (filePath: string): Promise<ActionStatusEntry> => {
+export const loadClassifyEntry = async (
+  filePath: string,
+  cache: ChatlogCache<ClassifyCache>,
+): Promise<ActionStatusEntry> => {
   const _text = await readTextFile(filePath);
   try {
     const _entry = new ChatlogEntry(_text, { filePath });
     return { entry: _entry, options: { filePath } };
   } catch (e) {
     const _reason = e instanceof Error ? e.message : String(e);
+    await cache.write(filePath, { action: CLASSIFY_ACTIONS.ERROR, reason: _reason });
     return {
       entry: new ChatlogEntry('', { filePath }),
       options: { filePath, action: ENTRY_ACTIONS.ERROR, status: ENTRY_STATUSES.ERROR, reason: _reason },
@@ -45,15 +51,18 @@ export const loadClassifyEntry = async (filePath: string): Promise<ActionStatusE
 };
 
 /**
- * バッファエントリに対して AI 不要なケースの事前分類を行い、アクションを設定して返す。
- * - `action === 'error'` のエントリはそのまま返す。
+ * バッファエントリに対して AI 不要なケースの事前分類を行い、判定結果を `cache` に書き込む。
  * - frontmatter に `project` フィールドがある場合: 既に正しいディレクトリなら `skip`、違うなら `move`
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
  * - それ以外: `remaining`（AI 処理対象）
+ *
+ * 戻り値は常に入力の `entry` をそのまま返す（cache への書き込みが主目的）。
  */
-export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => {
-  if (entry.action === CLASSIFY_ACTIONS.ERROR) { return entry; }
-  const f = entry.file!;
+export const preClassify = async (
+  entry: ClassifyBufferEntry,
+  cache: ChatlogCache<ClassifyCache>,
+): Promise<ClassifyBufferEntry> => {
+  const f = entry.entry!;
   const _fm = f.frontmatter;
   const _existingProject = _fm.get('project');
 
@@ -62,7 +71,8 @@ export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => 
     const _srcDir = getDirectory(f.filePath!);
     const _inSubDir = _srcDir.endsWith('/' + _existingProject);
     const _action = _inSubDir ? CLASSIFY_ACTIONS.SKIP : CLASSIFY_ACTIONS.MOVE;
-    return { ...entry, project: _existingProject, action: _action };
+    await cache.write(f.filePath!, { project: _existingProject, action: _action });
+    return entry;
   }
 
   const _title = _fm.get('title');
@@ -79,15 +89,18 @@ export const preClassify = (entry: ClassifyBufferEntry): ClassifyBufferEntry => 
   if (!_hasMeta && _fullLength < MIN_CLASSIFIABLE_LENGTH) {
     logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
     logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
-    return { ...entry, project: FALLBACK_PROJECT, action: CLASSIFY_ACTIONS.MOVE };
+    await cache.write(f.filePath!, { project: FALLBACK_PROJECT, action: CLASSIFY_ACTIONS.MOVE });
+    return entry;
   }
 
-  return { ...entry, action: CLASSIFY_ACTIONS.REMAINING };
+  await cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.REMAINING });
+  return entry;
 };
 
 /**
- * バッファエントリ配列に対して `preClassify` を適用した結果を返す。
+ * バッファエントリ配列に対して `preClassify` を適用し、各判定結果を `cache` に書き込む。
  */
 export const processPreclassify = (
   buffer: ClassifyBufferEntry[],
-): ClassifyBufferEntry[] => buffer.map(preClassify);
+  cache: ChatlogCache<ClassifyCache>,
+): Promise<ClassifyBufferEntry[]> => Promise.all(buffer.map((entry) => preClassify(entry, cache)));
