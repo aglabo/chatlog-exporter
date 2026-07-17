@@ -53,7 +53,6 @@ describe('moveClassified', () => {
         it('T-CL-MC-10-01: stats.error が 1 になる', async () => {
           const _buffer: ClassifyBuffer = [{
             file: entry,
-            filePath: entry.filePath!,
             project: 'app1',
             action: CLASSIFY_ACTIONS.MOVE,
           }];
@@ -67,7 +66,6 @@ describe('moveClassified', () => {
         it('T-CL-MC-10-02: stats.moved は 0 のままである', async () => {
           const _buffer: ClassifyBuffer = [{
             file: entry,
-            filePath: entry.filePath!,
             project: 'app1',
             action: CLASSIFY_ACTIONS.MOVE,
           }];
