@@ -1,6 +1,6 @@
 // src: scripts/modules/file-ops.ts
 // @(#): classify-chatlogs ファイル移動モジュール
-//       対象: classifyFile / moveClassified
+//       対象: classifyFile / applyClassifications
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,6 +10,7 @@
 // cspell:words MoveByAI
 
 // ─── Shared scripts
+import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
@@ -17,7 +18,7 @@ import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { ClassifyAction, ClassifyBuffer, ClassifyStats } from '../types/classify.types.ts';
+import type { ClassifyAction, ClassifyCache, ClassifyStats } from '../types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -61,57 +62,72 @@ export const classifyFile = async (
 };
 
 /**
- * 分類バッファの各エントリを実際の処理（ファイル移動またはスキップ）に適用する。
+ * `MOVE`/`MOVEBYAI` の分類結果を実際にファイル移動し、成功時に stats を更新してキャッシュを削除する。
+ * 失敗時は `stats.error++` のみ（キャッシュは削除しない）。
+ */
+const _applyMove = async (
+  filePath: string,
+  entry: ChatlogEntry,
+  cached: Partial<ClassifyCache>,
+  destDir: string,
+  dryRun: boolean,
+  cache: ChatlogCache<ClassifyCache>,
+  stats: ClassifyStats,
+  movedCounter: 'moved' | 'movedByAI',
+): Promise<void> => {
+  const _result = await classifyFile(entry, cached.project, destDir, dryRun);
+  if (_result.action !== CLASSIFY_ACTIONS.MOVE) {
+    logger.error(_result.message);
+    stats.error++;
+    return;
+  }
+  logger.info(_result.message);
+  stats[movedCounter]++;
+  if (!dryRun) {
+    await cache.delete(filePath);
+  }
+};
+
+/**
+ * 分類結果キャッシュに基づき、各ファイルへ実際の処理（ファイル移動またはスキップ）を適用する。
  * - `action === 'move'` → `classifyFile` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
  *   - `project` が `undefined` の場合は `FALLBACK_PROJECT` へ補完する
- * - `action === 'move-by-ai'` → `classifyFile` を呼び出してファイルを移動し、`stats.movedByAI` をインクリメントする
+ *   - `dryRun === false` で移動成功時はキャッシュエントリを削除する
+ * - `action === 'move-by-ai'` → 同上、`stats.movedByAI` をインクリメントする
  * - `action === 'skip'` → `stats.skipped++` のみ（ファイル移動なし）、ログ出力
  * - `action === 'remaining'` → `stats.remaining++`（ログなし）
  * - `action === 'error'` → `stats.error++`（ファイル移動なし）、警告ログ出力
  * - それ以外（`undefined` 等）→ `stats.remaining++`（ログなし）
  */
-export const moveClassified = async (
-  buffer: ClassifyBuffer,
+export const applyClassifications = async (
+  filePaths: string[],
+  entries: Map<string, ChatlogEntry>,
+  cache: ChatlogCache<ClassifyCache>,
   destDir: string,
   dryRun: boolean,
   stats: ClassifyStats,
 ): Promise<void> => {
-  for (const entry of buffer) {
-    const action = entry.action ?? CLASSIFY_ACTIONS.REMAINING;
+  await Promise.all(filePaths.map(async (filePath) => {
+    const cached = cache.read(filePath);
+    const action = cached.action ?? CLASSIFY_ACTIONS.REMAINING;
     switch (action) {
       case CLASSIFY_ACTIONS.SKIP:
-        logger.info(`  skipped (分類済み: ${entry.project}): ${entry.file!.filename!}`);
+        logger.info(`  skipped (分類済み: ${cached.project}): ${filePath}`);
         stats.skipped++;
         break;
       case CLASSIFY_ACTIONS.REMAINING:
         stats.remaining++;
         break;
       case CLASSIFY_ACTIONS.ERROR:
-        logger.warn(`  AI 分類失敗: ${entry.file.filePath}`);
+        logger.warn(`  AI 分類失敗: ${filePath}`);
         stats.error++;
         break;
-      case CLASSIFY_ACTIONS.MOVE: {
-        const _result = await classifyFile(entry.file!, entry.project, destDir, dryRun);
-        if (_result.action === CLASSIFY_ACTIONS.MOVE) {
-          logger.info(_result.message);
-          stats.moved++;
-        } else {
-          logger.error(_result.message);
-          stats.error++;
-        }
+      case CLASSIFY_ACTIONS.MOVE:
+        await _applyMove(filePath, entries.get(filePath)!, cached, destDir, dryRun, cache, stats, 'moved');
         break;
-      }
-      case CLASSIFY_ACTIONS.MOVEBYAI: {
-        const _result = await classifyFile(entry.file!, entry.project, destDir, dryRun);
-        if (_result.action === CLASSIFY_ACTIONS.MOVE) {
-          logger.info(_result.message);
-          stats.movedByAI++;
-        } else {
-          logger.error(_result.message);
-          stats.error++;
-        }
+      case CLASSIFY_ACTIONS.MOVEBYAI:
+        await _applyMove(filePath, entries.get(filePath)!, cached, destDir, dryRun, cache, stats, 'movedByAI');
         break;
-      }
     }
-  }
+  }));
 };
