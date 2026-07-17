@@ -17,7 +17,8 @@ import { classifyByAI } from '../../classify-ai.ts';
 
 // ─── Helpers
 // types
-import type { ClassifyBuffer, ClassifyConfig, ProjectDicEntry } from '../../../types/classify.types.ts';
+import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
+import type { ClassifyBuffer, ClassifyConfig, ClassifyResult, ProjectDicEntry } from '../../../types/classify.types.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
@@ -28,7 +29,10 @@ import {
   makeCountingMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { _makeClassifyChatlogEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+import {
+  _makeClassifyChatlogEntry,
+  _makeEmptyClassifyCache,
+} from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
@@ -63,6 +67,11 @@ describe('classifyByAI', () => {
    */
   describe('When: 正常系', () => {
     let mockHandle: CommandMockHandle;
+    let cache: ChatlogCache<ClassifyResult>;
+
+    beforeEach(async () => {
+      cache = await _makeEmptyClassifyCache();
+    });
 
     afterEach(() => {
       mockHandle.restore();
@@ -88,7 +97,7 @@ describe('classifyByAI', () => {
         },
       ];
 
-      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig());
+      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
 
       assertEquals(buffer.length, 2);
       assertEquals(buffer.every((e) => e.action === CLASSIFY_ACTIONS.MOVEBYAI), true);
@@ -107,7 +116,7 @@ describe('classifyByAI', () => {
         action: CLASSIFY_ACTIONS.REMAINING,
       }));
 
-      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig({ chunkSize: 1 }));
+      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig({ chunkSize: 1 }), cache);
 
       // chunkSize=1 で 3件 → 3チャンクに分割され、claude CLI が 3回呼び出される
       assertEquals(counter.calls, 3);
@@ -133,10 +142,29 @@ describe('classifyByAI', () => {
         { file: null, filePath: '/tmp/input/d.md', action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' },
       ];
 
-      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig());
+      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].filePath, '/tmp/input/a.md');
+    });
+
+    it('[Normal] T-CL-CBA-05-01: AI 判定成功 → cache に判定結果が書き込まれる', async () => {
+      const response = JSON.stringify([
+        { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched' },
+      ]);
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(response)));
+
+      const allEntries: ClassifyBuffer = [
+        {
+          file: _makeClassifyChatlogEntry('a.md'),
+          filePath: '/tmp/input/a.md',
+          action: CLASSIFY_ACTIONS.REMAINING,
+        },
+      ];
+
+      await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
+
+      assertEquals(cache.read('/tmp/input/a.md'), { project: 'app1', confidence: 0.9, reason: 'matched' });
     });
   });
 
@@ -146,10 +174,12 @@ describe('classifyByAI', () => {
   describe('When: エッジケース', () => {
     let mockHandle: CommandMockHandle;
     let counter: { calls: number };
+    let cache: ChatlogCache<ClassifyResult>;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock('[]', counter));
+      cache = await _makeEmptyClassifyCache();
     });
 
     afterEach(() => {
@@ -162,14 +192,14 @@ describe('classifyByAI', () => {
         { file: null, filePath: '/tmp/input/b.md', action: CLASSIFY_ACTIONS.MOVE },
       ];
 
-      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig());
+      const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
 
       assertEquals(buffer, []);
       assertEquals(counter.calls, 0);
     });
 
     it('[Edge] T-CL-CBA-04-02: allEntries が空配列 → 空配列を返し claude CLI は呼び出されない', async () => {
-      const buffer = await classifyByAI([], _PROJECTS, _makeConfig());
+      const buffer = await classifyByAI([], _PROJECTS, _makeConfig(), cache);
 
       assertEquals(buffer, []);
       assertEquals(counter.calls, 0);
