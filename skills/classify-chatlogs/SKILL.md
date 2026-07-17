@@ -126,7 +126,7 @@ tags:
 
 ## 辞書ファイル
 
-- `.config/chatlog-exporter/projects.dic`: プロジェクト名の選択肢（GlobalConfig の `projectsDic` で変更可能）
+- `.config/chatlog-exporter/dics/projects.dic`: プロジェクト名の選択肢（GlobalConfig の `dicsDir` 配下。`projectsDic` 明示指定で変更可能）
 
 ## 関連スキル
 

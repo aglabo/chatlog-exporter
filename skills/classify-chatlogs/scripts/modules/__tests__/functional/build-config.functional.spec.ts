@@ -328,14 +328,14 @@ describe('buildConfig', () => {
 
   describe('Given: GlobalConfig に projectsDic が設定されていない', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-18 - GlobalConfig のデフォルト projectsDic が使われる', () => {
+      describe('Then: T-CL-BC-18 - dicsDir 配下の projects.dic が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
           globalConfig = await GlobalConfig.getInstance();
         });
-        it('T-CL-BC-18-01: projectsDic 未設定 → result.projectsDic === globalConfig.get("projectsDic")', () => {
+        it('T-CL-BC-18-01: projectsDic 未設定 → result.projectsDic === `${dicsDir}/projects.dic`', () => {
           const result = buildConfig([]);
-          assertEquals(result.projectsDic, globalConfig.get('projectsDic'));
+          assertEquals(result.projectsDic, `${globalConfig.get('dicsDir')}/projects.dic`);
         });
       });
     });
@@ -403,15 +403,14 @@ describe('buildConfig', () => {
 
   describe('Given: GlobalConfig の dicsDir が yaml で上書きされている', () => {
     describe('When: buildConfig を呼び出す', () => {
-      describe('Then: T-CL-BC-19 - dicsDir を変えても projectsDic は独立して変わらない', () => {
-        let globalConfig: GlobalConfig;
+      describe('Then: T-CL-BC-19 - projectsDic 未指定時は dicsDir 配下の projects.dic が使われる', () => {
         beforeEach(async () => {
           GlobalConfig.resetInstance();
-          globalConfig = await GlobalConfig.getInstance({ yaml: 'dicsDir: /custom/dics' });
+          await GlobalConfig.getInstance({ yaml: 'dicsDir: /custom/dics' });
         });
-        it('T-CL-BC-19-01: dicsDir=/custom/dics → projectsDic === globalConfig.get("projectsDic")（dicsDir に依存しない）', () => {
+        it('T-CL-BC-19-01: dicsDir=/custom/dics, projectsDic 未指定 → projectsDic === /custom/dics/projects.dic', () => {
           const result = buildConfig([]);
-          assertEquals(result.projectsDic, globalConfig.get('projectsDic'));
+          assertEquals(result.projectsDic, '/custom/dics/projects.dic');
         });
       });
     });
@@ -428,11 +427,11 @@ describe('buildConfig', () => {
           const result = buildConfig([]);
           assertEquals(result.projectsDic, '/custom/projects.dic');
         });
-        it('T-CL-BC-23-02: projectsDic 未設定 → result.projectsDic === .config/chatlog-exporter/projects.dic', async () => {
+        it('T-CL-BC-23-02: projectsDic 未設定かつ既定 dicsDir → result.projectsDic === dics/projects.dic', async () => {
           GlobalConfig.resetInstance();
           await GlobalConfig.getInstance();
           const result = buildConfig([]);
-          assertEquals(result.projectsDic, '.config/chatlog-exporter/dics/projects.dic');
+          assertEquals(result.projectsDic, 'dics/projects.dic');
         });
       });
     });
