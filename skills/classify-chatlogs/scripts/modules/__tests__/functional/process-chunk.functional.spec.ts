@@ -17,7 +17,7 @@ import { processChunk } from '../../classify-ai.ts';
 
 // ─── Helpers
 // types
-import type { ClassifyResult, ProjectDicEntry } from '../../../types/classify.types.ts';
+import type { ClassifyCache, ProjectDicEntry } from '../../../types/classify.types.ts';
 // classes
 import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -61,7 +61,7 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
-    let cache: ChatlogCache<ClassifyResult>;
+    let cache: ChatlogCache<ClassifyCache>;
 
     beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
@@ -80,15 +80,13 @@ describe('processChunk', () => {
       loggerStub.restore();
     });
 
-    it('[Normal] T-CL-PC-01-01: buffer に 1 件返される（action=moveByAI）', async () => {
+    it('[Normal] T-CL-PC-01-01: 処理した filePath 一覧が 1 件返される', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.MOVEBYAI);
-      assertEquals(buffer[0].project, 'app1');
+      assertEquals(result, ['/tmp/input/a.md']);
     });
 
     it('[Normal] T-CL-PC-01-02: classify ログが infoLogs に記録される', async () => {
@@ -104,13 +102,18 @@ describe('processChunk', () => {
       );
     });
 
-    it('[Normal] T-CL-PC-07-01: AI 判定成功 → cache に project/confidence/reason が書き込まれる', async () => {
+    it('[Normal] T-CL-PC-07-01: AI 判定成功 → cache に project/confidence/reason/action が書き込まれる', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
       await processChunk(metas, projects, model, cache);
 
-      assertEquals(cache.read('/tmp/input/a.md'), { project: 'app1', confidence: 0.9, reason: 'matched' });
+      assertEquals(cache.read('/tmp/input/a.md'), {
+        project: 'app1',
+        confidence: 0.9,
+        reason: 'matched',
+        action: CLASSIFY_ACTIONS.MOVEBYAI,
+      });
     });
   });
 
@@ -121,7 +124,7 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
-    let cache: ChatlogCache<ClassifyResult>;
+    let cache: ChatlogCache<ClassifyCache>;
 
     beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
@@ -135,14 +138,13 @@ describe('processChunk', () => {
       loggerStub.restore();
     });
 
-    it('[Error] T-CL-PC-02-01: CLI エラー → buffer にファイル数（2）分の action: ERROR エントリが返される', async () => {
+    it('[Error] T-CL-PC-02-01: CLI エラー → 処理した filePath 一覧（2件）が返される', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 2);
-      assertEquals(buffer.every((e) => e.action === CLASSIFY_ACTIONS.ERROR), true);
+      assertEquals(result, ['/tmp/input/a.md', '/tmp/input/b.md']);
     });
 
     it('[Error] T-CL-PC-02-02: warn ログが warnLogs に記録される', async () => {
@@ -158,16 +160,16 @@ describe('processChunk', () => {
       );
     });
 
-    it('[Error] T-CL-PC-02-03: CLI エラー → cache へは書き込まれない', async () => {
+    it('[Error] T-CL-PC-02-03: CLI エラー → cache に action: ERROR が書き込まれる', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
       await processChunk(metas, projects, model, cache);
 
-      assertEquals(cache.read('/tmp/input/a.md'), {});
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
     });
 
-    it('[Error] T-CL-PC-03-01: JSON パース失敗 → buffer に action: ERROR エントリが返される', async () => {
+    it('[Error] T-CL-PC-03-01: JSON パース失敗 → 処理した filePath 一覧が返される', async () => {
       mockHandle.restore();
       loggerStub.restore();
       loggerStub = makeLoggerStub();
@@ -178,10 +180,9 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(result, ['/tmp/input/a.md']);
     });
 
     it('[Error] T-CL-PC-03-02: JSON パース失敗 → warn ログが warnLogs に記録される', async () => {
@@ -204,7 +205,7 @@ describe('processChunk', () => {
       );
     });
 
-    it('[Error] T-CL-PC-03-03: JSON パース失敗 → cache へは書き込まれない', async () => {
+    it('[Error] T-CL-PC-03-03: JSON パース失敗 → cache に action: ERROR が書き込まれる', async () => {
       mockHandle.restore();
       loggerStub.restore();
       loggerStub = makeLoggerStub();
@@ -217,7 +218,7 @@ describe('processChunk', () => {
 
       await processChunk(metas, projects, model, cache);
 
-      assertEquals(cache.read('/tmp/input/a.md'), {});
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
     });
   });
 
@@ -228,7 +229,7 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
-    let cache: ChatlogCache<ClassifyResult>;
+    let cache: ChatlogCache<ClassifyCache>;
 
     beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
@@ -248,23 +249,22 @@ describe('processChunk', () => {
       loggerStub.restore();
     });
 
-    it('[Edge] T-CL-PC-04-01: ファイル名不一致 → buffer に FALLBACK_PROJECT が設定される', async () => {
+    it('[Edge] T-CL-PC-04-01: ファイル名不一致 → cache に FALLBACK_PROJECT が設定される', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].project, FALLBACK_PROJECT);
+      assertEquals(cache.read('/tmp/input/a.md').project, FALLBACK_PROJECT);
     });
 
-    it('[Edge] T-CL-PC-05-01: 空チャンク → 空バッファを返す', async () => {
+    it('[Edge] T-CL-PC-05-01: 空チャンク → 空配列を返す', async () => {
       const metas: ChatlogEntry[] = [];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 0);
+      assertEquals(result, []);
     });
 
     it('[Edge] T-CL-PC-06-01: AI応答に同じfile名が2件含まれる → 先頭要素のprojectが採用される', async () => {
@@ -282,10 +282,9 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache);
 
-      assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].project, 'app1');
+      assertEquals(cache.read('/tmp/input/a.md').project, 'app1');
     });
   });
 });
