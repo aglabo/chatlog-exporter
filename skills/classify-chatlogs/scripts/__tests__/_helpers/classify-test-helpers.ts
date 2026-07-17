@@ -11,7 +11,7 @@
 import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { renderFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
-import type { ClassifyResult, ClassifyStats } from '../../types/classify.types.ts';
+import type { ClassifyCache, ClassifyStats } from '../../types/classify.types.ts';
 // types
 import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
 
@@ -51,15 +51,15 @@ export const _makeEntry = (
 };
 
 /**
- * テスト用の空 `ChatlogCache<ClassifyResult>`（バッファバック）を生成する。
+ * テスト用の空 `ChatlogCache<ClassifyCache>`（バッファバック）を生成する。
  *
  * ファイル I/O をせずにインメモリバッファで動作するキャッシュを返す。
  *
  * @returns 初期化済みの空キャッシュ
  */
-export const _makeEmptyClassifyCache = async (): Promise<ChatlogCache<ClassifyResult>> => {
+export const _makeEmptyClassifyCache = async (): Promise<ChatlogCache<ClassifyCache>> => {
   const buf = new Map<string, string>();
-  const cache = new ChatlogCache<ClassifyResult>(
+  const cache = new ChatlogCache<ClassifyCache>(
     'classify-cache',
     '/fake/cache',
     undefined,
@@ -76,6 +76,10 @@ export const _makeEmptyClassifyCache = async (): Promise<ChatlogCache<ClassifyRe
         },
         mkdir: () => Promise.resolve(),
         glob: () => Promise.resolve([]),
+        removeFile: (path) => {
+          buf.delete(path);
+          return Promise.resolve();
+        },
       },
     },
   );
