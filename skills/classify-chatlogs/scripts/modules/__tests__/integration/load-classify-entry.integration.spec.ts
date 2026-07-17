@@ -22,13 +22,18 @@ import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class
 // constants
 import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../../../_scripts/types/action-status.types.ts';
 
+// ─── Internal Helpers
+import { _makeEmptyClassifyCache } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+
 // ─── test
 
 describe('loadClassifyEntry', () => {
   let tempDir: string;
+  let cache: Awaited<ReturnType<typeof _makeEmptyClassifyCache>>;
 
   beforeEach(async () => {
     tempDir = await Deno.makeTempDir();
+    cache = await _makeEmptyClassifyCache();
   });
 
   afterEach(async () => {
@@ -47,7 +52,7 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(_result.entry.filename, 'test.md');
         });
@@ -59,7 +64,7 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _title = _result.entry.frontmatter.get('title');
 
           assertEquals(typeof _title === 'string' ? _title : '', 'テストタイトル');
@@ -72,7 +77,7 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _category = _result.entry.frontmatter.get('category');
 
           assertEquals(typeof _category === 'string' ? _category : '', 'development');
@@ -85,7 +90,7 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(
             _result.entry.frontmatterText,
@@ -104,7 +109,7 @@ describe('loadClassifyEntry', () => {
       describe('Then: T-CL-LFM-02 - ChatlogError(FileDirNotFound) がスローされる', () => {
         it('[Error] T-CL-LFM-02-01: 存在しないファイルの場合 ChatlogError(FileDirNotFound) がスローされる', async () => {
           await assertRejects(
-            () => loadClassifyEntry('/nonexistent/file.md'),
+            () => loadClassifyEntry('/nonexistent/file.md', cache),
             ChatlogError,
           );
         });
@@ -121,7 +126,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/no-project.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _project = _result.entry.frontmatter.get('project');
 
           assertEquals(_project, undefined);
@@ -142,7 +147,7 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テスト\nproject: my-app\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _project = _result.entry.frontmatter.get('project');
 
           assertEquals(typeof _project === 'string' ? _project : '', 'my-app');
@@ -163,7 +168,7 @@ describe('loadClassifyEntry', () => {
             '---\ntopics:\n  - TypeScript\n  - Deno\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _topics = _result.entry.frontmatter.get('topics');
 
           assertEquals(Array.isArray(_topics) ? _topics as string[] : [], ['TypeScript', 'Deno']);
@@ -184,7 +189,7 @@ describe('loadClassifyEntry', () => {
             '---\ntags:\n  - refactoring\n  - bdd\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
           const _tags = _result.entry.frontmatter.get('tags');
 
           assertEquals(Array.isArray(_tags) ? _tags as string[] : [], ['refactoring', 'bdd']);
@@ -202,7 +207,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文'); // 閉じる --- がない
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(_result.options.action, ENTRY_ACTIONS.ERROR);
           assertEquals(_result.options.status, ENTRY_STATUSES.ERROR);
@@ -213,7 +218,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文');
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(typeof _result.options.reason, 'string');
           assertEquals((_result.options.reason ?? '').length > 0, true);
@@ -231,7 +236,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(_result.options.action, ENTRY_ACTIONS.ERROR);
           assertEquals(_result.options.status, ENTRY_STATUSES.ERROR);
@@ -242,7 +247,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(typeof _result.options.reason, 'string');
           assertEquals((_result.options.reason ?? '').length > 0, true);
@@ -260,7 +265,7 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/empty-body.md`;
           await Deno.writeTextFile(filePath, '\n');
 
-          const _result = await loadClassifyEntry(filePath);
+          const _result = await loadClassifyEntry(filePath, cache);
 
           assertEquals(_result.entry.frontmatter.get('project'), undefined);
         });
