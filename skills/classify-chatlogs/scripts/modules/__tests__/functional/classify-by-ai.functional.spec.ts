@@ -87,12 +87,10 @@ describe('classifyByAI', () => {
       const allEntries: ClassifyBuffer = [
         {
           file: _makeClassifyChatlogEntry('a.md'),
-          filePath: '/tmp/input/a.md',
           action: CLASSIFY_ACTIONS.REMAINING,
         },
         {
           file: _makeClassifyChatlogEntry('b.md'),
-          filePath: '/tmp/input/b.md',
           action: CLASSIFY_ACTIONS.REMAINING,
         },
       ];
@@ -112,7 +110,6 @@ describe('classifyByAI', () => {
 
       const allEntries: ClassifyBuffer = ['a.md', 'b.md', 'c.md'].map((filename) => ({
         file: _makeClassifyChatlogEntry(filename),
-        filePath: `/tmp/input/${filename}`,
         action: CLASSIFY_ACTIONS.REMAINING,
       }));
 
@@ -134,18 +131,17 @@ describe('classifyByAI', () => {
       const allEntries: ClassifyBuffer = [
         {
           file: _makeClassifyChatlogEntry('a.md'),
-          filePath: '/tmp/input/a.md',
           action: CLASSIFY_ACTIONS.REMAINING,
         },
-        { file: null, filePath: '/tmp/input/b.md', action: CLASSIFY_ACTIONS.SKIP },
-        { file: null, filePath: '/tmp/input/c.md', action: CLASSIFY_ACTIONS.MOVE },
-        { file: null, filePath: '/tmp/input/d.md', action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' },
+        { file: _makeClassifyChatlogEntry('b.md'), action: CLASSIFY_ACTIONS.SKIP },
+        { file: _makeClassifyChatlogEntry('c.md'), action: CLASSIFY_ACTIONS.MOVE },
+        { file: _makeClassifyChatlogEntry('d.md'), action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' },
       ];
 
       const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
 
       assertEquals(buffer.length, 1);
-      assertEquals(buffer[0].filePath, '/tmp/input/a.md');
+      assertEquals(buffer[0].file.filePath, '/tmp/input/a.md');
     });
 
     it('[Normal] T-CL-CBA-05-01: AI 判定成功 → cache に判定結果が書き込まれる', async () => {
@@ -157,7 +153,6 @@ describe('classifyByAI', () => {
       const allEntries: ClassifyBuffer = [
         {
           file: _makeClassifyChatlogEntry('a.md'),
-          filePath: '/tmp/input/a.md',
           action: CLASSIFY_ACTIONS.REMAINING,
         },
       ];
@@ -188,8 +183,8 @@ describe('classifyByAI', () => {
 
     it('[Edge] T-CL-CBA-04-01: REMAINING 以外のみ → 空配列を返し claude CLI は呼び出されない', async () => {
       const allEntries: ClassifyBuffer = [
-        { file: null, filePath: '/tmp/input/a.md', action: CLASSIFY_ACTIONS.SKIP },
-        { file: null, filePath: '/tmp/input/b.md', action: CLASSIFY_ACTIONS.MOVE },
+        { file: _makeClassifyChatlogEntry('a.md'), action: CLASSIFY_ACTIONS.SKIP },
+        { file: _makeClassifyChatlogEntry('b.md'), action: CLASSIFY_ACTIONS.MOVE },
       ];
 
       const buffer = await classifyByAI(allEntries, _PROJECTS, _makeConfig(), cache);
