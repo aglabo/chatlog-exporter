@@ -99,6 +99,7 @@ export const CLASSIFY_ACTIONS = {
   SKIP: 'skip',
   REMAINING: 'remaining',
   ERROR: 'error',
+  EMPTY: '',
 } as const;
 
 /** `CLASSIFY_ACTIONS` の値の型。 */
@@ -107,7 +108,7 @@ export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIO
 /** ファイルエントリのみを運ぶ薄いバッファエントリ。 */
 export type ClassifyBufferEntry = {
   /** 分類対象のファイルエントリ。 */
-  file: ChatlogEntry;
+  entry: ChatlogEntry;
 };
 
 /** `preClassify` および `processChunk` が返すバッファ。 */
@@ -127,30 +128,11 @@ export type ClassifyPartition = {
 // findBufferEntries オプション型
 // ─────────────────────────────────────────────
 
-/** `loadMeta` が返す読み込み結果。エラー時は `action`/`reason` を伴う。 */
-export type ClassifyLoadResult = {
-  /** 読み込み対象のファイルエントリ。 */
-  file: ChatlogEntry;
-  /** 読み込み失敗時のアクション（例: `CLASSIFY_ACTIONS.ERROR`）。 */
-  action?: ClassifyAction;
-  /** 読み込み失敗時の理由。 */
-  reason?: string;
-};
+/** ファイルパスから `ClassifyBufferEntry` を読み込む関数。 */
+export type ClassifyBufferProvider = (path: string) => Promise<ClassifyBufferEntry>;
 
 /** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
 export type FindBufferEntriesOptions = {
   glob?: GlobProvider;
-  loadMeta?: (path: string) => Promise<ClassifyLoadResult>;
-};
-
-// ─────────────────────────────────────────────
-// 分類エントリ型
-// ─────────────────────────────────────────────
-
-/** `loadClassifyEntries` が返す、読み込みに成功したエントリ。`file` は non-null。 */
-export type ClassifyEntry = {
-  /** 読み込み済みのファイルエントリ。 */
-  file: ChatlogEntry;
-  /** エントリのファイルパス。 */
-  filePath: string;
+  loadMeta?: ClassifyBufferProvider;
 };
