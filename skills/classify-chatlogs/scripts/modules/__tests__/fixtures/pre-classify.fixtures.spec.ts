@@ -18,6 +18,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { preClassify } from '../../classify-noai.ts';
 
 // ─── Helpers
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 import type { ClassifyAction, ClassifyBufferEntry } from '../../../types/classify.types.ts';
@@ -75,7 +76,7 @@ const _loadFixture = async (dir: string): Promise<{ input: _FixtureInput; expect
 /**
  * `_FixtureInput` から `ClassifyBufferEntry` を構築する。
  *
- * `action: error` の場合は `file: null` のエントリを返す。
+ * `action: error` の場合は filePath のみ保持する空の `ChatlogEntry` のエントリを返す。
  * それ以外は frontmatter と content から `ClassifyChatlogEntry` を構築する。
  *
  * @param input - `input.yaml` から読み込んだデータ
@@ -84,14 +85,13 @@ const _loadFixture = async (dir: string): Promise<{ input: _FixtureInput; expect
 const _buildEntry = (input: _FixtureInput): ClassifyBufferEntry => {
   if (input.action === 'error') {
     return {
-      file: null,
-      filePath: input.filePath,
+      file: new ChatlogEntry('', { filePath: input.filePath }),
       action: 'error',
       reason: input.reason,
     };
   }
   const _entry = _makeEntry(input.filePath, input.frontmatter ?? {}, input.content ?? '');
-  return { file: _entry, filePath: input.filePath };
+  return { file: _entry };
 };
 
 // ─── Tests
