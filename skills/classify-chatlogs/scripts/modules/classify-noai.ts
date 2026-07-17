@@ -38,7 +38,7 @@ export const loadClassifyEntry = async (filePath: string): Promise<ActionStatusE
   } catch (e) {
     const _reason = e instanceof Error ? e.message : String(e);
     return {
-      entry: new ChatlogEntry(''),
+      entry: new ChatlogEntry('', { filePath }),
       options: { filePath, action: ENTRY_ACTIONS.ERROR, status: ENTRY_STATUSES.ERROR, reason: _reason },
     };
   }

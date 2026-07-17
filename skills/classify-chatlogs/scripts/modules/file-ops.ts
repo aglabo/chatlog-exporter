@@ -87,7 +87,7 @@ export const moveClassified = async (
         stats.remaining++;
         break;
       case CLASSIFY_ACTIONS.ERROR:
-        logger.warn(`  AI 分類失敗: ${entry.filePath}`);
+        logger.warn(`  AI 分類失敗: ${entry.file.filePath}`);
         stats.error++;
         break;
       case CLASSIFY_ACTIONS.MOVE: {

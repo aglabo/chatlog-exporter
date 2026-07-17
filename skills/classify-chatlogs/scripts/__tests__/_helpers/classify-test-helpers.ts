@@ -8,9 +8,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Helpers
+import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { renderFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
-import type { ClassifyStats } from '../../types/classify.types.ts';
+import type { ClassifyResult, ClassifyStats } from '../../types/classify.types.ts';
 // types
 import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
 
@@ -47,4 +48,37 @@ export const _makeEntry = (
 ): ChatlogEntry => {
   const _text = renderFrontmatter(frontmatter) + content;
   return new ChatlogEntry(_text, { filePath });
+};
+
+/**
+ * テスト用の空 `ChatlogCache<ClassifyResult>`（バッファバック）を生成する。
+ *
+ * ファイル I/O をせずにインメモリバッファで動作するキャッシュを返す。
+ *
+ * @returns 初期化済みの空キャッシュ
+ */
+export const _makeEmptyClassifyCache = async (): Promise<ChatlogCache<ClassifyResult>> => {
+  const buf = new Map<string, string>();
+  const cache = new ChatlogCache<ClassifyResult>(
+    'classify-cache',
+    '/fake/cache',
+    undefined,
+    {
+      cache: {
+        readTextFile: (path) => {
+          const data = buf.get(path);
+          if (data === undefined) { return Promise.reject(new Error('not found')); }
+          return Promise.resolve(data);
+        },
+        writeTextFile: (path, data) => {
+          buf.set(path, data);
+          return Promise.resolve();
+        },
+        mkdir: () => Promise.resolve(),
+        glob: () => Promise.resolve([]),
+      },
+    },
+  );
+  await cache.ready;
+  return cache;
 };

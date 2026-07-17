@@ -17,6 +17,7 @@ import { describe, it } from '@std/testing/bdd';
 import { preClassify, processPreclassify } from '../../classify-noai.ts';
 
 // ─── Helpers
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { ClassifyBufferEntry } from '../../../types/classify.types.ts';
 // constants
@@ -46,7 +47,7 @@ describe('preClassify', () => {
     it('[Normal] T-CL-PRE-01: project フィールドあり + 既に正しいディレクトリ内 → action=skip', () => {
       const _entry = _makeEntry('/tmp/chatlogs/app1/test.md', { project: 'app1' }, '本文テキスト');
 
-      const result = preClassify({ file: _entry, filePath: _entry.filePath! });
+      const result = preClassify({ file: _entry });
 
       assertEquals(result.action, CLASSIFY_ACTIONS.SKIP);
       assertEquals(result.project, 'app1');
@@ -55,7 +56,7 @@ describe('preClassify', () => {
     it('[Normal] T-CL-PRE-02: project フィールドあり + ディレクトリが違う → action=move', () => {
       const _entry = _makeEntry('/tmp/chatlogs/test.md', { project: 'app1' }, '本文テキスト');
 
-      const result = preClassify({ file: _entry, filePath: _entry.filePath! });
+      const result = preClassify({ file: _entry });
 
       assertEquals(result.action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(result.project, 'app1');
@@ -64,7 +65,7 @@ describe('preClassify', () => {
     it('[Normal] T-CL-PRE-03: project フィールドなし + hasMeta=false + 短い → FALLBACK_PROJECT, action=move', () => {
       const _entry = _makeEntry('/tmp/chatlogs/test.md', {}, 'short');
 
-      const result = preClassify({ file: _entry, filePath: _entry.filePath! });
+      const result = preClassify({ file: _entry });
 
       assertEquals(result.action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(result.project, FALLBACK_PROJECT);
@@ -77,7 +78,7 @@ describe('preClassify', () => {
         'short',
       );
 
-      const result = preClassify({ file: _entry, filePath: _entry.filePath! });
+      const result = preClassify({ file: _entry });
 
       assertEquals(result.action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -86,7 +87,7 @@ describe('preClassify', () => {
       const _longContent = 'a'.repeat(100);
       const _entry = _makeEntry('/tmp/chatlogs/test.md', {}, _longContent);
 
-      const result = preClassify({ file: _entry, filePath: _entry.filePath! });
+      const result = preClassify({ file: _entry });
 
       assertEquals(result.action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -96,10 +97,10 @@ describe('preClassify', () => {
    * エッジケース: `action === 'error'` のエントリはそのまま返す。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-CL-PRE-06: action=error のエントリ → そのまま返す（file は null のまま）', () => {
+    it('[Edge] T-CL-PRE-06: action=error のエントリ → そのまま返す（file は変更されない）', () => {
+      const _errorFile = new ChatlogEntry('', { filePath: '/tmp/chatlogs/broken.md' });
       const _errorEntry: ClassifyBufferEntry = {
-        file: null,
-        filePath: '/tmp/chatlogs/broken.md',
+        file: _errorFile,
         action: CLASSIFY_ACTIONS.ERROR,
         reason: 'InvalidFormat',
       };
@@ -107,7 +108,7 @@ describe('preClassify', () => {
       const result = preClassify(_errorEntry);
 
       assertEquals(result.action, CLASSIFY_ACTIONS.ERROR);
-      assertEquals(result.file, null);
+      assertEquals(result.file, _errorFile);
       assertEquals(result.reason, 'InvalidFormat');
     });
   });
@@ -133,9 +134,9 @@ describe('processPreclassify', () => {
       const _entryLong = _makeEntry('/tmp/dir/c.md', {}, 'a'.repeat(100));
 
       const _buffer: ClassifyBufferEntry[] = [
-        { file: _entryWithProject, filePath: _entryWithProject.filePath! },
-        { file: _entryShort, filePath: _entryShort.filePath! },
-        { file: _entryLong, filePath: _entryLong.filePath! },
+        { file: _entryWithProject },
+        { file: _entryShort },
+        { file: _entryLong },
       ];
 
       const _result = processPreclassify(_buffer);
@@ -155,7 +156,7 @@ describe('processPreclassify', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-CL-PCL-03: 単一エントリ（project あり）を渡す → action=skip を返す', () => {
       const _entry = _makeEntry('/tmp/dir/app1/a.md', { project: 'app1' }, '本文');
-      const _buffer: ClassifyBufferEntry[] = [{ file: _entry, filePath: _entry.filePath! }];
+      const _buffer: ClassifyBufferEntry[] = [{ file: _entry }];
 
       const _result = processPreclassify(_buffer);
 

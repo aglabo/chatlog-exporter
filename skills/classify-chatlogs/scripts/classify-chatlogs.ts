@@ -17,6 +17,7 @@
 // cspell:words noai
 
 // ─── Shared scripts
+import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
@@ -28,31 +29,38 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig } from './modules/classify-config.ts';
-import { processPreclassify } from './modules/classify-noai.ts';
 import { moveClassified } from './modules/file-ops.ts';
-import { findBufferEntries } from './modules/find-buffer-entries.ts';
+import { partitionClassifyEntries } from './modules/partition-classify-entries.ts';
 // types
-import type { ClassifyBuffer, ClassifyConfig, ClassifyStats, ProjectDicEntry } from './types/classify.types.ts';
+import type {
+  ClassifyBuffer,
+  ClassifyConfig,
+  ClassifyPartition,
+  ClassifyResult,
+  ClassifyStats,
+  ProjectDicEntry,
+} from './types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
-import { CLASSIFY_ACTIONS } from './types/classify.types.ts';
 
 // ─────────────────────────────────────────────
 // processClassify
 // ─────────────────────────────────────────────
 
 /**
- * 分類バッファに対して AI なし事前分類・AI 分類を実行し、結合した分類済みバッファを返す。
+ * 分類候補エントリの分割結果に対して AI 分類を実行し、結合した分類済みバッファを返す。
+ *
+ * `partition.uncached`（未キャッシュの REMAINING エントリ）のみを `classifyByAI` に渡し、
+ * `resolved`・`cached` と結合した結果を返す。
  */
 export const processClassify = async (
-  allEntries: ClassifyBuffer,
+  partition: ClassifyPartition,
   projects: ProjectDicEntry,
   config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
+  cache: ChatlogCache<ClassifyResult>,
 ): Promise<ClassifyBuffer> => {
-  const _preClassified = processPreclassify(allEntries);
-  const _resolved = _preClassified.filter((e) => e.action !== CLASSIFY_ACTIONS.REMAINING);
-  const _aiClassified = await classifyByAI(_preClassified, projects, config);
-  return [..._resolved, ..._aiClassified];
+  const _aiClassified = await classifyByAI(partition.uncached, projects, config, cache);
+  return [...partition.resolved, ...partition.cached, ..._aiClassified];
 };
 
 // ─────────────────────────────────────────────
@@ -102,16 +110,20 @@ export const main = async (argv?: string[]): Promise<void> => {
 
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
 
-  // Step 1: バッファ取得
-  const _buffer = await findBufferEntries(_searchDir, undefined, stats);
-  if (_buffer.length === 0) {
+  // 判定結果キャッシュ
+  const _cache = new ChatlogCache<ClassifyResult>('classify-cache');
+  await _cache.ready;
+
+  // Step 1: バッファ取得 + AI なし事前分類 + キャッシュ振り分け
+  const _partition = await partitionClassifyEntries(_searchDir, _cache, undefined, stats);
+  if (_partition.resolved.length === 0 && _partition.cached.length === 0 && _partition.uncached.length === 0) {
     logger.info('対象ファイルなし');
     logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
     return;
   }
 
-  // Step 2: 分類（AI なし + AI あり）
-  const _classified = await processClassify(_buffer, projects, _config);
+  // Step 2: 分類（AI あり）
+  const _classified = await processClassify(_partition, projects, _config, _cache);
 
   // Step 3: ファイル移動
   await moveClassified(_classified, _searchDir, _config.dryRun, stats);

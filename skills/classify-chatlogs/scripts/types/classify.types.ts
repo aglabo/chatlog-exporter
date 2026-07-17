@@ -35,6 +35,8 @@ export interface ClassifyResult {
   confidence: number;
   /** 分類根拠の説明文。 */
   reason: string;
+  /** ファイル読み込み失敗時のステータス（`CLASSIFY_ACTIONS.ERROR`）。 */
+  status?: ClassifyAction;
 }
 
 // ─────────────────────────────────────────────
@@ -104,10 +106,8 @@ export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIO
 
 /** `preClassify` および `processChunk` が返す1件分のバッファエントリ。 */
 export type ClassifyBufferEntry = {
-  /** 分類対象のファイルエントリ。エラー時は `null`。 */
-  file: ChatlogEntry | null;
-  /** エントリのファイルパス。エラー時も参照できるよう `file` とは別に保持する。 */
-  filePath: string;
+  /** 分類対象のファイルエントリ。 */
+  file: ChatlogEntry;
   /** 割り当てるプロジェクト名。 */
   project?: string;
   /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
@@ -119,6 +119,16 @@ export type ClassifyBufferEntry = {
 /** `preClassify` および `processChunk` が返すバッファ。 */
 export type ClassifyBuffer = ClassifyBufferEntry[];
 
+/** `partitionClassifyEntries` が返す、分類候補ファイルエントリの分割結果。 */
+export type ClassifyPartition = {
+  /** preclassify で MOVE/SKIP/ERROR 相当に確定したエントリ。 */
+  resolved: ClassifyBuffer;
+  /** REMAINING のうちキャッシュ済み（前回以前の呼び出しでの AI 判定結果）。project 適用済み、action: MOVEBYAI。 */
+  cached: ClassifyBuffer;
+  /** REMAINING のうち未キャッシュ。AI 分類対象。 */
+  uncached: ClassifyBuffer;
+};
+
 // ─────────────────────────────────────────────
 // findBufferEntries オプション型
 // ─────────────────────────────────────────────
@@ -127,4 +137,16 @@ export type ClassifyBuffer = ClassifyBufferEntry[];
 export type FindBufferEntriesOptions = {
   glob?: GlobProvider;
   loadMeta?: (path: string) => Promise<ClassifyBufferEntry>;
+};
+
+// ─────────────────────────────────────────────
+// 分類エントリ型
+// ─────────────────────────────────────────────
+
+/** `loadClassifyEntries` が返す、読み込みに成功したエントリ。`file` は non-null。 */
+export type ClassifyEntry = {
+  /** 読み込み済みのファイルエントリ。 */
+  file: ChatlogEntry;
+  /** エントリのファイルパス。 */
+  filePath: string;
 };

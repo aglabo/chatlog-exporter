@@ -17,8 +17,9 @@ import { processChunk } from '../../classify-ai.ts';
 
 // ─── Helpers
 // types
-import type { ProjectDicEntry } from '../../../types/classify.types.ts';
+import type { ClassifyResult, ProjectDicEntry } from '../../../types/classify.types.ts';
 // classes
+import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
@@ -32,7 +33,10 @@ import {
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { _makeClassifyChatlogEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+import {
+  _makeClassifyChatlogEntry,
+  _makeEmptyClassifyCache,
+} from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -57,10 +61,12 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
+    let cache: ChatlogCache<ClassifyResult>;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
       loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
       const response = JSON.stringify([
         { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
@@ -78,7 +84,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].action, CLASSIFY_ACTIONS.MOVEBYAI);
@@ -89,13 +95,22 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      await processChunk(metas, projects, model);
+      await processChunk(metas, projects, model, cache);
 
       assertEquals(
         loggerStub.infoLogs.some((l) => l.includes('classify:')),
         true,
         'classify ログが infoLogs に記録されていない',
       );
+    });
+
+    it('[Normal] T-CL-PC-07-01: AI 判定成功 → cache に project/confidence/reason が書き込まれる', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
+
+      await processChunk(metas, projects, model, cache);
+
+      assertEquals(cache.read('/tmp/input/a.md'), { project: 'app1', confidence: 0.9, reason: 'matched' });
     });
   });
 
@@ -106,10 +121,12 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
+    let cache: ChatlogCache<ClassifyResult>;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
       loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
       mockHandle = installCommandMock(makeFailMock(1));
     });
 
@@ -122,7 +139,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 2);
       assertEquals(buffer.every((e) => e.action === CLASSIFY_ACTIONS.ERROR), true);
@@ -132,13 +149,22 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model);
+      await processChunk(metas, projects, model, cache);
 
       assertEquals(
         loggerStub.warnLogs.some((l) => l.includes('claude CLI 実行失敗')),
         true,
         '警告ログが warnLogs に記録されていない',
       );
+    });
+
+    it('[Error] T-CL-PC-02-03: CLI エラー → cache へは書き込まれない', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await processChunk(metas, projects, model, cache);
+
+      assertEquals(cache.read('/tmp/input/a.md'), {});
     });
 
     it('[Error] T-CL-PC-03-01: JSON パース失敗 → buffer に action: ERROR エントリが返される', async () => {
@@ -152,7 +178,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].action, CLASSIFY_ACTIONS.ERROR);
@@ -169,13 +195,29 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model);
+      await processChunk(metas, projects, model, cache);
 
       assertEquals(
         loggerStub.warnLogs.some((l) => l.includes('JSON パース失敗')),
         true,
         '警告ログが warnLogs に記録されていない',
       );
+    });
+
+    it('[Error] T-CL-PC-03-03: JSON パース失敗 → cache へは書き込まれない', async () => {
+      mockHandle.restore();
+      loggerStub.restore();
+      loggerStub = makeLoggerStub();
+      mockHandle = installCommandMock(
+        makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+      );
+
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await processChunk(metas, projects, model, cache);
+
+      assertEquals(cache.read('/tmp/input/a.md'), {});
     });
   });
 
@@ -186,10 +228,12 @@ describe('processChunk', () => {
     let mockHandle: CommandMockHandle;
     let loggerStub: LoggerStub;
     let model: string;
+    let cache: ChatlogCache<ClassifyResult>;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       model = DEFAULT_AI_MODEL;
       loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
       // "b.md" の結果を返すが、対象ファイルは "a.md"
       const response = JSON.stringify([
         { file: 'b.md', project: 'app1', confidence: 0.9, reason: 'matched' },
@@ -208,7 +252,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].project, FALLBACK_PROJECT);
@@ -218,7 +262,7 @@ describe('processChunk', () => {
       const metas: ChatlogEntry[] = [];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 0);
     });
@@ -238,7 +282,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      const buffer = await processChunk(metas, projects, model);
+      const buffer = await processChunk(metas, projects, model, cache);
 
       assertEquals(buffer.length, 1);
       assertEquals(buffer[0].project, 'app1');

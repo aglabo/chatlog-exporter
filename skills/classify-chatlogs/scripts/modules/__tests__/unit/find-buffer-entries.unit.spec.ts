@@ -12,17 +12,19 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { findBufferEntries } from '../../find-buffer-entries.ts';
+import { findBufferEntries, findChatlogFilePaths, loadClassifyEntries } from '../../find-buffer-entries.ts';
 
 // ─── Helpers
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
+import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 import type { ClassifyBufferEntry, FindBufferEntriesOptions } from '../../../types/classify.types.ts';
 
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
-import { _makeEntry, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+import { _makeEmptyClassifyCache, _makeEntry, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // functions
 
@@ -53,9 +55,13 @@ const _makeLoadMeta = (
 (path: string): Promise<ClassifyBufferEntry> => {
   callCounter.count++;
   if (errorPaths.has(path)) {
-    return Promise.resolve({ file: null, filePath: path, action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' });
+    return Promise.resolve({
+      file: new ChatlogEntry('', { filePath: path }),
+      action: CLASSIFY_ACTIONS.ERROR,
+      reason: 'load failed',
+    });
   }
-  return Promise.resolve({ file: _makeEntry(path), filePath: path });
+  return Promise.resolve({ file: _makeEntry(path) });
 };
 
 // ─── Tests
@@ -82,7 +88,7 @@ describe('findBufferEntries', () => {
 
       const _result = await findBufferEntries('/tmp/input', _opts, _stats);
 
-      assertEquals(_result.map((e) => e.filePath).sort(), _paths);
+      assertEquals(_result.map((e) => e.file.filePath).sort(), _paths);
       assertEquals(_stats.error, 0);
     });
   });
@@ -100,7 +106,7 @@ describe('findBufferEntries', () => {
 
       const _result = await findBufferEntries('/tmp/input', _opts, _stats);
 
-      assertEquals(_result.map((e) => e.filePath).sort(), ['/tmp/input/a.md', '/tmp/input/c.md']);
+      assertEquals(_result.map((e) => e.file.filePath).sort(), ['/tmp/input/a.md', '/tmp/input/c.md']);
       assertEquals(_stats.error, 1);
     });
 
@@ -130,7 +136,7 @@ describe('findBufferEntries', () => {
 
       const _result = await findBufferEntries('/tmp/input', _opts);
 
-      assertEquals(_result.map((e) => e.filePath), ['/tmp/input/a.md']);
+      assertEquals(_result.map((e) => e.file.filePath), ['/tmp/input/a.md']);
     });
 
     it('[Edge] T-CL-FBE-05: 対象ディレクトリに .md ファイルが1件もない → 空配列が返り loadMeta は呼び出されない', async () => {
@@ -146,6 +152,150 @@ describe('findBufferEntries', () => {
       assertEquals(_result, []);
       assertEquals(_callCounter.count, 0);
       assertEquals(_stats.error, 0);
+    });
+  });
+});
+
+/**
+ * `findChatlogFilePaths` のユニットテストスイート。
+ *
+ * ディレクトリ直下の `.md` ファイルパス一覧取得を検証する。
+ *
+ * テスト ID 範囲: T-CL-FCP-01 〜 T-CL-FCP-02
+ *
+ * @see findChatlogFilePaths
+ */
+describe('findChatlogFilePaths', () => {
+  describe('When: 正常系', () => {
+    it('[Normal] T-CL-FCP-01: glob が複数パスを返す → そのままファイルパス配列として返る', async () => {
+      const _paths = ['/tmp/input/a.md', '/tmp/input/b.md'];
+
+      const _result = await findChatlogFilePaths('/tmp/input', { glob: _makeGlob(_paths) });
+
+      assertEquals(_result, _paths);
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it('[Edge] T-CL-FCP-02: 対象ディレクトリに .md ファイルが1件もない → 空配列が返る', async () => {
+      const _result = await findChatlogFilePaths('/tmp/input', { glob: _makeGlob([]) });
+
+      assertEquals(_result, []);
+    });
+  });
+});
+
+/**
+ * `loadClassifyEntries` のユニットテストスイート。
+ *
+ * ファイルパス一覧から `ChatlogEntry` を読み込み、既存 project frontmatter があれば
+ * キャッシュへ書き込み、読み込み失敗エントリはキャッシュへエラー記録のうえ除外する振る舞いを検証する。
+ *
+ * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-05
+ *
+ * @see loadClassifyEntries
+ */
+describe('loadClassifyEntries', () => {
+  describe('When: 正常系', () => {
+    it('[Normal] T-CL-LCE-01: frontmatter に project あり → cache に project が書き込まれ戻り値に含まれる', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/a.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () =>
+          Promise.resolve({
+            file: _makeEntry(_filePath, { project: 'proj-a' }),
+          }),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, _opts);
+
+      assertEquals(_result.map((e) => e.filePath), [_filePath]);
+      assertEquals(_cache.read(_filePath).project, 'proj-a');
+    });
+
+    it('[Normal] T-CL-LCE-04: frontmatter に project なし → cache に書き込まれず戻り値に含まれる', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/a.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () => Promise.resolve({ file: _makeEntry(_filePath, {}) }),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, _opts);
+
+      assertEquals(_result.map((e) => e.filePath), [_filePath]);
+      assertEquals(_cache.read(_filePath).project, undefined);
+    });
+
+    it('[Normal] T-CL-LCE-05: 正常/異常混在 → 正常分のみ順序を保って戻り値に含まれ、各cache書き込みとstats.errorが個別に反映される', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _withProject = '/tmp/input/with-project.md';
+      const _errorPath = '/tmp/input/error.md';
+      const _noProject = '/tmp/input/no-project.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: (path: string) => {
+          if (path === _errorPath) {
+            return Promise.resolve({
+              file: new ChatlogEntry('', { filePath: path }),
+              action: CLASSIFY_ACTIONS.ERROR,
+              reason: 'load failed',
+            });
+          }
+          const _frontmatter: FrontmatterFields = path === _withProject ? { project: 'proj-a' } : {};
+          return Promise.resolve({ file: _makeEntry(path, _frontmatter) });
+        },
+      };
+      const _stats = _makeStats();
+
+      const _result = await loadClassifyEntries(
+        [_withProject, _errorPath, _noProject],
+        _cache,
+        _opts,
+        _stats,
+      );
+
+      assertEquals(_result.map((e) => e.filePath), [_withProject, _noProject]);
+      assertEquals(_cache.read(_withProject).project, 'proj-a');
+      assertEquals(_cache.read(_errorPath).status, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(_cache.read(_noProject).project, undefined);
+      assertEquals(_stats.error, 1);
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it('[Edge] T-CL-LCE-02: loadMeta が ERROR エントリを返す → cache に status: error が書き込まれ戻り値から除外・stats.error がインクリメントされる', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/b.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () =>
+          Promise.resolve({
+            file: new ChatlogEntry('', { filePath: _filePath }),
+            action: CLASSIFY_ACTIONS.ERROR,
+            reason: 'load failed',
+          }),
+      };
+      const _stats = _makeStats();
+
+      const _result = await loadClassifyEntries([_filePath], _cache, _opts, _stats);
+
+      assertEquals(_result, []);
+      assertEquals(_cache.read(_filePath).status, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(_stats.error, 1);
+    });
+
+    it('[Edge] T-CL-LCE-03: デフォルト読み込み（loadClassifyEntry）経由のフロントマターパースエラー → cache に status: error が書き込まれ戻り値から除外される', async () => {
+      const _tempDir = await Deno.makeTempDir();
+      try {
+        const _cache = await _makeEmptyClassifyCache();
+        const _filePath = `${_tempDir}/bad-yaml.md`;
+        await Deno.writeTextFile(_filePath, '---\ntitle: [unclosed\n---\n本文');
+
+        const _result = await loadClassifyEntries([_filePath], _cache);
+
+        assertEquals(_result, []);
+        assertEquals(_cache.read(_filePath).status, CLASSIFY_ACTIONS.ERROR);
+      } finally {
+        await Deno.remove(_tempDir, { recursive: true });
+      }
     });
   });
 });

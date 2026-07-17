@@ -16,6 +16,7 @@ import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Local
+import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type {
@@ -94,6 +95,7 @@ export const processChunk = async (
   chunkMetas: ChatlogEntry[],
   projects: ProjectDicEntry,
   model: string,
+  cache: ChatlogCache<ClassifyResult>,
 ): Promise<ClassifyBuffer> => {
   const _buffer: ClassifyBuffer = [];
 
@@ -110,7 +112,6 @@ export const processChunk = async (
     logger.warn(`  ${_reason}`);
     return chunkMetas.map((f) => ({
       file: f,
-      filePath: f.filePath!,
       action: CLASSIFY_ACTIONS.ERROR,
       reason: _reason,
     }));
@@ -122,7 +123,6 @@ export const processChunk = async (
     logger.warn(`  ${_reason}`);
     return chunkMetas.map((f) => ({
       file: f,
-      filePath: f.filePath!,
       action: CLASSIFY_ACTIONS.ERROR,
       reason: _reason,
     }));
@@ -132,7 +132,12 @@ export const processChunk = async (
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    _buffer.push({ file: fileMeta, filePath: fileMeta.filePath!, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
+    _buffer.push({ file: fileMeta, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
+    await cache.write(fileMeta.filePath!, {
+      project,
+      confidence: result?.confidence ?? 0,
+      reason: result?.reason ?? '',
+    });
   }
 
   return _buffer;
@@ -149,6 +154,7 @@ export const classifyByAI = async (
   allEntries: ClassifyBuffer,
   projects: ProjectDicEntry,
   config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
+  cache: ChatlogCache<ClassifyResult>,
 ): Promise<ClassifyBuffer> => {
   // `e.file!` は安全: `findBufferEntries` が `action=error` を除外し、REMAINING エントリは常に file を持つ
   const _remaining = allEntries
@@ -159,7 +165,7 @@ export const classifyByAI = async (
   const _chunkBuffers = await runChunked<ChatlogEntry, ClassifyBuffer>(
     _remaining,
     config.chunkSize,
-    (chunk) => processChunk(chunk, projects, config.model),
+    (chunk) => processChunk(chunk, projects, config.model, cache),
     config.concurrency,
   );
 
