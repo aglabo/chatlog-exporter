@@ -25,8 +25,8 @@ export type ProjectDicEntry = Record<string, Record<string, string>>;
 // 分類結果型
 // ─────────────────────────────────────────────
 
-/** Claude CLI が返す1ファイルあたりの分類結果。 */
-export interface ClassifyResult {
+/** Claude CLI が返す1ファイルあたりの分類結果。キャッシュへの保存にも使う。 */
+export interface ClassifyCache {
   /** 対象ファイル名（パスなし）。 */
   file: string;
   /** 割り当てられたプロジェクト名。`FALLBACK_PROJECT` の場合もある。 */
@@ -35,8 +35,8 @@ export interface ClassifyResult {
   confidence: number;
   /** 分類根拠の説明文。 */
   reason: string;
-  /** ファイル読み込み失敗時のステータス（`CLASSIFY_ACTIONS.ERROR`）。 */
-  status?: ClassifyAction;
+  /** 実行するアクション（例: ファイル読み込み失敗時の `CLASSIFY_ACTIONS.ERROR`）。 */
+  action?: ClassifyAction;
 }
 
 // ─────────────────────────────────────────────
@@ -104,16 +104,10 @@ export const CLASSIFY_ACTIONS = {
 /** `CLASSIFY_ACTIONS` の値の型。 */
 export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIONS];
 
-/** `preClassify` および `processChunk` が返す1件分のバッファエントリ。 */
+/** ファイルエントリのみを運ぶ薄いバッファエントリ。 */
 export type ClassifyBufferEntry = {
   /** 分類対象のファイルエントリ。 */
   file: ChatlogEntry;
-  /** 割り当てるプロジェクト名。 */
-  project?: string;
-  /** 実行するアクション。`'move'` はファイル移動、`'skip'` はスキップ（カウントのみ）。 */
-  action?: ClassifyAction;
-  /** `action === 'error'` のときのエラーメッセージ。 */
-  reason?: string;
 };
 
 /** `preClassify` および `processChunk` が返すバッファ。 */
@@ -121,22 +115,32 @@ export type ClassifyBuffer = ClassifyBufferEntry[];
 
 /** `partitionClassifyEntries` が返す、分類候補ファイルエントリの分割結果。 */
 export type ClassifyPartition = {
-  /** preclassify で MOVE/SKIP/ERROR 相当に確定したエントリ。 */
-  resolved: ClassifyBuffer;
-  /** REMAINING のうちキャッシュ済み（前回以前の呼び出しでの AI 判定結果）。project 適用済み、action: MOVEBYAI。 */
-  cached: ClassifyBuffer;
-  /** REMAINING のうち未キャッシュ。AI 分類対象。 */
-  uncached: ClassifyBuffer;
+  /** 今回発見した全ファイルパス。 */
+  filePaths: string[];
+  /** ファイルパスから対応する `ChatlogEntry` へのマップ。 */
+  entries: Map<string, ChatlogEntry>;
+  /** AI 分類が必要な `ChatlogEntry` のみ。 */
+  uncached: ChatlogEntry[];
 };
 
 // ─────────────────────────────────────────────
 // findBufferEntries オプション型
 // ─────────────────────────────────────────────
 
+/** `loadMeta` が返す読み込み結果。エラー時は `action`/`reason` を伴う。 */
+export type ClassifyLoadResult = {
+  /** 読み込み対象のファイルエントリ。 */
+  file: ChatlogEntry;
+  /** 読み込み失敗時のアクション（例: `CLASSIFY_ACTIONS.ERROR`）。 */
+  action?: ClassifyAction;
+  /** 読み込み失敗時の理由。 */
+  reason?: string;
+};
+
 /** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
 export type FindBufferEntriesOptions = {
   glob?: GlobProvider;
-  loadMeta?: (path: string) => Promise<ClassifyBufferEntry>;
+  loadMeta?: (path: string) => Promise<ClassifyLoadResult>;
 };
 
 // ─────────────────────────────────────────────
