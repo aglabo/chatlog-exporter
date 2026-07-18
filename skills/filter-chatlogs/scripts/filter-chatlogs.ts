@@ -28,6 +28,7 @@ import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 import { parseArgs } from '../../_scripts/libs/io/parse-args.ts';
 import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
+import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
@@ -36,6 +37,7 @@ import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 
 // ─── internal ───
 // functions
+import { loadFilterEntries } from './libs/load-filter-entry.ts';
 import { countUnexecutedChunkFiles } from './modules/filter/count-unexecuted-chunk-files.ts';
 import { processChunk } from './modules/filter/process-chunk.ts';
 import { sweepDiscards } from './modules/filter/sweep-discards.ts';
@@ -124,14 +126,22 @@ export const main = async (args?: string[]): Promise<void> => {
   // 全体数・判定候補数（キャッシュ除外後）を集計ログとして出力する
   logger.info(`対象集計: total=${allFiles.length} candidates=${_targetEntries.length}`);
 
-  const targetFiles = await prefilterFiles(_targetEntries, {
+  // 候補ファイルを読み込む。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
+  // 誤って削除しないよう内容判定・claude CLI判定（prefilterFiles）には渡らない
+  const { entries, errors } = await loadFilterEntries(_targetEntries, _cache);
+  if (errors.length > 0) {
+    stats.error += errors.length;
+    errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));
+  }
+
+  const targetEntries = await prefilterFiles(entries, {
     minCharCount: _config.minCharCount,
     minAssistantChars: _config.minAssistantChars,
     stats,
     dryRun: _config.dryRun,
   });
 
-  const total = targetFiles.length;
+  const total = targetEntries.length;
   if (total === 0) {
     logger.info(`${LOGGER_HEADER.NO_FILE_FOUND}: 対象ファイルなし`);
   } else {
@@ -139,20 +149,20 @@ export const main = async (args?: string[]): Promise<void> => {
 
     if (_config.dryRun) {
       logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
-      targetFiles.forEach((filePath) => logger.info(`対象: ${filePath}`));
-      stats.skip += targetFiles.length;
+      targetEntries.forEach((entry) => logger.info(`対象: ${entry.filePath}`));
+      stats.skip += targetEntries.length;
       logger.info('判定済み: judged=0（dry-run）');
     } else {
       // チャンク分割して並列処理（判定結果はキャッシュに書き込むのみ。削除は後続のスイープで行う）
       const chunkResults = await runChunked(
-        targetFiles,
+        targetEntries,
         _config.chunkSize,
         (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl),
         _config.concurrency,
       );
 
       // レートリミット等で abort された後、未着手のまま残ったチャンクのファイル数を skip に計上する
-      const unexecutedFileCount = countUnexecutedChunkFiles(targetFiles, _config.chunkSize, chunkResults);
+      const unexecutedFileCount = countUnexecutedChunkFiles(targetEntries, _config.chunkSize, chunkResults);
       if (unexecutedFileCount > 0) {
         stats.skip += unexecutedFileCount;
         logger.warn(
@@ -160,7 +170,7 @@ export const main = async (args?: string[]): Promise<void> => {
         );
       }
 
-      logger.info(`判定済み: judged=${targetFiles.length - unexecutedFileCount}`);
+      logger.info(`判定済み: judged=${targetEntries.length - unexecutedFileCount}`);
     }
   }
 
