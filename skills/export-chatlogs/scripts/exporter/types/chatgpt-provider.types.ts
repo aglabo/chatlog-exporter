@@ -15,11 +15,11 @@ import type { ChatGPTConversation } from './chatgpt-entry.types.ts';
 /** 指定ディレクトリから conversations-*.json ファイルパス一覧を返す Provider */
 export type FindFilesProvider = (baseDir: string) => Promise<string[]>;
 
-/** ChatGPT 会話オブジェクトを ExportedSession に変換する Provider（同期） */
+/** ChatGPT 会話オブジェクトを ExportedSession に変換する Provider */
 export type ParseConversationProvider = (
   conv: ChatGPTConversation,
   range: PeriodRange,
-) => ExportedSession | null;
+) => Promise<ExportedSession | null>;
 
 /** ExportedSession を Markdown ファイルに書き出し、パスを返す Provider */
 export type WriteSessionProvider = (outputDir: string, agent: string, session: ExportedSession) => Promise<string>;
