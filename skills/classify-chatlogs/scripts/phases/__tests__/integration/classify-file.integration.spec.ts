@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/integration/classify-file.integration.spec.ts
+// src: scripts/phases/__tests__/integration/classify-file.integration.spec.ts
 // @(#): classifyFile の統合テスト（正常移動・移動失敗 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -10,7 +10,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyFile } from '../../file-ops.ts';
+import { classifyFile } from '../../phase-write.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
