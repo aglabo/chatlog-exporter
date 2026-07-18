@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/integration/load-classify-entry.integration.spec.ts
+// src: scripts/libs/__tests__/integration/load-classify-entry.integration.spec.ts
 // @(#): loadClassifyEntry の統合テスト（実ファイルシステム使用）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -14,26 +14,21 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── test target
 
-import { loadClassifyEntry } from '../../classify-noai.ts';
+import { loadClassifyEntry } from '../../load-classify-entry.ts';
 
 // ─── helpers
 // errors
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-// constants
-import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../../../_scripts/types/action-status.types.ts';
-
-// ─── Internal Helpers
-import { _makeEmptyClassifyCache } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+// classes
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── test
 
 describe('loadClassifyEntry', () => {
   let tempDir: string;
-  let cache: Awaited<ReturnType<typeof _makeEmptyClassifyCache>>;
 
   beforeEach(async () => {
     tempDir = await Deno.makeTempDir();
-    cache = await _makeEmptyClassifyCache();
   });
 
   afterEach(async () => {
@@ -52,9 +47,9 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
 
-          assertEquals(_result.entry.filename, 'test.md');
+          assertEquals(_result.filename, 'test.md');
         });
 
         it('T-CL-LFM-01-02: frontmatter の title が正しく設定される', async () => {
@@ -64,8 +59,8 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _title = _result.entry.frontmatter.get('title');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _title = _result.frontmatter.get('title');
 
           assertEquals(typeof _title === 'string' ? _title : '', 'テストタイトル');
         });
@@ -77,8 +72,8 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _category = _result.entry.frontmatter.get('category');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _category = _result.frontmatter.get('category');
 
           assertEquals(typeof _category === 'string' ? _category : '', 'development');
         });
@@ -90,13 +85,13 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テストタイトル\ncategory: development\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
 
           assertEquals(
-            _result.entry.frontmatterText,
+            _result.frontmatterText,
             '---\ntitle: テストタイトル\ncategory: development\n---\n',
           );
-          assertEquals(_result.entry.content, '本文\n');
+          assertEquals(_result.content, '本文\n');
         });
       });
     });
@@ -109,7 +104,7 @@ describe('loadClassifyEntry', () => {
       describe('Then: T-CL-LFM-02 - ChatlogError(FileDirNotFound) がスローされる', () => {
         it('[Error] T-CL-LFM-02-01: 存在しないファイルの場合 ChatlogError(FileDirNotFound) がスローされる', async () => {
           await assertRejects(
-            () => loadClassifyEntry('/nonexistent/file.md', cache),
+            () => loadClassifyEntry('/nonexistent/file.md'),
             ChatlogError,
           );
         });
@@ -126,8 +121,8 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/no-project.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _project = _result.entry.frontmatter.get('project');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _project = _result.frontmatter.get('project');
 
           assertEquals(_project, undefined);
         });
@@ -147,8 +142,8 @@ describe('loadClassifyEntry', () => {
             '---\ntitle: テスト\nproject: my-app\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _project = _result.entry.frontmatter.get('project');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _project = _result.frontmatter.get('project');
 
           assertEquals(typeof _project === 'string' ? _project : '', 'my-app');
         });
@@ -168,8 +163,8 @@ describe('loadClassifyEntry', () => {
             '---\ntopics:\n  - TypeScript\n  - Deno\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _topics = _result.entry.frontmatter.get('topics');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _topics = _result.frontmatter.get('topics');
 
           assertEquals(Array.isArray(_topics) ? _topics as string[] : [], ['TypeScript', 'Deno']);
         });
@@ -189,8 +184,8 @@ describe('loadClassifyEntry', () => {
             '---\ntags:\n  - refactoring\n  - bdd\n---\n本文',
           );
 
-          const _result = await loadClassifyEntry(filePath, cache);
-          const _tags = _result.entry.frontmatter.get('tags');
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
+          const _tags = _result.frontmatter.get('tags');
 
           assertEquals(Array.isArray(_tags) ? _tags as string[] : [], ['refactoring', 'bdd']);
         });
@@ -198,59 +193,53 @@ describe('loadClassifyEntry', () => {
     });
   });
 
-  // ─── T-CL-LFM-07: 閉じない frontmatter → options.action='error' ─────────────────
+  // ─── T-CL-LFM-07: 閉じない frontmatter → LoadClassifyEntryFailure ─────────────────
 
   describe('Given: 閉じない frontmatter の .md ファイル（終端 --- なし）', () => {
     describe('When: loadClassifyEntry(filePath) を呼び出す', () => {
-      describe('Then: T-CL-LFM-07 - options.action=error の ASE が返される', () => {
-        it('[Error] T-CL-LFM-07-01: 閉じない frontmatter の場合 options.action=error かつ options.status=error', async () => {
+      describe('Then: T-CL-LFM-07 - LoadClassifyEntryFailure が返される', () => {
+        it('[Error] T-CL-LFM-07-01: 閉じない frontmatter の場合、戻り値の filePath が一致する', async () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文'); // 閉じる --- がない
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as { filePath: string; error: Error };
 
-          assertEquals(_result.options.action, ENTRY_ACTIONS.ERROR);
-          assertEquals(_result.options.status, ENTRY_STATUSES.ERROR);
-          assertEquals(_result.options.filePath, filePath);
+          assertEquals(_result.filePath, filePath);
         });
 
-        it('[Error] T-CL-LFM-07-03: reason に ChatlogError のメッセージが含まれる', async () => {
+        it('[Error] T-CL-LFM-07-03: error に ChatlogError のメッセージが含まれる', async () => {
           const filePath = `${tempDir}/unclosed-fm.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: テスト\n本文');
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as { filePath: string; error: Error };
 
-          assertEquals(typeof _result.options.reason, 'string');
-          assertEquals((_result.options.reason ?? '').length > 0, true);
+          assertEquals(_result.error.message.length > 0, true);
         });
       });
     });
   });
 
-  // ─── T-CL-LFM-08: 壊れた YAML → options.action='error' ──────────────────
+  // ─── T-CL-LFM-08: 壊れた YAML → LoadClassifyEntryFailure ──────────────────
 
   describe('Given: 壊れた YAML を含む frontmatter の .md ファイル', () => {
     describe('When: loadClassifyEntry(filePath) を呼び出す', () => {
-      describe('Then: T-CL-LFM-08 - options.action=error の ASE が返される', () => {
-        it('[Error] T-CL-LFM-08-01: 壊れた YAML の場合 options.action=error かつ options.status=error', async () => {
+      describe('Then: T-CL-LFM-08 - LoadClassifyEntryFailure が返される', () => {
+        it('[Error] T-CL-LFM-08-01: 壊れた YAML の場合、戻り値の filePath が一致する', async () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as { filePath: string; error: Error };
 
-          assertEquals(_result.options.action, ENTRY_ACTIONS.ERROR);
-          assertEquals(_result.options.status, ENTRY_STATUSES.ERROR);
-          assertEquals(_result.options.filePath, filePath);
+          assertEquals(_result.filePath, filePath);
         });
 
-        it('[Error] T-CL-LFM-08-03: reason に ChatlogError のメッセージが含まれる', async () => {
+        it('[Error] T-CL-LFM-08-03: error に ChatlogError のメッセージが含まれる', async () => {
           const filePath = `${tempDir}/bad-yaml.md`;
           await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as { filePath: string; error: Error };
 
-          assertEquals(typeof _result.options.reason, 'string');
-          assertEquals((_result.options.reason ?? '').length > 0, true);
+          assertEquals(_result.error.message.length > 0, true);
         });
       });
     });
@@ -265,9 +254,9 @@ describe('loadClassifyEntry', () => {
           const filePath = `${tempDir}/empty-body.md`;
           await Deno.writeTextFile(filePath, '\n');
 
-          const _result = await loadClassifyEntry(filePath, cache);
+          const _result = await loadClassifyEntry(filePath) as ChatlogEntry;
 
-          assertEquals(_result.entry.frontmatter.get('project'), undefined);
+          assertEquals(_result.frontmatter.get('project'), undefined);
         });
       });
     });
