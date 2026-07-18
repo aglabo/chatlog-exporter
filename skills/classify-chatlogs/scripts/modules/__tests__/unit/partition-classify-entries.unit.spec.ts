@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/partition-classify-entries.unit.spec.ts
-// @(#): partitionByPreclassify の単体テスト
-//       対象: partitionByPreclassify
+// @(#): partitionEntries の単体テスト
+//       対象: partitionEntries
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,90 +12,82 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { partitionByPreclassify } from '../../partition-classify-entries.ts';
+import { partitionEntries } from '../../partition-classify-entries.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
-// constants
-import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Tests
 
 /**
- * `partitionByPreclassify` のユニットテストスイート。
+ * `partitionEntries` のユニットテストスイート。
  *
- * AI なし事前分類 → キャッシュ有無による REMAINING の振り分けを検証する。
+ * cache に project が設定済みかどうかのみで cached/uncached を振り分けることを検証する。
  *
  * テスト ID 範囲: T-CL-PCE-01 〜 T-CL-PCE-05
  *
- * @see partitionByPreclassify
+ * @see partitionEntries
  */
-describe('partitionByPreclassify', () => {
+describe('partitionEntries', () => {
   describe('When: 正常系', () => {
-    it('[Normal] T-CL-PCE-01: preclassify で全件 MOVE/SKIP に解決する → uncached は空', async () => {
-      // frontmatter に project あり、パスは proj-a サブディレクトリ外 → MOVE
-      const _entryMove = _makeEntry('/tmp/input/move-test.md', { project: 'proj-a' }, '');
-      // frontmatter に project あり、パスが proj-a サブディレクトリ内 → SKIP
-      const _entrySkip = _makeEntry('/tmp/input/proj-a/skip-test.md', { project: 'proj-a' }, '');
-
+    it('[Normal] T-CL-PCE-01: project 設定済みエントリのみ → uncached は空、cached に全件含まれる', async () => {
+      const _entryA = _makeEntry('/tmp/input/a.md', {}, '');
+      const _entryB = _makeEntry('/tmp/input/b.md', {}, '');
       const _cache = await _makeEmptyClassifyCache();
+      await _cache.write(_entryA.filePath!, { project: 'proj-a' });
+      await _cache.write(_entryB.filePath!, { project: 'proj-b' });
 
-      const result = await partitionByPreclassify([_entryMove, _entrySkip], _cache);
+      const result = partitionEntries([_entryA, _entryB], _cache);
 
       assertEquals(result.uncached, []);
-      assertEquals(_cache.read(_entryMove.filePath!).action, CLASSIFY_ACTIONS.MOVE);
-      assertEquals(_cache.read(_entrySkip.filePath!).action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(result.cached, [_entryA, _entryB]);
+    });
+
+    it('[Normal] T-CL-PCE-02: project 未設定エントリのみ → cached は空、uncached に全件含まれる', async () => {
+      const _entryA = _makeEntry('/tmp/input/a.md', {}, '');
+      const _entryB = _makeEntry('/tmp/input/b.md', {}, '');
+      const _cache = await _makeEmptyClassifyCache();
+
+      const result = partitionEntries([_entryA, _entryB], _cache);
+
+      assertEquals(result.cached, []);
+      assertEquals(result.uncached, [_entryA, _entryB]);
     });
   });
 
   describe('When: エッジケース', () => {
-    it('[Edge] T-CL-PCE-02: REMAINING エントリのファイルがキャッシュ済み → uncached には含まれず cache に project/action: MOVEBYAI が書き込まれる', async () => {
-      const _entry = _makeEntry('/tmp/input/cached.md', {}, 'a'.repeat(100));
+    it('[Edge] T-CL-PCE-03: project 設定済みと未設定が混在 → 正しく振り分けられる', async () => {
+      const _entryCached = _makeEntry('/tmp/input/cached.md', {}, '');
+      const _entryUncached = _makeEntry('/tmp/input/uncached.md', {}, '');
       const _cache = await _makeEmptyClassifyCache();
-      await _cache.write(_entry.filePath!, { project: 'proj-a', confidence: 0.95, reason: 'cached decision' });
+      await _cache.write(_entryCached.filePath!, { project: 'proj-a' });
 
-      const result = await partitionByPreclassify([_entry], _cache);
+      const result = partitionEntries([_entryCached, _entryUncached], _cache);
 
-      assertEquals(result.uncached, []);
-      assertEquals(_cache.read(_entry.filePath!).action, CLASSIFY_ACTIONS.MOVEBYAI);
-      assertEquals(_cache.read(_entry.filePath!).project, 'proj-a');
+      assertEquals(result.cached, [_entryCached]);
+      assertEquals(result.uncached, [_entryUncached]);
     });
 
-    it('[Edge] T-CL-PCE-03: REMAINING エントリが一部のみキャッシュ済み → cache済み分は cache 経由で MOVEBYAI, 未cache分は uncached に含まれる', async () => {
-      const _entryCached = _makeEntry('/tmp/input/cached2.md', {}, 'a'.repeat(100));
-      const _entryUncached = _makeEntry('/tmp/input/uncached.md', {}, 'b'.repeat(100));
+    it('[Edge] T-CL-PCE-04: cached と uncached を合わせると渡した全エントリになる', async () => {
+      const _entryA = _makeEntry('/tmp/input/a.md', {}, '');
+      const _entryB = _makeEntry('/tmp/input/uncached.md', {}, '');
       const _cache = await _makeEmptyClassifyCache();
-      await _cache.write(_entryCached.filePath!, { project: 'proj-a', confidence: 0.9, reason: 'cached' });
+      await _cache.write(_entryA.filePath!, { project: 'proj-a' });
 
-      const result = await partitionByPreclassify([_entryCached, _entryUncached], _cache);
+      const result = partitionEntries([_entryA, _entryB], _cache);
 
-      assertEquals(_cache.read(_entryCached.filePath!).action, CLASSIFY_ACTIONS.MOVEBYAI);
-      assertEquals(_cache.read(_entryCached.filePath!).project, 'proj-a');
-      assertEquals(result.uncached.length, 1);
-      assertEquals(result.uncached[0].filePath, _entryUncached.filePath);
+      assertEquals([...result.cached, ...result.uncached], [_entryA, _entryB]);
     });
 
-    it('[Edge] T-CL-PCE-04: entries Map に渡した全ファイルの filePath→ChatlogEntry が格納される', async () => {
-      const _entryA = _makeEntry('/tmp/input/a.md', { project: 'proj-a' }, '');
-      const _entryB = _makeEntry('/tmp/input/uncached.md', {}, 'b'.repeat(100));
+    it('[Edge] T-CL-PCE-05: project が空文字列 → uncached 扱いになる', async () => {
+      const _entry = _makeEntry('/tmp/input/empty-project.md', {}, '');
       const _cache = await _makeEmptyClassifyCache();
+      await _cache.write(_entry.filePath!, { project: '' });
 
-      const result = await partitionByPreclassify([_entryA, _entryB], _cache);
+      const result = partitionEntries([_entry], _cache);
 
-      assertEquals(result.entries, [_entryA, _entryB]);
-    });
-
-    it('[Edge] T-CL-PCE-05: action: ERROR 済みの読み込み失敗エントリ（空内容）を含む → entries には含まれるが、事前分類で上書きされず action: ERROR のまま維持され uncached にも含まれない', async () => {
-      const _errorEntry = new ChatlogEntry('', { filePath: '/tmp/input/error.md' });
-      const _cache = await _makeEmptyClassifyCache();
-      await _cache.write(_errorEntry.filePath!, { action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' });
-
-      const result = await partitionByPreclassify([_errorEntry], _cache);
-
-      assertEquals(result.entries, [_errorEntry]);
-      assertEquals(result.uncached, []);
-      assertEquals(_cache.read(_errorEntry.filePath!).action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(result.cached, []);
+      assertEquals(result.uncached, [_entry]);
     });
   });
 });
