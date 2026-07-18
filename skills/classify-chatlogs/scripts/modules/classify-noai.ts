@@ -19,7 +19,7 @@ import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ActionStatusEntry } from '../../../_scripts/types/action-status-entry.types.ts';
-import type { ClassifyBufferEntry, ClassifyCache } from '../types/classify.types.ts';
+import type { ClassifyCache } from '../types/classify.types.ts';
 // constants
 import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../_scripts/types/action-status.types.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
@@ -59,10 +59,10 @@ export const loadClassifyEntry = async (
  * 戻り値は常に入力の `entry` をそのまま返す（cache への書き込みが主目的）。
  */
 export const preClassify = async (
-  entry: ClassifyBufferEntry,
+  entry: ChatlogEntry,
   cache: ChatlogCache<ClassifyCache>,
-): Promise<ClassifyBufferEntry> => {
-  const f = entry.entry!;
+): Promise<ChatlogEntry> => {
+  const f = entry;
   const _fm = f.frontmatter;
   const _existingProject = _fm.get('project');
 
@@ -101,6 +101,6 @@ export const preClassify = async (
  * バッファエントリ配列に対して `preClassify` を適用し、各判定結果を `cache` に書き込む。
  */
 export const processPreclassify = (
-  buffer: ClassifyBufferEntry[],
+  buffer: ChatlogEntry[],
   cache: ChatlogCache<ClassifyCache>,
-): Promise<ClassifyBufferEntry[]> => Promise.all(buffer.map((entry) => preClassify(entry, cache)));
+): Promise<ChatlogEntry[]> => Promise.all(buffer.map((entry) => preClassify(entry, cache)));

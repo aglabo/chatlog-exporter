@@ -19,8 +19,9 @@ import { preClassify } from '../../classify-noai.ts';
 
 // ─── Helpers
 // types
+import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
-import type { ClassifyAction, ClassifyBufferEntry } from '../../../types/classify.types.ts';
+import type { ClassifyAction } from '../../../types/classify.types.ts';
 // functions
 import {
   findFixtureDirs,
@@ -71,16 +72,15 @@ const _loadFixture = async (dir: string): Promise<{ input: _FixtureInput; expect
 };
 
 /**
- * `_FixtureInput` から `ClassifyBufferEntry` を構築する。
+ * `_FixtureInput` から `ChatlogEntry` を構築する。
  *
  * frontmatter と content から `ChatlogEntry` を構築する。
  *
  * @param input - `input.yaml` から読み込んだデータ
- * @returns 構築した `ClassifyBufferEntry`
+ * @returns 構築した `ChatlogEntry`
  */
-const _buildEntry = (input: _FixtureInput): ClassifyBufferEntry => {
-  const _entry = _makeEntry(input.filePath, input.frontmatter ?? {}, input.content ?? '');
-  return { entry: _entry };
+const _buildEntry = (input: _FixtureInput): ChatlogEntry => {
+  return _makeEntry(input.filePath, input.frontmatter ?? {}, input.content ?? '');
 };
 
 // ─── Tests
@@ -94,7 +94,7 @@ const _fixtures = await Promise.all(
  * `preClassify` の fixtures テストスイート。
  *
  * fixtures-data/pre-classify/ 下の各ディレクトリを読み込み、
- * `input.yaml` から `ClassifyBufferEntry` を構築して `preClassify` に渡し、
+ * `input.yaml` から `ChatlogEntry` を構築して `preClassify` に渡し、
  * `cache` に書き込まれた結果を `expected.yaml` の期待値と照合する。
  *
  * @see preClassify
