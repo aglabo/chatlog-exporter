@@ -13,6 +13,16 @@ import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { _phase1PartitionByFilename } from '../../prefilter.ts';
+// classes
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+
+// ─── Internal Helpers
+
+// functions
+/** テスト用の `ChatlogEntry` を `filePath` のみ指定して生成する（本テストでは content は無関係）。 */
+function _makeEntry(filePath: string): ChatlogEntry {
+  return new ChatlogEntry('', { filePath });
+}
 
 // ─── Tests
 
@@ -34,7 +44,8 @@ describe('_phase1PartitionByFilename', () => {
       describe('Then: T-FL-P11-01 - discardFiles に全件、fileList は空', () => {
         it('T-FL-P11-01-01: 全件が discardFiles に入り fileList は空になる', () => {
           const files = ['/a/say-ok-and-nothing-else.md', '/b/you-are-a-topic-and-tag-extraction-assistant.md'];
-          const result = _phase1PartitionByFilename(files);
+          const entries = files.map((filePath) => _makeEntry(filePath));
+          const result = _phase1PartitionByFilename(entries);
 
           assertEquals(result.fileList, []);
           assertEquals(result.discardFiles.map((d) => d.filePath), files);
@@ -42,7 +53,7 @@ describe('_phase1PartitionByFilename', () => {
 
         it('T-FL-P11-01-02: discardFiles の各要素が filePath/filename/reason を持つ', () => {
           const filePath = '/a/say-ok-and-nothing-else.md';
-          const result = _phase1PartitionByFilename([filePath]);
+          const result = _phase1PartitionByFilename([_makeEntry(filePath)]);
 
           assertEquals(result.discardFiles.length, 1);
           assertEquals(result.discardFiles[0].filePath, filePath);
@@ -60,9 +71,10 @@ describe('_phase1PartitionByFilename', () => {
       describe('Then: T-FL-P11-02 - fileList に全件、discardFiles は空', () => {
         it('T-FL-P11-02-01: 全件が fileList に入り discardFiles は空になる', () => {
           const files = ['/a/my-chat-log.md', '/b/architecture-discussion-2026.md'];
-          const result = _phase1PartitionByFilename(files);
+          const entries = files.map((filePath) => _makeEntry(filePath));
+          const result = _phase1PartitionByFilename(entries);
 
-          assertEquals(result.fileList, files);
+          assertEquals(result.fileList.map((e) => e.filePath), files);
           assertEquals(result.discardFiles, []);
         });
       });
@@ -77,9 +89,9 @@ describe('_phase1PartitionByFilename', () => {
         it('T-FL-P11-03-01: 除外1件+通過1件 → fileList/discardFiles に正しく分類される', () => {
           const survivorPath = '/a/my-chat-log.md';
           const discardedPath = '/b/say-ok-and-nothing-else.md';
-          const result = _phase1PartitionByFilename([survivorPath, discardedPath]);
+          const result = _phase1PartitionByFilename([_makeEntry(survivorPath), _makeEntry(discardedPath)]);
 
-          assertEquals(result.fileList, [survivorPath]);
+          assertEquals(result.fileList.map((e) => e.filePath), [survivorPath]);
           assertEquals(result.discardFiles.map((d) => d.filePath), [discardedPath]);
         });
       });
@@ -108,15 +120,16 @@ describe('_phase1PartitionByFilename', () => {
       describe('Then: T-FL-P11-05 - fileList/discardFiles がそれぞれ入力順を保持する', () => {
         it('T-FL-P11-05-01: fileList の順序が入力順と一致する', () => {
           const files = ['/a/third.md', '/b/first.md', '/c/second.md'];
-          const result = _phase1PartitionByFilename(files);
+          const entries = files.map((filePath) => _makeEntry(filePath));
+          const result = _phase1PartitionByFilename(entries);
 
-          assertEquals(result.fileList, files);
+          assertEquals(result.fileList.map((e) => e.filePath), files);
         });
 
         it('T-FL-P11-05-02: discardFiles の順序が入力順と一致する', () => {
           const filePath1 = '/say-ok-and-nothing-else-a.md';
           const filePath2 = '/say-ok-and-nothing-else-b.md';
-          const result = _phase1PartitionByFilename([filePath1, filePath2]);
+          const result = _phase1PartitionByFilename([_makeEntry(filePath1), _makeEntry(filePath2)]);
 
           assertEquals(result.discardFiles.map((d) => d.filePath), [filePath1, filePath2]);
         });
