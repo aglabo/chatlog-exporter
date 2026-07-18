@@ -100,14 +100,14 @@ const _applyMove = async (
  * - それ以外（`undefined` 等）→ `stats.remaining++`（ログなし）
  */
 export const applyClassifications = async (
-  filePaths: string[],
-  entries: Map<string, ChatlogEntry>,
+  entries: ChatlogEntry[],
   cache: ChatlogCache<ClassifyCache>,
   destDir: string,
   dryRun: boolean,
   stats: ClassifyStats,
 ): Promise<void> => {
-  await Promise.all(filePaths.map(async (filePath) => {
+  await Promise.all(entries.map(async (entry) => {
+    const filePath = entry.filePath!;
     const cached = cache.read(filePath);
     const action = cached.action ?? CLASSIFY_ACTIONS.REMAINING;
     switch (action) {
@@ -123,10 +123,10 @@ export const applyClassifications = async (
         stats.error++;
         break;
       case CLASSIFY_ACTIONS.MOVE:
-        await _applyMove(filePath, entries.get(filePath)!, cached, destDir, dryRun, cache, stats, 'moved');
+        await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, 'moved');
         break;
       case CLASSIFY_ACTIONS.MOVEBYAI:
-        await _applyMove(filePath, entries.get(filePath)!, cached, destDir, dryRun, cache, stats, 'movedByAI');
+        await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, 'movedByAI');
         break;
     }
   }));

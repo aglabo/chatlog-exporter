@@ -19,7 +19,7 @@ import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class
 // types
 import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
-import type { ClassifyBufferEntry, ClassifyCache, FindBufferEntriesOptions } from '../../../types/classify.types.ts';
+import type { ClassifyCache, FindBufferEntriesOptions } from '../../../types/classify.types.ts';
 
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
@@ -40,21 +40,21 @@ import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers
 const _makeGlob = (paths: string[]): FindBufferEntriesOptions['glob'] => (_pattern: string) => Promise.resolve(paths);
 
 /**
- * エラーとして扱う `ClassifyBufferEntry` を生成する。
+ * エラーとして扱う `ChatlogEntry` を生成する。
  *
  * 実装のローダーが担う「読み込み失敗時に `cache` へ `action: ERROR` を書き込む」責務を、
  * `loadMeta` スタブ側で `cache` への書き込みとして代替する。
  *
  * @param path - エラーとなったファイルパス
  * @param cache - 書き込み先の `ChatlogCache`
- * @returns `entry` のみを持つ読み込み結果
+ * @returns エラー扱いの `ChatlogEntry`
  */
 const _makeErrorResult = async (
   path: string,
   cache: ChatlogCache<ClassifyCache>,
-): Promise<ClassifyBufferEntry> => {
+): Promise<ChatlogEntry> => {
   await cache.write(path, { action: CLASSIFY_ACTIONS.ERROR, reason: 'load failed' });
-  return { entry: new ChatlogEntry('', { filePath: path }) };
+  return new ChatlogEntry('', { filePath: path });
 };
 
 // ─── Tests
@@ -93,7 +93,7 @@ describe('findChatlogFilePaths', () => {
  *
  * ファイルパス一覧から `ChatlogEntry` を読み込み、各エントリについて必ず `action`（既定値 `EMPTY`）を
  * キャッシュへ書き込み、既存 project frontmatter があれば同じ書き込みに含める。
- * 読み込み失敗エントリはキャッシュへエラー記録のうえ戻り値から除外する振る舞いを検証する。
+ * 読み込み失敗エントリはキャッシュへエラー記録したうえで、戻り値には含める振る舞いを検証する。
  *
  * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-05
  *
@@ -105,15 +105,12 @@ describe('loadClassifyEntries', () => {
       const _cache = await _makeEmptyClassifyCache();
       const _filePath = '/tmp/input/a.md';
       const _opts: FindBufferEntriesOptions = {
-        loadMeta: () =>
-          Promise.resolve({
-            entry: _makeEntry(_filePath, { project: 'proj-a' }),
-          }),
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project: 'proj-a' })),
       };
 
       const _result = await loadClassifyEntries([_filePath], _cache, _opts);
 
-      assertEquals(_result.map((e) => e.entry.filePath), [_filePath]);
+      assertEquals(_result.map((e) => e.filePath), [_filePath]);
       assertEquals(_cache.read(_filePath).project, 'proj-a');
       assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.EMPTY);
     });
@@ -122,17 +119,17 @@ describe('loadClassifyEntries', () => {
       const _cache = await _makeEmptyClassifyCache();
       const _filePath = '/tmp/input/a.md';
       const _opts: FindBufferEntriesOptions = {
-        loadMeta: () => Promise.resolve({ entry: _makeEntry(_filePath, {}) }),
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, {})),
       };
 
       const _result = await loadClassifyEntries([_filePath], _cache, _opts);
 
-      assertEquals(_result.map((e) => e.entry.filePath), [_filePath]);
+      assertEquals(_result.map((e) => e.filePath), [_filePath]);
       assertEquals(_cache.read(_filePath).project, undefined);
       assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.EMPTY);
     });
 
-    it('[Normal] T-CL-LCE-05: 正常/異常混在 → 正常分のみ順序を保って戻り値に含まれ、正常分は action: EMPTY、エラー分は action: ERROR が個別に反映される', async () => {
+    it('[Normal] T-CL-LCE-05: 正常/異常混在 → 全件が順序を保って戻り値に含まれ、正常分は action: EMPTY、エラー分は action: ERROR が個別に反映される', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _withProject = '/tmp/input/with-project.md';
       const _errorPath = '/tmp/input/error.md';
@@ -143,7 +140,7 @@ describe('loadClassifyEntries', () => {
             return _makeErrorResult(path, _cache);
           }
           const _frontmatter: FrontmatterFields = path === _withProject ? { project: 'proj-a' } : {};
-          return Promise.resolve({ entry: _makeEntry(path, _frontmatter) });
+          return Promise.resolve(_makeEntry(path, _frontmatter));
         },
       };
 
@@ -153,7 +150,7 @@ describe('loadClassifyEntries', () => {
         _opts,
       );
 
-      assertEquals(_result.map((e) => e.entry.filePath), [_withProject, _noProject]);
+      assertEquals(_result.map((e) => e.filePath), [_withProject, _errorPath, _noProject]);
       assertEquals(_cache.read(_withProject).project, 'proj-a');
       assertEquals(_cache.read(_withProject).action, CLASSIFY_ACTIONS.EMPTY);
       assertEquals(_cache.read(_errorPath).action, CLASSIFY_ACTIONS.ERROR);
@@ -163,7 +160,7 @@ describe('loadClassifyEntries', () => {
   });
 
   describe('When: エッジケース', () => {
-    it('[Edge] T-CL-LCE-02: loadMeta が ERROR エントリを返す → cache に action: error が書き込まれ戻り値から除外される', async () => {
+    it('[Edge] T-CL-LCE-02: loadMeta が ERROR エントリを返す → cache に action: error が書き込まれるが戻り値には含まれる', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _filePath = '/tmp/input/b.md';
       const _opts: FindBufferEntriesOptions = {
@@ -172,11 +169,11 @@ describe('loadClassifyEntries', () => {
 
       const _result = await loadClassifyEntries([_filePath], _cache, _opts);
 
-      assertEquals(_result, []);
+      assertEquals(_result.map((e) => e.filePath), [_filePath]);
       assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.ERROR);
     });
 
-    it('[Edge] T-CL-LCE-03: デフォルト読み込み（loadClassifyEntry）経由のフロントマターパースエラー → cache に action: error が書き込まれ戻り値から除外される', async () => {
+    it('[Edge] T-CL-LCE-03: デフォルト読み込み（loadClassifyEntry）経由のフロントマターパースエラー → cache に action: error が書き込まれるが戻り値には含まれる', async () => {
       const _tempDir = await Deno.makeTempDir();
       try {
         const _cache = await _makeEmptyClassifyCache();
@@ -185,7 +182,7 @@ describe('loadClassifyEntries', () => {
 
         const _result = await loadClassifyEntries([_filePath], _cache);
 
-        assertEquals(_result, []);
+        assertEquals(_result.map((e) => e.filePath), [_filePath]);
         assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.ERROR);
       } finally {
         await Deno.remove(_tempDir, { recursive: true });

@@ -18,7 +18,7 @@ import { preClassify, processPreclassify } from '../../classify-noai.ts';
 
 // ─── Helpers
 // types
-import type { ClassifyBufferEntry } from '../../../types/classify.types.ts';
+import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
@@ -32,7 +32,7 @@ import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers
  * `preClassify` のユニットテストスイート。
  *
  * frontmatter の `project` フィールドと本文長に基づく事前分類ロジックを検証する。
- * `ClassifyBufferEntry` と `cache` を受け取り、判定結果を `cache.write` に書き込む。
+ * `ChatlogEntry` と `cache` を受け取り、判定結果を `cache.write` に書き込む。
  *
  * テスト ID 範囲: T-CL-PRE-01 〜 T-CL-PRE-05
  *
@@ -48,7 +48,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文テキスト');
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify({ entry: _entry }, cache);
+      await preClassify(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.SKIP);
       assertEquals(cache.read(_filePath).project, 'app1');
@@ -59,7 +59,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文テキスト');
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify({ entry: _entry }, cache);
+      await preClassify(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, 'app1');
@@ -70,7 +70,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, {}, 'short');
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify({ entry: _entry }, cache);
+      await preClassify(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, FALLBACK_PROJECT);
@@ -85,7 +85,7 @@ describe('preClassify', () => {
       );
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify({ entry: _entry }, cache);
+      await preClassify(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -96,7 +96,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, {}, _longContent);
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify({ entry: _entry }, cache);
+      await preClassify(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -106,7 +106,7 @@ describe('preClassify', () => {
 /**
  * `processPreclassify` のユニットテストスイート。
  *
- * `ClassifyBufferEntry[]` と `cache` を渡し、各エントリに `preClassify` を適用した
+ * `ChatlogEntry[]` と `cache` を渡し、各エントリに `preClassify` を適用した
  * 結果が `cache` に書き込まれることを検証する。
  *
  * テスト ID 範囲: T-CL-PCL-01 〜 T-CL-PCL-03
@@ -127,11 +127,7 @@ describe('processPreclassify', () => {
       const _entryLong = _makeEntry(_pathLong, {}, 'a'.repeat(100));
       const cache = await _makeEmptyClassifyCache();
 
-      const _buffer: ClassifyBufferEntry[] = [
-        { entry: _entryWithProject },
-        { entry: _entryShort },
-        { entry: _entryLong },
-      ];
+      const _buffer: ChatlogEntry[] = [_entryWithProject, _entryShort, _entryLong];
 
       const _result = await processPreclassify(_buffer, cache);
 
@@ -151,7 +147,7 @@ describe('processPreclassify', () => {
     it('[Edge] T-CL-PCL-03: 単一エントリ（project あり）を渡す → cache に action=skip が書き込まれる', async () => {
       const _filePath = '/tmp/dir/app1/a.md';
       const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文');
-      const _buffer: ClassifyBufferEntry[] = [{ entry: _entry }];
+      const _buffer: ChatlogEntry[] = [_entry];
       const cache = await _makeEmptyClassifyCache();
 
       const _result = await processPreclassify(_buffer, cache);

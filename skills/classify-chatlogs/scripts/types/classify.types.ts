@@ -105,21 +105,10 @@ export const CLASSIFY_ACTIONS = {
 /** `CLASSIFY_ACTIONS` の値の型。 */
 export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIONS];
 
-/** ファイルエントリのみを運ぶ薄いバッファエントリ。 */
-export type ClassifyBufferEntry = {
-  /** 分類対象のファイルエントリ。 */
-  entry: ChatlogEntry;
-};
-
-/** `preClassify` および `processChunk` が返すバッファ。 */
-export type ClassifyBuffer = ClassifyBufferEntry[];
-
-/** `partitionClassifyEntries` が返す、分類候補ファイルエントリの分割結果。 */
+/** `partitionByPreclassify` が返す、分類候補ファイルエントリの分割結果。 */
 export type ClassifyPartition = {
-  /** 今回発見した全ファイルパス。 */
-  filePaths: string[];
-  /** ファイルパスから対応する `ChatlogEntry` へのマップ。 */
-  entries: Map<string, ChatlogEntry>;
+  /** 読み込み済み `ChatlogEntry` の配列（読み込み失敗分も含む）。 */
+  entries: ChatlogEntry[];
   /** AI 分類が必要な `ChatlogEntry` のみ。 */
   uncached: ChatlogEntry[];
 };
@@ -128,8 +117,8 @@ export type ClassifyPartition = {
 // findBufferEntries オプション型
 // ─────────────────────────────────────────────
 
-/** ファイルパスから `ClassifyBufferEntry` を読み込む関数。 */
-export type ClassifyBufferProvider = (path: string) => Promise<ClassifyBufferEntry>;
+/** ファイルパスから `ChatlogEntry` を読み込む関数。 */
+export type ClassifyBufferProvider = (path: string) => Promise<ChatlogEntry>;
 
 /** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
 export type FindBufferEntriesOptions = {

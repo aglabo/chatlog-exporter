@@ -49,8 +49,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         false,
@@ -63,11 +62,11 @@ describe('applyClassifications', () => {
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-04: filePaths が空 → 何も起きない', async () => {
+    it('[Normal] T-CL-MC-04: entries が空 → 何も起きない', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _stats = _makeStats();
 
-      await applyClassifications([], new Map(), _cache, '/tmp/output', false, _stats);
+      await applyClassifications([], _cache, '/tmp/output', false, _stats);
 
       assertEquals(_stats.skipped, 0);
       assertEquals(_stats.moved, 0);
@@ -83,8 +82,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         false,
@@ -104,8 +102,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         false,
@@ -126,8 +123,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/broken.md'],
-        new Map([['/tmp/input/broken.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         false,
@@ -153,8 +149,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         true,
@@ -174,8 +169,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         true,
@@ -194,8 +188,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         true,
@@ -217,8 +210,7 @@ describe('applyClassifications', () => {
       const _stats = _makeStats();
 
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         'C:\\output',
         true,
@@ -241,8 +233,7 @@ describe('applyClassifications', () => {
       // dryRun=true で classifyFile 呼び出しのみ確認（実ファイル操作はしない）。
       // 実削除の検証は integration テストで実施する。
       await applyClassifications(
-        ['/tmp/input/test.md'],
-        new Map([['/tmp/input/test.md', _entry]]),
+        [_entry],
         _cache,
         '/tmp/output',
         true,
