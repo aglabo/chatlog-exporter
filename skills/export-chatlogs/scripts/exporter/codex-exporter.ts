@@ -19,7 +19,7 @@ import { ConversationRole } from '../../../_scripts/types/conversation-role.cons
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
-import { writeSession } from '../libs/session-writer.ts';
+import { resolveSessionId, writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
 // types
 import type { Turn } from '../../../_scripts/types/conversation.types.ts';
@@ -98,7 +98,7 @@ export const parseCodexSession = async (
   const metaEntry = entries.find((e) => e.type === 'session_meta');
   if (!metaEntry) { return null; }
 
-  const sessionId = metaEntry.payload.id ?? 'unknown';
+  const sessionId = await resolveSessionId(metaEntry.payload.id);
   const cwd = metaEntry.payload.cwd ?? '';
   const project = cwd ? normalizePath(cwd).split('/').pop()! : 'unknown';
   const sessionTimestamp = metaEntry.timestamp;

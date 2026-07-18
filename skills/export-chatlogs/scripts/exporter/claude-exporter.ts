@@ -19,7 +19,7 @@ import { ConversationRole } from '../../../_scripts/types/conversation-role.cons
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
-import { writeSession } from '../libs/session-writer.ts';
+import { resolveSessionId, writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
 // types
 import type { Turn } from '../../../_scripts/types/conversation.types.ts';
@@ -186,7 +186,7 @@ export const parseClaudeSession = async (
   const firstUserText = extractClaudeUserText(firstEntry.message?.content);
   if (isSkippableSession(firstUserText)) { return null; }
   const meta: SessionMeta = {
-    sessionId: firstEntry.sessionId ?? 'unknown',
+    sessionId: await resolveSessionId(firstEntry.sessionId),
     date: isoToDate(firstEntry.timestamp ?? ''),
     project,
     slug: firstEntry.slug ?? '',

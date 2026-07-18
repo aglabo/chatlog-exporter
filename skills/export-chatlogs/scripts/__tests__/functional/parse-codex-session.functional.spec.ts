@@ -9,7 +9,7 @@
 // cspell:words sess
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
@@ -340,6 +340,63 @@ describe('parseCodexSession', () => {
         it('T-EC-PX-07-01: null を返す', async () => {
           const result = await parseCodexSession(filePath, ALL_PERIOD);
           assertNull(result);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-08: payload.id 欠落 → 一意な代替値が生成される ───────────────
+
+  /**
+   * `payload.id` が欠落した2つのセッションをパースするシナリオ。
+   * 同日・同slugのセッションで sessionId が欠落すると、単純な固定値フォールバックでは
+   * 出力ファイル名が衝突しキャッシュが誤って共有されてしまう。
+   * `resolveSessionId` により、欠落時は呼び出しごとに異なる代替値が生成されることを確認する。
+   */
+  describe('Given: payload.id が欠落した2つのJSONLセッション', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を各ファイルに対して呼び出したときの結果を検証する。 */
+    describe('When: 2つのファイルをそれぞれ parseCodexSession(filePath, allPeriod) でパースする', () => {
+      let filePathA: string;
+      let filePathB: string;
+
+      beforeEach(async () => {
+        filePathA = `${tempDir}/missing-session-id-a.jsonl`;
+        filePathB = `${tempDir}/missing-session-id-b.jsonl`;
+        const _makeEntries = () => [
+          {
+            timestamp: '2026-03-15T11:00:00.000Z',
+            type: 'session_meta',
+            payload: { cwd: '/home/user/projects/my-codex-app', model: 'o4-mini' },
+          },
+          {
+            timestamp: '2026-03-15T11:00:01.000Z',
+            type: 'response_item',
+            payload: {
+              role: 'user',
+              content: [{ type: 'input_text', text: '質問です' }],
+            },
+          },
+          {
+            timestamp: '2026-03-15T11:00:05.000Z',
+            type: 'response_item',
+            payload: {
+              role: 'assistant',
+              content: [{ type: 'output_text', text: '回答です。' }],
+            },
+          },
+        ];
+        await writeJsonl(filePathA, _makeEntries());
+        await writeJsonl(filePathB, _makeEntries());
+      });
+
+      /** T-EC-PX-08: 2セッションの meta.sessionId が異なる値になる */
+      describe('Then: T-EC-PX-08 - 2セッションの meta.sessionId が異なる値になる', () => {
+        it('T-EC-PX-08-01: sessionA と sessionB の meta.sessionId が異なる（出力ファイル名衝突を回避する）', async () => {
+          const sessionA = await parseCodexSession(filePathA, ALL_PERIOD);
+          const sessionB = await parseCodexSession(filePathB, ALL_PERIOD);
+          assertNotNull(sessionA);
+          assertNotNull(sessionB);
+          assertNotEquals(sessionA!.meta.sessionId, sessionB!.meta.sessionId);
         });
       });
     });
