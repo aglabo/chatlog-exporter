@@ -22,6 +22,9 @@ import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class
 // constants
 import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../../../_scripts/types/action-status.types.ts';
 
+// ─── Internal Helpers
+import { _makeEmptyClassifyCache } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+
 // ─── Tests
 
 /**
@@ -36,9 +39,11 @@ import { ENTRY_ACTIONS, ENTRY_STATUSES } from '../../../../../_scripts/types/act
  */
 describe('loadClassifyEntry', () => {
   let tempDir: string;
+  let cache: Awaited<ReturnType<typeof _makeEmptyClassifyCache>>;
 
   beforeEach(async () => {
     tempDir = await Deno.makeTempDir();
+    cache = await _makeEmptyClassifyCache();
   });
 
   afterEach(async () => {
@@ -53,7 +58,7 @@ describe('loadClassifyEntry', () => {
       const filePath = `${tempDir}/valid.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
-      const _result = await loadClassifyEntry(filePath);
+      const _result = await loadClassifyEntry(filePath, cache);
 
       assertInstanceOf(_result.entry, ChatlogEntry);
     });
@@ -62,7 +67,7 @@ describe('loadClassifyEntry', () => {
       const filePath = `${tempDir}/valid.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
-      const _result = await loadClassifyEntry(filePath);
+      const _result = await loadClassifyEntry(filePath, cache);
 
       assertEquals(_result.options.action, undefined);
     });
@@ -74,7 +79,7 @@ describe('loadClassifyEntry', () => {
   describe('When: 異常系', () => {
     it('[Error] T-03-02-01: 存在しないパスで ChatlogError がスローされる', async () => {
       await assertRejects(
-        () => loadClassifyEntry('/nonexistent/path/file.md'),
+        () => loadClassifyEntry('/nonexistent/path/file.md', cache),
         ChatlogError,
       );
     });
@@ -83,7 +88,7 @@ describe('loadClassifyEntry', () => {
       const filePath = `${tempDir}/bad-yaml.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-      const _result = await loadClassifyEntry(filePath);
+      const _result = await loadClassifyEntry(filePath, cache);
 
       assertEquals(_result.options.action, ENTRY_ACTIONS.ERROR);
       assertEquals(_result.options.status, ENTRY_STATUSES.ERROR);
@@ -93,7 +98,7 @@ describe('loadClassifyEntry', () => {
       const filePath = `${tempDir}/bad-yaml.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-      const _result = await loadClassifyEntry(filePath);
+      const _result = await loadClassifyEntry(filePath, cache);
 
       assertInstanceOf(_result.entry, ChatlogEntry);
     });
@@ -102,7 +107,7 @@ describe('loadClassifyEntry', () => {
       const filePath = `${tempDir}/bad-yaml.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
-      const _result = await loadClassifyEntry(filePath);
+      const _result = await loadClassifyEntry(filePath, cache);
 
       assertEquals(typeof _result.options.reason, 'string');
       assertEquals((_result.options.reason ?? '').length > 0, true);

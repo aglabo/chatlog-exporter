@@ -9,46 +9,48 @@
 
 // ─── Local
 import { processPreclassify } from './classify-noai.ts';
-import { findBufferEntries } from './find-buffer-entries.ts';
+import { findChatlogFilePaths, loadClassifyEntries } from './find-buffer-entries.ts';
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import type {
-  ClassifyBuffer,
-  ClassifyPartition,
-  ClassifyResult,
-  ClassifyStats,
-  FindBufferEntriesOptions,
-} from '../types/classify.types.ts';
+import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ClassifyCache, ClassifyPartition, FindBufferEntriesOptions } from '../types/classify.types.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
 /**
  * ディレクトリを走査して分類対象ファイルを収集し、AI なし事前分類を適用したうえで
- * `resolved`（解決済み）・`cached`（キャッシュ済み REMAINING）・`uncached`（未キャッシュ REMAINING）に分割する。
+ * 今回発見した全ファイルパス（`filePaths`）・読み込み成功エントリの Map（`entries`）・
+ * AI 分類が必要な未キャッシュエントリ（`uncached`）に分割する。
  *
- * REMAINING エントリのうち `cache` に判定結果が既に存在するファイルは `cached` に、
- * キャッシュの `project` を用いて `action: MOVEBYAI` のエントリとして含める。
+ * REMAINING エントリのうち `cache` に判定結果（`project`）が既に存在するファイルは、
+ * `cache` に `action: MOVEBYAI` を書き込むのみで `uncached` には含めない。
  * 未キャッシュの REMAINING エントリは `uncached` にそのまま含める。
  */
 export const partitionClassifyEntries = async (
   searchDir: string,
-  cache: ChatlogCache<ClassifyResult>,
+  cache: ChatlogCache<ClassifyCache>,
   opts?: FindBufferEntriesOptions,
-  stats?: ClassifyStats,
 ): Promise<ClassifyPartition> => {
-  const buffer = await findBufferEntries(searchDir, opts, stats);
-  const preClassified = processPreclassify(buffer);
-  const resolved = preClassified.filter((e) => e.action !== CLASSIFY_ACTIONS.REMAINING);
-  const remaining = preClassified.filter((e) => e.action === CLASSIFY_ACTIONS.REMAINING);
+  const filePaths = await findChatlogFilePaths(searchDir, opts);
+  const loaded = await loadClassifyEntries(filePaths, cache, opts);
+  const entries = new Map<string, ChatlogEntry>(loaded.map((e) => [e.entry.filePath!, e.entry]));
+  // processPreclassify の REMAINING 判定は cache.write（上書き）で project を消してしまうため、
+  // 前回 AI が確定済みの project は preclassify 実行前にスナップショットしておく。
+  const _cachedProjects = new Map(loaded.map((e) => [e.entry.filePath!, cache.read(e.entry.filePath!).project]));
 
-  const { cached, uncached } = remaining.reduce<
-    { cached: ClassifyBuffer; uncached: ClassifyBuffer }
-  >((acc, e) => {
-    const _cachedProject = cache.read(e.file.filePath!).project;
-    return _cachedProject != null
-      ? { ...acc, cached: [...acc.cached, { ...e, project: _cachedProject, action: CLASSIFY_ACTIONS.MOVEBYAI }] }
-      : { ...acc, uncached: [...acc.uncached, e] };
-  }, { cached: [], uncached: [] });
+  await processPreclassify(loaded, cache);
 
-  return { resolved, cached, uncached };
+  const remaining = loaded.filter((e) => cache.read(e.entry.filePath!).action === CLASSIFY_ACTIONS.REMAINING);
+  const uncached = (await Promise.all(
+    remaining.map(async (e) => {
+      const _cachedProject = _cachedProjects.get(e.entry.filePath!);
+      if (_cachedProject != null) {
+        await cache.write(e.entry.filePath!, { project: _cachedProject, action: CLASSIFY_ACTIONS.MOVEBYAI });
+        return undefined;
+      }
+      return e.entry;
+    }),
+  )).filter((file): file is ChatlogEntry => file !== undefined);
+
+  return { filePaths, entries, uncached };
 };

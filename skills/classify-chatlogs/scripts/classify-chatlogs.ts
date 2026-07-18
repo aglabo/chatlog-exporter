@@ -29,39 +29,12 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig } from './modules/classify-config.ts';
-import { moveClassified } from './modules/file-ops.ts';
+import { applyClassifications } from './modules/file-ops.ts';
 import { partitionClassifyEntries } from './modules/partition-classify-entries.ts';
 // types
-import type {
-  ClassifyBuffer,
-  ClassifyConfig,
-  ClassifyPartition,
-  ClassifyResult,
-  ClassifyStats,
-  ProjectDicEntry,
-} from './types/classify.types.ts';
+import type { ClassifyCache, ClassifyStats } from './types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
-
-// ─────────────────────────────────────────────
-// processClassify
-// ─────────────────────────────────────────────
-
-/**
- * 分類候補エントリの分割結果に対して AI 分類を実行し、結合した分類済みバッファを返す。
- *
- * `partition.uncached`（未キャッシュの REMAINING エントリ）のみを `classifyByAI` に渡し、
- * `resolved`・`cached` と結合した結果を返す。
- */
-export const processClassify = async (
-  partition: ClassifyPartition,
-  projects: ProjectDicEntry,
-  config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
-  cache: ChatlogCache<ClassifyResult>,
-): Promise<ClassifyBuffer> => {
-  const _aiClassified = await classifyByAI(partition.uncached, projects, config, cache);
-  return [...partition.resolved, ...partition.cached, ..._aiClassified];
-};
 
 // ─────────────────────────────────────────────
 // メイン
@@ -111,22 +84,22 @@ export const main = async (argv?: string[]): Promise<void> => {
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
 
   // 判定結果キャッシュ
-  const _cache = new ChatlogCache<ClassifyResult>('classify-cache');
+  const _cache = new ChatlogCache<ClassifyCache>('classify-cache');
   await _cache.ready;
 
   // Step 1: バッファ取得 + AI なし事前分類 + キャッシュ振り分け
-  const _partition = await partitionClassifyEntries(_searchDir, _cache, undefined, stats);
-  if (_partition.resolved.length === 0 && _partition.cached.length === 0 && _partition.uncached.length === 0) {
+  const _partition = await partitionClassifyEntries(_searchDir, _cache);
+  if (_partition.filePaths.length === 0) {
     logger.info('対象ファイルなし');
     logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
     return;
   }
 
   // Step 2: 分類（AI あり）
-  const _classified = await processClassify(_partition, projects, _config, _cache);
+  await classifyByAI(_partition.uncached, projects, _config, _cache);
 
   // Step 3: ファイル移動
-  await moveClassified(_classified, _searchDir, _config.dryRun, stats);
+  await applyClassifications(_partition.filePaths, _partition.entries, _cache, _searchDir, _config.dryRun, stats);
 
   // サマリー
   const drySuffix = _config.dryRun ? ' (dry-run)' : '';

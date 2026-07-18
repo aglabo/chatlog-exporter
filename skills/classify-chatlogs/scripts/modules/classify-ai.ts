@@ -20,9 +20,8 @@ import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type {
-  ClassifyBuffer,
+  ClassifyCache,
   ClassifyConfig,
-  ClassifyResult,
   ProjectDicEntry,
 } from '../types/classify.types.ts';
 // constants
@@ -85,21 +84,33 @@ If the file has no metadata AND the body is fewer than 3 lines, assign "${FALLBA
 Base your decision on: title, category, topics, tags.`;
 };
 
+/** チャンク全件に `action: ERROR` を `cache` へ書き込み、処理した filePath 一覧を返す。 */
+const _writeChunkError = async (
+  chunkMetas: ChatlogEntry[],
+  cache: ChatlogCache<ClassifyCache>,
+  reason: string,
+): Promise<string[]> => {
+  await Promise.all(
+    chunkMetas.map((f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.ERROR, reason })),
+  );
+  return chunkMetas.map((f) => f.filePath!);
+};
+
 /**
- * 1チャンク分のファイルを AI で一括分類し、分類バッファを返す。
- * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `action: ERROR` エントリとして返す。
+ * 1チャンク分のファイルを AI で一括分類し、判定結果を `cache` に書き込む。
+ * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `action: ERROR` として `cache` に書き込む。
  * - AI の返答でファイル名が一致しない場合は `FALLBACK_PROJECT` を使用する。
- * - 副作用（ファイル移動）は行わない。呼び出し元が `applyClassifications` で適用する。
+ * - 副作用（ファイル移動）は行わない。判定結果はすべて `cache.write()` に記録する。
+ *
+ * @returns 処理した filePath 一覧
  */
 export const processChunk = async (
   chunkMetas: ChatlogEntry[],
   projects: ProjectDicEntry,
   model: string,
-  cache: ChatlogCache<ClassifyResult>,
-): Promise<ClassifyBuffer> => {
-  const _buffer: ClassifyBuffer = [];
-
-  if (chunkMetas.length === 0) { return _buffer; }
+  cache: ChatlogCache<ClassifyCache>,
+): Promise<string[]> => {
+  if (chunkMetas.length === 0) { return []; }
 
   const _batchPrompt = buildClassifyPrompt(chunkMetas, projects);
   const _systemPrompt = buildSystemPrompt(projects);
@@ -110,64 +121,49 @@ export const processChunk = async (
   } catch (e) {
     const _reason = `claude CLI 実行失敗: ${e}`;
     logger.warn(`  ${_reason}`);
-    return chunkMetas.map((f) => ({
-      file: f,
-      action: CLASSIFY_ACTIONS.ERROR,
-      reason: _reason,
-    }));
+    return _writeChunkError(chunkMetas, cache, _reason);
   }
 
-  const parsed = parseAiJsonArray<ClassifyResult>(rawResult);
+  const parsed = parseAiJsonArray<ClassifyCache>(rawResult);
   if (!parsed) {
     const _reason = `JSON パース失敗: ${rawResult.slice(0, 200)}`;
     logger.warn(`  ${_reason}`);
-    return chunkMetas.map((f) => ({
-      file: f,
-      action: CLASSIFY_ACTIONS.ERROR,
-      reason: _reason,
-    }));
+    return _writeChunkError(chunkMetas, cache, _reason);
   }
 
-  for (const fileMeta of chunkMetas) {
+  await Promise.all(chunkMetas.map((fileMeta) => {
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
     logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
-    _buffer.push({ file: fileMeta, project, action: CLASSIFY_ACTIONS.MOVEBYAI });
-    await cache.write(fileMeta.filePath!, {
+    return cache.write(fileMeta.filePath!, {
       project,
       confidence: result?.confidence ?? 0,
       reason: result?.reason ?? '',
+      action: CLASSIFY_ACTIONS.MOVEBYAI,
     });
-  }
+  }));
 
-  return _buffer;
+  return chunkMetas.map((f) => f.filePath!);
 };
 
 /**
- * 分類バッファを受け取り、REMAINING エントリを AI で分類して分類バッファを返す。
- * - allEntries から `CLASSIFY_ACTIONS.REMAINING` なエントリを抽出して AI 分類する。
- * - REMAINING エントリが 0 件の場合は即座に空配列を返す。
- * - 残りは `runChunked` で並列 AI 分類する。
- * - ファイル移動・stats更新は行わない。
+ * 分類対象のファイルエントリを AI で分類し、判定結果を `cache` に書き込む。
+ * - `targets` が 0 件の場合は即座に return する。
+ * - `runChunked` で並列 AI 分類する。
+ * - ファイル移動・stats更新は行わない。判定結果はすべて `processChunk` 経由で `cache` に記録する。
  */
 export const classifyByAI = async (
-  allEntries: ClassifyBuffer,
+  targets: ChatlogEntry[],
   projects: ProjectDicEntry,
   config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
-  cache: ChatlogCache<ClassifyResult>,
-): Promise<ClassifyBuffer> => {
-  // `e.file!` は安全: `findBufferEntries` が `action=error` を除外し、REMAINING エントリは常に file を持つ
-  const _remaining = allEntries
-    .filter((e) => e.action === CLASSIFY_ACTIONS.REMAINING)
-    .map((e) => e.file!);
-  if (_remaining.length === 0) { return []; }
+  cache: ChatlogCache<ClassifyCache>,
+): Promise<void> => {
+  if (targets.length === 0) { return; }
 
-  const _chunkBuffers = await runChunked<ChatlogEntry, ClassifyBuffer>(
-    _remaining,
+  await runChunked<ChatlogEntry, string[]>(
+    targets,
     config.chunkSize,
     (chunk) => processChunk(chunk, projects, config.model, cache),
     config.concurrency,
   );
-
-  return _chunkBuffers.flat();
 };

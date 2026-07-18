@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/integration/move-classified.integration.spec.ts
-// @(#): moveClassified の統合テスト（classifyFile 実失敗の伝播）
-//       対象: moveClassified
+// @(#): applyClassifications の統合テスト（classifyFile 実失敗の伝播・キャッシュ削除）
+//       対象: applyClassifications
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,22 +12,20 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { moveClassified } from '../../file-ops.ts';
+import { applyClassifications } from '../../file-ops.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Helpers
 // classes
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-// types
-import type { ClassifyBuffer } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
-import { _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+import { _makeEmptyClassifyCache, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // ─── Tests
 
-describe('moveClassified', () => {
+describe('applyClassifications', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -48,32 +46,136 @@ describe('moveClassified', () => {
       );
     });
 
-    describe('When: moveClassified(buffer, tempDir, false, stats) を呼び出す', () => {
+    describe('When: applyClassifications(filePaths, entries, cache, tempDir, false, stats) を呼び出す', () => {
       describe('Then: T-CL-MC-10 - classifyFile の実失敗が stats.error に伝播する', () => {
         it('T-CL-MC-10-01: stats.error が 1 になる', async () => {
-          const _buffer: ClassifyBuffer = [{
-            file: entry,
-            project: 'app1',
-            action: CLASSIFY_ACTIONS.MOVE,
-          }];
+          const _cache = await _makeEmptyClassifyCache();
+          await _cache.write(`${tempDir}/missing.md`, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
           const _stats = _makeStats();
 
-          await moveClassified(_buffer, tempDir, false, _stats);
+          await applyClassifications(
+            [`${tempDir}/missing.md`],
+            new Map([[`${tempDir}/missing.md`, entry]]),
+            _cache,
+            tempDir,
+            false,
+            _stats,
+          );
 
           assertEquals(_stats.error, 1);
         });
 
         it('T-CL-MC-10-02: stats.moved は 0 のままである', async () => {
-          const _buffer: ClassifyBuffer = [{
-            file: entry,
-            project: 'app1',
-            action: CLASSIFY_ACTIONS.MOVE,
-          }];
+          const _cache = await _makeEmptyClassifyCache();
+          await _cache.write(`${tempDir}/missing.md`, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
           const _stats = _makeStats();
 
-          await moveClassified(_buffer, tempDir, false, _stats);
+          await applyClassifications(
+            [`${tempDir}/missing.md`],
+            new Map([[`${tempDir}/missing.md`, entry]]),
+            _cache,
+            tempDir,
+            false,
+            _stats,
+          );
 
           assertEquals(_stats.moved, 0);
+        });
+
+        it('T-CL-MC-10-03: 移動失敗時、キャッシュエントリは削除されずに残る', async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          await _cache.write(`${tempDir}/missing.md`, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
+          const _stats = _makeStats();
+
+          await applyClassifications(
+            [`${tempDir}/missing.md`],
+            new Map([[`${tempDir}/missing.md`, entry]]),
+            _cache,
+            tempDir,
+            false,
+            _stats,
+          );
+
+          assertEquals(_cache.read(`${tempDir}/missing.md`).action, CLASSIFY_ACTIONS.MOVE);
+        });
+      });
+    });
+  });
+
+  describe('Given: action=move で srcPath が実在するエントリと dryRun=false', () => {
+    let entry: ChatlogEntry;
+    let srcPath: string;
+
+    beforeEach(async () => {
+      srcPath = `${tempDir}/exists.md`;
+      await Deno.writeTextFile(srcPath, `---\ntitle: Test\n---\n本文`);
+      entry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: srcPath });
+    });
+
+    describe('When: applyClassifications(filePaths, entries, cache, destDir, false, stats) を呼び出す', () => {
+      describe('Then: T-CL-MC-11 - ファイル移動成功後にキャッシュエントリが削除される', () => {
+        it('T-CL-MC-11-01: stats.moved が 1 になる', async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          await _cache.write(srcPath, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
+          const _stats = _makeStats();
+          const destDir = `${tempDir}/out`;
+
+          await applyClassifications([srcPath], new Map([[srcPath, entry]]), _cache, destDir, false, _stats);
+
+          assertEquals(_stats.moved, 1);
+        });
+
+        it('T-CL-MC-11-02: cache.read(srcPath) が空オブジェクトを返す（キャッシュ削除済み）', async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          await _cache.write(srcPath, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
+          const _stats = _makeStats();
+          const destDir = `${tempDir}/out`;
+
+          await applyClassifications([srcPath], new Map([[srcPath, entry]]), _cache, destDir, false, _stats);
+
+          assertEquals(_cache.read(srcPath), {});
+        });
+      });
+    });
+  });
+
+  describe('Given: キャッシュに SKIP/ERROR が登録済みのエントリと dryRun=false', () => {
+    describe('When: applyClassifications(filePaths, entries, cache, destDir, false, stats) を呼び出す', () => {
+      describe('Then: T-CL-MC-12 - SKIP/ERROR はキャッシュが削除されず残る', () => {
+        it('T-CL-MC-12-01: action=skip のキャッシュエントリは削除されない', async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          const skipEntry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: `${tempDir}/skip.md` });
+          await _cache.write(`${tempDir}/skip.md`, { project: 'app1', action: CLASSIFY_ACTIONS.SKIP });
+          const _stats = _makeStats();
+
+          await applyClassifications(
+            [`${tempDir}/skip.md`],
+            new Map([[`${tempDir}/skip.md`, skipEntry]]),
+            _cache,
+            `${tempDir}/out`,
+            false,
+            _stats,
+          );
+
+          assertEquals(_cache.read(`${tempDir}/skip.md`).action, CLASSIFY_ACTIONS.SKIP);
+        });
+
+        it('T-CL-MC-12-02: action=error のキャッシュエントリは削除されない', async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          const errorEntry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: `${tempDir}/error.md` });
+          await _cache.write(`${tempDir}/error.md`, { action: CLASSIFY_ACTIONS.ERROR, reason: 'AI 分類失敗' });
+          const _stats = _makeStats();
+
+          await applyClassifications(
+            [`${tempDir}/error.md`],
+            new Map([[`${tempDir}/error.md`, errorEntry]]),
+            _cache,
+            `${tempDir}/out`,
+            false,
+            _stats,
+          );
+
+          assertEquals(_cache.read(`${tempDir}/error.md`).action, CLASSIFY_ACTIONS.ERROR);
         });
       });
     });

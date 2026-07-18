@@ -18,7 +18,6 @@ import { parse as parseYaml } from '@std/yaml';
 import { preClassify } from '../../classify-noai.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
 import type { ClassifyAction, ClassifyBufferEntry } from '../../../types/classify.types.ts';
@@ -31,7 +30,7 @@ import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts
 import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // helpers
-import { _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
+import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
 // ─── Internal Helpers
 
@@ -43,8 +42,6 @@ interface _FixtureInput {
   filePath: string;
   frontmatter: FrontmatterFields;
   content: string;
-  action?: string;
-  reason?: string;
 }
 
 interface _FixtureExpected {
@@ -76,22 +73,14 @@ const _loadFixture = async (dir: string): Promise<{ input: _FixtureInput; expect
 /**
  * `_FixtureInput` から `ClassifyBufferEntry` を構築する。
  *
- * `action: error` の場合は filePath のみ保持する空の `ChatlogEntry` のエントリを返す。
- * それ以外は frontmatter と content から `ClassifyChatlogEntry` を構築する。
+ * frontmatter と content から `ChatlogEntry` を構築する。
  *
  * @param input - `input.yaml` から読み込んだデータ
  * @returns 構築した `ClassifyBufferEntry`
  */
 const _buildEntry = (input: _FixtureInput): ClassifyBufferEntry => {
-  if (input.action === 'error') {
-    return {
-      file: new ChatlogEntry('', { filePath: input.filePath }),
-      action: 'error',
-      reason: input.reason,
-    };
-  }
   const _entry = _makeEntry(input.filePath, input.frontmatter ?? {}, input.content ?? '');
-  return { file: _entry };
+  return { entry: _entry };
 };
 
 // ─── Tests
@@ -106,9 +95,7 @@ const _fixtures = await Promise.all(
  *
  * fixtures-data/pre-classify/ 下の各ディレクトリを読み込み、
  * `input.yaml` から `ClassifyBufferEntry` を構築して `preClassify` に渡し、
- * `expected.yaml` の期待値と照合する。
- *
- * テスト ID 範囲: SF-CL-PRE-01 〜 SF-CL-PRE-06
+ * `cache` に書き込まれた結果を `expected.yaml` の期待値と照合する。
  *
  * @see preClassify
  */
@@ -124,14 +111,16 @@ describe('preClassify', () => {
         `[Fixture] SF-CL-PRE-${_testId}: action=${expected.action}${
           expected.project ? `, project=${expected.project}` : ''
         }`,
-        () => {
+        async () => {
           const _entry = _buildEntry(input);
+          const cache = await _makeEmptyClassifyCache();
 
-          const _result = preClassify(_entry);
+          await preClassify(_entry, cache);
 
-          assertEquals(_result.action, expected.action, `action が一致しない (fixture: ${_relPath})`);
+          const _cached = cache.read(input.filePath);
+          assertEquals(_cached.action, expected.action, `action が一致しない (fixture: ${_relPath})`);
           if (expected.project !== undefined) {
-            assertEquals(_result.project, expected.project, `project が一致しない (fixture: ${_relPath})`);
+            assertEquals(_cached.project, expected.project, `project が一致しない (fixture: ${_relPath})`);
           }
         },
       );
