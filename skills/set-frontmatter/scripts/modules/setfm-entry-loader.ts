@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { loadChatlogEntry as _loadEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -46,9 +46,9 @@ export const loadAllEntries = async (
 };
 
 export const loadChatlogEntry = async (filePath: string): Promise<ChatlogEntry | null> => {
-  let text: string;
+  let entry: ChatlogEntry;
   try {
-    text = await readTextFile(filePath);
+    entry = await _loadEntry(filePath);
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'FileDirNotFound') {
       return null;
@@ -56,9 +56,7 @@ export const loadChatlogEntry = async (filePath: string): Promise<ChatlogEntry |
     throw e;
   }
 
-  const entry = new ChatlogEntry(text, { filePath });
   const fullBody = entry.content;
-
   if (!/^#/m.test(fullBody)) { return null; }
   if (!fullBody.trim()) { return null; }
 

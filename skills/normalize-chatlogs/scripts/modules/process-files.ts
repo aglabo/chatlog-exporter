@@ -149,7 +149,7 @@ export const processFiles = async (
     });
 
     for (const { filePath, content } of _inputs) {
-      const _entry = new ChatlogEntry(content);
+      const _entry = new ChatlogEntry(content, { filePath });
       const _projectVal = _entry.frontmatter.get('project');
       const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
       const outputDir = resolveOutputDir(_outputBase, filePath, _project);

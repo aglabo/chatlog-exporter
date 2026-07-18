@@ -18,7 +18,7 @@ import {
   isSingleUserTurn,
   parseConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -160,15 +160,8 @@ type _ReadEntryResult =
  */
 const _readEntry = async (filePath: string): Promise<_ReadEntryResult> => {
   const filename = getFilename(filePath);
-  const text = await readTextFile(filePath, { throwFileIoError: false });
-  if (text instanceof Error) {
-    return {
-      kind: 'error',
-      result: { filePath, filename, reason: text.message, decision: FILTER_DECISIONS.ERROR },
-    };
-  }
   try {
-    const entry = new ChatlogEntry(text, { filePath });
+    const entry = await loadChatlogEntry(filePath);
     return { kind: 'ok', entry };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
