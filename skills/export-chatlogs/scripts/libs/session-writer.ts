@@ -8,6 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
+import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
@@ -19,6 +20,13 @@ import { ConversationRole } from '../../../_scripts/types/conversation-role.cons
 // types
 import type { Turn } from '../../../_scripts/types/conversation.types.ts';
 import type { ExportedSession, SessionMeta } from '../types/session.types.ts';
+
+/** sessionId が欠落している場合に使用するフォールバックのハッシュ生成ベース文字列。 */
+const SESSION_ID_FALLBACK = 'unknown';
+
+/** sessionId が欠落している場合、generateHash で一意な代替値を生成する。 */
+export const resolveSessionId = async (sessionId: string | undefined): Promise<string> =>
+  sessionId ? sessionId : await generateHash(SESSION_ID_FALLBACK);
 
 /** セッションの Markdown ファイル出力パスを生成する。 */
 export const buildOutputPath = (

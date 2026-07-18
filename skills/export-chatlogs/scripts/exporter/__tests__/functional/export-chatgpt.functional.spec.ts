@@ -53,10 +53,9 @@ async function _writeConvFile(filePath: string, conversations: ChatGPTConversati
 //   skippedCount  : parseConversation が null を返した会話数（期間外・内容なし）
 //   errorCount    : ファイル読み込み失敗 または writeSession 例外 の件数
 //
-// ParseConversationProvider は同期関数:
-//   型: (conv: ChatGPTConversation, range: PeriodRange) => ExportedSession | null
-//   I/O・副作用なし。Promise.all の並列実行下でもシングルスレッド（Deno）のため安全。
-//   テスト内で Promise を返してはならない。
+// ParseConversationProvider は非同期関数:
+//   型: (conv: ChatGPTConversation, range: PeriodRange) => Promise<ExportedSession | null>
+//   sessionId 欠落時の resolveSessionId（generateHash）呼び出しに対応するため Promise を返す。
 
 // ─── Tests
 
@@ -125,8 +124,9 @@ describe('exportChatGPT', () => {
         const result = await exportChatGPT(config, {
           // FindFilesProvider: (baseDir: string) => Promise<string[]>
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([convFile]),
-          // ParseConversationProvider: 同期 (conv, range) => ExportedSession | null
-          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => validSession,
+          // ParseConversationProvider: (conv, range) => Promise<ExportedSession | null>
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(validSession),
           // WriteSessionProvider: (outputDir, agent, session) => Promise<string>
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
             Promise.resolve('/fake/path.md'),
@@ -172,7 +172,8 @@ describe('exportChatGPT', () => {
         const result = await exportChatGPT(config, {
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([convFile]),
           // null を返す → skippedCount に計上される（仕様）
-          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => null,
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(null),
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
             Promise.resolve('/fake/path.md'),
         });
@@ -206,7 +207,8 @@ describe('exportChatGPT', () => {
         const result = await exportChatGPT(config, {
           // 対象ファイルが0件 → 処理対象なし
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([]),
-          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => null,
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(null),
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
             Promise.resolve('/fake/path.md'),
         });
@@ -278,7 +280,8 @@ describe('exportChatGPT', () => {
 
         const result = await exportChatGPT(config, {
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([convFile]),
-          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => validSession,
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(validSession),
           // writeSession の例外は errorCount に計上され、outputPaths には追加されない（仕様）
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> => {
             throw new Error('write error');
@@ -347,10 +350,11 @@ describe('exportChatGPT', () => {
         const result = await exportChatGPT(config, {
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([file1, file2, file3]),
           // conv.id ベースで sessionId を生成し、outputPaths で識別可能にする
-          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => ({
-            ...validSession,
-            meta: { ...validSession.meta, sessionId: `session-${conv.id}` },
-          }),
+          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve({
+              ...validSession,
+              meta: { ...validSession.meta, sessionId: `session-${conv.id}` },
+            }),
           writeSession: (_outputDir: string, _agent: string, session: ExportedSession): Promise<string> =>
             Promise.resolve(`/fake/${session.meta.sessionId}.md`),
         });
@@ -414,8 +418,8 @@ describe('exportChatGPT', () => {
         const result = await exportChatGPT(config, {
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([errorFile, validFile, skipFile]),
           // conv.id で同定（callCount は使わない — Promise.all 並列処理で呼び出し順序が不定になるため）
-          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => {
-            return conv.id === 'valid' ? validSession : null;
+          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> => {
+            return Promise.resolve(conv.id === 'valid' ? validSession : null);
           },
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
             Promise.resolve('/fake/path.md'),
@@ -487,10 +491,10 @@ describe('exportChatGPT', () => {
 
         const result = await exportChatGPT(config, {
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([file1, file2]),
-          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => {
-            if (conv.id === 'skip') { return null; }
-            if (conv.id === 'error') { return errorSession; }
-            return validSession;
+          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> => {
+            if (conv.id === 'skip') { return Promise.resolve(null); }
+            if (conv.id === 'error') { return Promise.resolve(errorSession); }
+            return Promise.resolve(validSession);
           },
           writeSession: (_outputDir: string, _agent: string, session: ExportedSession): Promise<string> => {
             if (session.meta.sessionId === 'conv-uuid-error') {
@@ -536,7 +540,8 @@ describe('exportChatGPT', () => {
               `${tempDir}/nonexistent-001.json`,
               `${tempDir}/nonexistent-002.json`,
             ]),
-          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => null,
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(null),
           writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
             Promise.resolve('/fake/path.md'),
         });
@@ -608,10 +613,11 @@ describe('exportChatGPT', () => {
           // findFiles は [fileX, fileY, fileZ] の順序で返す（入力順を固定）
           findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([fileX, fileY, fileZ]),
           // conv.id で sessionId を生成（並列処理でも各ファイルの conv は独立）
-          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): ExportedSession | null => ({
-            ...validSession,
-            meta: { ...validSession.meta, sessionId: `session-${conv.id}` },
-          }),
+          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve({
+              ...validSession,
+              meta: { ...validSession.meta, sessionId: `session-${conv.id}` },
+            }),
           // sessionId ベースでパスを返すことで outputPaths の内容が検証可能になる
           writeSession: (_outputDir: string, _agent: string, session: ExportedSession): Promise<string> =>
             Promise.resolve(`/fake/${session.meta.sessionId}.md`),
