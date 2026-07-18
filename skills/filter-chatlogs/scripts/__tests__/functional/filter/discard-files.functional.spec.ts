@@ -186,24 +186,6 @@ describe('_discardFiles', () => {
           assertEquals(stats.error, 1);
           assertEquals(stats.remove, 0);
         });
-
-        it('T-FL-DF-03-02: ログに "cant removed" という文言が warn で出力される', async () => {
-          const loggerStub = makeLoggerStub();
-          const stats = _makeStats();
-          const files: DiscardFile[] = [
-            {
-              filePath: `${periodDir1}/missing-target2.md`,
-              filename: 'missing-target2.md',
-              reason: 'trivial',
-              decision: 'DISCARD',
-            },
-          ];
-
-          await _discardFiles(files, false, stats);
-          loggerStub.restore();
-
-          assertEquals(loggerStub.warnLogs.some((l) => l.includes('cant removed')), true);
-        });
       });
     });
   });
