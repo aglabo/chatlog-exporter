@@ -7,9 +7,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── shared ───
+// classes
+import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // functions
 import { buildConversationEntries } from '../../../_scripts/libs/ai/prompt-utils.ts';
-import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 
 // ─── internal ───
 // constants
@@ -19,8 +20,13 @@ import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
 // バッチプロンプト構築
 // ─────────────────────────────────────────────
 
-export const buildBatchPrompt = async (files: string[]): Promise<string> => {
-  if (files.length === 0) { return ''; }
-  const _entries = await Promise.all(files.map((filePath) => loadChatlogEntry(filePath)));
-  return buildConversationEntries(_entries, MAX_BODY_CHARS);
+/**
+ * 読み込み済み `ChatlogEntry[]` から Claude CLI へ渡すバッチプロンプト文字列を構築する。
+ *
+ * @param entries - 読み込み済みの `ChatlogEntry` 配列
+ * @returns `=== filename ===\n<body>\n` 形式のバッチプロンプト文字列。空配列の場合は `''`
+ */
+export const buildBatchPrompt = (entries: ChatlogEntry[]): string => {
+  if (entries.length === 0) { return ''; }
+  return buildConversationEntries(entries, MAX_BODY_CHARS);
 };
