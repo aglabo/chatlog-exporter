@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/classify-file.unit.spec.ts
+// src: scripts/phases/__tests__/unit/classify-file.unit.spec.ts
 // @(#): classifyFile の単体テスト（dryRun=true 分岐・project=undefined・destDir 正規化）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -11,7 +11,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyFile } from '../../file-ops.ts';
+import { classifyFile } from '../../phase-write.ts';
 // constants
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
