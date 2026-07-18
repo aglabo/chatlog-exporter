@@ -49,6 +49,7 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 import type { NoiseFilterStats } from './types/stats.types.ts';
 // functions
 import { buildConfig } from './configs/noise-filter-config.ts';
+import { loadFilterEntries } from './libs/load-filter-entry.ts';
 import { processNoiseFiles } from './modules/noise-filter/process-noise-files.ts';
 import { prefilterFiles } from './modules/prefilter.ts';
 
@@ -78,14 +79,22 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
 
   const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-  const targetFiles = await prefilterFiles(files, {
+  // 候補ファイルを読み込む。読み込み失敗（ファイル I/O・frontmatter パースエラー等）は errors に分離され、
+  // 誤って削除しないよう prefilterFiles/processNoiseFiles には渡らない
+  const { entries, errors } = await loadFilterEntries(files);
+  if (errors.length > 0) {
+    stats.error += errors.length;
+    errors.forEach(({ filePath, error }) => logger.error(`  読み込み失敗 (${error.message}): ${filePath}`));
+  }
+
+  const targetEntries = await prefilterFiles(entries, {
     minCharCount,
     minAssistantChars,
     stats,
     dryRun,
   });
 
-  await processNoiseFiles(targetFiles, stats, { dryRun });
+  await processNoiseFiles(targetEntries, stats, { dryRun });
 
   const suffix = dryRun ? ' (dry-run)' : '';
   logger.info(
