@@ -97,26 +97,5 @@ describe('partitionByPreclassify', () => {
       assertEquals(result.uncached, []);
       assertEquals(_cache.read(_errorEntry.filePath!).action, CLASSIFY_ACTIONS.ERROR);
     });
-
-    it('[Edge] T-CL-PCE-05: 読み込み失敗(ERROR)ファイルは filePaths には残るが entries/uncached からは除外され cache.action が ERROR になる', async () => {
-      const _entryOk = _makeEntry('/tmp/input/ok.md', {}, 'a'.repeat(100));
-      const _errorPath = '/tmp/input/broken.md';
-      const _entries = new Map<string, ChatlogEntry>([
-        [_entryOk.filePath!, _entryOk],
-        [_errorPath, _makeEntry(_errorPath, {}, '')],
-      ]);
-      const _cache = await _makeEmptyClassifyCache();
-      const _opts: FindBufferEntriesOptions = {
-        glob: _makeGlob([..._entries.keys()]),
-        loadMeta: _makeLoadMeta(_entries, _cache, new Set([_errorPath])),
-      };
-
-      const result = await partitionClassifyEntries('/tmp/input', _cache, _opts);
-
-      assertEquals(result.filePaths.sort(), [_entryOk.filePath!, _errorPath].sort());
-      assertEquals(result.entries.has(_errorPath), false);
-      assertEquals(result.uncached.some((e) => e.filePath === _errorPath), false);
-      assertEquals(_cache.read(_errorPath).action, CLASSIFY_ACTIONS.ERROR);
-    });
   });
 });
