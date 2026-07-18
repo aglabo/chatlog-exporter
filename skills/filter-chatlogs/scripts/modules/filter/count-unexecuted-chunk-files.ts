@@ -21,13 +21,13 @@
  * `items` は `createChunkedTasks`（concurrency.ts）と同じ規則
  * （`items.slice(i * chunkSize, (i + 1) * chunkSize)`）でチャンク化して対応付ける。
  *
- * @param items - チャンク分割前の全ファイルパス配列
+ * @param items - チャンク分割前の全対象配列（ファイルパス、`ChatlogEntry` 等）
  * @param chunkSize - チャンクサイズ
  * @param chunkResults - `runChunked` の戻り値（穴を含みうる配列）
- * @returns 未実行チャンクに含まれるファイル数の合計
+ * @returns 未実行チャンクに含まれる要素数の合計
  */
-export const countUnexecutedChunkFiles = <R>(
-  items: string[],
+export const countUnexecutedChunkFiles = <T, R>(
+  items: T[],
   chunkSize: number,
   chunkResults: R[],
 ): number => {

@@ -8,13 +8,15 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertEquals } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { prefilterFiles } from '../../../modules/prefilter.ts';
+// classes
+import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -34,14 +36,28 @@ import type { BaseStats } from '../../../types/stats.types.ts';
  */
 const _makeStats = (): BaseStats => ({ keep: 0, skip: 0, remove: 0, error: 0 });
 
+/**
+ * ファイルをディスクに書き込み、同じテキストから `ChatlogEntry` を生成する。
+ *
+ * `_discardFiles` は実ファイル削除を試みるため、削除確定を期待するエントリは
+ * 実ファイルとエントリの content を必ず一致させる。
+ *
+ * @param filePath - 書き込み先ファイルパス
+ * @param text - ファイルに書き込むテキスト（frontmatter を含む）
+ * @returns 書き込んだテキストから生成した `ChatlogEntry`
+ */
+const _writeEntry = async (filePath: string, text: string): Promise<ChatlogEntry> => {
+  await Deno.writeTextFile(filePath, text);
+  return new ChatlogEntry(text, { filePath });
+};
+
 // ─── Tests
 
 /**
  * `prefilterFiles` 関数の機能テストスイート。
  *
- * `prefilterFiles(files)` はファイル名パターンと本文長の 2 段階でノイズを除外し、
- * 通過したファイルパスの配列を返す。`cache` 指定時はファイル名パターン除外・読み込み失敗の
- * decision を書き込む。
+ * `prefilterFiles(entries)` は読み込み済み `ChatlogEntry[]` をファイル名パターンと本文長の
+ * 2 段階でノイズを除外し、通過した `ChatlogEntry[]` を返す。
  *
  * ## 除外条件
  * - ファイル名が除外パターンに一致する（例: `say-ok-and-nothing-else.md`）
@@ -78,10 +94,10 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-01 - ファイルがスキップされる', () => {
         it('T-FL-PFF-01-01: say-ok-and-nothing-else.md は通過せず実削除される', async () => {
           const filePath = `${periodDir1}/say-ok-and-nothing-else.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -103,10 +119,10 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-02 - ファイルがスキップされる', () => {
         it('T-FL-PFF-02-01: body が空のファイルは通過せず実削除される', async () => {
           const filePath = `${periodDir1}/empty-body.md`;
-          await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n');
+          const entry = await _writeEntry(filePath, '---\ntitle: テスト\n---\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -128,10 +144,10 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-03 - ファイルがスキップされる', () => {
         it('T-FL-PFF-03-01: 短い本文のファイルは通過せず実削除される', async () => {
           const filePath = `${periodDir1}/short.md`;
-          await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n短い本文\n');
+          const entry = await _writeEntry(filePath, '---\ntitle: テスト\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -154,10 +170,10 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-05 - minCharCount が適用されてファイルが除外される', () => {
         it('T-FL-PFF-05-01: minCharCount を本文長より大きく設定するとファイルが除外される', async () => {
           const filePath = `${periodDir1}/long-content.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(1200));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { minCharCount: 2428, stats: _makeStats() });
+          const result = await prefilterFiles([entry], { minCharCount: 2428, stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -165,10 +181,10 @@ describe('prefilterFiles', () => {
 
         it('T-FL-PFF-05-02: minCharCount を本文長より小さく設定するとファイルが通過する', async () => {
           const filePath = `${periodDir1}/long-content2.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(1200));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { minCharCount: 2426, stats: _makeStats() });
+          const result = await prefilterFiles([entry], { minCharCount: 2426, stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -191,10 +207,10 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-06 - minAssistantChars が適用されて除外/通過が制御される', () => {
         it('T-FL-PFF-06-01: minAssistantChars を Assistant 文字数より大きく設定するとファイルが除外される', async () => {
           const filePath = `${periodDir1}/assistant-400.md`;
-          await Deno.writeTextFile(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
+          const entry = await _writeEntry(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], {
+          const result = await prefilterFiles([entry], {
             minCharCount: 1000,
             minAssistantChars: 401,
             stats: _makeStats(),
@@ -206,10 +222,10 @@ describe('prefilterFiles', () => {
 
         it('T-FL-PFF-06-02: minAssistantChars を Assistant 文字数より小さく設定するとファイルが通過する', async () => {
           const filePath = `${periodDir1}/assistant-400b.md`;
-          await Deno.writeTextFile(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
+          const entry = await _writeEntry(filePath, makeValidContent('テスト', 'u'.repeat(1500), 'a'.repeat(400)));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], {
+          const result = await prefilterFiles([entry], {
             minCharCount: 1000,
             minAssistantChars: 399,
             stats: _makeStats(),
@@ -236,13 +252,13 @@ describe('prefilterFiles', () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
-          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
-          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const excludedEntry = await _writeEntry(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const shortEntry = await _writeEntry(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          const validEntry = await _writeEntry(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
           const _stats = _makeStats();
-          const result = await prefilterFiles([excludedPath, shortPath, validPath], { stats: _stats });
+          const result = await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: _stats });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -263,11 +279,11 @@ describe('prefilterFiles', () => {
         it('T-FL-PFF-08-01: stats を渡すと2ファイルが返される', async () => {
           const validPath1 = `${periodDir1}/valid1.md`;
           const validPath2 = `${periodDir1}/valid2.md`;
-          await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry1 = await _writeEntry(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry2 = await _writeEntry(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([validPath1, validPath2], { stats: _makeStats() });
+          const result = await prefilterFiles([entry1, entry2], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 2);
@@ -288,28 +304,28 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-04 - ファイルが通過する', () => {
         it('T-FL-PFF-04-01: 正常なファイルは通過する', async () => {
           const filePath = `${periodDir1}/normal.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
-          assertEquals(result[0], filePath);
+          assertEquals(result[0].filePath, filePath);
         });
 
         it('T-FL-PFF-04-02: 複数ファイルのうち正常なものだけ通過する', async () => {
           const validPath = `${periodDir1}/valid.md`;
           const shortPath = `${periodDir1}/short.md`;
-          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
+          const validEntry = await _writeEntry(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const shortEntry = await _writeEntry(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([validPath, shortPath], { stats: _makeStats() });
+          const result = await prefilterFiles([validEntry, shortEntry], { stats: _makeStats() });
           errStub.restore();
 
           assertEquals(result.length, 1);
-          assertEquals(result[0], validPath);
+          assertEquals(result[0].filePath, validPath);
         });
       });
     });
@@ -330,12 +346,12 @@ describe('prefilterFiles', () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
-          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
-          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const excludedEntry = await _writeEntry(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const shortEntry = await _writeEntry(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          const validEntry = await _writeEntry(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const loggerStub = makeLoggerStub();
 
-          await prefilterFiles([excludedPath, shortPath, validPath], { stats: _makeStats(), dryRun: true });
+          await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: _makeStats(), dryRun: true });
           loggerStub.restore();
 
           assertEquals(loggerStub.infoLogs.length, 2);
@@ -345,22 +361,22 @@ describe('prefilterFiles', () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
-          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
-          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const excludedEntry = await _writeEntry(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const shortEntry = await _writeEntry(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          const validEntry = await _writeEntry(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const loggerStub = makeLoggerStub();
 
           const statsDryRun = _makeStats();
-          const resultDryRun = await prefilterFiles([excludedPath, shortPath, validPath], {
+          const resultDryRun = await prefilterFiles([excludedEntry, shortEntry, validEntry], {
             stats: statsDryRun,
             dryRun: true,
           });
           const statsNormal = _makeStats();
-          const resultNormal = await prefilterFiles([excludedPath, shortPath, validPath], { stats: statsNormal });
+          const resultNormal = await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: statsNormal });
           loggerStub.restore();
 
-          assertEquals(resultDryRun, [validPath]);
-          assertEquals(resultNormal, [validPath]);
+          assertEquals(resultDryRun.map((e) => e.filePath), [validPath]);
+          assertEquals(resultNormal.map((e) => e.filePath), [validPath]);
           assertEquals(statsNormal.remove, 2);
           assertEquals(statsDryRun.remove, 0);
           assertEquals(statsDryRun.skip, 2);
@@ -382,122 +398,13 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-12 - passed に含まれる', () => {
         it('T-FL-PFF-12-01: 正常なファイル → passed に含まれる', async () => {
           const filePath = `${periodDir1}/cache-miss.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([filePath], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats() });
           errStub.restore();
 
-          assertEquals(result.includes(filePath), true);
-        });
-      });
-    });
-  });
-
-  /**
-   * 本文読み込みに失敗する（実ファイルが存在しない）ファイルを cache 指定なしで処理する前提条件グループ。
-   *
-   * cache 未指定でも従来通り例外を投げず stats.error が加算されることを検証する（回帰確認）。
-   * 読み込み失敗ファイルは実削除されず、ユーザーが気づけるよう passed に含めたまま返す。
-   */
-  describe('Given: 本文読み込みに失敗するファイル（cache 指定なし）', () => {
-    /** prefilterFiles([file], { stats }) を呼び出すとき。 */
-    describe('When: prefilterFiles([file], { stats }) を呼び出す', () => {
-      /** 例外が投げられず stats.error が加算されることを検証する。 */
-      describe('Then: T-FL-PFF-17 - 例外が投げられず stats.error が加算される', () => {
-        it('T-FL-PFF-17-01: stats.error === 1 になる', async () => {
-          const filePath = `${periodDir1}/missing-read-nocache.md`;
-          const errStub = stub(console, 'error', () => {});
-          const stats = _makeStats();
-
-          await prefilterFiles([filePath], { stats });
-          errStub.restore();
-
-          assertEquals(stats.error, 1);
-        });
-
-        it('T-FL-PFF-17-02: 読み込み失敗ファイルは passed に含まれる', async () => {
-          const filePath = `${periodDir1}/missing-read-passed.md`;
-          const errStub = stub(console, 'error', () => {});
-          const stats = _makeStats();
-
-          const result = await prefilterFiles([filePath], { stats });
-          errStub.restore();
-
-          assertEquals(result, [filePath]);
-        });
-      });
-    });
-  });
-
-  /**
-   * 正常ファイルと読み込みエラーファイル（実ファイル未作成）が混在するファイルリストの前提条件グループ。
-   *
-   * 読み込みエラーファイルはゾンビ化を防ぐため passed に残したうえで、通過ファイルの入力順序が維持されることを検証する。
-   */
-  describe('Given: 正常ファイルと読み込みエラーファイルが混在するファイルリスト', () => {
-    /** prefilterFiles(files) を呼び出すとき。 */
-    describe('When: prefilterFiles(files) を呼び出す', () => {
-      /** passed 配列が読み込みエラーファイルを含み、入力順と一致することを検証する。 */
-      describe('Then: T-FL-PFF-18 - 読み込みエラーファイルを含め passed の順序が入力順と一致する', () => {
-        it('T-FL-PFF-18-01: passed に読み込みエラーファイルが含まれ、通過ファイルの順序が入力順と一致する', async () => {
-          const validPath1 = `${periodDir1}/mixed-valid1.md`;
-          const missingPath = `${periodDir1}/mixed-missing.md`;
-          const validPath2 = `${periodDir1}/mixed-valid2.md`;
-          await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          const errStub = stub(console, 'error', () => {});
-
-          const files = [validPath1, missingPath, validPath2];
-          const result = await prefilterFiles(files, { stats: _makeStats() });
-          errStub.restore();
-
-          assertEquals(result, [validPath1, missingPath, validPath2]);
-        });
-
-        it('T-FL-PFF-18-02: ファイル名除外・内容除外は削除され、読み込みエラーファイルは正常ファイルとともに passed に残る', async () => {
-          const validPath = `${periodDir1}/mixed-all-valid.md`;
-          const excludedPath = `${periodDir1}/say-ok-and-nothing-else-mixed.md`;
-          const shortPath = `${periodDir1}/mixed-short-body.md`;
-          const missingPath = `${periodDir1}/mixed-all-missing.md`;
-          await Deno.writeTextFile(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
-          const errStub = stub(console, 'error', () => {});
-
-          const files = [validPath, excludedPath, shortPath, missingPath];
-          const result = await prefilterFiles(files, { stats: _makeStats() });
-          errStub.restore();
-
-          assertEquals(result, [validPath, missingPath]);
-        });
-      });
-    });
-  });
-
-  /**
-   * 読み込みに失敗するファイルの前提条件グループ。
-   *
-   * 読み込み失敗の理由をユーザーが把握できるよう、logger.warn でファイル名と理由が出力されることを検証する。
-   */
-  describe('Given: 読み込みに失敗するファイル', () => {
-    /** prefilterFiles([file], { stats }) を呼び出すとき。 */
-    describe('When: prefilterFiles([file], { stats }) を呼び出す', () => {
-      /** logger.warn がファイル名と非空の理由を含めて呼ばれることを検証する。 */
-      describe('Then: T-FL-PFF-22 - logger.warn に理由とファイル名が出力される', () => {
-        it('T-FL-PFF-22-01: [Normal] logger.warn がファイル名と非空の理由を含めて呼ばれる', async () => {
-          const filePath = `${periodDir1}/missing-read-warn.md`;
-          const filename = 'missing-read-warn.md';
-          const loggerStub = makeLoggerStub();
-          const stats = _makeStats();
-
-          await prefilterFiles([filePath], { stats });
-          loggerStub.restore();
-
-          const warnLog = loggerStub.warnLogs.find((msg) => msg.includes(filename));
-          assert(warnLog !== undefined);
-          const reasonMatch = warnLog.match(/read failed \((.+)\): /);
-          assert(reasonMatch !== null && reasonMatch[1].length > 0);
+          assertEquals(result.map((e) => e.filePath).includes(filePath), true);
         });
       });
     });
@@ -520,18 +427,18 @@ describe('prefilterFiles', () => {
           const validPath1 = `${periodDir1}/order-valid1.md`;
           const validPath2 = `${periodDir1}/order-valid2.md`;
           const validPath3 = `${periodDir1}/order-valid3.md`;
-          await Deno.writeTextFile(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
-          await Deno.writeTextFile(validPath3, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          await Deno.writeTextFile(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const excludedEntry = await _writeEntry(excludedPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const shortEntry = await _writeEntry(shortPath, '---\ntitle: テスト\n---\n短い本文\n');
+          const validEntry3 = await _writeEntry(validPath3, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const validEntry1 = await _writeEntry(validPath1, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const validEntry2 = await _writeEntry(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const files = [validPath3, excludedPath, validPath1, shortPath, validPath2];
-          const result = await prefilterFiles(files, { stats: _makeStats() });
+          const entries = [validEntry3, excludedEntry, validEntry1, shortEntry, validEntry2];
+          const result = await prefilterFiles(entries, { stats: _makeStats() });
           errStub.restore();
 
-          assertEquals(result, [validPath3, validPath1, validPath2]);
+          assertEquals(result.map((e) => e.filePath), [validPath3, validPath1, validPath2]);
         });
       });
     });
@@ -549,11 +456,11 @@ describe('prefilterFiles', () => {
       describe('Then: T-FL-PFF-20 - ファイルが実削除される', () => {
         it('T-FL-PFF-20-01: 実削除され stats.remove が加算される', async () => {
           const filePath = `${periodDir1}/say-ok-and-nothing-else-cached.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await prefilterFiles([filePath], { stats });
+          await prefilterFiles([entry], { stats });
           errStub.restore();
 
           assertEquals(await Deno.stat(filePath).catch(() => null), null);
@@ -562,11 +469,11 @@ describe('prefilterFiles', () => {
 
         it('T-FL-PFF-20-02: dry-run 時はファイルが削除されず stats.skip が加算される', async () => {
           const filePath = `${periodDir1}/say-ok-and-nothing-else-cached-dryrun.md`;
-          await Deno.writeTextFile(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const loggerStub = makeLoggerStub();
           const stats = _makeStats();
 
-          await prefilterFiles([filePath], { stats, dryRun: true });
+          await prefilterFiles([entry], { stats, dryRun: true });
           loggerStub.restore();
 
           assertEquals(await Deno.stat(filePath).then(() => true).catch(() => false), true);
@@ -592,7 +499,8 @@ describe('prefilterFiles', () => {
           const stats = _makeStats();
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
-          await prefilterFiles([filePath], { stats });
+          const entry = new ChatlogEntry('', { filePath });
+          await prefilterFiles([entry], { stats });
           errStub.restore();
 
           assertEquals(stats.error, 1);
@@ -605,10 +513,11 @@ describe('prefilterFiles', () => {
           const stats = _makeStats();
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
-          const passed = await prefilterFiles([filePath], { stats });
+          const entry = new ChatlogEntry('', { filePath });
+          const passed = await prefilterFiles([entry], { stats });
           errStub.restore();
 
-          assertEquals(passed, [filePath]);
+          assertEquals(passed.map((e) => e.filePath), [filePath]);
         });
       });
     });

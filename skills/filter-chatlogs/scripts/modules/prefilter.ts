@@ -18,10 +18,8 @@ import {
   isSingleUserTurn,
   parseConversation,
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
-import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 
@@ -111,29 +109,30 @@ export const isExcludedByContent = (
 };
 
 /**
- * ファイルリストをファイル名パターンで分類する。
+ * エントリリストをファイル名パターンで分類する。
  *
- * 除外パターンに一致するファイルは `discardFiles`（`filePath`/`filename`/`reason` を持つ）として確定し、
+ * 除外パターンに一致するエントリは `discardFiles`（`filePath`/`filename`/`reason` を持つ）として確定し、
  * それ以外は本文チェックへ進む `fileList` として返す純粋関数。副作用は一切行わない。
  *
- * @param files - 分類対象のファイルパス配列
- * @returns 通過ファイルパス配列（`fileList`）と、除外確定ファイル情報配列（`discardFiles`）
+ * @param entries - 分類対象の `ChatlogEntry` 配列
+ * @returns 通過エントリ配列（`fileList`）と、除外確定ファイル情報配列（`discardFiles`）
  */
 export const _phase1PartitionByFilename = (
-  files: string[],
-): { fileList: string[]; discardFiles: DiscardFile[] } => {
-  const classified = files.map((filePath) => {
-    const filename = getFilename(filePath);
-    const reason = checkFilename(filename);
-    return { filePath, filename, reason };
-  });
+  entries: ChatlogEntry[],
+): { fileList: ChatlogEntry[]; discardFiles: DiscardFile[] } => {
+  const classified = entries.map((entry) => ({
+    entry,
+    filePath: entry.filePath as string,
+    filename: entry.filename as string,
+    reason: checkFilename(entry.filename as string),
+  }));
 
   const fileList = classified
     .filter((c) => c.reason === null)
-    .map((c) => c.filePath);
+    .map((c) => c.entry);
 
   const discardFiles = classified
-    .filter((c): c is { filePath: string; filename: string; reason: string } => c.reason !== null)
+    .filter((c): c is typeof c & { reason: string } => c.reason !== null)
     .map((c) => ({
       filePath: c.filePath,
       filename: c.filename,
@@ -142,58 +141,6 @@ export const _phase1PartitionByFilename = (
     }));
 
   return { fileList, discardFiles };
-};
-
-/** `_readEntry` の読み込み結果。読み込み成功（`ok`）か失敗確定（`error`）のいずれかを表す。 */
-type _ReadEntryResult =
-  | { kind: 'ok'; entry: ChatlogEntry }
-  | { kind: 'error'; result: DiscardFile };
-
-/**
- * 1 ファイルを読み込み `ChatlogEntry` を生成する。
- *
- * ファイル読み込み失敗、および `ChatlogEntry` コンストラクタでのパース失敗（不正な frontmatter 等）の
- * いずれも失敗として扱い、実際のエラーメッセージを `reason` に格納した `DiscardFile` を返す。
- *
- * @param filePath - 読み込み対象のファイルパス
- * @returns 読み込み・パースに成功した場合は `{ kind: 'ok', entry }`、失敗した場合は `{ kind: 'error', result }`
- */
-const _readEntry = async (filePath: string): Promise<_ReadEntryResult> => {
-  const filename = getFilename(filePath);
-  try {
-    const entry = await loadChatlogEntry(filePath);
-    return { kind: 'ok', entry };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      kind: 'error',
-      result: { filePath, filename, reason: message, decision: FILTER_DECISIONS.ERROR },
-    };
-  }
-};
-
-/**
- * ファイルリストの本文を並列に読み込み、frontmatter を除いた content を取り出す。
- *
- * 読み込みに失敗したファイルは実際のエラーメッセージを `reason` に持つ `DiscardFile` として `readError` に振り分ける。
- *
- * @param survivors - 読み込み対象のファイルパス配列
- * @returns 読み込みに成功したファイル情報（`readOk`）と、読み込みに失敗したファイル情報（`readError`）
- */
-export const _phase2ReadSurvivors = async (
-  survivors: string[],
-): Promise<{ readOk: ChatlogEntry[]; readError: DiscardFile[] }> => {
-  const results = await Promise.all(survivors.map((filePath) => _readEntry(filePath)));
-
-  const readOk = results
-    .filter((r): r is { kind: 'ok'; entry: ChatlogEntry } => r.kind === 'ok')
-    .map((r) => r.entry);
-
-  const readError = results
-    .filter((r): r is { kind: 'error'; result: DiscardFile } => r.kind === 'error')
-    .map((r) => r.result);
-
-  return { readOk, readError };
 };
 
 /** `_classifyEntryByContent` の分類結果。除外確定（`excluded`）か通過（`survivor`）のいずれかを表す。 */
@@ -207,7 +154,7 @@ type _ContentClassification =
  * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当する場合は
  * `excluded-content` の分類結果を、それ以外は入力エントリそのものを返す純粋関数。
  *
- * @param entry - `_phase2ReadSurvivors` で読み込み済みのファイル情報
+ * @param entry - 読み込み済みの `ChatlogEntry`
  * @param minCharCount - 本文の最小文字数
  * @param minAssistantChars - User ターン 1 件のときの Assistant 応答最小文字数
  * @returns 除外確定結果、または通過ファイルのエントリ
@@ -250,7 +197,7 @@ const _classifyEntryByContent = (
  * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当するファイルは
  * `excluded-content` として確定し、通過したファイルのみ `survivors` に含める。
  *
- * @param readOk - `_phase2ReadSurvivors` で読み込み済みのファイル情報
+ * @param readOk - 読み込み済みの `ChatlogEntry` 配列
  * @param minCharCount - 本文の最小文字数
  * @param minAssistantChars - User ターン 1 件のときの Assistant 応答最小文字数
  * @returns 通過ファイル情報（`survivors`）と、この段階で確定した分類結果（`results`）
@@ -308,7 +255,6 @@ export const _discardFiles = async (
         return entry;
       }
       if (!await removeFile(filePath, { throwFileIoError: false })) {
-        logger.warn(`  cant removed (${reason}): ${filename}`);
         stats.error++;
         return { ...entry, decision: FILTER_DECISIONS.ERROR };
       }
@@ -321,21 +267,21 @@ export const _discardFiles = async (
 };
 
 /**
- * ファイルリストをファイル名パターンと本文内容で事前フィルタリングし、通過したパスを返す。
+ * 読み込み済みエントリをファイル名パターンと本文内容で事前フィルタリングし、通過したエントリを返す。
  *
- * @param files - フィルタリング対象のファイルパス配列
+ * @param entries - フィルタリング対象の `ChatlogEntry` 配列（読み込み済み）
  * @param options - `prefilterFiles` のオプション
  * @param options.minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
  * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
  * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
- *   dry-run 時のスキップ数を `skip` に、読み込み失敗数を `error` に加算する。
+ *   dry-run 時のスキップ数を `skip` に加算する。
  * @param options.dryRun - `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する（デフォルト: `false`）
- * @returns フィルタリングを通過したファイルパスの配列
+ * @returns フィルタリングを通過した `ChatlogEntry` 配列
  */
 export const prefilterFiles = async (
-  files: string[],
+  entries: ChatlogEntry[],
   options: PrefilterFilesOptions,
-): Promise<string[]> => {
+): Promise<ChatlogEntry[]> => {
   const {
     minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
     minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
@@ -343,17 +289,10 @@ export const prefilterFiles = async (
     dryRun = false,
   } = options;
 
-  const { fileList, discardFiles } = _phase1PartitionByFilename(files);
-
-  const byRead = await _phase2ReadSurvivors(fileList);
-  const byContent = _phase3PartitionByContent(byRead.readOk, minCharCount, minAssistantChars);
-
-  byRead.readError.forEach(({ filename, reason }) => {
-    logger.warn(`  read failed (${reason}): ${filename}`);
-  });
+  const { fileList, discardFiles } = _phase1PartitionByFilename(entries);
+  const byContent = _phase3PartitionByContent(fileList, minCharCount, minAssistantChars);
 
   const toDelete = [...discardFiles, ...byContent.results];
-  stats.error += byRead.readError.length;
 
   const notDeleted = await _discardFiles(toDelete, dryRun, stats);
 
@@ -363,11 +302,11 @@ export const prefilterFiles = async (
   const excludedPaths = new Set(
     toDelete.map((entry) => entry.filePath).filter((filePath) => !errorPaths.has(filePath)),
   );
-  const passed = files.filter((filePath) => !excludedPaths.has(filePath));
+  const passed = entries.filter((entry) => !excludedPaths.has(entry.filePath as string));
 
   if (!dryRun) {
     logger.info(
-      `事前フィルタ: 対象=${files.length} 通過=${passed.length} remove=${stats.remove} skip=${stats.skip} error=${stats.error}`,
+      `事前フィルタ: 対象=${entries.length} 通過=${passed.length} remove=${stats.remove} skip=${stats.skip} error=${stats.error}`,
     );
   }
   return passed;
