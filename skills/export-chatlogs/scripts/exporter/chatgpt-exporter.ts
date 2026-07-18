@@ -20,7 +20,7 @@ import { ConversationRole } from '../../../_scripts/types/conversation-role.cons
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
-import { writeSession } from '../libs/session-writer.ts';
+import { resolveSessionId, writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
 // types
 import type { Turn } from '../../../_scripts/types/conversation.types.ts';
@@ -125,10 +125,10 @@ export const traverseConversation = (
  * @param range parsePeriod() が生成した期間フィルタ
  * @returns ExportedSession または null
  */
-export const parseChatGPTConversation = (
+export const parseChatGPTConversation = async (
   conv: ChatGPTConversation,
   range: PeriodRange,
-): ExportedSession | null => {
+): Promise<ExportedSession | null> => {
   // 期間チェック
   const isoTimestamp = new Date(conv.create_time * 1000).toISOString();
   if (!inPeriod(isoTimestamp, range)) { return null; }
@@ -163,7 +163,7 @@ export const parseChatGPTConversation = (
   if (isSkippableSession(firstUserTurn.content)) { return null; }
 
   const meta: SessionMeta = {
-    sessionId: conv.conversation_id,
+    sessionId: await resolveSessionId(conv.conversation_id),
     date: isoToDate(isoTimestamp),
     project: conv.title,
     slug: '',
@@ -243,7 +243,7 @@ const _processFile = async (
 
   for (const conv of conversations) {
     try {
-      const session = parseConversation(conv, range);
+      const session = await parseConversation(conv, range);
       if (!session) {
         skippedCount++;
         continue;
