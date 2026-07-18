@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/fixtures/pre-classify.fixtures.spec.ts
-// @(#): preClassify fixtures テスト（純粋関数ベース、AI 不要）
-//       対象: preClassify
+// @(#): classifyByNoAI fixtures テスト（純粋関数ベース、AI 不要）
+//       対象: classifyByNoAI
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Test target
-import { preClassify } from '../../classify-noai.ts';
+import { classifyByNoAI } from '../../classify-noai.ts';
 
 // ─── Helpers
 // types
@@ -91,18 +91,18 @@ const _fixtures = await Promise.all(
 );
 
 /**
- * `preClassify` の fixtures テストスイート。
+ * `classifyByNoAI` の fixtures テストスイート。
  *
  * fixtures-data/pre-classify/ 下の各ディレクトリを読み込み、
- * `input.yaml` から `ChatlogEntry` を構築して `preClassify` に渡し、
+ * `input.yaml` から `ChatlogEntry` を構築して `classifyByNoAI` に渡し、
  * `cache` に書き込まれた結果を `expected.yaml` の期待値と照合する。
  *
- * @see preClassify
+ * @see classifyByNoAI
  */
-describe('preClassify', () => {
+describe('classifyByNoAI', () => {
   /**
    * fixtures-data/pre-classify/ 下の各 fixture ディレクトリに対して、
-   * `preClassify` の出力が期待値と一致することを検証する。
+   * `classifyByNoAI` の出力が期待値と一致することを検証する。
    */
   describe('When: fixtures-data/pre-classify/ 下の各 fixture ディレクトリ', () => {
     for (const { relPath: _relPath, input, expected } of _fixtures) {
@@ -115,7 +115,7 @@ describe('preClassify', () => {
           const _entry = _buildEntry(input);
           const cache = await _makeEmptyClassifyCache();
 
-          await preClassify(_entry, cache);
+          await classifyByNoAI(_entry, cache);
 
           const _cached = cache.read(input.filePath);
           assertEquals(_cached.action, expected.action, `action が一致しない (fixture: ${_relPath})`);
