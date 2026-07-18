@@ -47,7 +47,7 @@ import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logge
  * `processChunk` の機能テストスイート。
  *
  * AI 呼び出しの成功・失敗・JSON パースエラー・ファイル名不一致を検証する。
- * 戻り値は `ClassifyBuffer`（副作用なし）。
+ * 戻り値は `ChatlogEntry[]`（副作用なし）。
  *
  * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-04
  *
