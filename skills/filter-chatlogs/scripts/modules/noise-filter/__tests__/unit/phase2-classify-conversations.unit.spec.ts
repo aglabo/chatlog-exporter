@@ -15,31 +15,29 @@ import { describe, it } from '@std/testing/bdd';
 import { _phase2ClassifyConversations } from '../../process-noise-files.ts';
 
 // ─── Helpers
-import { readConversation } from '../../../../libs/classify-file.ts';
+import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** ノイズ判定されるファイル名相当（内容判定専用のため、ここでは通常のファイル名を使う）。 */
-const _NOISE_FILENAME = 'noise-chat.md';
+/** KEEP 判定を通過する会話本文。 */
+const _VALID_CONTENT = `### User\n${'u'.repeat(300)}\n\n### Assistant\n${'a'.repeat(300)}\n`;
 
-/** keep 判定されるファイル名。 */
-const _KEEP_FILENAME = 'valid-chat.md';
+/** 内容判定でノイズ確定する会話本文（Assistant応答が短すぎる）。 */
+const _NOISE_CONTENT = `### User\n${'u'.repeat(300)}\n\n### Assistant\n短い\n`;
 
-/** KEEP 判定を通過する会話（読み込み済み）。 */
-const _VALID_CONVERSATION = readConversation(`### User\n${'u'.repeat(300)}\n\n### Assistant\n${'a'.repeat(300)}\n`);
-
-/** 内容判定でノイズ確定する会話（読み込み済み、Assistant応答が短すぎる）。 */
-const _NOISE_CONVERSATION = readConversation(`### User\n${'u'.repeat(300)}\n\n### Assistant\n短い\n`);
+// functions
+/** 指定した filePath と本文を持つ `ChatlogEntry` を生成する。 */
+const _makeEntry = (filePath: string, content: string): ChatlogEntry => new ChatlogEntry(content, { filePath });
 
 // ─── Tests
 
 /**
  * `_phase2ClassifyConversations` のユニットテストスイート。
  *
- * `_phase1ReadFiles` の読み込み成功エントリを `classifyConversation` で分類し、
+ * `ChatlogEntry` 配列を `classifyConversation` で分類し、
  * ノイズ判定確定ファイル（`discardFiles`）と通過ファイル（`keepFiles`）に振り分ける
  * 純粋関数の動作を検証する。全件ノイズ・全件 keep・混在・空配列を網羅する。
  *
@@ -54,7 +52,7 @@ describe('_phase2ClassifyConversations', () => {
     describe('When: _phase2ClassifyConversations(entries) を呼び出す', () => {
       describe('Then: T-PF-P2-01 - discardFiles に全件、keepFiles は空', () => {
         it('T-PF-P2-01-01: 全件が discardFiles に入り keepFiles は空になる', () => {
-          const entries = [{ filePath: '/a/noise.md', filename: _NOISE_FILENAME, conversation: _NOISE_CONVERSATION }];
+          const entries = [_makeEntry('/a/noise.md', _NOISE_CONTENT)];
 
           const result = _phase2ClassifyConversations(entries);
 
@@ -74,7 +72,7 @@ describe('_phase2ClassifyConversations', () => {
     describe('When: _phase2ClassifyConversations(entries) を呼び出す', () => {
       describe('Then: T-PF-P2-02 - keepFiles に全件、discardFiles は空', () => {
         it('T-PF-P2-02-01: 全件が keepFiles に入り discardFiles は空になる', () => {
-          const entries = [{ filePath: '/a/keep.md', filename: _KEEP_FILENAME, conversation: _VALID_CONVERSATION }];
+          const entries = [_makeEntry('/a/keep.md', _VALID_CONTENT)];
 
           const result = _phase2ClassifyConversations(entries);
 
@@ -92,8 +90,8 @@ describe('_phase2ClassifyConversations', () => {
       describe('Then: T-PF-P2-03 - それぞれ正しい配列に振り分けられる', () => {
         it('T-PF-P2-03-01: keep 1件+ノイズ1件 → keepFiles/discardFiles に正しく分類される', () => {
           const entries = [
-            { filePath: '/a/keep.md', filename: _KEEP_FILENAME, conversation: _VALID_CONVERSATION },
-            { filePath: '/b/noise.md', filename: _NOISE_FILENAME, conversation: _NOISE_CONVERSATION },
+            _makeEntry('/a/keep.md', _VALID_CONTENT),
+            _makeEntry('/b/noise.md', _NOISE_CONTENT),
           ];
 
           const result = _phase2ClassifyConversations(entries);
