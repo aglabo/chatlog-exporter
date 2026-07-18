@@ -13,6 +13,7 @@
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
 import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
+import type { LoadClassifyEntryFailure } from './load-classify-entry.types.ts';
 
 // ─────────────────────────────────────────────
 // プロジェクトエントリ型
@@ -49,8 +50,6 @@ export interface ClassifyStats {
   moved: number;
   /** AI を呼び出して分類・移動した件数（成功・失敗・パース失敗いずれも含む）。 */
   movedByAI: number;
-  /** 既にプロジェクト設定済みかつ対応ディレクトリ内でスキップした件数。 */
-  skipped: number;
   /** 読み込み・移動に失敗した件数。 */
   error: number;
   /** AI 処理が必要なエントリとしてスキップした件数。 */
@@ -96,7 +95,6 @@ type _ClassifyConfigCheck = _Assert<ClassifyConfig>;
 export const CLASSIFY_ACTIONS = {
   MOVE: 'move',
   MOVEBYAI: 'move-by-ai',
-  SKIP: 'skip',
   REMAINING: 'remaining',
   ERROR: 'error',
   EMPTY: '',
@@ -105,11 +103,11 @@ export const CLASSIFY_ACTIONS = {
 /** `CLASSIFY_ACTIONS` の値の型。 */
 export type ClassifyAction = typeof CLASSIFY_ACTIONS[keyof typeof CLASSIFY_ACTIONS];
 
-/** `partitionByPreclassify` が返す、分類候補ファイルエントリの分割結果。 */
+/** `partitionEntries` が返す、分類候補ファイルエントリの分割結果。 */
 export type ClassifyPartition = {
-  /** 読み込み済み `ChatlogEntry` の配列（読み込み失敗分も含む）。 */
-  entries: ChatlogEntry[];
-  /** AI 分類が必要な `ChatlogEntry` のみ。 */
+  /** AI 分類が不要な（事前分類で確定済み、または既に確定済み project を持つ）ChatlogEntry の配列。 */
+  cached: ChatlogEntry[];
+  /** AI 分類が必要な ChatlogEntry のみ。 */
   uncached: ChatlogEntry[];
 };
 
@@ -117,8 +115,8 @@ export type ClassifyPartition = {
 // findBufferEntries オプション型
 // ─────────────────────────────────────────────
 
-/** ファイルパスから `ChatlogEntry` を読み込む関数。 */
-export type ClassifyBufferProvider = (path: string) => Promise<ChatlogEntry>;
+/** ファイルパスから `ChatlogEntry` を読み込む関数。失敗時は `LoadClassifyEntryFailure` を返す。 */
+export type ClassifyBufferProvider = (path: string) => Promise<ChatlogEntry | LoadClassifyEntryFailure>;
 
 /** `findBufferEntries` のオプション。テスト時に glob / loadMeta を差し替えられる。 */
 export type FindBufferEntriesOptions = {
