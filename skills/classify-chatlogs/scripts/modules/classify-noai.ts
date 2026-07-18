@@ -10,12 +10,14 @@
 // cspell:words noai
 
 // ─── Shared scripts
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
+import { isFileIoError } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ActionStatusEntry } from '../../../_scripts/types/action-status-entry.types.ts';
@@ -36,11 +38,13 @@ export const loadClassifyEntry = async (
   filePath: string,
   cache: ChatlogCache<ClassifyCache>,
 ): Promise<ActionStatusEntry> => {
-  const _text = await readTextFile(filePath);
   try {
-    const _entry = new ChatlogEntry(_text, { filePath });
+    const _entry = await loadChatlogEntry(filePath);
     return { entry: _entry, options: { filePath } };
   } catch (e) {
+    if (isFileIoError(e) || (e instanceof ChatlogError && e.kind === 'FileDirNotFound')) {
+      throw e;
+    }
     const _reason = e instanceof Error ? e.message : String(e);
     await cache.write(filePath, { action: CLASSIFY_ACTIONS.ERROR, reason: _reason });
     return {
