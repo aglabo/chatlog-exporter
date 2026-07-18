@@ -30,7 +30,8 @@ import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig } from './modules/classify-config.ts';
 import { applyClassifications } from './modules/file-ops.ts';
-import { partitionClassifyEntries } from './modules/partition-classify-entries.ts';
+import { findChatlogFilePaths, loadClassifyEntries } from './modules/find-buffer-entries.ts';
+import { partitionByPreclassify } from './modules/partition-classify-entries.ts';
 // types
 import type { ClassifyCache, ClassifyStats } from './types/classify.types.ts';
 // constants
@@ -49,15 +50,15 @@ export const main = async (argv?: string[]): Promise<void> => {
   const _config = buildConfig(argv ?? Deno.args);
 
   // 入力ディレクトリ確認
-  const _agentDir = resolveChatlogsDir({
+  const _originalLogsDir = resolveChatlogsDir({
     chatlogsDir: _config.chatlogsDir,
     agent: _config.agent,
     period: _config.period,
     addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
     override: _config.inputDir,
   });
-  if (!await dirExists(_agentDir)) {
-    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_agentDir}`);
+  if (!await dirExists(_originalLogsDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_originalLogsDir}`);
   }
 
   // プロジェクト辞書読み込み
@@ -72,34 +73,28 @@ export const main = async (argv?: string[]): Promise<void> => {
   if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
   logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
 
-  // 対象ディレクトリ
-  const _searchDir = resolveChatlogsDir({
-    chatlogsDir: _config.chatlogsDir,
-    agent: _config.agent,
-    period: _config.period,
-    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-    override: _config.inputDir,
-  });
-
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
 
-  // 判定結果キャッシュ
-  const _cache = new ChatlogCache<ClassifyCache>('classify-cache');
-  await _cache.ready;
-
-  // Step 1: バッファ取得 + AI なし事前分類 + キャッシュ振り分け
-  const _partition = await partitionClassifyEntries(_searchDir, _cache);
-  if (_partition.filePaths.length === 0) {
+  // Step 0: ファイルリスト、キャッシュ取得
+  const _filePaths = await findChatlogFilePaths(_originalLogsDir);
+  if (_filePaths.length === 0) {
     logger.info('対象ファイルなし');
     logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
     return;
   }
+  // 判定結果キャッシュ
+  const _cache = new ChatlogCache<ClassifyCache>('classify-cache');
+  await _cache.ready;
+
+  // Step 1: 分類候補エントリの読み込みと事前分類
+  const _loaded = await loadClassifyEntries(_filePaths, _cache);
+  const _partition = await partitionByPreclassify(_loaded, _cache);
 
   // Step 2: 分類（AI あり）
   await classifyByAI(_partition.uncached, projects, _config, _cache);
 
   // Step 3: ファイル移動
-  await applyClassifications(_partition.filePaths, _partition.entries, _cache, _searchDir, _config.dryRun, stats);
+  await applyClassifications(_partition.entries, _cache, _originalLogsDir, _config.dryRun, stats);
 
   // サマリー
   const drySuffix = _config.dryRun ? ' (dry-run)' : '';
