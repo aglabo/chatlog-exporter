@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/integration/move-classified.integration.spec.ts
+// src: scripts/phases/__tests__/integration/move-classified.integration.spec.ts
 // @(#): applyClassifications の統合テスト（classifyFile 実失敗の伝播・キャッシュ削除）
 //       対象: applyClassifications
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { applyClassifications } from '../../file-ops.ts';
+import { applyClassifications } from '../../phase-write.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
@@ -136,27 +136,10 @@ describe('applyClassifications', () => {
     });
   });
 
-  describe('Given: キャッシュに SKIP/ERROR が登録済みのエントリと dryRun=false', () => {
+  describe('Given: キャッシュに ERROR（project なし）が登録済みのエントリと dryRun=false', () => {
     describe('When: applyClassifications(entries, cache, destDir, false, stats) を呼び出す', () => {
-      describe('Then: T-CL-MC-12 - SKIP/ERROR はキャッシュが削除されず残る', () => {
-        it('T-CL-MC-12-01: action=skip のキャッシュエントリは削除されない', async () => {
-          const _cache = await _makeEmptyClassifyCache();
-          const skipEntry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: `${tempDir}/skip.md` });
-          await _cache.write(`${tempDir}/skip.md`, { project: 'app1', action: CLASSIFY_ACTIONS.SKIP });
-          const _stats = _makeStats();
-
-          await applyClassifications(
-            [skipEntry],
-            _cache,
-            `${tempDir}/out`,
-            false,
-            _stats,
-          );
-
-          assertEquals(_cache.read(`${tempDir}/skip.md`).action, CLASSIFY_ACTIONS.SKIP);
-        });
-
-        it('T-CL-MC-12-02: action=error のキャッシュエントリは削除されない', async () => {
+      describe('Then: T-CL-MC-12 - project の有無で move/remaining が決まる', () => {
+        it('T-CL-MC-12-02: action=error, project なし → remaining 扱いでキャッシュは削除されない', async () => {
           const _cache = await _makeEmptyClassifyCache();
           const errorEntry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: `${tempDir}/error.md` });
           await _cache.write(`${tempDir}/error.md`, { action: CLASSIFY_ACTIONS.ERROR, reason: 'AI 分類失敗' });
