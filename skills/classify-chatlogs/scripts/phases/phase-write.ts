@@ -1,4 +1,4 @@
-// src: scripts/modules/file-ops.ts
+// src: scripts/phases/phase-write.ts
 // @(#): classify-chatlogs ファイル移動モジュール
 //       対象: classifyFile / applyClassifications
 //
@@ -89,15 +89,15 @@ const _applyMove = async (
 };
 
 /**
- * 分類結果キャッシュに基づき、各ファイルへ実際の処理（ファイル移動またはスキップ）を適用する。
- * - `action === 'move'` → `classifyFile` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
- *   - `project` が `undefined` の場合は `FALLBACK_PROJECT` へ補完する
+ * 分類結果キャッシュに基づき、各ファイルへ実際の処理（ファイル移動または保留）を適用する。
+ *
+ * `entries` は未分類（今回処理対象）のファイル集合であるため、判定は `cached.project` の
+ * 有無のみによる二値判定とする（`action` の値は move/remaining の判定には使わない）。
+ *
+ * - `cached.project` が truthy → `classifyFile` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
  *   - `dryRun === false` で移動成功時はキャッシュエントリを削除する
- * - `action === 'move-by-ai'` → 同上、`stats.movedByAI` をインクリメントする
- * - `action === 'skip'` → `stats.skipped++` のみ（ファイル移動なし）、ログ出力
- * - `action === 'remaining'` → `stats.remaining++`（ログなし）
- * - `action === 'error'` → `stats.error++`（ファイル移動なし）、警告ログ出力
- * - それ以外（`undefined` 等）→ `stats.remaining++`（ログなし）
+ *   - `action === 'move-by-ai'` のときのみ `stats.movedByAI` を、それ以外は `stats.moved` をインクリメントする
+ * - `cached.project` が falsy → `stats.remaining++`（ログなし）
  */
 export const applyClassifications = async (
   entries: ChatlogEntry[],
@@ -109,25 +109,13 @@ export const applyClassifications = async (
   await Promise.all(entries.map(async (entry) => {
     const filePath = entry.filePath!;
     const cached = cache.read(filePath);
-    const action = cached.action ?? CLASSIFY_ACTIONS.REMAINING;
-    switch (action) {
-      case CLASSIFY_ACTIONS.SKIP:
-        logger.info(`  skipped (分類済み: ${cached.project}): ${filePath}`);
-        stats.skipped++;
-        break;
-      case CLASSIFY_ACTIONS.REMAINING:
-        stats.remaining++;
-        break;
-      case CLASSIFY_ACTIONS.ERROR:
-        logger.warn(`  AI 分類失敗: ${filePath}`);
-        stats.error++;
-        break;
-      case CLASSIFY_ACTIONS.MOVE:
-        await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, 'moved');
-        break;
-      case CLASSIFY_ACTIONS.MOVEBYAI:
-        await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, 'movedByAI');
-        break;
+
+    if (!cached.project) {
+      stats.remaining++;
+      return;
     }
+
+    const movedCounter = cached.action === CLASSIFY_ACTIONS.MOVEBYAI ? 'movedByAI' : 'moved';
+    await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, movedCounter);
   }));
 };
