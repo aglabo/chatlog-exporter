@@ -457,3 +457,56 @@ describe('main (noise-filter) - 存在しない inputDir', () => {
     });
   });
 });
+
+// ─── T-PF-E2E-22: frontmatter パースエラー → 削除されず stats.error に計上される ──
+
+/**
+ * `main` 関数（noise-filter）の E2E テストスイート（読み込み失敗ファイルの削除防止）。
+ *
+ * frontmatter の YAML 構文が不正なファイルは `ChatlogEntry` の読み込みに失敗するため、
+ * `prefilterFiles`/`processNoiseFiles` には渡さず削除しないことを検証する。
+ * （読み込み失敗を空 content の `ChatlogEntry` として渡すと「本文が空」で誤って DISCARD 判定・
+ * 削除されてしまうため、この分離が実在ファイルの誤削除を防ぐ安全装置になっている。）
+ *
+ * テスト ID 範囲: T-PF-E2E-22
+ *
+ * @see main
+ */
+describe('main (noise-filter) - 読み込み失敗ファイルの削除防止', () => {
+  /** 正常ファイルと frontmatter の YAML 構文が不正なファイルが混在するディレクトリの前提。 */
+  describe('Given: 正常ファイルと frontmatter の YAML 構文が不正なファイルが混在するディレクトリ', () => {
+    /** `main(["claude", "--input-dir", chatlogsDir])` を通常モードで呼び出すとき。 */
+    describe('When: main(["claude", "--input-dir", chatlogsDir]) を呼び出す', () => {
+      /** パースエラーのファイルは削除されず、stats.error に計上されること。 */
+      describe('Then: T-PF-E2E-22 - パースエラーのファイルが削除されず stats.error が加算される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it('T-PF-E2E-22-01: frontmatter が不正なファイルは削除されずに残り、完了ログに error=1 が含まれる', async () => {
+          const brokenPath = `${chatlogsDir}/broken.md`;
+          const validPath = `${chatlogsDir}/valid-chat.md`;
+          await Deno.writeTextFile(brokenPath, `---\ntitle: [unclosed\n---\n\n### User\nHello\n`);
+          await Deno.writeTextFile(validPath, _makeValidContent());
+
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          assertEquals(await fileExists(brokenPath), true);
+          assertEquals(await fileExists(validPath), true);
+          assertEquals(loggerStub.infoLogs.some((line) => line.includes('error=1')), true);
+        });
+      });
+    });
+  });
+});
