@@ -9,7 +9,7 @@
 // cspell:words sess
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertNotEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 
@@ -303,6 +303,55 @@ describe('parseClaudeSession', () => {
           const assistantText = result!.turns[1].content;
           assertEquals(assistantText.includes('前半'), true);
           assertEquals(assistantText.includes('後半'), true);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PC-07: sessionId 欠落 → 一意な代替値が生成される ────────────────
+
+  /**
+   * sessionId が欠落した2つのセッションをパースするシナリオ。
+   * 同日・同slugのセッションで sessionId が欠落すると、単純な固定値フォールバックでは
+   * 出力ファイル名が衝突しキャッシュが誤って共有されてしまう。
+   * `resolveSessionId` により、欠落時は呼び出しごとに異なる代替値が生成されることを確認する。
+   */
+  describe('Given: sessionId が欠落した2つのJSONLセッション', () => {
+    /** `parseClaudeSession(filePath, allPeriod)` を各ファイルに対して呼び出したときの結果を検証する。 */
+    describe('When: 2つのファイルをそれぞれ parseClaudeSession(filePath, allPeriod) でパースする', () => {
+      let filePathA: string;
+      let filePathB: string;
+
+      beforeEach(async () => {
+        filePathA = `${tempDir}/missing-session-id-a.jsonl`;
+        filePathB = `${tempDir}/missing-session-id-b.jsonl`;
+        const _makeEntries = () => [
+          {
+            type: 'user',
+            isMeta: false,
+            timestamp: '2026-03-15T10:00:00.000Z',
+            cwd: '/home/user/projects/my-app',
+            message: { id: 'msg-u-001', content: [{ type: 'text', text: '質問です' }] },
+          },
+          {
+            type: 'assistant',
+            isMeta: false,
+            timestamp: '2026-03-15T10:00:05.000Z',
+            message: { id: 'msg-a-001', content: [{ type: 'text', text: '回答です。' }] },
+          },
+        ];
+        await writeJsonl(filePathA, _makeEntries());
+        await writeJsonl(filePathB, _makeEntries());
+      });
+
+      /** T-EC-PC-07: 2セッションの meta.sessionId が異なる値になる */
+      describe('Then: T-EC-PC-07 - 2セッションの meta.sessionId が異なる値になる', () => {
+        it('T-EC-PC-07-01: sessionA と sessionB の meta.sessionId が異なる（出力ファイル名衝突を回避する）', async () => {
+          const sessionA = await parseClaudeSession(filePathA, ALL_PERIOD);
+          const sessionB = await parseClaudeSession(filePathB, ALL_PERIOD);
+          assertNotNull(sessionA);
+          assertNotNull(sessionB);
+          assertNotEquals(sessionA!.meta.sessionId, sessionB!.meta.sessionId);
         });
       });
     });
