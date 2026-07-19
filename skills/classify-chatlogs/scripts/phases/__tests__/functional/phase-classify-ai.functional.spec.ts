@@ -185,6 +185,26 @@ describe('classifyByAI', () => {
       assertEquals(counter.calls, 0);
       assertEquals(loggerStub.infoLogs.length, 0);
     });
+
+    it('[Edge] T-CL-CBA-06-04: dryRun=true・concurrency=2・targets=5件 → cache.write の同時実行数のピークが concurrency を超えない', async () => {
+      let current = 0;
+      let peak = 0;
+      const originalWrite = cache.write.bind(cache);
+      cache.write = async (filePath, data) => {
+        current++;
+        peak = Math.max(peak, current);
+        await originalWrite(filePath, data);
+        current--;
+      };
+
+      const targets: ChatlogEntry[] = ['a.md', 'b.md', 'c.md', 'd.md', 'e.md'].map((filename) =>
+        _makeClassifyChatlogEntry(filename)
+      );
+
+      await classifyByAI(targets, _PROJECTS, _makeConfig({ concurrency: 2 }), cache, true);
+
+      assertEquals(peak <= 2, true);
+    });
   });
 
   /**
