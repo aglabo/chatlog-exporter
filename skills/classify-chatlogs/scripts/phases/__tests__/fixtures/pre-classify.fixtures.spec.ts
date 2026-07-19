@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/fixtures/pre-classify.fixtures.spec.ts
+// src: scripts/phases/__tests__/fixtures/pre-classify.fixtures.spec.ts
 // @(#): classifyByNoAI fixtures テスト（純粋関数ベース、AI 不要）
 //       対象: classifyByNoAI
 //
@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Test target
-import { classifyByNoAI } from '../../classify-noai.ts';
+import { classifyByNoAI } from '../../phase-classify-noai.ts';
 
 // ─── Helpers
 // types
