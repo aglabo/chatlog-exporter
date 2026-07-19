@@ -1,4 +1,4 @@
-// src: scripts/modules/classify-noai.ts
+// src: scripts/phases/phase-classify-noai.ts
 // @(#): classify-chatlogs AI なし事前分類モジュール
 //       対象: classifyByNoAI / processClassifyNoAI
 //
