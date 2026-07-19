@@ -1,6 +1,6 @@
 // src: scripts/phases/phase-write.ts
 // @(#): classify-chatlogs ファイル移動モジュール
-//       対象: classifyFile / applyClassifications
+//       対象: moveChatlogEntry / applyClassifications
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -33,7 +33,7 @@ export const resolveProject = (project: string | undefined): string => project ?
  * - `dryRun` が `true` の場合は移動せず `{ action: MOVE, message }` を返す。
  * - 移動エラーは `{ action: ERROR, message }` を返す（スローしない）。
  */
-export const classifyFile = async (
+export const moveChatlogEntry = async (
   classifyEntry: ChatlogEntry,
   project: string | undefined,
   destDir: string,
@@ -75,7 +75,7 @@ const _applyMove = async (
   stats: ClassifyStats,
   movedCounter: 'moved' | 'movedByAI',
 ): Promise<void> => {
-  const _result = await classifyFile(entry, cached.project, destDir, dryRun);
+  const _result = await moveChatlogEntry(entry, cached.project, destDir, dryRun);
   if (_result.action !== CLASSIFY_ACTIONS.MOVE) {
     logger.error(_result.message);
     stats.error++;
@@ -94,7 +94,7 @@ const _applyMove = async (
  * `entries` は未分類（今回処理対象）のファイル集合であるため、判定は `cached.project` の
  * 有無のみによる二値判定とする（`action` の値は move/remaining の判定には使わない）。
  *
- * - `cached.project` が truthy → `classifyFile` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
+ * - `cached.project` が truthy → `moveChatlogEntry` を呼び出してファイルを移動する（移動先: `destDir/{project}/`）
  *   - `dryRun === false` で移動成功時はキャッシュエントリを削除する
  *   - `action === 'move-by-ai'` のときのみ `stats.movedByAI` を、それ以外は `stats.moved` をインクリメントする
  * - `cached.project` が falsy → `stats.remaining++`（ログなし）

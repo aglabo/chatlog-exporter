@@ -1,5 +1,5 @@
-// src: scripts/phases/__tests__/integration/classify-file.integration.spec.ts
-// @(#): classifyFile の統合テスト（正常移動・移動失敗 分岐）
+// src: scripts/phases/__tests__/integration/move-chatlog-entry.integration.spec.ts
+// @(#): moveChatlogEntry の統合テスト（正常移動・移動失敗 分岐）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,7 +10,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyFile } from '../../phase-write.ts';
+import { moveChatlogEntry } from '../../phase-write.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
@@ -29,7 +29,7 @@ const _SRC_FILENAME = 'a.md';
 
 // ─── Tests
 
-describe('classifyFile', () => {
+describe('moveChatlogEntry', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -52,41 +52,41 @@ describe('classifyFile', () => {
       entry = new ChatlogEntry(_FILE_CONTENT, { filePath: srcPath });
     });
 
-    describe('When: classifyFile(entry, "app1", tempDir, false) を呼び出す', () => {
+    describe('When: moveChatlogEntry(entry, "app1", tempDir, false) を呼び出す', () => {
       describe('Then: T-CL-CF-02 - ファイルが app1/ サブディレクトリへ移動される', () => {
         it('T-CL-CF-02-04: action が MOVE になる', async () => {
-          const _result = await classifyFile(entry, 'app1', tempDir, false);
+          const _result = await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(_result.action, CLASSIFY_ACTIONS.MOVE);
         });
 
         it('T-CL-CF-02-06: dstDir（tempDir/app1）が存在する', async () => {
-          await classifyFile(entry, 'app1', tempDir, false);
+          await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(await dirExists(`${tempDir}/app1`), true);
         });
 
         it('T-CL-CF-02-01: dstPath にファイルが存在する', async () => {
-          await classifyFile(entry, 'app1', tempDir, false);
+          await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(await fileExists(`${tempDir}/app1/${_SRC_FILENAME}`), true);
         });
 
         it('T-CL-CF-02-02: srcPath が存在しない', async () => {
-          await classifyFile(entry, 'app1', tempDir, false);
+          await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(await fileOrDirExists(srcPath), false, 'srcPath がまだ存在する');
         });
 
         it('T-CL-CF-02-03: dstPath のテキストに "project: app1" が含まれる', async () => {
-          await classifyFile(entry, 'app1', tempDir, false);
+          await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           const _dstText = await readTextFile(`${tempDir}/app1/${_SRC_FILENAME}`);
           assertStringIncludes(_dstText, 'project: "app1"');
         });
 
         it('T-CL-CF-02-05: message に "moved:" が含まれる', async () => {
-          const _result = await classifyFile(entry, 'app1', tempDir, false);
+          const _result = await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertStringIncludes(_result.message, 'moved:');
         });
@@ -106,26 +106,26 @@ describe('classifyFile', () => {
       );
     });
 
-    describe('When: classifyFile(entry, "app1", tempDir, false) を呼び出す（srcPath 不在）', () => {
+    describe('When: moveChatlogEntry(entry, "app1", tempDir, false) を呼び出す（srcPath 不在）', () => {
       describe('Then: T-CL-CF-03 - 例外なしで action が ERROR になる', () => {
         it('T-CL-CF-03-01: 例外がスローされない', async () => {
-          await classifyFile(entry, 'app1', tempDir, false);
+          await moveChatlogEntry(entry, 'app1', tempDir, false);
         });
 
         it('T-CL-CF-03-02: action が ERROR になる', async () => {
-          const _result = await classifyFile(entry, 'app1', tempDir, false);
+          const _result = await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(_result.action, CLASSIFY_ACTIONS.ERROR);
         });
 
         it('T-CL-CF-03-03: message に "move failed:" が含まれる', async () => {
-          const _result = await classifyFile(entry, 'app1', tempDir, false);
+          const _result = await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertStringIncludes(_result.message, 'move failed:');
         });
 
         it('T-CL-CF-03-04: action が MOVE でない', async () => {
-          const _result = await classifyFile(entry, 'app1', tempDir, false);
+          const _result = await moveChatlogEntry(entry, 'app1', tempDir, false);
 
           assertEquals(_result.action !== CLASSIFY_ACTIONS.MOVE, true);
         });

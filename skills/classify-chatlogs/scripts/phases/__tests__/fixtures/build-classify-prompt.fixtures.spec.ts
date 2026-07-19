@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/fixtures/build-classify-prompt.fixtures.spec.ts
+// src: scripts/phases/__tests__/fixtures/build-classify-prompt.fixtures.spec.ts
 // @(#): buildClassifyPrompt fixtures テスト（純粋関数ベース、AI 不要）
 //       対象: buildClassifyPrompt
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { buildClassifyPrompt } from '../../classify-ai.ts';
+import { buildClassifyPrompt } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 // classes

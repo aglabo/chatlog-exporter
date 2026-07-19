@@ -1,4 +1,4 @@
-// src: scripts/modules/partition-classify-entries.ts
+// src: scripts/phases/phase-partition.ts
 // @(#): classify-chatlogs 分類候補エントリ分割モジュール
 //       対象: partitionEntries
 //

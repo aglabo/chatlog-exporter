@@ -1,19 +1,14 @@
-// src: scripts/modules/find-buffer-entries.ts
-// @(#): classify-chatlogs バッファエントリ収集モジュール
-//       対象: findChatlogFilePaths, loadClassifyEntries
+// src: scripts/libs/load-entries.ts
+// @(#): classify-chatlogs バッファエントリ読み込みユーティリティ
+//       対象: loadClassifyEntries
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// cspell:word noai
-
-// ─── Shared scripts
-import { findFilesFlat } from '../../../_scripts/libs/file-ops/find-files.ts';
-
 // ─── Local
-import { loadClassifyEntry } from '../libs/load-classify-entry.ts';
+import { loadClassifyEntry } from './load-classify-entry.ts';
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -27,12 +22,6 @@ const _getExistingProject = (entry: ChatlogEntry): string | undefined => {
   const _project = entry?.frontmatter.get('project');
   return typeof _project === 'string' && _project ? _project : undefined;
 };
-
-/**
- * ディレクトリ直下（1階層目）の `.md` ファイルパス一覧を収集する。
- */
-export const findChatlogFilePaths = (dir: string, opts?: FindBufferEntriesOptions): Promise<string[]> =>
-  findFilesFlat(dir, { ext: '.md', glob: opts?.glob });
 
 /**
  * ファイルパス一覧からエントリを読み込み、成功分（`entries`）と失敗分（`errors`）に分離して返す。

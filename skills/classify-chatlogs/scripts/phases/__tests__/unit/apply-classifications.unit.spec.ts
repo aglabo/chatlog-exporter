@@ -1,4 +1,4 @@
-// src: scripts/phases/__tests__/unit/move-classified.unit.spec.ts
+// src: scripts/phases/__tests__/unit/apply-classifications.unit.spec.ts
 // @(#): applyClassifications の単体テスト
 //       対象: applyClassifications
 //
@@ -152,10 +152,10 @@ describe('applyClassifications', () => {
   });
 
   /**
-   * 正常系: classifyFile の呼び出し確認（dryRun=true を利用した実際呼び出し）。
+   * 正常系: moveChatlogEntry の呼び出し確認（dryRun=true を利用した実際呼び出し）。
    */
-  describe('When: 正常系 (classifyFile 実呼び出し)', () => {
-    it('[Normal] T-CL-MC-02: action=move → classifyFile 呼び出し（stats.moved がインクリメントされる）', async () => {
+  describe('When: 正常系 (moveChatlogEntry 実呼び出し)', () => {
+    it('[Normal] T-CL-MC-02: action=move → moveChatlogEntry 呼び出し（stats.moved がインクリメントされる）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
@@ -175,7 +175,7 @@ describe('applyClassifications', () => {
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-03: action=MOVEBYAI → classifyFile 呼び出し（stats.movedByAI がインクリメントされる）', async () => {
+    it('[Normal] T-CL-MC-03: action=MOVEBYAI → moveChatlogEntry 呼び出し（stats.movedByAI がインクリメントされる）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVEBYAI });
@@ -242,7 +242,7 @@ describe('applyClassifications', () => {
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
       const _stats = _makeStats();
 
-      // dryRun=true で classifyFile 呼び出しのみ確認（実ファイル操作はしない）。
+      // dryRun=true で moveChatlogEntry 呼び出しのみ確認（実ファイル操作はしない）。
       // 実削除の検証は integration テストで実施する。
       await applyClassifications(
         [_entry],

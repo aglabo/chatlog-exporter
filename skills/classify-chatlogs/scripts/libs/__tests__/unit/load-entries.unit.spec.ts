@@ -1,6 +1,6 @@
-// src: scripts/modules/__tests__/unit/find-buffer-entries.unit.spec.ts
-// @(#): findChatlogFilePaths / loadClassifyEntries の単体テスト
-//       対象: findChatlogFilePaths, loadClassifyEntries
+// src: scripts/libs/__tests__/unit/load-entries.unit.spec.ts
+// @(#): loadClassifyEntries の単体テスト
+//       対象: loadClassifyEntries
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { findChatlogFilePaths, loadClassifyEntries } from '../../find-buffer-entries.ts';
+import { loadClassifyEntries } from '../../load-entries.ts';
 
 // ─── Helpers
 // types
@@ -29,16 +29,6 @@ import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers
 // functions
 
 /**
- * `opts.glob` 用のスタブを生成する。
- *
- * 渡された `paths` を、glob パターン引数を無視してそのまま返す。
- *
- * @param paths - 返却するファイルパス配列
- * @returns `GlobProvider` 互換のスタブ関数
- */
-const _makeGlob = (paths: string[]): FindBufferEntriesOptions['glob'] => (_pattern: string) => Promise.resolve(paths);
-
-/**
  * エラーとして扱う `LoadClassifyEntryFailure` を生成する。
  * `loadMeta` スタブが読み込み失敗を表現するために使う。
  *
@@ -51,35 +41,6 @@ const _makeErrorResult = (path: string): LoadClassifyEntryFailure => ({
 });
 
 // ─── Tests
-
-/**
- * `findChatlogFilePaths` のユニットテストスイート。
- *
- * ディレクトリ直下の `.md` ファイルパス一覧取得を検証する。
- *
- * テスト ID 範囲: T-CL-FCP-01 〜 T-CL-FCP-02
- *
- * @see findChatlogFilePaths
- */
-describe('findChatlogFilePaths', () => {
-  describe('When: 正常系', () => {
-    it('[Normal] T-CL-FCP-01: glob が複数パスを返す → そのままファイルパス配列として返る', async () => {
-      const _paths = ['/tmp/input/a.md', '/tmp/input/b.md'];
-
-      const _result = await findChatlogFilePaths('/tmp/input', { glob: _makeGlob(_paths) });
-
-      assertEquals(_result, _paths);
-    });
-  });
-
-  describe('When: エッジケース', () => {
-    it('[Edge] T-CL-FCP-02: 対象ディレクトリに .md ファイルが1件もない → 空配列が返る', async () => {
-      const _result = await findChatlogFilePaths('/tmp/input', { glob: _makeGlob([]) });
-
-      assertEquals(_result, []);
-    });
-  });
-});
 
 /**
  * `loadClassifyEntries` のユニットテストスイート。

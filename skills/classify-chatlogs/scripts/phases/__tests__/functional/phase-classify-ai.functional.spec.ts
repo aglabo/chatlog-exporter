@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/functional/classify-by-ai.functional.spec.ts
+// src: scripts/phases/__tests__/functional/phase-classify-ai.functional.spec.ts
 // @(#): classifyByAI の機能テスト
 //       runChunked 分割実行 → cache 書き込みのフロー（Deno.Command モック）
 //
@@ -13,7 +13,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyByAI } from '../../classify-ai.ts';
+import { classifyByAI } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 // types

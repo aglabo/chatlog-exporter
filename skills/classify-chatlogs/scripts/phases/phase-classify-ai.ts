@@ -1,4 +1,4 @@
-// src: scripts/modules/classify-ai.ts
+// src: scripts/phases/phase-classify-ai.ts
 // @(#): classify-chatlogs AI プロンプト構築・AI 分類処理モジュール
 //       対象: buildClassifyPrompt / buildSystemPrompt / processChunk / classifyFiles
 //
