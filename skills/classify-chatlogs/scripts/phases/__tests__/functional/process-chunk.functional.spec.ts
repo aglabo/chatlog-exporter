@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/functional/process-chunk.functional.spec.ts
+// src: scripts/phases/__tests__/functional/process-chunk.functional.spec.ts
 // @(#): processChunk の機能テスト
 //       runClaude + バッファ返しのフロー（Deno.Command モック）
 //
@@ -13,7 +13,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { processChunk } from '../../classify-ai.ts';
+import { processChunk } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 // types
