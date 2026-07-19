@@ -58,7 +58,9 @@ import { prefilterFiles } from './modules/prefilter.ts';
 // ─────────────────────────────────────────────
 
 export const main = async (args: string[] = Deno.args): Promise<void> => {
-  const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars } = buildConfig(args);
+  const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars, concurrency } = buildConfig(
+    args,
+  );
   const _searchDir = resolveChatlogsDir({
     chatlogsDir,
     agent,
@@ -81,7 +83,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
 
   // 候補ファイルを読み込む。読み込み失敗（ファイル I/O・frontmatter パースエラー等）は errors に分離され、
   // 誤って削除しないよう prefilterFiles/processNoiseFiles には渡らない
-  const { entries, errors } = await loadFilterEntries(files);
+  const { entries, errors } = await loadFilterEntries(files, undefined, concurrency);
   if (errors.length > 0) {
     stats.error += errors.length;
     errors.forEach(({ filePath, error }) => logger.error(`  読み込み失敗 (${error.message}): ${filePath}`));

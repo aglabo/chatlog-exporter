@@ -128,7 +128,7 @@ export const main = async (args?: string[]): Promise<void> => {
 
   // 候補ファイルを読み込む。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
   // 誤って削除しないよう内容判定・claude CLI判定（prefilterFiles）には渡らない
-  const { entries, errors } = await loadFilterEntries(_targetEntries, _cache);
+  const { entries, errors } = await loadFilterEntries(_targetEntries, _cache, _config.concurrency);
   if (errors.length > 0) {
     stats.error += errors.length;
     errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));

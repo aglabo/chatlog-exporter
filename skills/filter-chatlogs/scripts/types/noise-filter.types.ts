@@ -22,6 +22,8 @@ export type NoiseFilterConfig = DefaultArgFields & {
   minCharCount: number;
   /** User ターンが 1 件のとき、Assistant 応答の最小文字数（GlobalConfig の minAssistantChars 由来）。 */
   minAssistantChars: number;
+  /** 同時実行する読み込み処理の最大並列数。 */
+  concurrency: number;
 };
 
 /** `noise-filter-chatlogs` の `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */
