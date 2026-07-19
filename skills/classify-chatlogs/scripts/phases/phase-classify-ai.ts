@@ -12,7 +12,7 @@
 // ─── Shared scripts
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { runChunked, runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Local
@@ -164,7 +164,11 @@ export const classifyByAI = async (
   if (targets.length === 0) { return; }
 
   if (dryRun) {
-    await Promise.all(targets.map((f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.SKIP })));
+    await runConcurrent(
+      targets,
+      (f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.SKIP }),
+      config.concurrency,
+    );
     logger.info(`[dry-run] AI 分類をスキップします（project は設定されません）: ${targets.length}件`);
     return;
   }
