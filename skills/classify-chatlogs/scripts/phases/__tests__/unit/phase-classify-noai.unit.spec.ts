@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/classify-noai.unit.spec.ts
+// src: scripts/phases/__tests__/unit/phase-classify-noai.unit.spec.ts
 // @(#): classifyByNoAI / processClassifyNoAI の単体テスト
 //       対象: classifyByNoAI / processClassifyNoAI
 //
@@ -14,7 +14,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { classifyByNoAI, processClassifyNoAI } from '../../classify-noai.ts';
+import { classifyByNoAI, processClassifyNoAI } from '../../phase-classify-noai.ts';
 
 // ─── Helpers
 // types
