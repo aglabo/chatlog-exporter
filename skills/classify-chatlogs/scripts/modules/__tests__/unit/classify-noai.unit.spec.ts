@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/classify-noai.unit.spec.ts
-// @(#): preClassify / processPreclassify の単体テスト
-//       対象: preClassify / processPreclassify
+// @(#): classifyByNoAI / processClassifyNoAI の単体テスト
+//       対象: classifyByNoAI / processClassifyNoAI
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,7 +14,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { preClassify, processPreclassify } from '../../classify-noai.ts';
+import { classifyByNoAI, processClassifyNoAI } from '../../classify-noai.ts';
 
 // ─── Helpers
 // types
@@ -29,37 +29,26 @@ import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers
 // ─── Tests
 
 /**
- * `preClassify` のユニットテストスイート。
+ * `classifyByNoAI` のユニットテストスイート。
  *
  * frontmatter の `project` フィールドと本文長に基づく事前分類ロジックを検証する。
  * `ChatlogEntry` と `cache` を受け取り、判定結果を `cache.write` に書き込む。
  *
- * テスト ID 範囲: T-CL-PRE-01 〜 T-CL-PRE-05
+ * テスト ID 範囲: T-CL-PRE-02 〜 T-CL-PRE-05
  *
- * @see preClassify
+ * @see classifyByNoAI
  */
-describe('preClassify', () => {
+describe('classifyByNoAI', () => {
   /**
    * 正常系: frontmatter の `project` フィールドが存在する場合の分岐テスト。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-CL-PRE-01: project フィールドあり + 既に正しいディレクトリ内 → cache: action=skip, project', async () => {
-      const _filePath = '/tmp/chatlogs/app1/test.md';
-      const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文テキスト');
-      const cache = await _makeEmptyClassifyCache();
-
-      await preClassify(_entry, cache);
-
-      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.SKIP);
-      assertEquals(cache.read(_filePath).project, 'app1');
-    });
-
-    it('[Normal] T-CL-PRE-02: project フィールドあり + ディレクトリが違う → cache: action=move, project', async () => {
+    it('[Normal] T-CL-PRE-02: project フィールドあり → cache: action=move, project', async () => {
       const _filePath = '/tmp/chatlogs/test.md';
       const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文テキスト');
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify(_entry, cache);
+      await classifyByNoAI(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, 'app1');
@@ -70,7 +59,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, {}, 'short');
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify(_entry, cache);
+      await classifyByNoAI(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, FALLBACK_PROJECT);
@@ -85,7 +74,7 @@ describe('preClassify', () => {
       );
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify(_entry, cache);
+      await classifyByNoAI(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -96,7 +85,7 @@ describe('preClassify', () => {
       const _entry = _makeEntry(_filePath, {}, _longContent);
       const cache = await _makeEmptyClassifyCache();
 
-      await preClassify(_entry, cache);
+      await classifyByNoAI(_entry, cache);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
     });
@@ -104,21 +93,22 @@ describe('preClassify', () => {
 });
 
 /**
- * `processPreclassify` のユニットテストスイート。
+ * `processClassifyNoAI` のユニットテストスイート。
  *
- * `ChatlogEntry[]` と `cache` を渡し、各エントリに `preClassify` を適用した
- * 結果が `cache` に書き込まれることを検証する。
+ * `ChatlogEntry[]` と `cache` を渡し、各エントリに `classifyByNoAI` を適用した上で、
+ * 判定結果（cache の `action`）に基づき `move`（AI 不要で project 確定済み）と
+ * `remaining`（AI 分類が必要）に分割することを検証する。
  *
  * テスト ID 範囲: T-CL-PCL-01 〜 T-CL-PCL-03
  *
- * @see processPreclassify
+ * @see processClassifyNoAI
  */
-describe('processPreclassify', () => {
+describe('processClassifyNoAI', () => {
   /**
    * 正常系: project あり・なし・短すぎるファイルが混在する場合の分類結果テスト。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-CL-PCL-01: project あり・project なし・短すぎる混在 → それぞれ適切な action が cache に書き込まれる', async () => {
+    it('[Normal] T-CL-PCL-01: project あり・project なし・短すぎる混在 → move に確定済み2件、remaining に未確定1件', async () => {
       const _pathWithProject = '/tmp/dir/app1/a.md';
       const _pathShort = '/tmp/dir/b.md';
       const _pathLong = '/tmp/dir/c.md';
@@ -129,10 +119,12 @@ describe('processPreclassify', () => {
 
       const _buffer: ChatlogEntry[] = [_entryWithProject, _entryShort, _entryLong];
 
-      const _result = await processPreclassify(_buffer, cache);
+      const _result = await processClassifyNoAI(_buffer, cache);
 
-      assertEquals(_result.length, 3);
-      assertEquals(cache.read(_pathWithProject).action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(_result.move.length, 2);
+      assertEquals(_result.remaining.length, 1);
+      assertEquals(_result.remaining[0], _entryLong);
+      assertEquals(cache.read(_pathWithProject).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_pathWithProject).project, 'app1');
       assertEquals(cache.read(_pathShort).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_pathShort).project, FALLBACK_PROJECT);
@@ -144,16 +136,17 @@ describe('processPreclassify', () => {
    * エッジケース: 単一エントリのみの場合の動作テスト。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-CL-PCL-03: 単一エントリ（project あり）を渡す → cache に action=skip が書き込まれる', async () => {
+    it('[Edge] T-CL-PCL-03: 単一エントリ（project あり）を渡す → move に1件、remaining は空配列', async () => {
       const _filePath = '/tmp/dir/app1/a.md';
       const _entry = _makeEntry(_filePath, { project: 'app1' }, '本文');
       const _buffer: ChatlogEntry[] = [_entry];
       const cache = await _makeEmptyClassifyCache();
 
-      const _result = await processPreclassify(_buffer, cache);
+      const _result = await processClassifyNoAI(_buffer, cache);
 
-      assertEquals(_result.length, 1);
-      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(_result.move.length, 1);
+      assertEquals(_result.remaining.length, 0);
+      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, 'app1');
     });
   });

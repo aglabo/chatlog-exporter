@@ -234,10 +234,10 @@ describe('main - project 設定済みファイルの移動', () => {
           assertEquals(errLogs.some((l) => l.includes('moved=1')), true);
         });
 
-        it('T-CL-E2E-03-02: 完了ログに skipped=0 が含まれる', async () => {
+        it('T-CL-E2E-03-02: 完了ログに error=0 が含まれる', async () => {
           await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(errLogs.some((l) => l.includes('skipped=0')), true);
+          assertEquals(errLogs.some((l) => l.includes('error=0')), true);
         });
       });
     });
@@ -387,10 +387,10 @@ describe('main - サブディレクトリ内のファイルは走査対象外', 
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-09-01: 完了ログに moved=0 movedByAI=0 skipped=0 error=0 が含まれる（サブディレクトリは走査対象外）', async () => {
+        it('T-CL-E2E-09-01: 完了ログに moved=0 movedByAI=0 error=0 が含まれる（サブディレクトリは走査対象外）', async () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 skipped=0 error=0')), true);
+          assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 error=0')), true);
         });
 
         it('T-CL-E2E-09-02: app1/ 内のファイルは移動されず、そのまま残る', async () => {
@@ -411,7 +411,7 @@ describe('main - サブディレクトリ内のファイルは走査対象外', 
 describe('main - 対象ファイルなし', () => {
   describe('Given: .md ファイルが存在しない月別ディレクトリ', () => {
     describe('When: main([...args]) を呼び出す', () => {
-      describe('Then: T-CL-E2E-04 - moved=0 skipped=0 error=0 が出力される', () => {
+      describe('Then: T-CL-E2E-04 - moved=0 error=0 が出力される', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
@@ -446,10 +446,10 @@ describe('main - 対象ファイルなし', () => {
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-04-01: "moved=0 movedByAI=0 skipped=0 error=0" がログに出力される', async () => {
+        it('T-CL-E2E-04-01: "moved=0 movedByAI=0 error=0" がログに出力される', async () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 skipped=0 error=0')), true);
+          assertEquals(errLogs.some((l) => l.includes('moved=0 movedByAI=0 error=0')), true);
         });
       });
     });
@@ -501,12 +501,12 @@ describe('main - InputNotFound エラー', () => {
   });
 });
 
-// ─── T-CL-E2E-06: AI 失敗 → ファイルは移動せず error=1 ─────────────────────
+// ─── T-CL-E2E-06: AI 失敗 → ファイルは移動せず remaining=1 ─────────────────
 
 describe('main - AI 失敗フォールバック', () => {
   describe('Given: 1件の .md ファイルと CLI 失敗モック', () => {
     describe('When: main([...args]) を呼び出す（dryRun=false）', () => {
-      describe('Then: T-CL-E2E-06 - AI 失敗 → ファイルは移動せず error=1', () => {
+      describe('Then: T-CL-E2E-06 - AI 失敗 → project 未確定のためファイルは移動されず、次回実行に残る', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
@@ -545,13 +545,13 @@ describe('main - AI 失敗フォールバック', () => {
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
-        it('T-CL-E2E-06-02: 完了ログに error=1 が含まれる', async () => {
+        it('T-CL-E2E-06-02: 完了ログに moved=0 movedByAI=0 error=0 が含まれる（project 未確定のため remaining 扱い）', async () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(
-            errLogs.some((l) => l.includes('error=1')),
+            errLogs.some((l) => l.includes('moved=0 movedByAI=0 error=0')),
             true,
-            '完了ログに error=1 が含まれていない',
+            '完了ログに moved=0 movedByAI=0 error=0 が含まれていない',
           );
         });
       });

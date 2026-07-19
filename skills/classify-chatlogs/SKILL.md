@@ -78,7 +78,7 @@ deno run --allow-read --allow-run --allow-write "$SCRIPT_PATH" [agent] [YYYY-MM]
 
 通知形式:
 
-- moved / skipped / error の件数を報告
+- moved / movedByAI / error / remaining の件数を報告
 - dry-run モードの場合はその旨を明示する
 - 移動されたファイルの分類先プロジェクトを簡潔にまとめる
 

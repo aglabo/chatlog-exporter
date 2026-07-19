@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/move-classified.unit.spec.ts
+// src: scripts/phases/__tests__/unit/move-classified.unit.spec.ts
 // @(#): applyClassifications の単体テスト
 //       対象: applyClassifications
 //
@@ -14,13 +14,12 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { applyClassifications } from '../../file-ops.ts';
+import { applyClassifications } from '../../phase-write.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // constants
-import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
@@ -42,33 +41,12 @@ describe('applyClassifications', () => {
    * 正常系: 各 action の振る舞いテスト。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-CL-MC-01: action=skip → stats.skipped++ のみ、classifyFile 未呼び出し', async () => {
-      const _cache = await _makeEmptyClassifyCache();
-      const _entry = _makeEntry('/tmp/input/test.md');
-      await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.SKIP });
-      const _stats = _makeStats();
-
-      await applyClassifications(
-        [_entry],
-        _cache,
-        '/tmp/output',
-        false,
-        _stats,
-      );
-
-      assertEquals(_stats.skipped, 1);
-      assertEquals(_stats.moved, 0);
-      assertEquals(_stats.movedByAI, 0);
-      assertEquals(_stats.remaining, 0);
-    });
-
     it('[Normal] T-CL-MC-04: entries が空 → 何も起きない', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _stats = _makeStats();
 
       await applyClassifications([], _cache, '/tmp/output', false, _stats);
 
-      assertEquals(_stats.skipped, 0);
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
@@ -90,7 +68,6 @@ describe('applyClassifications', () => {
       );
 
       assertEquals(_stats.remaining, 1);
-      assertEquals(_stats.skipped, 0);
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
@@ -110,13 +87,50 @@ describe('applyClassifications', () => {
       );
 
       assertEquals(_stats.remaining, 1);
-      assertEquals(_stats.skipped, 0);
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
     });
 
-    it('[Normal] T-CL-MC-09: action=error → stats.error++ のみ、ファイル移動なし', async () => {
+    it('[Normal] T-CL-MC-14: action=empty, project あり → stats.moved++（project 由来の確定済みキャッシュとして移動される）', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _entry = _makeEntry('/tmp/input/test.md');
+      await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.EMPTY });
+      const _stats = _makeStats();
+
+      await applyClassifications(
+        [_entry],
+        _cache,
+        '/tmp/output',
+        true,
+        _stats,
+      );
+
+      assertEquals(_stats.moved, 1);
+      assertEquals(_stats.movedByAI, 0);
+      assertEquals(_stats.remaining, 0);
+    });
+
+    it('[Normal] T-CL-MC-15: action=undefined, project あり → stats.moved++（project 由来の確定済みキャッシュとして移動される）', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _entry = _makeEntry('/tmp/input/test.md');
+      await _cache.write('/tmp/input/test.md', { project: 'app1' });
+      const _stats = _makeStats();
+
+      await applyClassifications(
+        [_entry],
+        _cache,
+        '/tmp/output',
+        true,
+        _stats,
+      );
+
+      assertEquals(_stats.moved, 1);
+      assertEquals(_stats.movedByAI, 0);
+      assertEquals(_stats.remaining, 0);
+    });
+
+    it('[Normal] T-CL-MC-09: action=error, project なし → stats.remaining++ のみ、ファイル移動なし', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = new ChatlogEntry('', { filePath: '/tmp/input/broken.md' });
       await _cache.write('/tmp/input/broken.md', { action: CLASSIFY_ACTIONS.ERROR, reason: 'AI 分類失敗' });
@@ -130,11 +144,10 @@ describe('applyClassifications', () => {
         _stats,
       );
 
-      assertEquals(_stats.error, 1);
+      assertEquals(_stats.remaining, 1);
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
-      assertEquals(_stats.skipped, 0);
-      assertEquals(_stats.remaining, 0);
+      assertEquals(_stats.error, 0);
     });
   });
 
@@ -181,7 +194,7 @@ describe('applyClassifications', () => {
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-08: action=move, project=undefined → FALLBACK_PROJECT でファイル移動が実行される（dryRun=true）', async () => {
+    it('[Normal] T-CL-MC-08: action=move, project=undefined → project 未確定のため stats.remaining++', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: undefined, action: CLASSIFY_ACTIONS.MOVE });
@@ -195,11 +208,10 @@ describe('applyClassifications', () => {
         _stats,
       );
 
-      // project=undefined でも FALLBACK_PROJECT('misc') で dryRun 移動が実行され stats.moved がインクリメントされる
-      assertEquals(_stats.moved, 1, `FALLBACK_PROJECT=${FALLBACK_PROJECT} でファイル移動が実行されるはず`);
+      // project が未確定のため action=move でも移動されず stats.remaining がインクリメントされる
+      assertEquals(_stats.remaining, 1);
+      assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
-      assertEquals(_stats.remaining, 0);
-      assertEquals(_stats.skipped, 0);
       assertEquals(_stats.error, 0);
     });
 

@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/resolve-project.unit.spec.ts
+// src: scripts/phases/__tests__/unit/resolve-project.unit.spec.ts
 // @(#): resolveProject の単体テスト
 //       対象: resolveProject
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { resolveProject } from '../../file-ops.ts';
+import { resolveProject } from '../../phase-write.ts';
 
 // ─── Helpers
 // constants

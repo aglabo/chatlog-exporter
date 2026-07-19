@@ -22,6 +22,7 @@ import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
+import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 
@@ -29,9 +30,10 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig } from './modules/classify-config.ts';
-import { applyClassifications } from './modules/file-ops.ts';
+import { processClassifyNoAI } from './modules/classify-noai.ts';
 import { findChatlogFilePaths, loadClassifyEntries } from './modules/find-buffer-entries.ts';
-import { partitionByPreclassify } from './modules/partition-classify-entries.ts';
+import { partitionEntries } from './modules/partition-classify-entries.ts';
+import { applyClassifications } from './phases/phase-write.ts';
 // types
 import type { ClassifyCache, ClassifyStats } from './types/classify.types.ts';
 // constants
@@ -73,33 +75,49 @@ export const main = async (argv?: string[]): Promise<void> => {
   if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
   logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
 
-  const stats: ClassifyStats = { moved: 0, movedByAI: 0, skipped: 0, error: 0, remaining: 0 };
+  const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0 };
 
   // Step 0: ファイルリスト、キャッシュ取得
   const _filePaths = await findChatlogFilePaths(_originalLogsDir);
   if (_filePaths.length === 0) {
     logger.info('対象ファイルなし');
-    logger.info('完了: moved=0 movedByAI=0 skipped=0 error=0');
+    logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0');
     return;
   }
   // 判定結果キャッシュ
   const _cache = new ChatlogCache<ClassifyCache>('classify-cache');
   await _cache.ready;
 
-  // Step 1: 分類候補エントリの読み込みと事前分類
-  const _loaded = await loadClassifyEntries(_filePaths, _cache);
-  const _partition = await partitionByPreclassify(_loaded, _cache);
+  // Step 1: 分類候補エントリの読み込み。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
+  // 誤って処理を継続しないよう後続の事前分類・AI分類には渡らない
+  const { entries, errors } = await loadClassifyEntries(_filePaths, _cache);
+  if (errors.length > 0) {
+    stats.error += errors.length;
+    errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));
+  }
 
-  // Step 2: 分類（AI あり）
-  await classifyByAI(_partition.uncached, projects, _config, _cache);
+  // Step 2: キャッシュ済み/未キャッシュ分類
+  const _partition = partitionEntries(entries, _cache);
 
-  // Step 3: ファイル移動
-  await applyClassifications(_partition.entries, _cache, _originalLogsDir, _config.dryRun, stats);
+  // Step 3: 分類 (AI なし)
+  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache);
+
+  // Step 4: 分類（AI あり）
+  await classifyByAI(remaining, projects, _config, _cache);
+
+  // Step 5: ファイル移動
+  await applyClassifications(
+    [..._partition.cached, ..._partition.uncached],
+    _cache,
+    _originalLogsDir,
+    _config.dryRun,
+    stats,
+  );
 
   // サマリー
   const drySuffix = _config.dryRun ? ' (dry-run)' : '';
   logger.info(
-    `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} skipped=${stats.skipped} error=${stats.error}`,
+    `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} error=${stats.error} remaining=${stats.remaining}`,
   );
 };
 
