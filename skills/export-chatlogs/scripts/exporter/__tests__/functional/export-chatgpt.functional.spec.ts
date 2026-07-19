@@ -634,4 +634,77 @@ describe('exportChatGPT', () => {
       });
     });
   });
+
+  // ─── T-EC-GE-11: concurrency=1（直列相当）でも outputPaths の順序・件数が変わらない ─
+
+  /**
+   * concurrency 制限下での並列処理ケース。
+   * `config.concurrency=1` を指定して並列度を1に制限しても、
+   * outputPaths の内容・順序・件数が制限なし（Promise.all 相当）の場合と変わらないことを検証する。
+   */
+  describe('Given: id が "x"/"y"/"z" の会話を1件ずつ含む3ファイル、config.concurrency=1', () => {
+    /** `exportChatGPT` を呼び出したときの outputPaths の順序を検証する。 */
+    describe('When: exportChatGPT(config, providers) を呼び出す', () => {
+      it('T-EC-GE-11: outputPaths がファイル入力順 [x.md, y.md, z.md] で決定論的（concurrency=1）', async () => {
+        const convX: ChatGPTConversation = {
+          id: 'x',
+          conversation_id: 'conv-uuid-x',
+          create_time: 1742000000,
+          title: 'テスト X',
+          mapping: {},
+        };
+        const convY: ChatGPTConversation = {
+          id: 'y',
+          conversation_id: 'conv-uuid-y',
+          create_time: 1742000000,
+          title: 'テスト Y',
+          mapping: {},
+        };
+        const convZ: ChatGPTConversation = {
+          id: 'z',
+          conversation_id: 'conv-uuid-z',
+          create_time: 1742000000,
+          title: 'テスト Z',
+          mapping: {},
+        };
+        const fileX = `${tempDir}/conversations-010.json`;
+        const fileY = `${tempDir}/conversations-020.json`;
+        const fileZ = `${tempDir}/conversations-030.json`;
+        await Promise.all([
+          _writeConvFile(fileX, [convX]),
+          _writeConvFile(fileY, [convY]),
+          _writeConvFile(fileZ, [convZ]),
+        ]);
+
+        const config: ExportConfig = {
+          agent: 'chatgpt',
+          exportDir: outputDir,
+          inputDir: tempDir,
+          period: undefined,
+          concurrency: 1,
+        };
+
+        const validSession = _makeValidSession();
+
+        const result = await exportChatGPT(config, {
+          findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([fileX, fileY, fileZ]),
+          parseConversation: (conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve({
+              ...validSession,
+              meta: { ...validSession.meta, sessionId: `session-${conv.id}` },
+            }),
+          writeSession: (_outputDir: string, _agent: string, session: ExportedSession): Promise<string> =>
+            Promise.resolve(`/fake/${session.meta.sessionId}.md`),
+        });
+
+        // concurrency=1（実質直列実行）でも outputPaths はファイル入力順で決定論的
+        assertEquals(result.outputPaths, [
+          '/fake/session-x.md',
+          '/fake/session-y.md',
+          '/fake/session-z.md',
+        ]);
+        assertEquals(result.exportedCount, 3);
+      });
+    });
+  });
 });

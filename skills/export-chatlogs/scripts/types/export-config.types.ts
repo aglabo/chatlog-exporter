@@ -32,6 +32,8 @@ export type ExportConfig = DefaultArgFields & {
   exportDir?: string;
   /** GlobalConfig から解決されたチャットログディレクトリ。`exportDir` 未指定時のフォールバック元。 */
   chatlogsDir?: string;
+  /** ChatGPT エクスポート時のファイル処理並列数。 */
+  concurrency?: number;
 };
 
 /** `parseArgs()` に渡される引数の型定義。 */

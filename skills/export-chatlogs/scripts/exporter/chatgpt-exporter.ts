@@ -13,8 +13,10 @@
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // libs
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
 // constants
+import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
 import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
@@ -289,7 +291,7 @@ const _mergeResults = (results: FileResult[]): ExportResult => {
  * 1. `config.inputDir` が undefined → エラースロー
  * 2. `parsePeriod(config.period)` で PeriodRange 取得
  * 3. `findFiles()` でファイル一覧を収集
- * 4. 全ファイルを Promise.all で並列処理（各ファイルは独立して読み込み・パース・書き出し）
+ * 4. 全ファイルを `runConcurrent()` で `config.concurrency` 件ずつ並列処理（各ファイルは独立して読み込み・パース・書き出し）
  * 5. 各ファイルの結果をマージして返す
  *
  * `_providers` を省略した場合は実際のファイルシステム操作を行う。
@@ -324,9 +326,11 @@ export const exportChatGPT = async (
 
   const files = await _findFiles(inputDir);
 
-  const results = await Promise.all(
+  const results = await runConcurrent(
+    files,
     // buildConfig() が常に exportDir を string に解決するため non-null。
-    files.map((file) => _processFile(file, range, config.exportDir!, config.agent, _parseConversation, _writeSession)),
+    (file) => _processFile(file, range, config.exportDir!, config.agent, _parseConversation, _writeSession),
+    config.concurrency ?? DEFAULT_CONCURRENCY,
   );
 
   return _mergeResults(results);

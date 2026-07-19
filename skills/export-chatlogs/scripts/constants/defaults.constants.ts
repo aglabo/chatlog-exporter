@@ -8,7 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // constants
-import { DEFAULT_AGENT } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types
@@ -26,4 +26,5 @@ import type { ExportConfig } from '../types/export-config.types.ts';
  */
 export const DEFAULT_EXPORT_CONFIG: ExportConfig = {
   agent: DEFAULT_AGENT,
+  concurrency: DEFAULT_CONCURRENCY,
 };
