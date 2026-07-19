@@ -59,6 +59,7 @@ describe('applyClassifications', () => {
             tempDir,
             false,
             _stats,
+            { concurrency: 4 },
           );
 
           assertEquals(_stats.error, 1);
@@ -75,6 +76,7 @@ describe('applyClassifications', () => {
             tempDir,
             false,
             _stats,
+            { concurrency: 4 },
           );
 
           assertEquals(_stats.moved, 0);
@@ -91,6 +93,7 @@ describe('applyClassifications', () => {
             tempDir,
             false,
             _stats,
+            { concurrency: 4 },
           );
 
           assertEquals(_cache.read(`${tempDir}/missing.md`).action, CLASSIFY_ACTIONS.MOVE);
@@ -117,7 +120,7 @@ describe('applyClassifications', () => {
           const _stats = _makeStats();
           const destDir = `${tempDir}/out`;
 
-          await applyClassifications([entry], _cache, destDir, false, _stats);
+          await applyClassifications([entry], _cache, destDir, false, _stats, { concurrency: 4 });
 
           assertEquals(_stats.moved, 1);
         });
@@ -128,7 +131,7 @@ describe('applyClassifications', () => {
           const _stats = _makeStats();
           const destDir = `${tempDir}/out`;
 
-          await applyClassifications([entry], _cache, destDir, false, _stats);
+          await applyClassifications([entry], _cache, destDir, false, _stats, { concurrency: 4 });
 
           assertEquals(_cache.read(srcPath), {});
         });
@@ -151,6 +154,7 @@ describe('applyClassifications', () => {
             `${tempDir}/out`,
             false,
             _stats,
+            { concurrency: 4 },
           );
 
           assertEquals(_cache.read(`${tempDir}/error.md`).action, CLASSIFY_ACTIONS.ERROR);

@@ -54,6 +54,8 @@ export interface ClassifyStats {
   error: number;
   /** AI 処理が必要なエントリとしてスキップした件数。 */
   remaining: number;
+  /** dry-run のため AI 呼び出しをスキップした件数。 */
+  skip: number;
 }
 
 // ─────────────────────────────────────────────
@@ -96,6 +98,7 @@ export const CLASSIFY_ACTIONS = {
   MOVE: 'move',
   MOVEBYAI: 'move-by-ai',
   REMAINING: 'remaining',
+  SKIP: 'skip',
   ERROR: 'error',
   EMPTY: '',
 } as const;

@@ -119,7 +119,7 @@ describe('processClassifyNoAI', () => {
 
       const _buffer: ChatlogEntry[] = [_entryWithProject, _entryShort, _entryLong];
 
-      const _result = await processClassifyNoAI(_buffer, cache);
+      const _result = await processClassifyNoAI(_buffer, cache, { concurrency: 4 });
 
       assertEquals(_result.move.length, 2);
       assertEquals(_result.remaining.length, 1);
@@ -142,7 +142,7 @@ describe('processClassifyNoAI', () => {
       const _buffer: ChatlogEntry[] = [_entry];
       const cache = await _makeEmptyClassifyCache();
 
-      const _result = await processClassifyNoAI(_buffer, cache);
+      const _result = await processClassifyNoAI(_buffer, cache, { concurrency: 4 });
 
       assertEquals(_result.move.length, 1);
       assertEquals(_result.remaining.length, 0);

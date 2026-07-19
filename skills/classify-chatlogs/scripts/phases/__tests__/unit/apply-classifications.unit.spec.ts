@@ -11,13 +11,16 @@
 
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { applyClassifications } from '../../phase-write.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+// types
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
@@ -37,6 +40,16 @@ import { _makeEmptyClassifyCache, _makeEntry, _makeStats } from '../../../__test
  * @see applyClassifications
  */
 describe('applyClassifications', () => {
+  let loggerStub: LoggerStub;
+
+  beforeEach(() => {
+    loggerStub = makeLoggerStub();
+  });
+
+  afterEach(() => {
+    loggerStub.restore();
+  });
+
   /**
    * 正常系: 各 action の振る舞いテスト。
    */
@@ -45,7 +58,7 @@ describe('applyClassifications', () => {
       const _cache = await _makeEmptyClassifyCache();
       const _stats = _makeStats();
 
-      await applyClassifications([], _cache, '/tmp/output', false, _stats);
+      await applyClassifications([], _cache, '/tmp/output', false, _stats, { concurrency: 4 });
 
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
@@ -65,6 +78,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -84,6 +98,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -92,7 +107,7 @@ describe('applyClassifications', () => {
       assertEquals(_stats.error, 0);
     });
 
-    it('[Normal] T-CL-MC-14: action=empty, project あり → stats.moved++（project 由来の確定済みキャッシュとして移動される）', async () => {
+    it('[Normal] T-CL-MC-14: action=empty, project あり, dryRun=true → stats.skip++（move は呼ばれない）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.EMPTY });
@@ -104,14 +119,16 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
-      assertEquals(_stats.moved, 1);
+      assertEquals(_stats.skip, 1);
+      assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-15: action=undefined, project あり → stats.moved++（project 由来の確定済みキャッシュとして移動される）', async () => {
+    it('[Normal] T-CL-MC-15: action=undefined, project あり, dryRun=true → stats.skip++（move は呼ばれない）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1' });
@@ -123,9 +140,11 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
-      assertEquals(_stats.moved, 1);
+      assertEquals(_stats.skip, 1);
+      assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
     });
@@ -142,6 +161,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -149,13 +169,35 @@ describe('applyClassifications', () => {
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
     });
+
+    it('[Normal] T-CL-MC-16: action=skip, project なし → stats.skip++ のみ、remaining は増えず移動もしない', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _entry = _makeEntry('/tmp/input/test.md');
+      await _cache.write('/tmp/input/test.md', { action: CLASSIFY_ACTIONS.SKIP });
+      const _stats = _makeStats();
+
+      await applyClassifications(
+        [_entry],
+        _cache,
+        '/tmp/output',
+        true,
+        _stats,
+        { concurrency: 4 },
+      );
+
+      assertEquals(_stats.skip, 1);
+      assertEquals(_stats.remaining, 0);
+      assertEquals(_stats.moved, 0);
+      assertEquals(_stats.movedByAI, 0);
+      assertEquals(_stats.error, 0);
+    });
   });
 
   /**
-   * 正常系: moveChatlogEntry の呼び出し確認（dryRun=true を利用した実際呼び出し）。
+   * 正常系: dryRun=true で project 確定済みの場合、moveChatlogEntry を呼ばず skip 扱いになることを確認する。
    */
-  describe('When: 正常系 (moveChatlogEntry 実呼び出し)', () => {
-    it('[Normal] T-CL-MC-02: action=move → moveChatlogEntry 呼び出し（stats.moved がインクリメントされる）', async () => {
+  describe('When: 正常系 (dryRun=true・project 確定済み → move スキップ)', () => {
+    it('[Normal] T-CL-MC-02: action=move, dryRun=true → stats.skip++（moveChatlogEntry は呼ばれない）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
@@ -167,15 +209,18 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
-      // dryRun=true なので stats.moved がインクリメントされる（ファイルシステムは変更しない）
-      assertEquals(_stats.moved, 1);
+      // dryRun=true では move を実行せず stats.skip がインクリメントされる
+      assertEquals(_stats.skip, 1);
+      assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
+      assertEquals(loggerStub.infoLogs.some((l) => l.includes('<<dry-run>> move skipped: test.md')), true);
     });
 
-    it('[Normal] T-CL-MC-03: action=MOVEBYAI → moveChatlogEntry 呼び出し（stats.movedByAI がインクリメントされる）', async () => {
+    it('[Normal] T-CL-MC-03: action=MOVEBYAI, dryRun=true → stats.skip++（moveChatlogEntry は呼ばれない）', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVEBYAI });
@@ -187,14 +232,17 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
+      assertEquals(_stats.skip, 1);
       assertEquals(_stats.moved, 0);
-      assertEquals(_stats.movedByAI, 1);
+      assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
+      assertEquals(loggerStub.infoLogs.some((l) => l.includes('<<dry-run>> move skipped: test.md')), true);
     });
 
-    it('[Normal] T-CL-MC-08: action=move, project=undefined → project 未確定のため stats.remaining++', async () => {
+    it('[Normal] T-CL-MC-08: action=move, project=undefined, dryRun=true → project 未確定のため stats.remaining++', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: undefined, action: CLASSIFY_ACTIONS.MOVE });
@@ -206,6 +254,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       // project が未確定のため action=move でも移動されず stats.remaining がインクリメントされる
@@ -215,34 +264,13 @@ describe('applyClassifications', () => {
       assertEquals(_stats.error, 0);
     });
 
-    it('[Normal] T-CL-MC-07: destDir にバックスラッシュを含む Windows パスを渡しても dryRun=true で stats.moved がインクリメントされる（normalizePath によるパス正規化）', async () => {
-      const _cache = await _makeEmptyClassifyCache();
-      const _entry = _makeEntry('/tmp/input/test.md');
-      await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
-      const _stats = _makeStats();
-
-      await applyClassifications(
-        [_entry],
-        _cache,
-        'C:\\output',
-        true,
-        _stats,
-      );
-
-      // normalizePath 適用後もパス組み立てが壊れず、dryRun=true で stats.moved がインクリメントされる
-      assertEquals(_stats.moved, 1);
-      assertEquals(_stats.movedByAI, 0);
-      assertEquals(_stats.remaining, 0);
-      assertEquals(_stats.error, 0);
-    });
-
     it('[Normal] T-CL-MC-13: action=move, dryRun=true → キャッシュエントリは削除されない', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
       await _cache.write('/tmp/input/test.md', { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
       const _stats = _makeStats();
 
-      // dryRun=true で moveChatlogEntry 呼び出しのみ確認（実ファイル操作はしない）。
+      // dryRun=true では move 自体がスキップされ、キャッシュ削除も発生しない。
       // 実削除の検証は integration テストで実施する。
       await applyClassifications(
         [_entry],
@@ -250,6 +278,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       // dryRun=true では削除されない

@@ -76,13 +76,13 @@ export const main = async (argv?: string[]): Promise<void> => {
   if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
   logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
 
-  const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0 };
+  const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0, skip: 0 };
 
   // Step 0: ファイルリスト、キャッシュ取得
   const _filePaths = await findChatlogFilePaths(_originalLogsDir);
   if (_filePaths.length === 0) {
     logger.info('対象ファイルなし');
-    logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0');
+    logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0 skip=0');
     return;
   }
   // 判定結果キャッシュ
@@ -101,10 +101,10 @@ export const main = async (argv?: string[]): Promise<void> => {
   const _partition = partitionEntries(entries, _cache);
 
   // Step 3: 分類 (AI なし)
-  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache);
+  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache, _config);
 
   // Step 4: 分類（AI あり）
-  await classifyByAI(remaining, projects, _config, _cache);
+  await classifyByAI(remaining, projects, _config, _cache, _config.dryRun);
 
   // Step 5: ファイル移動
   await applyClassifications(
@@ -113,12 +113,13 @@ export const main = async (argv?: string[]): Promise<void> => {
     _originalLogsDir,
     _config.dryRun,
     stats,
+    _config,
   );
 
   // サマリー
   const drySuffix = _config.dryRun ? ' (dry-run)' : '';
   logger.info(
-    `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} error=${stats.error} remaining=${stats.remaining}`,
+    `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} error=${stats.error} remaining=${stats.remaining} skip=${stats.skip}`,
   );
 };
 

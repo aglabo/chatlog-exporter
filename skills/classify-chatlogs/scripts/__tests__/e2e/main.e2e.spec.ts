@@ -185,12 +185,12 @@ describe('main - 正常分類', () => {
   });
 });
 
-// ─── T-CL-E2E-03: project 設定済みファイル（フラット配置）→ サブディレクトリに移動 ─
+// ─── T-CL-E2E-03: project 設定済みファイル（フラット配置）→ dry-run では移動されずスキップされる ─
 
-describe('main - project 設定済みファイルの移動', () => {
+describe('main - project 設定済みファイルの dry-run スキップ', () => {
   describe('Given: project が設定済みの .md ファイル（月ディレクトリ直下）', () => {
     describe('When: main([...args, "--dry-run"]) を呼び出す', () => {
-      describe('Then: T-CL-E2E-03 - AI 不使用でサブディレクトリに移動される', () => {
+      describe('Then: T-CL-E2E-03 - dry-run のため AI 不使用・移動なしでスキップされる', () => {
         let inputDir: string;
         let configsDir: string;
         let configFile: string;
@@ -228,10 +228,10 @@ describe('main - project 設定済みファイルの移動', () => {
           await Deno.remove(configsDir, { recursive: true });
         });
 
-        it('T-CL-E2E-03-01: 完了ログに moved=1 が含まれる', async () => {
+        it('T-CL-E2E-03-01: dry-run のため moveChatlogEntry は呼ばれず、完了ログに skip=1 が含まれる', async () => {
           await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(errLogs.some((l) => l.includes('moved=1')), true);
+          assertEquals(errLogs.some((l) => l.includes('skip=1')), true);
         });
 
         it('T-CL-E2E-03-02: 完了ログに error=0 が含まれる', async () => {
@@ -621,11 +621,11 @@ describe('main - 期間フィルタ', () => {
           assertEquals(allInfoLogs.includes('out-of-scope.md'), false);
         });
 
-        it('T-CL-E2E-07-02: 期間内ファイル（in-scope.md）の [dry-run] ログが出力される', async () => {
+        it('T-CL-E2E-07-02: 期間内ファイルのみが対象となり、[dry-run] AI 分類スキップログに 1件と出力される', async () => {
           await main(['claude', '2026-03', '--dry-run', '--config', configFile]);
 
           assertEquals(
-            loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('in-scope.md')),
+            loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('1件')),
             true,
           );
         });
