@@ -91,7 +91,7 @@ export const main = async (argv?: string[]): Promise<void> => {
 
   // Step 1: 分類候補エントリの読み込み。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
   // 誤って処理を継続しないよう後続の事前分類・AI分類には渡らない
-  const { entries, errors } = await loadClassifyEntries(_filePaths, _cache);
+  const { entries, errors } = await loadClassifyEntries(_filePaths, _cache, _config);
   if (errors.length > 0) {
     stats.error += errors.length;
     errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));

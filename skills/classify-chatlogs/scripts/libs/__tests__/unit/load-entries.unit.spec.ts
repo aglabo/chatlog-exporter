@@ -62,7 +62,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project: 'proj-a' })),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
 
       assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
       assertEquals(_result.errors.length, 0);
@@ -77,7 +77,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeEntry(_filePath, {})),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
 
       assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
       assertEquals(_result.errors.length, 0);
@@ -103,6 +103,7 @@ describe('loadClassifyEntries', () => {
       const _result = await loadClassifyEntries(
         [_withProject, _errorPath, _noProject],
         _cache,
+        { concurrency: 4 },
         _opts,
       );
 
@@ -124,7 +125,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeErrorResult(_filePath)),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
 
       assertEquals(_result.entries.length, 0);
       assertEquals(_result.errors.map((e) => e.filePath), [_filePath]);
@@ -138,7 +139,7 @@ describe('loadClassifyEntries', () => {
         const _filePath = `${_tempDir}/bad-yaml.md`;
         await Deno.writeTextFile(_filePath, '---\ntitle: [unclosed\n---\n本文');
 
-        const _result = await loadClassifyEntries([_filePath], _cache);
+        const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 });
 
         assertEquals(_result.entries.length, 0);
         assertEquals(_result.errors.map((e) => e.filePath), [_filePath]);
