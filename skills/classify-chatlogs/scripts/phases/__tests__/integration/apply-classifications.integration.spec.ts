@@ -1,5 +1,5 @@
-// src: scripts/phases/__tests__/integration/move-classified.integration.spec.ts
-// @(#): applyClassifications の統合テスト（classifyFile 実失敗の伝播・キャッシュ削除）
+// src: scripts/phases/__tests__/integration/apply-classifications.integration.spec.ts
+// @(#): applyClassifications の統合テスト（moveChatlogEntry 実失敗の伝播・キャッシュ削除）
 //       対象: applyClassifications
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -47,7 +47,7 @@ describe('applyClassifications', () => {
     });
 
     describe('When: applyClassifications(entries, cache, tempDir, false, stats) を呼び出す', () => {
-      describe('Then: T-CL-MC-10 - classifyFile の実失敗が stats.error に伝播する', () => {
+      describe('Then: T-CL-MC-10 - moveChatlogEntry の実失敗が stats.error に伝播する', () => {
         it('T-CL-MC-10-01: stats.error が 1 になる', async () => {
           const _cache = await _makeEmptyClassifyCache();
           await _cache.write(`${tempDir}/missing.md`, { project: 'app1', action: CLASSIFY_ACTIONS.MOVE });
