@@ -11,12 +11,13 @@
 
 // ─── Shared scripts
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 
 // ─── Local
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { ClassifyCache } from '../types/classify.types.ts';
+import type { ClassifyCache, ClassifyConfig } from '../types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -72,8 +73,9 @@ export const classifyByNoAI = async (
 export const processClassifyNoAI = async (
   buffer: ChatlogEntry[],
   cache: ChatlogCache<ClassifyCache>,
+  config: Pick<ClassifyConfig, 'concurrency'>,
 ): Promise<{ move: ChatlogEntry[]; remaining: ChatlogEntry[] }> => {
-  await Promise.all(buffer.map((entry) => classifyByNoAI(entry, cache)));
+  await runConcurrent(buffer, (entry) => classifyByNoAI(entry, cache), config.concurrency);
   const move = buffer.filter((entry) => cache.read(entry.filePath!).action !== CLASSIFY_ACTIONS.REMAINING);
   const remaining = buffer.filter((entry) => cache.read(entry.filePath!).action === CLASSIFY_ACTIONS.REMAINING);
   return { move, remaining };

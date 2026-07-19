@@ -101,7 +101,7 @@ export const main = async (argv?: string[]): Promise<void> => {
   const _partition = partitionEntries(entries, _cache);
 
   // Step 3: 分類 (AI なし)
-  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache);
+  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache, _config);
 
   // Step 4: 分類（AI あり）
   await classifyByAI(remaining, projects, _config, _cache, _config.dryRun);
