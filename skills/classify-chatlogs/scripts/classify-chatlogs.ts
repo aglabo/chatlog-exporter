@@ -30,8 +30,9 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.con
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { classifyByAI } from './modules/classify-ai.ts';
 import { buildConfig } from './modules/classify-config.ts';
+import { processClassifyNoAI } from './modules/classify-noai.ts';
 import { findChatlogFilePaths, loadClassifyEntries } from './modules/find-buffer-entries.ts';
-import { partitionByPreclassify } from './modules/partition-classify-entries.ts';
+import { partitionEntries } from './modules/partition-classify-entries.ts';
 import { applyClassifications } from './phases/phase-write.ts';
 // types
 import type { ClassifyCache, ClassifyStats } from './types/classify.types.ts';
