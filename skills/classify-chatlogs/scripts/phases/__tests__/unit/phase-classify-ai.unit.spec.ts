@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/classify-ai.unit.spec.ts
+// src: scripts/phases/__tests__/unit/phase-classify-ai.unit.spec.ts
 // @(#): buildClassifyPrompt / buildSystemPrompt / classifyByAI のユニットテスト
 //       対象: buildClassifyPrompt / buildSystemPrompt / classifyByAI
 //
@@ -17,7 +17,7 @@ import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 import {
   buildClassifyPrompt,
   buildSystemPrompt,
-} from '../../classify-ai.ts';
+} from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 import { renderFrontmatter } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
