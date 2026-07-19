@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { classifyByAI } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // types
 import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -36,6 +37,7 @@ import {
 } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
 // constants
 /** テスト共通の空プロジェクト辞書。分類対象プロジェクトを問わないテストで使用する。 */
@@ -90,7 +92,7 @@ describe('classifyByAI', () => {
         _makeClassifyChatlogEntry('b.md'),
       ];
 
-      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache);
+      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, false);
 
       assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.MOVEBYAI);
       assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.MOVEBYAI);
@@ -105,7 +107,7 @@ describe('classifyByAI', () => {
 
       const targets: ChatlogEntry[] = ['a.md', 'b.md', 'c.md'].map((filename) => _makeClassifyChatlogEntry(filename));
 
-      await classifyByAI(targets, _PROJECTS, _makeConfig({ chunkSize: 1 }), cache);
+      await classifyByAI(targets, _PROJECTS, _makeConfig({ chunkSize: 1 }), cache, false);
 
       // chunkSize=1 で 3件 → 3チャンクに分割され、claude CLI が 3回呼び出される
       assertEquals(counter.calls, 3);
@@ -122,7 +124,7 @@ describe('classifyByAI', () => {
 
       const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
 
-      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache);
+      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, false);
 
       assertEquals(cache.read('/tmp/input/a.md'), {
         project: 'app1',
@@ -130,6 +132,58 @@ describe('classifyByAI', () => {
         reason: 'matched',
         action: CLASSIFY_ACTIONS.MOVEBYAI,
       });
+    });
+  });
+
+  /**
+   * 正常系: dryRun=true の場合、AI 呼び出しをスキップし cache に action=SKIP を書き込むケース。
+   */
+  describe('When: dry-run', () => {
+    let mockHandle: CommandMockHandle;
+    let counter: { calls: number };
+    let cache: ChatlogCache<ClassifyCache>;
+    let loggerStub: LoggerStub;
+
+    beforeEach(async () => {
+      counter = { calls: 0 };
+      mockHandle = installCommandMock(makeCountingMock('[]', counter));
+      cache = await _makeEmptyClassifyCache();
+      loggerStub = makeLoggerStub();
+    });
+
+    afterEach(() => {
+      mockHandle.restore();
+      loggerStub.restore();
+    });
+
+    it('[Normal] T-CL-CBA-06-01: dryRun=true・対象2件 → claude CLI は呼び出されず、両方の cache に action=SKIP が書き込まれる', async () => {
+      const targets: ChatlogEntry[] = [
+        _makeClassifyChatlogEntry('a.md'),
+        _makeClassifyChatlogEntry('b.md'),
+      ];
+
+      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, true);
+
+      assertEquals(counter.calls, 0);
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(cache.read('/tmp/input/a.md').project, undefined);
+      assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(cache.read('/tmp/input/b.md').project, undefined);
+    });
+
+    it('[Normal] T-CL-CBA-06-02: dryRun=true・対象1件 → logger.info が呼び出される', async () => {
+      const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
+
+      await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, true);
+
+      assertEquals(loggerStub.infoLogs.length > 0, true);
+    });
+
+    it('[Edge] T-CL-CBA-06-03: dryRun=true・targets が空配列 → cache 書き込みも logger.info も呼ばれない', async () => {
+      await classifyByAI([], _PROJECTS, _makeConfig(), cache, true);
+
+      assertEquals(counter.calls, 0);
+      assertEquals(loggerStub.infoLogs.length, 0);
     });
   });
 
@@ -152,7 +206,7 @@ describe('classifyByAI', () => {
     });
 
     it('[Edge] T-CL-CBA-04-02: targets が空配列 → 何も起きず claude CLI は呼び出されない', async () => {
-      const result = await classifyByAI([], _PROJECTS, _makeConfig(), cache);
+      const result = await classifyByAI([], _PROJECTS, _makeConfig(), cache, false);
 
       assertEquals(result, undefined);
       assertEquals(counter.calls, 0);
