@@ -1,4 +1,4 @@
-// src: scripts/modules/__tests__/unit/partition-classify-entries.unit.spec.ts
+// src: scripts/phases/__tests__/unit/phase-partition.unit.spec.ts
 // @(#): partitionEntries の単体テスト
 //       対象: partitionEntries
 //
@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { partitionEntries } from '../../partition-classify-entries.ts';
+import { partitionEntries } from '../../phase-partition.ts';
 
 // ─── Helpers
 import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
