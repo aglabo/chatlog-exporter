@@ -149,7 +149,9 @@ export const processChunk = async (
 /**
  * 分類対象のファイルエントリを AI で分類し、判定結果を `cache` に書き込む。
  * - `targets` が 0 件の場合は即座に return する。
- * - `runChunked` で並列 AI 分類する。
+ * - `dryRun === true` の場合は AI 呼び出しを行わず、`targets` 全件に `action: SKIP` を書き込んで return する
+ *   （`project` は未設定のまま。次回実行時は uncached として再度 AI 分類対象になる）。
+ * - `dryRun === false` の場合は `runChunked` で並列 AI 分類する。
  * - ファイル移動・stats更新は行わない。判定結果はすべて `processChunk` 経由で `cache` に記録する。
  */
 export const classifyByAI = async (
@@ -157,8 +159,15 @@ export const classifyByAI = async (
   projects: ProjectDicEntry,
   config: Pick<ClassifyConfig, 'chunkSize' | 'concurrency' | 'model'>,
   cache: ChatlogCache<ClassifyCache>,
+  dryRun: boolean,
 ): Promise<void> => {
   if (targets.length === 0) { return; }
+
+  if (dryRun) {
+    await Promise.all(targets.map((f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.SKIP })));
+    logger.info(`[dry-run] AI 分類をスキップします（project は設定されません）: ${targets.length}件`);
+    return;
+  }
 
   await runChunked<ChatlogEntry, string[]>(
     targets,
