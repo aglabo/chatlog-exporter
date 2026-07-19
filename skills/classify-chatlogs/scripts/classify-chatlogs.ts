@@ -113,6 +113,7 @@ export const main = async (argv?: string[]): Promise<void> => {
     _originalLogsDir,
     _config.dryRun,
     stats,
+    _config,
   );
 
   // サマリー

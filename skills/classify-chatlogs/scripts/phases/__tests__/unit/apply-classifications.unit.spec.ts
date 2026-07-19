@@ -58,7 +58,7 @@ describe('applyClassifications', () => {
       const _cache = await _makeEmptyClassifyCache();
       const _stats = _makeStats();
 
-      await applyClassifications([], _cache, '/tmp/output', false, _stats);
+      await applyClassifications([], _cache, '/tmp/output', false, _stats, { concurrency: 4 });
 
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
@@ -78,6 +78,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -97,6 +98,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -117,6 +119,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.skip, 1);
@@ -137,6 +140,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.skip, 1);
@@ -157,6 +161,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         false,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.remaining, 1);
@@ -177,6 +182,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.skip, 1);
@@ -203,6 +209,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       // dryRun=true では move を実行せず stats.skip がインクリメントされる
@@ -225,6 +232,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       assertEquals(_stats.skip, 1);
@@ -246,6 +254,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       // project が未確定のため action=move でも移動されず stats.remaining がインクリメントされる
@@ -269,6 +278,7 @@ describe('applyClassifications', () => {
         '/tmp/output',
         true,
         _stats,
+        { concurrency: 4 },
       );
 
       // dryRun=true では削除されない

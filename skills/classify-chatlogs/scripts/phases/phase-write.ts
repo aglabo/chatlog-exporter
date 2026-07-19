@@ -12,13 +12,14 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { ClassifyAction, ClassifyCache, ClassifyStats } from '../types/classify.types.ts';
+import type { ClassifyAction, ClassifyCache, ClassifyConfig, ClassifyStats } from '../types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -117,8 +118,9 @@ export const applyClassifications = async (
   destDir: string,
   dryRun: boolean,
   stats: ClassifyStats,
+  config: Pick<ClassifyConfig, 'concurrency'>,
 ): Promise<void> => {
-  await Promise.all(entries.map(async (entry) => {
+  await runConcurrent(entries, async (entry) => {
     const filePath = entry.filePath!;
     const cached = cache.read(filePath);
 
@@ -140,5 +142,5 @@ export const applyClassifications = async (
 
     const movedCounter = cached.action === CLASSIFY_ACTIONS.MOVEBYAI ? 'movedByAI' : 'moved';
     await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, movedCounter);
-  }));
+  }, config.concurrency);
 };
