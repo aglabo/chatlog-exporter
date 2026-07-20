@@ -76,7 +76,7 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
           );
 
           const allFiles = await findFiles(tempDir);
-          const { entries } = await loadFilterEntries(allFiles, cache);
+          const { entries } = await loadFilterEntries(allFiles, cache, 2);
           const errStub = stub(console, 'error', () => {});
           const passed = await prefilterFiles(entries, { stats: _makeStats() });
           errStub.restore();
@@ -100,7 +100,7 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
           await Deno.writeTextFile(file1, _makeValidContent('Chat 1'));
           await Deno.writeTextFile(file2, _makeValidContent('Chat 2'));
 
-          const { entries } = await loadFilterEntries([file1, file2], cache);
+          const { entries } = await loadFilterEntries([file1, file2], cache, 2);
           const errStub = stub(console, 'error', () => {});
           const passed = await prefilterFiles(entries, { stats: _makeStats() });
           errStub.restore();
@@ -144,7 +144,7 @@ describe('loadFilterEntries → prefilterFiles パイプライン', () => {
           await Deno.writeTextFile(errorPath, _INVALID_YAML_ENTRY);
 
           const allFiles = await findFiles(tempDir);
-          const { entries, errors } = await loadFilterEntries(allFiles, cache);
+          const { entries, errors } = await loadFilterEntries(allFiles, cache, 2);
 
           const errStub = stub(console, 'error', () => {});
           const passed = await prefilterFiles(entries, { stats: _makeStats() });
