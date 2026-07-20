@@ -33,8 +33,10 @@ export const resolveSessionId = async (sessionId: string | undefined): Promise<s
  *
  * ファイル名は sessionId のハッシュを含むため、ハッシュ生成規則やファイル名の
  * 命名規則が変更された場合、旧規則で出力済みのファイルはそのまま残る。
- * 再エクスポート時に重複ファイルが生じないよう、出力先ディレクトリを
- * クリアしてから実行することを前提とする。
+ * また sessionId 欠落時（`resolveSessionId` によるランダム代替値）は、
+ * 再エクスポートのたびにファイル名が変わる。
+ * 再エクスポート時に重複ファイルが生じないよう、対象の `<agent>/<year>/<yearMonth>`
+ * サブツリーをクリアしてから実行することを前提とする。
  */
 export const buildOutputPath = async (
   outputBase: string,
