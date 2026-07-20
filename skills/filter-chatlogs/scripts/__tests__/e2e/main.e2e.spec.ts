@@ -584,10 +584,13 @@ describe('main - Claude CLI NotFound', () => {
           });
 
           it('T-FL-E2E-07-01: NotFound エラーで main が reject される', async () => {
-            await assertRejects(
+            const _error = await assertRejects(
               () => main(['claude', '2026-03', '--input-dir', chatlogsDir]),
-              Deno.errors.NotFound,
+              ChatlogError,
             );
+
+            assertEquals(_error.kind, 'ParallelExecutionError');
+            assertEquals(_error.subindex, 'NotFound');
           });
         });
       });
