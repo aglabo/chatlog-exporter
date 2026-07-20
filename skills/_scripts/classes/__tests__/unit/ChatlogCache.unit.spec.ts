@@ -1130,6 +1130,59 @@ describe('ChatlogCache', () => {
         await _cache.ready;
         await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 2));
       });
+
+      it('[Error] T-CLS-CC-84: write失敗（concurrency:1）でも delete 対象の removeFile は実行が試みられ、initFromOutputDir が reject する', async () => {
+        const _buf = new Map<string, string>([
+          // write 対象（基本3フィールドあり → status:'' で書き込み）
+          ['/out/write-target.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\n'],
+          // delete 対象（フロントマターはあるが基本3フィールド不足）
+          ['/out/delete-target.md', '---\ntitle: B\n---\n'],
+        ]);
+        const _writeErr = new Error('disk full');
+        let _removeFileCalled = false;
+        const _cache = new ChatlogCache<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/write-target.md', '/out/delete-target.md']),
+            writeTextFile: (_path: string, _data: string): Promise<void> => Promise.reject(_writeErr),
+            removeFile: (path: string): Promise<void> => {
+              _removeFileCalled = true;
+              _buf.delete(path);
+              return Promise.resolve();
+            },
+          },
+        });
+        await _cache.ready;
+        await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 1));
+        assertEquals(_removeFileCalled, true);
+      });
+
+      it('[Error] T-CLS-CC-85: delete失敗（concurrency:1）でも write 対象の writeTextFile は実行が試みられ、initFromOutputDir が reject する', async () => {
+        const _buf = new Map<string, string>([
+          // write 対象（基本3フィールドあり → status:'' で書き込み）
+          ['/out/write-target.md', '---\ntitle: A\ntype: tech\ncategory: dev\n---\n'],
+          // delete 対象（フロントマターはあるが基本3フィールド不足）
+          ['/out/delete-target.md', '---\ntitle: B\n---\n'],
+        ]);
+        // NotFound 以外のエラーで reject（delete() は NotFound のみ握りつぶすため）
+        const _removeErr = new Error('remove failed');
+        let _writeTextFileCalled = false;
+        const _cache = new ChatlogCache<{ status: string }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/write-target.md', '/out/delete-target.md']),
+            writeTextFile: (path: string, data: string): Promise<void> => {
+              _writeTextFileCalled = true;
+              _buf.set(path, data);
+              return Promise.resolve();
+            },
+            removeFile: (_path: string): Promise<void> => Promise.reject(_removeErr),
+          },
+        });
+        await _cache.ready;
+        await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 1));
+        assertEquals(_writeTextFileCalled, true);
+      });
     });
   });
 
