@@ -302,7 +302,10 @@ export class ChatlogCache<T extends object> {
    * フロントマターあり + `isComplete` false + 基本3フィールド不足 → `this.delete(filePath)` で削除してスキップ。
    *
    * 並列実行するため、glob の reject や writeFile / readTextFile の reject はそのまま伝播する。
-   * いずれかの操作が reject すると以降の未着手操作は中断される（`withConcurrency` の abort-on-reject 挙動）。
+   * 書き込み対象と削除対象は独立した `runConcurrent` 呼び出しで並行実行するため、
+   * 一方が reject しても他方の未着手タスクは中断されず最後まで実行が試みられる
+   * （`withConcurrency` の abort-on-reject 挙動は各 `runConcurrent` 呼び出し内で閉じている）。
+   * 両方の完了を待った上で、いずれかが reject していればそのエラーを伝播する。
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
    * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）
@@ -329,18 +332,19 @@ export class ChatlogCache<T extends object> {
       }, concurrency)
     ).filter((e): e is { filePath: string; key: string; status: _EntryStatus; meta: FrontmatterFields } => e !== null);
 
-    // step 3: 書き込み対象（written / empty）と削除対象に分けて実行
+    // step 3: 書き込み対象（written / empty）と削除対象を独立した並列実行で処理する
     const _toWrite = _classified.filter(({ status }) => status !== 'delete');
     const _toDelete = _classified.filter(({ status }) => status === 'delete');
 
-    const _ops = [
-      ..._toWrite.map(({ key, status, meta }) => () => {
+    const [_writeResult, _deleteResult] = await Promise.allSettled([
+      runConcurrent(_toWrite, ({ key, status, meta }) => {
         const _cacheStatus = status === 'written' ? CACHE_STATUSES.WRITTEN : CACHE_STATUSES.EMPTY;
         return this._writeFile(key, { ...meta, status: _cacheStatus } as unknown as Partial<T>);
-      }),
-      ..._toDelete.map(({ filePath }) => () => this.delete(filePath)),
-    ];
-    await runConcurrent(_ops, (op) => op(), concurrency);
+      }, concurrency),
+      runConcurrent(_toDelete, ({ filePath }) => this.delete(filePath), concurrency),
+    ]);
+    if (_writeResult.status === 'rejected') { throw _writeResult.reason; }
+    if (_deleteResult.status === 'rejected') { throw _deleteResult.reason; }
   }
 
   /**
