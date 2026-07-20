@@ -140,3 +140,16 @@ export const generateHash = async (
   const hex = await _sha256Hex(seed);
   return hex.slice(0, length);
 };
+
+/**
+ * 入力文字列から決定的な SHA-256 ハッシュを生成する。
+ * `generateHash` と異なりタイムスタンプ・乱数を混ぜないため、同じ input なら常に同じ値を返す。
+ *
+ * @param input ハッシュ計算の入力文字列（例: sessionId）
+ * @param length 返す16進数文字列の長さ（デフォルト: 12）
+ * @returns 先頭 `length` 文字の16進数ハッシュ文字列
+ */
+export const sessionHash = async (input: string, length = 12): Promise<string> => {
+  const hex = await _sha256Hex(input);
+  return hex.slice(0, length);
+};

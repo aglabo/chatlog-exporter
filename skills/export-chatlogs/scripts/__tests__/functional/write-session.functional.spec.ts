@@ -246,20 +246,19 @@ describe('writeSession', () => {
 
   /**
    * sessionId ハッシュのファイル名への埋め込みを確認するシナリオ。
-   * ハイフンを除去した先頭 8 文字が含まれることで、
+   * sessionId 全体を入力とした決定的な SHA-256 ハッシュ（先頭12文字）が含まれることで、
    * 同一日付の別セッションとのファイル名衝突を防ぐ設計の確認。
-   * ハイフンを除去した先頭 8 文字が含まれることで、同一日付の別セッションとの衝突を防ぐ設計の確認。
    */
   describe('Given: sessionId="sess-abcdef12-3456-7890-abcd-ef1234567890"', () => {
     /** writeSession を呼び出す */
     describe('When: writeSession を呼び出す', () => {
-      /** T-EC-WS-06: ファイル名に sessionId 先頭8文字（ハイフン除去）が含まれる */
-      describe('Then: T-EC-WS-06 - ファイル名に sessionId 先頭8文字（ハイフン除去）が含まれる', () => {
-        it('T-EC-WS-06-01: パスに "sessabcd" が含まれる', async () => {
+      /** T-EC-WS-06: ファイル名に sessionId 全体の SHA-256 ハッシュ先頭12文字が含まれる */
+      describe('Then: T-EC-WS-06 - ファイル名に sessionId 全体の決定的ハッシュ（先頭12文字）が含まれる', () => {
+        it('T-EC-WS-06-01: パスに "aa9da8ccb6de" が含まれる', async () => {
           const session = _makeSession();
           const outPath = await writeSession(tempDir, 'claude', session);
-          // "sess-abcdef12-..." → ハイフン除去 → "sessabcdef12..." → 先頭8文字 → "sessabcd"
-          assertStringIncludes(outPath, 'sessabcd');
+          // sessionHash('sess-abcdef12-3456-7890-abcd-ef1234567890', 12) の先頭12文字
+          assertStringIncludes(outPath, 'aa9da8ccb6de');
         });
       });
     });
