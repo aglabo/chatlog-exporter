@@ -302,6 +302,7 @@ export class ChatlogCache<T extends object> {
    * フロントマターあり + `isComplete` false + 基本3フィールド不足 → `this.delete(filePath)` で削除してスキップ。
    *
    * 並列実行するため、glob の reject や writeFile / readTextFile の reject はそのまま伝播する。
+   * いずれかの操作が reject すると以降の未着手操作は中断される（`withConcurrency` の abort-on-reject 挙動）。
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
    * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）
