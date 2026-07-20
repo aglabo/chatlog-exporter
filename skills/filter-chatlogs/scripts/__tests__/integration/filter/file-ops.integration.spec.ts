@@ -78,7 +78,7 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
           const allFiles = await findFiles(tempDir);
           const { entries } = await loadFilterEntries(allFiles, cache, 2);
           const errStub = stub(console, 'error', () => {});
-          const passed = await prefilterFiles(entries, { stats: _makeStats() });
+          const passed = await prefilterFiles(entries, { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(passed.length, 2);
@@ -102,7 +102,7 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
 
           const { entries } = await loadFilterEntries([file1, file2], cache, 2);
           const errStub = stub(console, 'error', () => {});
-          const passed = await prefilterFiles(entries, { stats: _makeStats() });
+          const passed = await prefilterFiles(entries, { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           const prompt = buildBatchPrompt(passed);
@@ -147,7 +147,7 @@ describe('loadFilterEntries → prefilterFiles パイプライン', () => {
           const { entries, errors } = await loadFilterEntries(allFiles, cache, 2);
 
           const errStub = stub(console, 'error', () => {});
-          const passed = await prefilterFiles(entries, { stats: _makeStats() });
+          const passed = await prefilterFiles(entries, { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(errors.length, 1);

@@ -94,6 +94,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     minAssistantChars,
     stats,
     dryRun,
+    concurrency,
   });
 
   await processNoiseFiles(targetEntries, stats, { dryRun }, concurrency);

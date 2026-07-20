@@ -139,6 +139,7 @@ export const main = async (args?: string[]): Promise<void> => {
     minAssistantChars: _config.minAssistantChars,
     stats,
     dryRun: _config.dryRun,
+    concurrency: _config.concurrency,
   });
 
   const total = targetEntries.length;

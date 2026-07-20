@@ -97,7 +97,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -122,7 +122,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, '---\ntitle: テスト\n---\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -147,7 +147,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, '---\ntitle: テスト\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -173,7 +173,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { minCharCount: 2428, stats: _makeStats() });
+          const result = await prefilterFiles([entry], { minCharCount: 2428, stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 0);
@@ -184,7 +184,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, makeRepeatedContent(1200));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { minCharCount: 2426, stats: _makeStats() });
+          const result = await prefilterFiles([entry], { minCharCount: 2426, stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -214,6 +214,7 @@ describe('prefilterFiles', () => {
             minCharCount: 1000,
             minAssistantChars: 401,
             stats: _makeStats(),
+            concurrency: 2,
           });
           errStub.restore();
 
@@ -229,6 +230,7 @@ describe('prefilterFiles', () => {
             minCharCount: 1000,
             minAssistantChars: 399,
             stats: _makeStats(),
+            concurrency: 2,
           });
           errStub.restore();
 
@@ -258,7 +260,10 @@ describe('prefilterFiles', () => {
           const errStub = stub(console, 'error', () => {});
 
           const _stats = _makeStats();
-          const result = await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: _stats });
+          const result = await prefilterFiles([excludedEntry, shortEntry, validEntry], {
+            stats: _stats,
+            concurrency: 2,
+          });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -283,7 +288,7 @@ describe('prefilterFiles', () => {
           const entry2 = await _writeEntry(validPath2, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry1, entry2], { stats: _makeStats() });
+          const result = await prefilterFiles([entry1, entry2], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 2);
@@ -307,7 +312,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -321,7 +326,7 @@ describe('prefilterFiles', () => {
           const shortEntry = await _writeEntry(shortPath, '---\ntitle: 短い\n---\n短い本文\n');
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([validEntry, shortEntry], { stats: _makeStats() });
+          const result = await prefilterFiles([validEntry, shortEntry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.length, 1);
@@ -351,7 +356,11 @@ describe('prefilterFiles', () => {
           const validEntry = await _writeEntry(validPath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const loggerStub = makeLoggerStub();
 
-          await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: _makeStats(), dryRun: true });
+          await prefilterFiles([excludedEntry, shortEntry, validEntry], {
+            stats: _makeStats(),
+            dryRun: true,
+            concurrency: 2,
+          });
           loggerStub.restore();
 
           assertEquals(loggerStub.infoLogs.length, 2);
@@ -370,9 +379,13 @@ describe('prefilterFiles', () => {
           const resultDryRun = await prefilterFiles([excludedEntry, shortEntry, validEntry], {
             stats: statsDryRun,
             dryRun: true,
+            concurrency: 2,
           });
           const statsNormal = _makeStats();
-          const resultNormal = await prefilterFiles([excludedEntry, shortEntry, validEntry], { stats: statsNormal });
+          const resultNormal = await prefilterFiles([excludedEntry, shortEntry, validEntry], {
+            stats: statsNormal,
+            concurrency: 2,
+          });
           loggerStub.restore();
 
           assertEquals(resultDryRun.map((e) => e.filePath), [validPath]);
@@ -401,7 +414,7 @@ describe('prefilterFiles', () => {
           const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
           const errStub = stub(console, 'error', () => {});
 
-          const result = await prefilterFiles([entry], { stats: _makeStats() });
+          const result = await prefilterFiles([entry], { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.map((e) => e.filePath).includes(filePath), true);
@@ -435,7 +448,7 @@ describe('prefilterFiles', () => {
           const errStub = stub(console, 'error', () => {});
 
           const entries = [validEntry3, excludedEntry, validEntry1, shortEntry, validEntry2];
-          const result = await prefilterFiles(entries, { stats: _makeStats() });
+          const result = await prefilterFiles(entries, { stats: _makeStats(), concurrency: 2 });
           errStub.restore();
 
           assertEquals(result.map((e) => e.filePath), [validPath3, validPath1, validPath2]);
@@ -460,7 +473,7 @@ describe('prefilterFiles', () => {
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
 
-          await prefilterFiles([entry], { stats });
+          await prefilterFiles([entry], { stats, concurrency: 2 });
           errStub.restore();
 
           assertEquals(await Deno.stat(filePath).catch(() => null), null);
@@ -473,7 +486,7 @@ describe('prefilterFiles', () => {
           const loggerStub = makeLoggerStub();
           const stats = _makeStats();
 
-          await prefilterFiles([entry], { stats, dryRun: true });
+          await prefilterFiles([entry], { stats, dryRun: true, concurrency: 2 });
           loggerStub.restore();
 
           assertEquals(await Deno.stat(filePath).then(() => true).catch(() => false), true);
@@ -500,7 +513,7 @@ describe('prefilterFiles', () => {
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
           const entry = new ChatlogEntry('', { filePath });
-          await prefilterFiles([entry], { stats });
+          await prefilterFiles([entry], { stats, concurrency: 2 });
           errStub.restore();
 
           assertEquals(stats.error, 1);
@@ -514,7 +527,7 @@ describe('prefilterFiles', () => {
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
           const entry = new ChatlogEntry('', { filePath });
-          const passed = await prefilterFiles([entry], { stats });
+          const passed = await prefilterFiles([entry], { stats, concurrency: 2 });
           errStub.restore();
 
           assertEquals(passed.map((e) => e.filePath), [filePath]);

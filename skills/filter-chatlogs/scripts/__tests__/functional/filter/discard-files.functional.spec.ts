@@ -87,7 +87,7 @@ describe('_discardFiles', () => {
             { filePath, filename: 'discard-target.md', reason: 'trivial', decision: 'DISCARD' },
           ];
 
-          await _discardFiles(files, false, stats);
+          await _discardFiles(files, false, stats, 2);
           loggerStub.restore();
 
           assertEquals(await Deno.stat(filePath).catch(() => null), null);
@@ -103,7 +103,7 @@ describe('_discardFiles', () => {
             { filePath, filename: 'discard-target2.md', reason: 'trivial', decision: 'DISCARD' },
           ];
 
-          await _discardFiles(files, false, stats);
+          await _discardFiles(files, false, stats, 2);
           loggerStub.restore();
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('removed')), true);
@@ -131,7 +131,7 @@ describe('_discardFiles', () => {
             { filePath, filename: 'dryrun-target.md', reason: 'trivial', decision: 'DISCARD' },
           ];
 
-          await _discardFiles(files, true, stats);
+          await _discardFiles(files, true, stats, 2);
           loggerStub.restore();
 
           assertEquals(stats.skip, 1);
@@ -148,7 +148,7 @@ describe('_discardFiles', () => {
             { filePath, filename: 'dryrun-target2.md', reason: 'trivial', decision: 'DISCARD' },
           ];
 
-          await _discardFiles(files, true, stats);
+          await _discardFiles(files, true, stats, 2);
           loggerStub.restore();
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('skipped')), true);
@@ -180,7 +180,7 @@ describe('_discardFiles', () => {
           ];
 
           // ファイルを作成しないことで removeFile が NotFound → false を返す状態を再現する
-          await _discardFiles(files, false, stats);
+          await _discardFiles(files, false, stats, 2);
           errStub.restore();
 
           assertEquals(stats.error, 1);
@@ -203,7 +203,7 @@ describe('_discardFiles', () => {
         it('T-FL-DF-04-01: 空配列を渡しても stats は全て 0 のまま', async () => {
           const stats = _makeStats();
 
-          await _discardFiles([], false, stats);
+          await _discardFiles([], false, stats, 2);
 
           assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 0 });
         });
@@ -242,7 +242,7 @@ describe('_discardFiles', () => {
             decision: FILTER_DECISIONS.DISCARD,
           };
 
-          const result = await _discardFiles([discardEntry, errorEntry], false, stats);
+          const result = await _discardFiles([discardEntry, errorEntry], false, stats, 2);
           loggerStub.restore();
 
           assertEquals(await Deno.stat(errorPath).then(() => true).catch(() => false), true);
