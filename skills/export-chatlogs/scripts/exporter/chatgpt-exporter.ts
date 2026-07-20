@@ -167,7 +167,6 @@ export const parseChatGPTConversation = async (
   const meta: SessionMeta = {
     sessionId: await resolveSessionId(conv.conversation_id),
     date: isoToDate(isoTimestamp),
-    project: conv.title,
     slug: '',
     firstUserText: firstUserTurn.content,
   };

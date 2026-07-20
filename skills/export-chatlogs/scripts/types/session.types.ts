@@ -20,8 +20,11 @@ export interface SessionMeta {
   sessionId: string;
   /** セッション開始日（YYYY-MM-DD 形式）。出力パスの年/月ディレクトリに使用する */
   date: string; // YYYY-MM-DD
-  /** セッション開始時の作業ディレクトリ名（末尾セグメント）。フロントマターの project フィールドになる */
-  project: string;
+  /**
+   * セッション開始時の作業ディレクトリ名（末尾セグメント）。フロントマターの project フィールドになる。
+   * ChatGPT には対応する情報がなく、`/classify-chatlogs` スキルが後付けするため未設定でよい。
+   */
+  project?: string;
   /** セッションのスラッグ文字列。Claude の場合は JSONL から取得し、Codex の場合は空文字列 */
   slug: string;
   /** 最初の意味あるユーザーメッセージ。Markdown の H1 見出しおよびスラッグ生成に使用する */
