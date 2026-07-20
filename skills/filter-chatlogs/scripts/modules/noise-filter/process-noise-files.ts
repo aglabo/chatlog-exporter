@@ -11,6 +11,7 @@
 import { parseConversation } from '../../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../../_scripts/libs/parallel/concurrency.ts';
 // classes
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 
@@ -101,28 +102,28 @@ export const _phase2ClassifyConversations = (
  * @param discardFiles - ノイズ判定確定ファイル（`NoiseDiscardFile[]`）
  * @param stats - 加算対象の処理統計オブジェクト
  * @param dryRun - `true` のとき実削除を行わない
+ * @param concurrency - 同時実行する削除処理の最大並列数。
  */
 export const _phase3DiscardOrSkip = async (
   discardFiles: NoiseDiscardFile[],
   stats: NoiseFilterStats,
   dryRun: boolean,
+  concurrency: number,
 ): Promise<void> => {
-  await Promise.all(
-    discardFiles.map(async ({ filePath, reason }) => {
-      if (dryRun) {
-        logger.info(`<<dry-run>> skip: ${filePath} (${reason})`);
-        stats.skip++;
-        return;
-      }
-      if (await removeFile(filePath, { throwFileIoError: false })) {
-        logger.info(`deleted: ${filePath} (${reason})`);
-        stats.remove++;
-      } else {
-        // log output in removeFIle() already, so just count up stats.error
-        stats.error++;
-      }
-    }),
-  );
+  await runConcurrent(discardFiles, async ({ filePath, reason }) => {
+    if (dryRun) {
+      logger.info(`<<dry-run>> skip: ${filePath} (${reason})`);
+      stats.skip++;
+      return;
+    }
+    if (await removeFile(filePath, { throwFileIoError: false })) {
+      logger.info(`deleted: ${filePath} (${reason})`);
+      stats.remove++;
+    } else {
+      // log output in removeFIle() already, so just count up stats.error
+      stats.error++;
+    }
+  }, concurrency);
 };
 
 /**
@@ -136,16 +137,23 @@ export const _phase3DiscardOrSkip = async (
  * @param entries - 処理対象の `ChatlogEntry` 配列
  * @param stats - 加算対象の処理統計オブジェクト
  * @param options.dryRun - `true` のとき、ノイズ判定確定ファイルを実削除せず `stats.skip` に計上する
+ * @param concurrency - 同時実行する削除処理の最大並列数。
  */
 export const processNoiseFiles = async (
   entries: ChatlogEntry[],
   stats: NoiseFilterStats,
   options: { dryRun: boolean },
+  concurrency: number,
 ): Promise<void> => {
   const { discardFiles: filenameDiscardFiles, passEntries } = _phase0ClassifyByFilename(entries);
   const { discardFiles: contentDiscardFiles, keepFiles } = _phase2ClassifyConversations(passEntries);
 
   stats.keep += keepFiles.length;
 
-  await _phase3DiscardOrSkip([...filenameDiscardFiles, ...contentDiscardFiles], stats, options.dryRun);
+  await _phase3DiscardOrSkip(
+    [...filenameDiscardFiles, ...contentDiscardFiles],
+    stats,
+    options.dryRun,
+    concurrency,
+  );
 };

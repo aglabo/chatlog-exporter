@@ -96,7 +96,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     dryRun,
   });
 
-  await processNoiseFiles(targetEntries, stats, { dryRun });
+  await processNoiseFiles(targetEntries, stats, { dryRun }, concurrency);
 
   const suffix = dryRun ? ' (dry-run)' : '';
   logger.info(
