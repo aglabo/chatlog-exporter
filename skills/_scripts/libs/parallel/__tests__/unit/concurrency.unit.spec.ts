@@ -225,6 +225,54 @@ describe('withConcurrency', () => {
     });
   });
 
+  describe('Given: limit=2 で先頭タスクが速く reject し、他ワーカーがまだ実行中', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-25 - reject 返却前に実行中の他ワーカーの完了を待つ', () => {
+        it('T-LIB-C-25-01: reject が呼び出し元に返る時点で実行中タスクは完了している', async () => {
+          let _task1Done = false;
+          const _tasks = [
+            async () => {
+              await new Promise((r) => setTimeout(r, 5));
+              throw new Error('task0 failed');
+            },
+            async () => {
+              await new Promise((r) => setTimeout(r, 30));
+              _task1Done = true;
+              return 1;
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_task1Done, true);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 で先頭タスクが即時 reject し、他ワーカーが後から reject する', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-26 - 全ワーカー完了を待った上でも最初に発生したエラーが伝播する', () => {
+        it('T-LIB-C-26-01: 先頭タスクの reject が後発タスクの reject より優先して伝播する', async () => {
+          const _tasks = [
+            () => Promise.reject(new Error('first')),
+            async () => {
+              await new Promise((r) => setTimeout(r, 20));
+              throw new Error('second');
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'first',
+          );
+        });
+      });
+    });
+  });
+
   describe('Given: limit=1（順序実行）', () => {
     describe('When: withConcurrency を実行する', () => {
       describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
@@ -336,6 +384,50 @@ describe('withConcurrency', () => {
           const results = await withConcurrency(tasks, 2);
 
           assertEquals(results, ['a', 'b', 'c']);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 でタスク0が即時 reject し、タスク1が ctl.signal の abort を購読する', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-27 - 実行中タスクが abort シグナルを尊重して速やかに完了する', () => {
+        it('T-LIB-C-27-01: reject が伝播し、タスク1は abort 経由で完了しタスク2は未着手のまま', async () => {
+          let _task1ResolvedVia: 'abort' | 'timeout' | undefined;
+          const _calls: number[] = [];
+          const _tasks = [
+            () => {
+              _calls.push(0);
+              return Promise.reject(new Error('boom'));
+            },
+            (ctl: AbortController) => {
+              _calls.push(1);
+              return new Promise<number>((resolve) => {
+                const _timer = setTimeout(() => {
+                  _task1ResolvedVia = 'timeout';
+                  resolve(1);
+                }, 50);
+                ctl.signal.addEventListener('abort', () => {
+                  clearTimeout(_timer);
+                  _task1ResolvedVia = 'abort';
+                  resolve(1);
+                });
+              });
+            },
+            () => {
+              _calls.push(2);
+              return Promise.resolve(2);
+            },
+          ];
+
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'boom',
+          );
+
+          assertEquals(_task1ResolvedVia, 'abort');
+          assertEquals(_calls.includes(2), false);
         });
       });
     });

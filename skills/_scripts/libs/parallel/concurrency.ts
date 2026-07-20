@@ -20,7 +20,9 @@ export type { Task } from '../../types/common.types.ts';
  *
  * `ctl.abort()` が呼ばれた後は未着手タスクを実行せず、結果配列の該当インデックスは
  * 穴（未代入）のまま残る。いずれかのタスクが reject した場合は直ちに `ctl.abort()` を呼び、
- * 全ワーカーの未着手タスク着手を止めたうえで、最初に発生したエラーを呼び出し元に伝播する。
+ * 全ワーカーの未着手タスク着手を止める。ただし、実行中の他ワーカーが副作用を伴う処理を
+ * 継続している可能性があるため、呼び出し元へエラーを返す前に全ワーカーの終了を待ち、
+ * その後で最初に発生したエラーを呼び出し元に伝播する。
  */
 export const withConcurrency = async <T>(
   tasks: Task<T>[],
@@ -29,18 +31,26 @@ export const withConcurrency = async <T>(
   const results: T[] = new Array(tasks.length);
   const ctl = new AbortController();
   let idx = 0;
+  let _errored = false;
+  let _firstError: unknown;
   const _worker = async (): Promise<void> => {
     while (idx < tasks.length && !ctl.signal.aborted) {
       const i = idx++;
       try {
         results[i] = await tasks[i](ctl);
       } catch (e) {
+        if (!_errored) {
+          _errored = true;
+          _firstError = e;
+        }
         ctl.abort();
-        throw e;
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, _worker));
+  await Promise.allSettled(Array.from({ length: Math.min(limit, tasks.length) }, _worker));
+  if (_errored) {
+    throw _firstError;
+  }
   return results;
 };
 

@@ -52,22 +52,24 @@ describe('buildOutputPath', () => {
   describe('Given: 通常の SessionMeta', () => {
     describe('When: buildOutputPath を呼び出す', () => {
       describe('Then: T-EC-SW-01 - 期待するパス文字列を返す', () => {
-        it('T-EC-SW-01-01: outputBase/agent/year/yearMonth/date-slug-hash.md の形式になる', () => {
-          const path = buildOutputPath('out', 'claude', BASE_META, 'test-question');
-          assertEquals(path, 'out/claude/2026/2026-03/2026-03-15-test-question-sessabcd.md');
+        it('T-EC-SW-01-01: outputBase/agent/year/yearMonth/date-slug-hash.md の形式になる', async () => {
+          const path = await buildOutputPath('out', 'claude', BASE_META, 'test-question');
+          // sessionHash(BASE_META.sessionId, 12) の先頭12文字
+          assertEquals(path, 'out/claude/2026/2026-03/2026-03-15-test-question-aa9da8ccb6de.md');
         });
       });
     });
   });
 
-  /** ハイフン除去後の文字列が8文字未満になる境界ケース。 */
+  /** 短い sessionId（ハイフン除去後8文字未満）でも固定長ハッシュが使われる境界ケース。 */
   describe('Given: sessionId のハイフン除去後の長さが8文字未満', () => {
     describe('When: buildOutputPath を呼び出す', () => {
-      describe('Then: T-EC-SW-02 - 短い文字列がそのままファイル名に使われる', () => {
-        it('T-EC-SW-02-01: sessionId="ab-cd" → ハッシュ部分が "abcd"（4文字）になる', () => {
+      describe('Then: T-EC-SW-02 - 短い sessionId でも固定長（12文字）のハッシュが使われる', () => {
+        it('T-EC-SW-02-01: sessionId="ab-cd" → ハッシュ部分が12文字の16進数になる', async () => {
           const meta: SessionMeta = { ...BASE_META, sessionId: 'ab-cd' };
-          const path = buildOutputPath('out', 'claude', meta, 'test-question');
-          assertStringIncludes(path, '2026-03-15-test-question-abcd.md');
+          const path = await buildOutputPath('out', 'claude', meta, 'test-question');
+          // sessionHash('ab-cd', 12) の先頭12文字
+          assertStringIncludes(path, '2026-03-15-test-question-5db3d84c79b4.md');
         });
       });
     });
@@ -76,11 +78,12 @@ describe('buildOutputPath', () => {
   /** sessionId に複数のハイフンが含まれる UUID 形式のケース。 */
   describe('Given: sessionId に複数のハイフンが含まれる（UUID 形式）', () => {
     describe('When: buildOutputPath を呼び出す', () => {
-      describe('Then: T-EC-SW-03 - すべてのハイフンが除去された先頭8文字が使われる', () => {
-        it('T-EC-SW-03-01: sessionId="a1-b2-c3-d4-e5" → ハッシュ部分が "a1b2c3d4"（先頭8文字）になる', () => {
+      describe('Then: T-EC-SW-03 - sessionId 全体を入力とした決定的ハッシュ（先頭12文字）が使われる', () => {
+        it('T-EC-SW-03-01: sessionId="a1-b2-c3-d4-e5" → sessionHash の先頭12文字が使われる', async () => {
           const meta: SessionMeta = { ...BASE_META, sessionId: 'a1-b2-c3-d4-e5' };
-          const path = buildOutputPath('out', 'claude', meta, 'test-question');
-          assertStringIncludes(path, '2026-03-15-test-question-a1b2c3d4.md');
+          const path = await buildOutputPath('out', 'claude', meta, 'test-question');
+          // sessionHash('a1-b2-c3-d4-e5', 12) の先頭12文字
+          assertStringIncludes(path, '2026-03-15-test-question-80c69dec6e3a.md');
         });
       });
     });
@@ -159,6 +162,44 @@ describe('renderMarkdown', () => {
         it('T-EC-SW-08-01: 出力に "slug: \'test-question\'" が含まれる', () => {
           const markdown = renderMarkdown(BASE_META, []);
           assertStringIncludes(markdown, `slug: '${BASE_META.slug}'`);
+        });
+      });
+    });
+  });
+
+  /** meta.project が undefined の場合、frontmatter に project 行が出力されないケース。 */
+  describe('Given: meta.project が undefined', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-10 - frontmatter に project 行が出力されない', () => {
+        it('T-EC-SW-10-01: 出力に "project:" が含まれない', () => {
+          const meta: SessionMeta = { ...BASE_META, project: undefined };
+          const markdown = renderMarkdown(meta, []);
+          assertEquals(markdown.includes('project:'), false);
+        });
+      });
+    });
+  });
+
+  /** meta.project が空文字列の場合、frontmatter に project 行が出力されないケース。 */
+  describe('Given: meta.project が空文字列', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-11 - frontmatter に project 行が出力されない', () => {
+        it('T-EC-SW-11-01: 出力に "project:" が含まれない', () => {
+          const meta: SessionMeta = { ...BASE_META, project: '' };
+          const markdown = renderMarkdown(meta, []);
+          assertEquals(markdown.includes('project:'), false);
+        });
+      });
+    });
+  });
+
+  /** meta.project が非空文字列の場合、frontmatter に project 行が出力されるケース（claude/codex のデグレ防止）。 */
+  describe('Given: meta.project が非空文字列', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-12 - frontmatter に project 行が出力される', () => {
+        it('T-EC-SW-12-01: 出力に "project: \'my-project\'" が含まれる', () => {
+          const markdown = renderMarkdown(BASE_META, []);
+          assertStringIncludes(markdown, `project: '${BASE_META.project}'`);
         });
       });
     });

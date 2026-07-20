@@ -52,7 +52,7 @@ export const processChunk = async (
 
   let rawResult: string;
   try {
-    rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt);
+    rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt, { signal: ctl.signal });
   } catch (e) {
     if (!(e instanceof ChatlogError)) { throw e; }
     logger.warn(`  claude CLI 実行失敗。チャンク内ファイルをすべて error 扱い`);

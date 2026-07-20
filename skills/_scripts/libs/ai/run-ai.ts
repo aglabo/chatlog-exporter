@@ -24,6 +24,7 @@ import { AI_BACKEND_COMMAND_MAP } from '../../types/ai.const.types.ts';
 export type RunAIOptions = {
   model?: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 type _CommandSpec = { command: AiBackendCommand; args: string[]; hasSystemPromptWithArgs: boolean };
@@ -134,12 +135,13 @@ export const runAI = async (
   const _timer = _options.timeoutMs !== 0
     ? setTimeout(() => _controller.abort(), _options.timeoutMs)
     : undefined;
+  const _signals = _options.signal ? [_controller.signal, _options.signal] : [_controller.signal];
   const _cmd = new Deno.Command(_spec.command, {
     args: _spec.args,
     stdin: 'piped',
     stdout: 'piped',
     stderr: 'piped',
-    signal: _controller.signal,
+    signal: AbortSignal.any(_signals),
   });
   try {
     const _process = _cmd.spawn();
@@ -159,6 +161,9 @@ export const runAI = async (
     }
     return new TextDecoder().decode(_output.stdout).trim();
   } catch (e) {
+    if (_options.signal?.aborted) {
+      throw new ChatlogError('Aborted', 'ExternalAbort', `${_spec.command} was aborted by an external signal`);
+    }
     if (_controller.signal.aborted) {
       throw new ChatlogError('TimedOut', 'Timeout', `${_spec.command} timed out after ${_options.timeoutMs}ms`);
     }

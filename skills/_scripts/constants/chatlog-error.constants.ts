@@ -17,4 +17,5 @@ export const ERROR_KIND_LABELS = {
   EnvVarNotSet: 'Env Var Not Set',
   InvalidPath: 'Invalid Path',
   ParallelExecutionError: 'Parallel Execution Error',
+  Aborted: 'Aborted',
 } as const;

@@ -87,4 +87,35 @@ describe('withConcurrency', () => {
       });
     });
   });
+
+  // ─── T-FL-WC-04: reject 返却前に実行中の他タスクの完了を待つ ───────────────
+
+  describe('Given: 一部のタスクが reject し、他タスクがまだ実行中の場合', () => {
+    describe('When: withConcurrency(tasks, limit) を呼び出す', () => {
+      describe('Then: T-FL-WC-04 - reject 返却前に実行中タスクの完了を待つ', () => {
+        it('T-FL-WC-04-01: reject が呼び出し元に返る時点で実行中タスクは完了している', async () => {
+          let otherTaskDone = false;
+          const tasks = [
+            async () => {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              throw new Error('タスク失敗');
+            },
+            async () => {
+              await new Promise((resolve) => setTimeout(resolve, 30));
+              otherTaskDone = true;
+              return 1;
+            },
+          ];
+
+          await assertRejects(
+            () => withConcurrency(tasks, 2),
+            Error,
+            'タスク失敗',
+          );
+
+          assertEquals(otherTaskDone, true);
+        });
+      });
+    });
+  });
 });
