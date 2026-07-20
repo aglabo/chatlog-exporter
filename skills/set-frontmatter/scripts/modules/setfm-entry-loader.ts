@@ -13,6 +13,7 @@
 import { loadChatlogEntry as _loadEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // classes
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -29,12 +30,13 @@ import type { Stats } from '../types/phase.types.ts';
 export const loadAllEntries = async (
   dir: string,
   stats: Stats,
+  concurrency: number,
 ): Promise<ChatlogEntry[]> => {
   const allFiles = await findFiles(dir);
   stats.total = allFiles.length;
   logger.info(`対象ファイル数: ${stats.total}`);
 
-  const _results = await Promise.all(allFiles.map(loadChatlogEntry));
+  const _results = await runConcurrent(allFiles, loadChatlogEntry, concurrency);
 
   allFiles
     .filter((_, i) => !_results[i])

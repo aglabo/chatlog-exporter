@@ -123,7 +123,7 @@ export const main = async (args: string[]): Promise<void> => {
   const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
 
   // Phase 1.1: メタ読み込み
-  const entries = await loadAllEntries(_inputDir, stats);
+  const entries = await loadAllEntries(_inputDir, stats, _config.concurrency);
   logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
   if (entries.length === 0) {
     logger.info('対象ファイルなし');
