@@ -109,10 +109,9 @@ export const main = async (argv?: string[]): Promise<void> => {
   // Step 5: ファイル移動
   await applyClassifications(
     [..._partition.cached, ..._partition.uncached],
-    _cache,
     _originalLogsDir,
     _config.dryRun,
-    stats,
+    { cache: _cache, stats },
     _config,
   );
 

@@ -58,7 +58,7 @@ describe('applyClassifications', () => {
       const _cache = await _makeEmptyClassifyCache();
       const _stats = _makeStats();
 
-      await applyClassifications([], _cache, '/tmp/output', false, _stats, { concurrency: 4 });
+      await applyClassifications([], '/tmp/output', false, { cache: _cache, stats: _stats }, { concurrency: 4 });
 
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
@@ -74,10 +74,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         false,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -94,10 +93,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         false,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -115,10 +113,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -136,10 +133,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -157,10 +153,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         false,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -178,10 +173,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -205,10 +199,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -228,10 +221,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -250,10 +242,9 @@ describe('applyClassifications', () => {
 
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
@@ -274,10 +265,9 @@ describe('applyClassifications', () => {
       // 実削除の検証は integration テストで実施する。
       await applyClassifications(
         [_entry],
-        _cache,
         '/tmp/output',
         true,
-        _stats,
+        { cache: _cache, stats: _stats },
         { concurrency: 4 },
       );
 
