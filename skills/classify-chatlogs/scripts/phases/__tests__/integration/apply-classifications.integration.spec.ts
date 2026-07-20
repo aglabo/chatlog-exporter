@@ -46,7 +46,7 @@ describe('applyClassifications', () => {
       );
     });
 
-    describe('When: applyClassifications(entries, cache, tempDir, false, stats) を呼び出す', () => {
+    describe('When: applyClassifications(entries, tempDir, false, state) を呼び出す', () => {
       describe('Then: T-CL-MC-10 - moveChatlogEntry の実失敗が stats.error に伝播する', () => {
         it('T-CL-MC-10-01: stats.error が 1 になる', async () => {
           const _cache = await _makeEmptyClassifyCache();
@@ -55,10 +55,9 @@ describe('applyClassifications', () => {
 
           await applyClassifications(
             [entry],
-            _cache,
             tempDir,
             false,
-            _stats,
+            { cache: _cache, stats: _stats },
             { concurrency: 4 },
           );
 
@@ -72,10 +71,9 @@ describe('applyClassifications', () => {
 
           await applyClassifications(
             [entry],
-            _cache,
             tempDir,
             false,
-            _stats,
+            { cache: _cache, stats: _stats },
             { concurrency: 4 },
           );
 
@@ -89,10 +87,9 @@ describe('applyClassifications', () => {
 
           await applyClassifications(
             [entry],
-            _cache,
             tempDir,
             false,
-            _stats,
+            { cache: _cache, stats: _stats },
             { concurrency: 4 },
           );
 
@@ -112,7 +109,7 @@ describe('applyClassifications', () => {
       entry = new ChatlogEntry(`---\ntitle: Test\n---\n本文`, { filePath: srcPath });
     });
 
-    describe('When: applyClassifications(entries, cache, destDir, false, stats) を呼び出す', () => {
+    describe('When: applyClassifications(entries, destDir, false, state) を呼び出す', () => {
       describe('Then: T-CL-MC-11 - ファイル移動成功後にキャッシュエントリが削除される', () => {
         it('T-CL-MC-11-01: stats.moved が 1 になる', async () => {
           const _cache = await _makeEmptyClassifyCache();
@@ -120,7 +117,7 @@ describe('applyClassifications', () => {
           const _stats = _makeStats();
           const destDir = `${tempDir}/out`;
 
-          await applyClassifications([entry], _cache, destDir, false, _stats, { concurrency: 4 });
+          await applyClassifications([entry], destDir, false, { cache: _cache, stats: _stats }, { concurrency: 4 });
 
           assertEquals(_stats.moved, 1);
         });
@@ -131,7 +128,7 @@ describe('applyClassifications', () => {
           const _stats = _makeStats();
           const destDir = `${tempDir}/out`;
 
-          await applyClassifications([entry], _cache, destDir, false, _stats, { concurrency: 4 });
+          await applyClassifications([entry], destDir, false, { cache: _cache, stats: _stats }, { concurrency: 4 });
 
           assertEquals(_cache.read(srcPath), {});
         });
@@ -140,7 +137,7 @@ describe('applyClassifications', () => {
   });
 
   describe('Given: キャッシュに ERROR（project なし）が登録済みのエントリと dryRun=false', () => {
-    describe('When: applyClassifications(entries, cache, destDir, false, stats) を呼び出す', () => {
+    describe('When: applyClassifications(entries, destDir, false, state) を呼び出す', () => {
       describe('Then: T-CL-MC-12 - project の有無で move/remaining が決まる', () => {
         it('T-CL-MC-12-02: action=error, project なし → remaining 扱いでキャッシュは削除されない', async () => {
           const _cache = await _makeEmptyClassifyCache();
@@ -150,10 +147,9 @@ describe('applyClassifications', () => {
 
           await applyClassifications(
             [errorEntry],
-            _cache,
             `${tempDir}/out`,
             false,
-            _stats,
+            { cache: _cache, stats: _stats },
             { concurrency: 4 },
           );
 

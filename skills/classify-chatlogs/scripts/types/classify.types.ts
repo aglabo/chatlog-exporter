@@ -10,6 +10,7 @@
 //
 // ─── Imports
 // types
+import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
 import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
@@ -56,6 +57,16 @@ export interface ClassifyStats {
   remaining: number;
   /** dry-run のため AI 呼び出しをスキップした件数。 */
   skip: number;
+}
+
+// ─────────────────────────────────────────────
+// 分類処理状態型
+// ─────────────────────────────────────────────
+
+/** 分類処理全体で共有される可変状態（キャッシュ・統計カウンター）。 */
+export interface ClassifyState {
+  cache: ChatlogCache<ClassifyCache>;
+  stats: ClassifyStats;
 }
 
 // ─────────────────────────────────────────────
