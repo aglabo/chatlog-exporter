@@ -172,7 +172,7 @@ describe('loadFilterEntries', () => {
       tempFiles.push(path1, path2);
       const cache = await _makeEmptyFilterCache();
 
-      const results = await loadFilterEntries([path1, path2], cache);
+      const results = await loadFilterEntries([path1, path2], cache, 2);
 
       assertEquals(results.entries.length, 2);
       assertEquals(results.entries[0].filePath, path1);
@@ -183,7 +183,7 @@ describe('loadFilterEntries', () => {
     it('[Normal] T-FC-LFES-02: 空配列 → entries・errors ともに空配列が返る', async () => {
       const cache = await _makeEmptyFilterCache();
 
-      const results = await loadFilterEntries([], cache);
+      const results = await loadFilterEntries([], cache, 2);
 
       assertEquals(results.entries, []);
       assertEquals(results.errors, []);
@@ -198,7 +198,7 @@ describe('loadFilterEntries', () => {
       tempFiles.push(okPath, errorPath);
       const cache = await _makeEmptyFilterCache();
 
-      const results = await loadFilterEntries([okPath, errorPath], cache);
+      const results = await loadFilterEntries([okPath, errorPath], cache, 2);
 
       assertEquals(results.entries.length, 1);
       assertEquals(results.entries[0].filePath, okPath);
@@ -219,7 +219,7 @@ describe('loadFilterEntries', () => {
       const errorPath = await _makeTempFile(_INVALID_YAML_ENTRY);
       tempFiles.push(okPath, errorPath);
 
-      const results = await loadFilterEntries([okPath, errorPath]);
+      const results = await loadFilterEntries([okPath, errorPath], undefined, 2);
 
       assertEquals(results.entries.length, 1);
       assertEquals(results.entries[0].filePath, okPath);

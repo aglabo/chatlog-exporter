@@ -133,7 +133,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const logStub = stub(console, 'log', () => {});
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
           logStub.restore();
 
           assertEquals(await fileOrDirExists(filePath), false);
@@ -150,7 +150,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const logStub = stub(console, 'log', () => {});
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
           logStub.restore();
 
           assertEquals(stats.remove, 1);
@@ -167,7 +167,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const logStub = stub(console, 'log', () => {});
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
           logStub.restore();
 
           assertEquals(cache.read(filePath), {});
@@ -192,7 +192,7 @@ describe('sweepDiscards', () => {
           await cache.write(filePath, { decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' });
           const stats = _makeStats();
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
 
           assertEquals(await fileOrDirExists(filePath), true);
           assertEquals(stats.remove, 0);
@@ -226,7 +226,7 @@ describe('sweepDiscards', () => {
           // fileExists では検出されるが、削除実行時に Deno.remove が NotFound を投げる TOCTOU を再現する
           const removeStub = stub(Deno, 'remove', () => Promise.reject(new Deno.errors.NotFound()));
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
           removeStub.restore();
           warnStub.restore();
           logStub.restore();
@@ -248,7 +248,7 @@ describe('sweepDiscards', () => {
           const warnStub = stub(console, 'warn', () => {});
           const removeStub = stub(Deno, 'remove', () => Promise.reject(new Deno.errors.NotFound()));
 
-          await sweepDiscards([filePath], cache, stats, false);
+          await sweepDiscards([filePath], cache, stats, false, Infinity);
           removeStub.restore();
           warnStub.restore();
           logStub.restore();
@@ -284,7 +284,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const infoStub = stub(console, 'error', () => {});
 
-          await sweepDiscards([filePath], cache, stats, true);
+          await sweepDiscards([filePath], cache, stats, true, Infinity);
           infoStub.restore();
 
           assertEquals(await fileOrDirExists(filePath), true);
@@ -301,7 +301,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const infoStub = stub(console, 'error', () => {});
 
-          await sweepDiscards([filePath], cache, stats, true);
+          await sweepDiscards([filePath], cache, stats, true, Infinity);
           infoStub.restore();
 
           assertEquals(stats.skip, 1);
@@ -338,7 +338,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const infoStub = stub(console, 'error', () => {});
 
-          await sweepDiscards([filePath1, filePath2], cache, stats, true);
+          await sweepDiscards([filePath1, filePath2], cache, stats, true, Infinity);
           infoStub.restore();
 
           assertEquals(stats.skip, 2);
@@ -361,7 +361,7 @@ describe('sweepDiscards', () => {
           const stats = _makeStats();
           const infoStub = stub(console, 'error', () => {});
 
-          await sweepDiscards([filePath1, filePath2], cache, stats, true);
+          await sweepDiscards([filePath1, filePath2], cache, stats, true, Infinity);
           infoStub.restore();
 
           const messages = infoStub.calls.map((call) => call.args[0] as string);

@@ -422,4 +422,50 @@ describe('buildConfig', () => {
       });
     });
   });
+
+  // ─── concurrency 優先順位 ────────────────────────────────────────────────────
+
+  /**
+   * GlobalConfig に concurrency が設定されている前提条件グループ。
+   *
+   * `globalConfig.concurrency` が `result.concurrency` に反映されることを検証する。
+   */
+  describe('Given: GlobalConfig に concurrency が設定されている', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** `globalConfig.concurrency` が採用されることを検証する。 */
+      describe('Then: T-EC-BC-21 - GlobalConfig の concurrency が使われる', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('concurrency: 2');
+        });
+        it('T-EC-BC-21-01: globalConfig.concurrency=2 → result.concurrency === 2', () => {
+          const result = buildConfig([]);
+          assertEquals(result.concurrency, 2);
+        });
+      });
+    });
+  });
+
+  /**
+   * GlobalConfig に concurrency が設定されていない前提条件グループ。
+   *
+   * `DEFAULT_EXPORT_CONFIG.concurrency` にフォールバックされることを検証する。
+   */
+  describe('Given: GlobalConfig に concurrency が設定されていない', () => {
+    /** `buildConfig` を呼び出すとき。 */
+    describe('When: buildConfig を呼び出す', () => {
+      /** `DEFAULT_EXPORT_CONFIG.concurrency` が採用されることを検証する。 */
+      describe('Then: T-EC-BC-22 - DEFAULT_EXPORT_CONFIG.concurrency が使われる', () => {
+        beforeEach(async () => {
+          resetProjectRoot('/home/user/project');
+          GlobalConfig.resetInstance();
+          await GlobalConfig.getInstance({ schema: {} });
+        });
+        it('T-EC-BC-22-01: concurrency 未設定 → result.concurrency === DEFAULT_EXPORT_CONFIG.concurrency', () => {
+          const result = buildConfig([]);
+          assertEquals(result.concurrency, DEFAULT_EXPORT_CONFIG.concurrency);
+        });
+      });
+    });
+  });
 });

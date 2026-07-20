@@ -64,7 +64,7 @@ describe('_phase3DiscardOrSkip', () => {
           ];
           const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await _phase3DiscardOrSkip(discardFiles, stats, false);
+          await _phase3DiscardOrSkip(discardFiles, stats, false, Infinity);
 
           assertEquals(await fileExists(filePath), false);
           assertEquals(stats.remove, 1);
@@ -88,7 +88,7 @@ describe('_phase3DiscardOrSkip', () => {
           ];
           const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await _phase3DiscardOrSkip(discardFiles, stats, true);
+          await _phase3DiscardOrSkip(discardFiles, stats, true, Infinity);
 
           assertEquals(await fileExists(filePath), true);
           assertEquals(stats.skip, 1);
@@ -114,7 +114,7 @@ describe('_phase3DiscardOrSkip', () => {
           ];
           const stats = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await _phase3DiscardOrSkip(discardFiles, stats, false);
+          await _phase3DiscardOrSkip(discardFiles, stats, false, Infinity);
 
           assertEquals(stats.error, 1);
           assertEquals(stats.remove, 0);

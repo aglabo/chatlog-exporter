@@ -10,6 +10,7 @@
 // ─── Shared scripts
 import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { isFileIoError } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -45,21 +46,28 @@ export const loadFilterEntry = async (
  * ファイルパス一覧から `ChatlogEntry` を並列読み込みし、成功分と失敗分に振り分ける。
  * 失敗分（frontmatter 解析エラー等）はまとめて `cache` に `decision: ERROR` と `reason` を書き込む。
  * `cache` を省略した場合は ERROR 書き込みを行わない。
+ * `concurrency` で読み込み・cache 書き込みの並列度を制限する。
  */
 export const loadFilterEntries = async (
   filePaths: string[],
-  cache?: ChatlogCache<CLEResult>,
+  cache: ChatlogCache<CLEResult> | undefined,
+  concurrency: number,
 ): Promise<{ entries: ChatlogEntry[]; errors: { filePath: string; error: Error }[] }> => {
-  const results = await Promise.all(filePaths.map((filePath) => loadFilterEntry(filePath)));
+  const results = await runConcurrent(
+    filePaths,
+    (filePath) => loadFilterEntry(filePath),
+    concurrency,
+  );
 
   const entries = results.filter((result): result is ChatlogEntry => result instanceof ChatlogEntry);
   const errors = results.filter((result): result is LoadFilterEntryFailure => !(result instanceof ChatlogEntry));
 
   if (cache) {
-    await Promise.all(
-      errors.map(({ filePath, error }) =>
-        cache.write(filePath, { decision: FILTER_DECISIONS.ERROR, confidence: 0, reason: error.message })
-      ),
+    await runConcurrent(
+      errors,
+      ({ filePath, error }) =>
+        cache.write(filePath, { decision: FILTER_DECISIONS.ERROR, confidence: 0, reason: error.message }),
+      concurrency,
     );
   }
 

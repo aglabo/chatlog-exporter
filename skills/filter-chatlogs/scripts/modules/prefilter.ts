@@ -20,6 +20,7 @@ import {
 } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
 import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 // constants
 import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
 
@@ -236,18 +237,21 @@ export const _phase3PartitionByContent = (
  * @param files - 削除対象の `DiscardFile` 配列
  * @param dryRun - `true` のとき実削除を行わない
  * @param stats - 加算対象の処理統計オブジェクト
+ * @param concurrency - 同時実行する削除処理の最大並列数。
  * @returns 削除できなかった（未実施 or 失敗）ファイル、および非 DISCARD エントリの `DiscardFile` 配列
  */
 export const _discardFiles = async (
   files: DiscardFile[],
   dryRun: boolean,
   stats: BaseStats,
+  concurrency: number,
 ): Promise<DiscardFile[]> => {
   const toDiscard = files.filter((entry) => entry.decision === FILTER_DECISIONS.DISCARD);
   const nonDiscard = files.filter((entry) => entry.decision !== FILTER_DECISIONS.DISCARD);
 
-  const results = await Promise.all(
-    toDiscard.map(async (entry): Promise<DiscardFile | null> => {
+  const results = await runConcurrent(
+    toDiscard,
+    async (entry): Promise<DiscardFile | null> => {
       const { filePath, filename, reason } = entry;
       if (dryRun) {
         logger.info(`  skipped (${reason}): ${filename}`);
@@ -261,7 +265,8 @@ export const _discardFiles = async (
       stats.remove++;
       logger.info(`  removed (${reason}): ${filename}`);
       return null;
-    }),
+    },
+    concurrency,
   );
   return [...results.filter((entry): entry is DiscardFile => entry !== null), ...nonDiscard];
 };
@@ -276,6 +281,7 @@ export const _discardFiles = async (
  * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
  *   dry-run 時のスキップ数を `skip` に加算する。
  * @param options.dryRun - `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する（デフォルト: `false`）
+ * @param options.concurrency - 同時実行する削除処理の最大並列数。
  * @returns フィルタリングを通過した `ChatlogEntry` 配列
  */
 export const prefilterFiles = async (
@@ -287,6 +293,7 @@ export const prefilterFiles = async (
     minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
     stats,
     dryRun = false,
+    concurrency,
   } = options;
 
   const { fileList, discardFiles } = _phase1PartitionByFilename(entries);
@@ -294,7 +301,7 @@ export const prefilterFiles = async (
 
   const toDelete = [...discardFiles, ...byContent.results];
 
-  const notDeleted = await _discardFiles(toDelete, dryRun, stats);
+  const notDeleted = await _discardFiles(toDelete, dryRun, stats, concurrency);
 
   const errorPaths = new Set(
     notDeleted.filter((entry) => entry.decision === FILTER_DECISIONS.ERROR).map((entry) => entry.filePath),

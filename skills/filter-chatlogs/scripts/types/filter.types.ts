@@ -84,4 +84,6 @@ export interface PrefilterFilesOptions {
   stats: BaseStats;
   /** `true` のとき、スキップ理由・サマリのログ出力を抑制する。 */
   dryRun?: boolean;
+  /** 同時実行するファイル削除処理の最大並列数。 */
+  concurrency: number;
 }

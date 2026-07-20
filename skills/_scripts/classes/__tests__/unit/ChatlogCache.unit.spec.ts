@@ -559,7 +559,7 @@ describe('ChatlogCache', () => {
               ]),
           },
         });
-        await _cache.loadAll();
+        await _cache.loadAll(2);
         assertEquals(await _cache.read('file-a'), { type: 'A' });
         assertEquals(await _cache.read('file-b'), { type: 'B' });
       });
@@ -595,7 +595,7 @@ describe('ChatlogCache', () => {
             glob: (_pattern: string) => Promise.resolve([]),
           },
         });
-        await _cache.loadAll();
+        await _cache.loadAll(2);
         assertEquals(await _cache.read('file-a'), {});
       });
 
@@ -608,7 +608,7 @@ describe('ChatlogCache', () => {
           },
         });
         _cache.loadFromYaml('old:\n  type: OLD\n');
-        await _cache.loadAll();
+        await _cache.loadAll(2);
         const _result = await _cache.read('old');
         assertEquals(_result, {});
       });
@@ -632,7 +632,7 @@ describe('ChatlogCache', () => {
               ]),
           },
         });
-        await _cache.loadAll();
+        await _cache.loadAll(2);
         assertEquals(await _cache.read('file-ok'), { type: 'OK' });
         assertEquals(await _cache.read('file-bad'), {});
       });
@@ -710,7 +710,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('a.md'), { title: 'A', type: 'tech', category: 'dev', status: '' });
         assertEquals(_cache.read('b.md'), { title: 'B', type: 'tech', category: 'dev', status: '' });
       });
@@ -731,7 +731,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('has-fm.md'), { title: 'Test', type: 'tech', category: 'dev', status: '' });
       });
 
@@ -761,7 +761,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('full.md'), {
           title: 'A',
           type: 'tech',
@@ -798,7 +798,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('hashtag.md'), {
           title: 'A',
           type: 'tech',
@@ -835,7 +835,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('no-hashtag.md'), {
           title: 'A',
           type: 'tech',
@@ -862,7 +862,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('base.md'), { title: 'B', type: 'tech', category: 'dev', status: '' });
       });
 
@@ -881,6 +881,7 @@ describe('ChatlogCache', () => {
         await _cache.initFromOutputDir(
           '/out',
           (text) => parseFrontmatter(text).meta['title'] !== undefined,
+          2,
         );
         assertEquals(_cache.read('with-title.md'), { title: 'Hello', status: 'written' });
         assertEquals(_cache.read('no-title.md'), {});
@@ -910,7 +911,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         // キャッシュ済みのため上書きされず { status: 'reviewed' } が保持される
         assertEquals(_cache.read('existing.md'), { status: 'reviewed' });
       });
@@ -928,7 +929,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         // a.md はフロントマターなし → isComplete false → 上書きされない
         assertEquals(_cache.read('a'), { status: 'kept' });
       });
@@ -952,7 +953,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('new.md'), { title: 'New', type: 'tech', category: 'dev', status: '' });
       });
 
@@ -967,7 +968,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('no-fm.md'), {});
       });
 
@@ -982,7 +983,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('empty-fm.md'), {});
       });
 
@@ -997,7 +998,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('bad-yaml.md'), {});
       });
 
@@ -1010,7 +1011,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('any'), {});
       });
 
@@ -1049,7 +1050,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         // フロントマターなし → スキップ（既存キャッシュ保持）
         assertEquals(_cache.read('fm-none.md'), { status: 'kept' });
         // 全5フィールド → status:written
@@ -1079,7 +1080,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         // *.md が空なので新規書き込みは発生しない
         assertEquals(_cache.read('any-new'), {});
       });
@@ -1098,7 +1099,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await assertRejects(() => _cache.initFromOutputDir('/out'));
+        await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 2));
       });
 
       it('[Error] T-CLS-CC-50: writeTextFile 失敗 → initFromOutputDir が reject', async () => {
@@ -1114,7 +1115,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await assertRejects(() => _cache.initFromOutputDir('/out'));
+        await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 2));
       });
 
       it('[Error] T-CLS-CC-56: readTextFile が reject → initFromOutputDir が reject', async () => {
@@ -1127,7 +1128,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await assertRejects(() => _cache.initFromOutputDir('/out'));
+        await assertRejects(() => _cache.initFromOutputDir('/out', undefined, 2));
       });
     });
   });
@@ -1159,7 +1160,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('complete.md'), { title: 'A', type: 'tech', category: 'dev', status: '' });
         assertEquals(_cache.read('missing-type.md'), {});
       });
@@ -1183,7 +1184,7 @@ describe('ChatlogCache', () => {
           },
         );
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('null-type.md'), {});
       });
 
@@ -1198,7 +1199,7 @@ describe('ChatlogCache', () => {
           },
         });
         await _cache.ready;
-        await _cache.initFromOutputDir('/out');
+        await _cache.initFromOutputDir('/out', undefined, 2);
         assertEquals(_cache.read('title-only.md'), {});
       });
     });

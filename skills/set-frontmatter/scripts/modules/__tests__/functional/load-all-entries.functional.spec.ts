@@ -74,7 +74,7 @@ describe('loadAllEntries', () => {
       await _writeValidMd(tempDir, 'c.md');
       const stats = _makeStats();
 
-      const entries = await loadAllEntries(tempDir, stats);
+      const entries = await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(entries.length, 3);
     });
@@ -85,7 +85,7 @@ describe('loadAllEntries', () => {
       await _writeValidMd(tempDir, 'c.md');
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.total, 3);
     });
@@ -96,7 +96,7 @@ describe('loadAllEntries', () => {
       await _writeValidMd(tempDir, 'c.md');
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.skip, 0);
     });
@@ -114,7 +114,7 @@ describe('loadAllEntries', () => {
       await _writeSkipMd(tempDir, 'skip.md');
       const stats = _makeStats();
 
-      const entries = await loadAllEntries(tempDir, stats);
+      const entries = await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(entries.length, 2);
     });
@@ -125,7 +125,7 @@ describe('loadAllEntries', () => {
       await _writeSkipMd(tempDir, 'skip.md');
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.total, 3);
     });
@@ -136,7 +136,7 @@ describe('loadAllEntries', () => {
       await _writeSkipMd(tempDir, 'skip.md');
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.skip, 1);
     });
@@ -149,7 +149,7 @@ describe('loadAllEntries', () => {
     it('[Edge] T-SF-LAE-03-01: 空ディレクトリ → entries が空になる', async () => {
       const stats = _makeStats();
 
-      const entries = await loadAllEntries(tempDir, stats);
+      const entries = await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(entries.length, 0);
     });
@@ -157,7 +157,7 @@ describe('loadAllEntries', () => {
     it('[Edge] T-SF-LAE-03-02: 空ディレクトリ → stats.total が 0 になる', async () => {
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.total, 0);
     });
@@ -165,7 +165,7 @@ describe('loadAllEntries', () => {
     it('[Edge] T-SF-LAE-03-03: 空ディレクトリ → stats.skip が 0 になる', async () => {
       const stats = _makeStats();
 
-      await loadAllEntries(tempDir, stats);
+      await loadAllEntries(tempDir, stats, 2);
 
       assertEquals(stats.skip, 0);
     });

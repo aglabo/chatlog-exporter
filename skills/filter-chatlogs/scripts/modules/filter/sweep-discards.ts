@@ -13,6 +13,7 @@ import type { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.cla
 import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
 import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
+import { runConcurrent } from '../../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── internal ───
@@ -39,23 +40,25 @@ import type { FilterStats } from '../../types/stats.types.ts';
  * @param cache - 判定結果キャッシュ
  * @param stats - 削除件数・スキップ件数・エラー件数を加算する統計オブジェクト
  * @param dryRun - `true` の場合は削除を行わず、ファイルごとに `stats.skip` に計上する
+ * @param concurrency - 同時実行する存在確認・削除処理の最大並列数。
  */
 export const sweepDiscards = async (
   allFiles: string[],
   cache: ChatlogCache<CLEResult>,
   stats: FilterStats,
   dryRun: boolean,
+  concurrency: number,
 ): Promise<void> => {
   const _isMarkedDiscard = (filePath: string): boolean => cache.read(filePath).decision === FILTER_DECISIONS.DISCARD;
   const _isExistingFile = async (filePath: string): Promise<boolean> => await fileExists(filePath);
 
-  const targets = (await Promise.all(
-    allFiles
-      .filter(_isMarkedDiscard)
-      .map(async (filePath) => (await _isExistingFile(filePath)) ? filePath : null),
+  const targets = (await runConcurrent(
+    allFiles.filter(_isMarkedDiscard),
+    async (filePath) => (await _isExistingFile(filePath)) ? filePath : null,
+    concurrency,
   )).filter((filePath): filePath is string => filePath !== null);
 
-  await Promise.all(targets.map(async (filePath) => {
+  await runConcurrent(targets, async (filePath) => {
     if (dryRun) {
       stats.skip++;
       logger.info(`  skipped: ${getFilename(filePath)}`);
@@ -72,5 +75,5 @@ export const sweepDiscards = async (
       await cache.write(filePath, { ...cache.read(filePath), decision: FILTER_DECISIONS.ERROR });
       logger.warn(`  Error: cannot removed: ${getFilename(filePath)}`);
     }
-  }));
+  }, concurrency);
 };

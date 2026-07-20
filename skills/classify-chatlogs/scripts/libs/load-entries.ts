@@ -7,12 +7,15 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── Shared scripts
+import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+
 // ─── Local
 import { loadClassifyEntry } from './load-classify-entry.ts';
 // types
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { ClassifyCache, FindBufferEntriesOptions } from '../types/classify.types.ts';
+import type { ClassifyCache, ClassifyConfig, FindBufferEntriesOptions } from '../types/classify.types.ts';
 import type { LoadClassifyEntryFailure } from '../types/load-classify-entry.types.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -34,30 +37,35 @@ const _getExistingProject = (entry: ChatlogEntry): string | undefined => {
 export const loadClassifyEntries = async (
   filePaths: string[],
   cache: ChatlogCache<ClassifyCache>,
+  config: Pick<ClassifyConfig, 'concurrency'>,
   opts?: FindBufferEntriesOptions,
 ): Promise<{ entries: ChatlogEntry[]; errors: LoadClassifyEntryFailure[] }> => {
-  const _results = await Promise.all(
-    filePaths.map((filePath) => opts?.loadMeta ? opts.loadMeta(filePath) : loadClassifyEntry(filePath)),
+  const _results = await runConcurrent(
+    filePaths,
+    (filePath) => opts?.loadMeta ? opts.loadMeta(filePath) : loadClassifyEntry(filePath),
+    config.concurrency,
   );
 
   const entries = _results.filter((result): result is ChatlogEntry => result instanceof ChatlogEntry);
   const errors = _results.filter((result): result is LoadClassifyEntryFailure => !(result instanceof ChatlogEntry));
 
-  await Promise.all(
-    errors.map(({ filePath, error }) =>
-      cache.write(filePath, { action: CLASSIFY_ACTIONS.ERROR, reason: error.message })
-    ),
+  await runConcurrent(
+    errors,
+    ({ filePath, error }) => cache.write(filePath, { action: CLASSIFY_ACTIONS.ERROR, reason: error.message }),
+    config.concurrency,
   );
 
-  await Promise.all(
-    entries.map((entry) => {
+  await runConcurrent(
+    entries,
+    (entry) => {
       const _filePath = entry.filePath!;
       const _project = _getExistingProject(entry);
       return cache.update(_filePath, {
         ...(_project ? { project: _project } : {}),
         action: cache.read(_filePath).action ?? CLASSIFY_ACTIONS.EMPTY,
       });
-    }),
+    },
+    config.concurrency,
   );
 
   return { entries, errors };
