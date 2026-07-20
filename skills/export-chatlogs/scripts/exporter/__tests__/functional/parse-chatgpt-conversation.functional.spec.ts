@@ -115,12 +115,12 @@ describe('parseChatGPTConversation', () => {
         assertEquals(result!.meta.sessionId, conv.conversation_id);
       });
 
-      // ─── T-EC-GP-01-03: meta.project === conv.title ──────────────────────
+      // ─── T-EC-GP-01-03: meta.project は未設定（classify-chatlogs が後付けする） ──
 
-      it('T-EC-GP-01-03: meta.project が conv.title と一致する', async () => {
+      it('T-EC-GP-01-03: meta.project が undefined になる', async () => {
         const conv = _makeNormalConv();
         const result = await parseChatGPTConversation(conv, ALL_PERIOD);
-        assertEquals(result!.meta.project, conv.title);
+        assertEquals(result!.meta.project, undefined);
       });
 
       // ─── T-EC-GP-01-04: turns.length が user+assistant の数 ──────────────

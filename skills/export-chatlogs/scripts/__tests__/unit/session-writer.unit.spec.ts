@@ -167,6 +167,44 @@ describe('renderMarkdown', () => {
     });
   });
 
+  /** meta.project が undefined の場合、frontmatter に project 行が出力されないケース。 */
+  describe('Given: meta.project が undefined', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-10 - frontmatter に project 行が出力されない', () => {
+        it('T-EC-SW-10-01: 出力に "project:" が含まれない', () => {
+          const meta: SessionMeta = { ...BASE_META, project: undefined };
+          const markdown = renderMarkdown(meta, []);
+          assertEquals(markdown.includes('project:'), false);
+        });
+      });
+    });
+  });
+
+  /** meta.project が空文字列の場合、frontmatter に project 行が出力されないケース。 */
+  describe('Given: meta.project が空文字列', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-11 - frontmatter に project 行が出力されない', () => {
+        it('T-EC-SW-11-01: 出力に "project:" が含まれない', () => {
+          const meta: SessionMeta = { ...BASE_META, project: '' };
+          const markdown = renderMarkdown(meta, []);
+          assertEquals(markdown.includes('project:'), false);
+        });
+      });
+    });
+  });
+
+  /** meta.project が非空文字列の場合、frontmatter に project 行が出力されるケース（claude/codex のデグレ防止）。 */
+  describe('Given: meta.project が非空文字列', () => {
+    describe('When: renderMarkdown を呼び出す', () => {
+      describe('Then: T-EC-SW-12 - frontmatter に project 行が出力される', () => {
+        it('T-EC-SW-12-01: 出力に "project: \'my-project\'" が含まれる', () => {
+          const markdown = renderMarkdown(BASE_META, []);
+          assertStringIncludes(markdown, `project: '${BASE_META.project}'`);
+        });
+      });
+    });
+  });
+
   /** turns が空配列の場合、会話ログセクションに何も出力されないケース。 */
   describe('Given: turns が空配列', () => {
     describe('When: renderMarkdown を呼び出す', () => {
