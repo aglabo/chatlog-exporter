@@ -18,7 +18,8 @@ export type { Task } from '../../types/common.types.ts';
  * 非同期タスク配列を並列度 `limit` で実行し、入力順の結果配列を返す。
  *
  * `ctl.abort()` が呼ばれた後は未着手タスクを実行せず、結果配列の該当インデックスは
- * 穴（未代入）のまま残る。
+ * 穴（未代入）のまま残る。いずれかのタスクが reject した場合は直ちに `ctl.abort()` を呼び、
+ * 全ワーカーの未着手タスク着手を止めたうえで、最初に発生したエラーを呼び出し元に伝播する。
  */
 export const withConcurrency = async <T>(
   tasks: Task<T>[],
@@ -30,7 +31,12 @@ export const withConcurrency = async <T>(
   const _worker = async (): Promise<void> => {
     while (idx < tasks.length && !ctl.signal.aborted) {
       const i = idx++;
-      results[i] = await tasks[i](ctl);
+      try {
+        results[i] = await tasks[i](ctl);
+      } catch (e) {
+        ctl.abort();
+        throw e;
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, _worker));

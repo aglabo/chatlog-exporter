@@ -145,6 +145,83 @@ describe('withConcurrency', () => {
     });
   });
 
+  describe('Given: limit=1 で先頭タスクが reject する', () => {
+    describe('When: withConcurrency(tasks, 1) を実行する', () => {
+      describe('Then: T-LIB-C-19 - reject 検知で自動 abort され後続タスクは呼ばれない', () => {
+        it('T-LIB-C-19-01: 先頭タスクの reject で後続タスクは呼ばれず calls が [0] になる', async () => {
+          const _calls: number[] = [];
+          const _tasks = [0, 1, 2].map((n) => () => {
+            _calls.push(n);
+            return n === 0 ? Promise.reject(new Error('task0 failed')) : Promise.resolve(n * 10);
+          });
+          await assertRejects(
+            () => withConcurrency(_tasks, 1),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_calls, [0]);
+        });
+
+        it('T-LIB-C-19-02: 先頭タスクの reject で ctl.signal.aborted が true になる', async () => {
+          let _capturedCtl: AbortController | undefined;
+          const _tasks = [
+            (ctl: AbortController) => {
+              _capturedCtl = ctl;
+              return Promise.reject(new Error('task0 failed'));
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 1),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_capturedCtl?.signal.aborted, true);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 でタスクが reject し他ワーカーが実行中', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-20 - reject 後に未着手タスクへ着手しない', () => {
+        it('T-LIB-C-20-01: reject 発生後、他ワーカーは以降のタスクを取得しない', async () => {
+          const _calls: number[] = [];
+          const _tasks = [
+            async () => {
+              _calls.push(0);
+              await new Promise((r) => setTimeout(r, 5));
+              throw new Error('task0 failed');
+            },
+            async () => {
+              _calls.push(1);
+              await new Promise((r) => setTimeout(r, 20));
+              _calls.push(-1);
+              return 1;
+            },
+            () => {
+              _calls.push(2);
+              return Promise.resolve(2);
+            },
+            () => {
+              _calls.push(3);
+              return Promise.resolve(3);
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'task0 failed',
+          );
+          // worker1 は task1 の完了(20ms)を待つ間に worker0 が5msでrejectしabortされるため、
+          // task2/task3（未着手）には着手しないはず。worker1 の継続を待ってから検証する。
+          await new Promise((r) => setTimeout(r, 30));
+          assertEquals(_calls.includes(2), false);
+          assertEquals(_calls.includes(3), false);
+        });
+      });
+    });
+  });
+
   describe('Given: limit=1（順序実行）', () => {
     describe('When: withConcurrency を実行する', () => {
       describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
