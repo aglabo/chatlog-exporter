@@ -125,6 +125,16 @@ chatlogs/
 | `codex`   | `~/.codex/sessions/YYYY/MM/DD/*.jsonl`                    |
 | `chatgpt` | `<inputPath で指定したディレクトリ>/conversations-*.json` |
 
+### 注意: 再エクスポート時のファイル名重複
+
+出力ファイル名（`{sessionid8}` 部分）は sessionId のハッシュから生成される。
+ハッシュ生成規則やファイル名の命名規則が将来変更された場合、旧規則で出力済みの
+ファイルは自動的には削除されない。同一セッションが新旧2つのファイル名で重複して
+存在すると、後続の `/filter-chatlog` や `/classify-chatlogs` が同じ会話を
+二重処理する可能性がある。
+
+再エクスポートする際は、出力先ディレクトリの内容を削除してから実行すること。
+
 ## 関連スキル
 
 - `/filter-chatlog` — 低価値ChatLogのフィルタリング（export-chatlogs の後工程）
