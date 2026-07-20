@@ -42,6 +42,24 @@ const _makeCommandStub = (output: Deno.CommandOutput) => {
   };
 };
 
+/**
+ * `Deno.Command` の代替クラスを返すファクトリ。
+ * spawn().output() が常に reject するフェイクを生成する（外部 signal abort 時の挙動を再現）。
+ *
+ * @returns `Deno.Command` と互換の偽クラス
+ */
+const _makeRejectingCommandStub = () => {
+  return class {
+    constructor(_cmd: string, _opts: unknown) {}
+    spawn() {
+      return {
+        stdin: { getWriter: () => ({ write: () => Promise.resolve(), close: () => Promise.resolve() }) },
+        output: () => Promise.reject(new Error('aborted')),
+      };
+    }
+  };
+};
+
 // constants
 /** レートリミット検出のテーブル駆動ケース (RA-13, RA-14, RA-15)。 */
 const _rateLimitCases = [
@@ -252,6 +270,48 @@ describe('runAI', () => {
         try {
           const _result = await runAI('sys', 'user', { model: 'sonnet' });
           assertEquals(_result, 'hello');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+    });
+  });
+
+  /**
+   * 外部から渡された `AbortSignal` による中断の検証。
+   *
+   * `options.signal` が abort された状態でサブプロセスが失敗した場合、
+   * タイムアウトとは区別された ChatlogError('Aborted', 'ExternalAbort') がスローされることを確認する。
+   */
+  describe('external signal abort', () => {
+    /** 外部 signal が原因で中断されるケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-AI-RA-16: runAI — options.signal が abort 済み → ChatlogError(Aborted) subindex=ExternalAbort', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeRejectingCommandStub() as unknown as typeof Deno.Command;
+        const _externalController = new AbortController();
+        _externalController.abort();
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet', signal: _externalController.signal }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'Aborted');
+          assertEquals(_err.subindex, 'ExternalAbort');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-17: runAI — signal 未指定でサブプロセス失敗 → ChatlogError(AiError) がそのまま伝播する（回帰確認）', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeRejectingCommandStub() as unknown as typeof Deno.Command;
+        try {
+          await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            Error,
+            'aborted',
+          );
         } finally {
           Deno.Command = _origCommand;
         }
