@@ -19,7 +19,7 @@ import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { ClassifyAction, ClassifyCache, ClassifyConfig, ClassifyStats } from '../types/classify.types.ts';
+import type { ClassifyAction, ClassifyCache, ClassifyConfig, ClassifyState } from '../types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -33,12 +33,15 @@ export const resolveProject = (project: string | undefined): string => project ?
  * - `project` が `undefined` の場合は `FALLBACK_PROJECT` に補完して移動する。
  * - `dryRun` が `true` の場合は移動せず `{ action: MOVE, message }` を返す。
  * - 移動エラーは `{ action: ERROR, message }` を返す（スローしない）。
+ * - 移動成功時は対応する `cache` エントリも削除する。ただし cache 削除の失敗は
+ *   移動成功という結果に影響させず、`logger.warn` でログ出力するのみとする。
  */
 export const moveChatlogEntry = async (
   classifyEntry: ChatlogEntry,
   project: string | undefined,
   destDir: string,
   dryRun: boolean,
+  cache: ChatlogCache<ClassifyCache>,
 ): Promise<{ action: ClassifyAction; message: string }> => {
   const _project = resolveProject(project);
   const srcPath = classifyEntry.filePath!;
@@ -55,37 +58,39 @@ export const moveChatlogEntry = async (
     const _newContent = normalizeLine(classifyEntry.renderEntry());
     await Deno.writeTextFile(dstPath, _newContent);
     await Deno.remove(srcPath);
-
-    return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename!} → ${_project}/` };
   } catch (e) {
     return { action: CLASSIFY_ACTIONS.ERROR, message: `  move failed: ${classifyEntry.filename!}: ${e}` };
   }
+
+  try {
+    await cache.delete(srcPath);
+  } catch (e) {
+    logger.warn(`  cache delete failed: ${classifyEntry.filename!}: ${e}`);
+  }
+
+  return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename!} → ${_project}/` };
 };
 
 /**
- * `MOVE`/`MOVEBYAI` の分類結果を実際にファイル移動し、成功時に stats を更新してキャッシュを削除する。
+ * `MOVE`/`MOVEBYAI` の分類結果を実際にファイル移動し、成功時に stats を更新する。
+ * キャッシュ削除は `moveChatlogEntry` が移動成功時に行う。
  * 失敗時は `stats.error++` のみ（キャッシュは削除しない）。
  */
 const _applyMove = async (
-  filePath: string,
   entry: ChatlogEntry,
-  cached: Partial<ClassifyCache>,
   destDir: string,
   dryRun: boolean,
-  cache: ChatlogCache<ClassifyCache>,
-  stats: ClassifyStats,
-  movedCounter: 'moved' | 'movedByAI',
+  state: ClassifyState,
 ): Promise<void> => {
-  const _result = await moveChatlogEntry(entry, cached.project, destDir, dryRun);
+  const cached = state.cache.read(entry.filePath!);
+  const _result = await moveChatlogEntry(entry, cached.project, destDir, dryRun, state.cache);
   if (_result.action !== CLASSIFY_ACTIONS.MOVE) {
     logger.error(_result.message);
-    stats.error++;
-    return;
-  }
-  logger.info(_result.message);
-  stats[movedCounter]++;
-  if (!dryRun) {
-    await cache.delete(filePath);
+    state.stats.error++;
+  } else {
+    const movedCounter = cached.action === CLASSIFY_ACTIONS.MOVEBYAI ? 'movedByAI' : 'moved';
+    logger.info(_result.message);
+    state.stats[movedCounter]++;
   }
 };
 
@@ -114,33 +119,31 @@ const _applyMove = async (
  */
 export const applyClassifications = async (
   entries: ChatlogEntry[],
-  cache: ChatlogCache<ClassifyCache>,
   destDir: string,
   dryRun: boolean,
-  stats: ClassifyStats,
+  state: ClassifyState,
   config: Pick<ClassifyConfig, 'concurrency'>,
 ): Promise<void> => {
   await runConcurrent(entries, async (entry) => {
     const filePath = entry.filePath!;
-    const cached = cache.read(filePath);
+    const cached = state.cache.read(filePath);
 
     if (cached.action === CLASSIFY_ACTIONS.SKIP) {
-      stats.skip++;
+      state.stats.skip++;
       return;
     }
 
     if (!cached.project) {
-      stats.remaining++;
+      state.stats.remaining++;
       return;
     }
 
     if (dryRun) {
-      stats.skip++;
+      state.stats.skip++;
       logger.info(`<<dry-run>> move skipped: ${entry.filename!}`);
       return;
     }
 
-    const movedCounter = cached.action === CLASSIFY_ACTIONS.MOVEBYAI ? 'movedByAI' : 'moved';
-    await _applyMove(filePath, entry, cached, destDir, dryRun, cache, stats, movedCounter);
+    await _applyMove(entry, destDir, dryRun, state);
   }, config.concurrency);
 };
