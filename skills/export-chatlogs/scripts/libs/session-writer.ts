@@ -48,7 +48,7 @@ export const renderMarkdown = (meta: SessionMeta, turns: Turn[]): string => {
   _lines.push('---');
   _lines.push(`session_id: ${quoteString(meta.sessionId)}`);
   _lines.push(`date: ${quoteString(meta.date)}`);
-  _lines.push(`project: ${quoteString(meta.project)}`);
+  if (meta.project) { _lines.push(`project: ${quoteString(meta.project)}`); }
   if (meta.slug) { _lines.push(`slug: ${quoteString(meta.slug)}`); }
   _lines.push('---');
   _lines.push('');
