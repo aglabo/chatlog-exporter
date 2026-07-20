@@ -71,8 +71,9 @@ export const phaseFrontmatter = async (
   const _alreadyFilled = _misses.filter((e) => e.frontmatter.hasRequiredFields());
   const _needsGenerate = _misses.filter((e) => !e.frontmatter.hasRequiredFields());
 
-  await Promise.all(
-    _alreadyFilled.map(async (entry) => {
+  await runConcurrent(
+    _alreadyFilled,
+    async (entry) => {
       const _fmSnapshot = extractEntryFrontmatter(entry);
       const _existing = cache.read(entry.filePath!);
       if (!dryRun) {
@@ -87,7 +88,8 @@ export const phaseFrontmatter = async (
       } else {
         logger.info(`  frontmatter (existing): ${getFilename(entry.filePath!)}`);
       }
-    }),
+    },
+    concurrency,
   );
 
   const _generate = generateProvider ?? generateFrontmatter;
