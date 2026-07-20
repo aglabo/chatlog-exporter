@@ -8,7 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
-import { generateHash } from '../../../_scripts/libs/io/hash.ts';
+import { generateHash, sessionHash } from '../../../_scripts/libs/io/hash.ts';
 import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
 import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
@@ -29,16 +29,16 @@ export const resolveSessionId = async (sessionId: string | undefined): Promise<s
   sessionId ? sessionId : await generateHash(SESSION_ID_FALLBACK);
 
 /** セッションの Markdown ファイル出力パスを生成する。 */
-export const buildOutputPath = (
+export const buildOutputPath = async (
   outputBase: string,
   agent: string,
   meta: SessionMeta,
   slug: string,
-): string => {
+): Promise<string> => {
   const yearMonth = meta.date.slice(0, 7);
   const year = meta.date.slice(0, 4);
-  const sessionId8 = meta.sessionId.replace(/-/g, '').slice(0, 8);
-  const filename = `${meta.date}-${slug}-${sessionId8}.md`;
+  const sessionIdHash = await sessionHash(meta.sessionId);
+  const filename = `${meta.date}-${slug}-${sessionIdHash}.md`;
   return `${outputBase}/${agent}/${year}/${yearMonth}/${filename}`;
 };
 
@@ -73,7 +73,7 @@ export const writeSession = async (
   session: ExportedSession,
 ): Promise<string> => {
   const slug = textToSlug(session.meta.firstUserText, session.meta.slug || 'session');
-  const outPath = buildOutputPath(outputBase, agent, session.meta, slug);
+  const outPath = await buildOutputPath(outputBase, agent, session.meta, slug);
   const content = renderMarkdown(session.meta, session.turns);
 
   const dir = getDirectory(outPath);
