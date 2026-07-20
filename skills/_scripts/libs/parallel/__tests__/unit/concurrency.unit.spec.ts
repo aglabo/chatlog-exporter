@@ -7,11 +7,14 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertRejects } from '@std/assert';
+import { assertEquals, assertInstanceOf, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import { createTasks, runChunked, runConcurrent, withConcurrency } from '../../concurrency.ts';
+
+// -- helpers --
+import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // withConcurrency
@@ -145,6 +148,131 @@ describe('withConcurrency', () => {
     });
   });
 
+  describe('Given: limit=1 で先頭タスクが reject する', () => {
+    describe('When: withConcurrency(tasks, 1) を実行する', () => {
+      describe('Then: T-LIB-C-19 - reject 検知で自動 abort され後続タスクは呼ばれない', () => {
+        it('T-LIB-C-19-01: 先頭タスクの reject で後続タスクは呼ばれず calls が [0] になる', async () => {
+          const _calls: number[] = [];
+          const _tasks = [0, 1, 2].map((n) => () => {
+            _calls.push(n);
+            return n === 0 ? Promise.reject(new Error('task0 failed')) : Promise.resolve(n * 10);
+          });
+          await assertRejects(
+            () => withConcurrency(_tasks, 1),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_calls, [0]);
+        });
+
+        it('T-LIB-C-19-02: 先頭タスクの reject で ctl.signal.aborted が true になる', async () => {
+          let _capturedCtl: AbortController | undefined;
+          const _tasks = [
+            (ctl: AbortController) => {
+              _capturedCtl = ctl;
+              return Promise.reject(new Error('task0 failed'));
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 1),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_capturedCtl?.signal.aborted, true);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 でタスクが reject し他ワーカーが実行中', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-20 - reject 後に未着手タスクへ着手しない', () => {
+        it('T-LIB-C-20-01: reject 発生後、他ワーカーは以降のタスクを取得しない', async () => {
+          const _calls: number[] = [];
+          const _tasks = [
+            async () => {
+              _calls.push(0);
+              await new Promise((r) => setTimeout(r, 5));
+              throw new Error('task0 failed');
+            },
+            async () => {
+              _calls.push(1);
+              await new Promise((r) => setTimeout(r, 20));
+              _calls.push(-1);
+              return 1;
+            },
+            () => {
+              _calls.push(2);
+              return Promise.resolve(2);
+            },
+            () => {
+              _calls.push(3);
+              return Promise.resolve(3);
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'task0 failed',
+          );
+          // worker1 は task1 の完了(20ms)を待つ間に worker0 が5msでrejectしabortされるため、
+          // task2/task3（未着手）には着手しないはず。worker1 の継続を待ってから検証する。
+          await new Promise((r) => setTimeout(r, 30));
+          assertEquals(_calls.includes(2), false);
+          assertEquals(_calls.includes(3), false);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 で先頭タスクが速く reject し、他ワーカーがまだ実行中', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-25 - reject 返却前に実行中の他ワーカーの完了を待つ', () => {
+        it('T-LIB-C-25-01: reject が呼び出し元に返る時点で実行中タスクは完了している', async () => {
+          let _task1Done = false;
+          const _tasks = [
+            async () => {
+              await new Promise((r) => setTimeout(r, 5));
+              throw new Error('task0 failed');
+            },
+            async () => {
+              await new Promise((r) => setTimeout(r, 30));
+              _task1Done = true;
+              return 1;
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'task0 failed',
+          );
+          assertEquals(_task1Done, true);
+        });
+      });
+    });
+  });
+
+  describe('Given: limit=2 で先頭タスクが即時 reject し、他ワーカーが後から reject する', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-26 - 全ワーカー完了を待った上でも最初に発生したエラーが伝播する', () => {
+        it('T-LIB-C-26-01: 先頭タスクの reject が後発タスクの reject より優先して伝播する', async () => {
+          const _tasks = [
+            () => Promise.reject(new Error('first')),
+            async () => {
+              await new Promise((r) => setTimeout(r, 20));
+              throw new Error('second');
+            },
+          ];
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'first',
+          );
+        });
+      });
+    });
+  });
+
   describe('Given: limit=1（順序実行）', () => {
     describe('When: withConcurrency を実行する', () => {
       describe('Then: T-LIB-C-16 - タスクが順序通りに実行され結果が入力順で返る', () => {
@@ -260,6 +388,50 @@ describe('withConcurrency', () => {
       });
     });
   });
+
+  describe('Given: limit=2 でタスク0が即時 reject し、タスク1が ctl.signal の abort を購読する', () => {
+    describe('When: withConcurrency(tasks, 2) を実行する', () => {
+      describe('Then: T-LIB-C-27 - 実行中タスクが abort シグナルを尊重して速やかに完了する', () => {
+        it('T-LIB-C-27-01: reject が伝播し、タスク1は abort 経由で完了しタスク2は未着手のまま', async () => {
+          let _task1ResolvedVia: 'abort' | 'timeout' | undefined;
+          const _calls: number[] = [];
+          const _tasks = [
+            () => {
+              _calls.push(0);
+              return Promise.reject(new Error('boom'));
+            },
+            (ctl: AbortController) => {
+              _calls.push(1);
+              return new Promise<number>((resolve) => {
+                const _timer = setTimeout(() => {
+                  _task1ResolvedVia = 'timeout';
+                  resolve(1);
+                }, 50);
+                ctl.signal.addEventListener('abort', () => {
+                  clearTimeout(_timer);
+                  _task1ResolvedVia = 'abort';
+                  resolve(1);
+                });
+              });
+            },
+            () => {
+              _calls.push(2);
+              return Promise.resolve(2);
+            },
+          ];
+
+          await assertRejects(
+            () => withConcurrency(_tasks, 2),
+            Error,
+            'boom',
+          );
+
+          assertEquals(_task1ResolvedVia, 'abort');
+          assertEquals(_calls.includes(2), false);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -354,6 +526,43 @@ describe('runConcurrent', () => {
       });
     });
   });
+
+  describe('Given: fn が ChatlogError で reject する', () => {
+    describe('When: runConcurrent を実行する', () => {
+      describe('Then: T-LIB-C-21 - ChatlogError はラップされず元の kind のまま伝播する', () => {
+        it('T-LIB-C-21-01: throw された ChatlogError がそのまま（kind=FileDirNotFound）伝播する', async () => {
+          const _error = await assertRejects(
+            () =>
+              runConcurrent(
+                [1],
+                () => Promise.reject(new ChatlogError('FileDirNotFound', 'somewhere', 'not found')),
+                2,
+              ),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'FileDirNotFound');
+          assertEquals(_error.subindex, 'somewhere');
+        });
+      });
+    });
+  });
+
+  describe('Given: fn が素の Error で reject する', () => {
+    describe('When: runConcurrent を実行する', () => {
+      describe('Then: T-LIB-C-22 - 素の Error が ParallelExecutionError でラップされる', () => {
+        it('T-LIB-C-22-01: throw された Error が kind=ParallelExecutionError, subindex=Error でラップされる', async () => {
+          const _error = await assertRejects(
+            () => runConcurrent([1], () => Promise.reject(new Error('boom')), 2),
+            ChatlogError,
+          );
+          assertInstanceOf(_error, ChatlogError);
+          assertEquals(_error.kind, 'ParallelExecutionError');
+          assertEquals(_error.subindex, 'Error');
+          assertEquals(_error.message.includes('boom'), true);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -419,6 +628,43 @@ describe('runChunked', () => {
           const _results = await runChunked([10, 20, 30], 1, _fn, 2);
           assertEquals(_received, [[10], [20], [30]]);
           assertEquals(_results, [10, 20, 30]);
+        });
+      });
+    });
+  });
+
+  describe('Given: chunk 内の fn が ChatlogError で reject する', () => {
+    describe('When: runChunked を実行する', () => {
+      describe('Then: T-LIB-C-23 - ChatlogError はラップされず元の kind のまま伝播する', () => {
+        it('T-LIB-C-23-01: throw された ChatlogError がそのまま（kind=FileDirNotFound）伝播する', async () => {
+          const _error = await assertRejects(
+            () =>
+              runChunked(
+                [1, 2],
+                2,
+                () => Promise.reject(new ChatlogError('FileDirNotFound', 'somewhere', 'not found')),
+                2,
+              ),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'FileDirNotFound');
+          assertEquals(_error.subindex, 'somewhere');
+        });
+      });
+    });
+  });
+
+  describe('Given: chunk 内の fn が素の Error で reject する', () => {
+    describe('When: runChunked を実行する', () => {
+      describe('Then: T-LIB-C-24 - 素の Error が ParallelExecutionError でラップされる', () => {
+        it('T-LIB-C-24-01: throw された Error が kind=ParallelExecutionError, subindex=Error でラップされる', async () => {
+          const _error = await assertRejects(
+            () => runChunked([1, 2], 2, () => Promise.reject(new Error('boom')), 2),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'ParallelExecutionError');
+          assertEquals(_error.subindex, 'Error');
+          assertEquals(_error.message.includes('boom'), true);
         });
       });
     });

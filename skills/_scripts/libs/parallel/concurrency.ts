@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import type { Task } from '../../types/common.types.ts';
 
 export type { Task } from '../../types/common.types.ts';
@@ -18,7 +19,10 @@ export type { Task } from '../../types/common.types.ts';
  * 非同期タスク配列を並列度 `limit` で実行し、入力順の結果配列を返す。
  *
  * `ctl.abort()` が呼ばれた後は未着手タスクを実行せず、結果配列の該当インデックスは
- * 穴（未代入）のまま残る。
+ * 穴（未代入）のまま残る。いずれかのタスクが reject した場合は直ちに `ctl.abort()` を呼び、
+ * 全ワーカーの未着手タスク着手を止める。ただし、実行中の他ワーカーが副作用を伴う処理を
+ * 継続している可能性があるため、呼び出し元へエラーを返す前に全ワーカーの終了を待ち、
+ * その後で最初に発生したエラーを呼び出し元に伝播する。
  */
 export const withConcurrency = async <T>(
   tasks: Task<T>[],
@@ -27,13 +31,26 @@ export const withConcurrency = async <T>(
   const results: T[] = new Array(tasks.length);
   const ctl = new AbortController();
   let idx = 0;
+  let _errored = false;
+  let _firstError: unknown;
   const _worker = async (): Promise<void> => {
     while (idx < tasks.length && !ctl.signal.aborted) {
       const i = idx++;
-      results[i] = await tasks[i](ctl);
+      try {
+        results[i] = await tasks[i](ctl);
+      } catch (e) {
+        if (!_errored) {
+          _errored = true;
+          _firstError = e;
+        }
+        ctl.abort();
+      }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, _worker));
+  await Promise.allSettled(Array.from({ length: Math.min(limit, tasks.length) }, _worker));
+  if (_errored) {
+    throw _firstError;
+  }
   return results;
 };
 
@@ -70,24 +87,48 @@ export const createChunkedTasks = <T, R>(
 // ─────────────────────────────────────────────
 
 /**
+ * `withConcurrency` で発生した例外を `ChatlogError('ParallelExecutionError', ...)` にラップする。
+ *
+ * 元の例外が既に `ChatlogError` の場合は、呼び出し元の既存 `kind` 分岐を壊さないよう
+ * ラップせずそのまま返す。それ以外の場合は `Error.name`（不明な場合は `'UnknownError'`）を
+ * `subindex` として `ChatlogError('ParallelExecutionError', ...)` にラップする。
+ */
+const _wrapParallelError = (e: unknown): Error => {
+  if (e instanceof ChatlogError) {
+    return e;
+  }
+  const _subindex = e instanceof Error ? e.name : 'UnknownError';
+  const _detail = e instanceof Error ? e.message : String(e);
+  return new ChatlogError('ParallelExecutionError', _subindex, _detail);
+};
+
+/**
  * `items` の各要素に `fn` を並列度 `limit` で適用し、入力順の結果配列を返す。
  */
-export const runConcurrent = <T, R>(
+export const runConcurrent = async <T, R>(
   items: T[],
   fn: (item: T, ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
-  return withConcurrency(createTasks(items, fn), limit);
+  try {
+    return await withConcurrency(createTasks(items, fn), limit);
+  } catch (e) {
+    throw _wrapParallelError(e);
+  }
 };
 
 /**
  * `items` を `chunkSize` 単位に分割し、各 chunk に `fn` を並列度 `limit` で適用する。
  */
-export const runChunked = <T, R>(
+export const runChunked = async <T, R>(
   items: T[],
   chunkSize: number,
   fn: (chunk: T[], ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
-  return withConcurrency(createChunkedTasks(items, chunkSize, fn), limit);
+  try {
+    return await withConcurrency(createChunkedTasks(items, chunkSize, fn), limit);
+  } catch (e) {
+    throw _wrapParallelError(e);
+  }
 };
