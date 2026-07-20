@@ -503,6 +503,87 @@ describe('processChunk', () => {
   });
 
   /**
+   * `ctl` が事前に abort 済みの状態で processChunk を呼び出す前提条件グループ。
+   *
+   * `withConcurrency` が他タスクの reject を検知して `ctl.abort()` を呼んだ後、
+   * 実行中の他チャンクが `processChunk` に入ってきた場合を模倣する。
+   * `runAI` に `ctl.signal` が渡されていれば `ChatlogError('Aborted', 'ExternalAbort', ...)` を
+   * throw するため、NotFound エラーではなく Aborted エラーとして扱われることを検証する。
+   */
+  describe('Given: ctl が事前に abort 済みの状態', () => {
+    /** processChunk([entry1, entry2], stats, threshold, cache, ctl) を呼び出すとき。 */
+    describe('When: processChunk([entry1, entry2], stats, threshold, cache, ctl) を呼び出す', () => {
+      /** stats.error が入力ファイル数分加算され、ChatlogError(Aborted) が返ることを検証する。 */
+      describe('Then: T-FL-PCK-11 - stats.error が加算され ChatlogError(Aborted) を返す', () => {
+        it('T-FL-PCK-11-01: stats.error が 2 になり ChatlogError(kind=Aborted, subindex=ExternalAbort) を返す', async () => {
+          const file1 = await _createTempFile('k1.md');
+          const entry1 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file1 });
+          const file2 = await _createTempFile('k2.md');
+          const entry2 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file2 });
+          commandHandle = installCommandMock(makeNotFoundMock());
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+          ctl.abort();
+
+          const result = await processChunk(
+            [entry1, entry2],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+          );
+          errStub.restore();
+
+          assertEquals(stats.error, 2);
+          assertEquals(result instanceof ChatlogError, true);
+          assertEquals((result as ChatlogError).kind, 'Aborted');
+          assertEquals((result as ChatlogError).subindex, 'ExternalAbort');
+        });
+
+        it('T-FL-PCK-11-02: error 扱いになった各ファイル名がログに出力される', async () => {
+          const file1 = await _createTempFile('k3.md');
+          const entry1 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file1 });
+          const file2 = await _createTempFile('k4.md');
+          const entry2 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file2 });
+          commandHandle = installCommandMock(makeNotFoundMock());
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+          ctl.abort();
+
+          await processChunk([entry1, entry2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
+          assertEquals(logged.includes('k3.md'), true);
+          assertEquals(logged.includes('k4.md'), true);
+        });
+
+        it('T-FL-PCK-11-03: Aborted エラーでは ctl.abort() が再度呼ばれない', async () => {
+          const file1 = await _createTempFile('k5.md');
+          const entry1 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file1 });
+          commandHandle = installCommandMock(makeNotFoundMock());
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+          ctl.abort();
+          const abortStub = stub(ctl, 'abort');
+
+          await processChunk([entry1], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+          abortStub.restore();
+
+          assertEquals(abortStub.calls.length, 0);
+        });
+      });
+    });
+  });
+
+  /**
    * Claude が JSON でないテキストを返すモックの前提条件グループ。
    *
    * JSON パース失敗時はチャンク内ファイルをすべて `stats.error` に計上し、
