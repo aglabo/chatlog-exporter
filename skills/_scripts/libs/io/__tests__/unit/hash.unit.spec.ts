@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import { DEFAULT_HASH_LENGTH } from '../../../../constants/defaults.constants.ts';
 
 // test target
-import { generateHash } from '../../hash.ts';
+import { generateHash, sessionHash } from '../../hash.ts';
 
 // -- types --
 import type { GenerateHashOptions } from '../../../../types/common.types.ts';
@@ -129,6 +129,71 @@ describe('generateHash', () => {
         it('T-LIB-H-04-01: "project-a" と "project-b" の結果が異なる', async () => {
           const ra = await generateHash('project-a');
           const rb = await generateHash('project-b');
+          assertNotEquals(ra, rb);
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// sessionHash
+// ─────────────────────────────────────────────
+
+/**
+ * `sessionHash` のユニットテストスイート。
+ *
+ * 入力文字列から決定的な SHA-256 16進数文字列を生成する関数の
+ * 決定性・デフォルト長・長さ指定・入力差分反映の各ケースをカバーする。
+ *
+ * @see sessionHash
+ */
+describe('sessionHash', () => {
+  describe('Given: 同じ input "same-input" で2回呼び出す', () => {
+    describe('When: sessionHash を連続で2回呼び出す', () => {
+      describe('Then: T-LIB-SH-01 - 毎回同じ値を返す（決定性の確認）', () => {
+        it('T-LIB-SH-01-01: 1回目と2回目の結果が一致する', async () => {
+          const r1 = await sessionHash('same-input');
+          const r2 = await sessionHash('same-input');
+          assertEquals(r1, r2);
+        });
+      });
+    });
+  });
+
+  describe('Given: filenameBase="base", options を省略', () => {
+    describe('When: sessionHash("base") を呼び出す', () => {
+      describe('Then: T-LIB-SH-02 - デフォルト長 12 の16進数文字列を返す', () => {
+        it('T-LIB-SH-02-01: 結果の長さが 12 である', async () => {
+          const result = await sessionHash('base');
+          assertEquals(result.length, 12);
+        });
+
+        it('T-LIB-SH-02-02: 結果が /^[0-9a-f]+$/ にマッチする', async () => {
+          const result = await sessionHash('base');
+          assertMatch(result, /^[0-9a-f]+$/);
+        });
+      });
+    });
+  });
+
+  describe('Given: input="base", length=16', () => {
+    describe('When: sessionHash("base", 16) を呼び出す', () => {
+      describe('Then: T-LIB-SH-03 - 指定長の16進数文字列を返す', () => {
+        it('T-LIB-SH-03-01: 結果の長さが 16 である', async () => {
+          const result = await sessionHash('base', 16);
+          assertEquals(result.length, 16);
+        });
+      });
+    });
+  });
+
+  describe('Given: 異なる input "input-a" と "input-b"', () => {
+    describe('When: それぞれ sessionHash を呼び出す', () => {
+      describe('Then: T-LIB-SH-04 - 異なる input は異なる結果を返す', () => {
+        it('T-LIB-SH-04-01: "input-a" と "input-b" の結果が異なる', async () => {
+          const ra = await sessionHash('input-a');
+          const rb = await sessionHash('input-b');
           assertNotEquals(ra, rb);
         });
       });
