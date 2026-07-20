@@ -147,3 +147,6 @@ export const applyClassifications = async (
     await _applyMove(entry, destDir, dryRun, state);
   }, config.concurrency);
 };
+
+// テスト用 export（内部関数だが unit テストから直接検証するため公開する）
+export { _applyMove };
