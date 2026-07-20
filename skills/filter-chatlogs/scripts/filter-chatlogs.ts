@@ -175,7 +175,7 @@ export const main = async (args?: string[]): Promise<void> => {
   }
 
   // DISCARD マーク済み（今回マーク分 + 前回削除されずに残ったゾンビファイル）をまとめて削除する
-  await sweepDiscards(allFiles, _cache, stats, _config.dryRun);
+  await sweepDiscards(allFiles, _cache, stats, _config.dryRun, _config.concurrency);
 
   // サマリー
   const drySuffix = _config.dryRun ? ' (dry-run)' : '';
