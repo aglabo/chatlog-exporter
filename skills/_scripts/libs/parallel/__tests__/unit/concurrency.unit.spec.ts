@@ -7,11 +7,14 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertRejects } from '@std/assert';
+import { assertEquals, assertInstanceOf, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
 import { createTasks, runChunked, runConcurrent, withConcurrency } from '../../concurrency.ts';
+
+// -- helpers --
+import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // withConcurrency
@@ -431,6 +434,43 @@ describe('runConcurrent', () => {
       });
     });
   });
+
+  describe('Given: fn が ChatlogError で reject する', () => {
+    describe('When: runConcurrent を実行する', () => {
+      describe('Then: T-LIB-C-21 - ChatlogError はラップされず元の kind のまま伝播する', () => {
+        it('T-LIB-C-21-01: throw された ChatlogError がそのまま（kind=FileDirNotFound）伝播する', async () => {
+          const _error = await assertRejects(
+            () =>
+              runConcurrent(
+                [1],
+                () => Promise.reject(new ChatlogError('FileDirNotFound', 'somewhere', 'not found')),
+                2,
+              ),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'FileDirNotFound');
+          assertEquals(_error.subindex, 'somewhere');
+        });
+      });
+    });
+  });
+
+  describe('Given: fn が素の Error で reject する', () => {
+    describe('When: runConcurrent を実行する', () => {
+      describe('Then: T-LIB-C-22 - 素の Error が ParallelExecutionError でラップされる', () => {
+        it('T-LIB-C-22-01: throw された Error が kind=ParallelExecutionError, subindex=Error でラップされる', async () => {
+          const _error = await assertRejects(
+            () => runConcurrent([1], () => Promise.reject(new Error('boom')), 2),
+            ChatlogError,
+          );
+          assertInstanceOf(_error, ChatlogError);
+          assertEquals(_error.kind, 'ParallelExecutionError');
+          assertEquals(_error.subindex, 'Error');
+          assertEquals(_error.message.includes('boom'), true);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -496,6 +536,43 @@ describe('runChunked', () => {
           const _results = await runChunked([10, 20, 30], 1, _fn, 2);
           assertEquals(_received, [[10], [20], [30]]);
           assertEquals(_results, [10, 20, 30]);
+        });
+      });
+    });
+  });
+
+  describe('Given: chunk 内の fn が ChatlogError で reject する', () => {
+    describe('When: runChunked を実行する', () => {
+      describe('Then: T-LIB-C-23 - ChatlogError はラップされず元の kind のまま伝播する', () => {
+        it('T-LIB-C-23-01: throw された ChatlogError がそのまま（kind=FileDirNotFound）伝播する', async () => {
+          const _error = await assertRejects(
+            () =>
+              runChunked(
+                [1, 2],
+                2,
+                () => Promise.reject(new ChatlogError('FileDirNotFound', 'somewhere', 'not found')),
+                2,
+              ),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'FileDirNotFound');
+          assertEquals(_error.subindex, 'somewhere');
+        });
+      });
+    });
+  });
+
+  describe('Given: chunk 内の fn が素の Error で reject する', () => {
+    describe('When: runChunked を実行する', () => {
+      describe('Then: T-LIB-C-24 - 素の Error が ParallelExecutionError でラップされる', () => {
+        it('T-LIB-C-24-01: throw された Error が kind=ParallelExecutionError, subindex=Error でラップされる', async () => {
+          const _error = await assertRejects(
+            () => runChunked([1, 2], 2, () => Promise.reject(new Error('boom')), 2),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'ParallelExecutionError');
+          assertEquals(_error.subindex, 'Error');
+          assertEquals(_error.message.includes('boom'), true);
         });
       });
     });

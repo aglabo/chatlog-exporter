@@ -6,6 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import type { Task } from '../../types/common.types.ts';
 
 export type { Task } from '../../types/common.types.ts';
@@ -76,24 +77,48 @@ export const createChunkedTasks = <T, R>(
 // ─────────────────────────────────────────────
 
 /**
+ * `withConcurrency` で発生した例外を `ChatlogError('ParallelExecutionError', ...)` にラップする。
+ *
+ * 元の例外が既に `ChatlogError` の場合は、呼び出し元の既存 `kind` 分岐を壊さないよう
+ * ラップせずそのまま返す。それ以外の場合は `Error.name`（不明な場合は `'UnknownError'`）を
+ * `subindex` として `ChatlogError('ParallelExecutionError', ...)` にラップする。
+ */
+const _wrapParallelError = (e: unknown): Error => {
+  if (e instanceof ChatlogError) {
+    return e;
+  }
+  const _subindex = e instanceof Error ? e.name : 'UnknownError';
+  const _detail = e instanceof Error ? e.message : String(e);
+  return new ChatlogError('ParallelExecutionError', _subindex, _detail);
+};
+
+/**
  * `items` の各要素に `fn` を並列度 `limit` で適用し、入力順の結果配列を返す。
  */
-export const runConcurrent = <T, R>(
+export const runConcurrent = async <T, R>(
   items: T[],
   fn: (item: T, ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
-  return withConcurrency(createTasks(items, fn), limit);
+  try {
+    return await withConcurrency(createTasks(items, fn), limit);
+  } catch (e) {
+    throw _wrapParallelError(e);
+  }
 };
 
 /**
  * `items` を `chunkSize` 単位に分割し、各 chunk に `fn` を並列度 `limit` で適用する。
  */
-export const runChunked = <T, R>(
+export const runChunked = async <T, R>(
   items: T[],
   chunkSize: number,
   fn: (chunk: T[], ctl: AbortController) => Promise<R>,
   limit: number,
 ): Promise<R[]> => {
-  return withConcurrency(createChunkedTasks(items, chunkSize, fn), limit);
+  try {
+    return await withConcurrency(createChunkedTasks(items, chunkSize, fn), limit);
+  } catch (e) {
+    throw _wrapParallelError(e);
+  }
 };
