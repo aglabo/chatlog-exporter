@@ -136,7 +136,7 @@ describe('_discardFiles', () => {
 
           assertEquals(stats.skip, 1);
           assertEquals(await Deno.stat(filePath).then(() => true).catch(() => false), true);
-          assertEquals(loggerStub.infoLogs.length, 1);
+          assertEquals(loggerStub.dryrunLogs.length, 1);
         });
 
         it('T-FL-DF-02-02: ログに "skipped" という文言が出力される', async () => {
@@ -151,7 +151,7 @@ describe('_discardFiles', () => {
           await _discardFiles(files, true, stats, 2);
           loggerStub.restore();
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('skipped')), true);
+          assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('skipped')), true);
         });
       });
     });

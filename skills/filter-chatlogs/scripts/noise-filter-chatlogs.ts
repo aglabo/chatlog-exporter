@@ -41,6 +41,8 @@ import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
 // classes
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+// constants
+import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
 
 // ─── internal ───
 // constants
@@ -76,7 +78,7 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   const files = await findFiles(_searchDir);
   logger.info(`対象ファイル数: ${files.length}`);
   if (dryRun) {
-    logger.info('dry-run モード: ファイルは削除しません');
+    logger.dryrun('ファイルは削除しません');
   }
 
   const stats: NoiseFilterStats = { keep: 0, skip: 0, remove: 0, error: 0 };
@@ -86,7 +88,9 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   const { entries, errors } = await loadFilterEntries(files, undefined, concurrency);
   if (errors.length > 0) {
     stats.error += errors.length;
-    errors.forEach(({ filePath, error }) => logger.error(`  読み込み失敗 (${error.message}): ${filePath}`));
+    errors.forEach(({ filePath, error }) =>
+      logger.error(`${LOGGER_TEXT.INDENT}読み込み失敗 (${error.message}): ${filePath}`)
+    );
   }
 
   const targetEntries = await prefilterFiles(entries, {

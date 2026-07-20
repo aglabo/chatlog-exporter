@@ -152,13 +152,13 @@ describe('processNoiseFiles', () => {
   /**
    * ノイズファイルが dry-run モードで処理される前提グループ。
    *
-   * ファイルが削除されず、パスが info ログに出力されることを検証する。
+   * ファイルが削除されず、パスが dryrun ログに出力されることを検証する。
    */
   describe('Given: ノイズファイル 1 件と dryRun=true', () => {
     /** `processNoiseFiles(files, counts, { dryRun: true })` を呼び出すとき。 */
     describe('When: processNoiseFiles を dry-run モードで呼び出す', () => {
-      /** ファイルが削除されず、info ログにファイルパスが含まれること。 */
-      describe('Then: T-PF-PNF-03 - ファイルが削除されずパスが info ログに出力される', () => {
+      /** ファイルが削除されず、dryrun ログにファイルパスが含まれること。 */
+      describe('Then: T-PF-PNF-03 - ファイルが削除されずパスが dryrun ログに出力される', () => {
         it('T-PF-PNF-03-01: ファイルが削除されずに残る', async () => {
           const filePath = `${tempDir}/${_NOISE_FILENAME}`;
           const entry = await _writeEntry(filePath, _makeValidContent());
@@ -169,14 +169,14 @@ describe('processNoiseFiles', () => {
           assertEquals(await fileExists(filePath), true);
         });
 
-        it('T-PF-PNF-03-02: infoLogs にファイルパスが含まれる', async () => {
+        it('T-PF-PNF-03-02: dryrunLogs にファイルパスが含まれる', async () => {
           const filePath = `${tempDir}/${_NOISE_FILENAME}`;
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
           await processNoiseFiles([entry], counts, { dryRun: true }, Infinity);
 
-          assertEquals(loggerStub.infoLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
+          assertEquals(loggerStub.dryrunLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
         });
 
         it('T-PF-PNF-03-03: counts.skip が 1 になる', async () => {

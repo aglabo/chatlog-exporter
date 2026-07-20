@@ -12,6 +12,7 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
@@ -42,14 +43,14 @@ export const phaseStatus = async (
         return;
       }
       if (dryRun) {
-        logger.info(`  [dry-run] status: ${getFilename(entry.filePath!)} - skipped`);
+        logger.dryrun(`${LOGGER_TEXT.INDENT}status: ${getFilename(entry.filePath!)} - skipped`);
         return;
       }
       const _status = entry.frontmatter.hasRequiredFields()
         ? CACHE_STATUSES.NEED_REVIEW
         : CACHE_STATUSES.EMPTY;
       await cache.write(entry.filePath!, { ..._existing, status: _status });
-      logger.info(`  status: ${getFilename(entry.filePath!)} - status: ${_status || '(empty)'}`);
+      logger.info(`${LOGGER_TEXT.INDENT}status: ${getFilename(entry.filePath!)} - status: ${_status || '(empty)'}`);
     }),
   );
 };

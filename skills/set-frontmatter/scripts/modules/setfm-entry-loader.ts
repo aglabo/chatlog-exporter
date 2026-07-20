@@ -10,6 +10,7 @@
 // cspell:words setfm
 
 // ─── Shared scripts
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { loadChatlogEntry as _loadEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
 import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
@@ -40,7 +41,7 @@ export const loadAllEntries = async (
 
   allFiles
     .filter((_, i) => !_results[i])
-    .forEach((filePath) => logger.warn(`  skip: ${getFilename(filePath)}`));
+    .forEach((filePath) => logger.warn(`${LOGGER_TEXT.INDENT}skip: ${getFilename(filePath)}`));
 
   const _entries = _results.filter((e): e is ChatlogEntry => e !== null);
   stats.skip = allFiles.length - _entries.length;

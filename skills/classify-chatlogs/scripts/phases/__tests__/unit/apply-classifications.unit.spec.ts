@@ -210,7 +210,7 @@ describe('applyClassifications', () => {
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
-      assertEquals(loggerStub.infoLogs.some((l) => l.includes('<<dry-run>> move skipped: test.md')), true);
+      assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('move skipped: test.md')), true);
     });
 
     it('[Normal] T-CL-MC-03: action=MOVEBYAI, dryRun=true → stats.skip++（moveChatlogEntry は呼ばれない）', async () => {
@@ -231,7 +231,7 @@ describe('applyClassifications', () => {
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.remaining, 0);
-      assertEquals(loggerStub.infoLogs.some((l) => l.includes('<<dry-run>> move skipped: test.md')), true);
+      assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('move skipped: test.md')), true);
     });
 
     it('[Normal] T-CL-MC-08: action=move, project=undefined, dryRun=true → project 未確定のため stats.remaining++', async () => {

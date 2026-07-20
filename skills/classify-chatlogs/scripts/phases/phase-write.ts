@@ -15,6 +15,8 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
+// constants
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 
 // ─── Local
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -59,13 +61,16 @@ export const moveChatlogEntry = async (
     await Deno.writeTextFile(dstPath, _newContent);
     await Deno.remove(srcPath);
   } catch (e) {
-    return { action: CLASSIFY_ACTIONS.ERROR, message: `  move failed: ${classifyEntry.filename!}: ${e}` };
+    return {
+      action: CLASSIFY_ACTIONS.ERROR,
+      message: `${LOGGER_TEXT.INDENT}move failed: ${classifyEntry.filename!}: ${e}`,
+    };
   }
 
   try {
     await cache.delete(srcPath);
   } catch (e) {
-    logger.warn(`  cache delete failed: ${classifyEntry.filename!}: ${e}`);
+    logger.warn(`${LOGGER_TEXT.INDENT}cache delete failed: ${classifyEntry.filename!}: ${e}`);
   }
 
   return { action: CLASSIFY_ACTIONS.MOVE, message: `moved: ${classifyEntry.filename!} → ${_project}/` };
@@ -140,7 +145,7 @@ export const applyClassifications = async (
 
     if (dryRun) {
       state.stats.skip++;
-      logger.info(`<<dry-run>> move skipped: ${entry.filename!}`);
+      logger.dryrun(`move skipped: ${entry.filename!}`);
       return;
     }
 

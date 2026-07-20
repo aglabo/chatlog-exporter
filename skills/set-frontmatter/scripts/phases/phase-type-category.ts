@@ -12,6 +12,7 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -55,7 +56,7 @@ export const phaseTypeAndCategory = async (
     const _cached = cache.read(e.filePath!);
     e.frontmatter.set('type', _cached.type!);
     e.frontmatter.set('category', _cached.category!);
-    logger.info(`  type+category (cached): ${getFilename(e.filePath!)}`);
+    logger.info(`${LOGGER_TEXT.INDENT}type+category (cached): ${getFilename(e.filePath!)}`);
   });
 
   const _judge = judgeProvider ?? judgeTypeAndCategory;
@@ -63,7 +64,7 @@ export const phaseTypeAndCategory = async (
     _misses,
     async (entry) => {
       if (dryRun) {
-        logger.info(`  [dry-run] type/category: ${getFilename(entry.filePath!)}`);
+        logger.dryrun(`${LOGGER_TEXT.INDENT}type/category: ${getFilename(entry.filePath!)}`);
       } else {
         await _judge(entry, maxContentLength, dics, prompts);
         const _type = entry.frontmatter.get('type') as string;
@@ -74,9 +75,9 @@ export const phaseTypeAndCategory = async (
           await cache.delete(entry.filePath!);
         }
         logger.info(
-          `  type [${entry.frontmatter.get('type')}] category [${entry.frontmatter.get('category')}]: ${
-            getFilename(entry.filePath!)
-          }`,
+          `${LOGGER_TEXT.INDENT}type [${entry.frontmatter.get('type')}] category [${
+            entry.frontmatter.get('category')
+          }]: ${getFilename(entry.filePath!)}`,
         );
       }
     },

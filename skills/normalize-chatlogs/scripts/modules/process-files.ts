@@ -11,6 +11,8 @@
 import { expandGlob } from '@std/fs';
 
 // --- shared
+// constants
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 // functions
 import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
 import { extractChatlogPath } from '../../../_scripts/libs/file-io/resolve-directory.ts';
@@ -125,7 +127,7 @@ export const processFiles = async (
   const _pendingFiles = mdFiles.filter((_, i) => !_normalized[i]);
 
   for (const filePath of _skipFiles) {
-    logger.info(`  skipped (already normalized): ${getBasename(filePath)}`);
+    logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(filePath)}`);
     stats.skip++;
   }
 
@@ -164,10 +166,10 @@ export const processFiles = async (
           summary: '(auto-generated: AI segmentation failed)',
           content: content,
         }];
-        logger.info(`  fallback (1-segment): ${getBasename(filePath)}`);
+        logger.info(`${LOGGER_TEXT.INDENT}fallback (1-segment): ${getBasename(filePath)}`);
         stats.fallback++;
       } else if (segments === null) {
-        logger.warn(`  failed (no segments returned): ${getBasename(filePath)}`);
+        logger.warn(`${LOGGER_TEXT.INDENT}failed (no segments returned): ${getBasename(filePath)}`);
         stats.fail++;
         if (config.failFast) {
           throw new ChatlogError('FailFast', 'SegmentFailed', `fail-fast triggered by: ${getBasename(filePath)}`);
