@@ -13,6 +13,7 @@ import { parse as parseYaml } from '@std/yaml';
 // libs
 import { findFilesFlat } from '../libs/file-ops/find-files.ts';
 import { logger } from '../libs/io/logger.ts';
+import { runConcurrent } from '../libs/parallel/concurrency.ts';
 import { getBasename, isAbsolutePath, joinPath, normalizePath } from '../libs/path-utils/path-utils.ts';
 import { hasFrontmatter, hasFrontmatterFields, parseFrontmatterEntries } from '../libs/text/frontmatter-utils.ts';
 // classes
@@ -95,6 +96,8 @@ export interface ChatlogCacheInitializer {
   yaml?: string;
   /** 出力ディレクトリパス。`.md` ファイルを一覧して `hasFrontmatter` が true のファイルのみキャッシュに登録する。`yaml` が指定された場合は無視される。 */
   outputDir?: string;
+  /** ファイル読み込み・書き込みの並列実行数（省略時は `GlobalConfig` の `concurrency` を使用）。 */
+  concurrency?: number;
 }
 
 // ─────────────────────────────────────────────
@@ -171,9 +174,10 @@ export class ChatlogCache<T extends object> {
     if (initializer?.yaml != null) {
       this.loadFromYaml(initializer.yaml);
     } else {
-      await this.loadAll();
+      const _concurrency = initializer?.concurrency ?? Number(GlobalConfig.getInstance().get('concurrency'));
+      await this.loadAll(_concurrency);
       if (initializer?.outputDir != null) {
-        await this.initFromOutputDir(initializer.outputDir);
+        await this.initFromOutputDir(initializer.outputDir, undefined, _concurrency);
       }
     }
   }
@@ -301,10 +305,12 @@ export class ChatlogCache<T extends object> {
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
    * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）
+   * @param concurrency - ファイル読み込み・書き込みの並列実行数
    */
   async initFromOutputDir(
     outputDir: string,
     isComplete: (text: string) => boolean = _isComplete,
+    concurrency: number,
   ): Promise<void> {
     const _allFiles = await findFilesFlat(outputDir, { glob: this._glob });
 
@@ -315,26 +321,25 @@ export class ChatlogCache<T extends object> {
 
     // step 2: テキスト読み込み + 分類（並列）
     const _classified = (
-      await Promise.all(
-        _fresh.map(async ({ filePath, key }) => {
-          const _text = await this._readTextFile(filePath);
-          const _entry = _classifyEntry(_text, isComplete);
-          return _entry !== null ? { filePath, key, ..._entry } : null;
-        }),
-      )
+      await runConcurrent(_fresh, async ({ filePath, key }) => {
+        const _text = await this._readTextFile(filePath);
+        const _entry = _classifyEntry(_text, isComplete);
+        return _entry !== null ? { filePath, key, ..._entry } : null;
+      }, concurrency)
     ).filter((e): e is { filePath: string; key: string; status: _EntryStatus; meta: FrontmatterFields } => e !== null);
 
     // step 3: 書き込み対象（written / empty）と削除対象に分けて実行
     const _toWrite = _classified.filter(({ status }) => status !== 'delete');
     const _toDelete = _classified.filter(({ status }) => status === 'delete');
 
-    await Promise.all([
-      ..._toWrite.map(({ key, status, meta }) => {
+    const _ops = [
+      ..._toWrite.map(({ key, status, meta }) => () => {
         const _cacheStatus = status === 'written' ? CACHE_STATUSES.WRITTEN : CACHE_STATUSES.EMPTY;
         return this._writeFile(key, { ...meta, status: _cacheStatus } as unknown as Partial<T>);
       }),
-      ..._toDelete.map(({ filePath }) => this.delete(filePath)),
-    ]);
+      ..._toDelete.map(({ filePath }) => () => this.delete(filePath)),
+    ];
+    await runConcurrent(_ops, (op) => op(), concurrency);
   }
 
   /**
@@ -342,19 +347,19 @@ export class ChatlogCache<T extends object> {
    *
    * `findFilesFlat` で `.json` ファイル一覧を取得し、各ファイルを並列読み込みして格納する。
    * 読み込みに失敗したファイルはスキップされる。
+   *
+   * @param concurrency - ファイル読み込みの並列実行数
    */
-  async loadAll(): Promise<void> {
+  async loadAll(concurrency: number): Promise<void> {
     const _paths = await findFilesFlat(this._cacheDir, { ext: '.json', glob: this._glob });
     this._hash.clear();
-    await Promise.all(
-      _paths.map(async (path) => {
-        try {
-          const _text = await this._readTextFile(path);
-          this._hash.set(getBasename(path), JSON.parse(_text) as Partial<T>);
-        } catch (e) {
-          logger.warn(`[ChatlogCache] loadAll: skip ${path} — ${(e as Error).message}`);
-        }
-      }),
-    );
+    await runConcurrent(_paths, async (path) => {
+      try {
+        const _text = await this._readTextFile(path);
+        this._hash.set(getBasename(path), JSON.parse(_text) as Partial<T>);
+      } catch (e) {
+        logger.warn(`[ChatlogCache] loadAll: skip ${path} — ${(e as Error).message}`);
+      }
+    }, concurrency);
   }
 }

@@ -102,7 +102,7 @@ describe('ChatlogCache', () => {
 
         const cache2 = new ChatlogCache<_CacheData>('clecache', tempDir);
         await cache2.ready;
-        await cache2.loadAll();
+        await cache2.loadAll(2);
         const result = cache2.read('foo');
 
         assertEquals(result, { value: 'bar' });
@@ -135,7 +135,7 @@ describe('ChatlogCache', () => {
         await cache.write('alpha', { n: 1 });
         await cache.write('beta', { n: 2 });
         await cache.write('gamma', { n: 3 });
-        await cache.loadAll();
+        await cache.loadAll(2);
 
         assertEquals(await cache.read('alpha'), { n: 1 });
         assertEquals(await cache.read('beta'), { n: 2 });
