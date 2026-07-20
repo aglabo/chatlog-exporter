@@ -28,7 +28,16 @@ const SESSION_ID_FALLBACK = 'unknown';
 export const resolveSessionId = async (sessionId: string | undefined): Promise<string> =>
   sessionId ? sessionId : await generateHash(SESSION_ID_FALLBACK);
 
-/** セッションの Markdown ファイル出力パスを生成する。 */
+/**
+ * セッションの Markdown ファイル出力パスを生成する。
+ *
+ * ファイル名は sessionId のハッシュを含むため、ハッシュ生成規則やファイル名の
+ * 命名規則が変更された場合、旧規則で出力済みのファイルはそのまま残る。
+ * また sessionId 欠落時（`resolveSessionId` によるランダム代替値）は、
+ * 再エクスポートのたびにファイル名が変わる。
+ * 再エクスポート時に重複ファイルが生じないよう、対象の `<agent>/<year>/<yearMonth>`
+ * サブツリーをクリアしてから実行することを前提とする。
+ */
 export const buildOutputPath = async (
   outputBase: string,
   agent: string,
