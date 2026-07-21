@@ -137,10 +137,9 @@ export const main = async (args?: string[]): Promise<void> => {
     );
   }
 
-  const targetEntries = await prefilterFiles(entries, {
+  const targetEntries = await prefilterFiles(entries, stats, {
     minCharCount: _config.minCharCount,
     minAssistantChars: _config.minAssistantChars,
-    stats,
     dryRun: _config.dryRun,
     concurrency: _config.concurrency,
   });

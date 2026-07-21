@@ -276,23 +276,23 @@ export const _discardFiles = async (
  * 読み込み済みエントリをファイル名パターンと本文内容で事前フィルタリングし、通過したエントリを返す。
  *
  * @param entries - フィルタリング対象の `ChatlogEntry` 配列（読み込み済み）
+ * @param stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
+ *   dry-run 時のスキップ数を `skip` に加算する。
  * @param options - `prefilterFiles` のオプション
  * @param options.minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
  * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
- * @param options.stats - 処理統計オブジェクト。ファイル名パターン除外・内容除外の実削除数を `remove` に、
- *   dry-run 時のスキップ数を `skip` に加算する。
  * @param options.dryRun - `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する（デフォルト: `false`）
  * @param options.concurrency - 同時実行する削除処理の最大並列数。
  * @returns フィルタリングを通過した `ChatlogEntry` 配列
  */
 export const prefilterFiles = async (
   entries: ChatlogEntry[],
+  stats: BaseStats,
   options: PrefilterFilesOptions,
 ): Promise<ChatlogEntry[]> => {
   const {
     minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
     minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
-    stats,
     dryRun = false,
     concurrency,
   } = options;

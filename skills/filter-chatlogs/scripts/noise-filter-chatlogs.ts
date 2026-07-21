@@ -93,15 +93,14 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
     );
   }
 
-  const targetEntries = await prefilterFiles(entries, {
+  const targetEntries = await prefilterFiles(entries, stats, {
     minCharCount,
     minAssistantChars,
-    stats,
     dryRun,
     concurrency,
   });
 
-  await processNoiseFiles(targetEntries, stats, { dryRun }, concurrency);
+  await processNoiseFiles(targetEntries, stats, { dryRun, concurrency });
 
   const suffix = dryRun ? ' (dry-run)' : '';
   logger.info(
