@@ -140,7 +140,7 @@ describe('main', () => {
       }
     });
 
-    it('[Normal] T-CL-MAIN-06: --dry-run 指定 → claude CLI は呼び出されず、完了ログに skip=1 が含まれる', async () => {
+    it('[Normal] T-CL-MAIN-06: --dry-run 指定 → claude CLI は呼び出されず、完了ログに remaining=1 が含まれる', async () => {
       const { inputDir, configsDir, configFile, monthDir } = await _makeTestDirs();
       await Deno.writeTextFile(
         `${monthDir}/chat.md`,
@@ -156,7 +156,7 @@ describe('main', () => {
         await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
         assertEquals(counter.calls, 0);
-        assertEquals(loggerStub.infoLogs.some((l) => l.includes('skip=1')), true);
+        assertEquals(loggerStub.infoLogs.some((l) => l.includes('remaining=1')), true);
       } finally {
         commandHandle.restore();
         loggerStub.restore();
