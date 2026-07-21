@@ -404,8 +404,8 @@ describe('segmentChatlogs', () => {
 
       // assert
       assertEquals(result.get('test.md'), [
-        { title: 'Topic 1', summary: 'Summary 1', content: 'Body 1' },
-        { title: 'Topic 2', summary: 'Summary 2', content: 'Body 2' },
+        { title: 'Topic 1', summary: 'Summary 1', content: 'Body 1', startLine: 1, endLine: 1 },
+        { title: 'Topic 2', summary: 'Summary 2', content: 'Body 2', startLine: 2, endLine: 2 },
       ]);
     });
 
@@ -426,8 +426,8 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', content: 'C1' }]);
-      assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', content: 'C2' }]);
+      assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', content: 'C1', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', content: 'C2', startLine: 1, endLine: 1 }]);
     });
 
     it('[Normal] T-SCB-01-02: 1ファイルでAIが12セグメントを返すとき先頭5件に制限される（MAX_SEGMENTS上限）', async () => {
@@ -579,7 +579,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('solo.md'), [{ title: 'T', summary: 'S', content: 'C' }]);
+      assertEquals(result.get('solo.md'), [{ title: 'T', summary: 'S', content: 'C', startLine: 1, endLine: 1 }]);
     });
 
     it('[Edge] T-SCB-04-01: AIが返す filePath が inputs にない場合無視され、inputs にある filePath は null になる', async () => {
@@ -774,7 +774,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', content: 'C' }]);
+      assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', content: 'C', startLine: 1, endLine: 1 }]);
     });
   });
 
