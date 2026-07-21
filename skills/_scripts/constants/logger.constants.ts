@@ -13,3 +13,13 @@ export const LOGGER_TEXT = {
 } as const;
 
 export type LoggerTextKey = keyof typeof LOGGER_TEXT;
+
+/** ロガー出力で使う prefix 定数（スペースなし）。呼び出し側で `${PREFIX} ${msg}` の形にスペースを挿入する。 */
+export const LOGGER_PREFIX = {
+  INFO: '::info::',
+  WARN: '::warn::',
+  ERROR: '::error::',
+  DRYRUN: '<<dry-run>>',
+} as const;
+
+export type LoggerPrefixKey = keyof typeof LOGGER_PREFIX;
