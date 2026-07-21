@@ -28,6 +28,7 @@
 // ─── Shared scripts
 import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
+import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
 import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
 import { logger } from '../../_scripts/libs/io/logger.ts';
@@ -194,7 +195,7 @@ export const main = async (args: string[]): Promise<void> => {
   if (!_config.dryRun) {
     const _failEntries = _candidateEntries.filter((e) => !filterWriteEntry(e.filePath!, _cache, _config.review));
     _failEntries.forEach((e) => {
-      logger.error(`  FAIL (yaml空): ${getFilename(e.filePath!)}`);
+      logger.error(`${LOGGER_TEXT.INDENT}FAIL (yaml空): ${getFilename(e.filePath!)}`);
       stats.fail++;
     });
   }

@@ -15,6 +15,8 @@ import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+// constants
+import { LOGGER_TEXT } from '../../../../_scripts/constants/logger.constants.ts';
 
 // ─── internal ───
 // functions
@@ -61,7 +63,7 @@ export const sweepDiscards = async (
   await runConcurrent(targets, async (filePath) => {
     if (dryRun) {
       stats.skip++;
-      logger.info(`  skipped: ${getFilename(filePath)}`);
+      logger.dryrun(`${LOGGER_TEXT.INDENT}skipped: ${getFilename(filePath)}`);
       return;
     }
 
@@ -69,11 +71,11 @@ export const sweepDiscards = async (
     if (await removeFile(filePath, { throwFileIoError: false })) {
       stats.remove++;
       await cache.delete(filePath);
-      logger.info(`  removed: ${getFilename(filePath)}`);
+      logger.info(`${LOGGER_TEXT.INDENT}removed: ${getFilename(filePath)}`);
     } else {
       stats.error++;
       await cache.write(filePath, { ...cache.read(filePath), decision: FILTER_DECISIONS.ERROR });
-      logger.warn(`  Error: cannot removed: ${getFilename(filePath)}`);
+      logger.warn(`${LOGGER_TEXT.INDENT}Error: cannot removed: ${getFilename(filePath)}`);
     }
   }, concurrency);
 };

@@ -1539,7 +1539,7 @@ describe('main - 判定集計ログ（dry-run）', () => {
           it('T-FL-E2E-20-01: 判定済み数（judged=0）がログに出力される', async () => {
             await main(['claude', '2026-03', '--dry-run', '--input-dir', chatlogsDir]);
 
-            assertEquals(loggerStub.infoLogs.some((l) => l.includes('judged=0')), true);
+            assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('judged=0')), true);
           });
         });
       });

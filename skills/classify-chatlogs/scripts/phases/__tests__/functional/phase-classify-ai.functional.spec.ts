@@ -171,19 +171,19 @@ describe('classifyByAI', () => {
       assertEquals(cache.read('/tmp/input/b.md').project, undefined);
     });
 
-    it('[Normal] T-CL-CBA-06-02: dryRun=true・対象1件 → logger.info が呼び出される', async () => {
+    it('[Normal] T-CL-CBA-06-02: dryRun=true・対象1件 → logger.dryrun が呼び出される', async () => {
       const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
 
       await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, true);
 
-      assertEquals(loggerStub.infoLogs.length > 0, true);
+      assertEquals(loggerStub.dryrunLogs.length > 0, true);
     });
 
-    it('[Edge] T-CL-CBA-06-03: dryRun=true・targets が空配列 → cache 書き込みも logger.info も呼ばれない', async () => {
+    it('[Edge] T-CL-CBA-06-03: dryRun=true・targets が空配列 → cache 書き込みも logger.dryrun も呼ばれない', async () => {
       await classifyByAI([], _PROJECTS, _makeConfig(), cache, true);
 
       assertEquals(counter.calls, 0);
-      assertEquals(loggerStub.infoLogs.length, 0);
+      assertEquals(loggerStub.dryrunLogs.length, 0);
     });
 
     it('[Edge] T-CL-CBA-06-04: dryRun=true・concurrency=2・targets=5件 → cache.write の同時実行数のピークが concurrency を超えない', async () => {

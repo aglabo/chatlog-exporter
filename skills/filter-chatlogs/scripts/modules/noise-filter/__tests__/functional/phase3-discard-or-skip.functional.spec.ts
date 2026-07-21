@@ -80,7 +80,7 @@ describe('_phase3DiscardOrSkip', () => {
   describe('Given: ノイズ確定ファイル 1 件と dryRun=true', () => {
     describe('When: _phase3DiscardOrSkip(discardFiles, stats, true) を呼び出す', () => {
       describe('Then: T-PF-P3-02 - ファイルが削除されず stats.skip が 1 になる', () => {
-        it('T-PF-P3-02-01: ファイルが削除されずに残り stats.skip=1、logger.log には出力されず logger.info にファイルパスと reason が出力される', async () => {
+        it('T-PF-P3-02-01: ファイルが削除されずに残り stats.skip=1、logger.log には出力されず logger.dryrun にファイルパスと reason が出力される', async () => {
           const filePath = `${tempDir}/noise.md`;
           await Deno.writeTextFile(filePath, 'dummy');
           const discardFiles = [
@@ -94,7 +94,7 @@ describe('_phase3DiscardOrSkip', () => {
           assertEquals(stats.skip, 1);
           assertEquals(loggerStub.logLogs, []);
           assertEquals(
-            loggerStub.infoLogs.some((line) => line.includes(filePath) && line.includes('テスト理由')),
+            loggerStub.dryrunLogs.some((line) => line.includes(filePath) && line.includes('テスト理由')),
             true,
           );
         });

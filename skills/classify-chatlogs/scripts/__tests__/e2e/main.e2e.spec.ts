@@ -119,10 +119,10 @@ describe('main - dry-run モード', () => {
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
-        it('T-CL-E2E-01-02: "[dry-run]" がログに出力される', async () => {
+        it('T-CL-E2E-01-02: dryrun ログが出力される', async () => {
           await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
+          assertEquals(loggerStub.dryrunLogs.length > 0, true);
         });
       });
     });
@@ -621,11 +621,11 @@ describe('main - 期間フィルタ', () => {
           assertEquals(allInfoLogs.includes('out-of-scope.md'), false);
         });
 
-        it('T-CL-E2E-07-02: 期間内ファイルのみが対象となり、[dry-run] AI 分類スキップログに 1件と出力される', async () => {
+        it('T-CL-E2E-07-02: 期間内ファイルのみが対象となり、dryrun AI 分類スキップログに 1件と出力される', async () => {
           await main(['claude', '2026-03', '--dry-run', '--config', configFile]);
 
           assertEquals(
-            loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('1件')),
+            loggerStub.dryrunLogs.some((l) => l.includes('1件')),
             true,
           );
         });
@@ -743,9 +743,9 @@ describe('main - --input-dir フルパス直接指定', () => {
           assertEquals(await fileExists(`${monthDir}/chat.md`), true);
         });
 
-        it('T-CL-E2E-10-02: "[dry-run]" がログに出力される', async () => {
+        it('T-CL-E2E-10-02: dryrun ログが出力される', async () => {
           await main(['--input-dir', monthDir, '--dry-run', '--config', configFile]);
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
+          assertEquals(loggerStub.dryrunLogs.length > 0, true);
         });
       });
     });

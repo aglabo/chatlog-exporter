@@ -23,6 +23,7 @@ import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 // constants
 import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 
 // ─── internal ───
 // classes
@@ -254,7 +255,7 @@ export const _discardFiles = async (
     async (entry): Promise<DiscardFile | null> => {
       const { filePath, filename, reason } = entry;
       if (dryRun) {
-        logger.info(`  skipped (${reason}): ${filename}`);
+        logger.dryrun(`${LOGGER_TEXT.INDENT}skipped (${reason}): ${filename}`);
         stats.skip++;
         return entry;
       }
@@ -263,7 +264,7 @@ export const _discardFiles = async (
         return { ...entry, decision: FILTER_DECISIONS.ERROR };
       }
       stats.remove++;
-      logger.info(`  removed (${reason}): ${filename}`);
+      logger.info(`${LOGGER_TEXT.INDENT}removed (${reason}): ${filename}`);
       return null;
     },
     concurrency,

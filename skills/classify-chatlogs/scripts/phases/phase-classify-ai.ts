@@ -25,6 +25,7 @@ import type {
   ProjectDicEntry,
 } from '../types/classify.types.ts';
 // constants
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
@@ -120,21 +121,21 @@ export const processChunk = async (
     rawResult = await runAI(_systemPrompt, _batchPrompt, { model });
   } catch (e) {
     const _reason = `claude CLI 実行失敗: ${e}`;
-    logger.warn(`  ${_reason}`);
+    logger.warn(`${LOGGER_TEXT.INDENT}${_reason}`);
     return _writeChunkError(chunkMetas, cache, _reason);
   }
 
   const parsed = parseAiJsonArray<ClassifyCache>(rawResult);
   if (!parsed) {
     const _reason = `JSON パース失敗: ${rawResult.slice(0, 200)}`;
-    logger.warn(`  ${_reason}`);
+    logger.warn(`${LOGGER_TEXT.INDENT}${_reason}`);
     return _writeChunkError(chunkMetas, cache, _reason);
   }
 
   await Promise.all(chunkMetas.map((fileMeta) => {
     const result = parsed.find((r) => r.file === fileMeta.filename);
     const project = result?.project ?? FALLBACK_PROJECT;
-    logger.info(`  classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
+    logger.info(`${LOGGER_TEXT.INDENT}classify: ${fileMeta.filename} → ${project} (conf=${result?.confidence ?? 0})`);
     return cache.write(fileMeta.filePath!, {
       project,
       confidence: result?.confidence ?? 0,
@@ -169,7 +170,7 @@ export const classifyByAI = async (
       (f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.SKIP }),
       config.concurrency,
     );
-    logger.info(`[dry-run] AI 分類をスキップします（project は設定されません）: ${targets.length}件`);
+    logger.dryrun(`AI 分類をスキップします（project は設定されません）: ${targets.length}件`);
     return;
   }
 

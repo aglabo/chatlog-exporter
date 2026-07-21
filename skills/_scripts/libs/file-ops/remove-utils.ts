@@ -10,6 +10,8 @@
 // shared modules
 // ─────────────────────────────────────────────
 
+// constants
+import { LOGGER_TEXT } from '../../constants/logger.constants.ts';
 // functions
 import { isFileIoError } from '../file-io/read-utils.ts';
 import { logger } from '../io/logger.ts';
@@ -64,7 +66,7 @@ export async function removeFile(
     if (throwFileIoError) {
       throw e;
     }
-    logger.warn(`  削除失敗 (${(e as Error).message}): ${filePath}`);
+    logger.warn(`${LOGGER_TEXT.INDENT}削除失敗 (${(e as Error).message}): ${filePath}`);
     return false;
   }
 }

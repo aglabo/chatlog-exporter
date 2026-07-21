@@ -141,7 +141,7 @@ describe('main - dry-run モード', () => {
           assertEquals(updatedContent, originalContent);
         });
 
-        it('T-SF-E2E-01-02: "[dry-run]" がログに出力される', async () => {
+        it('T-SF-E2E-01-02: dryrun ログが出力される', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -153,10 +153,10 @@ describe('main - dry-run モード', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]')), true);
+          assertEquals(loggerStub.dryrunLogs.length > 0, true);
         });
 
-        it('T-SF-E2E-01-03: dry-run 時は type/category エントリログに [dry-run] が付く', async () => {
+        it('T-SF-E2E-01-03: dry-run 時は type/category エントリの dryrun ログが出力される', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -168,7 +168,7 @@ describe('main - dry-run モード', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('type/category')), true);
+          assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('type/category')), true);
         });
       });
     });
@@ -664,7 +664,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('T-SF-DR-04-01: [dry-run] ログに target.md のファイル名が含まれる', async () => {
+        it('T-SF-DR-04-01: dryrun ログに target.md のファイル名が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -678,10 +678,10 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run]') && l.includes('target.md')), true);
+          assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('target.md')), true);
         });
 
-        it('T-SF-DR-04-02: [dry-run] ログに written.md のファイル名が含まれない', async () => {
+        it('T-SF-DR-04-02: dryrun ログに written.md のファイル名が含まれない', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -695,7 +695,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.every((l) => !(l.includes('[dry-run]') && l.includes('written.md'))), true);
+          assertEquals(loggerStub.dryrunLogs.every((l) => !l.includes('written.md')), true);
         });
       });
     });
@@ -730,7 +730,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('T-SF-DR-05-01: [dry-run] を含むログが0件', async () => {
+        it('T-SF-DR-05-01: dryrun ログが0件', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -744,7 +744,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.every((l) => !l.includes('[dry-run]')), true);
+          assertEquals(loggerStub.dryrunLogs.length, 0);
         });
       });
     });

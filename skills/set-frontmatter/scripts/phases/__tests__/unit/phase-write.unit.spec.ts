@@ -342,7 +342,7 @@ describe('phaseWrite', () => {
     assertEquals(stats.fail, 0);
   });
 
-  /** dryRun=true: [dry-run] ログに type/category/ファイル名が含まれる。 */
+  /** dryRun=true: dryrun ログに type/category/ファイル名が含まれる。 */
   describe('When: dryRun ログ出力', () => {
     let loggerStub: LoggerStub;
 
@@ -354,7 +354,7 @@ describe('phaseWrite', () => {
       loggerStub.restore();
     });
 
-    it('[Normal] T-SF-PW-06-04: dryRun=true → logger.info に type/category/filename が含まれる', async () => {
+    it('[Normal] T-SF-PW-06-04: dryRun=true → logger.dryrun に type/category/filename が含まれる', async () => {
       const filePath = '/path/to/a.md';
       const cache = await _makeCacheWithEntry(filePath);
       const { stub: writeStub } = _makeWriteStub();
@@ -368,7 +368,7 @@ describe('phaseWrite', () => {
         writeStub,
       );
 
-      const dryRunLine = loggerStub.infoLogs.find((msg) => msg.includes('[dry-run]'));
+      const dryRunLine = loggerStub.dryrunLogs[0];
       assertStringIncludes(dryRunLine ?? '', 'tech');
       assertStringIncludes(dryRunLine ?? '', 'backend');
       assertStringIncludes(dryRunLine ?? '', 'a.md');

@@ -32,6 +32,7 @@ import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
 import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
+import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
 // types
 import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
 
@@ -131,7 +132,9 @@ export const main = async (args?: string[]): Promise<void> => {
   const { entries, errors } = await loadFilterEntries(_targetEntries, _cache, _config.concurrency);
   if (errors.length > 0) {
     stats.error += errors.length;
-    errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));
+    errors.forEach(({ filePath, error }) =>
+      logger.warn(`${LOGGER_TEXT.INDENT}読み込み失敗 (${error.message}): ${getFilename(filePath)}`)
+    );
   }
 
   const targetEntries = await prefilterFiles(entries, {
@@ -149,10 +152,10 @@ export const main = async (args?: string[]): Promise<void> => {
     logger.info(`判定対象ファイル数: ${total}`);
 
     if (_config.dryRun) {
-      logger.info('dry-run モード: claude CLI を呼び出さず対象ファイルを一覧表示します');
+      logger.dryrun('claude CLI を呼び出さず対象ファイルを一覧表示します');
       targetEntries.forEach((entry) => logger.info(`対象: ${entry.filePath}`));
       stats.skip += targetEntries.length;
-      logger.info('判定済み: judged=0（dry-run）');
+      logger.dryrun('判定済み: judged=0');
     } else {
       // チャンク分割して並列処理（判定結果はキャッシュに書き込むのみ。削除は後続のスイープで行う）
       const chunkResults = await runChunked(

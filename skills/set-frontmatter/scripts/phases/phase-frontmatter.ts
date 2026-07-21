@@ -12,6 +12,7 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -62,9 +63,9 @@ export const phaseFrontmatter = async (
       await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
     }
     if (dryRun) {
-      logger.info(`  [dry-run] frontmatter (cached): ${getFilename(e.filePath!)}`);
+      logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter (cached): ${getFilename(e.filePath!)}`);
     } else {
-      logger.info(`  generated (cached): ${getFilename(e.filePath!)}`);
+      logger.info(`${LOGGER_TEXT.INDENT}generated (cached): ${getFilename(e.filePath!)}`);
     }
   }
 
@@ -84,9 +85,9 @@ export const phaseFrontmatter = async (
         });
       }
       if (dryRun) {
-        logger.info(`  [dry-run] frontmatter (existing): ${getFilename(entry.filePath!)}`);
+        logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter (existing): ${getFilename(entry.filePath!)}`);
       } else {
-        logger.info(`  frontmatter (existing): ${getFilename(entry.filePath!)}`);
+        logger.info(`${LOGGER_TEXT.INDENT}frontmatter (existing): ${getFilename(entry.filePath!)}`);
       }
     },
     concurrency,
@@ -97,13 +98,13 @@ export const phaseFrontmatter = async (
     _needsGenerate,
     async (entry) => {
       if (dryRun) {
-        logger.info(`  [dry-run] frontmatter: ${getFilename(entry.filePath!)}`);
+        logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter: ${getFilename(entry.filePath!)}`);
       } else {
         let _ok: boolean;
         try {
           _ok = await _generate(entry, maxContentLength, dics, prompts, maxRetry);
         } catch (e) {
-          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
+          logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
         }
         if (_ok) {
@@ -111,9 +112,9 @@ export const phaseFrontmatter = async (
           const _existing = cache.read(entry.filePath!);
           const _statusUpdate = entry.frontmatter.hasRequiredFields() ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
           await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
-          logger.info(`  generated: ${getFilename(entry.filePath!)}`);
+          logger.info(`${LOGGER_TEXT.INDENT}generated: ${getFilename(entry.filePath!)}`);
         } else {
-          logger.warn(`  FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
+          logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)}`);
         }
       }
     },

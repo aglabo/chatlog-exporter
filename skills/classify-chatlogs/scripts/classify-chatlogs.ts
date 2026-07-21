@@ -25,6 +25,7 @@ import { logger } from '../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
+import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
 
 // ─── Local
 import { findChatlogFilePaths } from './libs/find-files-flat.ts';
@@ -80,7 +81,7 @@ const _loadProjects = async (config: ClassifyConfig): Promise<ProjectDicEntry> =
 
   logger.info(`対象 agent: ${config.agent}`);
   if (config.period) { logger.info(`対象期間: ${config.period}`); }
-  if (config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
+  if (config.dryRun) { logger.dryrun('ファイルは移動しません'); }
   logger.info(`プロジェクト候補: ${projectNames.join(', ')}`);
 
   return projects;
@@ -120,7 +121,9 @@ const _classify = async (
   const { entries, errors } = await loadClassifyEntries(filePaths, cache, config);
   if (errors.length > 0) {
     stats.error += errors.length;
-    errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));
+    errors.forEach(({ filePath, error }) =>
+      logger.warn(`${LOGGER_TEXT.INDENT}読み込み失敗 (${error.message}): ${getFilename(filePath)}`)
+    );
   }
 
   // Step 2: キャッシュ済み/未キャッシュ分類

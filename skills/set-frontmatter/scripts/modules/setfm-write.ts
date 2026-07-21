@@ -19,6 +19,7 @@ import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/pat
 
 // ─── Local
 import { DEFAULT_ORDERED_FIELDS } from '../../../_scripts/constants/common.constants.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
@@ -107,7 +108,7 @@ export const writeFrontmatter = async (
 ): Promise<boolean> => {
   const _inputPath = entry.filePath!;
   if (!entry.frontmatter.hasRequiredFields()) {
-    logger.error(`  FAIL (yaml空): ${getFilename(_inputPath)}`);
+    logger.error(`${LOGGER_TEXT.INDENT}FAIL (yaml空): ${getFilename(_inputPath)}`);
     return false;
   }
 
