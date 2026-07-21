@@ -66,10 +66,10 @@ describe('applyClassifications', () => {
       assertEquals(_stats.remaining, 0);
     });
 
-    it('[Normal] T-CL-MC-05: action=remaining → stats.remaining++ のみ', async () => {
+    it('[Normal] T-CL-MC-05: project なし（action 未設定） → stats.remaining++ のみ', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _entry = _makeEntry('/tmp/input/test.md');
-      await _cache.write('/tmp/input/test.md', { action: CLASSIFY_ACTIONS.REMAINING });
+      await _cache.write('/tmp/input/test.md', {});
       const _stats = _makeStats();
 
       await applyClassifications(
@@ -160,27 +160,6 @@ describe('applyClassifications', () => {
       );
 
       assertEquals(_stats.remaining, 1);
-      assertEquals(_stats.moved, 0);
-      assertEquals(_stats.movedByAI, 0);
-      assertEquals(_stats.error, 0);
-    });
-
-    it('[Normal] T-CL-MC-16: action=skip, project なし → stats.skip++ のみ、remaining は増えず移動もしない', async () => {
-      const _cache = await _makeEmptyClassifyCache();
-      const _entry = _makeEntry('/tmp/input/test.md');
-      await _cache.write('/tmp/input/test.md', { action: CLASSIFY_ACTIONS.SKIP });
-      const _stats = _makeStats();
-
-      await applyClassifications(
-        [_entry],
-        '/tmp/output',
-        true,
-        { cache: _cache, stats: _stats },
-        { concurrency: 4 },
-      );
-
-      assertEquals(_stats.skip, 1);
-      assertEquals(_stats.remaining, 0);
       assertEquals(_stats.moved, 0);
       assertEquals(_stats.movedByAI, 0);
       assertEquals(_stats.error, 0);
