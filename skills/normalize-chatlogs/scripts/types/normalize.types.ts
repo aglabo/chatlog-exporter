@@ -21,6 +21,10 @@ export type Segment = {
   summary: string;
   /** セグメントの会話本文（元テキストをそのままコピー）。 */
   content: string;
+  /** AI が返した開始行番号（1-based、キャッシュ保存用）。 */
+  startLine?: number;
+  /** AI が返した終了行番号（1-based、キャッシュ保存用）。 */
+  endLine?: number;
 };
 
 /**

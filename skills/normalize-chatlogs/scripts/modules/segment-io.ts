@@ -156,7 +156,13 @@ const _addLineNumbers = (content: string): string => {
   return content.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
 };
 
-const _extractLines = (lines: string[], startLine: number, endLine: number): string => {
+/**
+ * Extracts the inclusive line range `[startLine, endLine]` (1-based) from `lines`, clamped to bounds.
+ *
+ * Used both for the initial AI response (segmentChatlogs) and for re-slicing content from
+ * cached `{startLine, endLine}` ranges on resume (process-files phase 4).
+ */
+export const extractLines = (lines: string[], startLine: number, endLine: number): string => {
   const total = lines.length;
   if (total === 0) { return ''; }
   const start = Math.max(1, Math.min(startLine, total));
@@ -257,7 +263,9 @@ export const segmentChatlogs = async (
       _segments.slice(0, MAX_SEGMENTS).map((r) => ({
         title: r.title,
         summary: r.summary,
-        content: _extractLines(_lines, r.startLine, r.endLine),
+        content: extractLines(_lines, r.startLine, r.endLine),
+        startLine: r.startLine,
+        endLine: r.endLine,
       })),
     );
   }

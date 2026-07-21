@@ -31,6 +31,21 @@ import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-set
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
 
+// ─── Internal Helpers
+
+// functions
+
+/**
+ * テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。
+ *
+ * `GlobalConfig.resetInstance()` 済みであることを前提に、`normalize-cache` を
+ * `tempDir` 配下に隔離し、他テストの残留キャッシュの影響を防ぐ。
+ *
+ * @param tempDir - キャッシュディレクトリの起点となる一時ディレクトリパス
+ */
+const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
+  GlobalConfig.getInstance({ yaml: `cacheDir: '${tempDir}/cache'` });
+
 // ─── I/O テスト ────────────────────────────────────────────────────────────────
 
 /**
@@ -49,6 +64,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       // 2 MD files with frontmatter
       await Deno.writeTextFile(
@@ -117,6 +134,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       outputDir = await Deno.makeTempDir();
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       const samplePath = normalizePath(`${AGENT_DIR}/sample.md`);
       const segmentResponse = JSON.stringify([
@@ -173,6 +192,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       outputBase = await Deno.makeTempDir();
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputBase);
 
       const chatPath = normalizePath(`${CHATLOG_INPUT_DIR}/chat.md`);
       const segmentResponse = JSON.stringify([
@@ -218,6 +239,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir: outputBase } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputBase);
 
       await Deno.writeTextFile(
         `${inputDir}/chat.md`,
@@ -267,6 +290,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir: outputBase } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputBase);
 
       await Deno.writeTextFile(
         `${inputDir}/chat.md`,
@@ -315,6 +340,8 @@ describe('main - I/O', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       await Deno.writeTextFile(
         `${inputDir}/single-topic.md`,
