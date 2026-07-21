@@ -35,7 +35,9 @@ import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fix
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 
 // test target
-import { segmentChatlogs } from '../../modules/segment-io.ts';
+import { segmentChatlogs } from '../../modules/segment-ai.ts';
+// classes
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
@@ -108,7 +110,7 @@ describe('segmentChatlogs — runai-segments', () => {
           const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            const _map = await segmentChatlogs([new ChatlogEntry(_inputContent, { filePath: _inputPath })]);
             const _segments = _map.get(_inputPath) ?? [];
             assertEquals(_segments.length, _output.count);
           } finally {
@@ -120,7 +122,7 @@ describe('segmentChatlogs — runai-segments', () => {
           const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            const _map = await segmentChatlogs([new ChatlogEntry(_inputContent, { filePath: _inputPath })]);
             const _segments = _map.get(_inputPath) ?? [];
             for (const seg of _segments) {
               assertExists(seg.title);
@@ -145,7 +147,7 @@ describe('segmentChatlogs — runai-segments', () => {
           const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
-            const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+            const _map = await segmentChatlogs([new ChatlogEntry(_inputContent, { filePath: _inputPath })]);
             assertNull(_map.get(_inputPath));
           } finally {
             _mockHandle.restore();

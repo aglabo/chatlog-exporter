@@ -5,5 +5,4 @@ project: test-project
 slug: sample-two-topic
 title: テストフレームワーク
 log_id: input-01-a1b2c3d
-summary: ユーザーがDenoのテストフレームワークについて質問し、AssistantがBDDスタイルのAPIを紹介した。
 ---
