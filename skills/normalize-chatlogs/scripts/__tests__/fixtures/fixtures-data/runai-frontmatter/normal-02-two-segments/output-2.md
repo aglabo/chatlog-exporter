@@ -5,5 +5,4 @@ project: test-project
 slug: sample-two-topic
 title: TypeScript型推論
 log_id: input-02-e4f5a6b
-summary: ユーザーがTypeScriptの型推論について質問し、Assistantがコンテキストベースの自動型決定を説明した。
 ---

@@ -22,9 +22,16 @@ import {
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
 // test target
-import { segmentChatlogs } from '../../modules/segment-io.ts';
+import { segmentChatlogs } from '../../modules/segment-ai.ts';
+// classes
+import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
 import type { Segment } from '../../types/normalize.types.ts';
+
+// ─── Internal Helpers
+
+// functions
+const _makeEntry = (filePath: string, content: string): ChatlogEntry => new ChatlogEntry(content, { filePath });
 
 // ─── segmentChatlogs tests ─────────────────────────────────────────────────────
 
@@ -61,7 +68,7 @@ describe('segmentChatlogs', () => {
           ];
           mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(aiSegments))));
 
-          const resultMap = await segmentChatlogs([{ filePath, content: 'Body A\nBody B' }]);
+          const resultMap = await segmentChatlogs([_makeEntry(filePath, 'Body A\nBody B')]);
           const result = resultMap.get(filePath);
 
           assertEquals(Array.isArray(result), true);
@@ -84,7 +91,7 @@ describe('segmentChatlogs', () => {
           ];
           mockHandle = installCommandMock(makeCountingMock(JSON.stringify(aiSegments), counter));
 
-          await segmentChatlogs([{ filePath, content: 'some chat content' }]);
+          await segmentChatlogs([_makeEntry(filePath, 'some chat content')]);
 
           assertEquals(counter.calls, 1);
         });
@@ -110,7 +117,7 @@ describe('segmentChatlogs', () => {
           const filePath = 'path/to/file.md';
           mockHandle = installCommandMock(makeFailMock(1));
 
-          const resultMap = await segmentChatlogs([{ filePath, content: 'some chat content' }]);
+          const resultMap = await segmentChatlogs([_makeEntry(filePath, 'some chat content')]);
 
           assertNull(resultMap.get(filePath));
         });
@@ -119,7 +126,7 @@ describe('segmentChatlogs', () => {
           const filePath = 'path/to/file.md';
           mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('not json')));
 
-          const resultMap = await segmentChatlogs([{ filePath, content: 'some chat content' }]);
+          const resultMap = await segmentChatlogs([_makeEntry(filePath, 'some chat content')]);
 
           assertNull(resultMap.get(filePath));
         });
@@ -157,7 +164,7 @@ describe('segmentChatlogs', () => {
           ];
           mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(aiSegments))));
 
-          const resultMap = await segmentChatlogs([{ filePath, content }]);
+          const resultMap = await segmentChatlogs([_makeEntry(filePath, content)]);
           const result = resultMap.get(filePath);
 
           assertEquals((result as Segment[]).length, 5);

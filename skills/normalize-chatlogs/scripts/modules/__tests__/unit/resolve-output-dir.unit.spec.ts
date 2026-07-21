@@ -12,7 +12,7 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { resolveOutputDir } from '../../process-files.ts';
+import { resolveOutputDir } from '../../../phases/phase-write.ts';
 
 // ─── Tests
 

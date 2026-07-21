@@ -4,7 +4,7 @@ description: >
   チャットログMarkdownをAI（Claude CLI）でトピック別セグメントに分割し、
   フロントマター付きMarkdownとして出力する。
   /normalize-chatlogs で呼び出す。
-  入力ファイルのフロントマターを引き継ぎつつ、title/log_id/summaryをAIが生成する。
+  入力ファイルのフロントマターを引き継ぎつつ、title/log_idをAIが生成する。summaryは本文の`## Summary`セクションに使われる。
 argument-hint: "<agent> <YYYY-MM> | <path> [--output <dir>] [--concurrency <n>] [--model <model>] [--dry-run]"
 allowed-tools: Bash, Glob
 ---

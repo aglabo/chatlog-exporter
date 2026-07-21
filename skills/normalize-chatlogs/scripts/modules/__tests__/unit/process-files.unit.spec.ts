@@ -341,6 +341,74 @@ describe('processFiles', () => {
     });
   });
 
+  /** 読み込みエラー: frontmatter パースエラー等、loadEntries が返す errors の扱い。 */
+  describe('When: 読み込みエラー', () => {
+    it('[Error] T-PF-LE-01: フロントマターが不正なファイルは stats.fail が増加し logger.warn が呼ばれ、書き出し対象から除外される', async () => {
+      // arrange
+      const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
+      await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
+      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      let warnStub: Stub | undefined;
+
+      try {
+        warnStub = stub(logger, 'warn');
+
+        // act
+        await processFiles(tmpDir, outputDir, _CONFIG, stats);
+
+        // assert — 読み込みエラーで fail が増加し、warn が呼ばれる
+        assertEquals(stats.fail, 1);
+        assert(warnStub.calls.length > 0);
+      } finally {
+        warnStub?.restore();
+      }
+    });
+
+    it('[Error] T-PF-LE-02: failFast=true のとき読み込みエラーで ChatlogError(FailFast) をスローする', async () => {
+      // arrange
+      const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
+      await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
+      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
+        dryRun: true,
+        concurrency: 1,
+        failFast: true,
+      };
+
+      // act & assert
+      const err = await assertRejects(
+        () => processFiles(tmpDir, outputDir, config, stats),
+        ChatlogError,
+      );
+      assertEquals((err as ChatlogError).kind, 'FailFast');
+    });
+
+    it('[Normal] T-PF-LE-03: failFast=false のとき読み込みエラーがあっても残りの正常ファイルは処理される', async () => {
+      // arrange
+      const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
+      const goodFilePath = normalizePath(`${tmpDir}/good.md`);
+      await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
+      await Deno.writeTextFile(goodFilePath, '# Test\n\nContent');
+
+      const segments = [{ title: 'Topic', summary: 'Summary', content: 'Body' }];
+      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath: goodFilePath, segments }]));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
+        dryRun: true,
+        concurrency: 2,
+        failFast: false,
+      };
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — 読み込みエラーで fail が1増え、正常ファイルはエラーにならず処理される
+      assertEquals(stats.fail, 1);
+    });
+  });
+
   /** BATCH_SIZE 境界: ファイル数が BATCH_SIZE を超えるとき 2 チャンクに分割して処理するケース。 */
   describe('When: BATCH_SIZE 境界', () => {
     it('[Edge] T-PF-BATCH-01: ファイル数が BATCH_SIZE+1 のとき全ファイルが処理されて stats.fail === 0', async () => {

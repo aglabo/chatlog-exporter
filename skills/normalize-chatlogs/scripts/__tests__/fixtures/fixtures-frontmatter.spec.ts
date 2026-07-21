@@ -25,17 +25,14 @@ import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 // test target
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
-import {
-  attachFrontmatter,
-  generateSegmentFile,
-  segmentChatlogs,
-} from '../../modules/segment-io.ts';
+import { segmentChatlogs } from '../../modules/segment-ai.ts';
+import { attachFrontmatter, generateSegmentFile } from '../../modules/segment-io.ts';
 import type { Segment } from '../../types/normalize.types.ts';
 
 // ─── フロントマター検証対象フィールド ────────────────────────────────────────
 
 // log_id はランダムハッシュを含むためここでは検証しない（file-gen.unit.spec.ts で検証）
-const FRONTMATTER_KEYS = ['title', 'summary'] as const;
+const FRONTMATTER_KEYS = ['title'] as const;
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 
@@ -76,7 +73,6 @@ function _buildOutput(
   return attachFrontmatter(segmentContent, entry.frontmatter, {
     title: segment.title,
     log_id: 'dummy',
-    summary: segment.summary,
   });
 }
 
@@ -122,8 +118,8 @@ describe('attachFrontmatter — runai-frontmatter', () => {
 
               try {
                 const _inputContent = await readTextFile(_inputPath);
-                const _entry = new ChatlogEntry(_inputContent);
-                const _map = await segmentChatlogs([{ filePath: _inputPath, content: _inputContent }]);
+                const _entry = new ChatlogEntry(_inputContent, { filePath: _inputPath });
+                const _map = await segmentChatlogs([_entry]);
                 const _segments = _map.get(_inputPath) ?? [];
 
                 const _actual = _buildOutput(_segments[_idx], _entry);

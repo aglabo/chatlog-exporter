@@ -4,5 +4,4 @@ date: 2026-04-01
 project: test-project
 slug: empty-title-test
 log_id: input-01-abc1234
-summary: ユーザーがテストと入力し、Assistantが了解した。
 ---
