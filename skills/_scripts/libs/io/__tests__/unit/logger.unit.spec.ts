@@ -142,4 +142,30 @@ describe('logger', () => {
       });
     });
   });
+
+  // ─── グループ05: logger.dryrun ───────────────────────────────────────────────
+
+  describe('Given: msg="dry message"', () => {
+    describe('When: logger.dryrun("dry message") を呼び出す', () => {
+      describe('Then: T-LIB-LOG-05 - "::info:: <<dry-run>>" prefix を付けて stderr へ出力する', () => {
+        it('T-LIB-LOG-05-01: console.error が 1 回呼ばれる', () => {
+          logger.dryrun('dry message');
+          assertSpyCalls(errorSpy, 1);
+        });
+
+        it('T-LIB-LOG-05-02: console.error の引数が "::info:: <<dry-run>> dry message" である', () => {
+          logger.dryrun('dry message');
+          const [arg] = errorSpy.calls[0].args as [string];
+          if (arg !== '::info:: <<dry-run>> dry message') {
+            throw new Error(`Expected "::info:: <<dry-run>> dry message", got "${arg}"`);
+          }
+        });
+
+        it('T-LIB-LOG-05-03: console.log は呼ばれない', () => {
+          logger.dryrun('dry message');
+          assertSpyCalls(logSpy, 0);
+        });
+      });
+    });
+  });
 });
