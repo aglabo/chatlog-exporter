@@ -12,7 +12,7 @@
 // ─── Shared scripts
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runChunked, runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 
 // ─── Local
@@ -150,7 +150,7 @@ export const processChunk = async (
 /**
  * 分類対象のファイルエントリを AI で分類し、判定結果を `cache` に書き込む。
  * - `targets` が 0 件の場合は即座に return する。
- * - `dryRun === true` の場合は AI 呼び出しを行わず、`targets` 全件に `action: SKIP` を書き込んで return する
+ * - `dryRun === true` の場合は AI 呼び出しを行わず、何も書き込まず return する
  *   （`project` は未設定のまま。次回実行時は uncached として再度 AI 分類対象になる）。
  * - `dryRun === false` の場合は `runChunked` で並列 AI 分類する。
  * - ファイル移動・stats更新は行わない。判定結果はすべて `processChunk` 経由で `cache` に記録する。
@@ -165,11 +165,6 @@ export const classifyByAI = async (
   if (targets.length === 0) { return; }
 
   if (dryRun) {
-    await runConcurrent(
-      targets,
-      (f) => cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.SKIP }),
-      config.concurrency,
-    );
     logger.dryrun(`AI 分類をスキップします（project は設定されません）: ${targets.length}件`);
     return;
   }
