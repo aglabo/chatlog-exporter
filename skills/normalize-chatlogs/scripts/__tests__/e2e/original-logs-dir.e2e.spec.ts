@@ -62,7 +62,11 @@ describe('main', () => {
               `${monthDir}/chat.md`,
               '---\nproject: my-project\n---\n### User\nHello\n\n### AI\nHi there.',
             );
-            await Deno.writeTextFile(configFile, `chatlogsDir: "${chatlogsDir}"\n`);
+            // normalize-cache を outputDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await Deno.writeTextFile(
+              configFile,
+              `chatlogsDir: "${chatlogsDir}"\ncacheDir: "${outputDir}/cache"\n`,
+            );
 
             const chatPath = normalizePath(`${monthDir}/chat.md`);
             const segmentResponse = JSON.stringify([

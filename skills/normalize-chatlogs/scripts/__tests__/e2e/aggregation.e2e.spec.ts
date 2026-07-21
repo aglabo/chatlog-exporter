@@ -28,6 +28,21 @@ import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.t
 // test target
 import { main } from '../../normalize-chatlogs.ts';
 
+// ─── Internal Helpers
+
+// functions
+
+/**
+ * テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。
+ *
+ * `GlobalConfig.resetInstance()` 済みであることを前提に、`normalize-cache` を
+ * `tempDir` 配下に隔離し、他テストの残留キャッシュの影響を防ぐ。
+ *
+ * @param tempDir - キャッシュディレクトリの起点となる一時ディレクトリパス
+ */
+const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
+  GlobalConfig.getInstance({ yaml: `cacheDir: '${tempDir}/cache'` });
+
 // ─── 集計テスト ────────────────────────────────────────────────────────────────
 
 /**
@@ -46,6 +61,8 @@ describe('main - aggregation', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       for (let i = 1; i <= 4; i++) {
         await Deno.writeTextFile(
@@ -101,6 +118,8 @@ describe('main - aggregation', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       for (let i = 1; i <= 3; i++) {
         await Deno.writeTextFile(
@@ -142,6 +161,8 @@ describe('main - aggregation', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       commandHandle = installCommandMock(makeSuccessMock(new Uint8Array()));
       loggerStub = makeLoggerStub();

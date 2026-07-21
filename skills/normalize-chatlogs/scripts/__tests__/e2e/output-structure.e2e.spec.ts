@@ -25,6 +25,21 @@ import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.t
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { main } from '../../normalize-chatlogs.ts';
 
+// ─── Internal Helpers
+
+// functions
+
+/**
+ * テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。
+ *
+ * `GlobalConfig.resetInstance()` 済みであることを前提に、`normalize-cache` を
+ * `tempDir` 配下に隔離し、他テストの残留キャッシュの影響を防ぐ。
+ *
+ * @param tempDir - キャッシュディレクトリの起点となる一時ディレクトリパス
+ */
+const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
+  GlobalConfig.getInstance({ yaml: `cacheDir: '${tempDir}/cache'` });
+
 // ─── 構造テスト ────────────────────────────────────────────────────────────────
 
 /**
@@ -44,6 +59,8 @@ describe('main - output structure', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       await Deno.writeTextFile(
         `${inputDir}/chat-a.md`,
@@ -96,6 +113,8 @@ describe('main - output structure', () => {
 
     beforeEach(async () => {
       ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
 
       await Deno.writeTextFile(
         `${inputDir}/chat.md`,
