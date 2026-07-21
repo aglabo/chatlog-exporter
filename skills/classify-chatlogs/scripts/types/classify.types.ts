@@ -108,8 +108,6 @@ type _ClassifyConfigCheck = _Assert<ClassifyConfig>;
 export const CLASSIFY_ACTIONS = {
   MOVE: 'move',
   MOVEBYAI: 'move-by-ai',
-  REMAINING: 'remaining',
-  SKIP: 'skip',
   ERROR: 'error',
   EMPTY: '',
 } as const;
