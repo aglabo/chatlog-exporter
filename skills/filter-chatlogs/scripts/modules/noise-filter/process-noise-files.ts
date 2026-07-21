@@ -17,6 +17,7 @@ import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts
 
 // ─── internal ───
 // types
+import type { FilterProcessOptions } from '../../types/filter.types.ts';
 import type { NoiseDiscardFile } from '../../types/noise-filter.types.ts';
 import type { NoiseFilterStats } from '../../types/stats.types.ts';
 // functions
@@ -137,14 +138,14 @@ export const _phase3DiscardOrSkip = async (
  * @param entries - 処理対象の `ChatlogEntry` 配列
  * @param stats - 加算対象の処理統計オブジェクト
  * @param options.dryRun - `true` のとき、ノイズ判定確定ファイルを実削除せず `stats.skip` に計上する
- * @param concurrency - 同時実行する削除処理の最大並列数。
+ * @param options.concurrency - 同時実行する削除処理の最大並列数。
  */
 export const processNoiseFiles = async (
   entries: ChatlogEntry[],
   stats: NoiseFilterStats,
-  options: { dryRun: boolean },
-  concurrency: number,
+  options: FilterProcessOptions,
 ): Promise<void> => {
+  const { dryRun, concurrency } = options;
   const { discardFiles: filenameDiscardFiles, passEntries } = _phase0ClassifyByFilename(entries);
   const { discardFiles: contentDiscardFiles, keepFiles } = _phase2ClassifyConversations(passEntries);
 
@@ -153,7 +154,7 @@ export const processNoiseFiles = async (
   await _phase3DiscardOrSkip(
     [...filenameDiscardFiles, ...contentDiscardFiles],
     stats,
-    options.dryRun,
+    dryRun,
     concurrency,
   );
 };
