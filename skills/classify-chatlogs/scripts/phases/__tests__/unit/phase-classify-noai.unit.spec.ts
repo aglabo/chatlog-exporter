@@ -65,7 +65,7 @@ describe('classifyByNoAI', () => {
       assertEquals(cache.read(_filePath).project, FALLBACK_PROJECT);
     });
 
-    it('[Normal] T-CL-PRE-04: project フィールドなし + hasMeta=true → cache: action=remaining（AI 処理対象）', async () => {
+    it('[Normal] T-CL-PRE-04: project フィールドなし + hasMeta=true → cache: action/project とも未設定（AI 処理対象）', async () => {
       const _filePath = '/tmp/chatlogs/test.md';
       const _entry = _makeEntry(
         _filePath,
@@ -76,10 +76,11 @@ describe('classifyByNoAI', () => {
 
       await classifyByNoAI(_entry, cache);
 
-      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
+      assertEquals(cache.read(_filePath).action, undefined);
+      assertEquals(cache.read(_filePath).project, undefined);
     });
 
-    it('[Normal] T-CL-PRE-05: project フィールドなし + hasMeta=false + 長い → cache: action=remaining', async () => {
+    it('[Normal] T-CL-PRE-05: project フィールドなし + hasMeta=false + 長い → cache: action/project とも未設定', async () => {
       const _filePath = '/tmp/chatlogs/test.md';
       const _longContent = 'a'.repeat(100);
       const _entry = _makeEntry(_filePath, {}, _longContent);
@@ -87,7 +88,8 @@ describe('classifyByNoAI', () => {
 
       await classifyByNoAI(_entry, cache);
 
-      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.REMAINING);
+      assertEquals(cache.read(_filePath).action, undefined);
+      assertEquals(cache.read(_filePath).project, undefined);
     });
   });
 });
@@ -96,7 +98,7 @@ describe('classifyByNoAI', () => {
  * `processClassifyNoAI` のユニットテストスイート。
  *
  * `ChatlogEntry[]` と `cache` を渡し、各エントリに `classifyByNoAI` を適用した上で、
- * 判定結果（cache の `action`）に基づき `move`（AI 不要で project 確定済み）と
+ * 判定結果（cache の `project` の有無）に基づき `move`（AI 不要で project 確定済み）と
  * `remaining`（AI 分類が必要）に分割することを検証する。
  *
  * テスト ID 範囲: T-CL-PCL-01 〜 T-CL-PCL-03
@@ -128,7 +130,8 @@ describe('processClassifyNoAI', () => {
       assertEquals(cache.read(_pathWithProject).project, 'app1');
       assertEquals(cache.read(_pathShort).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_pathShort).project, FALLBACK_PROJECT);
-      assertEquals(cache.read(_pathLong).action, CLASSIFY_ACTIONS.REMAINING);
+      assertEquals(cache.read(_pathLong).action, undefined);
+      assertEquals(cache.read(_pathLong).project, undefined);
     });
   });
 
