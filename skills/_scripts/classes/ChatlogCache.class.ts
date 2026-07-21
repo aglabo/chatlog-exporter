@@ -90,6 +90,12 @@ export interface ChatlogCacheProviders {
   env?: EnvProvider;
 }
 
+/** `initFromOutputDir` の追加オプション。 */
+export interface InitFromOutputDirOptions {
+  /** テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）。 */
+  isComplete?: (text: string) => boolean;
+}
+
 /** `ChatlogCache` コンストラクタに渡すキャッシュ初期化オプション。 */
 export interface ChatlogCacheInitializer {
   /** YAML 文字列でキャッシュを初期化する場合に指定する。省略時はディレクトリから自動読み込み。 */
@@ -177,7 +183,7 @@ export class ChatlogCache<T extends object> {
       const _concurrency = initializer?.concurrency ?? Number(GlobalConfig.getInstance().get('concurrency'));
       await this.loadAll(_concurrency);
       if (initializer?.outputDir != null) {
-        await this.initFromOutputDir(initializer.outputDir, undefined, _concurrency);
+        await this.initFromOutputDir(initializer.outputDir, _concurrency);
       }
     }
   }
@@ -308,14 +314,15 @@ export class ChatlogCache<T extends object> {
    * 両方の完了を待った上で、いずれかが reject していればそのエラーを伝播する。
    *
    * @param outputDir - `.md` ファイルを探索するディレクトリパス
-   * @param isComplete - テキストを受け取り完全書き込み対象か判定する述語（省略時は全5フィールド揃い判定）
    * @param concurrency - ファイル読み込み・書き込みの並列実行数
+   * @param options - 追加オプション（`isComplete` 述語など。省略時は全5フィールド揃い判定）
    */
   async initFromOutputDir(
     outputDir: string,
-    isComplete: (text: string) => boolean = _isComplete,
     concurrency: number,
+    options: InitFromOutputDirOptions = {},
   ): Promise<void> {
+    const { isComplete = _isComplete } = options;
     const _allFiles = await findFilesFlat(outputDir, { glob: this._glob });
 
     // step 1: 未キャッシュのファイルのみに絞る（同期 filter）
