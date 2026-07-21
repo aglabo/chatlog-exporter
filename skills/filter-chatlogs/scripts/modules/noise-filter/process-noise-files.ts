@@ -112,7 +112,7 @@ export const _phase3DiscardOrSkip = async (
 ): Promise<void> => {
   await runConcurrent(discardFiles, async ({ filePath, reason }) => {
     if (dryRun) {
-      logger.info(`<<dry-run>> skip: ${filePath} (${reason})`);
+      logger.dryrun(`skip: ${filePath} (${reason})`);
       stats.skip++;
       return;
     }

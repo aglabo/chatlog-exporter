@@ -347,7 +347,7 @@ describe('prefilterFiles', () => {
     describe('When: dryRun: true を渡して prefilterFiles を呼び出す', () => {
       /** dryRun でも削除予定ファイルはログ出力・stats.skip に計上され、DISCARD 確定分は passed から除外されることを検証する。 */
       describe('Then: T-FL-PFF-09 - 削除予定がログ出力され、DISCARD 確定分は passed から除外される', () => {
-        it('T-FL-PFF-09-01: [Normal] dryRun: true のとき削除予定ファイルの logger.info が呼ばれる', async () => {
+        it('T-FL-PFF-09-01: [Normal] dryRun: true のとき削除予定ファイルの logger.dryrun が呼ばれる', async () => {
           const excludedPath = `${periodDir1}/say-ok-and-nothing-else.md`;
           const shortPath = `${periodDir1}/short-body.md`;
           const validPath = `${periodDir1}/valid.md`;
@@ -363,7 +363,7 @@ describe('prefilterFiles', () => {
           });
           loggerStub.restore();
 
-          assertEquals(loggerStub.infoLogs.length, 2);
+          assertEquals(loggerStub.dryrunLogs.length, 2);
         });
 
         it('T-FL-PFF-09-02: [Normal] dryRun: true でも DISCARD 確定分は passed から除外され、stats.skip に計上される', async () => {

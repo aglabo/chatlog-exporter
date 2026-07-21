@@ -48,7 +48,7 @@ export const writeOutput = async (
   glob?: GlobProvider,
 ): Promise<boolean> => {
   if (dryRun) {
-    logger.info(`[dry-run] would write: ${outputPath}`);
+    logger.dryrun(`would write: ${outputPath}`);
     return false;
   }
 

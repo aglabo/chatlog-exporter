@@ -25,6 +25,7 @@ import { logger } from '../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
+import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
 
 // ─── Local
 import { findChatlogFilePaths } from './libs/find-files-flat.ts';
@@ -36,9 +37,106 @@ import { processClassifyNoAI } from './phases/phase-classify-noai.ts';
 import { partitionEntries } from './phases/phase-partition.ts';
 import { applyClassifications } from './phases/phase-write.ts';
 // types
-import type { ClassifyCache, ClassifyStats } from './types/classify.types.ts';
+import type {
+  ClassifyCache,
+  ClassifyConfig,
+  ClassifyPartition,
+  ClassifyStats,
+  ProjectDicEntry,
+} from './types/classify.types.ts';
 // constants
 import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
+
+// ─────────────────────────────────────────────
+// 内部関数
+// ─────────────────────────────────────────────
+
+/**
+ * 入力ディレクトリを解決し、存在確認する。
+ * 存在しない場合は `ChatlogError('InputNotFound', 'NotFound', ...)` を throw する。
+ */
+const _resolveInputDir = async (config: ClassifyConfig): Promise<string> => {
+  const originalLogsDir = resolveChatlogsDir({
+    chatlogsDir: config.chatlogsDir,
+    agent: config.agent,
+    period: config.period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: config.inputDir,
+  });
+  if (!await dirExists(originalLogsDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${originalLogsDir}`);
+  }
+  return originalLogsDir;
+};
+
+/**
+ * プロジェクト辞書を読み込み、設定内容をログ出力する。
+ */
+const _loadProjects = async (config: ClassifyConfig): Promise<ProjectDicEntry> => {
+  const projects = await loadProjectDic(config.projectsDic);
+  const projectNames = Object.keys(projects);
+  if (projectNames.every((name) => name === FALLBACK_PROJECT)) {
+    logger.warn('projects.dic にプロジェクトが定義されていません。すべて misc に分類されます。');
+  }
+
+  logger.info(`対象 agent: ${config.agent}`);
+  if (config.period) { logger.info(`対象期間: ${config.period}`); }
+  if (config.dryRun) { logger.dryrun('ファイルは移動しません'); }
+  logger.info(`プロジェクト候補: ${projectNames.join(', ')}`);
+
+  return projects;
+};
+
+/**
+ * 対象ファイル一覧を収集し、判定結果キャッシュを準備する。
+ * 対象ファイルが0件の場合は完了ログを出力し `null` を返す。
+ */
+const _collectFilesAndCache = async (
+  originalLogsDir: string,
+): Promise<{ filePaths: string[]; cache: ChatlogCache<ClassifyCache> } | null> => {
+  const filePaths = await findChatlogFilePaths(originalLogsDir);
+  if (filePaths.length === 0) {
+    logger.info('対象ファイルなし');
+    logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0 skip=0');
+    return null;
+  }
+  const cache = new ChatlogCache<ClassifyCache>('classify-cache');
+  await cache.ready;
+  return { filePaths, cache };
+};
+
+/**
+ * エントリ読み込み・キャッシュ分類・AI なし分類・AI 分類までを実行する。
+ * ファイル移動（`applyClassifications`）はこの関数には含まない。
+ */
+const _classify = async (
+  filePaths: string[],
+  cache: ChatlogCache<ClassifyCache>,
+  config: ClassifyConfig,
+  projects: ProjectDicEntry,
+  stats: ClassifyStats,
+): Promise<ClassifyPartition> => {
+  // Step 1: 分類候補エントリの読み込み。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
+  // 誤って処理を継続しないよう後続の事前分類・AI分類には渡らない
+  const { entries, errors } = await loadClassifyEntries(filePaths, cache, config);
+  if (errors.length > 0) {
+    stats.error += errors.length;
+    errors.forEach(({ filePath, error }) =>
+      logger.warn(`${LOGGER_TEXT.INDENT}読み込み失敗 (${error.message}): ${getFilename(filePath)}`)
+    );
+  }
+
+  // Step 2: キャッシュ済み/未キャッシュ分類
+  const partition = partitionEntries(entries, cache);
+
+  // Step 3: 分類 (AI なし)
+  const { remaining } = await processClassifyNoAI(partition.uncached, cache, config);
+
+  // Step 4: 分類（AI あり）
+  await classifyByAI(remaining, projects, config, cache, config.dryRun);
+
+  return partition;
+};
 
 // ─────────────────────────────────────────────
 // メイン
@@ -52,59 +150,16 @@ import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
 export const main = async (argv?: string[]): Promise<void> => {
   const _config = buildConfig(argv ?? Deno.args);
 
-  // 入力ディレクトリ確認
-  const _originalLogsDir = resolveChatlogsDir({
-    chatlogsDir: _config.chatlogsDir,
-    agent: _config.agent,
-    period: _config.period,
-    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-    override: _config.inputDir,
-  });
-  if (!await dirExists(_originalLogsDir)) {
-    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${_originalLogsDir}`);
-  }
-
-  // プロジェクト辞書読み込み
-  const projects = await loadProjectDic(_config.projectsDic);
-  const _projectNames = Object.keys(projects);
-  if (_projectNames.every((name) => name === FALLBACK_PROJECT)) {
-    logger.warn('projects.dic にプロジェクトが定義されていません。すべて misc に分類されます。');
-  }
-
-  logger.info(`対象 agent: ${_config.agent}`);
-  if (_config.period) { logger.info(`対象期間: ${_config.period}`); }
-  if (_config.dryRun) { logger.info('dry-run モード: ファイルは移動しません'); }
-  logger.info(`プロジェクト候補: ${_projectNames.join(', ')}`);
+  const _originalLogsDir = await _resolveInputDir(_config);
+  const projects = await _loadProjects(_config);
 
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0, skip: 0 };
 
-  // Step 0: ファイルリスト、キャッシュ取得
-  const _filePaths = await findChatlogFilePaths(_originalLogsDir);
-  if (_filePaths.length === 0) {
-    logger.info('対象ファイルなし');
-    logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0 skip=0');
-    return;
-  }
-  // 判定結果キャッシュ
-  const _cache = new ChatlogCache<ClassifyCache>('classify-cache');
-  await _cache.ready;
+  const _collected = await _collectFilesAndCache(_originalLogsDir);
+  if (_collected === null) { return; }
+  const { filePaths: _filePaths, cache: _cache } = _collected;
 
-  // Step 1: 分類候補エントリの読み込み。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
-  // 誤って処理を継続しないよう後続の事前分類・AI分類には渡らない
-  const { entries, errors } = await loadClassifyEntries(_filePaths, _cache, _config);
-  if (errors.length > 0) {
-    stats.error += errors.length;
-    errors.forEach(({ filePath, error }) => logger.warn(`  読み込み失敗 (${error.message}): ${getFilename(filePath)}`));
-  }
-
-  // Step 2: キャッシュ済み/未キャッシュ分類
-  const _partition = partitionEntries(entries, _cache);
-
-  // Step 3: 分類 (AI なし)
-  const { remaining } = await processClassifyNoAI(_partition.uncached, _cache, _config);
-
-  // Step 4: 分類（AI あり）
-  await classifyByAI(remaining, projects, _config, _cache, _config.dryRun);
+  const _partition = await _classify(_filePaths, _cache, _config, projects, stats);
 
   // Step 5: ファイル移動
   await applyClassifications(

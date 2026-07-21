@@ -114,7 +114,7 @@ describe('main', () => {
       }
     });
 
-    it('[Normal] T-CL-MAIN-05: --dry-run 指定 → "dry-run モード" ログと完了ログの "(dry-run)" サフィックスが出力される', async () => {
+    it('[Normal] T-CL-MAIN-05: --dry-run 指定 → dryrun ログと完了ログの "(dry-run)" サフィックスが出力される', async () => {
       const { inputDir, configsDir, configFile, monthDir } = await _makeTestDirs();
       await Deno.writeTextFile(
         `${monthDir}/chat.md`,
@@ -131,7 +131,7 @@ describe('main', () => {
       try {
         await main(['claude', '2026-03', '--dry-run', '--input-dir', monthDir, '--config', configFile]);
 
-        assertEquals(loggerStub.infoLogs.some((l) => l.includes('dry-run モード')), true);
+        assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('ファイルは移動しません')), true);
         assertEquals(loggerStub.infoLogs.some((l) => l.includes('完了 (dry-run):')), true);
       } finally {
         commandHandle.restore();

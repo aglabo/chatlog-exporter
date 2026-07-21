@@ -19,6 +19,7 @@ import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { ClassifyCache, ClassifyConfig } from '../types/classify.types.ts';
 // constants
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
@@ -57,7 +58,7 @@ export const classifyByNoAI = async (
   // メタ情報がなく内容も短い → fallback プロジェクトに移動
   if (!_hasMeta && _fullLength < MIN_CLASSIFIABLE_LENGTH) {
     logger.warn(`[skip-ai: too-short] ${f.filename} (content is too short)`);
-    logger.info(`  classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
+    logger.info(`${LOGGER_TEXT.INDENT}classify: ${f.filename} → fallback:${FALLBACK_PROJECT}`);
     await cache.write(f.filePath!, { project: FALLBACK_PROJECT, action: CLASSIFY_ACTIONS.MOVE });
     return entry;
   }

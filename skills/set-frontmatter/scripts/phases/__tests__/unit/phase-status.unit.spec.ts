@@ -205,17 +205,17 @@ describe('phaseStatus', () => {
         loggerStub.restore();
       });
 
-      it('[Edge] T-SF-PS-08: dryRun=true, written 以外のエントリ → "[dry-run] status:" がファイル名を含んでログ出力される', async () => {
+      it('[Edge] T-SF-PS-08: dryRun=true, written 以外のエントリ → "status:" がファイル名を含んでログ出力される', async () => {
         const buf = new Map<string, string>();
         const cache = await _makeCache(buf);
         const entry = _makeFullEntry('/path/to/full.md');
 
         await phaseStatus([entry], cache, true);
 
-        assertEquals(loggerStub.infoLogs.some((l) => l.includes('[dry-run] status:') && l.includes('full.md')), true);
+        assertEquals(loggerStub.dryrunLogs.some((l) => l.includes('status:') && l.includes('full.md')), true);
       });
 
-      it('[Edge] T-SF-PS-09: dryRun=true, cache.status === "written" のエントリ → "[dry-run] status:" ログなし', async () => {
+      it('[Edge] T-SF-PS-09: dryRun=true, cache.status === "written" のエントリ → "status:" ログなし', async () => {
         const buf = new Map<string, string>();
         const cache = await _makeCache(buf, 'written:\n  status: written');
         const entry = _makeFullEntry('/path/to/written.md');
@@ -223,7 +223,7 @@ describe('phaseStatus', () => {
         await phaseStatus([entry], cache, true);
 
         assertEquals(
-          loggerStub.infoLogs.every((l) => !(l.includes('[dry-run] status:') && l.includes('written.md'))),
+          loggerStub.dryrunLogs.every((l) => !(l.includes('status:') && l.includes('written.md'))),
           true,
         );
       });

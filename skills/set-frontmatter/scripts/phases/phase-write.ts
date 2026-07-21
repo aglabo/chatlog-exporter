@@ -12,6 +12,7 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
@@ -68,12 +69,12 @@ export const phaseWrite = async (
     if (config.dryRun) {
       const _type = (entry.frontmatter.get('type') as string) ?? '';
       const _category = (entry.frontmatter.get('category') as string) ?? '';
-      logger.info(`  [dry-run] [${_type}/${_category}]: ${getFilename(entry.filePath!)} -- skipped`);
+      logger.dryrun(`${LOGGER_TEXT.INDENT}[${_type}/${_category}]: ${getFilename(entry.filePath!)} -- skipped`);
       stats.skip++;
     } else {
       const _ok = await _write(entry, cache, config.outputDir, config.inputDir);
       if (_ok) {
-        logger.info(`  OK: ${getFilename(entry.filePath!)}`);
+        logger.info(`${LOGGER_TEXT.INDENT}OK: ${getFilename(entry.filePath!)}`);
         stats.success++;
       } else {
         stats.fail++;
