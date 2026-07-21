@@ -53,7 +53,7 @@ const _writeEntry = async (filePath: string, content: string): Promise<ChatlogEn
 /**
  * `processNoiseFiles` 関数の機能テストスイート。
  *
- * `processNoiseFiles(entries, counts, { dryRun })` は `ChatlogEntry` 配列を受け取り、
+ * `processNoiseFiles(entries, counts, { dryRun, concurrency })` は `ChatlogEntry` 配列を受け取り、
  * 各エントリを分類してノイズを削除（または dry-run 出力）し、counts を更新する。
  *
  * テスト ID 範囲: T-PF-PNF-01 〜 T-PF-PNF-05
@@ -94,7 +94,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: false }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: false, concurrency: Infinity });
 
           assertEquals(await fileExists(filePath), false);
         });
@@ -104,7 +104,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: false }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: false, concurrency: Infinity });
 
           assertEquals(counts.remove, 1);
         });
@@ -129,7 +129,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: false }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: false, concurrency: Infinity });
 
           assertEquals(await fileExists(filePath), true);
         });
@@ -139,7 +139,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: false }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: false, concurrency: Infinity });
 
           assertEquals(counts.keep, 1);
         });
@@ -164,7 +164,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: true }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: true, concurrency: Infinity });
 
           assertEquals(await fileExists(filePath), true);
         });
@@ -174,7 +174,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: true }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: true, concurrency: Infinity });
 
           assertEquals(loggerStub.dryrunLogs.some((line) => line.includes(_NOISE_FILENAME)), true);
         });
@@ -184,7 +184,7 @@ describe('processNoiseFiles', () => {
           const entry = await _writeEntry(filePath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([entry], counts, { dryRun: true }, Infinity);
+          await processNoiseFiles([entry], counts, { dryRun: true, concurrency: Infinity });
 
           assertEquals(counts.skip, 1);
         });
@@ -211,7 +211,7 @@ describe('processNoiseFiles', () => {
           const keepEntry = await _writeEntry(keepPath, _makeValidContent());
           const counts = { keep: 0, skip: 0, remove: 0, error: 0 };
 
-          await processNoiseFiles([noiseEntry, keepEntry], counts, { dryRun: false }, Infinity);
+          await processNoiseFiles([noiseEntry, keepEntry], counts, { dryRun: false, concurrency: Infinity });
 
           assertEquals(counts.remove, 1);
           assertEquals(counts.keep, 1);
