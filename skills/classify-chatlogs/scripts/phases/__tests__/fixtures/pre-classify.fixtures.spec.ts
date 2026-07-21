@@ -46,7 +46,7 @@ interface _FixtureInput {
 }
 
 interface _FixtureExpected {
-  action: ClassifyAction;
+  action?: ClassifyAction;
   project?: string;
 }
 
@@ -108,7 +108,7 @@ describe('classifyByNoAI', () => {
     for (const { relPath: _relPath, input, expected } of _fixtures) {
       const _testId = _relPath.replace(/\//g, '-');
       it(
-        `[Fixture] SF-CL-PRE-${_testId}: action=${expected.action}${
+        `[Fixture] SF-CL-PRE-${_testId}: action=${expected.action ?? '(none)'}${
           expected.project ? `, project=${expected.project}` : ''
         }`,
         async () => {

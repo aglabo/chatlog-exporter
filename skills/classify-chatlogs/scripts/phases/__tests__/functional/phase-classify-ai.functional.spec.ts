@@ -136,7 +136,7 @@ describe('classifyByAI', () => {
   });
 
   /**
-   * 正常系: dryRun=true の場合、AI 呼び出しをスキップし cache に action=SKIP を書き込むケース。
+   * 正常系: dryRun=true の場合、AI 呼び出しをスキップし cache には何も書き込まないケース。
    */
   describe('When: dry-run', () => {
     let mockHandle: CommandMockHandle;
@@ -156,7 +156,7 @@ describe('classifyByAI', () => {
       loggerStub.restore();
     });
 
-    it('[Normal] T-CL-CBA-06-01: dryRun=true・対象2件 → claude CLI は呼び出されず、両方の cache に action=SKIP が書き込まれる', async () => {
+    it('[Normal] T-CL-CBA-06-01: dryRun=true・対象2件 → claude CLI は呼び出されず、cache には何も書き込まれない', async () => {
       const targets: ChatlogEntry[] = [
         _makeClassifyChatlogEntry('a.md'),
         _makeClassifyChatlogEntry('b.md'),
@@ -165,9 +165,9 @@ describe('classifyByAI', () => {
       await classifyByAI(targets, _PROJECTS, _makeConfig(), cache, true);
 
       assertEquals(counter.calls, 0);
-      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(cache.read('/tmp/input/a.md').action, undefined);
       assertEquals(cache.read('/tmp/input/a.md').project, undefined);
-      assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.SKIP);
+      assertEquals(cache.read('/tmp/input/b.md').action, undefined);
       assertEquals(cache.read('/tmp/input/b.md').project, undefined);
     });
 

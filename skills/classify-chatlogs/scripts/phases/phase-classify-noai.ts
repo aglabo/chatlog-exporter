@@ -27,7 +27,7 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
  * バッファエントリに対して AI 不要なケースの事前分類を行い、判定結果を `cache` に書き込む。
  * - frontmatter に `project` フィールドがある場合: `move`
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
- * - それ以外: `remaining`（AI 処理対象）
+ * - それ以外: 何もしない（`action`/`project` 未設定のまま、AI 処理対象）
  *
  * 戻り値は常に入力の `entry` をそのまま返す（cache への書き込みが主目的）。
  */
@@ -63,13 +63,13 @@ export const classifyByNoAI = async (
     return entry;
   }
 
-  await cache.write(f.filePath!, { action: CLASSIFY_ACTIONS.REMAINING });
   return entry;
 };
 
 /**
  * バッファエントリ配列に対して `classifyByNoAI` を適用し、各判定結果を `cache` に書き込んだ上で、
- * AI 分類が不要な確定済みエントリ（`move`）と AI 分類が必要なエントリ（`remaining`）に分割する。
+ * `cached.project` の有無に基づき AI 分類が不要な確定済みエントリ（`move`）と
+ * AI 分類が必要なエントリ（`remaining`）に分割する。
  */
 export const processClassifyNoAI = async (
   buffer: ChatlogEntry[],
@@ -77,7 +77,7 @@ export const processClassifyNoAI = async (
   config: Pick<ClassifyConfig, 'concurrency'>,
 ): Promise<{ move: ChatlogEntry[]; remaining: ChatlogEntry[] }> => {
   await runConcurrent(buffer, (entry) => classifyByNoAI(entry, cache), config.concurrency);
-  const move = buffer.filter((entry) => cache.read(entry.filePath!).action !== CLASSIFY_ACTIONS.REMAINING);
-  const remaining = buffer.filter((entry) => cache.read(entry.filePath!).action === CLASSIFY_ACTIONS.REMAINING);
+  const move = buffer.filter((entry) => cache.read(entry.filePath!).project);
+  const remaining = buffer.filter((entry) => !cache.read(entry.filePath!).project);
   return { move, remaining };
 };
