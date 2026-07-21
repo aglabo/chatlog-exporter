@@ -8,7 +8,6 @@
 
 // types
 import type { FilterDecision } from './filter-decision.const.types.ts';
-import type { BaseStats } from './stats.types.ts';
 
 // ─────────────────────────────────────────────
 // 分類設定型
@@ -74,16 +73,18 @@ export interface DiscardFile {
   decision: FilterDecision;
 }
 
+/** ノイズフィルタ処理関数（prefilterFiles / processNoiseFiles）共通のオプション引数。 */
+export interface FilterProcessOptions {
+  /** `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する。 */
+  dryRun: boolean;
+  /** 同時実行する削除処理の最大並列数。 */
+  concurrency: number;
+}
+
 /** `prefilterFiles` のオプション引数。 */
-export interface PrefilterFilesOptions {
+export interface PrefilterFilesOptions extends FilterProcessOptions {
   /** 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）。 */
   minCharCount?: number;
   /** User ターン 1 件時の Assistant 応答最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）。 */
   minAssistantChars?: number;
-  /** 処理統計オブジェクト。事前段階での KEEP 確定数は `keep` に、読み込み失敗数は `error` に加算される。 */
-  stats: BaseStats;
-  /** `true` のとき、スキップ理由・サマリのログ出力を抑制する。 */
-  dryRun?: boolean;
-  /** 同時実行するファイル削除処理の最大並列数。 */
-  concurrency: number;
 }
