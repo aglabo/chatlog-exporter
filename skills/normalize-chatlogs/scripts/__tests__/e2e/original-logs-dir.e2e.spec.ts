@@ -72,7 +72,7 @@ describe('main', () => {
             const segmentResponse = JSON.stringify([
               {
                 filePath: chatPath,
-                segments: [{ title: 'Greeting', summary: 'Say hello', content: '### User\nHello' }],
+                segments: [{ title: 'Greeting', summary: 'Say hello', startLine: 1, endLine: 5 }],
               },
             ]);
             commandHandle = installCommandMock(
