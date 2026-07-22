@@ -25,11 +25,13 @@ import {
 
 // ─── Helpers
 import { assertFileExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogFrontmatter } from '../../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
 // types
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { Stats } from '../../../types/normalize.types.ts';
 
 // ─── Tests
@@ -288,7 +290,7 @@ describe('attachFrontmatter', () => {
  *
  * 1セグメントをファイルに書き出すロジック（バックアップ・dryRun 動作）を検証する。
  *
- * テスト ID 範囲: T-SIO-WS-01 〜 T-SIO-WS-07
+ * テスト ID 範囲: T-SIO-WS-01 〜 T-SIO-WS-08
  *
  * @see writeSegmentToFile
  */
@@ -407,6 +409,23 @@ describe('writeSegmentToFile', () => {
         ChatlogError,
       );
       assertEquals((err as ChatlogError).subindex, 'IndexOverflow');
+    });
+
+    it('[Edge] T-SIO-WS-08: dryRun=true のとき stats.skip が 1 増え、dryrun ログが1回出力される', async () => {
+      // arrange
+      const loggerStub: LoggerStub = makeLoggerStub();
+
+      try {
+        // act
+        await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, true, stats, hashFn);
+
+        // assert
+        assertEquals(stats.skip, 1);
+        assertEquals(stats.success, 0);
+        assertEquals(loggerStub.dryrunLogs.length, 1);
+      } finally {
+        loggerStub.restore();
+      }
     });
   });
 });
