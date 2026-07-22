@@ -63,18 +63,20 @@ export const writeOutput = async (
 /**
  * Outputs a summary report of batch processing results to stdout.
  *
- * Format: `Results: success=<n>, skip=<n>, fail=<n>`
- * When `stats.fail > 0`, an additional warning line is emitted to surface
- * the failure count explicitly.
+ * Format: `Results: success=<n>, done=<n>, skip=<n>, fail=<n>, error=<n>`
+ * When `stats.fail > 0` or `stats.error > 0`, an additional warning line is emitted to surface
+ * the count explicitly.
  *
  * @param stats - Counters collected across a batch run
  */
 export const reportResults = (stats: Stats): void => {
-  logger.info(`Results: success=${stats.success}, skip=${stats.skip}, fallback=${stats.fallback}, fail=${stats.fail}`);
-  if (stats.fallback > 0) {
-    logger.info(`::info:: ${stats.fallback} file(s) processed via fallback (1-segment)`);
-  }
+  logger.info(
+    `Results: success=${stats.success}, done=${stats.done}, skip=${stats.skip}, fail=${stats.fail}, error=${stats.error}`,
+  );
   if (stats.fail > 0) {
     logger.warn(`WARNING: ${stats.fail} file(s) failed`);
+  }
+  if (stats.error > 0) {
+    logger.warn(`WARNING: ${stats.error} file(s) errored`);
   }
 };
