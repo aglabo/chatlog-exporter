@@ -16,7 +16,6 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
@@ -25,7 +24,6 @@ import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 // test target
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { parseFrontmatterEntries as parseFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
-import { segmentChatlogs } from '../../modules/segment-ai.ts';
 import { attachFrontmatter, generateSegmentFile } from '../../modules/segment-io.ts';
 import type { Segment } from '../../types/normalize.types.ts';
 
@@ -112,23 +110,13 @@ describe('attachFrontmatter — runai-frontmatter', () => {
               const _expectedSegments = await Promise.all(_outputFiles.map(_loadOutputSegment));
               const _fixtureContents = await Promise.all(_outputFiles.map((f) => readTextFile(f)));
 
-              const _aiResult = [{ filePath: _inputPath, segments: _expectedSegments }];
-              const _stdout = new TextEncoder().encode(JSON.stringify(_aiResult));
-              const _mockHandle = installCommandMock(makeSuccessMock(_stdout));
+              const _inputContent = await readTextFile(_inputPath);
+              const _entry = new ChatlogEntry(_inputContent, { filePath: _inputPath });
 
-              try {
-                const _inputContent = await readTextFile(_inputPath);
-                const _entry = new ChatlogEntry(_inputContent, { filePath: _inputPath });
-                const _map = await segmentChatlogs([_entry]);
-                const _segments = _map.get(_inputPath) ?? [];
-
-                const _actual = _buildOutput(_segments[_idx], _entry);
-                const { meta: _actualMeta } = parseFrontmatter(_actual);
-                const { meta: _expectedMeta } = parseFrontmatter(_fixtureContents[_idx]);
-                assertEquals(_actualMeta[_key], _expectedMeta[_key]);
-              } finally {
-                _mockHandle.restore();
-              }
+              const _actual = _buildOutput(_expectedSegments[_idx], _entry);
+              const { meta: _actualMeta } = parseFrontmatter(_actual);
+              const { meta: _expectedMeta } = parseFrontmatter(_fixtureContents[_idx]);
+              assertEquals(_actualMeta[_key], _expectedMeta[_key]);
             });
           }
         }
