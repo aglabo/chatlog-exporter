@@ -30,6 +30,8 @@ import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogFrontmatter } from '../../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
+// functions
+import { initStats } from '../../../libs/stats-utils.ts';
 // types
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { Stats } from '../../../types/normalize.types.ts';
@@ -304,7 +306,7 @@ describe('writeSegmentToFile', () => {
 
   beforeEach(async () => {
     outputDir = await Deno.makeTempDir({ prefix: 'write-segment-test-' });
-    stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+    stats = initStats();
     filePath = `${outputDir}/sample.md`;
     segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
     frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
