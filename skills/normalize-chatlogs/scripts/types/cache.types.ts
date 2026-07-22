@@ -7,14 +7,17 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// types
+import type { SegmentPlan } from './normalize.types.ts';
+
+/** キャッシュに保存するセグメント境界。`SegmentPlan` の `title`/`summary`/`startLine`/`endLine`
+ * を必須化した形（再分割に使用）。 */
+export type CachedSegment = Required<Pick<SegmentPlan, 'title' | 'summary' | 'startLine' | 'endLine'>>;
+
 /** ChatlogCache が保存する正規化済み判定結果。 */
 export interface NormalizeCache {
-  /** 正規化処理が完了済みであることを示す。 */
-  status: 'done';
-  /** AI が決定したセグメント分割設定（再分割に使用）。summary は含まない（再分割時は空文字で出力する）。 */
-  segments?: Array<{
-    title: string;
-    startLine: number;
-    endLine: number;
-  }>;
+  /** 'set': AIがセグメント分割を決定済み（未出力）。'done': ファイル出力が完了済み。 */
+  status: 'set' | 'done';
+  /** AI が決定したセグメント分割設定（再分割に使用）。 */
+  segments?: CachedSegment[];
 }
