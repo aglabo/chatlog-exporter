@@ -10,6 +10,8 @@
 // ─── BDD modules
 import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { writeTextFile } from '../../write-utils.ts';
@@ -69,6 +71,36 @@ describe('writeTextFile', () => {
       assertEquals(written, newContent);
       await assertRejects(() => Deno.stat(`${tmpDir}/output.old-01.md`), Deno.errors.NotFound);
     });
+
+    it('[Normal] T-WO-03-02: rename が AlreadyExists で失敗しても既存ファイルを削除して上書きされる', async () => {
+      // arrange
+      const outputPath = `${tmpDir}/output.md`;
+      const oldContent = 'old content';
+      const newContent = 'new content';
+      await Deno.writeTextFile(outputPath, oldContent);
+
+      const origRename = Deno.rename.bind(Deno);
+      let renameCallCount = 0;
+      const renameStub = stub(Deno, 'rename', (from, to) => {
+        renameCallCount++;
+        if (renameCallCount === 1) {
+          return Promise.reject(new Deno.errors.AlreadyExists('exists'));
+        }
+        return origRename(from, to);
+      });
+
+      try {
+        // act
+        await writeTextFile(outputPath, newContent);
+      } finally {
+        renameStub.restore();
+      }
+
+      // assert
+      const written = await readTextFile(outputPath);
+      assertEquals(written, newContent);
+      await assertRejects(() => Deno.stat(`${outputPath}.tmp`), Deno.errors.NotFound);
+    });
   });
 
   /** 異常系: エラーをスローするケース */
@@ -83,6 +115,23 @@ describe('writeTextFile', () => {
         () => writeTextFile(nestedPath, content),
         Deno.errors.NotFound,
       );
+    });
+
+    it('[Error] T-WO-03-03: rename が AlreadyExists 以外で失敗した場合はそのままエラーが伝播する', async () => {
+      // arrange
+      const outputPath = `${tmpDir}/output.md`;
+      const content = 'content';
+      const renameStub = stub(Deno, 'rename', () => Promise.reject(new Deno.errors.PermissionDenied('denied')));
+
+      try {
+        // act & assert
+        await assertRejects(
+          () => writeTextFile(outputPath, content),
+          Deno.errors.PermissionDenied,
+        );
+      } finally {
+        renameStub.restore();
+      }
     });
   });
 });

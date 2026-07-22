@@ -29,5 +29,13 @@ export const writeTextFile = async (
 ): Promise<void> => {
   const tmpPath = outputPath + '.tmp';
   await Deno.writeTextFile(tmpPath, normalizeLine(content));
-  await Deno.rename(tmpPath, outputPath);
+  try {
+    await Deno.rename(tmpPath, outputPath);
+  } catch (e) {
+    if (!(e instanceof Deno.errors.AlreadyExists)) {
+      throw e;
+    }
+    await Deno.remove(outputPath);
+    await Deno.rename(tmpPath, outputPath);
+  }
 };
