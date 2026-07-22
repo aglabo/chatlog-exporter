@@ -64,7 +64,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   if (!dirExistsSync(inputDir)) {
     throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
-  const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+  const stats: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
   await processFiles(inputDir, config.outputDir!, config, stats, hashFn);
   reportResults(stats);
 };
