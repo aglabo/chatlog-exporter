@@ -97,7 +97,7 @@ describe('main - reproducibility', () => {
 
     describe('When: main() を同一入力で 2 回呼び出す', () => {
       describe('Then: Task T-15-04-02 - 再実行時に normalize済みファイルをスキップする', () => {
-        it('T-15-04-02-01: 2 回目の呼び出しで skip=1 がレポートに含まれる', async () => {
+        it('T-15-04-02-01: 2 回目の呼び出しで done=1 がレポートに含まれる', async () => {
           // Fixed hash so both runs generate the same output filename
           const fixedHash: HashProvider = () => '0000000';
 
@@ -110,7 +110,7 @@ describe('main - reproducibility', () => {
           // Second run: should skip already-normalized file
           await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
-          assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
+          assertMatch(loggerStub.infoLogs.join('\n'), /done=1/);
         });
       });
     });

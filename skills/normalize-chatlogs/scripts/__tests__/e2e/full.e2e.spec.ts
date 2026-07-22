@@ -211,8 +211,8 @@ describe('normalize-chatlogs - full E2E', () => {
       loggerStub.infoLogs.splice(0);
       await main(['--input-dir', inputDir, '--output-dir', outputDir], fixedHash);
 
-      // reproducibility: 2 回目は skip=1
-      assertMatch(loggerStub.infoLogs.join('\n'), /skip=1/);
+      // reproducibility: 2 回目は done=1
+      assertMatch(loggerStub.infoLogs.join('\n'), /done=1/);
 
       // reproducibility: 入力ファイルは不変
       const afterContent = await readTextFile(`${inputDir}/chat.md`);
