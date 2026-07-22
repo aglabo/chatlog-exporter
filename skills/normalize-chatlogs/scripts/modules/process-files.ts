@@ -29,10 +29,10 @@ import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // --- internal modules
+import { toCacheKey } from '../libs/cache-utils.ts';
 import { phaseLoad } from '../phases/phase-load.ts';
 import { phaseSegment } from '../phases/phase-segment.ts';
 import { phaseWrite } from '../phases/phase-write.ts';
-import { toCacheKey } from './segment-io.ts';
 
 /** Result of the "prepare files" phase: files still needing processing, and files already normalized. */
 type _PreparedFiles = {

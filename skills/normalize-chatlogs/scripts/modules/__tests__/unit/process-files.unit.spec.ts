@@ -33,6 +33,7 @@ import {
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { initStats } from '../../../libs/stats-utils.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
@@ -77,7 +78,7 @@ describe('processFiles', () => {
     cacheDir = await Deno.makeTempDir({ prefix: 'process-files-cache-' });
     GlobalConfig.resetInstance();
     _makeGlobalConfig(cacheDir);
-    stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+    stats = initStats();
   });
 
   afterEach(async () => {
@@ -103,7 +104,7 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
 
-      // assert — dryRun=true なので writeOutput はスキップ
+      // assert — dryRun=true なので writeTextFile はスキップ
       assertEquals(stats.success, 0);
       assertEquals(stats.fail, 0);
     });
@@ -124,7 +125,7 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
 
-      // assert — dryRun=true なので writeOutput はスキップ
+      // assert — dryRun=true なので writeTextFile はスキップ
       assertEquals(stats.success, 0);
       assertEquals(stats.fail, 0);
     });
@@ -548,7 +549,7 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
-      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats1: Stats = initStats();
 
       // act — 1回目: 実際に処理を成功させる
       await processFiles(tmpDir, outputDir, config, stats1);
@@ -558,7 +559,7 @@ describe('processFiles', () => {
       mockHandle.restore();
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock('[]', counter));
-      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats2: Stats = initStats();
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
@@ -575,14 +576,14 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats1: Stats = initStats();
 
       // act — 1回目: dryRun=true で処理（キャッシュに書き込まれないはず）
       await processFiles(tmpDir, outputDir, _CONFIG, stats1);
       assertEquals(stats1.skip, 1);
 
       // 2回目: dryRun=false で同じファイルを処理 → キャッシュ未登録なのでスキップされず処理される
-      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats2: Stats = initStats();
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
 
       await processFiles(tmpDir, outputDir, config, stats2);
@@ -598,7 +599,7 @@ describe('processFiles', () => {
 
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats1: Stats = initStats();
 
       // act — 1回目: AI 失敗 → stats.fail が増加し、キャッシュに書き込まれない
       await processFiles(tmpDir, outputDir, _CONFIG, stats1);
@@ -609,7 +610,7 @@ describe('processFiles', () => {
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
       const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
-      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+      const stats2: Stats = initStats();
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       await processFiles(tmpDir, outputDir, config, stats2);
