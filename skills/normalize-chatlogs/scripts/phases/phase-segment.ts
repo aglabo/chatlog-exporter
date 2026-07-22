@@ -14,8 +14,8 @@ import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── Local
+import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';
 import { segmentChatlogs } from '../modules/segment-ai.ts';
-import { toCacheKey } from '../modules/segment-io.ts';
 // constants
 import { BATCH_SIZE } from '../constants/normalize.constants.ts';
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
@@ -102,11 +102,8 @@ export const phaseSegment = async (
   config: Pick<NormalizeConfig, 'model' | 'timeoutMs' | 'dryRun' | 'singleFile'>,
   concurrency: number,
 ): Promise<ChatlogEntry[]> => {
-  const _hasCachedSegments = (entry: ChatlogEntry): boolean =>
-    cache.read(toCacheKey(entry.filePath!)).segments !== undefined;
-
-  const _cachedEntries = entries.filter(_hasCachedSegments);
-  const _uncachedEntries = entries.filter((entry) => !_hasCachedSegments(entry));
+  const _cachedEntries = entries.filter((entry) => hasSegments(entry, cache));
+  const _uncachedEntries = entries.filter((entry) => !hasSegments(entry, cache));
 
   const _chunkSize = config.singleFile ? 1 : BATCH_SIZE;
   const _chunks = Array.from(

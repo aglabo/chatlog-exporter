@@ -1,6 +1,6 @@
 // src: scripts/modules/segment-io.ts
 // @(#): セグメントファイル生成・フロントマター付与・ファイル書き出しに関する関数群
-//       対象: extractSegmentBaseName, toCacheKey, generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
+//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -16,6 +16,12 @@ import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogFrontmatter } from '../../../_scripts/classes/ChatlogFrontmatter.class.ts';
 
+// --- file operations ---
+import { backupOldPath } from '../../../_scripts/libs/file-ops/backup-old-path.ts';
+
+// --- file-io ---
+import { writeTextFile } from '../../../_scripts/libs/file-io/write-utils.ts';
+
 // --- io ---
 import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
@@ -26,9 +32,6 @@ import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 // ─── internasl modules
 // types
 import type { Segment, Stats } from '../types/normalize.types.ts';
-
-// functions
-import { writeOutput } from './file-io.ts';
 
 // ─── local
 // constants
@@ -63,9 +66,6 @@ export const extractSegmentBaseName = (filePath: string): string => {
   // Remove directory and extension via getBasename, then strip trailing -<7hex> hash if present
   return getBasename(filePath).replace(/-[0-9a-f]{7}$/, '');
 };
-
-/** Derives a cache key from a source chatlog file path (same normalization as {@link extractSegmentBaseName}). */
-export const toCacheKey = (filePath: string): string => extractSegmentBaseName(filePath);
 
 /**
  * Generates an output file name for a segment.
@@ -143,8 +143,8 @@ export const attachFrontmatter = (
  * Writes a single segment to an output file.
  *
  * Generates the output file name from `filePath` and `index`, builds the full Markdown content
- * with frontmatter attached, then either logs a dryRun skip or delegates to {@link writeOutput}
- * (which handles atomic write via tmp-rename and backup of existing files).
+ * with frontmatter attached, then either logs a dryRun skip or backs up an existing file at the
+ * output path via {@link backupOldPath} and writes the new content via {@link writeTextFile}.
  *
  * @param outputDir  - Directory in which the output file is written
  * @param filePath   - Source chatlog file path (used to derive the output file name)
@@ -185,7 +185,8 @@ export const writeSegmentToFile = async (
     stats.skip++;
     return outputPath;
   }
-  const written = await writeOutput(outputPath, fullContent, false);
-  if (written) { stats.success++; }
+  await backupOldPath(outputPath);
+  await writeTextFile(outputPath, fullContent);
+  stats.success++;
   return outputPath;
 };

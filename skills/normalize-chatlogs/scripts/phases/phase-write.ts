@@ -23,8 +23,9 @@ import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.
 import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 
 // ─── Local
+import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';
 import { extractLines } from '../modules/segment-ai.ts';
-import { toCacheKey, writeSegmentToFile } from '../modules/segment-io.ts';
+import { writeSegmentToFile } from '../modules/segment-io.ts';
 // constants
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // types
@@ -48,21 +49,11 @@ export const resolveOutputDir = (outputBase: string, filePath: string, project?:
 };
 
 /**
- * Whether the cache holds decided segment boundaries (`segments`) for `entry` —
- * i.e. AI planning succeeded (status `'set'` or `'done'` from this or a prior run).
- *
- * @param entry - Entry whose cache entry is checked
- * @param cache - Cache read for `segments`
- */
-const _hasSegments = (entry: ChatlogEntry, cache: ChatlogCache<NormalizeCache>): boolean =>
-  cache.read(toCacheKey(entry.filePath!)).segments !== undefined;
-
-/**
  * Rebuilds a `Segment[]` for `entry` from its cached segment boundaries.
  *
  * `summary` is read as-is from the cache; `content` is re-sliced from the current
  * `entry.content` via {@link extractLines}. Must only be called for entries where
- * {@link _hasSegments} is true.
+ * {@link hasSegments} is true.
  *
  * @param entry - Entry whose cached segment boundaries are rebuilt into full `Segment[]`
  * @param cache - Cache read for `segments` (`{title, summary, startLine, endLine}[]`)
@@ -145,7 +136,7 @@ const _writeFailedEntry = (
  * Writes planned segments to output files, applying `failFast` behavior, and marks the file
  * `status: 'done'` in the cache once written (skipped when `dryRun`).
  *
- * `entries` is partitioned up front by cache hit/miss (see {@link _hasSegments}) into planned
+ * `entries` is partitioned up front by cache hit/miss (see {@link hasSegments}) into planned
  * entries (segments rebuilt from the cache and written normally) and failed entries
  * (fail/failFast/warn accounting), so `entries` must be the full entry list (not filtered to
  * AI-planning successes) for cache-miss entries to reach the fail handling.
@@ -167,8 +158,8 @@ export const phaseWrite = async (
   concurrency: number,
   hashFn?: HashProvider,
 ): Promise<void> => {
-  const _plannedEntries = entries.filter((entry) => _hasSegments(entry, cache));
-  const _failedEntries = entries.filter((entry) => !_hasSegments(entry, cache));
+  const _plannedEntries = entries.filter((entry) => hasSegments(entry, cache));
+  const _failedEntries = entries.filter((entry) => !hasSegments(entry, cache));
 
   await runConcurrent(
     _plannedEntries,

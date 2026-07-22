@@ -33,13 +33,12 @@ import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
 // -- constants --
 import { DEFAULT_NORMALIZE_CONFIG } from './constants/normalize.constants.ts';
 
+// -- libs --
+import { initStats, reportStats } from './libs/stats-utils.ts';
+
 // -- modules --
-import { reportResults } from './modules/file-io.ts';
 import { buildConfig } from './modules/normalize-config.ts';
 import { processFiles } from './modules/process-files.ts';
-
-// -- local types --
-import type { Stats } from './types/normalize.types.ts';
 
 // ─── Main Orchestration ───────────────────────────────────────────────────────
 
@@ -47,7 +46,7 @@ import type { Stats } from './types/normalize.types.ts';
  * Orchestrates the full normalize-chatlogs pipeline.
  *
  * Flow: parseArgs → resolveChatlogsDir → findFiles → withConcurrency(per-file:
- *   segmentChatlogs → generateSegmentFile + attachFrontmatter + writeOutput) → reportResults
+ *   segmentChatlogs → generateSegmentFile + attachFrontmatter + writeTextFile) → reportStats
  *
  * @param argv   - CLI argument array; defaults to `Deno.args` when omitted
  * @param hashFn - Optional hash generator for output file names (injectable for testing)
@@ -64,9 +63,9 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   if (!dirExistsSync(inputDir)) {
     throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
-  const stats: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
+  const stats = initStats();
   await processFiles(inputDir, config.outputDir!, config, stats, hashFn);
-  reportResults(stats);
+  reportStats(stats);
 };
 
 if (import.meta.main) {
