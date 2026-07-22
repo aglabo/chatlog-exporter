@@ -1,6 +1,6 @@
 // src: scripts/modules/segment-io.ts
 // @(#): セグメントファイル生成・フロントマター付与・ファイル書き出しに関する関数群
-//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
+//       対象: extractSegmentBaseName, toCacheKey, generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -18,6 +18,7 @@ import { ChatlogFrontmatter } from '../../../_scripts/classes/ChatlogFrontmatter
 
 // --- io ---
 import { generateHash } from '../../../_scripts/libs/io/hash.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
 
 // --- path ---
 import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -62,6 +63,9 @@ export const extractSegmentBaseName = (filePath: string): string => {
   // Remove directory and extension via getBasename, then strip trailing -<7hex> hash if present
   return getBasename(filePath).replace(/-[0-9a-f]{7}$/, '');
 };
+
+/** Derives a cache key from a source chatlog file path (same normalization as {@link extractSegmentBaseName}). */
+export const toCacheKey = (filePath: string): string => extractSegmentBaseName(filePath);
 
 /**
  * Generates an output file name for a segment.
@@ -139,18 +143,18 @@ export const attachFrontmatter = (
  * Writes a single segment to an output file.
  *
  * Generates the output file name from `filePath` and `index`, builds the full Markdown content
- * with frontmatter attached, then delegates to {@link writeOutput} (which handles dryRun,
- * atomic write via tmp-rename, and backup of existing files).
+ * with frontmatter attached, then either logs a dryRun skip or delegates to {@link writeOutput}
+ * (which handles atomic write via tmp-rename and backup of existing files).
  *
  * @param outputDir  - Directory in which the output file is written
  * @param filePath   - Source chatlog file path (used to derive the output file name)
  * @param index      - Zero-based segment index (used to derive the output file name)
  * @param segment    - Segment data (title, summary, content)
  * @param frontmatter - ChatlogFrontmatter instance from the source file
- * @param dryRun     - When true, no disk writes are performed
+ * @param dryRun     - When true, no disk writes are performed; logs a "would write" message and increments `stats.skip`
  * @param stats      - Mutable counters updated in place
  * @param hashFn     - Optional hash generator for output file names (injectable for testing)
- * @returns The absolute path of the written output file
+ * @returns The absolute path of the (would-be) written output file
  */
 export const writeSegmentToFile = async (
   outputDir: string,
@@ -176,7 +180,12 @@ export const writeSegmentToFile = async (
       `writing to input file is forbidden: ${outputPath}`,
     );
   }
-  const written = await writeOutput(outputPath, fullContent, dryRun);
+  if (dryRun) {
+    logger.dryrun(`skipped written: ${outputPath}`);
+    stats.skip++;
+    return outputPath;
+  }
+  const written = await writeOutput(outputPath, fullContent, false);
   if (written) { stats.success++; }
   return outputPath;
 };

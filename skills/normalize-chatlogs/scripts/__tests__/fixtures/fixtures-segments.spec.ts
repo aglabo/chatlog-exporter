@@ -118,7 +118,7 @@ describe('segmentChatlogs — runai-segments', () => {
           }
         });
 
-        it(`SF-${_relPath}-structure: 各セグメントが title/summary/content フィールドを持つ`, async () => {
+        it(`SF-${_relPath}-structure: 各セグメントが title/summary フィールドを持つ`, async () => {
           const _mockHandle = installCommandMock(_buildMock(_output, _inputPath));
           try {
             const _inputContent = await readTextFile(_inputPath);
@@ -127,7 +127,6 @@ describe('segmentChatlogs — runai-segments', () => {
             for (const seg of _segments) {
               assertExists(seg.title);
               assertExists(seg.summary);
-              assertExists(seg.content);
               assertMatch(seg.title, /^title-\d+$/);
             }
           } finally {

@@ -75,7 +75,7 @@ describe('main - aggregation', () => {
       const batchResponse = JSON.stringify(
         Array.from({ length: 4 }, (_, i) => ({
           filePath: normalizePath(`${inputDir}/chat-${i + 1}.md`),
-          segments: [{ title: `Topic ${i + 1}`, summary: `Summary ${i + 1}`, content: `Body ${i + 1}` }],
+          segments: [{ title: `Topic ${i + 1}`, summary: `Summary ${i + 1}`, startLine: 1, endLine: 5 }],
         })),
       );
       commandHandle = installCommandMock(

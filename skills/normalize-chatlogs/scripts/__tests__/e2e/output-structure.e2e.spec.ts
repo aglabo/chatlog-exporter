@@ -74,8 +74,8 @@ describe('main - output structure', () => {
       const pathA = normalizePath(`${inputDir}/chat-a.md`);
       const pathB = normalizePath(`${inputDir}/chat-b.md`);
       const segmentResponse = JSON.stringify([
-        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', content: '### User\nHello' }] },
-        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', content: '### User\nFix CI' }] },
+        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', startLine: 1, endLine: 2 }] },
+        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', startLine: 1, endLine: 2 }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),

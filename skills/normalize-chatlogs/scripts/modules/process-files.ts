@@ -27,12 +27,9 @@ import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // --- internal modules
 import { phaseLoad } from '../phases/phase-load.ts';
-import { phasePlan } from '../phases/phase-plan.ts';
+import { phaseSegment } from '../phases/phase-segment.ts';
 import { phaseWrite } from '../phases/phase-write.ts';
-import { extractSegmentBaseName } from './segment-io.ts';
-
-/** Derives a cache key from a source chatlog file path (same normalization as {@link extractSegmentBaseName}). */
-const _toCacheKey = (filePath: string): string => extractSegmentBaseName(filePath);
+import { toCacheKey } from './segment-io.ts';
 
 /** Result of the "prepare files" phase: files still needing processing, and files already normalized. */
 type _PreparedFiles = {
@@ -78,8 +75,8 @@ const _validateDirs = async (inputDir: string, outputBase: string): Promise<void
  */
 const _prepareFiles = (mdFiles: string[], cache: ChatlogCache<NormalizeCache>): _PreparedFiles => {
   // cache に status:'done' が記録済みのファイル（正規化済み）を pending から除外
-  const skipFiles = mdFiles.filter((f) => cache.read(_toCacheKey(f)).status === 'done');
-  const pendingFiles = mdFiles.filter((f) => cache.read(_toCacheKey(f)).status !== 'done');
+  const skipFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status === 'done');
+  const pendingFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status !== 'done');
 
   return { pendingFiles, skipFiles };
 };
@@ -89,8 +86,9 @@ const _prepareFiles = (mdFiles: string[], cache: ChatlogCache<NormalizeCache>): 
  *
  * Flow: {@link _validateDirs} (validate, before cache init) → `findFiles` (discover) →
  * {@link _prepareFiles} (skip already-normalized) → {@link phaseLoad} (load, partition
- * load errors) → {@link phasePlan} (AI call, or cached segments on resume) →
- * {@link phaseWrite} (write output, update cache).
+ * load errors) → {@link phaseSegment} (AI call, or cached segments on resume; writes planned
+ * segments to the cache) → {@link phaseWrite} (rebuild segments from cache, write output,
+ * update cache).
  * Updates `stats` in place: `fail` increments on load error or AI error, `success` on each write.
  *
  * @param inputDir   - Source directory (files are discovered here via findFiles)
@@ -122,7 +120,18 @@ export const processFiles = async (
   }
   stats.skip += _skipFiles.length;
 
-  const { entries } = await phaseLoad(_pendingFiles, config.concurrency, config, stats);
-  const segmentsMap = await phasePlan(entries, config, cache);
-  await phaseWrite(entries, segmentsMap, _outputBase, config, stats, cache, config.concurrency, hashFn);
+  const { entries: allEntries, errors: _errors } = await phaseLoad(
+    _pendingFiles,
+    config.concurrency,
+    config,
+    stats,
+  );
+  if (_errors.length > 0) {
+    logger.error(`${LOGGER_TEXT.INDENT}can't read files: ${_errors.length}`);
+  }
+  // phaseSegment's return value (entries successfully planned) is not consumed here: phaseWrite
+  // rebuilds segments per entry from the cache and needs the full entry list so cache-miss
+  // entries still reach its fail/fallback handling. See phaseSegment's JSDoc for details.
+  await phaseSegment(allEntries, cache, config, config.concurrency);
+  await phaseWrite(allEntries, _outputBase, config, stats, cache, config.concurrency, hashFn);
 };

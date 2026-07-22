@@ -81,9 +81,9 @@ describe('normalize-chatlogs - full E2E', () => {
       const pathB = normalizePath(`${inputDir}/chat-b.md`);
       const pathC = normalizePath(`${inputDir}/chat-c.md`);
       const segmentResponse = JSON.stringify([
-        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', content: '### User\nCI' }] },
-        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', content: '### User\nDeploy' }] },
-        { filePath: pathC, segments: [{ title: 'Topic C', summary: 'Summary C', content: '### User\nLint' }] },
+        { filePath: pathA, segments: [{ title: 'Topic A', summary: 'Summary A', startLine: 1, endLine: 5 }] },
+        { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', startLine: 1, endLine: 5 }] },
+        { filePath: pathC, segments: [{ title: 'Topic C', summary: 'Summary C', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
@@ -132,7 +132,7 @@ describe('normalize-chatlogs - full E2E', () => {
       const segmentResponse = JSON.stringify([
         {
           filePath: chatPath,
-          segments: [{ title: 'TDD Explanation', summary: 'Overview of TDD', content: '### User\nExplain TDD.' }],
+          segments: [{ title: 'TDD Explanation', summary: 'Overview of TDD', startLine: 1, endLine: 5 }],
         },
       ]);
       commandHandle = installCommandMock(
@@ -158,6 +158,10 @@ describe('normalize-chatlogs - full E2E', () => {
       await assertAllOutputFiles(files, {
         expectFrontmatterField: { key: 'project', value: 'structured-project' },
       });
+
+      // structure: ## Summary セクションに AI が返した summary 本文が反映される
+      const content = await readTextFile(files[0]!);
+      assertMatch(content, /## Summary\n\nOverview of TDD/);
     });
   });
 
@@ -181,7 +185,7 @@ describe('normalize-chatlogs - full E2E', () => {
       const segmentResponse = JSON.stringify([
         {
           filePath: chatPath,
-          segments: [{ title: 'Reproducibility', summary: 'Test run', content: '### User\nTest.' }],
+          segments: [{ title: 'Reproducibility', summary: 'Test run', startLine: 1, endLine: 5 }],
         },
       ]);
       commandHandle = installCommandMock(

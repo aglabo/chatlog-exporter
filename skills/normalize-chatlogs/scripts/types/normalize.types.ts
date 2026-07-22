@@ -28,6 +28,14 @@ export type Segment = {
 };
 
 /**
+ * {@link segmentChatlogs} の戻り値要素。`Segment` から `content` を除いた形。
+ *
+ * `segmentChatlogs` は AI が返した行番号範囲のみを決定し、`content` の算出（元テキストの
+ * 再スライス）は行わない。実際の `content` 算出は呼び出し元（phaseWrite）の責務。
+ */
+export type SegmentPlan = Omit<Segment, 'content'>;
+
+/**
  * バッチ処理でセグメント分割された1ファイル分の結果。
  * `filePath` と事前計算済みの `outputDir` を保持する。
  */
@@ -46,7 +54,7 @@ export type SegmentedFile = {
 export type Stats = {
   /** 正常に書き込まれたファイル数。 */
   success: number;
-  /** スキップされたファイル数。 */
+  /** 既に正規化済みでスキップされたファイル数。 */
   skip: number;
   /** 失敗したファイル数（AI エラー・書き込みエラー等）。 */
   fail: number;

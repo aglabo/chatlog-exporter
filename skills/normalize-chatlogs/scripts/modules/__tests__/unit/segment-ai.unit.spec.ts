@@ -148,8 +148,8 @@ describe('segmentChatlogs', () => {
 
       // assert
       assertEquals(result.get('test.md'), [
-        { title: 'Topic 1', summary: 'Summary 1', content: 'Body 1', startLine: 1, endLine: 1 },
-        { title: 'Topic 2', summary: 'Summary 2', content: 'Body 2', startLine: 2, endLine: 2 },
+        { title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 1 },
+        { title: 'Topic 2', summary: 'Summary 2', startLine: 2, endLine: 2 },
       ]);
     });
 
@@ -170,8 +170,8 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', content: 'C1', startLine: 1, endLine: 1 }]);
-      assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', content: 'C2', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('a.md'), [{ title: 'T1', summary: 'S1', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('b.md'), [{ title: 'T2', summary: 'S2', startLine: 1, endLine: 1 }]);
     });
 
     it('[Normal] T-SCB-01-02: 1ファイルでAIが12セグメントを返すとき先頭5件に制限される（MAX_SEGMENTS上限）', async () => {
@@ -323,7 +323,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('solo.md'), [{ title: 'T', summary: 'S', content: 'C', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('solo.md'), [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }]);
     });
 
     it('[Edge] T-SCB-04-01: AIが返す filePath が inputs にない場合無視され、inputs にある filePath は null になる', async () => {
@@ -384,9 +384,9 @@ describe('segmentChatlogs', () => {
       // act
       const result = await segmentChatlogs(inputs);
 
-      // assert
-      assertEquals(result.get('a.md')?.[0].content, 'a1\na2');
-      assertEquals(result.get('b.md')?.[0].content, 'b1\nb2');
+      // assert — 各ファイルの segments は自身の filePath の AI レスポンスにのみ紐づく（取り違えがない）
+      assertEquals(result.get('a.md'), [{ title: 'AT', summary: 'AS', startLine: 1, endLine: 2 }]);
+      assertEquals(result.get('b.md'), [{ title: 'BT', summary: 'BS', startLine: 1, endLine: 2 }]);
     });
 
     it('[Normal] T-SIO-LR-20: 各ファイルの行番号は独立（ファイルごとにリセット）', async () => {
@@ -405,9 +405,9 @@ describe('segmentChatlogs', () => {
       // act
       const result = await segmentChatlogs(inputs);
 
-      // assert
-      assertEquals(result.get('a.md')?.[0].content, 'lineA1');
-      assertEquals(result.get('b.md')?.[0].content, 'lineB2\nlineB3');
+      // assert — b.md の range (2-3) が a.md 側に混入しない（ファイルごとに独立して保持される）
+      assertEquals(result.get('a.md'), [{ title: 'AT', summary: 'AS', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('b.md'), [{ title: 'BT', summary: 'BS', startLine: 2, endLine: 3 }]);
     });
 
     it('[Error] T-SIO-LR-21: AIが非ゼロ exit のとき全ファイルが null の Map を返す', async () => {
@@ -518,7 +518,7 @@ describe('segmentChatlogs', () => {
       const result = await segmentChatlogs(inputs);
 
       // assert
-      assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', content: 'C', startLine: 1, endLine: 1 }]);
+      assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }]);
     });
   });
 

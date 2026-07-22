@@ -80,7 +80,7 @@ describe('main - reproducibility', () => {
 
       const chatPath = normalizePath(`${inputDir}/chat.md`);
       const segmentResponse = JSON.stringify([
-        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
+        { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
         makeSuccessMock(new TextEncoder().encode(segmentResponse)),
