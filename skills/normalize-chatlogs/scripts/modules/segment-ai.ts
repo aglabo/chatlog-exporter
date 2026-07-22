@@ -53,9 +53,9 @@ const _addLineNumbers = (content: string): string => {
 export const extractLines = (lines: string[], startLine: number, endLine: number): string => {
   const total = lines.length;
   if (total === 0) { return ''; }
+  if (startLine > endLine) { return ''; }
   const start = Math.max(1, Math.min(startLine, total));
   const end = Math.max(start, Math.min(endLine, total));
-  if (start > end) { return ''; }
   return lines.slice(start - 1, end).join('\n');
 };
 
