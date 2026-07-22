@@ -32,7 +32,7 @@ import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── internasl modules
 // types
-import type { Segment } from '../types/normalize.types.ts';
+import type { SegmentPlan } from '../types/normalize.types.ts';
 
 // constants
 import { MAX_SEGMENTS } from '../constants/normalize.constants.ts';
@@ -73,22 +73,23 @@ type _AiSegmentRange = {
  * Splits multiple chatlogs into topic-based segments in a single AI call.
  *
  * Sends all inputs to Claude as a combined prompt and returns a Map from
- * filePath to its segments. Returns null for any filePath that the AI did not
- * return results for, or if the AI call fails entirely.
+ * filePath to its planned segment boundaries. Returns null for any filePath that the AI
+ * did not return results for, or if the AI call fails entirely.
  *
  * Line numbers (`startLine`/`endLine`) refer to `entry.content` (frontmatter excluded),
- * not the raw file.
+ * not the raw file. Building the actual `content` from these boundaries is the caller's
+ * responsibility (see {@link phaseWrite}).
  *
  * @param inputs   - Array of `ChatlogEntry` to segment
  * @param options  - Optional AI options (model, timeoutMs)
- * @returns Map from filePath to Segment[] or null
+ * @returns Map from filePath to SegmentPlan[] or null
  */
 export const segmentChatlogs = async (
   inputs: ChatlogEntry[],
   options?: { model?: string; timeoutMs?: number },
-): Promise<Map<string, Segment[] | null>> => {
-  const _nullMap = (): Map<string, Segment[] | null> => {
-    const m = new Map<string, Segment[] | null>();
+): Promise<Map<string, SegmentPlan[] | null>> => {
+  const _nullMap = (): Map<string, SegmentPlan[] | null> => {
+    const m = new Map<string, SegmentPlan[] | null>();
     for (const entry of inputs) { m.set(entry.filePath!, null); }
     return m;
   };
@@ -135,20 +136,17 @@ export const segmentChatlogs = async (
   }
 
   const _validPaths = new Set(inputs.map((entry) => entry.filePath));
-  const _result = new Map<string, Segment[] | null>();
+  const _result = new Map<string, SegmentPlan[] | null>();
   for (const entry of inputs) { _result.set(entry.filePath!, null); }
 
   for (const aiEntry of _parsed as Array<{ filePath: string; segments: _AiSegmentRange[] }>) {
     if (!_validPaths.has(aiEntry.filePath)) { continue; }
-    const _inputContent = inputs.find((entry) => entry.filePath === aiEntry.filePath)!.content;
-    const _lines = _inputContent.split('\n');
     const _segments = Array.isArray(aiEntry.segments) ? aiEntry.segments : [];
     _result.set(
       aiEntry.filePath,
       _segments.slice(0, MAX_SEGMENTS).map((r) => ({
         title: r.title,
         summary: r.summary,
-        content: extractLines(_lines, r.startLine, r.endLine),
         startLine: r.startLine,
         endLine: r.endLine,
       })),
