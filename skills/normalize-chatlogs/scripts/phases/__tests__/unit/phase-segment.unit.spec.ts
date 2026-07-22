@@ -24,7 +24,7 @@ import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helper
 import { phaseSegment } from '../../phase-segment.ts';
 
 // ─── Helpers
-import { toCacheKey } from '../../../modules/segment-io.ts';
+import { toCacheKey } from '../../../libs/cache-utils.ts';
 // classes
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
