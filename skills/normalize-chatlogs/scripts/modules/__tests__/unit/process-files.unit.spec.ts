@@ -34,7 +34,7 @@ import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helper
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
-import type { NormalizeCache } from '../../../types/cache.types.ts';
+import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
 // constants
 import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
@@ -68,6 +68,7 @@ describe('processFiles', () => {
   let tmpDir: string;
   let outputDir: string;
   let cacheDir: string;
+  let stats: Stats;
   let mockHandle: CommandMockHandle | undefined;
 
   beforeEach(async () => {
@@ -76,6 +77,7 @@ describe('processFiles', () => {
     cacheDir = await Deno.makeTempDir({ prefix: 'process-files-cache-' });
     GlobalConfig.resetInstance();
     _makeGlobalConfig(cacheDir);
+    stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
   });
 
   afterEach(async () => {
@@ -97,7 +99,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -119,7 +120,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(`${tmpDir}/dummy.md`, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -143,7 +143,6 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
       await Deno.writeTextFile(`${tmpDir}/file2.md`, '# File2\n\nContent2');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -160,7 +159,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeFailMock(1));
 
       await Deno.writeTextFile(`${tmpDir}/dummy.md`, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -180,7 +178,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(`${tmpDir}/dummy.md`, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -195,7 +192,6 @@ describe('processFiles', () => {
   describe('When: バリデーション', () => {
     it('[Error] T-PF-VAL-01: inputDir が存在しないとき ChatlogError(InputNotFound) を投げる', async () => {
       // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const nonExistentDir = `${tmpDir}/nonexistent`;
 
       // act & assert
@@ -207,7 +203,6 @@ describe('processFiles', () => {
 
     it('[Normal] T-PF-VAL-02: outputBase が存在しないとき自動作成されて正常処理される', async () => {
       // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       // outputBase は inputDir(tmpDir) の外に配置する必要があるため
       // outputDir の親ディレクトリ配下に未作成のサブディレクトリを使う
       const nonExistentBase = `${outputDir}/nonexistent-base`;
@@ -217,12 +212,11 @@ describe('processFiles', () => {
 
       // assert — outputBase が作成されている
       await assertDirExist(nonExistentBase);
-      assertEquals(stats, { success: 0, skip: 0, fail: 0, fallback: 0 });
+      assertEquals(stats, { success: 0, fail: 0, done: 0, error: 0, skip: 0 });
     });
 
     it('[Error] T-PF-VAL-03: outputBase が inputDir 配下のとき ChatlogError(ForbiddenOutput) を投げる', async () => {
       // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const insideDir = `${tmpDir}/inside`;
       await Deno.mkdir(insideDir, { recursive: true });
 
@@ -235,7 +229,6 @@ describe('processFiles', () => {
 
     it('[Error] T-PF-VAL-04: outputBase === inputDir のとき ChatlogError(ForbiddenOutput) を投げる', async () => {
       // arrange
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act & assert
       await assertRejects(
@@ -256,7 +249,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
         dryRun: true,
         concurrency: 1,
@@ -281,7 +273,6 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
       await Deno.writeTextFile(`${tmpDir}/file2.md`, '# File2\n\nContent2');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
         dryRun: true,
         concurrency: 1,
@@ -300,7 +291,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeFailMock(1));
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
         dryRun: true,
         concurrency: 1,
@@ -324,7 +314,6 @@ describe('processFiles', () => {
 
       const filePath = normalizePath(`${tmpDir}/target-file.md`);
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       let warnStub: Stub | undefined;
 
       try {
@@ -343,11 +332,10 @@ describe('processFiles', () => {
 
   /** 読み込みエラー: frontmatter パースエラー等、loadEntries が返す errors の扱い。 */
   describe('When: 読み込みエラー', () => {
-    it('[Error] T-PF-LE-01: フロントマターが不正なファイルは stats.fail が増加し logger.warn が呼ばれ、書き出し対象から除外される', async () => {
+    it('[Error] T-PF-LE-01: フロントマターが不正なファイルは stats.error が増加し logger.warn が呼ばれ、書き出し対象から除外される', async () => {
       // arrange
       const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
       await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       let warnStub: Stub | undefined;
 
       try {
@@ -356,8 +344,8 @@ describe('processFiles', () => {
         // act
         await processFiles(tmpDir, outputDir, _CONFIG, stats);
 
-        // assert — 読み込みエラーで fail が増加し、warn が呼ばれる
-        assertEquals(stats.fail, 1);
+        // assert — 読み込みエラーで error が増加し、warn が呼ばれる
+        assertEquals(stats.error, 1);
         assert(warnStub.calls.length > 0);
       } finally {
         warnStub?.restore();
@@ -368,7 +356,6 @@ describe('processFiles', () => {
       // arrange
       const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
       await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
         dryRun: true,
         concurrency: 1,
@@ -394,7 +381,6 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(JSON.stringify([{ filePath: goodFilePath, segments }]));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
         dryRun: true,
         concurrency: 2,
@@ -404,15 +390,14 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — 読み込みエラーで fail が1増え、正常ファイルはエラーにならず処理される
-      assertEquals(stats.fail, 1);
+      // assert — 読み込みエラーで error が1増え、正常ファイルはエラーにならず処理される
+      assertEquals(stats.error, 1);
     });
 
     it('[Error] T-PF-LE-04: 読み込みエラーが1件のとき logger.error が失敗件数(1)付きで呼ばれる', async () => {
       // arrange
       const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
       await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       let errorStub: Stub | undefined;
 
       try {
@@ -447,7 +432,6 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(JSON.stringify(batch));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
         dryRun: true,
         concurrency: 2,
@@ -467,7 +451,7 @@ describe('processFiles', () => {
    * project frontmatter なし → project=undefined → outputDir は `${outputBase}/misc`。
    */
   describe('When: スキップ処理', () => {
-    it('[Normal] T-PF-SKIP-02: outputDir に baseName-*.md が存在しないとき stats.skip は増加しない', async () => {
+    it('[Normal] T-PF-SKIP-02: outputDir に baseName-*.md が存在しないとき stats.done は増加しない', async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
@@ -477,18 +461,17 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // 出力済みファイルなし
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert
-      assertEquals(stats.skip, 0);
+      assertEquals(stats.done, 0);
       assertEquals(stats.fail, 0);
     });
 
-    it('[Edge] T-PF-SKIP-03: outputDir が存在しないとき stats.skip は増加せずエラーにならない', async () => {
+    it('[Edge] T-PF-SKIP-03: outputDir が存在しないとき stats.done は増加せずエラーにならない', async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
@@ -498,18 +481,17 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // misc サブディレクトリを作成しない（outputDir 自体は存在する）
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       // act — エラーなしで処理が完了するはず
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert
-      assertEquals(stats.skip, 0);
+      assertEquals(stats.done, 0);
       assertEquals(stats.fail, 0);
     });
 
-    it('[Edge] T-PF-SKIP-04: project が undefined のとき misc フォールバックで outputDir が解決され stats.skip は 0', async () => {
+    it('[Edge] T-PF-SKIP-04: project が undefined のとき misc フォールバックで outputDir が解決され stats.done は 0', async () => {
       // arrange — project frontmatter なしのファイル
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
@@ -519,21 +501,20 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // misc ディレクトリにマッチするファイルなし
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert — misc フォールバックで解決されるが該当ファイルがないのでスキップなし
-      assertEquals(stats.skip, 0);
+      assertEquals(stats.done, 0);
       assertEquals(stats.fail, 0);
     });
   });
 
   /** --single-file モード: 1ファイルずつ個別に AI 呼び出しを行うケース。 */
   describe('When: --single-file モード', () => {
-    it('[Normal] T-PF-SF-01: singleFile=true で AI が正常にセグメントを返したとき stats.success が増え stats.fallback は増えない', async () => {
+    it('[Normal] T-PF-SF-01: singleFile=true で AI が正常にセグメントを返したとき stats.success が増える', async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 3 }];
@@ -541,7 +522,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'singleFile'> = {
         dryRun: false,
         concurrency: 1,
@@ -551,32 +531,9 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — AI が正常に返したので success が増え fallback は 0 のまま
+      // assert — AI が正常に返したので success が増える
       assertEquals(stats.success, 1);
-      assertEquals(stats.fallback, 0);
       assertEquals(stats.fail, 0);
-    });
-
-    it('[Error] T-PF-SF-02: singleFile=true で AI が null を返したとき stats.fallback が増え stats.fail は増えない、出力ファイルが1件生成される', async () => {
-      // arrange
-      mockHandle = installCommandMock(makeFailMock(1));
-
-      const filePath = normalizePath(`${tmpDir}/dummy.md`);
-      await Deno.writeTextFile(filePath, '# Test\n\nFallback content');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'singleFile'> = {
-        dryRun: false,
-        concurrency: 1,
-        singleFile: true,
-      };
-
-      // act
-      await processFiles(tmpDir, outputDir, config, stats);
-
-      // assert — AI 失敗 → fallback で 1セグメント処理される
-      assertEquals(stats.fallback, 1);
-      assertEquals(stats.fail, 0);
-      assertEquals(stats.success, 1);
     });
   });
 
@@ -591,7 +548,7 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
-      const stats1: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
 
       // act — 1回目: 実際に処理を成功させる
       await processFiles(tmpDir, outputDir, config, stats1);
@@ -601,12 +558,12 @@ describe('processFiles', () => {
       mockHandle.restore();
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock('[]', counter));
-      const stats2: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
       // assert
-      assertEquals(stats2.skip, 1);
+      assertEquals(stats2.done, 1);
       assertEquals(counter.calls, 0);
     });
 
@@ -618,20 +575,20 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats1: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
 
       // act — 1回目: dryRun=true で処理（キャッシュに書き込まれないはず）
       await processFiles(tmpDir, outputDir, _CONFIG, stats1);
       assertEquals(stats1.skip, 1);
 
       // 2回目: dryRun=false で同じファイルを処理 → キャッシュ未登録なのでスキップされず処理される
-      const stats2: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
       // assert — dryRun の1回目はキャッシュに残らないため2回目はスキップされない
-      assertEquals(stats2.skip, 0);
+      assertEquals(stats2.done, 0);
       assertEquals(stats2.success, 1);
     });
 
@@ -641,7 +598,7 @@ describe('processFiles', () => {
 
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats1: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats1: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
 
       // act — 1回目: AI 失敗 → stats.fail が増加し、キャッシュに書き込まれない
       await processFiles(tmpDir, outputDir, _CONFIG, stats1);
@@ -652,13 +609,13 @@ describe('processFiles', () => {
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
       const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
-      const stats2: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+      const stats2: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
       // assert
-      assertEquals(stats2.skip, 0);
+      assertEquals(stats2.done, 0);
     });
 
     it('[Normal] T-PF-CACHE-08: outputBase 配下に無関係な.mdファイルが存在してもキャッシュ未登録の入力ファイルはスキップされずAIが呼ばれる', async () => {
@@ -678,14 +635,13 @@ describe('processFiles', () => {
       await Deno.mkdir(notesDir, { recursive: true });
       await Deno.writeTextFile(`${notesDir}/report.md`, 'unrelated note, not a normalize output');
 
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert — 無関係な出力ファイルの存在によってスキップされず、AI が実際に呼ばれている
-      assertEquals(stats.skip, 0);
+      assertEquals(stats.done, 0);
       assertEquals(stats.fail, 0);
       assert(capturedArgs.value.length > 0);
     });
@@ -699,7 +655,6 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -719,7 +674,6 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act — dryRun=true
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
@@ -746,7 +700,6 @@ describe('processFiles', () => {
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock('[]', counter));
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
-      const stats: Stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);

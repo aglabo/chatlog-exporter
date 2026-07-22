@@ -304,7 +304,7 @@ describe('writeSegmentToFile', () => {
 
   beforeEach(async () => {
     outputDir = await Deno.makeTempDir({ prefix: 'write-segment-test-' });
-    stats = { success: 0, skip: 0, fail: 0, fallback: 0 };
+    stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
     filePath = `${outputDir}/sample.md`;
     segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
     frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;

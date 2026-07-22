@@ -25,8 +25,10 @@ import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 // ─── Local
 import { extractLines } from '../modules/segment-ai.ts';
 import { toCacheKey, writeSegmentToFile } from '../modules/segment-io.ts';
+// constants
+import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // types
-import type { NormalizeCache } from '../types/cache.types.ts';
+import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig, Segment, Stats } from '../types/normalize.types.ts';
 
 /**
@@ -113,73 +115,44 @@ const _writePlannedEntry = async (
   );
 
   if (!config.dryRun) {
-    await cache.update(toCacheKey(filePath), { status: 'done' });
+    await cache.update(toCacheKey(filePath), { status: NORMALIZE_CACHE_STATUSES.DONE });
   }
 };
 
 /**
- * Applies the `--single-file` fallback (1-segment write from raw content) or, absent that,
- * the fail/fail-fast accounting for an entry whose segment planning did not succeed
+ * Applies the fail/fail-fast accounting for an entry whose segment planning did not succeed
  * (no cache hit — AI returned no segments, or a segment missing `startLine`/`endLine`).
  *
- * @param entry       - Entry whose planning failed (no `segments` in the cache)
- * @param outputBase  - Base output directory
- * @param config      - Processing config (dryRun, failFast, singleFile)
- * @param stats       - Mutable counters updated in place
- * @param hashFn      - Optional hash generator for output file names (injectable for testing)
+ * @param entry  - Entry whose planning failed (no `segments` in the cache)
+ * @param config - Processing config (failFast)
+ * @param stats  - Mutable counters updated in place
  */
-const _writeFailedEntry = async (
+const _writeFailedEntry = (
   entry: ChatlogEntry,
-  outputBase: string,
-  config: Pick<NormalizeConfig, 'dryRun' | 'failFast' | 'singleFile'>,
+  config: Pick<NormalizeConfig, 'failFast'>,
   stats: Stats,
-  hashFn?: HashProvider,
 ): Promise<void> => {
   const filePath = entry.filePath!;
-
-  if (!config.singleFile) {
-    logger.warn(`${LOGGER_TEXT.INDENT}failed (no segments returned): ${getBasename(filePath)}`);
-    stats.fail++;
-    if (config.failFast) {
-      throw new ChatlogError('FailFast', 'SegmentFailed', `fail-fast triggered by: ${getBasename(filePath)}`);
-    }
-    return;
+  logger.warn(`${LOGGER_TEXT.INDENT}failed (no segments returned): ${getBasename(filePath)}`);
+  stats.fail++;
+  if (config.failFast) {
+    throw new ChatlogError('FailFast', 'SegmentFailed', `fail-fast triggered by: ${getBasename(filePath)}`);
   }
-
-  // fallback: content 全体を1セグメントとして使う
-  const _projectVal = entry.frontmatter.get('project');
-  const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
-  const outputDir = resolveOutputDir(outputBase, filePath, _project);
-  await Deno.mkdir(outputDir, { recursive: true });
-
-  const segments: Segment[] = [{
-    title: getBasename(filePath).replace(/-[0-9a-f]{7}$/, ''),
-    summary: '(auto-generated: AI segmentation failed)',
-    content: entry.content,
-  }];
-  logger.info(`${LOGGER_TEXT.INDENT}fallback (1-segment): ${getBasename(filePath)}`);
-  stats.fallback++;
-
-  await Promise.all(
-    segments.map((segment, i) =>
-      writeSegmentToFile(outputDir, filePath, i, segment, entry.frontmatter, config.dryRun, stats, hashFn)
-    ),
-  );
+  return Promise.resolve();
 };
 
 /**
- * Writes planned segments to output files, applying the `--single-file` fallback
- * and `failFast` behavior, and marks the file `status: 'done'` in the cache once written
- * (skipped when `dryRun`).
+ * Writes planned segments to output files, applying `failFast` behavior, and marks the file
+ * `status: 'done'` in the cache once written (skipped when `dryRun`).
  *
  * `entries` is partitioned up front by cache hit/miss (see {@link _hasSegments}) into planned
- * entries (segments rebuilt from the cache and written normally) and failed entries (fallback
- * or fail/failFast/warn accounting), so `entries` must be the full entry list (not filtered to
- * AI-planning successes) for cache-miss entries to reach the fail/fallback handling.
+ * entries (segments rebuilt from the cache and written normally) and failed entries
+ * (fail/failFast/warn accounting), so `entries` must be the full entry list (not filtered to
+ * AI-planning successes) for cache-miss entries to reach the fail handling.
  *
- * @param entries     - Files loaded as `ChatlogEntry` (fallback needs `entry.content`)
+ * @param entries     - Files loaded as `ChatlogEntry`
  * @param outputBase  - Base output directory
- * @param config      - Processing config (dryRun, failFast, singleFile)
+ * @param config      - Processing config (dryRun, failFast)
  * @param stats       - Mutable counters updated in place
  * @param cache       - Cache read for planned segments, marked `status: 'done'` on successful, non-dryRun writes
  * @param concurrency - Parallelism for writing segments across `entries`
@@ -188,7 +161,7 @@ const _writeFailedEntry = async (
 export const phaseWrite = async (
   entries: ChatlogEntry[],
   outputBase: string,
-  config: Pick<NormalizeConfig, 'dryRun' | 'failFast' | 'singleFile'>,
+  config: Pick<NormalizeConfig, 'dryRun' | 'failFast'>,
   stats: Stats,
   cache: ChatlogCache<NormalizeCache>,
   concurrency: number,
@@ -204,7 +177,7 @@ export const phaseWrite = async (
   );
   await runConcurrent(
     _failedEntries,
-    (entry) => _writeFailedEntry(entry, outputBase, config, stats, hashFn),
+    (entry) => _writeFailedEntry(entry, config, stats),
     concurrency,
   );
 };

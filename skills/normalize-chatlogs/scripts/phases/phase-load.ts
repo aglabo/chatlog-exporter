@@ -27,7 +27,7 @@ import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
 /**
  * Loads `pendingFiles` into `ChatlogEntry` objects, logging and counting load failures.
  *
- * Failures are collected into `errors` and each increments `stats.fail`. When
+ * Failures are collected into `errors` and each increments `stats.error`. When
  * `config.failFast` is true and at least one load failure occurred, throws
  * `ChatlogError('FailFast', 'LoadFailed', ...)` referencing the first failed file.
  *
@@ -48,7 +48,7 @@ export const phaseLoad = async (
   for (const { filePath, error } of errors) {
     logger.warn(`${LOGGER_TEXT.INDENT}failed (load error: ${error.message}): ${getBasename(filePath)}`);
   }
-  stats.fail += errors.length;
+  stats.error += errors.length;
 
   if (config.failFast && errors.length > 0) {
     throw new ChatlogError('FailFast', 'LoadFailed', `fail-fast triggered by: ${getBasename(errors[0].filePath)}`);

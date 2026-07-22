@@ -18,10 +18,11 @@ import { segmentChatlogs } from '../modules/segment-ai.ts';
 import { toCacheKey } from '../modules/segment-io.ts';
 // constants
 import { BATCH_SIZE } from '../constants/normalize.constants.ts';
+import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // libs
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 // types
-import type { NormalizeCache } from '../types/cache.types.ts';
+import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig } from '../types/normalize.types.ts';
 
 /**
@@ -56,7 +57,7 @@ const _processChunk = async (
         return null;
       }
       const _cacheEntry: Partial<NormalizeCache> = {
-        status: 'set',
+        status: NORMALIZE_CACHE_STATUSES.SET,
         segments: segments.map((s) => ({
           title: s.title,
           summary: s.summary,
