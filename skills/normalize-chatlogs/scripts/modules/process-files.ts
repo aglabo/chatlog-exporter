@@ -16,9 +16,12 @@ import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getBasename, normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
+// constants
+import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
+
 // types
 import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
-import type { NormalizeCache } from '../types/cache.types.ts';
+import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
 
 // classes
@@ -75,8 +78,8 @@ const _validateDirs = async (inputDir: string, outputBase: string): Promise<void
  */
 const _prepareFiles = (mdFiles: string[], cache: ChatlogCache<NormalizeCache>): _PreparedFiles => {
   // cache に status:'done' が記録済みのファイル（正規化済み）を pending から除外
-  const skipFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status === 'done');
-  const pendingFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status !== 'done');
+  const skipFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status === NORMALIZE_CACHE_STATUSES.DONE);
+  const pendingFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status !== NORMALIZE_CACHE_STATUSES.DONE);
 
   return { pendingFiles, skipFiles };
 };
@@ -89,7 +92,8 @@ const _prepareFiles = (mdFiles: string[], cache: ChatlogCache<NormalizeCache>): 
  * load errors) → {@link phaseSegment} (AI call, or cached segments on resume; writes planned
  * segments to the cache) → {@link phaseWrite} (rebuild segments from cache, write output,
  * update cache).
- * Updates `stats` in place: `fail` increments on load error or AI error, `success` on each write.
+ * Updates `stats` in place: `done` increments on already-normalized skip, `error` on load error,
+ * `fail` on AI error, `success` on each write.
  *
  * @param inputDir   - Source directory (files are discovered here via findFiles)
  * @param outputBase - Base output directory
@@ -118,7 +122,7 @@ export const processFiles = async (
   for (const filePath of _skipFiles) {
     logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(filePath)}`);
   }
-  stats.skip += _skipFiles.length;
+  stats.done += _skipFiles.length;
 
   const { entries: allEntries, errors: _errors } = await phaseLoad(
     _pendingFiles,
