@@ -49,17 +49,19 @@ export type SegmentedFile = {
 };
 
 /**
- * バッチ処理結果の集計カウンター。{@link writeOutput} が直接更新する。
+ * バッチ処理結果の集計カウンター。{@link writeSegmentToFile} が直接更新する。
  */
 export type Stats = {
-  /** 正常に書き込まれたファイル数。 */
+  /** セグメント分割成功で書き込み完了したファイル数。 */
   success: number;
-  /** 既に正規化済みでスキップされたファイル数。 */
-  skip: number;
-  /** 失敗したファイル数（AI エラー・書き込みエラー等）。 */
+  /** AI がセグメント分割できなかった件数（segments 未返却）。 */
   fail: number;
-  /** AI 失敗 → 1セグメント強制で処理した件数（--single-file モード専用）。 */
-  fallback: number;
+  /** 既に分割済み（既正規化ファイル）でスキップされた件数。 */
+  done: number;
+  /** エントリー読み込み失敗などシステムエラーの件数。 */
+  error: number;
+  /** dry-run による分割スキップの件数。 */
+  skip: number;
 };
 
 export type NormalizeConfig = DefaultArgFields & {
