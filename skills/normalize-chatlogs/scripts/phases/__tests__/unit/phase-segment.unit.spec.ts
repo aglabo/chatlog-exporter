@@ -32,7 +32,7 @@ import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
 // types
-import type { NormalizeCache } from '../../../types/cache.types.ts';
+import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 
 // ─── Internal Helpers
 
