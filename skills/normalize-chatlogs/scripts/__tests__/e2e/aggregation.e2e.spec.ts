@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
 // src: scripts/__tests__/e2e/normalize-chatlogs-aggregation.e2e.spec.ts
 // @(#): main() の集計検証 E2E テスト
-//       success / skip / fail カウントが reportResults に正しく反映されることを確認する
+//       success / skip / fail カウントが reportStats に正しく反映されることを確認する
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -47,7 +47,7 @@ const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
 
 /**
  * success / skip / fail カウントの集計検証。
- * reportResults() が出力する "Results: success=N, skip=N, fail=N" 形式を検証する。
+ * reportStats() が出力する "Results: success=N, skip=N, fail=N" 形式を検証する。
  */
 describe('main - aggregation', () => {
   // ─── T-15-01-02: 並列処理の全件成功集計 ─────────────────────────────────────
