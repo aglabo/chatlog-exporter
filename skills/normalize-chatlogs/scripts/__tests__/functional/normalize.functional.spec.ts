@@ -26,7 +26,7 @@ import { segmentChatlogs } from '../../modules/segment-ai.ts';
 // classes
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 // types
-import type { Segment } from '../../types/normalize.types.ts';
+import type { SegmentPlan } from '../../types/normalize.types.ts';
 
 // ─── Internal Helpers
 
@@ -72,9 +72,9 @@ describe('segmentChatlogs', () => {
           const result = resultMap.get(filePath);
 
           assertEquals(Array.isArray(result), true);
-          assertEquals((result as Segment[]).length >= 2, true);
-          assertEquals((result as Segment[])[0].title, 'Topic A');
-          assertEquals((result as Segment[])[0].summary, 'Summary A');
+          assertEquals((result as SegmentPlan[]).length >= 2, true);
+          assertEquals((result as SegmentPlan[])[0].title, 'Topic A');
+          assertEquals((result as SegmentPlan[])[0].summary, 'Summary A');
         });
 
         it('T-09-01-02: 1呼び出しにつき runAI をちょうど1回だけ呼び出す', async () => {
@@ -167,7 +167,7 @@ describe('segmentChatlogs', () => {
           const resultMap = await segmentChatlogs([_makeEntry(filePath, content)]);
           const result = resultMap.get(filePath);
 
-          assertEquals((result as Segment[]).length, 5);
+          assertEquals((result as SegmentPlan[]).length, 5);
         });
       });
     });
