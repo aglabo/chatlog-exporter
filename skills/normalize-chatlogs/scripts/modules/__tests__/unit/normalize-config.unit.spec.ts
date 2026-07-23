@@ -16,7 +16,6 @@ import { buildConfig } from '../../normalize-config.ts';
 
 // ─── Helpers
 import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
-import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
 
@@ -87,9 +86,9 @@ describe('buildConfig', () => {
 
     describe('Given: 空配列', () => {
       describe('When: buildConfig([]) を呼び出す', () => {
-        describe('Then: T-NC-BC-04 - outputDir のデフォルト値が適用される', () => {
-          it('T-NC-BC-04-01: outputDir が joinPath(chatlogsDir, normalizelogs) になる', () => {
-            assertEquals(buildConfig([]).outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'normalizelogs'));
+        describe('Then: T-NC-BC-04 - outputDir は未指定時 undefined になる', () => {
+          it('T-NC-BC-04-01: outputDir が undefined になる', () => {
+            assertEquals(buildConfig([]).outputDir, undefined);
           });
         });
       });
@@ -142,11 +141,8 @@ describe('buildConfig', () => {
               assertEquals(buildConfig([...args])[field], expected);
             });
           }
-          it('T-NC-BC-10-05: --output-dir ./out → outputDir = joinPath(chatlogsDir, out)', () => {
-            assertEquals(
-              buildConfig(['--output-dir', './out']).outputDir,
-              joinPath(DEFAULT_CHATLOGS_DIR, 'out'),
-            );
+          it('T-NC-BC-10-05: --output-dir ./out → outputDir は生値（正規化済み）のまま透過される', () => {
+            assertEquals(buildConfig(['--output-dir', './out']).outputDir, 'out');
           });
           it('T-NC-BC-10-06: --output-dir /abs/out → outputDir = "/abs/out"（絶対パスはそのまま使用）', () => {
             assertEquals(buildConfig(['--output-dir', '/abs/out']).outputDir, '/abs/out');
@@ -184,7 +180,7 @@ describe('buildConfig', () => {
           assertEquals(result.period, '2026-03');
           assertEquals(result.dryRun, true);
           assertEquals(result.concurrency, 8);
-          assertEquals(result.outputDir, joinPath(DEFAULT_CHATLOGS_DIR, 'out'));
+          assertEquals(result.outputDir, 'out');
         });
       });
     });
@@ -232,12 +228,12 @@ describe('buildConfig', () => {
         ]);
         assertEquals(result.concurrency, 8);
         assertEquals(result.dryRun, true);
-        assertEquals(result.outputDir, joinPath('/full', 'out'));
+        assertEquals(result.outputDir, 'out');
       });
 
       it('[Edge] T-NC-BC-06-01: defaults を明示指定したとき CLI 引数がない値（GlobalConfig 非管理フィールド）は defaults が適用される', () => {
         const result = buildConfig([], { dryRun: true, outputDir: './custom' });
-        assertEquals(result.outputDir, joinPath('/full', 'custom'));
+        assertEquals(result.outputDir, './custom');
         assertEquals(result.dryRun, true);
       });
     });

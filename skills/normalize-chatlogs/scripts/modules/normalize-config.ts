@@ -10,7 +10,6 @@
 // --- shared
 // functions
 import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
-import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // types
 import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
@@ -20,7 +19,6 @@ import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
 import type { NormalizeConfig } from '../types/normalize.types.ts';
 
 // constants
-import { DEFAULT_NORMALIZE_DIR } from '../../../_scripts/constants/defaults.constants.ts';
 import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- local
@@ -40,7 +38,7 @@ const _SCHEMA: ArgSchema<NormalizeConfig> = [
  * - `parseArgsToConfig`（共通ライブラリの `parseArgs`）が CLI 引数・GlobalConfig・defaults を
  *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの設定を返すため、
  *   GlobalConfig の値を個別に再取得しない。
- * - `dryRun` は未指定時 `false` になる。
+ * - `dryRun` は `DEFAULT_NORMALIZE_CONFIG` により未指定時 `false` になる。
  */
 export const buildConfig = (
   args: string[],
@@ -48,12 +46,5 @@ export const buildConfig = (
 ): NormalizeConfig => {
   const _parsed = parseArgs<NormalizeConfig>(args, _SCHEMA, defaults);
   const { configFile: _configFile, ...rest } = _parsed;
-  const _outputDir = rest.outputDir
-    ? (isAbsolutePath(rest.outputDir) ? rest.outputDir : joinPath(rest.chatlogsDir, rest.outputDir))
-    : joinPath(rest.chatlogsDir, DEFAULT_NORMALIZE_DIR);
-  return {
-    ...rest,
-    dryRun: rest.dryRun ?? false,
-    outputDir: _outputDir,
-  } as NormalizeConfig;
+  return rest as NormalizeConfig;
 };
