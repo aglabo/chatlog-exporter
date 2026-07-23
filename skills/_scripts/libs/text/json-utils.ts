@@ -21,11 +21,16 @@ const _stripCodeFence = (raw: string): string => {
   return matched ? matched[1] : raw;
 };
 
-/** 段階1: 文字列が `[` で始まる場合に直接パースを試みる。コードフェンスは事前に除去する。 */
+/** 段階1: 文字列が `[` で始まる場合に直接パースを試みる。`[` で始まらない場合のみコードフェンスを除去して再試行する。 */
 const _parseDirectArray = <T>(raw: string): T[] | null => {
-  const trimmed = _stripCodeFence(raw).trim();
-  if (!trimmed.startsWith('[')) { return null; }
-  return _tryParseNonEmptyArray<T>(trimmed);
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[')) {
+    return _tryParseNonEmptyArray<T>(trimmed);
+  }
+
+  const stripped = _stripCodeFence(raw).trim();
+  if (!stripped.startsWith('[')) { return null; }
+  return _tryParseNonEmptyArray<T>(stripped);
 };
 
 /** 段階2: non-greedy マッチで最初にパースできた非空配列を返す。 */
