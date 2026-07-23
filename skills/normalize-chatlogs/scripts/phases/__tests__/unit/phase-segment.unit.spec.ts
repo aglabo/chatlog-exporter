@@ -191,21 +191,22 @@ describe('phaseSegment', () => {
   });
 
   describe('When: エッジケース', () => {
-    it('[Edge] T-PP-06-01: dryRun:true でもキャッシュには書き込まれる', async () => {
+    it('[Edge] T-PP-06-01: dryRun:true のとき AI は呼ばれずキャッシュにも書き込まれない', async () => {
       // arrange
       const entry = _makeEntry('dryrun.md', 'content');
       const aiResponse = _makeAiResponse([
         { filePath: 'dryrun.md', segments: [{ title: 'T', startLine: 1, endLine: 1 }] },
       ]);
-      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+      const counter = { calls: 0 };
+      mockHandle = installCommandMock(makeCountingMock(aiResponse, counter));
 
       // act
-      await phaseSegment([entry], cache, { ..._baseConfig, dryRun: true }, 1);
+      const result = await phaseSegment([entry], cache, { ..._baseConfig, dryRun: true }, 1);
 
       // assert
-      const cached = cache.read(toCacheKey('dryrun.md'));
-      assertEquals(cached.status, 'set');
-      assertEquals(cached.segments?.[0]?.summary, 'summary');
+      assertEquals(counter.calls, 0);
+      assertEquals(result, []);
+      assertEquals(cache.read(toCacheKey('dryrun.md')), {});
     });
 
     it('[Edge] T-PP-07-01: 全エントリがキャッシュ済みのとき AI 呼び出し無しで即座に返る', async () => {

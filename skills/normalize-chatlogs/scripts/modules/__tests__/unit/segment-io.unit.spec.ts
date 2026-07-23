@@ -25,16 +25,10 @@ import {
 
 // ─── Helpers
 import { assertFileExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 // classes
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { ChatlogFrontmatter } from '../../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
-// functions
-import { initStats } from '../../../libs/stats-utils.ts';
-// types
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { Stats } from '../../../types/normalize.types.ts';
 
 // ─── Tests
 
@@ -290,15 +284,16 @@ describe('attachFrontmatter', () => {
 /**
  * `writeSegmentToFile` のユニットテストスイート。
  *
- * 1セグメントをファイルに書き出すロジック（バックアップ・dryRun 動作）を検証する。
+ * 1セグメントをファイルに書き出すロジック（バックアップ動作）を検証する。
+ * dryRun 判定・`stats` 加算は呼び出し元（`phase-write.ts`）の責務であり、この関数は
+ * 出力のみを行う。
  *
- * テスト ID 範囲: T-SIO-WS-01 〜 T-SIO-WS-08
+ * テスト ID 範囲: T-SIO-WS-01 〜 T-SIO-WS-07
  *
  * @see writeSegmentToFile
  */
 describe('writeSegmentToFile', () => {
   let outputDir: string;
-  let stats: Stats;
   let filePath: string;
   let segment: { title: string; summary: string; content: string };
   let frontmatter: ChatlogFrontmatter;
@@ -306,7 +301,6 @@ describe('writeSegmentToFile', () => {
 
   beforeEach(async () => {
     outputDir = await Deno.makeTempDir({ prefix: 'write-segment-test-' });
-    stats = initStats();
     filePath = `${outputDir}/sample.md`;
     segment = { title: 'Test Title', summary: 'Test Summary', content: 'Test Content' };
     frontmatter = new ChatlogEntry('---\nproject: test\n---\n# body').frontmatter;
@@ -317,14 +311,13 @@ describe('writeSegmentToFile', () => {
     await Deno.remove(outputDir, { recursive: true });
   });
 
-  /** 正常系: ファイル書き込みと stats 更新を検証する。 */
+  /** 正常系: ファイル書き込みを検証する。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-SIO-WS-01: dryRun=false で outputFileName のファイルが書き込まれ stats.success が 1 増える', async () => {
+    it('[Normal] T-SIO-WS-01: outputFileName のファイルが書き込まれる', async () => {
       // act
-      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn);
+      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, hashFn);
 
       // assert
-      assertEquals(stats.success, 1);
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
       await assertFileExist(expectedFile);
     });
@@ -335,26 +328,16 @@ describe('writeSegmentToFile', () => {
       await Deno.writeTextFile(expectedFile, 'old content');
 
       // act
-      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn);
+      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, hashFn);
 
       // assert
-      assertEquals(stats.success, 1);
       await assertFileExist(`${outputDir}/sample-01-testhash.old-01.md`);
       await assertFileExist(expectedFile);
     });
 
     it('[Normal] T-SIO-WS-04: 返されたパスが元の filePath とは異なる（入力ファイルを上書きしていない）', async () => {
       // act
-      const returnedPath = await writeSegmentToFile(
-        outputDir,
-        filePath,
-        0,
-        segment,
-        frontmatter,
-        false,
-        stats,
-        hashFn,
-      );
+      const returnedPath = await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, hashFn);
 
       // assert
       assertNotEquals(returnedPath, filePath);
@@ -368,23 +351,15 @@ describe('writeSegmentToFile', () => {
       // filePath を outputDir として渡すと outputPath = `${filePath}/${outputFileName}` になり
       // outputPath.includes(filePath) が true になる
       const err = await assertRejects(
-        () => writeSegmentToFile(filePath, filePath, 0, segment, frontmatter, false, stats, hashFn),
+        () => writeSegmentToFile(filePath, filePath, 0, segment, frontmatter, hashFn),
         ChatlogError,
       );
       assertEquals((err as ChatlogError).subindex, 'OverwriteInput');
     });
   });
 
-  /** エッジケース: dryRun=true のとき stats が増えないことを検証する。 */
+  /** エッジケース: バックアップの境界値を検証する。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-SIO-WS-03: dryRun=true のとき stats.success が増えない', async () => {
-      // act
-      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, true, stats, hashFn);
-
-      // assert
-      assertEquals(stats.success, 0);
-    });
-
     it('[Edge] T-SIO-WS-06: old-98.md が存在するとき old-99.md にバックアップして成功する', async () => {
       // arrange — old-98.md を事前作成（これが最大 index → next=99）
       const expectedFile = `${outputDir}/sample-01-testhash.md`;
@@ -392,11 +367,10 @@ describe('writeSegmentToFile', () => {
       await Deno.writeTextFile(`${outputDir}/sample-01-testhash.old-98.md`, 'backup 98 content');
 
       // act
-      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn);
+      await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, hashFn);
 
       // assert
       await assertFileExist(`${outputDir}/sample-01-testhash.old-99.md`);
-      assertEquals(stats.success, 1);
     });
 
     it('[Error] T-SIO-WS-07: old-99.md が存在するとき TooManyBackups エラーをスローする', async () => {
@@ -407,27 +381,10 @@ describe('writeSegmentToFile', () => {
 
       // act / assert
       const err = await assertRejects(
-        () => writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, false, stats, hashFn),
+        () => writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, hashFn),
         ChatlogError,
       );
       assertEquals((err as ChatlogError).subindex, 'IndexOverflow');
-    });
-
-    it('[Edge] T-SIO-WS-08: dryRun=true のとき stats.skip が 1 増え、dryrun ログが1回出力される', async () => {
-      // arrange
-      const loggerStub: LoggerStub = makeLoggerStub();
-
-      try {
-        // act
-        await writeSegmentToFile(outputDir, filePath, 0, segment, frontmatter, true, stats, hashFn);
-
-        // assert
-        assertEquals(stats.skip, 1);
-        assertEquals(stats.success, 0);
-        assertEquals(loggerStub.dryrunLogs.length, 1);
-      } finally {
-        loggerStub.restore();
-      }
     });
   });
 });

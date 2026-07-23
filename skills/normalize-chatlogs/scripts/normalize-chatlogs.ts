@@ -27,6 +27,9 @@ import {
 import { resolveChatlogsDir, resolveOutputBase } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
 
+// -- io --
+import { logger } from '../../_scripts/libs/io/logger.ts';
+
 // ─────────────────────────────────────────────
 // local modules
 // ─────────────────────────────────────────────
@@ -61,6 +64,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
     addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
     override: config.inputDir,
   });
+  logger.info(`入力ディレクトリ: ${inputDir}`);
   if (!dirExistsSync(inputDir)) {
     throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
@@ -71,6 +75,7 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
     addOnDir: DEFAULT_NORMALIZE_DIR,
     outputDir: config.outputDir,
   });
+  logger.info(`出力ディレクトリ: ${outputBase}`);
   const stats = initStats();
   await processFiles(inputDir, outputBase, config, stats, hashFn);
   reportStats(stats);

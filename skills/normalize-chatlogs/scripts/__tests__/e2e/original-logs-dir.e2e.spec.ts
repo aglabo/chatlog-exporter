@@ -1,5 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/__tests__/e2e/original-logs-dir.e2e.spec.ts
 // @(#): normalize-chatlogs main() の入力/出力ディレクトリ解決テスト
+// @(#): normalize-chatlogs main() の入力/出力ディレクトリ解決テスト
 //       対象: main
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

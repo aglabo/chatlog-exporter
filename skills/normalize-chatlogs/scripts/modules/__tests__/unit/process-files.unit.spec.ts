@@ -153,9 +153,9 @@ describe('processFiles', () => {
     });
   });
 
-  /** 異常系: AI 失敗時に stats.fail が増加するケース。 */
+  /** 異常系: AI 失敗時に stats.fail（dryRun時は stats.skip）が増加するケース。 */
   describe('When: 異常系', () => {
-    it('[Error] T-PF-01-02: segmentChatlogs が null を返したとき stats.fail が 1増加する', async () => {
+    it('[Error] T-PF-01-02: segmentChatlogs が null を返したとき dryRun=true なので stats.skip が 1増加する', async () => {
       // arrange
       mockHandle = installCommandMock(makeFailMock(1));
 
@@ -164,8 +164,9 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
 
-      // assert
-      assertEquals(stats.fail, 1);
+      // assert — dryRun=true なので fail ではなく skip としてカウントされる
+      assertEquals(stats.skip, 1);
+      assertEquals(stats.fail, 0);
     });
   });
 
@@ -251,7 +252,7 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
-        dryRun: true,
+        dryRun: false,
         concurrency: 1,
         model: 'claude-opus-4-7',
       };
@@ -268,7 +269,7 @@ describe('processFiles', () => {
 
   /** fail-fast: failFast オプションの動作検証。 */
   describe('When: fail-fast', () => {
-    it('[Normal] T-PF-FF-01: failFast=false のとき fail が複数あっても全ファイルを処理する', async () => {
+    it('[Normal] T-PF-FF-01: failFast=false かつ dryRun=true のとき fail が複数あっても全ファイルを処理し stats.skip が増加する', async () => {
       // arrange
       mockHandle = installCommandMock(makeFailMock(1));
 
@@ -283,17 +284,18 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — failFast=false なので全ファイルを処理して 2 fail
-      assertEquals(stats.fail, 2);
+      // assert — failFast=false かつ dryRun=true なので全ファイルを処理して 2 skip（fail は増加しない）
+      assertEquals(stats.skip, 2);
+      assertEquals(stats.fail, 0);
     });
 
-    it('[Error] T-PF-FF-02: failFast=true のとき最初の fail で ChatlogError(FailFast) をスローする', async () => {
+    it('[Error] T-PF-FF-02: failFast=true かつ dryRun=false のとき最初の fail で ChatlogError(FailFast) をスローする', async () => {
       // arrange
       mockHandle = installCommandMock(makeFailMock(1));
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: true,
+        dryRun: false,
         concurrency: 1,
         failFast: true,
       };
@@ -305,6 +307,25 @@ describe('processFiles', () => {
       );
       assertEquals((err as ChatlogError).kind, 'FailFast');
     });
+
+    it('[Edge] T-PF-FF-03: failFast=true かつ dryRun=true のとき fail があっても throw されず stats.skip が増加する', async () => {
+      // arrange
+      mockHandle = installCommandMock(makeFailMock(1));
+
+      await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
+        dryRun: true,
+        concurrency: 1,
+        failFast: true,
+      };
+
+      // act — dryRun=true なので failFast=true でも throw されない
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert
+      assertEquals(stats.skip, 1);
+      assertEquals(stats.fail, 0);
+    });
   });
 
   /** logger.warn: AI 失敗時のファイル名ログ検証。 */
@@ -315,13 +336,17 @@ describe('processFiles', () => {
 
       const filePath = normalizePath(`${tmpDir}/target-file.md`);
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
+        dryRun: false,
+        concurrency: 2,
+      };
       let warnStub: Stub | undefined;
 
       try {
         warnStub = stub(logger, 'warn');
 
         // act
-        await processFiles(tmpDir, outputDir, _CONFIG, stats);
+        await processFiles(tmpDir, outputDir, config, stats);
 
         // assert — warn が呼ばれ、ファイル名が含まれる
         assert(warnStub.calls.length > 0);
@@ -601,9 +626,9 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       const stats1: Stats = initStats();
 
-      // act — 1回目: AI 失敗 → stats.fail が増加し、キャッシュに書き込まれない
+      // act — 1回目: AI 失敗 → dryRun=true なので stats.skip が増加し、キャッシュに書き込まれない
       await processFiles(tmpDir, outputDir, _CONFIG, stats1);
-      assertEquals(stats1.fail, 1);
+      assertEquals(stats1.skip, 1);
 
       // 2回目: 同じファイルを処理 → キャッシュ未登録なのでスキップされない
       mockHandle.restore();
@@ -667,25 +692,24 @@ describe('processFiles', () => {
       assertEquals(cached.segments, [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }]);
     });
 
-    it("[Normal] T-PF-CACHE-06: dryRun=true でも AI 成功後 cache に segments と status:'set' が書き込まれる", async () => {
+    it("[Normal] T-PF-CACHE-06: dryRun=true のとき AI は呼ばれず cache にも segments/status:'set' は書き込まれない", async () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }];
       const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
-      mockHandle = installCommandMock(makeSuccessMock(stdout));
+      const counter = { calls: 0 };
+      mockHandle = installCommandMock(makeCountingMock(new TextDecoder().decode(stdout), counter));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
 
       // act — dryRun=true
       await processFiles(tmpDir, outputDir, _CONFIG, stats);
 
-      // assert — dryRun でも segments と status:'set' が書き込まれる（status:'done' ではない）
-      // （T-PF-CACHE-02 互換: 'set' は非終端状態なので、dryRun 後の非dryRun呼び出しがスキップされてはならない）
+      // assert — dryRun では phaseSegment が AI を呼ばず、cache も未書き込みのまま
+      assertEquals(counter.calls, 0);
       const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
       await cache.ready;
-      const cached = cache.read('dummy');
-      assertEquals(cached.segments, [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }]);
-      assertEquals(cached.status, 'set');
+      assertEquals(cache.read('dummy'), {});
     });
 
     it('[Normal] T-PF-CACHE-07: cache に segments のみ登録（status未登録・出力ファイル未生成）のとき AI を呼ばずキャッシュから書き出す', async () => {

@@ -22,33 +22,31 @@ import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.
 import { loadEntries } from '../libs/load-entries.ts';
 // types
 import type { LoadEntryFailure } from '../types/load-entry.types.ts';
-import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
+import type { NormalizeConfig } from '../types/normalize.types.ts';
 
 /**
- * Loads `pendingFiles` into `ChatlogEntry` objects, logging and counting load failures.
+ * Loads `pendingFiles` into `ChatlogEntry` objects, logging load failures.
  *
- * Failures are collected into `errors` and each increments `stats.error`. When
- * `config.failFast` is true and at least one load failure occurred, throws
- * `ChatlogError('FailFast', 'LoadFailed', ...)` referencing the first failed file.
+ * Failures are collected into `errors`; the caller is responsible for accumulating
+ * `stats.error` from `errors.length`. When `config.failFast` is true and at least one
+ * load failure occurred, throws `ChatlogError('FailFast', 'LoadFailed', ...)` referencing
+ * the first failed file.
  *
  * @param pendingFiles - File paths to load
- * @param concurrency  - Parallelism forwarded to `loadEntries`
  * @param config       - Processing config (failFast)
- * @param stats        - Mutable counters updated in place
+ * @param concurrency  - Parallelism forwarded to `loadEntries`
  * @returns Successfully loaded entries and load failures
  */
 export const phaseLoad = async (
   pendingFiles: string[],
-  concurrency: number,
   config: Pick<NormalizeConfig, 'failFast'>,
-  stats: Stats,
+  concurrency: number,
 ): Promise<{ entries: ChatlogEntry[]; errors: LoadEntryFailure[] }> => {
   const { entries, errors } = await loadEntries(pendingFiles, concurrency);
 
   for (const { filePath, error } of errors) {
     logger.warn(`${LOGGER_TEXT.INDENT}failed (load error: ${error.message}): ${getBasename(filePath)}`);
   }
-  stats.error += errors.length;
 
   if (config.failFast && errors.length > 0) {
     throw new ChatlogError('FailFast', 'LoadFailed', `fail-fast triggered by: ${getBasename(errors[0].filePath)}`);

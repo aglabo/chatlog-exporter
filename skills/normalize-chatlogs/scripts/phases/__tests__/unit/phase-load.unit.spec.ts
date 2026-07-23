@@ -21,18 +21,17 @@ import { phaseLoad } from '../../phase-load.ts';
 // ─── Helpers
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
-import { initStats } from '../../../libs/stats-utils.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
-import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
+import type { NormalizeConfig } from '../../../types/normalize.types.ts';
 
 // ─── Tests
 
 /**
  * `phaseLoad` のユニットテストスイート。
  *
- * `pendingFiles` の読み込み結果に応じた stats.error の加算、読み込みエラー時の
+ * `pendingFiles` の読み込み結果に応じた entries/errors の返却、読み込みエラー時の
  * logger.warn 呼び出し、failFast 設定による throw / 継続動作を検証する。
  *
  * テスト ID 範囲: T-PL-01-01 〜 T-PL-03-01
@@ -41,11 +40,9 @@ import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
  */
 describe('phaseLoad', () => {
   let tempDir: string;
-  let stats: Stats;
 
   beforeEach(() => {
     tempDir = Deno.makeTempDirSync();
-    stats = initStats();
   });
 
   afterEach(() => {
@@ -53,7 +50,7 @@ describe('phaseLoad', () => {
   });
 
   describe('When: 正常系', () => {
-    it('[Normal] T-PL-01-01: 全ファイルが正常に読み込めるとき stats.error が増加せず entries に全件・errors が空で返る', async () => {
+    it('[Normal] T-PL-01-01: 全ファイルが正常に読み込めるとき entries に全件・errors が空で返る', async () => {
       // arrange
       const filePathA = normalizePath(`${tempDir}/a.md`);
       const filePathB = normalizePath(`${tempDir}/b.md`);
@@ -62,17 +59,16 @@ describe('phaseLoad', () => {
       const config: Pick<NormalizeConfig, 'failFast'> = { failFast: false };
 
       // act
-      const result = await phaseLoad([filePathA, filePathB], 2, config, stats);
+      const result = await phaseLoad([filePathA, filePathB], config, 2);
 
       // assert
-      assertEquals(stats.error, 0);
       assertEquals(result.entries.length, 2);
       assertEquals(result.errors.length, 0);
     });
   });
 
   describe('When: 異常系', () => {
-    it('[Error] T-PL-02-01: 不正なYAML frontmatterのファイルを1件含むとき stats.error が1増加し logger.warn が呼ばれ errors に1件含まれる', async () => {
+    it('[Error] T-PL-02-01: 不正なYAML frontmatterのファイルを1件含むとき logger.warn が呼ばれ errors に1件含まれる', async () => {
       // arrange
       const badFilePath = normalizePath(`${tempDir}/bad-yaml.md`);
       await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
@@ -83,10 +79,9 @@ describe('phaseLoad', () => {
         warnStub = stub(logger, 'warn');
 
         // act
-        const result = await phaseLoad([badFilePath], 1, config, stats);
+        const result = await phaseLoad([badFilePath], config, 1);
 
         // assert
-        assertEquals(stats.error, 1);
         assert(warnStub.calls.length > 0);
         assertEquals(result.errors.length, 1);
         assertEquals(result.errors[0]?.filePath, badFilePath);
@@ -103,7 +98,7 @@ describe('phaseLoad', () => {
 
       // act & assert
       const err = await assertRejects(
-        () => phaseLoad([badFilePath], 1, config, stats),
+        () => phaseLoad([badFilePath], config, 1),
         ChatlogError,
       );
       assertEquals((err as ChatlogError).kind, 'FailFast');
@@ -120,7 +115,7 @@ describe('phaseLoad', () => {
       const config: Pick<NormalizeConfig, 'failFast'> = { failFast: false };
 
       // act
-      const result = await phaseLoad([badFilePath, goodFilePath], 2, config, stats);
+      const result = await phaseLoad([badFilePath, goodFilePath], config, 2);
 
       // assert
       assertEquals(result.entries.length, 1);
