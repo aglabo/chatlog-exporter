@@ -37,16 +37,19 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
  * @param chunk  - Entries to segment together in a single AI call
  * @param config - Model/timeout options forwarded to `segmentChatlogs`
  * @param cache  - Cache written with decided segment boundaries
+ * @param signal - Abort signal forwarded to `segmentChatlogs`, aborted when a sibling chunk fails
  * @returns Entries from `chunk` whose segment boundaries were successfully written to the cache
  */
 const _processChunk = async (
   chunk: ChatlogEntry[],
   config: Pick<NormalizeConfig, 'model' | 'timeoutMs'>,
   cache: ChatlogCache<NormalizeCache>,
+  signal: AbortSignal,
 ): Promise<ChatlogEntry[]> => {
   const _aiResultMap = await segmentChatlogs(chunk, {
     model: config.model,
     ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+    signal,
   });
 
   const _results = await Promise.all(
@@ -119,7 +122,7 @@ export const phaseSegment = async (
 
   const _processedChunks = await runConcurrent(
     _chunks,
-    (chunk) => _processChunk(chunk, config, cache),
+    (chunk, ctl) => _processChunk(chunk, config, cache, ctl.signal),
     concurrency,
   );
 
