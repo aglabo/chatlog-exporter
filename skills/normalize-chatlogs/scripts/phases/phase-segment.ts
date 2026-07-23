@@ -30,9 +30,9 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
  * boundaries to the cache.
  *
  * On success, segment data (`title`/`summary`/`startLine`/`endLine`) are written to the cache
- * with `status: 'set'` — even when `dryRun` is true, so a subsequent run does not
- * re-invoke the AI. Cache writes are skipped when the AI returned no segments, or when
- * any segment is missing `startLine`/`endLine`.
+ * with `status: 'set'`, so a subsequent run does not re-invoke the AI. Cache writes are
+ * skipped when the AI returned no segments, or when any segment is missing
+ * `startLine`/`endLine`. Only called for non-`dryRun` runs — see `phaseSegment`.
  *
  * @param chunk  - Entries to segment together in a single AI call
  * @param config - Model/timeout options forwarded to `segmentChatlogs`
@@ -66,7 +66,7 @@ const _processChunk = async (
         })),
       };
       // write() (overwrite, not merge) is safe here: files reaching phaseSegment always have
-      // status === undefined (status:'done' files are filtered into skipFiles by _prepareFiles).
+      // status === undefined (done/set entries are filtered out by _classifyEntries in process-files.ts).
       await cache.write(toCacheKey(filePath), _cacheEntry);
       return entry;
     }),
@@ -79,20 +79,23 @@ const _processChunk = async (
  * Determines segment split plans for `entries`, preferring cached `segments`
  * (resume support) over a fresh AI call, and persists newly-decided segments to the cache.
  *
+ * When `config.dryRun` is true, no AI call is made and no cache write happens: only
+ * already-cached entries are returned, uncached entries are left unplanned (the caller
+ * accounts for them as skipped — see `_accountSegmentFailures` in `process-files.ts`).
+ *
  * Entries with cached `segments` are returned as-is (no AI call). The remainder is chunked
  * into groups of at most `BATCH_SIZE` (or 1 when `config.singleFile` is true) and each chunk
  * is processed via {@link _processChunk} with parallelism `concurrency` to bound prompt size
  * and timeout risk. On success, segment data (`title`/`summary`/`startLine`/`endLine`) are written
- * to the cache — even when `dryRun` is true, so a subsequent run does not re-invoke the AI.
- * Entries whose AI call failed, or whose segments are missing `startLine`/`endLine`, are
- * excluded from the result and not written to the cache.
+ * to the cache. Entries whose AI call failed, or whose segments are missing
+ * `startLine`/`endLine`, are excluded from the result and not written to the cache.
  *
  * Segment boundaries are line numbers within `ChatlogEntry.content` (frontmatter excluded),
  * not the raw file.
  *
  * @param entries     - Files loaded as `ChatlogEntry`
  * @param cache       - Cache read for resume, written with decided segment boundaries
- * @param config      - Model/timeout/singleFile options forwarded to `segmentChatlogs` and chunking
+ * @param config      - Model/timeout/singleFile/dryRun options forwarded to `segmentChatlogs` and chunking
  * @param concurrency - Parallelism for processing chunks
  * @returns Entries whose segment boundaries are present in the cache after this call
  */
@@ -103,6 +106,9 @@ export const phaseSegment = async (
   concurrency: number,
 ): Promise<ChatlogEntry[]> => {
   const _cachedEntries = entries.filter((entry) => hasSegments(entry, cache));
+  if (config.dryRun) {
+    return _cachedEntries;
+  }
   const _uncachedEntries = entries.filter((entry) => !hasSegments(entry, cache));
 
   const _chunkSize = config.singleFile ? 1 : BATCH_SIZE;
