@@ -119,6 +119,9 @@ export const segmentChatlogs = async (
       ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
     });
   } catch (e) {
+    if (e instanceof ChatlogError && e.kind === 'AiError' && e.subindex === 'RateLimit') {
+      throw e;
+    }
     const _paths = inputs.map((entry) => getBasename(entry.filePath!)).join(', ');
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
       logger.warn(`segmentChatlogs: timed out — ${_paths}`);
