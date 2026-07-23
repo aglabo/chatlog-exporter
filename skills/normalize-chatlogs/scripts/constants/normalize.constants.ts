@@ -23,4 +23,4 @@ export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
 export const MAX_SEGMENTS = 5;
 
 /** Maximum number of files processed in a single AI call. Larger values increase the risk of timeouts. */
-export const BATCH_SIZE = 2;
+export const BATCH_SIZE = 4;
