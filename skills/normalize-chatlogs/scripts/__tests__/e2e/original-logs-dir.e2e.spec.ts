@@ -1,5 +1,5 @@
 // src: skills/normalize-chatlogs/scripts/__tests__/e2e/original-logs-dir.e2e.spec.ts
-// @(#): normalize-chatlogs main() の入力ディレクトリ解決テスト
+// @(#): normalize-chatlogs main() の入力/出力ディレクトリ解決テスト
 //       対象: main
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -22,6 +22,7 @@ import { main } from '../../normalize-chatlogs.ts';
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -30,12 +31,14 @@ import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-s
 // ─── Tests
 
 /**
- * `main` の入力ディレクトリ解決テストスイート。
+ * `main` の入力/出力ディレクトリ解決テストスイート。
  *
  * `--input-dir` 未指定時に GlobalConfig の `chatlogsDir` を基準として
- * `originalLogs` を挟んだパスから入力ファイルを読み込むことを検証する。
+ * `originalLogs` を挟んだパスから入力ファイルを読み込むこと、および
+ * `--output-dir` 未指定時に `normalizelogs` を挟んだパスへ
+ * `agent/yyyy/yyyy-mm` でミラーリングされることを検証する。
  *
- * テスト ID 範囲: T-NC-MAIN-01
+ * テスト ID 範囲: T-NC-MAIN-01〜02
  *
  * @see main
  */
@@ -120,6 +123,75 @@ describe('main', () => {
             ]);
 
             assertEquals(exitStub.calls.length, 0);
+          });
+        });
+      });
+    });
+
+    /** --output-dir 未指定時、chatlogsDir/normalizelogs 配下へ agent/yyyy/yyyy-mm でミラーリングされるケース。 */
+    describe('Given: chatlogsDir 配下の originalLogs/<agent>/<yyyy>/<yyyy-mm> にファイルが存在', () => {
+      describe('When: --output-dir を指定せず main() を呼び出す', () => {
+        describe('Then: T-NC-MAIN-02 - outputBase が normalizelogs/<agent>/<yyyy>/<yyyy-mm> にミラーリングされる', () => {
+          let chatlogsDir: string;
+          let configFile: string;
+          let commandHandle: CommandMockHandle;
+          let loggerStub: LoggerStub;
+          let exitStub: Stub;
+
+          beforeEach(async () => {
+            chatlogsDir = normalizePath(await Deno.makeTempDir());
+            configFile = `${chatlogsDir}/config.yaml`;
+            const monthDir = `${chatlogsDir}/originalLogs/claude/2026/2026-03`;
+            await Deno.mkdir(monthDir, { recursive: true });
+            await Deno.writeTextFile(
+              `${monthDir}/chat.md`,
+              '---\nproject: my-project\n---\n### User\nHello\n\n### AI\nHi there.',
+            );
+            // normalize-cache を chatlogsDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await Deno.writeTextFile(
+              configFile,
+              `chatlogsDir: "${chatlogsDir}"\ncacheDir: "${chatlogsDir}/cache"\n`,
+            );
+
+            const chatPath = normalizePath(`${monthDir}/chat.md`);
+            const segmentResponse = JSON.stringify([
+              {
+                filePath: chatPath,
+                segments: [{ title: 'Greeting', summary: 'Say hello', startLine: 1, endLine: 5 }],
+              },
+            ]);
+            commandHandle = installCommandMock(
+              makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+            );
+            loggerStub = makeLoggerStub();
+            exitStub = stub(Deno, 'exit');
+            GlobalConfig.resetInstance();
+          });
+
+          afterEach(async () => {
+            commandHandle.restore();
+            loggerStub.restore();
+            exitStub.restore();
+            GlobalConfig.resetInstance();
+            await Deno.remove(chatlogsDir, { recursive: true });
+          });
+
+          it('T-NC-MAIN-02-01: 出力ファイルが normalizelogs/claude/2026/2026-03/claude/2026/2026-03/ 配下に生成される', async () => {
+            await main([
+              '--config',
+              configFile,
+              '--agent',
+              'claude',
+              '--period',
+              '2026-03',
+            ]);
+
+            const mirroredBase = `${chatlogsDir}/normalizelogs/claude/2026/2026-03`;
+            const files = await findFiles(mirroredBase);
+            const doublyMirrored = files.filter((f) =>
+              normalizePath(f).includes(`${mirroredBase}/claude/2026/2026-03`)
+            );
+            assertEquals(doublyMirrored.length > 0, true);
           });
         });
       });
