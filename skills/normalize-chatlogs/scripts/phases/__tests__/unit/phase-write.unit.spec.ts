@@ -38,7 +38,7 @@ const _makeEntry = (filePath: string, content: string): ChatlogEntry => new Chat
  * キャッシュの `segments`（title/summary/startLine/endLine）から `Segment[]` を再構築する際、
  * summary がキャッシュ値のまま復元されること、content が正しく再スライスされることを検証する。
  *
- * テスト ID 範囲: T-PW-01-01 〜 T-PW-02-01
+ * テスト ID 範囲: T-PW-01-01 〜 T-PW-02-02
  *
  * @see _rebuildSegments
  */
@@ -104,6 +104,21 @@ describe('_rebuildSegments', () => {
 
       // assert
       assertEquals(result[0]?.summary, '');
+    });
+
+    it('[Edge] T-PW-02-02: entry.content が空文字列のとき Segment.content が空文字列になる', async () => {
+      // arrange
+      const entry = _makeEntry('empty.md', '');
+      await cache.write(toCacheKey('empty.md'), {
+        status: 'set',
+        segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
+      });
+
+      // act
+      const result = _rebuildSegments(entry, cache);
+
+      // assert
+      assertEquals(result[0]?.content, '');
     });
   });
 });
