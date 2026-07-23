@@ -1004,10 +1004,11 @@ describe('parseArgsToConfig', () => {
         assertEquals(result.agent, 'claude');
         assertEquals(result.period, '2026-03');
       });
-      it('[Normal] T-PA-POS-06: ["claude", "2026"] → agent・period（年のみ形式）がセットされる', () => {
-        const result = parseArgs<TestConfig>(['claude', '2026'], TEST_SCHEMA);
-        assertEquals(result.agent, 'claude');
-        assertEquals(result.period, '2026');
+      it('[Error] T-PA-POS-06: ["claude", "2026"] → 年のみ形式は非対応のため ChatlogError(InvalidArgs)', () => {
+        assertThrows(
+          () => parseArgs<TestConfig>(['claude', '2026'], TEST_SCHEMA),
+          ChatlogError,
+        );
       });
       it('[Normal] T-PA-POS-07: ["claude", "2026-03", "./out"] → agent・period・outputDir がセットされる', () => {
         const result = parseArgs<TestConfig>(['claude', '2026-03', './out'], TEST_SCHEMA);
@@ -1198,7 +1199,7 @@ describe('isArgDirectory', () => {
 /**
  * `isArgPeriod` のユニットテストスイート。
  *
- * `YYYY-MM` または `YYYY` 形式の文字列を期間引数として認識するかを検証する。
+ * `YYYY-MM` 形式の文字列を期間引数として認識するかを検証する。
  * 月レンジ（01〜12）は検証しない（現行の振る舞い保存）。
  *
  * テスト ID 範囲: T-LIB-U-12-01 〜 T-LIB-U-12-06
@@ -1206,13 +1207,13 @@ describe('isArgDirectory', () => {
  * @see isArgPeriod
  */
 describe('isArgPeriod', () => {
-  /** `YYYY-MM` または `YYYY` 形式として正常に認識されるケース。 */
+  /** `YYYY-MM` 形式として正常に認識されるケース。 */
   describe('When: 正常系', () => {
     it('[Normal] T-LIB-U-12-01: "2026-03" → true が返る', () => {
       assert(isArgPeriod('2026-03'));
     });
-    it('[Normal] T-LIB-U-12-02: "2026" → true が返る（年のみ指定）', () => {
-      assert(isArgPeriod('2026'));
+    it('[Normal] T-LIB-U-12-02: "2026" → false が返る（年のみ指定は非対応）', () => {
+      assertFalse(isArgPeriod('2026'));
     });
     it('[Normal] T-LIB-U-12-03: "not-a-date" → false が返る', () => {
       assertFalse(isArgPeriod('not-a-date'));
