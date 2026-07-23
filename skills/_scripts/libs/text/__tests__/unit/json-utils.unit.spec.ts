@@ -24,7 +24,7 @@ import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.
  *
  * 3段階フォールバック（直接パース / non-greedy / greedy）の各パスを網羅する。
  *
- * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-18
+ * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-19
  *
  * @see parseAiJsonArray
  */
@@ -93,6 +93,14 @@ describe('parseAiJsonArray', () => {
       assertNotNull(_result);
       assertEquals(_result!.length, 1);
       assertEquals(_result![0].filePath, 'a.md');
+    });
+
+    it('[Normal] T-LIB-J-19: 先頭が素の配列で後方に無関係なコードフェンス例示がある場合は先頭配列を返す', () => {
+      const _raw = '[{"file":"real.md"}]\n...\n```json\n[{"file":"example.md"}]\n```';
+      const _result = parseAiJsonArray<{ file: string }>(_raw);
+      assertNotNull(_result);
+      assertEquals(_result!.length, 1);
+      assertEquals(_result![0].file, 'real.md');
     });
 
     it('[Normal] T-LIB-J-09: 改行・インデントを含む整形済み JSON 配列がパースできる', () => {
