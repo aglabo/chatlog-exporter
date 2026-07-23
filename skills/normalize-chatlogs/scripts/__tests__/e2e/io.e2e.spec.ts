@@ -161,6 +161,16 @@ describe('main - I/O', () => {
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
         });
+
+        it('T-15-02-01-02: 入力ディレクトリと出力先が logger.info でログ出力される', async () => {
+          await main(['--input-dir', AGENT_DIR, '--output-dir', outputDir]);
+
+          const normalizedLogs = loggerStub.infoLogs.map((line) => normalizePath(line)).join('\n');
+          const normalizedAgentDir = normalizePath(AGENT_DIR);
+          const normalizedOutputDir = normalizePath(outputDir);
+          assertEquals(normalizedLogs.includes(normalizedAgentDir), true);
+          assertEquals(normalizedLogs.includes(normalizedOutputDir), true);
+        });
       });
     });
   });
