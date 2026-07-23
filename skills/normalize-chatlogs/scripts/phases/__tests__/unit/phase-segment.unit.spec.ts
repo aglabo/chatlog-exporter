@@ -8,17 +8,23 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // mock helpers
 import {
+  BaseMockCommand,
   installCommandMock,
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // types
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+// classes
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 
 // ─── Test target
 import { phaseSegment } from '../../phase-segment.ts';
@@ -62,6 +68,52 @@ const _makeAiResponse = (
     })),
   );
 
+/**
+ * 1回目に構築された `Deno.Command`（先頭チャンク）は rate limit エラー（stderr に "rate limit"）で
+ * 失敗させ、2回目以降は `otherStdout` で成功させるモックを生成する。2回目以降の呼び出しに渡された
+ * `opts.signal` を `captured` に記録する。
+ *
+ * `runConcurrent`（`withConcurrency`）は `limit` 個のワーカーを同時起動し、各ワーカーは
+ * `idx++` で次のチャンクを同期的に取得するため、concurrency 以上のチャンク数があれば
+ * 呼び出し順は構築順と一致する。先頭チャンクの throw で `ctl.abort()` が呼ばれたときに、
+ * 実行中の他チャンクの `runAI` へ渡された signal がリレーされているかどうかを、
+ * `captured.signal?.aborted` で判別するために使用する。
+ */
+const _makeRateLimitVsSignalCaptureMock = (
+  otherStdout: string,
+  captured: { signal?: AbortSignal },
+): DenoCommandLike => {
+  let _callCount = 0;
+
+  return class extends BaseMockCommand {
+    private readonly isRateLimitTarget: boolean;
+
+    constructor(_cmd: string, opts: { args: string[]; signal?: AbortSignal }) {
+      super();
+      _callCount++;
+      this.isRateLimitTarget = _callCount === 1;
+      if (!this.isRateLimitTarget) { captured.signal = opts.signal; }
+    }
+
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+      if (this.isRateLimitTarget) {
+        return Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: new TextEncoder().encode('rate limit exceeded'),
+        });
+      }
+      return Promise.resolve({
+        success: true,
+        code: 0,
+        stdout: new TextEncoder().encode(otherStdout),
+        stderr: new Uint8Array(),
+      });
+    }
+  } as unknown as DenoCommandLike;
+};
+
 // ─── Tests
 
 /**
@@ -70,7 +122,7 @@ const _makeAiResponse = (
  * キャッシュ済みエントリのスキップ、未キャッシュエントリのチャンク分割・AI呼び出し・
  * キャッシュ書き込み、AI失敗時の除外挙動を検証する。
  *
- * テスト ID 範囲: T-PP-01-01 〜 T-PP-07-01
+ * テスト ID 範囲: T-PP-01-01 〜 T-PP-08-01
  *
  * @see phaseSegment
  */
@@ -187,6 +239,32 @@ describe('phaseSegment', () => {
       // assert
       assertEquals(result, []);
       assertEquals(cache.read(toCacheKey('incomplete.md')), {});
+    });
+
+    it('[Error] T-PP-08-01: 並列実行中に一方のチャンクが RateLimit で失敗したとき他方のチャンクの signal が abort される', async () => {
+      // arrange — singleFile:true で 2 チャンクに分割し、concurrency:2 で同時実行させる
+      const entries = [
+        _makeEntry('rate-limited.md', 'content a'),
+        _makeEntry('other.md', 'content b'),
+      ];
+      const otherAiResponse = _makeAiResponse([
+        { filePath: 'other.md', segments: [{ title: 'T', startLine: 1, endLine: 1 }] },
+      ]);
+      const captured: { signal?: AbortSignal } = {};
+      mockHandle = installCommandMock(
+        _makeRateLimitVsSignalCaptureMock(otherAiResponse, captured),
+      );
+
+      // act — withConcurrency は rate-limited.md 側の throw を受けて ctl.abort() を呼ぶ
+      const error = await assertRejects(
+        () => phaseSegment(entries, cache, { ..._baseConfig, singleFile: true }, 2),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+
+      // assert — other.md 側の runAI に渡された signal が abort されている（リレーの証明）
+      assert(captured.signal !== undefined, 'signal was not captured — mock did not fire for other.md');
+      assertEquals(captured.signal.aborted, true);
     });
   });
 

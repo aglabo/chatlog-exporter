@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertEquals, assertFalse, assertNotEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse, assertNotEquals, assertRejects } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
@@ -29,11 +29,13 @@ import {
   installCommandMock,
   makeDelayedSuccessMock,
   makeFailMock,
+  makeNotFoundMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // classes
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 
@@ -45,6 +47,31 @@ import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.con
 const _makeEntry = (filePath: string, content: string): ChatlogEntry => new ChatlogEntry(content, { filePath });
 
 // classes
+
+/**
+ * 非ゼロ exit かつ stderr に rate limit 文言を含む出力を模倣するモッククラス。
+ *
+ * `runAI` の `_isRateLimit` 判定（stderr に対する `/rate.?limit|429/i`）を発火させ、
+ * `ChatlogError('AiError', 'RateLimit', ...)` を throw させるために使用する。
+ * `BaseMockCommand.spawn()` は `output()` のみを呼ぶため、stderr を持つ `makeOutput()` を独自実装する。
+ */
+class _RateLimitMockCommand extends BaseMockCommand {
+  constructor(_cmd: string, _opts: unknown) {
+    super();
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: new TextEncoder().encode('rate limit exceeded'),
+    });
+  }
+}
+
+/** `_RateLimitMockCommand` を `DenoCommandLike` として返すファクトリヘルパー。 */
+const _makeRateLimitMock = (): DenoCommandLike => _RateLimitMockCommand as unknown as DenoCommandLike;
 
 /**
  * stdin に書き込まれた内容をキャプチャするモック。
@@ -107,6 +134,53 @@ const _makeStdinCaptureMock = (
   } as unknown as DenoCommandLike;
 };
 
+// classes
+
+/**
+ * `Deno.Command` に渡された `opts.signal` をキャプチャする成功モック。
+ *
+ * `runAI` は常に内部タイムアウト用の signal を `AbortSignal.any()` で合成して渡すため、
+ * `options.signal` を渡していなくても signal 自体は必ず存在する。そのため単なる
+ * `signal !== undefined` はテストとして無意味であり、外部から渡した `AbortController`
+ * を `abort()` した後に、キャプチャした合成 signal が `.aborted === true` になることを
+ * 確認することで、リレーの有無を判別する。
+ */
+class _SignalCaptureMock extends BaseMockCommand {
+  private readonly stdout: Uint8Array;
+  readonly signal?: AbortSignal;
+
+  constructor(_cmd: string, opts: { signal?: AbortSignal }, stdout: Uint8Array) {
+    super();
+    this.stdout = stdout;
+    this.signal = opts.signal;
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+    return Promise.resolve({ success: true, code: 0, stdout: this.stdout });
+  }
+}
+
+// functions
+
+/**
+ * `_SignalCaptureMock` を `DenoCommandLike` として返すファクトリヘルパー。
+ *
+ * @param stdout - AI が返す stdout バイト列
+ * @param captured - モックインスタンスの受け渡し先（呼び出し後に signal を検査するための出口）
+ * @returns `DenoCommandLike` クラス
+ */
+const _makeSignalCaptureMock = (
+  stdout: Uint8Array,
+  captured: { instance: _SignalCaptureMock | null },
+): DenoCommandLike => {
+  return class extends _SignalCaptureMock {
+    constructor(cmd: string, opts: { signal?: AbortSignal }) {
+      super(cmd, opts, stdout);
+      captured.instance = this;
+    }
+  } as unknown as DenoCommandLike;
+};
+
 // ─── Tests
 
 // ─── segmentChatlogs tests ────────────────────────────────────────────────────
@@ -117,7 +191,8 @@ const _makeStdinCaptureMock = (
  * 複数ファイルをまとめて1回のAI呼び出しでセグメント分割する関数の
  * 正常系・異常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-05-02, T-SIO-LR-14, T-SIO-LR-19 〜 T-SIO-LR-25, T-SIO-LOG-01 〜 T-SIO-LOG-02
+ * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
+ * T-SIO-LR-14, T-SIO-LR-19 〜 T-SIO-LR-25, T-SIO-LOG-01 〜 T-SIO-LOG-02
  *
  * @see segmentChatlogs
  */
@@ -306,6 +381,29 @@ describe('segmentChatlogs', () => {
       } finally {
         warnStub?.restore();
       }
+    });
+
+    it('[Error] T-SCB-02-03: runAI が ChatlogError(AiError, RateLimit) を throw するとき握りつぶさず再 throw する', async () => {
+      // arrange — stderr に "rate limit" を含む非ゼロ exit を返す runAI 呼び出し
+      const inputs = [_makeEntry('a.md', 'content a')];
+      mockHandle = installCommandMock(_makeRateLimitMock());
+
+      // act & assert — 例外がそのまま呼び出し元に伝播する
+      const error = await assertRejects(() => segmentChatlogs(inputs), ChatlogError);
+      assertEquals(error.kind, 'AiError');
+      assertEquals(error.subindex, 'RateLimit');
+    });
+
+    it('[Error] T-SCB-02-04: ChatlogError 以外の一般的な Error は握りつぶされ全ファイルが null の Map を返す', async () => {
+      // arrange — spawn() が Deno.errors.NotFound（非 ChatlogError）を throw するモック
+      const inputs = [_makeEntry('a.md', 'content a')];
+      mockHandle = installCommandMock(makeNotFoundMock());
+
+      // act
+      const result = await segmentChatlogs(inputs);
+
+      // assert
+      assertNull(result.get('a.md'));
     });
   });
 
@@ -519,6 +617,27 @@ describe('segmentChatlogs', () => {
 
       // assert
       assertEquals(result.get('a.md'), [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }]);
+    });
+  });
+
+  /** signal オプション転送: `runAI` に外部 `AbortSignal` がリレーされることを検証するケース。 */
+  describe('When: signal オプション', () => {
+    it('[Normal] T-SCB-06-01: options.signal を渡すと runAI に転送され、abort すると Deno.Command 側の signal も abort される', async () => {
+      // arrange
+      const inputs = [_makeEntry('a.md', 'content a')];
+      const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] }];
+      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const captured: { instance: _SignalCaptureMock | null } = { instance: null };
+      mockHandle = installCommandMock(_makeSignalCaptureMock(stdout, captured));
+      const controller = new AbortController();
+
+      // act
+      await segmentChatlogs(inputs, { signal: controller.signal });
+      controller.abort();
+
+      // assert — runAI が options.signal を AbortSignal.any() に含めていればここで abort が伝播する
+      assert(captured.instance !== null, 'mock was not instantiated');
+      assertEquals(captured.instance.signal?.aborted, true);
     });
   });
 
