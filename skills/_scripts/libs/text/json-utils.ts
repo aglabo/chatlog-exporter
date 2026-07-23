@@ -15,11 +15,22 @@ const _tryParseNonEmptyArray = <T>(text: string): T[] | null => {
   return null;
 };
 
-/** 段階1: 文字列が `[` で始まる場合に直接パースを試みる。 */
+/** コードフェンス（\`\`\`json ... \`\`\`）が含まれる場合、内部テキストのみを抽出する。含まれない場合は raw をそのまま返す。 */
+const _stripCodeFence = (raw: string): string => {
+  const matched = raw.match(/```[^\n]*\n([\s\S]*?)```/);
+  return matched ? matched[1] : raw;
+};
+
+/** 段階1: 文字列が `[` で始まる場合に直接パースを試みる。`[` で始まらない場合のみコードフェンスを除去して再試行する。 */
 const _parseDirectArray = <T>(raw: string): T[] | null => {
   const trimmed = raw.trim();
-  if (!trimmed.startsWith('[')) { return null; }
-  return _tryParseNonEmptyArray<T>(trimmed);
+  if (trimmed.startsWith('[')) {
+    return _tryParseNonEmptyArray<T>(trimmed);
+  }
+
+  const stripped = _stripCodeFence(raw).trim();
+  if (!stripped.startsWith('[')) { return null; }
+  return _tryParseNonEmptyArray<T>(stripped);
 };
 
 /** 段階2: non-greedy マッチで最初にパースできた非空配列を返す。 */
