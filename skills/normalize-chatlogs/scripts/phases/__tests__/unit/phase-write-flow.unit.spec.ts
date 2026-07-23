@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/phases/__tests__/unit/phase-write-flow.unit.spec.ts
 // @(#): phaseWrite の統合的なユニットテスト
-//       対象: phaseWrite, _writePlannedEntry, _writeFailedEntry
+//       対象: phaseWrite, _writePlannedEntry
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -19,13 +19,13 @@ import type { Stub } from '@std/testing/mock';
 import { phaseWrite } from '../../phase-write.ts';
 
 // ─── Helpers
+import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 import { toCacheKey } from '../../../libs/cache-utils.ts';
 import { initStats } from '../../../libs/stats-utils.ts';
 // classes
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
@@ -47,11 +47,11 @@ const _makeEntry = (filePath: string, content: string): ChatlogEntry => new Chat
 /**
  * `phaseWrite` のユニットテストスイート。
  *
- * `entries` を `hasSegments` でプランニング済み/失敗に分岐し、それぞれ
- * `_writePlannedEntry`/`_writeFailedEntry` に委譲する振る舞いを、実際のファイル書き出しと
- * キャッシュ状態の変化を通じて検証する。
+ * 呼び出し元がプランニング済み（`hasSegments` が true）の entry のみを渡す前提のもと、
+ * `_writePlannedEntry` に委譲される書き込み・キャッシュ更新の振る舞いを、実際のファイル
+ * 書き出しとキャッシュ状態の変化を通じて検証する。
  *
- * テスト ID 範囲: T-PWF-01-01 〜 T-PWF-03-02
+ * テスト ID 範囲: T-PWF-01-01 〜 T-PWF-04-03
  *
  * @see phaseWrite
  */
@@ -82,7 +82,7 @@ describe('phaseWrite', () => {
         status: 'set',
         segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 2 }],
       });
-      const config: Pick<NormalizeConfig, 'dryRun' | 'failFast'> = { dryRun: false, failFast: false };
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: false };
 
       // act
       await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
@@ -91,44 +91,6 @@ describe('phaseWrite', () => {
       const written = await Deno.stat(`${outputBase}/misc/a-01-abc1234.md`);
       assert(written.isFile);
       assertEquals(cache.read(toCacheKey('a.md')).status, 'done');
-    });
-
-    it(
-      '[Normal] T-PWF-01-02: 計画済みentryと未キャッシュentryが混在するとき両方が正しく処理される',
-      async () => {
-        // arrange
-        const plannedEntry = _makeEntry('planned.md', 'line1\nline2');
-        const failedEntry = _makeEntry('failed.md', 'line1\nline2');
-        await cache.write(toCacheKey('planned.md'), {
-          status: 'set',
-          segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
-        });
-        const config: Pick<NormalizeConfig, 'dryRun' | 'failFast'> = { dryRun: false, failFast: false };
-
-        // act
-        await phaseWrite([plannedEntry, failedEntry], outputBase, config, stats, cache, 2, _FIXED_HASH);
-
-        // assert — 成功側は出力ファイルが書かれ done、失敗側は stats.fail が加算される
-        const written = await Deno.stat(`${outputBase}/misc/planned-01-abc1234.md`);
-        assert(written.isFile);
-        assertEquals(cache.read(toCacheKey('planned.md')).status, 'done');
-        assertEquals(stats.fail, 1);
-      },
-    );
-  });
-
-  describe('When: 異常系', () => {
-    it('[Error] T-PWF-02-01: failFast=true かつ未キャッシュの entry があるとき ChatlogError(FailFast) を投げる', async () => {
-      // arrange
-      const entry = _makeEntry('nocache.md', 'line1\nline2');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'failFast'> = { dryRun: false, failFast: true };
-
-      // act & assert
-      const err = await assertRejects(
-        () => phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH),
-        ChatlogError,
-      );
-      assertEquals((err as ChatlogError).kind, 'FailFast');
     });
   });
 
@@ -140,7 +102,7 @@ describe('phaseWrite', () => {
         status: 'set',
         segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
       });
-      const config: Pick<NormalizeConfig, 'dryRun' | 'failFast'> = { dryRun: true, failFast: false };
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: true };
 
       // act
       await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
@@ -148,28 +110,86 @@ describe('phaseWrite', () => {
       // assert — dryRun のため cache 更新はスキップされ 'set' のまま
       assertEquals(cache.read(toCacheKey('dry.md')).status, 'set');
     });
+  });
 
-    it(
-      '[Edge] T-PWF-03-02: failFast=false で未キャッシュの entry があるとき throw されず stats.fail が加算され logger.warn が呼ばれる',
-      async () => {
-        // arrange
-        const entry = _makeEntry('nocache2.md', 'line1\nline2');
-        const config: Pick<NormalizeConfig, 'dryRun' | 'failFast'> = { dryRun: false, failFast: false };
-        let warnStub: Stub | undefined;
+  /** 書き込み失敗時の分類: ファイル I/O エラーは fail 加算、それ以外はスロー。 */
+  describe('When: 書き込み失敗', () => {
+    it('[Error] T-PWF-04-01: Deno.writeTextFile が PermissionDenied で失敗するとき stats.fail が増加し cache は done にならず throw されない', async () => {
+      // arrange
+      const entry = _makeEntry('perm.md', 'line1\nline2');
+      await cache.write(toCacheKey('perm.md'), {
+        status: 'set',
+        segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
+      });
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: false };
+      const writeStub = stub(
+        Deno,
+        'writeTextFile',
+        () => Promise.reject(new Deno.errors.PermissionDenied('denied')),
+      );
 
-        try {
-          warnStub = stub(logger, 'warn');
+      try {
+        // act
+        await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
 
-          // act
-          await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
+        // assert
+        assertEquals(stats.fail, 1);
+        assertEquals(stats.success, 0);
+        assertEquals(cache.read(toCacheKey('perm.md')).status, 'set');
+      } finally {
+        writeStub.restore();
+      }
+    });
 
-          // assert
-          assertEquals(stats.fail, 1);
-          assert(warnStub.calls.length > 0);
-        } finally {
-          warnStub?.restore();
-        }
-      },
-    );
+    it('[Error] T-PWF-04-02: 書き込み失敗時 logger.warn がファイル名付きで呼ばれる', async () => {
+      // arrange
+      const entry = _makeEntry('perm2.md', 'line1\nline2');
+      await cache.write(toCacheKey('perm2.md'), {
+        status: 'set',
+        segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
+      });
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: false };
+      const writeStub = stub(
+        Deno,
+        'writeTextFile',
+        () => Promise.reject(new Deno.errors.PermissionDenied('denied')),
+      );
+      let warnStub: Stub | undefined;
+
+      try {
+        warnStub = stub(logger, 'warn');
+
+        // act
+        await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
+
+        // assert
+        assert(warnStub.calls.length > 0);
+        assert(String(warnStub.calls[0].args[0]).includes('perm2'));
+      } finally {
+        writeStub.restore();
+        warnStub?.restore();
+      }
+    });
+
+    it('[Error] T-PWF-04-03: ファイル I/O 起因ではないエラー（ForbiddenOutput）はそのままスローされる', async () => {
+      // arrange — filePath を resolveOutputDir の解決先（misc フォールバック）そのものにし、
+      // writeSegmentToFile の ForbiddenOutput チェック（outputPath.includes(filePath)）を発火させる
+      const filePath = `${outputBase}/misc`;
+      const entry = _makeEntry(filePath, 'line1\nline2');
+      await cache.write(toCacheKey(filePath), {
+        status: 'set',
+        segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }],
+      });
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: false };
+
+      // act & assert
+      const err = await assertRejects(
+        () => phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH),
+        ChatlogError,
+      );
+      assertEquals((err as ChatlogError).subindex, 'OverwriteInput');
+      assertEquals(stats.fail, 0);
+      assertEquals(stats.success, 0);
+    });
   });
 });
