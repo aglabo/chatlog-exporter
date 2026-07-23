@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // constants
-import { DEFAULT_CONCURRENCY, DEFAULT_NORMALIZE_DIR } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { NormalizeConfig } from '../types/normalize.types.ts';
 
@@ -17,7 +17,6 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
 export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
   dryRun: false,
   concurrency: DEFAULT_CONCURRENCY,
-  outputDir: DEFAULT_NORMALIZE_DIR,
 };
 
 /** Maximum number of segments per file. Segments returned by the AI are truncated to this count. */
