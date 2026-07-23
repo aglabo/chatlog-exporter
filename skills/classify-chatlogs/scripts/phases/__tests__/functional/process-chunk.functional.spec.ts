@@ -9,7 +9,7 @@
 // cspell:words MoveByAI
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -21,6 +21,7 @@ import type { ClassifyCache, ProjectDicEntry } from '../../../types/classify.typ
 // classes
 import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
@@ -28,6 +29,7 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
 import {
+  BaseMockCommand,
   installCommandMock,
   makeFailMock,
   makeSuccessMock,
@@ -38,8 +40,36 @@ import {
   _makeEmptyClassifyCache,
 } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+
+/**
+ * 非ゼロ exit かつ stderr に rate limit 文言を含む出力を模倣するモッククラス。
+ *
+ * `runAI` の `_isRateLimit` 判定（stderr に対する `/rate.?limit|429/i`）を発火させ、
+ * `ChatlogError('AiError', 'RateLimit', ...)` を throw させるために使用する。
+ * `BaseMockCommand.spawn()` は `output()` のみを呼ぶため、stderr を持つ `makeOutput()` を独自実装する。
+ */
+class _RateLimitMockCommand extends BaseMockCommand {
+  constructor(_cmd: string, _opts: unknown) {
+    super();
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: new TextEncoder().encode('rate limit exceeded'),
+    });
+  }
+}
+
+/** `_RateLimitMockCommand` を `DenoCommandLike` として返すファクトリヘルパー。 */
+const _makeRateLimitMock = (): DenoCommandLike => _RateLimitMockCommand as unknown as DenoCommandLike;
 
 // ─── Tests
 
@@ -49,7 +79,7 @@ import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logge
  * AI 呼び出しの成功・失敗・JSON パースエラー・ファイル名不一致を検証する。
  * 戻り値は `ChatlogEntry[]`（副作用なし）。
  *
- * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-04
+ * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-08
  *
  * @see processChunk
  */
@@ -84,7 +114,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      const result = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(result, ['/tmp/input/a.md']);
     });
@@ -93,7 +123,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(
         loggerStub.infoLogs.some((l) => l.includes('classify:')),
@@ -106,7 +136,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md'), {
         project: 'app1',
@@ -142,7 +172,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const result = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(result, ['/tmp/input/a.md', '/tmp/input/b.md']);
     });
@@ -151,7 +181,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(
         loggerStub.warnLogs.some((l) => l.includes('claude CLI 実行失敗')),
@@ -164,7 +194,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
     });
@@ -180,7 +210,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const result = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(result, ['/tmp/input/a.md']);
     });
@@ -196,7 +226,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(
         loggerStub.warnLogs.some((l) => l.includes('JSON パース失敗')),
@@ -216,9 +246,42 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
+    });
+
+    it('[Error] T-CL-PC-08-01: rate limit エラー → 握りつぶさず re-throw される', async () => {
+      mockHandle.restore();
+      loggerStub.restore();
+      loggerStub = makeLoggerStub();
+      mockHandle = installCommandMock(_makeRateLimitMock());
+
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      const error = await assertRejects(
+        () => processChunk(metas, projects, model, cache, new AbortController()),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(error.subindex, 'RateLimit');
+    });
+
+    it('[Error] T-CL-PC-08-02: rate limit エラー → cache には書き込まれない', async () => {
+      mockHandle.restore();
+      loggerStub.restore();
+      loggerStub = makeLoggerStub();
+      mockHandle = installCommandMock(_makeRateLimitMock());
+
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await assertRejects(
+        () => processChunk(metas, projects, model, cache, new AbortController()),
+        ChatlogError,
+      );
+      assertEquals(cache.read('/tmp/input/a.md'), {});
     });
   });
 
@@ -253,7 +316,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md').project, FALLBACK_PROJECT);
     });
@@ -262,7 +325,7 @@ describe('processChunk', () => {
       const metas: ChatlogEntry[] = [];
       const projects: ProjectDicEntry = { app1: {}, misc: {} };
 
-      const result = await processChunk(metas, projects, model, cache);
+      const result = await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(result, []);
     });
@@ -282,7 +345,7 @@ describe('processChunk', () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
 
-      await processChunk(metas, projects, model, cache);
+      await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md').project, 'app1');
     });
