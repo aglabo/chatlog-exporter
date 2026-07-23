@@ -23,8 +23,8 @@ import type {
 
 // -- internal modules ---
 // functions
-/** `YYYY-MM` または `YYYY` 形式の文字列の場合 `true` を返す（CLI 位置引数の期間判定）。 */
-export const isArgPeriod = (arg: string): boolean => /^\d{4}-\d{2}$/.test(arg) || /^\d{4}$/.test(arg);
+/** `YYYY-MM` 形式の文字列の場合 `true` を返す（CLI 位置引数の期間判定）。 */
+export const isArgPeriod = (arg: string): boolean => /^\d{4}-\d{2}$/.test(arg);
 
 /** バックスラッシュをスラッシュに変換後に `/` を含む場合 `true` を返す（CLI 位置引数のディレクトリパス判定）。 */
 export const isArgDirectory = (arg: string): boolean => {
@@ -136,7 +136,7 @@ const _setByType = (
         return new ChatlogError(
           'InvalidArgs',
           'InvalidPeriodFormat',
-          `期間形式ではありません（YYYY または YYYY-MM）: ${rawValue}`,
+          `期間形式ではありません（YYYY-MM）: ${rawValue}`,
         );
       }
       config[entry.field] = rawValue;
@@ -238,7 +238,7 @@ const _parsePositionals = (
           throw new ChatlogError(
             'InvalidArgs',
             'InvalidPeriodPosition',
-            `2番目の引数は期間形式である必要があります（YYYY または YYYY-MM）: ${positionals[idx + 1]}`,
+            `2番目の引数は期間形式である必要があります（YYYY-MM）: ${positionals[idx + 1]}`,
           );
         }
         _assignEntry(config, schemaMap, 'period', positionals[idx + 1]);

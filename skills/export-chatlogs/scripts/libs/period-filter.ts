@@ -20,29 +20,23 @@ import type { PeriodRange } from '../types/filter.types.ts';
 // Functions
 // ----------
 
-/** CLI の期間文字列（"YYYY-MM" / "YYYY" / undefined）を PeriodRange に変換する。 */
+/** CLI の期間文字列（"YYYY-MM" / undefined）を PeriodRange に変換する。 */
 export const parsePeriod = (period: string | undefined): PeriodRange => {
   if (!period) {
     return { startMs: 0, endMs: Infinity };
   }
   const ymMatch = period.match(/^(\d{4})-(\d{2})$/);
-  const yMatch = period.match(/^(\d{4})$/);
   if (ymMatch) {
     const year = parseInt(ymMatch[1]);
     const month = parseInt(ymMatch[2]);
     const start = new Date(year, month - 1, 1).getTime();
     const end = new Date(year, month, 1).getTime();
     return { startMs: start, endMs: end };
-  } else if (yMatch) {
-    const year = parseInt(yMatch[1]);
-    const start = new Date(year, 0, 1).getTime();
-    const end = new Date(year + 1, 0, 1).getTime();
-    return { startMs: start, endMs: end };
   }
   throw new ChatlogError(
     'InvalidPeriod',
     'InvalidFormat',
-    `期間の形式が不正です（例: 2026-03 または 2026）: ${period}`,
+    `期間の形式が不正です（例: 2026-03）: ${period}`,
   );
 };
 

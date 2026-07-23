@@ -19,11 +19,12 @@ import type { HashProvider } from '../../_scripts/types/providers.types.ts';
 // -- constants --
 import {
   DEFAULT_AGENT,
+  DEFAULT_NORMALIZE_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
 } from '../../_scripts/constants/defaults.constants.ts';
 
 // -- file-io --
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
+import { resolveChatlogsDir, resolveOutputBase } from '../../_scripts/libs/file-io/resolve-directory.ts';
 import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
 
 // ─────────────────────────────────────────────
@@ -63,8 +64,15 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   if (!dirExistsSync(inputDir)) {
     throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
   }
+  const outputBase = resolveOutputBase({
+    chatlogsDir: config.chatlogsDir,
+    agent: config.agent ?? DEFAULT_AGENT,
+    period: config.period,
+    addOnDir: DEFAULT_NORMALIZE_DIR,
+    outputDir: config.outputDir,
+  });
   const stats = initStats();
-  await processFiles(inputDir, config.outputDir!, config, stats, hashFn);
+  await processFiles(inputDir, outputBase, config, stats, hashFn);
   reportStats(stats);
 };
 

@@ -22,8 +22,8 @@ import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts
  * `parsePeriod` のユニットテストスイート。
  *
  * CLI の期間文字列を PeriodRange（ミリ秒の半開区間）に変換する関数の動作を検証する。
- * undefined（全期間）・YYYY-MM（月指定）・YYYY（年指定）の正常ケースと、
- * 不正形式での Error スローをカバーする。
+ * undefined（全期間）・YYYY-MM（月指定）の正常ケースと、
+ * 不正形式（YYYY 単独を含む）での Error スローをカバーする。
  *
  * @see parsePeriod
  * @see PeriodRange
@@ -72,24 +72,16 @@ describe('parsePeriod', () => {
   });
 
   /**
-   * YYYY 形式の年指定シナリオ。
-   * [2026-01-01, 2027-01-01) の半開区間が返ることを確認する。
+   * YYYY 形式（年のみ指定、非対応）のシナリオ。
+   * YYYY-MM 形式でないため ChatlogError がスローされることを確認する。
    */
-  describe('Given: "2026"（年指定）', () => {
+  describe('Given: "2026"（年のみ指定、非対応）', () => {
     /** parsePeriod("2026") を呼び出す */
     describe('When: parsePeriod("2026") を呼び出す', () => {
-      /** T-EC-PF-01: 2026年の範囲を返す */
-      describe('Then: T-EC-PF-01 - 2026年の範囲を返す', () => {
-        it('T-EC-PF-01-04: startMs が 2026年1月1日のミリ秒', () => {
-          const range = parsePeriod('2026');
-          const expected = new Date(2026, 0, 1).getTime();
-          assertEquals(range.startMs, expected);
-        });
-
-        it('T-EC-PF-01-05: endMs が 2027年1月1日のミリ秒', () => {
-          const range = parsePeriod('2026');
-          const expected = new Date(2027, 0, 1).getTime();
-          assertEquals(range.endMs, expected);
+      /** T-EC-PF-01: Error をスローする */
+      describe('Then: T-EC-PF-01 - Error をスローする', () => {
+        it('T-EC-PF-01-04: ChatlogError がスローされる', () => {
+          assertThrows(() => parsePeriod('2026'), ChatlogError);
         });
       });
     });

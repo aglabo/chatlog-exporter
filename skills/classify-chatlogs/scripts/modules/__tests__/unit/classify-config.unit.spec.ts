@@ -131,9 +131,11 @@ describe('buildConfig (CLI 引数解析)', () => {
           assertEquals(result.period, '2026-04');
         });
 
-        it('T-CL-PA-08-02: --period=VALUE → period が設定される', () => {
-          const result = buildConfig(['--period=2026']);
-          assertEquals(result.period, '2026');
+        it('T-CL-PA-08-02: --period=2026（年のみ形式） → ChatlogError がスローされる', () => {
+          assertThrows(
+            () => buildConfig(['--period=2026']),
+            ChatlogError,
+          );
         });
 
         it('T-CL-PA-08-03: --period 不正形式 → ChatlogError がスローされる', () => {

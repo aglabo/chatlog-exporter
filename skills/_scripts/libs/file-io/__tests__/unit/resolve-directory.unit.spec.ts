@@ -18,9 +18,13 @@ import {
   extractChatlogPath,
   periodToPath,
   resolveChatlogsDir,
+  resolveOutputBase,
 } from '../../resolve-directory.ts';
 // types
-import type { ResolveChatlogsDirOptions } from '../../resolve-directory.ts';
+import type { ResolveChatlogsDirOptions, ResolveOutputBaseOptions } from '../../resolve-directory.ts';
+
+// ─── Helpers
+import { joinPath } from '../../../path-utils/path-utils.ts';
 
 // ─── Tests
 
@@ -240,6 +244,59 @@ describe('resolveChatlogsDir', () => {
         addOnDir: 'originalLogs',
       };
       assertEquals(resolveChatlogsDir(_opts), '/explicit/chatlogs');
+    });
+  });
+});
+
+/**
+ * `resolveOutputBase` 関数のユニットテストスイート。
+ *
+ * `resolveOutputBase(options)` は出力先ベースディレクトリを解決する。
+ * - `outputDir` が絶対パス → そのまま返す
+ * - `outputDir` が相対パス → `chatlogsDir` と結合して返す
+ * - `outputDir` が未指定 → `resolveChatlogsDir`（override なし）のデフォルト解決に委譲する
+ *
+ * テスト ID 範囲: T-RD-ROB-01-01 〜 T-RD-ROB-01-03
+ *
+ * @see resolveOutputBase
+ */
+describe('resolveOutputBase', () => {
+  /** 正常系ケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-RD-ROB-01-01: outputDir が絶対パス → そのまま返る', () => {
+      const _opts: ResolveOutputBaseOptions = {
+        chatlogsDir: '/custom/chatlogs',
+        agent: 'claude',
+        outputDir: '/abs/out',
+      };
+      assertEquals(resolveOutputBase(_opts), '/abs/out');
+    });
+
+    it('[Normal] T-RD-ROB-01-02: outputDir が相対パス → joinPath(chatlogsDir, outputDir) と一致する', () => {
+      const _opts: ResolveOutputBaseOptions = {
+        chatlogsDir: '/custom/chatlogs',
+        agent: 'claude',
+        outputDir: './out',
+      };
+      assertEquals(resolveOutputBase(_opts), joinPath('/custom/chatlogs', './out'));
+    });
+
+    it('[Normal] T-RD-ROB-01-03: outputDir が未指定 → resolveChatlogsDir（override なし）と同じ結果になる', () => {
+      const _opts: ResolveOutputBaseOptions = {
+        chatlogsDir: '/custom/chatlogs',
+        agent: 'claude',
+        period: '2026-03',
+        addOnDir: 'normalizelogs',
+      };
+      assertEquals(
+        resolveOutputBase(_opts),
+        resolveChatlogsDir({
+          chatlogsDir: '/custom/chatlogs',
+          agent: 'claude',
+          period: '2026-03',
+          addOnDir: 'normalizelogs',
+        }),
+      );
     });
   });
 });

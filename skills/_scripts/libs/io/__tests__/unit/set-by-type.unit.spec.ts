@@ -278,12 +278,12 @@ describe('_setByType', () => {
   /**
    * `period` 型の動作テスト。
    *
-   * `YYYY-MM` または `YYYY` 形式の文字列は正常にセットされ、
-   * それ以外の形式はエラーになることを検証する。
+   * `YYYY-MM` 形式の文字列は正常にセットされ、
+   * それ以外の形式（YYYY 単独を含む）はエラーになることを検証する。
    * 月レンジ（01〜12）は `isArgPeriod` の仕様に合わせて検証しない。
    */
   describe('period 型', () => {
-    /** YYYY-MM 形式・YYYY 形式の正常ケース。 */
+    /** YYYY-MM 形式の正常ケース。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SBT-PR-01: rawValue "2026-03" → config[field] = "2026-03"', () => {
         const config = _makeConfig();
@@ -291,17 +291,17 @@ describe('_setByType', () => {
         assertEquals(config['result'], '2026-03');
         assertNull(result);
       });
-
-      it('[Normal] T-SBT-PR-02: rawValue "2026" → config[field] = "2026"', () => {
-        const config = _makeConfig();
-        const result = _setByTypeForTest(config, _entry('period'), '2026');
-        assertEquals(config['result'], '2026');
-        assertNull(result);
-      });
     });
 
     /** 不正な形式や undefined の異常ケース。 */
     describe('When: 異常系', () => {
+      it('[Error] T-SBT-PR-02: rawValue "2026" → ChatlogError（年のみ形式は非対応）', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, _entry('period'), '2026');
+        assertNotNull(result);
+        assert(result instanceof ChatlogError);
+      });
+
       it('[Error] T-SBT-PR-03: rawValue "invalid" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), 'invalid');
