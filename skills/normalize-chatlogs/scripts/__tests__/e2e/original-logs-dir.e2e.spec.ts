@@ -176,7 +176,7 @@ describe('main', () => {
             await Deno.remove(chatlogsDir, { recursive: true });
           });
 
-          it('T-NC-MAIN-02-01: 出力ファイルが normalizelogs/claude/2026/2026-03/claude/2026/2026-03/ 配下に生成される', async () => {
+          it('T-NC-MAIN-02-01: 出力ファイルが normalizelogs/claude/2026/2026-03/my-project/ 配下に生成される', async () => {
             await main([
               '--config',
               configFile,
@@ -188,10 +188,8 @@ describe('main', () => {
 
             const mirroredBase = `${chatlogsDir}/normalizelogs/claude/2026/2026-03`;
             const files = await findFiles(mirroredBase);
-            const doublyMirrored = files.filter((f) =>
-              normalizePath(f).includes(`${mirroredBase}/claude/2026/2026-03`)
-            );
-            assertEquals(doublyMirrored.length > 0, true);
+            const underProject = files.filter((f) => normalizePath(f).includes(`${mirroredBase}/my-project`));
+            assertEquals(underProject.length > 0, true);
           });
         });
       });
