@@ -18,6 +18,7 @@ import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 // ─── Local
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type {
   ClassifyCache,
@@ -110,6 +111,7 @@ export const processChunk = async (
   projects: ProjectDicEntry,
   model: string,
   cache: ChatlogCache<ClassifyCache>,
+  ctl: AbortController,
 ): Promise<string[]> => {
   if (chunkMetas.length === 0) { return []; }
 
@@ -118,8 +120,11 @@ export const processChunk = async (
 
   let rawResult: string;
   try {
-    rawResult = await runAI(_systemPrompt, _batchPrompt, { model });
+    rawResult = await runAI(_systemPrompt, _batchPrompt, { model, signal: ctl.signal });
   } catch (e) {
+    if (e instanceof ChatlogError && e.kind === 'AiError' && e.subindex === 'RateLimit') {
+      throw e;
+    }
     const _reason = `claude CLI 実行失敗: ${e}`;
     logger.warn(`${LOGGER_TEXT.INDENT}${_reason}`);
     return _writeChunkError(chunkMetas, cache, _reason);
@@ -172,7 +177,7 @@ export const classifyByAI = async (
   await runChunked<ChatlogEntry, string[]>(
     targets,
     config.chunkSize,
-    (chunk) => processChunk(chunk, projects, config.model, cache),
+    (chunk, ctl) => processChunk(chunk, projects, config.model, cache, ctl),
     config.concurrency,
   );
 };
