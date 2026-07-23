@@ -213,14 +213,14 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", CHATLOG_INPUT_DIR, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: Task T-15-05-01 - 出力が <outputBase>/claude/2026/2026-04/my-app/ 以下に生成される', () => {
-        it('T-15-05-01-01: 出力ファイルのパスが <outputBase>/claude/2026/2026-04/my-app/ を含む', async () => {
+      describe('Then: 出力が <outputBase>/my-app/ 以下に生成される', () => {
+        it('T-15-05-01-01: 出力ファイルのパスが <outputBase>/my-app/ を含む', async () => {
           const fixedHash: HashProvider = () => 'abc1234';
           await main(['--input-dir', CHATLOG_INPUT_DIR, '--output-dir', outputBase], fixedHash);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
-          const expectedSubPath = `claude/2026/2026-04/my-app`;
+          const expectedSubPath = `my-app`;
           const allUnderExpected = files.every((f) => normalizePath(f).includes(expectedSubPath));
           assertEquals(allUnderExpected, true);
         });
