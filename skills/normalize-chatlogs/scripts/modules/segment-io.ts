@@ -24,14 +24,13 @@ import { writeTextFile } from '../../../_scripts/libs/file-io/write-utils.ts';
 
 // --- io ---
 import { generateHash } from '../../../_scripts/libs/io/hash.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
 
 // --- path ---
 import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── internasl modules
 // types
-import type { Segment, Stats } from '../types/normalize.types.ts';
+import type { Segment } from '../types/normalize.types.ts';
 
 // ─── local
 // constants
@@ -143,18 +142,18 @@ export const attachFrontmatter = (
  * Writes a single segment to an output file.
  *
  * Generates the output file name from `filePath` and `index`, builds the full Markdown content
- * with frontmatter attached, then either logs a dryRun skip or backs up an existing file at the
- * output path via {@link backupOldPath} and writes the new content via {@link writeTextFile}.
+ * with frontmatter attached, backs up an existing file at the output path via
+ * {@link backupOldPath}, then writes the new content via {@link writeTextFile}. On failure
+ * (forbidden output path, backup/write I/O error), throws `ChatlogError` — the caller is
+ * responsible for any dryRun skip behavior and `stats` accounting.
  *
  * @param outputDir  - Directory in which the output file is written
  * @param filePath   - Source chatlog file path (used to derive the output file name)
  * @param index      - Zero-based segment index (used to derive the output file name)
  * @param segment    - Segment data (title, summary, content)
  * @param frontmatter - ChatlogFrontmatter instance from the source file
- * @param dryRun     - When true, no disk writes are performed; logs a "would write" message and increments `stats.skip`
- * @param stats      - Mutable counters updated in place
  * @param hashFn     - Optional hash generator for output file names (injectable for testing)
- * @returns The absolute path of the (would-be) written output file
+ * @returns The absolute path of the written output file
  */
 export const writeSegmentToFile = async (
   outputDir: string,
@@ -162,8 +161,6 @@ export const writeSegmentToFile = async (
   index: number,
   segment: { title: string; summary: string; content: string },
   frontmatter: ChatlogFrontmatter,
-  dryRun: boolean,
-  stats: Stats,
   hashFn?: HashProvider,
 ): Promise<string> => {
   const outputFileName = await generateOutputFileName(filePath, index, hashFn);
@@ -180,13 +177,7 @@ export const writeSegmentToFile = async (
       `writing to input file is forbidden: ${outputPath}`,
     );
   }
-  if (dryRun) {
-    logger.dryrun(`skipped written: ${outputPath}`);
-    stats.skip++;
-    return outputPath;
-  }
   await backupOldPath(outputPath);
   await writeTextFile(outputPath, fullContent);
-  stats.success++;
   return outputPath;
 };
