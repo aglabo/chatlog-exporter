@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // functions
-import { joinPath, normalizePath } from '../path-utils/path-utils.ts';
+import { isAbsolutePath, joinPath, normalizePath } from '../path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // チャットログパス構築
@@ -63,6 +63,30 @@ export const resolveChatlogsDir = (
   if (override) { return override; }
   const _base = addOnDir ? joinPath(chatlogsDir, addOnDir) : chatlogsDir;
   return `${_base}/${agentPath(agent, period)}`;
+};
+
+export type ResolveOutputBaseOptions = {
+  chatlogsDir: string;
+  agent: string;
+  period?: string;
+  addOnDir?: string;
+  outputDir?: string;
+};
+
+/**
+ * 出力先ベースディレクトリを解決する。
+ *
+ * - `outputDir` が絶対パス → そのまま返す
+ * - `outputDir` が相対パス → `chatlogsDir` と結合して返す
+ * - `outputDir` が未指定 → `resolveChatlogsDir`（override なし）のデフォルト解決に委譲する
+ */
+export const resolveOutputBase = (
+  { chatlogsDir, agent, period, addOnDir, outputDir }: ResolveOutputBaseOptions,
+): string => {
+  if (outputDir) {
+    return isAbsolutePath(outputDir) ? outputDir : joinPath(chatlogsDir, outputDir);
+  }
+  return resolveChatlogsDir({ chatlogsDir, agent, period, addOnDir });
 };
 
 // ─────────────────────────────────────────────
