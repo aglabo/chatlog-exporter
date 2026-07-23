@@ -11,7 +11,6 @@
 // constants
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 // functions
-import { extractChatlogPath } from '../../../_scripts/libs/file-io/resolve-directory.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -35,17 +34,10 @@ import type { NormalizeConfig, Segment, Stats } from '../types/normalize.types.t
 /**
  * Resolves the output directory for a single chatlog file.
  *
- * If `filePath` contains `chatlogs/<agent>/<yyyy>/<yyyy-mm>`, returns
- * `<outputBase>/<agent>/<yyyy>/<yyyy-mm>/<project>`.
- * Otherwise returns `<outputBase>/<project>`.
- * Falls back to `'misc'` when `project` is undefined.
+ * Joins `project` onto `outputBase`. Falls back to `'misc'` when `project` is undefined.
  */
-export const resolveOutputDir = (outputBase: string, filePath: string, project?: string): string => {
-  const chatlogPath = extractChatlogPath(filePath);
-  const effectiveProject = project ?? 'misc';
-  return chatlogPath
-    ? `${outputBase}/${chatlogPath}/${effectiveProject}`
-    : `${outputBase}/${effectiveProject}`;
+export const resolveOutputDir = (outputBase: string, project?: string): string => {
+  return `${outputBase}/${project ?? 'misc'}`;
 };
 
 /**
@@ -95,7 +87,7 @@ const _writePlannedEntry = async (
   const filePath = entry.filePath!;
   const _projectVal = entry.frontmatter.get('project');
   const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
-  const outputDir = resolveOutputDir(outputBase, filePath, _project);
+  const outputDir = resolveOutputDir(outputBase, _project);
   await Deno.mkdir(outputDir, { recursive: true });
 
   const segments = _rebuildSegments(entry, cache);
