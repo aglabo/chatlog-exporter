@@ -24,7 +24,7 @@ import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.
  *
  * 3段階フォールバック（直接パース / non-greedy / greedy）の各パスを網羅する。
  *
- * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-15
+ * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-18
  *
  * @see parseAiJsonArray
  */
@@ -61,6 +61,38 @@ describe('parseAiJsonArray', () => {
       const _result = parseAiJsonArray('result: [{"a":1},{"a":2}] end');
       assert(Array.isArray(_result));
       assertEquals((_result as unknown[]).length, 2);
+    });
+
+    it('[Normal] T-LIB-J-16: コードフェンス内のネスト配列を含む応答は外側配列を正しく返す', () => {
+      const _raw = '```json\n'
+        + '[{"filePath":"a.md","segments":[{"x":1}]},{"filePath":"b.md","segments":[{"y":2}]}]\n'
+        + '```';
+      const _result = parseAiJsonArray<{ filePath: string; segments: unknown[] }>(_raw);
+      assertNotNull(_result);
+      assertEquals(_result!.length, 2);
+      assertEquals(_result![0].filePath, 'a.md');
+      assertEquals(_result![1].filePath, 'b.md');
+    });
+
+    it('[Normal] T-LIB-J-17: フェンス前後に説明文がある場合もネスト配列を含む外側配列を正しく返す', () => {
+      const _raw = 'Here is the result:\n'
+        + '```json\n'
+        + '[{"filePath":"a.md","segments":[{"x":1}]},{"filePath":"b.md","segments":[{"y":2}]}]\n'
+        + '```\n'
+        + 'Done.';
+      const _result = parseAiJsonArray<{ filePath: string; segments: unknown[] }>(_raw);
+      assertNotNull(_result);
+      assertEquals(_result!.length, 2);
+      assertEquals(_result![0].filePath, 'a.md');
+      assertEquals(_result![1].filePath, 'b.md');
+    });
+
+    it('[Normal] T-LIB-J-18: 言語タグなしのコードフェンスも除去して外側配列を返す', () => {
+      const _raw = '```\n[{"filePath":"a.md","segments":[{"x":1}]}]\n```';
+      const _result = parseAiJsonArray<{ filePath: string; segments: unknown[] }>(_raw);
+      assertNotNull(_result);
+      assertEquals(_result!.length, 1);
+      assertEquals(_result![0].filePath, 'a.md');
     });
 
     it('[Normal] T-LIB-J-09: 改行・インデントを含む整形済み JSON 配列がパースできる', () => {
