@@ -81,12 +81,12 @@ type _AiSegmentRange = {
  * responsibility (see {@link phaseWrite}).
  *
  * @param inputs   - Array of `ChatlogEntry` to segment
- * @param options  - Optional AI options (model, timeoutMs)
+ * @param options  - Optional AI options (model, timeoutMs, signal)
  * @returns Map from filePath to SegmentPlan[] or null
  */
 export const segmentChatlogs = async (
   inputs: ChatlogEntry[],
-  options?: { model?: string; timeoutMs?: number },
+  options?: { model?: string; timeoutMs?: number; signal?: AbortSignal },
 ): Promise<Map<string, SegmentPlan[] | null>> => {
   const _nullMap = (): Map<string, SegmentPlan[] | null> => {
     const m = new Map<string, SegmentPlan[] | null>();
@@ -117,6 +117,7 @@ export const segmentChatlogs = async (
     _raw = await runAI(systemPrompt, userPrompt, {
       model: options?.model ?? DEFAULT_AI_MODEL,
       ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     });
   } catch (e) {
     if (e instanceof ChatlogError && e.kind === 'AiError' && e.subindex === 'RateLimit') {
