@@ -20,6 +20,7 @@ import { getBasename, normalizePath } from '../../../_scripts/libs/path-utils/pa
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 
 // types
+import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
 import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
@@ -29,15 +30,16 @@ import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 
 // --- internal modules
-import { toCacheKey } from '../libs/cache-utils.ts';
+import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';
 import { phaseLoad } from '../phases/phase-load.ts';
 import { phaseSegment } from '../phases/phase-segment.ts';
 import { phaseWrite } from '../phases/phase-write.ts';
 
-/** Result of the "prepare files" phase: files still needing processing, and files already normalized. */
-type _PreparedFiles = {
-  pendingFiles: string[];
-  skipFiles: string[];
+/** Result of partitioning loaded `ChatlogEntry` objects by cache status. */
+type _ClassifiedEntries = {
+  doneEntries: ChatlogEntry[];
+  setEntries: ChatlogEntry[];
+  unclassifiedEntries: ChatlogEntry[];
 };
 
 /**
@@ -70,30 +72,80 @@ const _validateDirs = async (inputDir: string, outputBase: string): Promise<void
 };
 
 /**
- * Phase 2: Partitions `mdFiles` into already-normalized (skip) and pending files based on the cache.
+ * Partitions loaded `entries` by cache status: already-normalized (done), already
+ * segment-planned (set), and unclassified (needs AI segmentation).
  *
- * @param mdFiles - Files discovered via `findFiles(inputDir)`
- * @param cache   - Cache used to detect already-normalized files across runs
- * @returns Pending file paths and the files skipped as already-normalized
+ * @param entries - Entries loaded via {@link phaseLoad}
+ * @param cache   - Cache used to detect already-normalized/planned files across runs
+ * @returns The three cache-status groups
  */
-const _prepareFiles = (mdFiles: string[], cache: ChatlogCache<NormalizeCache>): _PreparedFiles => {
-  // cache に status:'done' が記録済みのファイル（正規化済み）を pending から除外
-  const skipFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status === NORMALIZE_CACHE_STATUSES.DONE);
-  const pendingFiles = mdFiles.filter((f) => cache.read(toCacheKey(f)).status !== NORMALIZE_CACHE_STATUSES.DONE);
+const _classifyEntries = (entries: ChatlogEntry[], cache: ChatlogCache<NormalizeCache>): _ClassifiedEntries => {
+  const _statusOf = (entry: ChatlogEntry) => cache.read(toCacheKey(entry.filePath!)).status;
 
-  return { pendingFiles, skipFiles };
+  const doneEntries = entries.filter((entry) => _statusOf(entry) === NORMALIZE_CACHE_STATUSES.DONE);
+  const setEntries = entries.filter((entry) => _statusOf(entry) === NORMALIZE_CACHE_STATUSES.SET);
+  const unclassifiedEntries = entries.filter((entry) => _statusOf(entry) === undefined);
+
+  return { doneEntries, setEntries, unclassifiedEntries };
+};
+
+/**
+ * Applies the fail/fail-fast accounting for entries whose segment planning did not succeed
+ * (AI returned no segments, or a segment missing `startLine`/`endLine`).
+ *
+ * When `config.dryRun` is true, no `ChatlogError` is thrown (regardless of `failFast`); each
+ * failed entry logs a dry-run message via `logger.dryrun` and increments `stats.skip` instead
+ * of `stats.fail`.
+ *
+ * @param entries - Entries to check (only those still missing planned segments are accounted)
+ * @param cache   - Cache read to detect planning success (`hasSegments`)
+ * @param config  - Processing config (failFast, dryRun)
+ * @param stats   - Mutable counters updated in place
+ */
+const _accountSegmentFailures = (
+  entries: ChatlogEntry[],
+  cache: ChatlogCache<NormalizeCache>,
+  config: Pick<NormalizeConfig, 'failFast' | 'dryRun'>,
+  stats: Stats,
+): void => {
+  const failedEntries = entries.filter((entry) => !hasSegments(entry, cache));
+
+  if (!config.dryRun && config.failFast && failedEntries.length > 0) {
+    throw new ChatlogError(
+      'FailFast',
+      'SegmentFailed',
+      `fail-fast triggered by: ${getBasename(failedEntries[0].filePath!)}`,
+    );
+  }
+
+  if (config.dryRun) {
+    failedEntries.forEach((entry) => {
+      logger.dryrun(`skipped (no segments returned): ${getBasename(entry.filePath!)}`);
+    });
+    stats.skip += failedEntries.length;
+    return;
+  }
+
+  failedEntries.forEach((entry) => {
+    logger.warn(`${LOGGER_TEXT.INDENT}failed (no segments returned): ${getBasename(entry.filePath!)}`);
+  });
+  stats.fail += failedEntries.length;
 };
 
 /**
  * Processes markdown files under `inputDir` by segmenting each via AI and writing output.
  *
  * Flow: {@link _validateDirs} (validate, before cache init) → `findFiles` (discover) →
- * {@link _prepareFiles} (skip already-normalized) → {@link phaseLoad} (load, partition
- * load errors) → {@link phaseSegment} (AI call, or cached segments on resume; writes planned
- * segments to the cache) → {@link phaseWrite} (rebuild segments from cache, write output,
- * update cache).
+ * {@link phaseLoad} (load all files into `ChatlogEntry`, partition load errors) →
+ * {@link _classifyEntries} (classify loaded entries by cache status: done/set/unclassified) →
+ * {@link phaseSegment} (AI call for unclassified entries; writes planned segments to the cache;
+ * skips the AI call entirely when `dryRun`, returning only already-planned entries)
+ * → {@link _accountSegmentFailures} (fail/failFast/warn accounting for entries still without
+ * planned segments after phaseSegment; dryRun accounts as skip instead and never throws)
+ * → {@link phaseWrite} (rebuild segments from cache, write output, update cache) for the union
+ * of already-`set` entries and newly-planned entries.
  * Updates `stats` in place: `done` increments on already-normalized skip, `error` on load error,
- * `fail` on AI error, `success` on each write.
+ * `fail` on AI error (or `skip` when dryRun), `success` on each write.
  *
  * @param inputDir   - Source directory (files are discovered here via findFiles)
  * @param outputBase - Base output directory
@@ -117,25 +169,25 @@ export const processFiles = async (
   const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
   await cache.ready;
 
-  const { pendingFiles: _pendingFiles, skipFiles: _skipFiles } = _prepareFiles(allFiles, cache);
-
-  for (const filePath of _skipFiles) {
-    logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(filePath)}`);
-  }
-  stats.done += _skipFiles.length;
-
   const { entries: allEntries, errors: _errors } = await phaseLoad(
-    _pendingFiles,
-    config.concurrency,
+    allFiles,
     config,
-    stats,
+    config.concurrency,
   );
+  stats.error += _errors.length;
   if (_errors.length > 0) {
     logger.error(`${LOGGER_TEXT.INDENT}can't read files: ${_errors.length}`);
   }
-  // phaseSegment's return value (entries successfully planned) is not consumed here: phaseWrite
-  // rebuilds segments per entry from the cache and needs the full entry list so cache-miss
-  // entries still reach its fail/fallback handling. See phaseSegment's JSDoc for details.
-  await phaseSegment(allEntries, cache, config, config.concurrency);
-  await phaseWrite(allEntries, _outputBase, config, stats, cache, config.concurrency, hashFn);
+
+  const { doneEntries, setEntries, unclassifiedEntries } = _classifyEntries(allEntries, cache);
+
+  for (const entry of doneEntries) {
+    logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(entry.filePath!)}`);
+  }
+  stats.done += doneEntries.length;
+
+  const _plannedEntries = await phaseSegment(unclassifiedEntries, cache, config, config.concurrency);
+  _accountSegmentFailures(unclassifiedEntries, cache, config, stats);
+
+  await phaseWrite([...setEntries, ..._plannedEntries], _outputBase, config, stats, cache, config.concurrency, hashFn);
 };
