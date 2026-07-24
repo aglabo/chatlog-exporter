@@ -23,7 +23,7 @@ import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.
 
 // ─── Local
 import { toCacheKey } from '../libs/cache-utils.ts';
-import { extractLines } from '../modules/segment-ai.ts';
+import { extractLines } from '../libs/line-utils.ts';
 import { writeSegmentToFile } from '../modules/segment-io.ts';
 // constants
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';

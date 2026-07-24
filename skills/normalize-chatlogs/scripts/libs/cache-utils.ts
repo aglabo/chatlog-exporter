@@ -14,7 +14,7 @@ import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 
 // ─── Local
-import { extractSegmentBaseName } from '../modules/segment-io.ts';
+import { extractSegmentBaseName } from './path-utils.ts';
 // types
 import type { NormalizeCache } from '../types/cache.const.type.ts';
 

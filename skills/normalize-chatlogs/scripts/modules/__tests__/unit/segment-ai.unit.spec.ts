@@ -17,7 +17,7 @@ import type { DenoCommandLike } from '../../../../../_scripts/__tests__/helpers/
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { extractLines, segmentChatlogs } from '../../segment-ai.ts';
+import { segmentChatlogs } from '../../segment-ai.ts';
 
 // ─── Helpers
 import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
@@ -45,6 +45,16 @@ import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.con
 
 /** テスト用の `ChatlogEntry` を `filePath` と本文 `content` から生成する（frontmatterなし）。 */
 const _makeEntry = (filePath: string, content: string): ChatlogEntry => new ChatlogEntry(content, { filePath });
+
+// constants
+
+/** `_addLineNumbers` の行番号パディング仕様を検証するテストケース（行インデックス → 期待される行頭プレフィックス）。 */
+const _lineNumberPaddingCases = [
+  { lineIndex: 1, expectedPrefix: '    1: ' },
+  { lineIndex: 42, expectedPrefix: '   42: ' },
+  { lineIndex: 99999, expectedPrefix: '99999: ' },
+  { lineIndex: 100000, expectedPrefix: '100000: ' },
+] as const;
 
 // classes
 
@@ -457,11 +467,36 @@ describe('segmentChatlogs', () => {
       // act
       await segmentChatlogs([_makeEntry('test.md', content)]);
 
-      // assert — stdin には "1: line A\n2: line B" が含まれる
+      // assert — stdin には "    1: line A\n    2: line B" が含まれる（5桁固定幅右詰め）
       assert(captured.instance !== null, 'mock was not instantiated');
       const written = captured.instance.capturedStdin.join('');
-      assert(written.includes('1: line A\n2: line B'), `expected line-numbered content in stdin, got: ${written}`);
+      assert(
+        written.includes('    1: line A\n    2: line B'),
+        `expected line-numbered content in stdin, got: ${written}`,
+      );
     });
+
+    for (const { lineIndex, expectedPrefix } of _lineNumberPaddingCases) {
+      it(`[Normal] T-SIO-LR-26: 行番号 ${lineIndex} は "${expectedPrefix}" というプレフィックスで出力される`, async () => {
+        // arrange
+        const aiResult = [
+          { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
+        ];
+        const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+        const captured: { instance: _StdinCaptureMock | null } = { instance: null };
+        mockHandle = installCommandMock(_makeStdinCaptureMock(stdout, captured));
+        const content = Array.from({ length: lineIndex }, (_, i) => `L${i + 1}`).join('\n');
+
+        // act
+        await segmentChatlogs([_makeEntry('test.md', content)]);
+
+        // assert — 対象行の行頭プレフィックスが仕様通り（1〜5桁は5桁固定幅右詰め、6桁以上はパディングなし）
+        assert(captured.instance !== null, 'mock was not instantiated');
+        const written = captured.instance.capturedStdin.join('');
+        const targetLine = written.split('\n').find((line) => line.startsWith(expectedPrefix));
+        assert(targetLine !== undefined, `expected a line starting with "${expectedPrefix}", got: ${written}`);
+      });
+    }
   });
 
   /** 行番号範囲方式（_AiSegmentRange）: startLine/endLine でバッチ処理するケース。 */
@@ -711,81 +746,5 @@ describe('segmentChatlogs', () => {
         warnStub?.restore();
       }
     });
-  });
-});
-
-// ─── extractLines tests ───────────────────────────────────────────────────
-
-/**
- * `extractLines` のユニットテストスイート。
- *
- * lines から [startLine, endLine]（1-based, inclusive）の範囲を境界値クランプして
- * 抽出する関数の正常系・エッジケースを検証する。
- *
- * テスト ID 範囲: T-EL-01-01 〜 T-EL-04-01
- *
- * @see extractLines
- */
-describe('extractLines', () => {
-  describe('When: 正常系', () => {
-    it('[Normal] T-EL-01-01: 通常範囲 startLine=2, endLine=3 のとき該当行を \\n 結合して返す', () => {
-      // arrange
-      const lines = ['a', 'b', 'c', 'd'];
-
-      // act
-      const result = extractLines(lines, 2, 3);
-
-      // assert
-      assertEquals(result, 'b\nc');
-    });
-  });
-
-  describe('When: エッジケース', () => {
-    /** entry.content が空文字列のとき `_rebuildSegments`（phase-write.ts）は
-     *  `''.split('\n')` = `['']` を extractLines に渡す（実際に到達する呼び出し形状）。
-     *  total===0 となる真の空配列 `[]` はどの呼び出し元からも到達しない防御的ガード。 */
-    it("[Edge] T-EL-02-01: entry.content が空文字列のとき split('\\n') で得られる [''] を渡すと空文字列を返す", () => {
-      // arrange — ''.split('\n') は [] ではなく [''] になる（_rebuildSegments が実際に渡す形状）
-      const lines = ''.split('\n');
-
-      // act
-      const result = extractLines(lines, 1, 1);
-
-      // assert
-      assertEquals(result, '');
-    });
-
-    /** startLine > endLine は正常なAI応答では発生しない（segmentChatlogsのsystem promptが
-     *  "contiguous and non-overlapping" な範囲を要求している）。AIのハルシネーションや不正な
-     *  キャッシュデータに対する防御的ガードの検証。 */
-    it('[Edge] T-EL-03-01: startLine=3, endLine=1（startLine > endLine）のとき空文字列を返す', () => {
-      // arrange
-      const lines = ['a', 'b', 'c'];
-
-      // act
-      const result = extractLines(lines, 3, 1);
-
-      // assert
-      assertEquals(result, '');
-    });
-
-    const _clampCases = [
-      { startLine: 0, endLine: 2, expected: 'a\nb', label: 'startLine=0 は 1 にクランプされる' },
-      { startLine: -1, endLine: 2, expected: 'a\nb', label: 'startLine=-1 は 1 にクランプされる' },
-      { startLine: 2, endLine: 100, expected: 'b\nc', label: 'endLine=100 は total にクランプされる' },
-    ] as const;
-
-    for (const { startLine, endLine, expected, label } of _clampCases) {
-      it(`[Edge] T-EL-04-01: ${label} (startLine=${startLine}, endLine=${endLine} → '${expected}')`, () => {
-        // arrange
-        const lines = ['a', 'b', 'c'];
-
-        // act
-        const result = extractLines(lines, startLine, endLine);
-
-        // assert
-        assertEquals(result, expected);
-      });
-    }
   });
 });

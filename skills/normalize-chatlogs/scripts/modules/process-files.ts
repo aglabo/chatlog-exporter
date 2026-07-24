@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/modules/process-files.ts
 // @(#): findFiles〜phaseWrite ブロックの processFiles 関数モジュール
-//       対象: processFiles
+//       対象: processFiles, _validateDirs
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -35,15 +35,8 @@ import { phaseLoad } from '../phases/phase-load.ts';
 import { phaseSegment } from '../phases/phase-segment.ts';
 import { phaseWrite } from '../phases/phase-write.ts';
 
-/** Result of partitioning loaded `ChatlogEntry` objects by cache status. */
-type _ClassifiedEntries = {
-  doneEntries: ChatlogEntry[];
-  setEntries: ChatlogEntry[];
-  unclassifiedEntries: ChatlogEntry[];
-};
-
 /**
- * Phase 1: Validates inputDir/outputBase (existence, creation, containment).
+ * Validates inputDir/outputBase (existence, creation, containment).
  * Runs before cache initialization since it has no dependency on the cache.
  *
  * @param inputDir   - Source directory (already normalized)
@@ -69,6 +62,13 @@ const _validateDirs = async (inputDir: string, outputBase: string): Promise<void
       `outputBase must not be inside inputDir: ${outputBase}`,
     );
   }
+};
+
+/** Result of partitioning loaded `ChatlogEntry` objects by cache status. */
+type _ClassifiedEntries = {
+  doneEntries: ChatlogEntry[];
+  setEntries: ChatlogEntry[];
+  unclassifiedEntries: ChatlogEntry[];
 };
 
 /**
