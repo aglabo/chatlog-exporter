@@ -57,6 +57,7 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 /** filter-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgSchema<FilterParsedConfig> = [
   { option: '--chunk-size', field: 'chunkSize', type: 'integer', min: 1, max: 10 },
+  { option: '--single-file', field: 'singleFile', type: 'flag' },
 ];
 
 // ─────────────────────────────────────────────
@@ -156,16 +157,19 @@ export const main = async (args?: string[]): Promise<void> => {
       stats.skip += targetEntries.length;
       logger.dryrun('判定済み: judged=0');
     } else {
+      // --single-file 指定時は chunkSize を強制的に 1 に上書きし、1 ファイルずつ判定させる
+      const _chunkSize = _config.singleFile ? 1 : _config.chunkSize;
+
       // チャンク分割して並列処理（判定結果はキャッシュに書き込むのみ。削除は後続のスイープで行う）
       const chunkResults = await runChunked(
         targetEntries,
-        _config.chunkSize,
-        (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl, _config.model),
+        _chunkSize,
+        (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl),
         _config.concurrency,
       );
 
       // レートリミット等で abort された後、未着手のまま残ったチャンクのファイル数を skip に計上する
-      const unexecutedFileCount = countUnexecutedChunkFiles(targetEntries, _config.chunkSize, chunkResults);
+      const unexecutedFileCount = countUnexecutedChunkFiles(targetEntries, _chunkSize, chunkResults);
       if (unexecutedFileCount > 0) {
         stats.skip += unexecutedFileCount;
         logger.warn(
