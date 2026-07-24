@@ -1,6 +1,6 @@
 // src: scripts/modules/segment-io.ts
 // @(#): セグメントファイル生成・フロントマター付与・ファイル書き出しに関する関数群
-//       対象: extractSegmentBaseName, generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
+//       対象: generateOutputFileName, generateSegmentFile, attachFrontmatter, writeSegmentToFile
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -29,6 +29,8 @@ import { generateHash } from '../../../_scripts/libs/io/hash.ts';
 import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── internasl modules
+// functions
+import { extractSegmentBaseName } from '../libs/path-utils.ts';
 // types
 import type { Segment } from '../types/normalize.types.ts';
 
@@ -50,21 +52,6 @@ const _ATTACH_FIELD_ORDER = [
   'topics',
   'tags',
 ];
-
-/**
- * Extracts the base name (without extension and trailing hash) from a file path.
- *
- * Strips the directory, `.md` extension, and any trailing `-<7hex>` hash suffix.
- * For example: `path/to/2026-03-11-1-api-a4a84394.md` → `2026-03-11-1-api`
- * (hash removal applies when the suffix matches `-[0-9a-f]{7}$` pattern)
- *
- * @param filePath - Path to the source chatlog file
- * @returns Base name without extension and without trailing `-XXXXXXX` hash segment
- */
-export const extractSegmentBaseName = (filePath: string): string => {
-  // Remove directory and extension via getBasename, then strip trailing -<7hex> hash if present
-  return getBasename(filePath).replace(/-[0-9a-f]{7}$/, '');
-};
 
 /**
  * Generates an output file name for a segment.
