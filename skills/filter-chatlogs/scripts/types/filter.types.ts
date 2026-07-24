@@ -27,6 +27,8 @@ export interface FilterConfig {
   // flags
   /** `true` のときファイルを削除せず判定結果のみ表示する。 */
   dryRun: boolean;
+  /** `true` のとき chunkSize を強制的に 1 に上書きし、1 ファイルずつ claude CLI に判定させる。 */
+  singleFile: boolean;
 
   // config.yaml only
   /** バッチ処理 1 回あたりの最大ファイル数。 */
