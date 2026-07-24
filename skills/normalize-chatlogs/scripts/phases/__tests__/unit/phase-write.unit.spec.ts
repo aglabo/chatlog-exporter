@@ -16,7 +16,7 @@ import { _rebuildSegments } from '../../phase-write.ts';
 
 // ─── Helpers
 import { toCacheKey } from '../../../libs/cache-utils.ts';
-import { extractLines } from '../../../modules/segment-ai.ts';
+import { extractLines } from '../../../libs/line-utils.ts';
 // classes
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
