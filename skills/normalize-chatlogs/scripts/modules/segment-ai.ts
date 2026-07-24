@@ -1,6 +1,6 @@
 // src: scripts/modules/segment-ai.ts
 // @(#): AI 呼び出しによるチャットログのトピック別セグメント分割
-//       対象: segmentChatlogs, extractLines
+//       対象: segmentChatlogs, _addLineNumbers
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -37,28 +37,6 @@ import type { SegmentPlan } from '../types/normalize.types.ts';
 // constants
 import { MAX_SEGMENTS } from '../constants/normalize.constants.ts';
 
-// ─── Line Number Helpers ──────────────────────────────────────────────────────
-
-const _addLineNumbers = (content: string): string => {
-  if (!content) { return ''; }
-  return content.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
-};
-
-/**
- * Extracts the inclusive line range `[startLine, endLine]` (1-based) from `lines`, clamped to bounds.
- *
- * Used both for the initial AI response (segmentChatlogs) and for re-slicing content from
- * cached `{startLine, endLine}` ranges on resume (process-files phase 4).
- */
-export const extractLines = (lines: string[], startLine: number, endLine: number): string => {
-  const total = lines.length;
-  if (total === 0) { return ''; }
-  if (startLine > endLine) { return ''; }
-  const start = Math.max(1, Math.min(startLine, total));
-  const end = Math.max(start, Math.min(endLine, total));
-  return lines.slice(start - 1, end).join('\n');
-};
-
 // ─── AI Execution ─────────────────────────────────────────────────────────────
 
 /** AI が返す行番号範囲方式のセグメント定義。export しない内部型。 */
@@ -67,6 +45,21 @@ type _AiSegmentRange = {
   summary: string;
   startLine: number;
   endLine: number;
+};
+
+/** 行番号を右詰めパディングする固定幅（5桁）。6桁以上の行番号はパディングなしでそのまま出力される。 */
+const LINE_NUMBER_WIDTH = 5;
+
+/**
+ * content の各行に 1-based の行番号を付与する（`segmentChatlogs` の userPrompt 生成専用）。
+ *
+ * 行番号は5桁固定幅で右詰めパディングする。6桁以上になった場合はパディングせずそのまま出力する。
+ */
+const _addLineNumbers = (content: string): string => {
+  if (!content) { return ''; }
+  return content.split('\n').map((line, i) => `${String(i + 1).padStart(LINE_NUMBER_WIDTH, ' ')}: ${line}`).join(
+    '\n',
+  );
 };
 
 /**
