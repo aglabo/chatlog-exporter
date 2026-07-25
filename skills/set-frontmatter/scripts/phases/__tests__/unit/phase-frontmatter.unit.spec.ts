@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 // stub
 import { spy } from '@std/testing/mock';
@@ -230,6 +230,38 @@ describe('_phaseFrontmatter', () => {
         warnSpy.restore();
         cacheSpy.restore();
       }
+    });
+  });
+
+  /**
+   * 先頭ファイルが RateLimit を throw したとき、残りのファイルの生成が中断されるケース。
+   */
+  describe('When: generateProvider が RateLimit を throw する', () => {
+    it('[Error] T-02-05-01: 先頭が RateLimit → 2 番目以降の generateProvider が呼ばれず ChatlogError を再 throw', async () => {
+      const cache = await _makeCache();
+      let _count = 0;
+      const _rateLimitStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
+        _count++;
+        throw new ChatlogError('AiError', 'RateLimit', 'simulated rate limit');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+
+      // concurrency=1 で逐次実行 → 先頭 throw で abort し 2 番目は着手されない
+      const error = await assertRejects(
+        () =>
+          phaseFrontmatter(
+            entries,
+            cache,
+            1000,
+            _FAKE_DICS,
+            _FAKE_PROMPTS,
+            { concurrency: 1, dryRun: false },
+            _rateLimitStub,
+          ),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(_count, 1);
     });
   });
 });

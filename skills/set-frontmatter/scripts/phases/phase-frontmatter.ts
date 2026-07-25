@@ -13,6 +13,7 @@
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -32,6 +33,7 @@ type _GenerateProvider = (
   prompts: Prompts,
   maxRetry: number,
   model?: string,
+  signal?: AbortSignal,
 ) => Promise<boolean>;
 
 export const phaseFrontmatter = async (
@@ -96,14 +98,17 @@ export const phaseFrontmatter = async (
   const _generate = generateProvider ?? generateFrontmatter;
   await runConcurrent(
     _needsGenerate,
-    async (entry) => {
+    async (entry, ctl) => {
       if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter: ${getFilename(entry.filePath!)}`);
       } else {
         let _ok: boolean;
         try {
-          _ok = await _generate(entry, maxContentLength, dics, prompts, config.maxRetry ?? 0, config.model);
+          _ok = await _generate(entry, maxContentLength, dics, prompts, config.maxRetry ?? 0, config.model, ctl.signal);
         } catch (e) {
+          if (isRateLimitError(e) || ctl.signal.aborted) {
+            throw e;
+          }
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
         }
