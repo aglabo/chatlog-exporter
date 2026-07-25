@@ -127,7 +127,7 @@ describe('_phaseFrontmatter', () => {
       const { stub, getCount } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, false, stub);
+      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(getCount(), 1);
     });
@@ -139,7 +139,7 @@ describe('_phaseFrontmatter', () => {
       const { stub } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, false, stub);
+      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(cacheSpy.calls.length >= 1, true);
       cacheSpy.restore();
@@ -156,7 +156,7 @@ describe('_phaseFrontmatter', () => {
       const { stub, getCount } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, stub);
+      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(getCount(), 0);
     });
@@ -168,7 +168,7 @@ describe('_phaseFrontmatter', () => {
       const { stub } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, stub);
+      await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(cacheSpy.calls.length, 0);
       cacheSpy.restore();
@@ -185,7 +185,15 @@ describe('_phaseFrontmatter', () => {
       const cacheSpy = spy(cache, 'write');
       const { stub: generateStub } = _makeGenerateStub(true);
 
-      await phaseFrontmatter([], cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 1, true, generateStub);
+      await phaseFrontmatter(
+        [],
+        cache,
+        1000,
+        _FAKE_DICS,
+        _FAKE_PROMPTS,
+        { concurrency: 1, dryRun: true },
+        generateStub,
+      );
 
       assertEquals(cacheSpy.calls.length, 0);
       cacheSpy.restore();
@@ -205,7 +213,15 @@ describe('_phaseFrontmatter', () => {
       const warnSpy = spy(logger, 'warn');
       const cacheSpy = spy(cache, 'write');
       try {
-        await phaseFrontmatter(entries, cache, 1000, _FAKE_DICS, _FAKE_PROMPTS, 2, false, _throwingStub);
+        await phaseFrontmatter(
+          entries,
+          cache,
+          1000,
+          _FAKE_DICS,
+          _FAKE_PROMPTS,
+          { concurrency: 2, dryRun: false },
+          _throwingStub,
+        );
         // Both entries fail (throw → catch in phase), no cache write happens
         assertEquals(cacheSpy.calls.length, 0);
         // logger.warn was called at least once (for each failing entry)

@@ -20,6 +20,7 @@ import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types
 // ─── Local
 import { generateFrontmatter } from '../modules/setfm-frontmatter.ts';
 import { applyCacheToEntry, extractEntryFrontmatter } from '../modules/setfm-write.ts';
+import type { SetfmConfig } from '../types/args.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 
@@ -39,11 +40,8 @@ export const phaseFrontmatter = async (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
-  concurrency: number,
-  dryRun: boolean,
+  config: Pick<SetfmConfig, 'concurrency' | 'dryRun' | 'model'> & Partial<Pick<SetfmConfig, 'maxRetry'>>,
   generateProvider?: _GenerateProvider,
-  maxRetry = 0,
-  model?: string,
 ): Promise<void> => {
   const _isGenerated = (cache: SetfmCache): boolean => {
     return cache.status === CACHE_STATUSES.SET_TYPES && !!cache.frontmatter;
@@ -61,10 +59,10 @@ export const phaseFrontmatter = async (
   for (const e of _hits) {
     const _cached = cache.read(e.filePath!);
     applyCacheToEntry(e, _cached);
-    if (e.frontmatter.hasRequiredFields() && !dryRun) {
+    if (e.frontmatter.hasRequiredFields() && !config.dryRun) {
       await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
     }
-    if (dryRun) {
+    if (config.dryRun) {
       logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter (cached): ${getFilename(e.filePath!)}`);
     } else {
       logger.info(`${LOGGER_TEXT.INDENT}generated (cached): ${getFilename(e.filePath!)}`);
@@ -79,32 +77,32 @@ export const phaseFrontmatter = async (
     async (entry) => {
       const _fmSnapshot = extractEntryFrontmatter(entry);
       const _existing = cache.read(entry.filePath!);
-      if (!dryRun) {
+      if (!config.dryRun) {
         await cache.write(entry.filePath!, {
           ..._existing,
           frontmatter: _fmSnapshot,
           status: CACHE_STATUSES.NEED_REVIEW,
         });
       }
-      if (dryRun) {
+      if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter (existing): ${getFilename(entry.filePath!)}`);
       } else {
         logger.info(`${LOGGER_TEXT.INDENT}frontmatter (existing): ${getFilename(entry.filePath!)}`);
       }
     },
-    concurrency,
+    config.concurrency,
   );
 
   const _generate = generateProvider ?? generateFrontmatter;
   await runConcurrent(
     _needsGenerate,
     async (entry) => {
-      if (dryRun) {
+      if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter: ${getFilename(entry.filePath!)}`);
       } else {
         let _ok: boolean;
         try {
-          _ok = await _generate(entry, maxContentLength, dics, prompts, maxRetry, model);
+          _ok = await _generate(entry, maxContentLength, dics, prompts, config.maxRetry ?? 0, config.model);
         } catch (e) {
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
@@ -120,6 +118,6 @@ export const phaseFrontmatter = async (
         }
       }
     },
-    concurrency,
+    config.concurrency,
   );
 };

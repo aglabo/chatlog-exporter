@@ -200,8 +200,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _makeDics(),
         _makePrompts(),
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         generateStub,
       );
 
@@ -226,8 +225,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _makeDics(),
         _makePrompts(),
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         generateStub,
       );
 
@@ -257,8 +255,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _makeDics(),
         _makePrompts(),
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         failGenerate,
       );
 
