@@ -1682,3 +1682,74 @@ describe('main - 判定集計ログ（全ファイルキャッシュ済み）', 
     });
   });
 });
+
+// ─── T-FL-E2E-22: --single-file 指定 → chunkSize が1に上書きされる ──────────
+
+/**
+ * `main` 関数の E2E テストスイート（--single-file フラグ）。
+ *
+ * `--single-file` を指定した場合、GlobalConfig の chunkSize 設定によらず
+ * 実効 chunkSize が 1 に強制上書きされることを検証する。
+ *
+ * GlobalConfig の chunkSize はデフォルト（10）のまま `--single-file` のみを指定し、
+ * 3 件のファイルのうち 1 チャンク目がレートリミットで失敗した場合に
+ * 残り 2 チャンク（2 ファイル）が未実行になる（= 1 ファイルずつ 3 チャンクに
+ * 分割された）ことを確認する。chunkSize が上書きされなければ 3 件は 1 チャンクに
+ * まとまり、レートリミット発生時に未実行ファイルは 0 件になるため、このテストは
+ * `--single-file` の上書きが機能しているかを判別できる。
+ *
+ * テスト ID 範囲: T-FL-E2E-22
+ *
+ * @see main
+ */
+describe('main - --single-file フラグ', () => {
+  /**
+   * 3 件の .md ファイルが存在し、claude CLI の 1 回目呼び出しがレートリミットで失敗する前提。
+   *
+   * GlobalConfig の chunkSize はデフォルトのまま `--single-file` のみを CLI 引数で指定する。
+   */
+  describe('Given: 3 件の .md ファイルと --single-file・レートリミットモック（GlobalConfig の chunkSize は未設定）', () => {
+    /** `main([...args, "--single-file"])` を dryRun=false で呼び出すとき。 */
+    describe('When: main([...args, "--single-file"]) を呼び出す', () => {
+      /** 未実行チャンク分の 2 ファイルが stats.skip に計上されること（chunkSize=1 に上書きされた証跡）。 */
+      describe('Then: T-FL-E2E-22 - 未実行チャンクが stats.skip に計上される', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let counter: { calls: number };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          counter = { calls: 0 };
+          commandHandle = installCommandMock(_makeRateLimitThenEmptyMock(counter));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        describe('Given: file1.md, file2.md, file3.md を chatlogsDir に配置（chunkSize は GlobalConfig デフォルト）', () => {
+          beforeEach(async () => {
+            await Deno.writeTextFile(`${chatlogsDir}/file1.md`, _makeValidContent('file1'));
+            await Deno.writeTextFile(`${chatlogsDir}/file2.md`, _makeValidContent('file2'));
+            await Deno.writeTextFile(`${chatlogsDir}/file3.md`, _makeValidContent('file3'));
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            // chunkSize は指定しない（GlobalConfig デフォルト値のまま）
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nconcurrency: 1`);
+          });
+
+          it('T-FL-E2E-22-01: 未実行チャンク分の 2 ファイルが stats.skip に計上される', async () => {
+            await main(['claude', '2026-03', '--input-dir', chatlogsDir, '--single-file']);
+
+            assertEquals(loggerStub.infoLogs.some((l) => l.includes('skip=2')), true);
+          });
+        });
+      });
+    });
+  });
+});

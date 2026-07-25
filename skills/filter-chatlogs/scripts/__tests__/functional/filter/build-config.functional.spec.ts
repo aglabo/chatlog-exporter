@@ -74,7 +74,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
  *   `_SCHEMA` に CLI オプション定義が無いため、GlobalConfig > defaults の優先順位のみ検証する。
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-38
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-40
  *
  * @see buildConfig
  */
@@ -610,6 +610,44 @@ describe('buildConfig', () => {
         it('T-FL-BC-41: model 未設定 → result.model === DEFAULT_CONFIG_VALUES.model', () => {
           const result = buildConfig([]);
           assertEquals(result.model, DEFAULT_CONFIG_VALUES.model);
+        });
+      });
+    });
+  });
+
+  // ─── singleFile ─────────────────────────────────────────────────────────────
+
+  /**
+   * CLI 引数で `--single-file` が指定されている前提条件グループ。
+   */
+  describe('Given: CLI 引数で --single-file が指定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** `result.singleFile === true` になることを検証する。 */
+      describe('Then: T-FL-BC-39 - result.singleFile === true', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-39: args=[--single-file] → result.singleFile === true', () => {
+          const result = buildConfig(['--single-file']);
+          assertEquals(result.singleFile, true);
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数で `--single-file` が未指定の前提条件グループ。
+   */
+  describe('Given: CLI 引数で --single-file が未指定', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** デフォルト値 false が使われることを検証する。 */
+      describe('Then: T-FL-BC-40 - result.singleFile === false', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-40: singleFile 未指定 → result.singleFile === false', () => {
+          const result = buildConfig([]);
+          assertEquals(result.singleFile, false);
         });
       });
     });

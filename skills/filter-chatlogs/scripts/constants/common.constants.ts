@@ -42,6 +42,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   agent: DEFAULT_AGENT,
   chatlogsDir: DEFAULT_CHATLOGS_DIR,
   dryRun: false,
+  singleFile: false,
   // config.yaml only
   chunkSize: DEFAULT_CONFIG_VALUES.chunkSize,
   concurrency: DEFAULT_CONFIG_VALUES.concurrency,

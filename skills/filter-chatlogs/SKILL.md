@@ -5,7 +5,7 @@ description: >
   再利用価値の低いファイル（DISCARD）を削除する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM [project]] [--dry-run]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM [project]] [--dry-run] [--single-file]"
 allowed-tools: Bash, Glob
 ---
 
@@ -37,6 +37,7 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM`（例: `chatgpt 2026-03`）→ 指定 agent・指定月
 - `agent YYYY-MM project`（例: `chatgpt 2026-03 aplys`）→ 指定 agent・指定月・プロジェクト
 - `--dry-run` → 削除せず判定結果のみ表示
+- `--single-file` → 1ファイルずつ判定（chunkSize を 1 に固定）
 
 **noise-filter モードの引数解析**（`noise-filter` トークンを除いた残りの引数に適用）:
 
@@ -104,6 +105,7 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
 - `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt 2026-03`
 - `agent YYYY-MM project` → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt 2026-03 aplys`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
+- `--single-file` を含む → 末尾に `--single-file` を追加
 
 スクリプトは以下の基準でKEEP/DISCARDを判定し、DISCARDかつ confidence >= 0.7 のファイルを削除する:
 
