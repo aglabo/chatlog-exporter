@@ -11,13 +11,13 @@
 // ─── Shared libraries
 // functions
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 import { getAiBackend, isValidModel, parseModel } from './model-utils.ts';
 
 // types
 import type { AiBackendCommand } from '../../types/ai.const.types.ts';
 
 // constants
-import { DEFAULT_AI_MODEL, DEFAULT_TIMEOUT_MS } from '../../constants/defaults.constants.ts';
 import { AI_BACKEND_COMMAND_MAP } from '../../types/ai.const.types.ts';
 
 // internal types
@@ -122,7 +122,10 @@ export const runAI = async (
   userPrompt: string,
   options?: RunAIOptions,
 ): Promise<string> => {
-  const _options = { model: DEFAULT_AI_MODEL, timeoutMs: DEFAULT_TIMEOUT_MS, ...options };
+  const _globalConfig = GlobalConfig.getInstance();
+  const _model = options?.model ?? (_globalConfig.get('model') as string);
+  const _timeoutMs = options?.timeoutMs ?? (_globalConfig.get('timeoutMs') as number);
+  const _options = { ...options, model: _model, timeoutMs: _timeoutMs };
   if (!isValidModel(_options.model)) {
     throw new ChatlogError(
       'UnknownModel',

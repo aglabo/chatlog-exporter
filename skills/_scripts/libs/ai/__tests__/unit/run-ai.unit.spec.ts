@@ -9,13 +9,21 @@
 
 // ─── BDD modules
 import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
-import { describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { _buildCommand, runAI } from '../../run-ai.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
+// types
+import type { CommandMockHandle } from '../../../../__tests__/helpers/deno-command-mock.ts';
+import {
+  installCommandMock,
+  makeDelayedSuccessMock,
+  makeSuccessMock,
+} from '../../../../__tests__/helpers/deno-command-mock.ts';
 
 // ─── Internal Helpers
 
@@ -105,6 +113,16 @@ const _cases: Array<{ model: string; expected: CommandSpec }> = [
 ];
 
 // ─── Tests
+
+// GlobalConfig はシングルトンのため、他のテストへの状態漏れを防ぐために
+// ファイル全体で毎回リセットする（このファイル内の全 describe に適用）。
+beforeEach(() => {
+  GlobalConfig.resetInstance();
+});
+
+afterEach(() => {
+  GlobalConfig.resetInstance();
+});
 
 /**
  * `_buildCommand` 関数のユニットテストスイート。
@@ -315,6 +333,61 @@ describe('runAI', () => {
         } finally {
           Deno.Command = _origCommand;
         }
+      });
+    });
+  });
+
+  /**
+   * `options.model` / `options.timeoutMs` 省略時の GlobalConfig フォールバック検証。
+   *
+   * `GlobalConfig.getInstance()` の設定値が options 未指定時に使われること、
+   * および `??` によって `timeoutMs: 0` が明示指定された場合は
+   * GlobalConfig の値で上書きされないことを確認する。
+   */
+  describe('GlobalConfig fallback', () => {
+    let commandHandle: CommandMockHandle;
+
+    afterEach(() => {
+      commandHandle?.restore();
+    });
+
+    /** options 省略時に GlobalConfig の設定値へフォールバックするケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-AI-RA-18: options.model 省略 → GlobalConfig の model ("opus") が CLI 引数に使われる', async () => {
+        GlobalConfig.getInstance({ yaml: 'model: opus' });
+        const _capturedArgs: { value: string[] } = { value: [] };
+        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok'), _capturedArgs));
+
+        await runAI('sys', 'user');
+
+        assertEquals(_capturedArgs.value.includes('--model'), true);
+        assertEquals(_capturedArgs.value[_capturedArgs.value.indexOf('--model') + 1], 'opus');
+      });
+    });
+
+    /** options 省略時に GlobalConfig の timeoutMs 設定値でタイムアウトが発生するケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-AI-RA-19: options.timeoutMs 省略 → GlobalConfig の timeoutMs (1ms) でタイムアウトする', async () => {
+        GlobalConfig.getInstance({ yaml: 'timeoutMs: 1' });
+        commandHandle = installCommandMock(makeDelayedSuccessMock(100, new TextEncoder().encode('ok')));
+
+        const _err = await assertRejects(
+          () => runAI('sys', 'user', { model: 'sonnet' }),
+          ChatlogError,
+        ) as ChatlogError;
+        assertEquals(_err.kind, 'TimedOut');
+      });
+    });
+
+    /** `options.timeoutMs: 0` は GlobalConfig の値で上書きされない（`??` の 0 特別扱い）エッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-LIB-AI-RA-20: options.timeoutMs=0 かつ GlobalConfig.timeoutMs が非ゼロ → タイムアウトしない', async () => {
+        GlobalConfig.getInstance({ yaml: 'timeoutMs: 50' });
+        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok')));
+
+        const _result = await runAI('sys', 'user', { model: 'sonnet', timeoutMs: 0 });
+
+        assertEquals(_result, 'ok');
       });
     });
   });
