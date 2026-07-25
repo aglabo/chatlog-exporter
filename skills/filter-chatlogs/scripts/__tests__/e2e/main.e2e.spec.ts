@@ -329,6 +329,73 @@ describe('main - KEEP 判定', () => {
   });
 });
 
+// ─── T-FL-E2E-14: model 配線 ─────────────────────────────────────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（model 配線）。
+ *
+ * config.yaml の `model` 設定が claude CLI 起動引数の `--model` にそのまま反映されることを検証する。
+ *
+ * テスト ID 範囲: T-FL-E2E-14
+ *
+ * @see main
+ */
+describe('main - model 配線', () => {
+  /**
+   * config.yaml に `model: haiku` を設定し、1 件の KEEP 判定ファイルが存在する前提。
+   *
+   * claude CLI の起動引数に `--model haiku` が反映されることを確認する。
+   */
+  describe('Given: config.yaml に model: haiku を設定・keep.md（KEEP判定）を配置', () => {
+    /** `main([...args])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** claude CLI の起動引数に --model haiku が含まれること。 */
+      describe('Then: T-FL-E2E-14 - claude CLI の起動引数に --model haiku が含まれる', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let capturedArgs: { value: string[] };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nmodel: haiku`);
+          capturedArgs = { value: [] };
+          commandHandle = installCommandMock(
+            makeSuccessMock(
+              new TextEncoder().encode(
+                JSON.stringify([{
+                  file: 'keep.md',
+                  decision: FILTER_DECISIONS.KEEP,
+                  confidence: 0.9,
+                  reason: 'valuable',
+                }]),
+              ),
+              capturedArgs,
+            ),
+          );
+          loggerStub = makeLoggerStub();
+          await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it('T-FL-E2E-14-01: capturedArgs に --model と haiku が含まれる', async () => {
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          const modelIndex = capturedArgs.value.indexOf('--model');
+          assertEquals(modelIndex !== -1, true);
+          assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+        });
+      });
+    });
+  });
+});
+
 // ─── T-FL-E2E-04: 対象ファイルなし → Deno.exit(0) ───────────────────────────
 
 /**
