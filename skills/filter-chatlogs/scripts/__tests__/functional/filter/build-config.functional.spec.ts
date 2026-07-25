@@ -18,6 +18,7 @@ import type { FilterConfig } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 // constants
+import { DEFAULT_CONFIG_VALUES } from '../../../../../_scripts/constants/config-schema.constants.ts';
 import { DEFAULT_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // classes
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
@@ -554,6 +555,61 @@ describe('buildConfig', () => {
         it('T-FL-BC-29: discardThreshold 未設定 → result.discardThreshold === DEFAULT_FILTER_CONFIG.discardThreshold', () => {
           const result = buildConfig([]);
           assertEquals(result.discardThreshold, DEFAULT_FILTER_CONFIG.discardThreshold);
+        });
+      });
+    });
+  });
+
+  // ─── model 優先順位 ─────────────────────────────────────────────────────────
+
+  /**
+   * CLI 引数で `--model` が指定されている前提条件グループ。
+   *
+   * CLI 引数の model が GlobalConfig より優先されることを検証する。
+   */
+  describe('Given: CLI 引数で --model が指定されている', () => {
+    describe('When: GlobalConfig にも model が設定されている', () => {
+      /** CLI 引数の model が優先されることを検証する。 */
+      describe('Then: T-FL-BC-39 - CLI 引数の model が優先される', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('model: haiku');
+        });
+        it('T-FL-BC-39: args=[--model, opus] → result.model === opus', () => {
+          const result = buildConfig(['--model', 'opus']);
+          assertEquals(result.model, 'opus');
+        });
+      });
+    });
+  });
+
+  /**
+   * CLI 引数で `--model` が未指定の前提条件グループ。
+   *
+   * GlobalConfig の model が使われることを検証する。
+   */
+  describe('Given: CLI 引数で --model が未指定', () => {
+    describe('When: GlobalConfig に model が設定されている', () => {
+      /** GlobalConfig の model が使われることを検証する。 */
+      describe('Then: T-FL-BC-40 - GlobalConfig の model が使われる', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('model: haiku');
+        });
+        it('T-FL-BC-40: globalConfig.model=haiku → result.model === haiku', () => {
+          const result = buildConfig([]);
+          assertEquals(result.model, 'haiku');
+        });
+      });
+    });
+
+    describe('When: GlobalConfig にも model が設定されていない', () => {
+      /** GlobalConfig のデフォルト model（DEFAULT_CONFIG_VALUES.model）が使われることを検証する。 */
+      describe('Then: T-FL-BC-41 - GlobalConfig のデフォルト model が使われる', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance();
+        });
+        it('T-FL-BC-41: model 未設定 → result.model === DEFAULT_CONFIG_VALUES.model', () => {
+          const result = buildConfig([]);
+          assertEquals(result.model, DEFAULT_CONFIG_VALUES.model);
         });
       });
     });
