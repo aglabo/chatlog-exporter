@@ -41,6 +41,7 @@ const _DEFAULT_ARG_SCHEMA: ArgSchema<DefaultArgFields> = [
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--input-dir', field: 'inputDir', type: 'directory' },
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
+  { option: '--model', field: 'model', type: 'string' },
 ];
 
 /**

@@ -33,6 +33,7 @@ export const reviewFrontmatter = async (
   dics: Dics,
   prompts: Prompts,
   maxRetry: number,
+  model?: string,
 ): Promise<ReviewResult> => {
   const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
   const typeList = formatDicEntries(dics.typeEntries);
@@ -55,7 +56,7 @@ export const reviewFrontmatter = async (
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
     let _raw: string;
     try {
-      _raw = await runAI(system, user);
+      _raw = await runAI(system, user, { ...(model ? { model } : {}) });
     } catch (e) {
       if (e instanceof ChatlogError && e.kind === 'AiError') {
         logger.warn(`reviewFrontmatter: AI call failed (attempt ${attempt + 1}): ${e}`);

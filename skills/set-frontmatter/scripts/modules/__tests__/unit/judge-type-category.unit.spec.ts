@@ -28,6 +28,8 @@ import {
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+// constants
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 
@@ -397,6 +399,41 @@ describe('judgeTypeAndCategory', () => {
           ChatlogError,
         );
       });
+    });
+  });
+
+  // ─── model 引数の配線 ───────────────────────────────────────────────────────
+
+  /**
+   * `model` 引数が claude CLI の起動引数にそのまま渡ることを検証するケース。
+   */
+  describe('When: model を指定/省略して呼び出す', () => {
+    it('[Normal] T-SF-TC-19: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('type: discussion\ncategory: development'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry('# テスト\n本文');
+      await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts(), 'haiku');
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+    });
+
+    it('[Normal] T-SF-TC-20: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('type: discussion\ncategory: development'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry('# テスト\n本文');
+      await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
     });
   });
 });

@@ -28,6 +28,7 @@ type _JudgeProvider = (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
+  model?: string,
 ) => Promise<void>;
 
 export const phaseTypeAndCategory = async (
@@ -39,6 +40,7 @@ export const phaseTypeAndCategory = async (
   concurrency: number,
   dryRun: boolean,
   judgeProvider?: _JudgeProvider,
+  model?: string,
 ): Promise<void> => {
   const _needsReJudge = (e: ChatlogEntry): boolean => {
     const _cached = cache.read(e.filePath!);
@@ -66,7 +68,7 @@ export const phaseTypeAndCategory = async (
       if (dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}type/category: ${getFilename(entry.filePath!)}`);
       } else {
-        await _judge(entry, maxContentLength, dics, prompts);
+        await _judge(entry, maxContentLength, dics, prompts, model);
         const _type = entry.frontmatter.get('type') as string;
         const _category = entry.frontmatter.get('category') as string;
         if (_type && _category) {

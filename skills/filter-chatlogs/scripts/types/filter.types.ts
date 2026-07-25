@@ -39,6 +39,8 @@ export interface FilterConfig {
   minAssistantChars: number;
   /** DISCARD 判定に必要な最低信頼度スコア。 */
   discardThreshold: number;
+  /** claude CLI 判定に使用する AI モデル名（例: `sonnet`, `haiku`）。省略時は runAI 側のデフォルトを使用する。 */
+  model?: string;
 }
 
 /** `parseArgs` の戻り値型。引数で指定されたフィールドのみ含む。 */

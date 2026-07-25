@@ -30,6 +30,7 @@ type _GenerateProvider = (
   dics: Dics,
   prompts: Prompts,
   maxRetry: number,
+  model?: string,
 ) => Promise<boolean>;
 
 export const phaseFrontmatter = async (
@@ -42,6 +43,7 @@ export const phaseFrontmatter = async (
   dryRun: boolean,
   generateProvider?: _GenerateProvider,
   maxRetry = 0,
+  model?: string,
 ): Promise<void> => {
   const _isGenerated = (cache: SetfmCache): boolean => {
     return cache.status === CACHE_STATUSES.SET_TYPES && !!cache.frontmatter;
@@ -102,7 +104,7 @@ export const phaseFrontmatter = async (
       } else {
         let _ok: boolean;
         try {
-          _ok = await _generate(entry, maxContentLength, dics, prompts, maxRetry);
+          _ok = await _generate(entry, maxContentLength, dics, prompts, maxRetry, model);
         } catch (e) {
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;

@@ -35,6 +35,7 @@ export const generateFrontmatter = async (
   dics: Dics,
   prompts: Prompts,
   maxRetry: number,
+  model?: string,
 ): Promise<boolean> => {
   const type = (entry.frontmatter.get('type') as string) ?? DEFAULT_FALLBACK_TYPE;
   const category = (entry.frontmatter.get('category') as string) ?? DEFAULT_FALLBACK_CATEGORY;
@@ -56,7 +57,7 @@ export const generateFrontmatter = async (
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
     let _raw: string;
     try {
-      _raw = await runAI(system, user);
+      _raw = await runAI(system, user, { ...(model ? { model } : {}) });
     } catch (e) {
       if (e instanceof ChatlogError && e.kind === 'AiError') {
         logger.warn(`generateFrontmatter: AI call failed (attempt ${attempt + 1}): ${e}`);

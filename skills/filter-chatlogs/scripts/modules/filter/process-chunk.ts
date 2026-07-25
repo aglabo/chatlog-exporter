@@ -49,12 +49,13 @@ export const processChunk = async (
   discardThreshold: number,
   cache: ChatlogCache<CLEResult>,
   ctl: AbortController,
+  model?: string,
 ): Promise<ChatlogError | undefined> => {
   const batchPrompt = buildBatchPrompt(chunkEntries);
 
   let rawResult: string;
   try {
-    rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt, { signal: ctl.signal });
+    rawResult = await runAI(_SYSTEM_PROMPT, batchPrompt, { ...(model ? { model } : {}), signal: ctl.signal });
   } catch (e) {
     if (!(e instanceof ChatlogError)) { throw e; }
     logger.warn(`${LOGGER_TEXT.INDENT}claude CLI 実行失敗。チャンク内ファイルをすべて error 扱い`);

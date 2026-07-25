@@ -30,6 +30,7 @@ type _ReviewProvider = (
   dics: Dics,
   prompts: Prompts,
   maxRetry: number,
+  model?: string,
 ) => Promise<ReviewResult>;
 
 export const phaseReview = async (
@@ -41,6 +42,7 @@ export const phaseReview = async (
   dryRun: boolean,
   reviewProvider?: _ReviewProvider,
   maxRetry = 0,
+  model?: string,
 ): Promise<void> => {
   const _hits = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
   const _misses = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.REVIEWED);
@@ -58,7 +60,7 @@ export const phaseReview = async (
       } else {
         let r: ReviewResult;
         try {
-          r = await _review(entry, dics, prompts, maxRetry);
+          r = await _review(entry, dics, prompts, maxRetry, model);
         } catch (e) {
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;

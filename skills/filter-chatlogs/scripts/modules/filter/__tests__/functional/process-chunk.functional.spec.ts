@@ -29,6 +29,7 @@ import { ChatlogCache } from '../../../../../../_scripts/classes/ChatlogCache.cl
 import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/config-schema.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../../_scripts/constants/defaults.constants.ts';
 // types
 import type {
   CommandMockHandle,
@@ -737,6 +738,78 @@ describe('processChunk', () => {
             Deno.errors.NotFound,
           );
           errStub.restore();
+        });
+      });
+    });
+  });
+
+  /**
+   * `model` を指定して processChunk を呼び出す前提条件グループ。
+   *
+   * 指定した `model` が claude CLI の起動引数（`--model`）にそのまま渡ることを検証する。
+   */
+  describe('Given: model="haiku" を指定', () => {
+    /** processChunk([file], stats, threshold, cache, ctl, 'haiku') を呼び出すとき。 */
+    describe('When: processChunk([file], stats, threshold, cache, ctl, "haiku") を呼び出す', () => {
+      /** claude CLI の起動引数に --model haiku が含まれることを検証する。 */
+      describe('Then: T-FL-PCK-12 - claude CLI の起動引数に --model haiku が含まれる', () => {
+        it('T-FL-PCK-12-01: capturedArgs に --model と haiku が含まれる', async () => {
+          const filePath = await _createTempFile('m1.md');
+          const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
+          const response = JSON.stringify([
+            { file: 'm1.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
+          ]);
+          const capturedArgs: { value: string[] } = { value: [] };
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response), capturedArgs),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl, 'haiku');
+          errStub.restore();
+
+          const modelIndex = capturedArgs.value.indexOf('--model');
+          assertEquals(modelIndex !== -1, true);
+          assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+        });
+      });
+    });
+  });
+
+  /**
+   * `model` を省略して processChunk を呼び出す前提条件グループ。
+   *
+   * `model` 省略時は runAI 側のデフォルトモデル（DEFAULT_AI_MODEL）にフォールバックすることを検証する。
+   */
+  describe('Given: model を省略', () => {
+    /** processChunk([file], stats, threshold, cache, ctl) を呼び出すとき。 */
+    describe('When: processChunk([file], stats, threshold, cache, ctl) を呼び出す', () => {
+      /** claude CLI の起動引数に --model DEFAULT_AI_MODEL が含まれることを検証する。 */
+      describe('Then: T-FL-PCK-13 - claude CLI の起動引数に --model DEFAULT_AI_MODEL が含まれる', () => {
+        it('T-FL-PCK-13-01: capturedArgs に --model と DEFAULT_AI_MODEL が含まれる', async () => {
+          const filePath = await _createTempFile('m2.md');
+          const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
+          const response = JSON.stringify([
+            { file: 'm2.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
+          ]);
+          const capturedArgs: { value: string[] } = { value: [] };
+          commandHandle = installCommandMock(
+            makeSuccessMock(new TextEncoder().encode(response), capturedArgs),
+          );
+          const errStub = stub(console, 'error', () => {});
+          const stats = _makeStats();
+          const cache = await _makeEmptyCache();
+          const ctl = new AbortController();
+
+          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          errStub.restore();
+
+          const modelIndex = capturedArgs.value.indexOf('--model');
+          assertEquals(modelIndex !== -1, true);
+          assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
         });
       });
     });

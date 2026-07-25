@@ -31,6 +31,8 @@ import {
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+// constants
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
@@ -260,6 +262,39 @@ describe('generateFrontmatter', () => {
       } finally {
         warnStub?.restore();
       }
+    });
+  });
+
+  /**
+   * `model` 引数が claude CLI の起動引数にそのまま渡ることを検証するケース。
+   */
+  describe('When: model を指定/省略して呼び出す', () => {
+    it('[Normal] T-SF-FM-05-01: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0, 'haiku');
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+    });
+
+    it('[Normal] T-SF-FM-05-02: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
     });
   });
 });
