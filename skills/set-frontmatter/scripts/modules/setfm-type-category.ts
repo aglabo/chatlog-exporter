@@ -55,6 +55,7 @@ export const judgeTypeAndCategory = async (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
+  model?: string,
 ): Promise<void> => {
   const tmpl = prompts.prompts.get('type-category');
   if (!tmpl) {
@@ -78,7 +79,7 @@ export const judgeTypeAndCategory = async (
   let category = DEFAULT_FALLBACK_CATEGORY;
 
   try {
-    const _raw = await runAI(_system, _user);
+    const _raw = await runAI(_system, _user, { ...(model ? { model } : {}) });
     const _lines = _raw.trim().split('\n');
     const _typeMatch = _lines.find((l) => l.startsWith('type:'));
     const _catMatch = _lines.find((l) => l.startsWith('category:'));
