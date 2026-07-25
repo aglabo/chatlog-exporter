@@ -916,6 +916,38 @@ describe('parseArgsToConfig', () => {
     });
   });
 
+  // ─── T-PA-37: --model オプションの解析 ──────────────────────────────────
+
+  /**
+   * `parseArgsToConfig` の `--model` オプション解析テスト。
+   *
+   * デフォルトスキーマに追加された `--model` オプションが CLI から解析され、
+   * CLI 未指定時は GlobalConfig の `model` フィールドがマージされることを検証する。
+   *
+   * テスト ID 範囲: T-PA-37-01 〜 T-PA-37-03
+   */
+  describe('Given: --model オプション', () => {
+    describe('When: 正常系', () => {
+      it('[Normal] T-PA-37-01: --model opus → model が "opus" になる', () => {
+        const result = parseArgs<TestConfig & { model?: string }>(['--model', 'opus'], TEST_SCHEMA);
+        assertEquals(result.model, 'opus');
+      });
+    });
+
+    describe('When: エッジケース', () => {
+      it('[Edge] T-PA-37-02: --model 未指定 → GlobalConfig の model がマージされる', () => {
+        GlobalConfig.getInstance({ yaml: 'model: haiku\n' });
+        const result = parseArgs<TestConfig & { model?: string }>([], TEST_SCHEMA);
+        assertEquals(result.model, 'haiku');
+      });
+
+      it('[Edge] T-PA-37-03: --model 未指定・config.yaml 未指定 → GlobalConfig デフォルト値 "sonnet" になる', () => {
+        const result = parseArgs<TestConfig & { model?: string }>([], TEST_SCHEMA);
+        assertEquals(result.model, 'sonnet');
+      });
+    });
+  });
+
   // ─── T-PA-33: agent の次に agent 名（period でない）を渡した場合はエラー ──
 
   /**
