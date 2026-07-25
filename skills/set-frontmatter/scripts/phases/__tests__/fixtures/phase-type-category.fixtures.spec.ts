@@ -161,8 +161,7 @@ describe('_phaseTypeAndCategory fixtures', () => {
           _MAX_CONTENT_LENGTH,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           judgeStub,
         );
 
@@ -188,8 +187,7 @@ describe('_phaseTypeAndCategory fixtures', () => {
           _MAX_CONTENT_LENGTH,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           judgeStub,
         );
 

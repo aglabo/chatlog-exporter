@@ -19,6 +19,7 @@ import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 // ─── Local
 import { judgeTypeAndCategory } from '../modules/setfm-type-category.ts';
+import type { SetfmConfig } from '../types/args.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 
@@ -37,10 +38,8 @@ export const phaseTypeAndCategory = async (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
-  concurrency: number,
-  dryRun: boolean,
+  config: Pick<SetfmConfig, 'concurrency' | 'dryRun' | 'model'>,
   judgeProvider?: _JudgeProvider,
-  model?: string,
 ): Promise<void> => {
   const _needsReJudge = (e: ChatlogEntry): boolean => {
     const _cached = cache.read(e.filePath!);
@@ -65,10 +64,10 @@ export const phaseTypeAndCategory = async (
   await runConcurrent(
     _misses,
     async (entry) => {
-      if (dryRun) {
+      if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}type/category: ${getFilename(entry.filePath!)}`);
       } else {
-        await _judge(entry, maxContentLength, dics, prompts, model);
+        await _judge(entry, maxContentLength, dics, prompts, config.model);
         const _type = entry.frontmatter.get('type') as string;
         const _category = entry.frontmatter.get('category') as string;
         if (_type && _category) {
@@ -83,6 +82,6 @@ export const phaseTypeAndCategory = async (
         );
       }
     },
-    concurrency,
+    config.concurrency,
   );
 };

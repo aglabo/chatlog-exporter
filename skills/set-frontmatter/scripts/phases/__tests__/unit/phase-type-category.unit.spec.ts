@@ -154,7 +154,7 @@ describe('_phaseTypeAndCategory', () => {
       const { stub, getCount } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(getCount(), 1);
     });
@@ -165,7 +165,7 @@ describe('_phaseTypeAndCategory', () => {
       const entries = [_makeEntry('/path/to/a.md')];
       const writeSpy = spy(cache, 'write');
 
-      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(writeSpy.calls.length >= 1, true);
       writeSpy.restore();
@@ -181,7 +181,7 @@ describe('_phaseTypeAndCategory', () => {
       const { stub, getCount } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, true, stub);
+      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(getCount(), 0);
     });
@@ -192,7 +192,7 @@ describe('_phaseTypeAndCategory', () => {
       const entries = [_makeEntry('/path/to/a.md')];
       const writeSpy = spy(cache, 'write');
 
-      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, true, stub);
+      await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(writeSpy.calls.length, 0);
       writeSpy.restore();
@@ -207,7 +207,7 @@ describe('_phaseTypeAndCategory', () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeJudgeStub();
 
-      await phaseTypeAndCategory([], cache, 1000, _DICS, _PROMPTS, 1, true, stub);
+      await phaseTypeAndCategory([], cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(getCount(), 0);
     });
@@ -230,7 +230,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry(filePath)];
 
-          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(getCount(), 1);
         },
@@ -247,7 +247,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry(filePath)];
 
-          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(getCount(), 0);
         },
@@ -261,7 +261,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub } = _makeJudgeStub();
           const entry = _makeEntry(filePath);
 
-          await phaseTypeAndCategory([entry], cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory([entry], cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(entry.frontmatter.get('type'), 'cached-type');
           assertEquals(entry.frontmatter.get('category'), 'cached-cat');
@@ -278,7 +278,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry('/path/to/c.md')];
 
-          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(getCount(), 1);
         },
@@ -294,7 +294,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry(filePath)];
 
-          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(getCount(), 1);
         },
@@ -334,7 +334,10 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry(filePath)];
 
-          await phaseTypeAndCategory(entries, cacheWithNoStatus, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cacheWithNoStatus, 1000, _DICS, _PROMPTS, {
+            concurrency: 1,
+            dryRun: false,
+          }, stub);
 
           assertEquals(getCount(), 1);
         },
@@ -350,7 +353,7 @@ describe('_phaseTypeAndCategory', () => {
           const { stub, getCount } = _makeJudgeStub();
           const entries = [_makeEntry(filePath)];
 
-          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, 1, false, stub);
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
 
           assertEquals(getCount(), 1);
         },
