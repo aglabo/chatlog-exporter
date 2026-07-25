@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 // stub
 import { spy } from '@std/testing/mock';
@@ -363,6 +363,29 @@ describe('phaseReview', () => {
       await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
+    });
+  });
+
+  /**
+   * 先頭ファイルが RateLimit を throw したとき、残りのファイルのレビューが中断されるケース。
+   */
+  describe('When: reviewProvider が RateLimit を throw する', () => {
+    it('[Error] T-04-05-01: 先頭が RateLimit → 2 番目以降の reviewProvider が呼ばれず ChatlogError を再 throw', async () => {
+      const cache = await _makeCache();
+      let _count = 0;
+      const _rateLimitStub: _ReviewProvider = (_entry, _dics, _prompts) => {
+        _count++;
+        throw new ChatlogError('AiError', 'RateLimit', 'simulated rate limit');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+
+      // concurrency=1 で逐次実行 → 先頭 throw で abort し 2 番目は着手されない
+      const error = await assertRejects(
+        () => phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, _rateLimitStub),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(_count, 1);
     });
   });
 });
