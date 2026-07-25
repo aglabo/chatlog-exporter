@@ -25,6 +25,8 @@ import {
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+// constants
+import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
@@ -340,6 +342,39 @@ describe('reviewFrontmatter', () => {
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
       assertEquals(_entry.frontmatter.get('type'), 'research'); // NOT 'tech'
       assertEquals(result.validity, 'error');
+    });
+  });
+
+  /**
+   * `model` 引数が claude CLI の起動引数にそのまま渡ることを検証するケース。
+   */
+  describe('When: model を指定/省略して呼び出す', () => {
+    it('[Normal] T-SF-RV-13-01: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('validity: pass\n'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0, 'haiku');
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+    });
+
+    it('[Normal] T-SF-RV-13-02: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
+      const capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(_enc.encode('validity: pass\n'), capturedArgs),
+      );
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+
+      const modelIndex = capturedArgs.value.indexOf('--model');
+      assertEquals(modelIndex !== -1, true);
+      assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
     });
   });
 });
