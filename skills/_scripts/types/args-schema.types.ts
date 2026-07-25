@@ -29,6 +29,7 @@ export type DefaultArgFields = {
   dryRun?: boolean;
   inputDir?: string;
   outputDir?: string;
+  model?: string;
 };
 
 /** parseArgs 内部でパース中に使う値の型（文字列・真偽値・数値のいずれか）。 */
