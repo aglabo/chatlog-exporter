@@ -66,6 +66,7 @@ export const AI_MODEL_TO_PROVIDER_MAP: AiModelToProvider[] = [
   // Anthropic claude
   { match: 'exact', value: 'default', provider: 'claude' },
   { match: 'exact', value: 'best', provider: 'claude' },
+  { match: 'exact', value: 'fable', provider: 'claude' },
   { match: 'exact', value: 'opus', provider: 'claude' },
   { match: 'exact', value: 'sonnet', provider: 'claude' },
   { match: 'exact', value: 'haiku', provider: 'claude' },
