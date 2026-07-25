@@ -20,6 +20,7 @@ import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types
 // ─── Local
 import { reviewFrontmatter } from '../modules/setfm-review.ts';
 import { extractEntryFrontmatter, filterFrontmatterFields } from '../modules/setfm-write.ts';
+import type { SetfmConfig } from '../types/args.types.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 import type { ReviewResult } from '../types/phase.types.ts';
@@ -38,11 +39,8 @@ export const phaseReview = async (
   cache: ChatlogCache<SetfmCache>,
   dics: Dics,
   prompts: Prompts,
-  concurrency: number,
-  dryRun: boolean,
+  config: Pick<SetfmConfig, 'concurrency' | 'dryRun' | 'model'> & Partial<Pick<SetfmConfig, 'maxRetry'>>,
   reviewProvider?: _ReviewProvider,
-  maxRetry = 0,
-  model?: string,
 ): Promise<void> => {
   const _hits = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
   const _misses = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.REVIEWED);
@@ -55,12 +53,12 @@ export const phaseReview = async (
   await runConcurrent(
     _misses,
     async (entry) => {
-      if (dryRun) {
+      if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}review: ${getFilename(entry.filePath!)}`);
       } else {
         let r: ReviewResult;
         try {
-          r = await _review(entry, dics, prompts, maxRetry, model);
+          r = await _review(entry, dics, prompts, config.maxRetry ?? 0, config.model);
         } catch (e) {
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
@@ -103,6 +101,6 @@ export const phaseReview = async (
         }
       }
     },
-    concurrency,
+    config.concurrency,
   );
 };

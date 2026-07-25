@@ -144,8 +144,7 @@ describe('phaseReview', () => {
         cache,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makePassReviewStub(),
       );
 
@@ -169,8 +168,7 @@ describe('phaseReview', () => {
         cache,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeFailReviewStub(['title が不正']),
       );
 

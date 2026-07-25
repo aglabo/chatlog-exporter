@@ -159,8 +159,7 @@ describe('cache-hit fixtures', () => {
           cache,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           reviewStub,
         );
 
@@ -177,8 +176,7 @@ describe('cache-hit fixtures', () => {
           cache,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           reviewStub,
         );
 
@@ -201,8 +199,7 @@ describe('cache-hit fixtures', () => {
           cache,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _reviewWithCorrection,
         );
 
