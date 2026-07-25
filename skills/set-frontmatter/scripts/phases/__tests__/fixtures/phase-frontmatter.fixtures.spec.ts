@@ -160,8 +160,7 @@ describe('cache-hit fixtures', () => {
           _MAX_CONTENT_LENGTH,
           _makeDics(),
           _makePrompts(),
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           generateStub,
         );
 

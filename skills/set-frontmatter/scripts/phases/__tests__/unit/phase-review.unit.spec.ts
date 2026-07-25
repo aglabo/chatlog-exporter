@@ -132,7 +132,7 @@ describe('phaseReview', () => {
       const { stub, getCount } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseReview(entries, cache, _dics, _prompts, 1, false, stub);
+      await phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(getCount(), 1);
     });
@@ -143,7 +143,7 @@ describe('phaseReview', () => {
       const entries = [_makeEntry('/path/to/a.md')];
       const writeSpy = spy(cache, 'write');
 
-      await phaseReview(entries, cache, _dics, _prompts, 1, false, stub);
+      await phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(writeSpy.calls.length >= 1, true);
     });
@@ -158,7 +158,7 @@ describe('phaseReview', () => {
       const { stub, getCount } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
 
-      await phaseReview(entries, cache, _dics, _prompts, 1, true, stub);
+      await phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(getCount(), 0);
     });
@@ -169,7 +169,7 @@ describe('phaseReview', () => {
       const entries = [_makeEntry('/path/to/a.md')];
       const writeSpy = spy(cache, 'write');
 
-      await phaseReview(entries, cache, _dics, _prompts, 1, true, stub);
+      await phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(writeSpy.calls.length, 0);
     });
@@ -183,7 +183,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeReviewStub();
 
-      await phaseReview([], cache, _dics, _prompts, 1, true, stub);
+      await phaseReview([], cache, _dics, _prompts, { concurrency: 1, dryRun: true }, stub);
 
       assertEquals(getCount(), 0);
     });
@@ -202,7 +202,7 @@ describe('phaseReview', () => {
       const warnSpy = spy(logger, 'warn');
       try {
         // Should resolve without throwing (catch inside phase)
-        await phaseReview(entries, cache, _dics, _prompts, 2, false, _throwingStub);
+        await phaseReview(entries, cache, _dics, _prompts, { concurrency: 2, dryRun: false }, _throwingStub);
         assertEquals(warnSpy.calls.length >= 1, true);
       } finally {
         warnSpy.restore();
@@ -223,7 +223,7 @@ describe('phaseReview', () => {
         corrected: { type: 'tech', category: 'ai', title: 'T', topics: ['x'], tags: ['y'] },
       });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       const fm = cache.read(filePath).frontmatter;
       assertEquals(fm?.['type'], 'tech');
       assertEquals(fm?.['category'], 'ai');
@@ -239,7 +239,7 @@ describe('phaseReview', () => {
         corrected: { type: 'tech', category: 'ai' },
       });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       assertEquals(cache.read(filePath).type, 'tech');
       assertEquals(cache.read(filePath).category, 'ai');
     });
@@ -257,7 +257,7 @@ describe('phaseReview', () => {
         corrected: { title: '', type: 'tech' },
       });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
     });
 
@@ -274,7 +274,7 @@ describe('phaseReview', () => {
         corrected: { type: '', category: 'ai' },
       });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       assertEquals(cache.read(filePath).type, 'existing-type');
     });
 
@@ -291,7 +291,7 @@ describe('phaseReview', () => {
         corrected: { topics: [], type: 'tech' },
       });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       assertEquals(cache.read(filePath).frontmatter?.['topics'], ['existing-topic']);
     });
   });
@@ -305,7 +305,7 @@ describe('phaseReview', () => {
       const filePath = '/path/to/a.md';
       const { stub } = _makeCorrectedStub({ validity: 'error', errors: ['review failed'] });
       const entry = _makeEntry(filePath);
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
       assertEquals(cache.read(filePath).status, 'review-failed');
     });
 
@@ -318,7 +318,7 @@ describe('phaseReview', () => {
       const { stub } = _makeCorrectedStub({ validity: 'error', errors: [] });
       const entry = _makeEntry(filePath);
       try {
-        await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+        await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
         assertEquals(deleteSpy.calls.length, 0);
       } finally {
         deleteSpy.restore();
@@ -343,7 +343,7 @@ describe('phaseReview', () => {
         .set('title', null);
 
       const { stub } = _makeReviewStub();
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
     });
@@ -360,7 +360,7 @@ describe('phaseReview', () => {
       entry.frontmatter.set('title', '');
 
       const { stub } = _makeReviewStub();
-      await phaseReview([entry], cache, _dics, _prompts, 1, false, stub);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
 
       assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
     });

@@ -273,8 +273,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -292,8 +291,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -310,8 +308,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -328,8 +325,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -346,8 +342,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -364,8 +359,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -382,8 +376,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -403,8 +396,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -421,8 +413,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -439,8 +430,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -460,8 +450,7 @@ describe('_phaseFrontmatter', () => {
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
-        _CONCURRENCY,
-        false,
+        { concurrency: _CONCURRENCY, dryRun: false },
         _makeGenerateStub(counter),
       );
 
@@ -500,8 +489,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeGenerateStub(counter),
         );
 
@@ -542,8 +530,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeGenerateStub(counter),
         );
 
@@ -566,8 +553,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeGenerateStub(counter),
         );
 
@@ -590,8 +576,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeGenerateStub(counter),
         );
 
@@ -613,8 +598,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeFullGenerateStub(counter),
         );
 
@@ -633,8 +617,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeFailGenerateStub(counter),
         );
 
@@ -653,8 +636,7 @@ describe('_phaseFrontmatter', () => {
           _MAX_CONTENT_LENGTH,
           _DICS,
           _PROMPTS,
-          _CONCURRENCY,
-          false,
+          { concurrency: _CONCURRENCY, dryRun: false },
           _makeGenerateStub(counter),
         );
 
