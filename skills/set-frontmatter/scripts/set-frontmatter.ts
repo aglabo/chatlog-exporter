@@ -150,6 +150,8 @@ export const main = async (args: string[]): Promise<void> => {
     prompts,
     _config.concurrency,
     _config.dryRun,
+    undefined,
+    _config.model,
   );
 
   // Phase 2.2: フロントマター生成（並列）
@@ -164,6 +166,7 @@ export const main = async (args: string[]): Promise<void> => {
     _config.dryRun,
     undefined,
     _config.maxRetry,
+    _config.model,
   );
 
   // Phase 2.3: ステータス設定
@@ -184,6 +187,7 @@ export const main = async (args: string[]): Promise<void> => {
       _config.dryRun,
       undefined,
       _config.maxRetry,
+      _config.model,
     );
   } else {
     logger.info(`\nPhase 3.1: スキップ (--no-review)`);
