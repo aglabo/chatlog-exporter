@@ -16,7 +16,7 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { phaseReview } from '../../phase-review.ts';
+import { needsReviewAi, phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
@@ -190,13 +190,16 @@ describe('phaseReview', () => {
   });
 
   /**
-   * reviewProvider が throw したとき phase が継続するケース。
+   * reviewProvider が非 fatal エラー（AiError 以外）を throw したとき phase が継続するケース。
+   *
+   * fatal な AiError はバッチを abort する（別ケース T-04-05-01 / T-04-04-02 で検証）。
+   * 非 fatal なエラーは握りつぶして他エントリの処理を継続する。
    */
-  describe('When: reviewProvider が throw する', () => {
-    it('[Normal] T-04-04-01: reviewProvider が throw しても他エントリは処理継続する', async () => {
+  describe('When: reviewProvider がエラーを throw する', () => {
+    it('[Normal] T-04-04-01: reviewProvider が非 fatal エラーを throw → abort せず他エントリ継続', async () => {
       const cache = await _makeCache();
       const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
-        throw new ChatlogError('AiError', 'ExitFailure', 'simulated AI failure');
+        throw new Error('simulated non-fatal failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
       const warnSpy = spy(logger, 'warn');
@@ -207,6 +210,21 @@ describe('phaseReview', () => {
       } finally {
         warnSpy.restore();
       }
+    });
+
+    it('[Error] T-04-04-02: reviewProvider が AiError/ExitFailure を throw → 握りつぶさず再 throw（abort）', async () => {
+      const cache = await _makeCache();
+      const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
+        throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+
+      const error = await assertRejects(
+        () => phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, _throwingStub),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(error.subindex, 'ExitFailure');
     });
   });
 
@@ -386,6 +404,34 @@ describe('phaseReview', () => {
       );
       assertEquals(error.kind, 'AiError');
       assertEquals(_count, 1);
+    });
+  });
+
+  /**
+   * `needsReviewAi` 述語のユニットテスト。
+   *
+   * dry-run 内訳集計で「再実行時にレビュー AI を呼ぶか」を entry と cache から純粋判定する。
+   * キャッシュ status が `reviewed` のときのみ AI 不要（false）。
+   */
+  describe('needsReviewAi', () => {
+    /** status=reviewed で AI 不要な正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-04-06-01: status=reviewed → false', async () => {
+        const filePath = '/path/to/a.md';
+        const cache = await _makeCache();
+        await cache.write(filePath, { status: 'reviewed' as const });
+        assertEquals(needsReviewAi(_makeEntry(filePath), cache), false);
+      });
+    });
+
+    /** status!=reviewed で AI 必要なエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-04-06-02: status=need-review → true', async () => {
+        const filePath = '/path/to/b.md';
+        const cache = await _makeCache();
+        await cache.write(filePath, { status: 'need-review' as const });
+        assertEquals(needsReviewAi(_makeEntry(filePath), cache), true);
+      });
     });
   });
 });

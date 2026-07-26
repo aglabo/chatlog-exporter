@@ -13,7 +13,7 @@
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
+import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -36,6 +36,22 @@ type _ReviewProvider = (
   signal?: AbortSignal,
 ) => Promise<ReviewResult>;
 
+/**
+ * 再実行時にレビュー AI を呼ぶ必要があるかを entry と cache から純粋判定する。
+ *
+ * キャッシュ status が `REVIEWED` 以外のとき `true`（AI レビューが必要）。
+ *
+ * @param entry - 判定対象のエントリ
+ * @param cache - フェーズキャッシュ
+ * @returns AI レビューが必要なら `true`
+ */
+export const needsReviewAi = (
+  entry: ChatlogEntry,
+  cache: ChatlogCache<SetfmCache>,
+): boolean => {
+  return cache.read(entry.filePath!).status !== CACHE_STATUSES.REVIEWED;
+};
+
 export const phaseReview = async (
   entries: ChatlogEntry[],
   cache: ChatlogCache<SetfmCache>,
@@ -44,8 +60,8 @@ export const phaseReview = async (
   config: Pick<SetfmConfig, 'concurrency' | 'dryRun' | 'model'> & Partial<Pick<SetfmConfig, 'maxRetry'>>,
   reviewProvider?: _ReviewProvider,
 ): Promise<void> => {
-  const _hits = entries.filter((e) => cache.read(e.filePath!).status === CACHE_STATUSES.REVIEWED);
-  const _misses = entries.filter((e) => cache.read(e.filePath!).status !== CACHE_STATUSES.REVIEWED);
+  const _hits = entries.filter((e) => !needsReviewAi(e, cache));
+  const _misses = entries.filter((e) => needsReviewAi(e, cache));
 
   _hits.forEach((e) => {
     logger.info(`${LOGGER_TEXT.INDENT}review (cached): ${getFilename(e.filePath!)}`);
@@ -62,7 +78,7 @@ export const phaseReview = async (
         try {
           r = await _review(entry, dics, prompts, config.maxRetry ?? 0, config.model, ctl.signal);
         } catch (e) {
-          if (isRateLimitError(e) || ctl.signal.aborted) {
+          if (isFatalAiError(e) || ctl.signal.aborted) {
             throw e;
           }
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
