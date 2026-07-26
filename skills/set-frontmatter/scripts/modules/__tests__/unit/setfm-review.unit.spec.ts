@@ -102,6 +102,27 @@ class _CountingRateLimitMock extends BaseMockCommand {
   }
 }
 
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+const _SANDBOX_BANNER =
+  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+
+/**
+ * claude CLI が exit 1 で落ち、stderr に rate limit 文字列を含まない sandbox バナーのみを返すモック。
+ *
+ * `runAI` の `_RATE_LIMIT_PATTERN` にヒットしないため `ChatlogError('AiError', 'ExitFailure', ...)` に
+ * 分類される。fatal 伝播（`{ validity: 'error' }` に握りつぶさず即 throw すること）を検証する。
+ */
+class _SandboxBannerFailMock extends BaseMockCommand {
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: _enc.encode(_SANDBOX_BANNER),
+    });
+  }
+}
+
 // functions
 
 /**
@@ -197,18 +218,35 @@ describe('reviewFrontmatter', () => {
   });
 
   /**
-   * リトライ後に成功するケース。
+   * AiError（CLI 非0終了）はリトライで救済されず、2回目が成功しうる設定でも即 throw されるケース。
+   *
+   * rate limit を content 起因の単発失敗と区別できないため、fail-first で 1回目の AiError を
+   * そのまま throw する（リトライして pass に化けさせない）。
    */
-  describe('When: リトライ成功', () => {
-    it('[Normal] T-SF-RV-11-01: maxRetry=1, 1回目が AiError, 2回目成功 → { validity: pass, errors: [] } を返す', async () => {
+  describe('When: AiError はリトライで救済されない', () => {
+    it('[Error] T-SF-RV-11-01: maxRetry=1, 1回目が AiError（2回目は成功しうる） → 救済せず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(
         makeFirstNFailMock(1, 'validity: pass\n'),
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 1);
+      const _err = await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 1),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
+    });
 
-      assertEquals(result, { validity: 'pass', errors: [] });
+    it('[Error] T-SF-RV-11-02: CLI が exit 1 + sandbox バナーのみ → ChatlogError(AiError/ExitFailure) を throw', async () => {
+      commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
+
+      const _entry = _makeChatlogEntry();
+      const _err = await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 2),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
+      assertEquals(_err.subindex, 'ExitFailure');
     });
   });
 
@@ -216,12 +254,15 @@ describe('reviewFrontmatter', () => {
    * AiError → retry 枯渇後 error を返すケース。
    */
   describe('When: 異常系', () => {
-    it('[Error] T-SF-RV-01-01: maxRetry=0, runAI が AiError → { validity: error } を返す (throw しない)', async () => {
+    it('[Error] T-SF-RV-01-01: maxRetry=0, runAI が AiError → 握りつぶさず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(makeFailMock(1));
 
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-      assertEquals(result.validity, 'error');
+      const _err = await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
     });
 
     it('[Error] T-SF-RV-03-01: runAI が validity: fail + errors を返す (corrected_frontmatter なし) → { validity: error, errors: [wrong type] } を返す', async () => {
@@ -378,14 +419,18 @@ describe('reviewFrontmatter', () => {
   });
 
   /**
-   * retry 枯渇 → throw ではなく { validity: 'error' } を返す。
+   * AiError（CLI 非0終了）は握りつぶさず throw する（fail-first）。
+   * InvalidYaml リトライ枯渇時のみ `{ validity: 'error' }` を返す（別テストで検証）。
    */
-  describe('When: retry 枯渇 → error 返却', () => {
-    it('[Error] T-02-04-01: maxRetry=0, AI が AiError → { validity: error } を返す (throw しない)', async () => {
+  describe('When: AiError → throw', () => {
+    it('[Error] T-02-04-01: maxRetry=0, AI が AiError → 握りつぶさず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(makeFailMock(1));
       const _entry = _makeChatlogEntry();
-      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
-      assertEquals(result.validity, 'error');
+      const _err = await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
     });
   });
 
