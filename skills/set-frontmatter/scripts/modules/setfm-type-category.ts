@@ -13,7 +13,7 @@
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
+import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
@@ -49,8 +49,9 @@ const _buildTypeCategorySystemPrompt = (systemTemplate: string, dics: Dics, cate
  * category: <category_key>
  * ```
  *
- * 判定失敗・通常 AI エラー時はフォールバック値をセットする。
- * ただし RateLimit エラーおよび abort 済み signal の場合は、フォールバックに落とさず例外を再 throw する。
+ * 判定失敗（有効キー不一致など）時はフォールバック値をセットする。
+ * ただし AI CLI が非0終了した致命的エラー（rate limit / exit failure）および abort 済み signal の
+ * 場合は、フォールバックに落とさず例外を再 throw する。
  */
 export const judgeTypeAndCategory = async (
   entry: ChatlogEntry,
@@ -97,7 +98,7 @@ export const judgeTypeAndCategory = async (
       category = _parsedCategory;
     }
   } catch (e) {
-    if (isRateLimitError(e) || signal?.aborted) {
+    if (isFatalAiError(e) || signal?.aborted) {
       throw e;
     }
     // fall through to fallback values
