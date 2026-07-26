@@ -17,7 +17,7 @@ import { main } from '../../set-frontmatter.ts';
 import { installCommandMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { _enc, _makeDicsDir, _makeSequentialMock } from '../helpers/setfm-e2e-helpers.ts';
+import { enc, makeDicsDir, makeSequentialMock } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -41,14 +41,14 @@ describe('main - --cache-dir オプション', () => {
           inputDir = await Deno.makeTempDir();
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
+          dicsDir = await makeDicsDir();
 
           await Deno.writeTextFile(`${inputDir}/test.md`, '# テスト\n本文テキスト');
 
           commandHandle = installCommandMock(
-            _makeSequentialMock([
-              _enc.encode('research\ndevelopment'),
-              _enc.encode(
+            makeSequentialMock([
+              enc.encode('research\ndevelopment'),
+              enc.encode(
                 'title: Generated Title\ntopics:\n  - development\ntags:\n  - lang:typescript\n',
               ),
             ]),

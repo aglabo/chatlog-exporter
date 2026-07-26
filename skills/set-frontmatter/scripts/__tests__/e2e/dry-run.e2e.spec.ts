@@ -18,11 +18,11 @@ import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__test
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import {
-  _enc,
-  _makeCacheDir,
-  _makeDicsDir,
-  _makeTargetDir,
-  _makeTwoFileDir,
+  enc,
+  makeCacheDir,
+  makeDicsDir,
+  makeTargetDir,
+  makeTwoFileDir,
 } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -43,9 +43,9 @@ describe('main - dry-run モード', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
+          dicsDir = await makeDicsDir();
 
           // 各フェーズの応答を順番に返す（全呼び出しで成功）
           const callIdx = 0;
@@ -56,7 +56,7 @@ describe('main - dry-run モード', () => {
             'validity: pass',
           ];
           commandHandle = installCommandMock(
-            makeSuccessMock(_enc.encode(phaseResponses.join('\n')), { value: [] }),
+            makeSuccessMock(enc.encode(phaseResponses.join('\n')), { value: [] }),
           );
           void callIdx;
 
@@ -135,11 +135,11 @@ describe('main - dry-run モード', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir('---\ntitle: Test\n---\n# body\n');
+          inputDir = await makeTargetDir('---\ntitle: Test\n---\n# body\n');
           outputDir = await Deno.makeTempDir();
-          cacheDir = await _makeCacheDir(['test']);
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          cacheDir = await makeCacheDir(['test']);
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -200,11 +200,11 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTwoFileDir();
+          inputDir = await makeTwoFileDir();
           outputDir = await Deno.makeTempDir();
-          cacheDir = await _makeCacheDir(['written']);
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          cacheDir = await makeCacheDir(['written']);
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -249,11 +249,11 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
-          cacheDir = await _makeCacheDir(['test']);
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          cacheDir = await makeCacheDir(['test']);
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -298,11 +298,11 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -347,11 +347,11 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTwoFileDir();
+          inputDir = await makeTwoFileDir();
           outputDir = await Deno.makeTempDir();
-          cacheDir = await _makeCacheDir(['written']);
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          cacheDir = await makeCacheDir(['written']);
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -413,11 +413,11 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
-          cacheDir = await _makeCacheDir(['test']);
-          dicsDir = await _makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('research')));
+          cacheDir = await makeCacheDir(['test']);
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
           loggerStub = makeLoggerStub();
         });
 
@@ -451,6 +451,183 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
   });
 });
 
+// ─── T-SF-DR-06: dry-run cached/skip 内訳集計 ────────────────────────────────
+
+describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
+  /**
+   * `--dry-run` 時、generateEntries をファイル単位で cached/skip に分類した内訳ログを検証する。
+   *
+   * cached: 再実行しても AI を呼ばないファイル。
+   * skip: 再実行すると AI を呼ぶファイル（3述語のいずれかが true）。
+   *
+   * テスト ID 範囲: T-SF-DR-06-01 〜 T-SF-DR-06-02
+   */
+  describe('Given: cache エントリなしの .md 1件（全 target = AI 判定対象）', () => {
+    describe('When: main([--dry-run, --no-review, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-06-01 - 内訳ログに cached=0 skip=1 が含まれる', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-DR-06-01: infoLogs に "dry-run 内訳: cached=0 skip=1" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(
+            loggerStub.infoLogs.some((l) => l.includes('dry-run 内訳: cached=0 skip=1')),
+            true,
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: cache に 1件 need-review+frontmatter（cached）+ 1件 cache miss（skip）', () => {
+    describe('When: main([--dry-run, --cache-dir, --no-review, ...]) を呼び出す', () => {
+      describe('Then: T-SF-DR-06-03 - 内訳ログに cached=1 skip=1 が含まれる', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await makeTwoFileDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
+          // target.md を「生成済み（need-review + 全5フィールド frontmatter）」で登録 → cached。
+          // written.md は cache 未登録 → cache miss → skip。
+          const fmCacheDir = `${cacheDir}/fm-cache`;
+          await Deno.mkdir(fmCacheDir, { recursive: true });
+          await Deno.writeTextFile(
+            `${fmCacheDir}/target.json`,
+            JSON.stringify({
+              status: 'need-review',
+              type: 'tech',
+              category: 'backend',
+              frontmatter: { type: 'tech', category: 'backend', title: 't', topics: ['a'], tags: ['b'] },
+            }),
+          );
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-DR-06-03: infoLogs に "dry-run 内訳: cached=1 skip=1" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(
+            loggerStub.infoLogs.some((l) => l.includes('dry-run 内訳: cached=1 skip=1')),
+            true,
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: dry-run フラグなし（通常実行）', () => {
+    describe('When: main([--no-review, ...]) を dry-run なしで呼び出す', () => {
+      describe('Then: T-SF-DR-06-02 - 内訳ログを出力しない', () => {
+        let inputDir: string;
+        let outputDir: string;
+        let cacheDir: string;
+        let dicsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+
+        beforeEach(async () => {
+          inputDir = await makeTargetDir();
+          outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
+          dicsDir = await makeDicsDir();
+          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          loggerStub = makeLoggerStub();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+          await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+        });
+
+        it('[Normal] T-SF-DR-06-02: infoLogs に "dry-run 内訳:" が含まれない', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(
+            loggerStub.infoLogs.every((l) => !l.includes('dry-run 内訳:')),
+            true,
+          );
+        });
+      });
+    });
+  });
+});
+
 // ─── T-SF-E2E-DR-05: dry-run → FAIL(yaml空) が出ない ────────────────────────
 
 describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
@@ -470,12 +647,12 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
+          dicsDir = await makeDicsDir();
           // 全フェーズで空文字を返す（status が空になる条件）
           commandHandle = installCommandMock(
-            makeSuccessMock(_enc.encode('')),
+            makeSuccessMock(enc.encode('')),
           );
           loggerStub = makeLoggerStub();
         });

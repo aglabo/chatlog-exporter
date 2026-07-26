@@ -37,10 +37,10 @@ import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
 import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
-import { phaseFrontmatter } from './phases/phase-frontmatter.ts';
-import { phaseReview } from './phases/phase-review.ts';
+import { needsFrontmatterAi, phaseFrontmatter } from './phases/phase-frontmatter.ts';
+import { needsReviewAi, phaseReview } from './phases/phase-review.ts';
 import { phaseStatus } from './phases/phase-status.ts';
-import { phaseTypeAndCategory } from './phases/phase-type-category.ts';
+import { needsTypeCategoryAi, phaseTypeAndCategory } from './phases/phase-type-category.ts';
 import { filterWriteEntry, phaseWrite } from './phases/phase-write.ts';
 // types
 import { CACHE_STATUSES } from '../../_scripts/types/cache-status.const.types.ts';
@@ -138,6 +138,15 @@ export const main = async (args: string[]): Promise<void> => {
     `分割: written=${writtenEntries.length}件 reviewed=${reviewedEntries.length}件 generate=${generateEntries.length}件`,
   );
 
+  // dry-run 内訳集計: generateEntries をファイル単位で cached/skip に分類する。
+  // フェーズがエントリを変異させる前（キャッシュ・frontmatter が再実行相当の状態）に算出する。
+  const _needsAi = (e: ChatlogEntry): boolean =>
+    needsTypeCategoryAi(e, _cache)
+    || needsFrontmatterAi(e, _cache)
+    || (_config.review && needsReviewAi(e, _cache));
+  const _skipCount = generateEntries.filter(_needsAi).length;
+  const _cachedCount = generateEntries.length - _skipCount;
+
   // Phase 2.1: type・category同時判定（並列）
   logger.info(
     `\nPhase 2.1: type・category判定開始 (${generateEntries.length}件 × 並列度${_config.concurrency})`,
@@ -197,6 +206,10 @@ export const main = async (args: string[]): Promise<void> => {
   logger.info(
     `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,
   );
+
+  if (_config.dryRun) {
+    logger.info(`dry-run 内訳: cached=${_cachedCount} skip=${_skipCount}（skip=再実行時にAI判定する対象）`);
+  }
 };
 
 if (import.meta.main) {

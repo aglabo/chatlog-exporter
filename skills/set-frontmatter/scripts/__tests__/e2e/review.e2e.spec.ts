@@ -16,7 +16,7 @@ import { main } from '../../set-frontmatter.ts';
 // ─── Helpers
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { _enc, _makeDicsDir, _makeTargetDir } from '../helpers/setfm-e2e-helpers.ts';
+import { enc, makeDicsDir, makeTargetDir } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -36,11 +36,11 @@ describe('main - --no-review モード', () => {
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          inputDir = await _makeTargetDir();
+          inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
+          dicsDir = await makeDicsDir();
           commandHandle = installCommandMock(
-            makeSuccessMock(_enc.encode('research')),
+            makeSuccessMock(enc.encode('research')),
           );
           loggerStub = makeLoggerStub();
         });

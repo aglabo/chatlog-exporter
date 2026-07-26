@@ -16,9 +16,10 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { phaseFrontmatter } from '../../phase-frontmatter.ts';
+import { needsFrontmatterAi, phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
+import { stringify } from '@std/yaml';
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
@@ -85,6 +86,28 @@ const _makeEntry = (filePath: string): ChatlogEntry => {
 };
 
 /**
+ * `hasRequiredFields()` を満たす全5フィールド入り frontmatter を持つテスト用 `ChatlogEntry` を生成する。
+ *
+ * @param filePath - エントリのファイルパス
+ * @returns type/category/title/topics/tags を持つ `ChatlogEntry`
+ */
+const _makeFilledEntry = (filePath: string): ChatlogEntry => {
+  const _md = [
+    '---',
+    'type: tech',
+    'category: backend',
+    'title: Filled',
+    'topics:',
+    '  - topic-a',
+    'tags:',
+    '  - tag-a',
+    '---',
+    '# body',
+  ].join('\n');
+  return new ChatlogEntry(_md, { filePath });
+};
+
+/**
  * 呼び出し回数をカウントするスタブ generateProvider を返す。
  *
  * @param returns - スタブが返す値（デフォルト true）
@@ -104,15 +127,40 @@ const _makeGenerateStub = (returns = true): { stub: _GenerateProvider; getCount:
   return { stub, getCount: () => _count };
 };
 
+/** `hasRequiredFields()` を満たす全5フィールド（type/category/title/topics/tags）の frontmatter。 */
+const _FULL_FRONTMATTER = {
+  type: 'tech',
+  category: 'backend',
+  title: 'Cached Title',
+  topics: ['topic-a'],
+  tags: ['tag-a'],
+} as const;
+
+/**
+ * 単一エントリ（basename=`a`）のキャッシュを指定 status・frontmatter で初期化した YAML を返す。
+ *
+ * `ChatlogCache` は basename をキーに使うため、`/path/to/a.md` は `a` に対応する。
+ *
+ * @param status - キャッシュエントリの status 値（例: `'need-review'` / `'set-types'`）
+ * @param withFrontmatter - true のとき全5フィールドの frontmatter を含める
+ * @returns `_makeCache` に渡す YAML 文字列
+ */
+const _cacheYaml = (status: string, withFrontmatter: boolean): string => {
+  const _entry: Record<string, unknown> = { status };
+  if (withFrontmatter) { _entry.frontmatter = { ..._FULL_FRONTMATTER }; }
+  return stringify({ a: _entry });
+};
+
 // ─── Tests
 
 /**
- * `phaseFrontmatter` の dryRun パラメータに関するユニットテストスイート。
+ * `phaseFrontmatter` のユニットテストスイート。
  *
  * `_needsGenerate` パス（キャッシュミス・フロントマターフィールドなし）における
- * generateProvider と cache.write の呼び出し回数を検証する。
+ * generateProvider と cache.write の呼び出し回数、および
+ * キャッシュヒット判定（`_isGenerated`）による生成スキップ・frontmatter 復元を検証する。
  *
- * テスト ID 範囲: T-02-01 〜 T-02-03
+ * テスト ID 範囲: T-02-01 〜 T-02-06
  *
  * @see phaseFrontmatter
  */
@@ -201,13 +249,16 @@ describe('_phaseFrontmatter', () => {
   });
 
   /**
-   * generateProvider が throw したとき phase が継続するケース。
+   * generateProvider が非 fatal エラー（AiError 以外）を throw したとき phase が継続するケース。
+   *
+   * fatal な AiError はバッチを abort する（別ケース T-02-05-01 で検証）。
+   * 非 fatal なエラー（例: content 起因の想定外例外）は握りつぶして他エントリの処理を継続する。
    */
-  describe('When: generateProvider が throw する', () => {
-    it('[Normal] T-02-04-01: generateProvider が throw しても他エントリは処理継続し warn ログが出る', async () => {
+  describe('When: generateProvider が非 fatal エラーを throw する', () => {
+    it('[Normal] T-02-04-01: generateProvider が非 fatal エラーを throw → abort せず他エントリ継続・warn ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
-        throw new ChatlogError('AiError', 'ExitFailure', 'simulated AI failure');
+        throw new Error('simulated non-fatal failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
       const warnSpy = spy(logger, 'warn');
@@ -230,6 +281,30 @@ describe('_phaseFrontmatter', () => {
         warnSpy.restore();
         cacheSpy.restore();
       }
+    });
+
+    it('[Error] T-02-04-02: generateProvider が AiError/ExitFailure を throw → 握りつぶさず再 throw（abort）', async () => {
+      const cache = await _makeCache();
+      const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
+        throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+
+      const error = await assertRejects(
+        () =>
+          phaseFrontmatter(
+            entries,
+            cache,
+            1000,
+            _FAKE_DICS,
+            _FAKE_PROMPTS,
+            { concurrency: 1, dryRun: false },
+            _throwingStub,
+          ),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(error.subindex, 'ExitFailure');
     });
   });
 
@@ -262,6 +337,106 @@ describe('_phaseFrontmatter', () => {
       );
       assertEquals(error.kind, 'AiError');
       assertEquals(_count, 1);
+    });
+  });
+
+  /**
+   * キャッシュヒット判定（`_isGenerated`）に関するテスト。
+   *
+   * status=`need-review`（frontmatter 保存済みの中間状態）および status=`set-types` の
+   * キャッシュがヒット扱いされ、AI 再生成をスキップして frontmatter が復元されることを検証する。
+   */
+  describe('キャッシュヒット判定（_isGenerated）', () => {
+    /** frontmatter を保持したキャッシュがヒット扱いされ、生成がスキップされる正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-02-06-01: status=need-review + frontmatter あり → generateProvider 0回・frontmatter 復元', async () => {
+        const cache = await _makeCache(_cacheYaml('need-review', true));
+        const { stub, getCount } = _makeGenerateStub(true);
+        const entry = _makeEntry('/path/to/a.md');
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          1000,
+          _FAKE_DICS,
+          _FAKE_PROMPTS,
+          { concurrency: 1, dryRun: false },
+          stub,
+        );
+
+        assertEquals(getCount(), 0);
+        assertEquals(entry.frontmatter.hasRequiredFields(), true);
+        assertEquals(entry.frontmatter.get('title'), _FULL_FRONTMATTER.title);
+      });
+
+      it('[Normal] T-02-06-03: status=set-types + frontmatter あり → generateProvider 0回', async () => {
+        const cache = await _makeCache(_cacheYaml('set-types', true));
+        const { stub, getCount } = _makeGenerateStub(true);
+        const entry = _makeEntry('/path/to/a.md');
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          1000,
+          _FAKE_DICS,
+          _FAKE_PROMPTS,
+          { concurrency: 1, dryRun: false },
+          stub,
+        );
+
+        assertEquals(getCount(), 0);
+        assertEquals(entry.frontmatter.hasRequiredFields(), true);
+      });
+    });
+
+    /** frontmatter が保存されていない need-review はヒット扱いされず生成経路へ入る境界ケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-02-06-02: status=need-review + frontmatter なし → generateProvider が呼ばれる', async () => {
+        const cache = await _makeCache(_cacheYaml('need-review', false));
+        const { stub, getCount } = _makeGenerateStub(true);
+        const entry = _makeEntry('/path/to/a.md');
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          1000,
+          _FAKE_DICS,
+          _FAKE_PROMPTS,
+          { concurrency: 1, dryRun: false },
+          stub,
+        );
+
+        assertEquals(getCount(), 1);
+      });
+    });
+  });
+
+  /**
+   * `needsFrontmatterAi` 述語のユニットテスト。
+   *
+   * dry-run 内訳集計で「再実行時にフロントマターを AI 生成するか」を entry と cache から純粋判定する。
+   * キャッシュが生成済み（`_isGenerated`）または entry に必須フィールドが既記入なら AI 不要（false）。
+   */
+  describe('needsFrontmatterAi', () => {
+    /** キャッシュ生成済み・entry 既記入で AI 不要な正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-02-07-01: status=need-review + frontmatter あり（生成済み）→ false', async () => {
+        const cache = await _makeCache(_cacheYaml('need-review', true));
+        assertEquals(needsFrontmatterAi(_makeEntry('/path/to/a.md'), cache), false);
+      });
+
+      it('[Normal] T-02-07-02: cache miss + entry に必須フィールド既記入 → false', async () => {
+        const cache = await _makeCache();
+        assertEquals(needsFrontmatterAi(_makeFilledEntry('/path/to/a.md'), cache), false);
+      });
+    });
+
+    /** キャッシュ未生成かつ entry 未記入で AI 必要なエッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-02-07-03: cache miss + entry フィールドなし → true', async () => {
+        const cache = await _makeCache();
+        assertEquals(needsFrontmatterAi(_makeEntry('/path/to/a.md'), cache), true);
+      });
     });
   });
 });

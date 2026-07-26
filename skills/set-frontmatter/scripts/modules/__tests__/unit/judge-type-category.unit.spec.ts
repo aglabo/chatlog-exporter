@@ -84,6 +84,28 @@ class _RateLimitMockCommand extends BaseMockCommand {
   }
 }
 
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+const _SANDBOX_BANNER =
+  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+
+/**
+ * claude CLI が exit 1 で落ち、stderr に rate limit 文字列を含まない sandbox バナーのみを返すモック。
+ *
+ * `runAI` の `_RATE_LIMIT_PATTERN` にヒットしないため `ChatlogError('AiError', 'ExitFailure', ...)` に
+ * 分類される。実際に観測された rate limit 落ち（バナーのみ）を再現し、fatal 伝播を検証する。
+ */
+class _SandboxBannerFailMock extends BaseMockCommand {
+  /** 常に exit 1 + stderr に sandbox バナーのみを返す。 */
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: _enc.encode(_SANDBOX_BANNER),
+    });
+  }
+}
+
 // functions
 
 /**
@@ -422,19 +444,36 @@ describe('judgeTypeAndCategory', () => {
   // ─── エラー耐性 ─────────────────────────────────────────────────────────────
 
   /**
-   * AI が失敗（例外）したとき、フォールバック値がセットされ例外が投げられないことを検証する。
+   * AI CLI が非0終了で失敗したとき、フォールバックに落とさず fatal な `ChatlogError` を
+   * 再 throw することを検証する（rate limit を content 失敗と区別できないため fail-first）。
    */
   describe('When: 異常系', () => {
     it(
-      '[Error] T-SF-TC-14: AI が失敗（exit code=1） → フォールバック値がセットされる（例外なし）',
+      '[Error] T-SF-TC-14: AI が失敗（exit code=1） → フォールバックせず ChatlogError(AiError) を throw',
       async () => {
         commandHandle = installCommandMock(makeFailMock(1));
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
-        await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+        const _err = await assertRejects(
+          () => judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts()),
+          ChatlogError,
+        ) as ChatlogError;
+        assertEquals(_err.kind, 'AiError');
+      },
+    );
 
-        assertEquals(_entry.frontmatter.get('type') as string, 'research');
-        assertEquals(_entry.frontmatter.get('category') as string, 'development');
+    it(
+      '[Error] T-SF-TC-23: CLI が exit 1 + sandbox バナーのみ（rate limit 文字列なし） → ChatlogError(AiError/ExitFailure) を throw',
+      async () => {
+        commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
+
+        const _entry = _makeChatlogEntry('# テスト\n本文');
+        const _err = await assertRejects(
+          () => judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts()),
+          ChatlogError,
+        ) as ChatlogError;
+        assertEquals(_err.kind, 'AiError');
+        assertEquals(_err.subindex, 'ExitFailure');
       },
     );
   });

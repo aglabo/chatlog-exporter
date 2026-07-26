@@ -16,7 +16,7 @@ import { describe, it } from '@std/testing/bdd';
 import { spy } from '@std/testing/mock';
 
 // ─── Test target
-import { phaseTypeAndCategory } from '../../phase-type-category.ts';
+import { needsTypeCategoryAi, phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
@@ -99,6 +99,24 @@ const _makeCache = async (yaml?: string): Promise<ChatlogCache<SetfmCache>> => {
  * @returns 最小限のフロントマターを持つ `ChatlogEntry`
  */
 const _makeEntry = (filePath: string): ChatlogEntry => new ChatlogEntry('---\ntitle: test\n---\n# body', { filePath });
+
+/**
+ * 既存 frontmatter に type/category を持つテスト用 `ChatlogEntry` を生成する。
+ *
+ * `type` / `category` に空文字を渡すと当該フィールドを省略でき、片方欠けのケースを再現できる。
+ *
+ * @param filePath - エントリのファイルパス
+ * @param type - frontmatter に設定する type 値（空文字なら省略）
+ * @param category - frontmatter に設定する category 値（空文字なら省略）
+ * @returns 指定した type/category を持つ `ChatlogEntry`
+ */
+const _makeEntryWithFrontmatter = (filePath: string, type: string, category: string): ChatlogEntry => {
+  const _lines = ['---', 'title: test'];
+  if (type) { _lines.push(`type: ${type}`); }
+  if (category) { _lines.push(`category: ${category}`); }
+  _lines.push('---', '# body');
+  return new ChatlogEntry(_lines.join('\n'), { filePath });
+};
 
 /**
  * 指定ステータスで type/category をキャッシュに書き込み済みの `ChatlogCache` を返す。
@@ -424,6 +442,110 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       assert(_captured instanceof AbortSignal, 'signal was not forwarded to judgeProvider');
+    });
+  });
+
+  /**
+   * キャッシュミス時に entry の既存 type/category を尊重するテスト。
+   *
+   * 既存 frontmatter に type/category が両方あれば AI 判定（judgeProvider）をスキップし、
+   * 既存値を SET_TYPES ステータスでキャッシュに書き込む。片方でも欠けていれば従来どおり再判定する。
+   */
+  /**
+   * `needsTypeCategoryAi` 述語のユニットテスト。
+   *
+   * dry-run 内訳集計で「再実行時に type/category を AI 判定するか」を entry と cache から純粋判定する。
+   * `_needsReJudge` と同一の判定ロジックを外部公開する。
+   */
+  describe('needsTypeCategoryAi', () => {
+    /** キャッシュに type/category が有効に揃っており AI 不要な正常系。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-01-08-01: status=set-types + type/category あり → false', async () => {
+        const filePath = '/path/to/ok.md';
+        const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.SET_TYPES);
+        assertEquals(needsTypeCategoryAi(_makeEntry(filePath), cache), false);
+      });
+    });
+
+    /** キャッシュミス・再判定ステータスで AI 必要な異常系/エッジケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-01-08-02: cache miss（status undefined）→ true', async () => {
+        const cache = await _makeCache();
+        assertEquals(needsTypeCategoryAi(_makeEntry('/path/to/miss.md'), cache), true);
+      });
+
+      it('[Edge] T-01-08-03: status=review-failed + type/category あり → true', async () => {
+        const filePath = '/path/to/rf.md';
+        const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.REVIEW_FAILED);
+        assertEquals(needsTypeCategoryAi(_makeEntry(filePath), cache), true);
+      });
+    });
+  });
+
+  describe('既存 type/category による AI スキップ', () => {
+    /** 既存 type/category が両方そろっており AI をスキップする正常系。 */
+    describe('When: 正常系', () => {
+      it(
+        '[Normal] T-01-07-01: cache miss + 既存 type/category あり → judgeProvider が 0 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/existing.md';
+          const cache = await _makeCache();
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntryWithFrontmatter(filePath, 'existing-type', 'existing-cat')];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
+
+          assertEquals(getCount(), 0);
+        },
+      );
+
+      it(
+        '[Normal] T-01-07-02: cache miss + 既存 type/category あり → キャッシュに既存値と SET_TYPES が書かれる',
+        async () => {
+          const filePath = '/path/to/existing.md';
+          const cache = await _makeCache();
+          const { stub } = _makeJudgeStub();
+          const entries = [_makeEntryWithFrontmatter(filePath, 'existing-type', 'existing-cat')];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
+
+          const _cached = cache.read(filePath);
+          assertEquals(_cached.type, 'existing-type');
+          assertEquals(_cached.category, 'existing-cat');
+          assertEquals(_cached.status, CACHE_STATUSES.SET_TYPES);
+        },
+      );
+    });
+
+    /** 既存 type/category が片方欠けており従来どおり再判定する回帰確認。 */
+    describe('When: エッジケース', () => {
+      it(
+        '[Edge] T-01-07-03: cache miss + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
+        async () => {
+          const filePath = '/path/to/partial-existing.md';
+          const cache = await _makeCache();
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntryWithFrontmatter(filePath, 'existing-type', '')];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
+
+      it(
+        '[Edge] T-01-07-04: status=review-failed + 既存 type/category あり → judgeProvider が 1 回呼ばれる（AI 再判定）',
+        async () => {
+          const filePath = '/path/to/review-failed-existing.md';
+          const cache = await _makeCacheWithEntry(filePath, CACHE_STATUSES.REVIEW_FAILED);
+          const { stub, getCount } = _makeJudgeStub();
+          const entries = [_makeEntryWithFrontmatter(filePath, 'existing-type', 'existing-cat')];
+
+          await phaseTypeAndCategory(entries, cache, 1000, _DICS, _PROMPTS, { concurrency: 1, dryRun: false }, stub);
+
+          assertEquals(getCount(), 1);
+        },
+      );
     });
   });
 });

@@ -11,14 +11,14 @@ import { BaseMockCommand } from '../../../../_scripts/__tests__/helpers/deno-com
 // types
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
-export const _enc = new TextEncoder();
+export const enc = new TextEncoder();
 
 /**
  * dics + prompts ディレクトリを作成し、最低限のファイルを配置する。
  * loadDics は dicsDir の末尾 "dics" を "prompts" に置換して promptsDir を決定するため、
  * baseDir/dics の形式でディレクトリを作成する。
  */
-export async function _makeDicsDir(): Promise<string> {
+export async function makeDicsDir(): Promise<string> {
   const baseDir = await Deno.makeTempDir();
   const dicsDir = `${baseDir}/dics`;
   const promptsDir = `${baseDir}/prompts`;
@@ -59,7 +59,7 @@ export async function _makeDicsDir(): Promise<string> {
 }
 
 /** .md ファイルを持つ targetDir を作成する */
-export async function _makeTargetDir(content?: string): Promise<string> {
+export async function makeTargetDir(content?: string): Promise<string> {
   const targetDir = await Deno.makeTempDir();
   const mdContent = content ?? '# テスト\n本文テキスト';
   await Deno.writeTextFile(`${targetDir}/test.md`, mdContent);
@@ -70,7 +70,7 @@ export async function _makeTargetDir(content?: string): Promise<string> {
  * 2件の .md ファイルを持つ inputDir を作成する。
  * `written.md` と `target.md` を配置する。
  */
-export const _makeTwoFileDir = async (): Promise<string> => {
+export const makeTwoFileDir = async (): Promise<string> => {
   const dir = await Deno.makeTempDir();
   await Deno.writeTextFile(`${dir}/written.md`, '# written\n本文');
   await Deno.writeTextFile(`${dir}/target.md`, '# target\n本文');
@@ -81,7 +81,7 @@ export const _makeTwoFileDir = async (): Promise<string> => {
  * キャッシュディレクトリを作成し、指定キーに `{ status: 'written' }` の JSON を書き込む。
  * @param basenames - 拡張子なしファイル名（例: `['written']`）
  */
-export const _makeCacheDir = async (basenames: string[]): Promise<string> => {
+export const makeCacheDir = async (basenames: string[]): Promise<string> => {
   const cacheDir = await Deno.makeTempDir();
   const fmCacheDir = `${cacheDir}/fm-cache`;
   await Deno.mkdir(fmCacheDir, { recursive: true });
@@ -96,7 +96,7 @@ export const _makeCacheDir = async (basenames: string[]): Promise<string> => {
  *
  * `responses` の順番に応答し、範囲外のインデックスは最後の応答を返す。
  */
-export const _makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike => {
+export const makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike => {
   let callCount = 0;
   return class extends BaseMockCommand {
     private readonly _stdout: Uint8Array;
@@ -121,15 +121,88 @@ export const _makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike =>
  * @param stdout - rate limit を示す stdout 文字列（既定: "Claude usage limit reached"）
  * @returns rate limit 応答を返す `DenoCommandLike` モッククラス
  */
-export const _makeRateLimitMock = (stdout = 'Claude usage limit reached'): DenoCommandLike => {
+export const makeRateLimitMock = (stdout = 'Claude usage limit reached'): DenoCommandLike => {
   return class extends BaseMockCommand {
     protected makeOutput() {
       return Promise.resolve({
         success: false,
         code: 1,
-        stdout: _enc.encode(stdout),
+        stdout: enc.encode(stdout),
         stderr: new Uint8Array(),
       });
+    }
+  } as unknown as DenoCommandLike;
+};
+
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+export const SANDBOX_BANNER =
+  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+
+/**
+ * 最初の `okCount` 回は指定 stdout で成功し、それ以降は exit 1 + sandbox バナー（stderr）で失敗するモック。
+ *
+ * バナーは rate limit 文字列を含まないため `runAI` で `ExitFailure` に分類される。
+ * Phase 2.1（type/category）を成功させてから後続フェーズ（frontmatter / review）で
+ * exit failure を発生させ、fatal 伝播でバッチが abort することを検証するために使用する。
+ *
+ * @param okCount - 成功させる先頭呼び出し回数
+ * @param okStdout - 成功時に返す stdout 文字列
+ * @returns `DenoCommandLike` モッククラス
+ */
+export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string): DenoCommandLike => {
+  let callCount = 0;
+  const _okBytes = enc.encode(okStdout);
+  return class extends BaseMockCommand {
+    private readonly _fail: boolean;
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      this._fail = callCount >= okCount;
+      callCount++;
+    }
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+      if (this._fail) {
+        return Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: enc.encode(SANDBOX_BANNER),
+        });
+      }
+      return Promise.resolve({ success: true, code: 0, stdout: _okBytes, stderr: new Uint8Array() });
+    }
+  } as unknown as DenoCommandLike;
+};
+
+/**
+ * `failOn`（1始まり）番目の呼び出しだけ exit 1 + sandbox バナーで失敗し、他は success を返すモック。
+ *
+ * 特定フェーズ 1 箇所だけを exit failure にして、そのフェーズの abort ゲート単体が
+ * バッチを止めることを分離検証するために使用する（後続フェーズが救済しない構成）。
+ *
+ * @param failOn - 失敗させる呼び出し番号（1始まり）
+ * @param okStdout - success 時に返す stdout 文字列
+ * @returns `DenoCommandLike` モッククラス
+ */
+export const makeBannerFailOnNthMock = (failOn: number, okStdout: string): DenoCommandLike => {
+  let callCount = 0;
+  const _okBytes = enc.encode(okStdout);
+  return class extends BaseMockCommand {
+    private readonly _fail: boolean;
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      callCount++;
+      this._fail = callCount === failOn;
+    }
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+      if (this._fail) {
+        return Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: enc.encode(SANDBOX_BANNER),
+        });
+      }
+      return Promise.resolve({ success: true, code: 0, stdout: _okBytes, stderr: new Uint8Array() });
     }
   } as unknown as DenoCommandLike;
 };
