@@ -12,6 +12,7 @@
 // ─── Shared scripts
 import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
@@ -34,6 +35,7 @@ export const reviewFrontmatter = async (
   prompts: Prompts,
   maxRetry: number,
   model?: string,
+  signal?: AbortSignal,
 ): Promise<ReviewResult> => {
   const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
   const typeList = formatDicEntries(dics.typeEntries);
@@ -56,8 +58,11 @@ export const reviewFrontmatter = async (
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
     let _raw: string;
     try {
-      _raw = await runAI(system, user, { ...(model ? { model } : {}) });
+      _raw = await runAI(system, user, { ...(model ? { model } : {}), ...(signal ? { signal } : {}) });
     } catch (e) {
+      if (isRateLimitError(e) || signal?.aborted) {
+        throw e;
+      }
       if (e instanceof ChatlogError && e.kind === 'AiError') {
         logger.warn(`reviewFrontmatter: AI call failed (attempt ${attempt + 1}): ${e}`);
         _lastError = e;

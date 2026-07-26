@@ -13,6 +13,7 @@
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // ─── Local
@@ -48,7 +49,8 @@ const _buildTypeCategorySystemPrompt = (systemTemplate: string, dics: Dics, cate
  * category: <category_key>
  * ```
  *
- * 判定失敗・AI エラー時はフォールバック値をセットする（例外は throw しない）。
+ * 判定失敗・通常 AI エラー時はフォールバック値をセットする。
+ * ただし RateLimit エラーおよび abort 済み signal の場合は、フォールバックに落とさず例外を再 throw する。
  */
 export const judgeTypeAndCategory = async (
   entry: ChatlogEntry,
@@ -56,6 +58,7 @@ export const judgeTypeAndCategory = async (
   dics: Dics,
   prompts: Prompts,
   model?: string,
+  signal?: AbortSignal,
 ): Promise<void> => {
   const tmpl = prompts.prompts.get('type-category');
   if (!tmpl) {
@@ -79,7 +82,7 @@ export const judgeTypeAndCategory = async (
   let category = DEFAULT_FALLBACK_CATEGORY;
 
   try {
-    const _raw = await runAI(_system, _user, { ...(model ? { model } : {}) });
+    const _raw = await runAI(_system, _user, { ...(model ? { model } : {}), ...(signal ? { signal } : {}) });
     const _lines = _raw.trim().split('\n');
     const _typeMatch = _lines.find((l) => l.startsWith('type:'));
     const _catMatch = _lines.find((l) => l.startsWith('category:'));
@@ -93,7 +96,10 @@ export const judgeTypeAndCategory = async (
     if (_parsedCategory && _validCategories.has(_parsedCategory)) {
       category = _parsedCategory;
     }
-  } catch {
+  } catch (e) {
+    if (isRateLimitError(e) || signal?.aborted) {
+      throw e;
+    }
     // fall through to fallback values
     type = DEFAULT_FALLBACK_TYPE;
     category = DEFAULT_FALLBACK_CATEGORY;

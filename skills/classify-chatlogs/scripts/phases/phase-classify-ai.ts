@@ -10,6 +10,7 @@
 // cspell:words MoveByAI
 
 // ─── Shared scripts
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
@@ -18,7 +19,6 @@ import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
 // ─── Local
 import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type {
   ClassifyCache,
@@ -122,7 +122,7 @@ export const processChunk = async (
   try {
     rawResult = await runAI(_systemPrompt, _batchPrompt, { model, signal: ctl.signal });
   } catch (e) {
-    if (e instanceof ChatlogError && e.kind === 'AiError' && e.subindex === 'RateLimit') {
+    if (isRateLimitError(e)) {
       throw e;
     }
     const _reason = `claude CLI 実行失敗: ${e}`;

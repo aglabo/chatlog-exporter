@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 // stub
 import { spy } from '@std/testing/mock';
@@ -21,6 +21,7 @@ import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 // ─── Helpers
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
 import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
 // types
@@ -36,6 +37,8 @@ type _JudgeProvider = (
   maxContentLength: number,
   dics: Dics,
   prompts: Prompts,
+  model?: string,
+  signal?: AbortSignal,
 ) => Promise<void>;
 
 // constants
@@ -358,6 +361,69 @@ describe('_phaseTypeAndCategory', () => {
           assertEquals(getCount(), 1);
         },
       );
+    });
+  });
+
+  /**
+   * 先頭ファイルが RateLimit を throw したとき、残りのファイルの判定が中断されるケース。
+   */
+  describe('When: judgeProvider が RateLimit を throw する', () => {
+    it('[Error] T-01-05-01: 先頭が RateLimit → 2 番目以降の judgeProvider が呼ばれず ChatlogError を再 throw', async () => {
+      const cache = await _makeCache();
+      let _count = 0;
+      const _rateLimitStub: _JudgeProvider = (_entry, _maxLen, _dics, _prompts) => {
+        _count++;
+        throw new ChatlogError('AiError', 'RateLimit', 'simulated rate limit');
+      };
+      const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
+
+      // concurrency=1 で逐次実行 → 先頭 throw で abort し 2 番目は着手されない
+      const error = await assertRejects(
+        () =>
+          phaseTypeAndCategory(
+            entries,
+            cache,
+            1000,
+            _DICS,
+            _PROMPTS,
+            { concurrency: 1, dryRun: false },
+            _rateLimitStub,
+          ),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(_count, 1);
+    });
+  });
+
+  /**
+   * worker が `runConcurrent` の `ctl.signal` を judgeProvider へ転送するケース。
+   *
+   * この転送があることで、兄弟ファイルが RateLimit で abort したとき in-flight の judge が signal を受け取れる。
+   */
+  describe('When: signal 転送', () => {
+    it('[Normal] T-01-06-01: judgeProvider に AbortSignal が転送される', async () => {
+      const cache = await _makeCache();
+      let _captured: AbortSignal | undefined;
+      const _captureStub: _JudgeProvider = (entry, _maxLen, _dics, _prompts, _model, signal) => {
+        _captured = signal;
+        entry.frontmatter.set('type', 'stub');
+        entry.frontmatter.set('category', 'stub');
+        return Promise.resolve();
+      };
+      const entries = [_makeEntry('/path/to/a.md')];
+
+      await phaseTypeAndCategory(
+        entries,
+        cache,
+        1000,
+        _DICS,
+        _PROMPTS,
+        { concurrency: 1, dryRun: false },
+        _captureStub,
+      );
+
+      assert(_captured instanceof AbortSignal, 'signal was not forwarded to judgeProvider');
     });
   });
 });

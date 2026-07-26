@@ -10,7 +10,7 @@
 // cspell:words setfm sess
 
 // ─── BDD modules
-import { assertEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertRejects } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -18,13 +18,18 @@ import { reviewFrontmatter } from '../../setfm-review.ts';
 
 // ─── Helpers
 import {
+  BaseMockCommand,
   installCommandMock,
   makeFailMock,
   makeFirstNFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
 // types
@@ -52,7 +57,85 @@ const _mockPrompts: Prompts = {
   ]),
 };
 
+/**
+ * `Deno.Command` に渡された `opts.signal` をキャプチャする成功モック。
+ *
+ * `runAI` は内部タイムアウト用 signal を `AbortSignal.any()` で合成して渡すため、
+ * 単なる `signal !== undefined` は無意味。外部 `AbortController` を `abort()` した後に
+ * キャプチャした合成 signal の `.aborted === true` を確認することでリレーの有無を判別する。
+ */
+class _SignalCaptureMock extends BaseMockCommand {
+  private readonly stdout: Uint8Array;
+  readonly signal?: AbortSignal;
+
+  constructor(_cmd: string, opts: { signal?: AbortSignal }, stdout: Uint8Array) {
+    super();
+    this.stdout = stdout;
+    this.signal = opts.signal;
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+    return Promise.resolve({ success: true, code: 0, stdout: this.stdout });
+  }
+}
+
+/**
+ * 常に rate limit エラー（非ゼロ exit + stderr に "rate limit"）を返し、構築回数を数えるモック。
+ *
+ * `runAI` の `_isRateLimit` 判定を発火させて `ChatlogError('AiError', 'RateLimit', ...)` を
+ * throw させる。`counter.calls` で `runAI` 呼び出し回数を検証し、RateLimit がリトライを
+ * 発生させないこと（1回で throw されること）を判別する。
+ */
+class _CountingRateLimitMock extends BaseMockCommand {
+  constructor(_cmd: string, _opts: unknown, counter: { calls: number }) {
+    super();
+    counter.calls++;
+  }
+
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: _enc.encode('rate limit exceeded'),
+    });
+  }
+}
+
 // functions
+
+/**
+ * `_SignalCaptureMock` を `DenoCommandLike` として返すファクトリヘルパー。
+ *
+ * @param stdout - AI が返す stdout バイト列
+ * @param captured - モックインスタンスの受け渡し先（呼び出し後に signal を検査するための出口）
+ * @returns `DenoCommandLike` クラス
+ */
+const _makeSignalCaptureMock = (
+  stdout: Uint8Array,
+  captured: { instance: _SignalCaptureMock | null },
+): DenoCommandLike => {
+  return class extends _SignalCaptureMock {
+    constructor(cmd: string, opts: { signal?: AbortSignal }) {
+      super(cmd, opts, stdout);
+      captured.instance = this;
+    }
+  } as unknown as DenoCommandLike;
+};
+
+/**
+ * `_CountingRateLimitMock` を `DenoCommandLike` として返すファクトリヘルパー。
+ *
+ * @param counter - `runAI` 呼び出し回数のカウンタ（構築ごとに `calls` を加算）
+ * @returns `DenoCommandLike` クラス
+ */
+const _makeCountingRateLimitMock = (counter: { calls: number }): DenoCommandLike => {
+  return class extends _CountingRateLimitMock {
+    constructor(cmd: string, opts: unknown) {
+      super(cmd, opts, counter);
+    }
+  } as unknown as DenoCommandLike;
+};
 
 /**
  * テスト用 `ChatlogEntry` を生成する。
@@ -375,6 +458,40 @@ describe('reviewFrontmatter', () => {
       const modelIndex = capturedArgs.value.indexOf('--model');
       assertEquals(modelIndex !== -1, true);
       assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
+    });
+  });
+
+  /**
+   * RateLimit エラーの即時伝播と `signal` 転送を検証するケース。
+   *
+   * 通常 AiError はリトライ枯渇後に `{ validity: 'error' }` を返すが、RateLimit は
+   * リトライ対象外として即 throw される。外部 `AbortSignal` は `runAI` へリレーされる。
+   */
+  describe('When: RateLimit / signal 転送', () => {
+    it('[Error] T-SF-RV-14-01: runAI が RateLimit → リトライせず即 throw（maxRetry=2 でも runAI は 1 回のみ）', async () => {
+      const counter = { calls: 0 };
+      commandHandle = installCommandMock(_makeCountingRateLimitMock(counter));
+
+      const _entry = _makeChatlogEntry();
+      await assertRejects(
+        () => reviewFrontmatter(_entry, _mockDics, _mockPrompts, 2),
+        ChatlogError,
+      );
+      assertEquals(counter.calls, 1);
+    });
+
+    it('[Normal] T-SF-RV-14-02: signal を渡すと runAI に転送され、外部 abort で内部 signal も aborted になる', async () => {
+      const _goodYaml = _enc.encode('validity: pass\n');
+      const captured: { instance: _SignalCaptureMock | null } = { instance: null };
+      commandHandle = installCommandMock(_makeSignalCaptureMock(_goodYaml, captured));
+      const controller = new AbortController();
+
+      const _entry = _makeChatlogEntry();
+      await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0, undefined, controller.signal);
+      controller.abort();
+
+      assert(captured.instance !== null, 'mock was not instantiated');
+      assertEquals(captured.instance.signal?.aborted, true);
     });
   });
 });

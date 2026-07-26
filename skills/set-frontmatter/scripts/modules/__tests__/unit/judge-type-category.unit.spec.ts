@@ -10,7 +10,7 @@
 // cspell:words setfm sess
 
 // ─── BDD modules
-import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -21,11 +21,15 @@ import {
 
 // ─── Helpers
 import {
+  BaseMockCommand,
   installCommandMock,
   makeFailMock,
   makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
@@ -39,7 +43,67 @@ import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 const _enc = new TextEncoder();
 const _MAX_CONTENT_LENGTH = 5000;
 
+/**
+ * `Deno.Command` に渡された `opts.signal` をキャプチャする成功モック。
+ *
+ * `runAI` は内部タイムアウト用 signal を `AbortSignal.any()` で合成して渡すため、
+ * 単なる `signal !== undefined` は無意味。外部 `AbortController` を `abort()` した後に
+ * キャプチャした合成 signal の `.aborted === true` を確認することでリレーの有無を判別する。
+ */
+class _SignalCaptureMock extends BaseMockCommand {
+  private readonly stdout: Uint8Array;
+  readonly signal?: AbortSignal;
+
+  /** 合成 signal と stdout を受け取り、後段の検査用に signal を保持する。 */
+  constructor(_cmd: string, opts: { signal?: AbortSignal }, stdout: Uint8Array) {
+    super();
+    this.stdout = stdout;
+    this.signal = opts.signal;
+  }
+
+  /** 常に成功レスポンス（exit 0 + 指定 stdout）を返す。 */
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
+    return Promise.resolve({ success: true, code: 0, stdout: this.stdout });
+  }
+}
+
+/**
+ * 常に rate limit エラー（非ゼロ exit + stderr に "rate limit"）を返すモック。
+ *
+ * `runAI` の rate limit 判定を発火させて `ChatlogError('AiError', 'RateLimit', ...)` を throw させる。
+ */
+class _RateLimitMockCommand extends BaseMockCommand {
+  /** 常に exit 1 + stderr "rate limit exceeded" を返す。 */
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: _enc.encode('rate limit exceeded'),
+    });
+  }
+}
+
 // functions
+
+/**
+ * `_SignalCaptureMock` を `DenoCommandLike` として返すファクトリヘルパー。
+ *
+ * @param stdout - AI が返す stdout バイト列
+ * @param captured - モックインスタンスの受け渡し先（呼び出し後に signal を検査するための出口）
+ * @returns `DenoCommandLike` クラス
+ */
+const _makeSignalCaptureMock = (
+  stdout: Uint8Array,
+  captured: { instance: _SignalCaptureMock | null },
+): DenoCommandLike => {
+  return class extends _SignalCaptureMock {
+    constructor(cmd: string, opts: { signal?: AbortSignal }) {
+      super(cmd, opts, stdout);
+      captured.instance = this;
+    }
+  } as unknown as DenoCommandLike;
+};
 
 /**
  * テスト用 `DicEntry` を生成する。
@@ -434,6 +498,46 @@ describe('judgeTypeAndCategory', () => {
       const modelIndex = capturedArgs.value.indexOf('--model');
       assertEquals(modelIndex !== -1, true);
       assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
+    });
+  });
+
+  // ─── RateLimit / signal 転送 ─────────────────────────────────────────────
+
+  /**
+   * RateLimit エラーの即時伝播と `signal` 転送を検証するケース。
+   *
+   * RateLimit は握りつぶさず即 throw され、外部 `AbortSignal` は `runAI` へリレーされる。
+   */
+  describe('When: RateLimit / signal 転送', () => {
+    it('[Error] T-SF-TC-21: runAI が RateLimit → フォールバックせず ChatlogError を再 throw', async () => {
+      commandHandle = installCommandMock(_RateLimitMockCommand as unknown as DenoCommandLike);
+
+      const _entry = _makeChatlogEntry('# テスト\n本文');
+      await assertRejects(
+        () => judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts()),
+        ChatlogError,
+      );
+    });
+
+    it('[Normal] T-SF-TC-22: signal を渡すと runAI に転送され、外部 abort で内部 signal も aborted になる', async () => {
+      const _goodYaml = _enc.encode('type: discussion\ncategory: development');
+      const captured: { instance: _SignalCaptureMock | null } = { instance: null };
+      commandHandle = installCommandMock(_makeSignalCaptureMock(_goodYaml, captured));
+      const controller = new AbortController();
+
+      const _entry = _makeChatlogEntry('# テスト\n本文');
+      await judgeTypeAndCategory(
+        _entry,
+        _MAX_CONTENT_LENGTH,
+        _makeDics(),
+        _makePrompts(),
+        undefined,
+        controller.signal,
+      );
+      controller.abort();
+
+      assert(captured.instance !== null, 'mock was not instantiated');
+      assertEquals(captured.instance.signal?.aborted, true);
     });
   });
 });

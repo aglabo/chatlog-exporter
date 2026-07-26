@@ -30,6 +30,7 @@ type _JudgeProvider = (
   dics: Dics,
   prompts: Prompts,
   model?: string,
+  signal?: AbortSignal,
 ) => Promise<void>;
 
 export const phaseTypeAndCategory = async (
@@ -63,11 +64,11 @@ export const phaseTypeAndCategory = async (
   const _judge = judgeProvider ?? judgeTypeAndCategory;
   await runConcurrent(
     _misses,
-    async (entry) => {
+    async (entry, ctl) => {
       if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}type/category: ${getFilename(entry.filePath!)}`);
       } else {
-        await _judge(entry, maxContentLength, dics, prompts, config.model);
+        await _judge(entry, maxContentLength, dics, prompts, config.model, ctl.signal);
         const _type = entry.frontmatter.get('type') as string;
         const _category = entry.frontmatter.get('category') as string;
         if (_type && _category) {

@@ -13,6 +13,7 @@
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -32,6 +33,7 @@ type _ReviewProvider = (
   prompts: Prompts,
   maxRetry: number,
   model?: string,
+  signal?: AbortSignal,
 ) => Promise<ReviewResult>;
 
 export const phaseReview = async (
@@ -52,14 +54,17 @@ export const phaseReview = async (
   const _review = reviewProvider ?? reviewFrontmatter;
   await runConcurrent(
     _misses,
-    async (entry) => {
+    async (entry, ctl) => {
       if (config.dryRun) {
         logger.dryrun(`${LOGGER_TEXT.INDENT}review: ${getFilename(entry.filePath!)}`);
       } else {
         let r: ReviewResult;
         try {
-          r = await _review(entry, dics, prompts, config.maxRetry ?? 0, config.model);
+          r = await _review(entry, dics, prompts, config.maxRetry ?? 0, config.model, ctl.signal);
         } catch (e) {
+          if (isRateLimitError(e) || ctl.signal.aborted) {
+            throw e;
+          }
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
         }

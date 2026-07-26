@@ -16,6 +16,7 @@ import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.
 
 // functions
 // --- ai ---
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 
 // constants
@@ -113,7 +114,7 @@ export const segmentChatlogs = async (
       ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     });
   } catch (e) {
-    if (e instanceof ChatlogError && e.kind === 'AiError' && e.subindex === 'RateLimit') {
+    if (isRateLimitError(e)) {
       throw e;
     }
     const _paths = inputs.map((entry) => getBasename(entry.filePath!)).join(', ');
