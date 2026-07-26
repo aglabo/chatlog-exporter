@@ -29,6 +29,9 @@ export type RunAIOptions = {
 
 type _CommandSpec = { command: AiBackendCommand; args: string[]; hasSystemPromptWithArgs: boolean };
 
+/** レートリミット検出パターン。CLI は文言を stdout / stderr のいずれにも出しうる。`i` フラグのみ（`g` を付けると `.test()` がステートフルになる）。 */
+const _RATE_LIMIT_PATTERN = /rate.?limit|429|usage limit/i;
+
 // ─── Functions
 
 /**
@@ -155,7 +158,8 @@ export const runAI = async (
     const _output = await _process.output();
     if (!_output.success) {
       const _stderr = new TextDecoder().decode(_output.stderr).trim();
-      const _isRateLimit = /rate.?limit|429/i.test(_stderr);
+      const _stdout = new TextDecoder().decode(_output.stdout).trim();
+      const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout);
       throw new ChatlogError(
         'AiError',
         _isRateLimit ? 'RateLimit' : 'ExitFailure',
