@@ -13,7 +13,6 @@
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { extractYaml, hasFrontmatterFields } from '../../../_scripts/libs/text/frontmatter-utils.ts';
@@ -57,20 +56,9 @@ export const generateFrontmatter = async (
   let _parsed: FrontmatterFields | undefined;
 
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
-    let _raw: string;
-    try {
-      _raw = await runAI(system, user, { ...(model ? { model } : {}), ...(signal ? { signal } : {}) });
-    } catch (e) {
-      if (isRateLimitError(e) || signal?.aborted) {
-        throw e;
-      }
-      if (e instanceof ChatlogError && e.kind === 'AiError') {
-        logger.warn(`generateFrontmatter: AI call failed (attempt ${attempt + 1}): ${e}`);
-        _lastError = e;
-        continue;
-      }
-      throw e;
-    }
+    // AI CLI 呼び出しのエラー（rate limit / exit failure 等）はリトライせず即 throw する。
+    // YAML パース失敗のみ下で catch してリトライ対象とする。
+    const _raw = await runAI(system, user, { ...(model ? { model } : {}), ...(signal ? { signal } : {}) });
     const _fmResult = extractYaml(_raw, 'title');
     if (!_fmResult.ok) {
       logger.warn(`generateFrontmatter: YAML parse failed (attempt ${attempt + 1}): ${_fmResult.error.message}`);

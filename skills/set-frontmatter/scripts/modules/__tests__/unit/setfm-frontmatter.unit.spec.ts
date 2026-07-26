@@ -109,6 +109,27 @@ class _CountingRateLimitMock extends BaseMockCommand {
   }
 }
 
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+const _SANDBOX_BANNER =
+  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+
+/**
+ * claude CLI が exit 1 で落ち、stderr に rate limit 文字列を含まない sandbox バナーのみを返すモック。
+ *
+ * `runAI` の `_RATE_LIMIT_PATTERN` にヒットしないため `ChatlogError('AiError', 'ExitFailure', ...)` に
+ * 分類される。fatal 伝播（リトライで成功に化けないこと）を検証する。
+ */
+class _SandboxBannerFailMock extends BaseMockCommand {
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: _enc.encode(_SANDBOX_BANNER),
+    });
+  }
+}
+
 // functions
 
 /**
@@ -223,19 +244,37 @@ describe('generateFrontmatter', () => {
   });
 
   /**
-   * リトライ後に成功するケース。
+   * AiError（CLI 非0終了）はリトライで救済されず、2回目が成功しうる設定でも即 throw されるケース。
+   *
+   * rate limit を content 起因の単発失敗と区別できないため、fail-first で 1回目の AiError を
+   * そのまま throw する（リトライして成功に化けさせない）。
    */
-  describe('When: リトライ成功', () => {
-    it('[Normal] T-SF-FM-04-01: maxRetry=1, 1回目が AiError, 2回目成功 → true を返す', async () => {
+  describe('When: AiError はリトライで救済されない', () => {
+    it('[Error] T-SF-FM-04-01: maxRetry=1, 1回目が AiError（2回目は成功しうる） → 救済せず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(
         makeFirstNFailMock(1, 'title: "retry success"\ntopics:\n  - ai\ntags:\n  - test\n'),
       );
 
       const _entry = _makeChatlogEntry();
-      const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 1);
+      const _err = await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 1),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
+      // 救済されていれば title がセットされるはず → セットされていないことを確認
+      assertEquals(_entry.frontmatter.get('title'), undefined);
+    });
 
-      assertEquals(result, true);
-      assertEquals(_entry.frontmatter.get('title'), 'retry success');
+    it('[Error] T-SF-FM-04-03: CLI が exit 1 + sandbox バナーのみ → ChatlogError(AiError/ExitFailure) を throw', async () => {
+      commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
+
+      const _entry = _makeChatlogEntry();
+      const _err = await assertRejects(
+        () => generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 2),
+        ChatlogError,
+      ) as ChatlogError;
+      assertEquals(_err.kind, 'AiError');
+      assertEquals(_err.subindex, 'ExitFailure');
     });
   });
 
