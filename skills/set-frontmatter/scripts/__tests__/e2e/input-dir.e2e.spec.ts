@@ -17,7 +17,7 @@ import { main } from '../../set-frontmatter.ts';
 import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
-import { _enc, _makeDicsDir } from '../helpers/setfm-e2e-helpers.ts';
+import { enc, makeDicsDir } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -49,7 +49,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           await Deno.writeTextFile(`${agentDir}/test.md`, '# テスト\n本文テキスト');
 
           outputDir = await Deno.makeTempDir();
-          dicsDir = await _makeDicsDir();
+          dicsDir = await makeDicsDir();
 
           GlobalConfig.resetInstance();
           await GlobalConfig.getInstance({
@@ -58,7 +58,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           });
 
           commandHandle = installCommandMock(
-            makeSuccessMock(_enc.encode('research\ndevelopment'), { value: [] }),
+            makeSuccessMock(enc.encode('research\ndevelopment'), { value: [] }),
           );
           loggerStub = makeLoggerStub();
         });
