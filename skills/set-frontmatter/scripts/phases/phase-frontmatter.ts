@@ -13,7 +13,7 @@
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
+import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -36,6 +36,35 @@ type _GenerateProvider = (
   signal?: AbortSignal,
 ) => Promise<boolean>;
 
+/**
+ * キャッシュがフロントマター生成済みかを判定する。
+ *
+ * `status` が `SET_TYPES` または `NEED_REVIEW` で、かつ `frontmatter` が保存されているとき `true`。
+ *
+ * @param cache - 判定対象のキャッシュエントリ
+ * @returns 生成済みなら `true`
+ */
+const _isGenerated = (cache: SetfmCache): boolean => {
+  return (cache.status === CACHE_STATUSES.SET_TYPES || cache.status === CACHE_STATUSES.NEED_REVIEW)
+    && !!cache.frontmatter;
+};
+
+/**
+ * 再実行時にフロントマターを AI 生成する必要があるかを entry と cache から純粋判定する。
+ *
+ * キャッシュが生成済み（`_isGenerated`）、または entry に必須フィールドが既記入なら AI 不要（`false`）。
+ *
+ * @param entry - 判定対象のエントリ
+ * @param cache - フェーズキャッシュ
+ * @returns AI 生成が必要なら `true`
+ */
+export const needsFrontmatterAi = (
+  entry: ChatlogEntry,
+  cache: ChatlogCache<SetfmCache>,
+): boolean => {
+  return !_isGenerated(cache.read(entry.filePath!)) && !entry.frontmatter.hasRequiredFields();
+};
+
 export const phaseFrontmatter = async (
   entries: ChatlogEntry[],
   cache: ChatlogCache<SetfmCache>,
@@ -45,10 +74,6 @@ export const phaseFrontmatter = async (
   config: Pick<SetfmConfig, 'concurrency' | 'dryRun' | 'model'> & Partial<Pick<SetfmConfig, 'maxRetry'>>,
   generateProvider?: _GenerateProvider,
 ): Promise<void> => {
-  const _isGenerated = (cache: SetfmCache): boolean => {
-    return cache.status === CACHE_STATUSES.SET_TYPES && !!cache.frontmatter;
-  };
-
   const _hits = entries.filter((e) => {
     const _cached = cache.read(e.filePath!);
     return _isGenerated(_cached);
@@ -106,7 +131,7 @@ export const phaseFrontmatter = async (
         try {
           _ok = await _generate(entry, maxContentLength, dics, prompts, config.maxRetry ?? 0, config.model, ctl.signal);
         } catch (e) {
-          if (isRateLimitError(e) || ctl.signal.aborted) {
+          if (isFatalAiError(e) || ctl.signal.aborted) {
             throw e;
           }
           logger.warn(`${LOGGER_TEXT.INDENT}FAIL (生成失敗): ${getFilename(entry.filePath!)} — ${e}`);
