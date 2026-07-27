@@ -134,16 +134,16 @@ export const makeRateLimitMock = (stdout = 'Claude usage limit reached'): DenoCo
   } as unknown as DenoCommandLike;
 };
 
-/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定される。 */
 export const SANDBOX_BANNER =
   '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
 
 /**
  * 最初の `okCount` 回は指定 stdout で成功し、それ以降は exit 1 + sandbox バナー（stderr）で失敗するモック。
  *
- * バナーは rate limit 文字列を含まないため `runAI` で `ExitFailure` に分類される。
+ * バナー本文が `runAI` の `_SANDBOX_DISABLED_PATTERN` にヒットするため `RateLimit` に分類される。
  * Phase 2.1（type/category）を成功させてから後続フェーズ（frontmatter / review）で
- * exit failure を発生させ、fatal 伝播でバッチが abort することを検証するために使用する。
+ * rate limit(sandbox バナー) を発生させ、fatal 伝播でバッチが abort することを検証するために使用する。
  *
  * @param okCount - 成功させる先頭呼び出し回数
  * @param okStdout - 成功時に返す stdout 文字列
@@ -176,7 +176,7 @@ export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string)
 /**
  * `failOn`（1始まり）番目の呼び出しだけ exit 1 + sandbox バナーで失敗し、他は success を返すモック。
  *
- * 特定フェーズ 1 箇所だけを exit failure にして、そのフェーズの abort ゲート単体が
+ * 特定フェーズ 1 箇所だけを rate limit(sandbox バナー) にして、そのフェーズの abort ゲート単体が
  * バッチを止めることを分離検証するために使用する（後続フェーズが救済しない構成）。
  *
  * @param failOn - 失敗させる呼び出し番号（1始まり）

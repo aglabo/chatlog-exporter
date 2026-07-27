@@ -84,14 +84,14 @@ class _RateLimitMockCommand extends BaseMockCommand {
   }
 }
 
-/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定される。 */
 const _SANDBOX_BANNER =
   '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
 
 /**
- * claude CLI が exit 1 で落ち、stderr に rate limit 文字列を含まない sandbox バナーのみを返すモック。
+ * claude CLI が exit 1 で落ち、stderr に sandbox バナーのみを返すモック。
  *
- * `runAI` の `_RATE_LIMIT_PATTERN` にヒットしないため `ChatlogError('AiError', 'ExitFailure', ...)` に
+ * sandbox バナー本文が `runAI` の `_SANDBOX_DISABLED_PATTERN` にヒットし `ChatlogError('AiError', 'RateLimit', ...)` に
  * 分類される。実際に観測された rate limit 落ち（バナーのみ）を再現し、fatal 伝播を検証する。
  */
 class _SandboxBannerFailMock extends BaseMockCommand {
@@ -463,7 +463,7 @@ describe('judgeTypeAndCategory', () => {
     );
 
     it(
-      '[Error] T-SF-TC-23: CLI が exit 1 + sandbox バナーのみ（rate limit 文字列なし） → ChatlogError(AiError/ExitFailure) を throw',
+      '[Error] T-SF-TC-23: CLI が exit 1 + sandbox バナーのみ（rate limit 文字列なし） → ChatlogError(AiError/RateLimit) を throw',
       async () => {
         commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
 
@@ -473,7 +473,7 @@ describe('judgeTypeAndCategory', () => {
           ChatlogError,
         ) as ChatlogError;
         assertEquals(_err.kind, 'AiError');
-        assertEquals(_err.subindex, 'ExitFailure');
+        assertEquals(_err.subindex, 'RateLimit');
       },
     );
   });
