@@ -9,8 +9,8 @@
 
 // cspell:words setfm
 
-import type { CacheStatus } from '../../../_scripts/types/cache-status.const.types.ts';
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import type { SetfmCacheStatus } from './cache.const.type.ts';
 
 /** フェーズ単位のキャッシュデータ。各フェーズ完了後に該当フィールドを追記する。 */
 export interface SetfmCache {
@@ -20,6 +20,6 @@ export interface SetfmCache {
   category?: string;
   /** Phase 3b (generateFrontmatter) で生成したフロントマターフィールド群。 */
   frontmatter?: FrontmatterFields;
-  /** Phase 4 (applyActions) で記録した処理結果ステータス。`'reviewed'` は Phase 3.5 合格後、`'review-failed'` は Phase 3.5 不合格後、`'written'` は Phase 4 書き込み成功後、`'need-review'` は要レビュー判定後にセットされる。 */
-  status?: CacheStatus;
+  /** 処理の到達段階を表すステータス。`'type-category'` は Phase 2.1 完了後、`'frontmatter'` は Phase 2.2 完了後、`'reviewed'` は Phase 3.1 合格後、`'review-failed'` は Phase 3.1 不合格後、`'written'` は Phase 4.1 書き込み成功後にセットされる。 */
+  status?: SetfmCacheStatus;
 }
