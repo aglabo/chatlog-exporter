@@ -12,6 +12,7 @@
 // functions
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
+import { logger } from '../io/logger.ts';
 import { getAiBackend, isValidModel, parseModel } from './model-utils.ts';
 
 // types
@@ -53,6 +54,8 @@ export const _buildCommand = (model: string, systemPrompt: string): _CommandSpec
         command: _command,
         args: [
           '--print',
+          '--output-format',
+          'json',
           '--disable-slash-commands',
           '--permission-mode',
           'acceptEdits',
@@ -121,6 +124,79 @@ export const _buildCommand = (model: string, systemPrompt: string): _CommandSpec
 };
 
 /**
+ * claude CLI (`--output-format json`) の stdout を JSON 本体としてパースする。
+ *
+ * stdout 先頭にはサンドボックスバナー（`⚠ Sandbox disabled: ...` など）が
+ * 混入しうるため、最初の `{` 以降を JSON 本体として `JSON.parse` する。
+ *
+ * **never-throw**: `{` が無い場合・パース失敗の場合はいずれも `null` を返す。
+ * これにより exit≠0 のフォールバック（正規表現パス）が機能する。
+ *
+ * exported for testing — internal use only (do not rely on outside tests)
+ *
+ * @param stdout - trim 済みの claude CLI stdout
+ * @returns JSON 本体のオブジェクト、またはパース不能なら `null`
+ */
+export const _parseClaudeJson = (stdout: string): Record<string, unknown> | null => {
+  const _start = stdout.indexOf('{');
+  if (_start === -1) {
+    return null;
+  }
+  try {
+    return JSON.parse(stdout.slice(_start)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * `is_error:true` の claude JSON からエラー詳細メッセージを整形する。
+ *
+ * 生 JSON 全体は含めず、`api_error_status` / `terminal_reason` / `result` の要点のみを
+ * 欠損に強い形で組み立てる。status と terminal_reason は括弧内にカンマ区切りで並べ、
+ * 両方欠ければ括弧を省略する。`result` が文字列なら本文として `: <result>` を付ける。
+ *
+ * exported for testing — internal use only (do not rely on outside tests)
+ *
+ * @param parsed - `_parseClaudeJson` が返した claude JSON オブジェクト
+ * @returns 整形済みエラー詳細メッセージ
+ */
+export const _formatClaudeError = (parsed: Record<string, unknown>): string => {
+  const _status = parsed.api_error_status;
+  const _terminal = parsed.terminal_reason;
+  const _result = parsed.result;
+  const _parts = [
+    typeof _status === 'number' ? `status ${_status}` : undefined,
+    typeof _terminal === 'string' ? _terminal : undefined,
+  ].filter((p): p is string => p !== undefined);
+  const _prefix = _parts.length > 0 ? `claude API error (${_parts.join(', ')})` : 'claude API error';
+  return typeof _result === 'string' ? `${_prefix}: ${_result}` : _prefix;
+};
+
+/**
+ * claude JSON を解釈し、成功なら `.result` を返し、`is_error:true` なら throw する。
+ *
+ * exit code は一切見ない（claude CLI の exit code は信頼できないため）。判別は
+ * `is_error` / `api_error_status` のみで行う。error 分岐では生 stdout を `logger.error`
+ * に `(stdout):` ラベル付きで出力し、`_formatClaudeError` を詳細として throw する。
+ *
+ * @param parsed - `_parseClaudeJson` が返した claude JSON オブジェクト
+ * @param stdout - error 分岐でログ出力する生 stdout
+ * @returns 成功時の `.result` 文字列
+ */
+const _interpretClaudeOutput = (parsed: Record<string, unknown>, stdout: string): string => {
+  if (parsed.is_error === true) {
+    logger.error(`${AI_BACKEND_COMMAND_MAP.claude} error (stdout): ${stdout}`);
+    const _subindex = parsed.api_error_status === 429 ? 'RateLimit' : 'ExitFailure';
+    throw new ChatlogError('AiError', _subindex, _formatClaudeError(parsed));
+  }
+  if (typeof parsed.result !== 'string') {
+    throw new ChatlogError('AiError', 'InvalidFormat', `claude JSON has no string "result" field: ${stdout}`);
+  }
+  return parsed.result;
+};
+
+/**
  * Runs an AI CLI subprocess with the given system prompt and user prompt.
  * Returns the trimmed stdout text on success, or throws on failure.
  */
@@ -160,9 +236,24 @@ export const runAI = async (
     await _writer.write(new TextEncoder().encode(_input));
     await _writer.close();
     const _output = await _process.output();
+    const _stdout = new TextDecoder().decode(_output.stdout).trim();
+    const _stderr = new TextDecoder().decode(_output.stderr).trim();
+
+    // claude backend: JSON がパースできれば exit code は一切見ず、is_error で判別する。
+    if (_spec.command === 'claude') {
+      const _parsed = _parseClaudeJson(_stdout);
+      if (_parsed !== null) {
+        return _interpretClaudeOutput(_parsed, _stdout);
+      }
+      if (_output.success) {
+        throw new ChatlogError('AiError', 'InvalidFormat', `claude output is not JSON: ${_stdout}`);
+      }
+      // _parsed === null かつ exit≠0 → 従来の exit-code + 正規表現フォールバックへ流す。
+    }
+
     if (!_output.success) {
-      const _stderr = new TextDecoder().decode(_output.stderr).trim();
-      const _stdout = new TextDecoder().decode(_output.stdout).trim();
+      if (_stderr) { logger.error(`${_spec.command} exited with code ${_output.code} (stderr): ${_stderr}`); }
+      if (_stdout) { logger.error(`${_spec.command} exited with code ${_output.code} (stdout): ${_stdout}`); }
       const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout)
         || _SANDBOX_DISABLED_PATTERN.test(_stderr) || _SANDBOX_DISABLED_PATTERN.test(_stdout);
       throw new ChatlogError(
@@ -171,7 +262,7 @@ export const runAI = async (
         `${_spec.command} exited with code ${_output.code}: ${_stderr}`,
       );
     }
-    return new TextDecoder().decode(_output.stdout).trim();
+    return _stdout;
   } catch (e) {
     if (_options.signal?.aborted) {
       throw new ChatlogError('Aborted', 'ExternalAbort', `${_spec.command} was aborted by an external signal`);

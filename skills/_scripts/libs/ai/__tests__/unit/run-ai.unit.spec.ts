@@ -24,6 +24,7 @@ import {
   makeDelayedSuccessMock,
   makeSuccessMock,
 } from '../../../../__tests__/helpers/deno-command-mock.ts';
+import { makeLoggerStub } from '../../../../__tests__/helpers/logger-stub.ts';
 
 // ─── Internal Helpers
 
@@ -110,11 +111,11 @@ const _cases: Array<{ model: string; expected: CommandSpec }> = [
     expected: {
       command: 'claude',
       args: [
-        '-p',
+        '--print',
+        '--output-format',
+        'json',
         '--system-prompt',
         'sys',
-        '--output-format',
-        'text',
         '--permission-mode',
         'acceptEdits',
         '--strict-mcp-config',
@@ -214,6 +215,13 @@ describe('_buildCommand', () => {
       assertEquals(result.args[result.args.indexOf('--model') + 1], 'claude-3');
       assertEquals(result.hasSystemPromptWithArgs, true);
     });
+
+    it('[Normal] T-LIB-AI-RA-28: model=sonnet → claude args に --output-format json が含まれる', () => {
+      const result = _buildCommand('sonnet', 'sys');
+      assertEquals(result.command, 'claude');
+      assertEquals(result.args.includes('--output-format'), true);
+      assertEquals(result.args[result.args.indexOf('--output-format') + 1], 'json');
+    });
   });
 });
 
@@ -300,22 +308,338 @@ describe('runAI', () => {
           Deno.Command = _origCommand;
         }
       });
+
+      it('[Error] T-LIB-AI-RA-33: runAI — CLI 失敗時 stderr が logger.error に "(stderr)" ラベル付きで出力される', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: new TextEncoder().encode('model not found'),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        const _loggerStub = makeLoggerStub();
+        try {
+          await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          );
+          const _hasStderrLog = _loggerStub.errorLogs.some((m) =>
+            m.includes('(stderr):') && m.includes('model not found')
+          );
+          assertEquals(_hasStderrLog, true);
+        } finally {
+          _loggerStub.restore();
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-34: runAI — CLI 失敗時 stdout(JSON) が logger.error に "(stdout)" ラベル付きで丸ごと出力される', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout = '{"type":"result","subtype":"error","is_error":true,"api_error_status":429}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new TextEncoder().encode('some error'),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        const _loggerStub = makeLoggerStub();
+        try {
+          await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          );
+          const _stdoutLog = _loggerStub.errorLogs.find((m) => m.includes('(stdout):'));
+          assertStringIncludes(_stdoutLog ?? '', _stdout);
+        } finally {
+          _loggerStub.restore();
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-35: runAI — stderr 空 かつ stdout に JSON のみ → stdout JSON がログされ stderr 行はスキップされる', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout = '{"type":"result","subtype":"error","is_error":true,"api_error_status":429}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        const _loggerStub = makeLoggerStub();
+        try {
+          await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          );
+          const _hasStdoutLog = _loggerStub.errorLogs.some((m) => m.includes('(stdout):') && m.includes(_stdout));
+          const _hasStderrLog = _loggerStub.errorLogs.some((m) => m.includes('(stderr):'));
+          assertEquals(_hasStdoutLog, true);
+          assertEquals(_hasStderrLog, false);
+        } finally {
+          _loggerStub.restore();
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-36: runAI — exit 1 かつ claude JSON is_error:true/api_error_status:429 → AiError/RateLimit', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '{"is_error":true,"api_error_status":429,"subtype":"success","terminal_reason":"api_error","result":"You\'ve hit your monthly spend limit · raise it at claude.ai/settings/usage"}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'RateLimit');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-39: runAI — exit 1 かつ claude JSON is_error:true/api_error_status:500 (429以外) → AiError/ExitFailure', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('{"is_error":true,"api_error_status":500,"result":"boom"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-40: runAI — exit 1 かつ stdout がプレーンテキスト(JSON パース不能) → フォールバックで AiError/ExitFailure', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('plain text crash dump'),
+          stderr: new TextEncoder().encode('crash'),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-42: runAI — exit 1 かつ ケースA完全JSON → message に "429" と result 文言 ("monthly spend limit") の両方が含まれる', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '{"is_error":true,"api_error_status":429,"subtype":"success","terminal_reason":"api_error","result":"You\'ve hit your monthly spend limit · raise it at claude.ai/settings/usage"}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertStringIncludes(_err.message, '429');
+          assertStringIncludes(_err.message, 'monthly spend limit');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-43: runAI — exit 1 かつ api_error_status:null/terminal_reason あり → message に result ("boom") は含まれ status 数値部分は含まれない', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(
+            '{"is_error":true,"api_error_status":null,"terminal_reason":"api_error","result":"boom"}',
+          ),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertStringIncludes(_err.message, 'boom');
+          assertEquals(_err.message.includes('status'), false);
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-44: runAI — exit 1 かつ status/terminal_reason 両欠損 → message に result ("partial") 含み例外なく throw される', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('{"is_error":true,"result":"partial"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertStringIncludes(_err.message, 'partial');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
     });
 
-    /** CLI 正常終了時の正常ケース。 */
+    /** CLI 正常終了時（claude backend）の正常ケース。claude は `--output-format json` の構造化 JSON を返し、runAI はその `.result` を抽出して返す。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-LIB-AI-RA-12: runAI — CLI が正常終了 → stdout 文字列を返す', async () => {
+      it('[Normal] T-LIB-AI-RA-12: runAI — claude が JSON `{"result":"hello"}` を返す → .result ("hello") を返す', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
           success: true,
           code: 0,
-          stdout: new TextEncoder().encode('hello'),
+          stdout: new TextEncoder().encode('{"result":"hello"}'),
           stderr: new Uint8Array(),
           signal: null,
         }) as unknown as typeof Deno.Command;
         try {
           const _result = await runAI('sys', 'user', { model: 'sonnet' });
           assertEquals(_result, 'hello');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Normal] T-LIB-AI-RA-29: runAI — claude stdout 先頭にサンドボックスバナー + 末尾に JSON → バナーを除去して .result を抽出する', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)\n{"result":"answer"}';
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _result = await runAI('sys', 'user', { model: 'sonnet' });
+          assertEquals(_result, 'answer');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Normal] T-LIB-AI-RA-37: runAI — exit 1 だが claude JSON is_error:false/result あり → throw せず .result を返す', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '{"is_error":false,"api_error_status":null,"subtype":"success","terminal_reason":"completed","result":"title: hello"}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _result = await runAI('sys', 'user', { model: 'sonnet' });
+          assertEquals(_result, 'title: hello');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Normal] T-LIB-AI-RA-38: runAI — exit 1 だが claude JSON is_error:false → logger.error が呼ばれない (errorLogs 空)', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '{"is_error":false,"api_error_status":null,"subtype":"success","terminal_reason":"completed","result":"title: hello"}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        const _loggerStub = makeLoggerStub();
+        try {
+          await runAI('sys', 'user', { model: 'sonnet' });
+          assertEquals(_loggerStub.errorLogs.length, 0);
+        } finally {
+          _loggerStub.restore();
+          Deno.Command = _origCommand;
+        }
+      });
+    });
+
+    /**
+     * claude JSON パース失敗時の異常ケース。
+     *
+     * 成功終了(exit 0)でも stdout が JSON として解釈できない、または `.result`
+     * が文字列でない場合は fail-first で ChatlogError(AiError/InvalidFormat) を throw する。
+     */
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-AI-RA-30: runAI — claude stdout に "{" が無く JSON パース不能 → ChatlogError(AiError/InvalidFormat)', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('not a json output'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'InvalidFormat');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-31: runAI — claude JSON が有効だが .result が文字列でない → ChatlogError(AiError/InvalidFormat)', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('{"noResult":123}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'InvalidFormat');
         } finally {
           Deno.Command = _origCommand;
         }
@@ -333,18 +657,35 @@ describe('runAI', () => {
      *   ExitFailure のままである（RA-27）。
      */
     describe('When: エッジケース', () => {
-      it('[Edge] T-LIB-AI-RA-23: runAI — 正常終了 かつ stdout に "usage limit" を含む → RateLimit にならず stdout を返す', async () => {
+      it('[Edge] T-LIB-AI-RA-23: runAI — 正常終了 かつ .result に "usage limit" を含む → RateLimit 判定されず .result を返す', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
           success: true,
           code: 0,
-          stdout: new TextEncoder().encode('the response mentions a usage limit topic'),
+          stdout: new TextEncoder().encode('{"result":"the response mentions a usage limit topic"}'),
           stderr: new Uint8Array(),
           signal: null,
         }) as unknown as typeof Deno.Command;
         try {
           const _result = await runAI('sys', 'user', { model: 'sonnet' });
           assertEquals(_result, 'the response mentions a usage limit topic');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-32: runAI — claude 以外のバックエンド(codex) → JSON パースせず生 stdout を trim して返す', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('  plain codex output  \n'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _result = await runAI('sys', 'user', { model: 'gpt-5' });
+          assertEquals(_result, 'plain codex output');
         } finally {
           Deno.Command = _origCommand;
         }
@@ -408,6 +749,23 @@ describe('runAI', () => {
           ) as ChatlogError;
           assertEquals(_err.kind, 'AiError');
           assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-41: runAI — exit 0 かつ claude JSON is_error:false/result:"ok" → .result ("ok") を返す', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('{"is_error":false,"result":"ok"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _result = await runAI('sys', 'user', { model: 'sonnet' });
+          assertEquals(_result, 'ok');
         } finally {
           Deno.Command = _origCommand;
         }
@@ -476,7 +834,9 @@ describe('runAI', () => {
       it('[Normal] T-LIB-AI-RA-18: options.model 省略 → GlobalConfig の model ("opus") が CLI 引数に使われる', async () => {
         GlobalConfig.getInstance({ yaml: 'model: opus' });
         const _capturedArgs: { value: string[] } = { value: [] };
-        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok'), _capturedArgs));
+        commandHandle = installCommandMock(
+          makeSuccessMock(new TextEncoder().encode('{"result":"ok"}'), _capturedArgs),
+        );
 
         await runAI('sys', 'user');
 
@@ -503,7 +863,7 @@ describe('runAI', () => {
     describe('When: エッジケース', () => {
       it('[Edge] T-LIB-AI-RA-20: options.timeoutMs=0 かつ GlobalConfig.timeoutMs が非ゼロ → タイムアウトしない', async () => {
         GlobalConfig.getInstance({ yaml: 'timeoutMs: 50' });
-        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok')));
+        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('{"result":"ok"}')));
 
         const _result = await runAI('sys', 'user', { model: 'sonnet', timeoutMs: 0 });
 
