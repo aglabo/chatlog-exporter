@@ -8,7 +8,7 @@ agent: claude
 # AI execution
 model: "haiku"
 timeoutMs: 120_000 # 2 min (ms)
-maxRetry: 2 # runAI の最大リトライ回数（0=リトライなし、上限 10）
+maxRetry: 2 # runAI の最大ﾘ監gﾗ牡C回数（0=ﾘ監gﾗ牡Cなし､A上限 10）
 
 # Hash generation
 hashLength: 8
@@ -30,7 +30,7 @@ discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value
 # Asset directories (relative to .config/<app-name>/)
 dicsDir: "dics"
 promptsDir: "prompts"
-chatlogsDir: "./chatlogs"
+chatlogsDir: "${ProjectRoot}/chatlogs"
 
 # Temporary cache
 cacheDir: "${TEMP}/cle-cache"
