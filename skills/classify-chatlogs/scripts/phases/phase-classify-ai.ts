@@ -122,7 +122,7 @@ export const processChunk = async (
   try {
     rawResult = await runAI(_systemPrompt, _batchPrompt, { model, signal: ctl.signal });
   } catch (e) {
-    if (isRateLimitError(e)) {
+    if (isRateLimitError(e) || ctl.signal.aborted) {
       throw e;
     }
     const _reason = `claude CLI 実行失敗: ${e}`;
