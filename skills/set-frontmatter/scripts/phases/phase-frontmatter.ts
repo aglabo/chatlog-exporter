@@ -17,11 +17,11 @@ import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 // ─── Local
 import { generateFrontmatter } from '../modules/setfm-frontmatter.ts';
 import { applyCacheToEntry, extractEntryFrontmatter } from '../modules/setfm-write.ts';
 import type { SetfmConfig } from '../types/args.types.ts';
+import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 
@@ -39,13 +39,13 @@ type _GenerateProvider = (
 /**
  * キャッシュがフロントマター生成済みかを判定する。
  *
- * `status` が `SET_TYPES` または `NEED_REVIEW` で、かつ `frontmatter` が保存されているとき `true`。
+ * `status` が `TYPE_CATEGORY` または `FRONTMATTER` で、かつ `frontmatter` が保存されているとき `true`。
  *
  * @param cache - 判定対象のキャッシュエントリ
  * @returns 生成済みなら `true`
  */
 const _isGenerated = (cache: SetfmCache): boolean => {
-  return (cache.status === CACHE_STATUSES.SET_TYPES || cache.status === CACHE_STATUSES.NEED_REVIEW)
+  return (cache.status === SETFM_CACHE_STATUSES.TYPE_CATEGORY || cache.status === SETFM_CACHE_STATUSES.FRONTMATTER)
     && !!cache.frontmatter;
 };
 
@@ -87,7 +87,7 @@ export const phaseFrontmatter = async (
     const _cached = cache.read(e.filePath!);
     applyCacheToEntry(e, _cached);
     if (e.frontmatter.hasRequiredFields() && !config.dryRun) {
-      await cache.write(e.filePath!, { ..._cached, status: CACHE_STATUSES.NEED_REVIEW });
+      await cache.write(e.filePath!, { ..._cached, status: SETFM_CACHE_STATUSES.FRONTMATTER });
     }
     if (config.dryRun) {
       logger.dryrun(`${LOGGER_TEXT.INDENT}frontmatter (cached): ${getFilename(e.filePath!)}`);
@@ -108,7 +108,7 @@ export const phaseFrontmatter = async (
         await cache.write(entry.filePath!, {
           ..._existing,
           frontmatter: _fmSnapshot,
-          status: CACHE_STATUSES.NEED_REVIEW,
+          status: SETFM_CACHE_STATUSES.FRONTMATTER,
         });
       }
       if (config.dryRun) {
@@ -140,7 +140,9 @@ export const phaseFrontmatter = async (
         if (_ok) {
           const _fmSnapshot = extractEntryFrontmatter(entry);
           const _existing = cache.read(entry.filePath!);
-          const _statusUpdate = entry.frontmatter.hasRequiredFields() ? { status: CACHE_STATUSES.NEED_REVIEW } : {};
+          const _statusUpdate = entry.frontmatter.hasRequiredFields()
+            ? { status: SETFM_CACHE_STATUSES.FRONTMATTER }
+            : {};
           await cache.write(entry.filePath!, { ..._existing, frontmatter: _fmSnapshot, ..._statusUpdate });
           logger.info(`${LOGGER_TEXT.INDENT}generated: ${getFilename(entry.filePath!)}`);
         } else {

@@ -20,6 +20,8 @@ import { _splitEntriesForTest as splitEntries } from '../../set-frontmatter.ts';
 import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+// constants
+import { SETFM_CACHE_STATUSES } from '../../types/cache.const.type.ts';
 // types
 import type { SetfmCache } from '../../types/cache.types.ts';
 
@@ -102,7 +104,7 @@ describe('_splitEntries', () => {
     it('[Normal] T-SF-SE-01: status=written → writtenEntries に入る（他は空）', async () => {
       const filePath = '/path/to/written.md';
       const entry = _makeEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { status: 'written' });
+      const cache = await _makeCacheWithHit(filePath, { status: SETFM_CACHE_STATUSES.WRITTEN });
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries([entry], cache);
 
@@ -117,7 +119,7 @@ describe('_splitEntries', () => {
     it('[Normal] T-SF-SE-02: status=reviewed → reviewedEntries に入る（他は空）', async () => {
       const filePath = '/path/to/reviewed.md';
       const entry = _makeEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { status: 'reviewed' });
+      const cache = await _makeCacheWithHit(filePath, { status: SETFM_CACHE_STATUSES.REVIEWED });
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries([entry], cache);
 
@@ -129,10 +131,10 @@ describe('_splitEntries', () => {
   });
 
   describe('When: generateEntries 判定', () => {
-    it('[Normal] T-SF-SE-03: status=need-review → generateEntries に入る（他は空）', async () => {
-      const filePath = '/path/to/need-review.md';
+    it('[Normal] T-SF-SE-03: status=frontmatter → generateEntries に入る（他は空）', async () => {
+      const filePath = '/path/to/frontmatter.md';
       const entry = _makeEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { status: 'need-review' });
+      const cache = await _makeCacheWithHit(filePath, { status: SETFM_CACHE_STATUSES.FRONTMATTER });
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries([entry], cache);
 
@@ -156,7 +158,7 @@ describe('_splitEntries', () => {
     it('[Normal] T-SF-SE-05: status=review-failed → generateEntries に入る（他は空）', async () => {
       const filePath = '/path/to/review-failed.md';
       const entry = _makeEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { status: 'review-failed' });
+      const cache = await _makeCacheWithHit(filePath, { status: SETFM_CACHE_STATUSES.REVIEW_FAILED });
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries([entry], cache);
 
@@ -166,10 +168,10 @@ describe('_splitEntries', () => {
       assertEquals(generateEntries[0].filePath, filePath);
     });
 
-    it('[Normal] T-SF-SE-06: status=set-types → generateEntries に入る（他は空）', async () => {
-      const filePath = '/path/to/set-types.md';
+    it('[Normal] T-SF-SE-06: status=type-category → generateEntries に入る（他は空）', async () => {
+      const filePath = '/path/to/type-category.md';
       const entry = _makeEntry(filePath);
-      const cache = await _makeCacheWithHit(filePath, { status: 'set-types' });
+      const cache = await _makeCacheWithHit(filePath, { status: SETFM_CACHE_STATUSES.TYPE_CATEGORY });
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries([entry], cache);
 
@@ -204,8 +206,12 @@ describe('_splitEntries', () => {
           writeTextFile: () => Promise.resolve(),
           mkdir: () => Promise.resolve(),
           readTextFile: (path: string) => {
-            if (path.includes('written')) { return Promise.resolve(JSON.stringify({ status: 'written' })); }
-            if (path.includes('reviewed')) { return Promise.resolve(JSON.stringify({ status: 'reviewed' })); }
+            if (path.includes('written')) {
+              return Promise.resolve(JSON.stringify({ status: SETFM_CACHE_STATUSES.WRITTEN }));
+            }
+            if (path.includes('reviewed')) {
+              return Promise.resolve(JSON.stringify({ status: SETFM_CACHE_STATUSES.REVIEWED }));
+            }
             return Promise.reject(new Error('not found'));
           },
           glob: (_pattern: string) => Promise.resolve([writtenPath, reviewedPath]),
@@ -228,11 +234,11 @@ describe('_splitEntries', () => {
       assertEquals(writtenEntries.length + reviewedEntries.length + generateEntries.length, 3);
     });
 
-    it('[Edge] T-SF-SE-09: reviewed と need-review の混在 → reviewedEntries / generateEntries に正しく分割', async () => {
+    it('[Edge] T-SF-SE-09: reviewed と frontmatter の混在 → reviewedEntries / generateEntries に正しく分割', async () => {
       const reviewedPath = '/path/to/reviewed.md';
-      const needReviewPath = '/path/to/need-review.md';
+      const frontmatterPath = '/path/to/frontmatter.md';
       const reviewedEntry = _makeEntry(reviewedPath);
-      const needReviewEntry = _makeEntry(needReviewPath);
+      const frontmatterEntry = _makeEntry(frontmatterPath);
 
       const cache = new ChatlogCache<SetfmCache>(_UNIT_TEST_CACHE_DIR, '', undefined, {
         cache: {
@@ -240,17 +246,17 @@ describe('_splitEntries', () => {
           mkdir: () => Promise.resolve(),
           readTextFile: (path: string) => {
             if (path.includes('reviewed')) {
-              return Promise.resolve(JSON.stringify({ status: 'reviewed' }));
+              return Promise.resolve(JSON.stringify({ status: SETFM_CACHE_STATUSES.REVIEWED }));
             }
-            return Promise.resolve(JSON.stringify({ status: 'need-review' }));
+            return Promise.resolve(JSON.stringify({ status: SETFM_CACHE_STATUSES.FRONTMATTER }));
           },
-          glob: (_pattern: string) => Promise.resolve([reviewedPath, needReviewPath]),
+          glob: (_pattern: string) => Promise.resolve([reviewedPath, frontmatterPath]),
         },
       });
       await cache.ready;
 
       const { writtenEntries, reviewedEntries, generateEntries } = splitEntries(
-        [reviewedEntry, needReviewEntry],
+        [reviewedEntry, frontmatterEntry],
         cache,
       );
 
@@ -258,7 +264,7 @@ describe('_splitEntries', () => {
       assertEquals(reviewedEntries.length, 1);
       assertEquals(generateEntries.length, 1);
       assertEquals(reviewedEntries[0].filePath, reviewedPath);
-      assertEquals(generateEntries[0].filePath, needReviewPath);
+      assertEquals(generateEntries[0].filePath, frontmatterPath);
     });
 
     it('[Edge] T-SF-SE-11: status=undefined（キャッシュミス）→ generateEntries に入る（明示的 OR 条件確認）', async () => {
@@ -285,11 +291,11 @@ describe('_splitEntries', () => {
 
     it('[Edge] T-SF-SE-10: 合計エントリ数が入力と一致する（漏れなし・重複なし）', async () => {
       const paths = [
-        ['/written.md', 'written'],
-        ['/reviewed.md', 'reviewed'],
-        ['/need-review.md', 'need-review'],
-        ['/set-types.md', 'set-types'],
-        ['/review-failed.md', 'review-failed'],
+        ['/written.md', SETFM_CACHE_STATUSES.WRITTEN],
+        ['/reviewed.md', SETFM_CACHE_STATUSES.REVIEWED],
+        ['/frontmatter.md', SETFM_CACHE_STATUSES.FRONTMATTER],
+        ['/type-category.md', SETFM_CACHE_STATUSES.TYPE_CATEGORY],
+        ['/review-failed.md', SETFM_CACHE_STATUSES.REVIEW_FAILED],
         ['/new.md', null], // cache miss
       ] as const;
       const entries = paths.map(([p]) => _makeEntry(p));

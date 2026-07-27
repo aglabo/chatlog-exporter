@@ -18,7 +18,7 @@ import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 // status types
-import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
+import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 
 // ─── Internal Helpers
 
@@ -137,7 +137,7 @@ describe('setfm-cache', () => {
       it("[Normal] T-SF-CA-04-01: status:'written' を write → read で status フィールドが返る", async () => {
         const cache = await _makeCache(buf, cacheRoot);
 
-        await cache.write(_ENTRY_PATH, { type: 'tech', status: CACHE_STATUSES.WRITTEN });
+        await cache.write(_ENTRY_PATH, { type: 'tech', status: SETFM_CACHE_STATUSES.WRITTEN });
         const result = await cache.read(_ENTRY_PATH);
 
         assertEquals(result, { type: 'tech', status: 'written' });

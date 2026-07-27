@@ -16,3 +16,4 @@
 @rules/workflow.md
 @rules/directory-structure.md
 @rules/testing-conventions.md
+@rules/command-execute.rules.md

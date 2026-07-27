@@ -31,6 +31,7 @@ describe('main - --no-review モード', () => {
       describe('Then: T-SF-E2E-02 - Phase 3.5 スキップのログが出力される', () => {
         let inputDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -38,6 +39,7 @@ describe('main - --no-review モード', () => {
         beforeEach(async () => {
           inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
           commandHandle = installCommandMock(
             makeSuccessMock(enc.encode('research')),
@@ -50,6 +52,7 @@ describe('main - --no-review モード', () => {
           loggerStub.restore();
           await Deno.remove(inputDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
@@ -60,6 +63,8 @@ describe('main - --no-review モード', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',

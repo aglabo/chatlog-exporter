@@ -24,6 +24,8 @@ import {
   makeTargetDir,
   makeTwoFileDir,
 } from '../helpers/setfm-e2e-helpers.ts';
+// constants
+import { SETFM_CACHE_STATUSES } from '../../types/cache.const.type.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -38,6 +40,7 @@ describe('main - dry-run モード', () => {
       describe('Then: T-SF-E2E-01 - ファイルが変更されない', () => {
         let inputDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -45,6 +48,7 @@ describe('main - dry-run モード', () => {
         beforeEach(async () => {
           inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
 
           // 各フェーズの応答を順番に返す（全呼び出しで成功）
@@ -68,6 +72,7 @@ describe('main - dry-run モード', () => {
           loggerStub.restore();
           await Deno.remove(inputDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
@@ -80,6 +85,8 @@ describe('main - dry-run モード', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -96,6 +103,8 @@ describe('main - dry-run モード', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -111,6 +120,8 @@ describe('main - dry-run モード', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -397,6 +408,26 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
 
           assertEquals(loggerStub.dryrunLogs.every((l) => !l.includes('written.md')), true);
         });
+
+        it('T-SF-DR-04-03: ステータス別進捗の infoLogs に "[written] written.md" が含まれる', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(
+            loggerStub.infoLogs.some((l) => l.includes('[written]') && l.includes('written.md')),
+            true,
+          );
+        });
       });
     });
   });
@@ -451,20 +482,20 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
   });
 });
 
-// ─── T-SF-DR-06: dry-run cached/skip 内訳集計 ────────────────────────────────
+// ─── T-SF-DR-06: dry-run ステータス別集計 ────────────────────────────────────
 
-describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
+describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
   /**
-   * `--dry-run` 時、generateEntries をファイル単位で cached/skip に分類した内訳ログを検証する。
+   * `--dry-run` 時、全エントリを到達 status ごとに集計した `dry-run 集計:` ログを検証する。
    *
-   * cached: 再実行しても AI を呼ばないファイル。
-   * skip: 再実行すると AI を呼ぶファイル（3述語のいずれかが true）。
+   * 集計対象は writtenEntries / reviewedEntries / generateEntries の全スナップショット。
+   * `dry-run` フラグなしのときは集計ログを出力しない。
    *
-   * テスト ID 範囲: T-SF-DR-06-01 〜 T-SF-DR-06-02
+   * テスト ID 範囲: T-SF-DR-06-01 〜 T-SF-DR-06-03
    */
   describe('Given: cache エントリなしの .md 1件（全 target = AI 判定対象）', () => {
     describe('When: main([--dry-run, --no-review, ...]) を呼び出す', () => {
-      describe('Then: T-SF-DR-06-01 - 内訳ログに cached=0 skip=1 が含まれる', () => {
+      describe('Then: T-SF-DR-06-01 - ステータス別集計ログに total=1 が含まれる', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -490,7 +521,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Normal] T-SF-DR-06-01: infoLogs に "dry-run 内訳: cached=0 skip=1" が含まれる', async () => {
+        it('[Normal] T-SF-DR-06-01: infoLogs に "dry-run 集計:" と "(total=1)" が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -505,7 +536,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           ]);
 
           assertEquals(
-            loggerStub.infoLogs.some((l) => l.includes('dry-run 内訳: cached=0 skip=1')),
+            loggerStub.infoLogs.some((l) => l.includes('dry-run 集計:') && l.includes('(total=1)')),
             true,
           );
         });
@@ -513,9 +544,9 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
     });
   });
 
-  describe('Given: cache に 1件 need-review+frontmatter（cached）+ 1件 cache miss（skip）', () => {
+  describe('Given: cache に 1件 frontmatter+frontmatter（cached）+ 1件 cache miss（skip）', () => {
     describe('When: main([--dry-run, --cache-dir, --no-review, ...]) を呼び出す', () => {
-      describe('Then: T-SF-DR-06-03 - 内訳ログに cached=1 skip=1 が含まれる', () => {
+      describe('Then: T-SF-DR-06-03 - ステータス別集計ログに total=2 が含まれる', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -527,14 +558,14 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           inputDir = await makeTwoFileDir();
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
-          // target.md を「生成済み（need-review + 全5フィールド frontmatter）」で登録 → cached。
+          // target.md を「生成済み（frontmatter + 全5フィールド frontmatter）」で登録 → cached。
           // written.md は cache 未登録 → cache miss → skip。
           const fmCacheDir = `${cacheDir}/fm-cache`;
           await Deno.mkdir(fmCacheDir, { recursive: true });
           await Deno.writeTextFile(
             `${fmCacheDir}/target.json`,
             JSON.stringify({
-              status: 'need-review',
+              status: SETFM_CACHE_STATUSES.FRONTMATTER,
               type: 'tech',
               category: 'backend',
               frontmatter: { type: 'tech', category: 'backend', title: 't', topics: ['a'], tags: ['b'] },
@@ -554,7 +585,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Normal] T-SF-DR-06-03: infoLogs に "dry-run 内訳: cached=1 skip=1" が含まれる', async () => {
+        it('[Normal] T-SF-DR-06-03: infoLogs に "dry-run 集計:" と "(total=2)" が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -569,7 +600,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           ]);
 
           assertEquals(
-            loggerStub.infoLogs.some((l) => l.includes('dry-run 内訳: cached=1 skip=1')),
+            loggerStub.infoLogs.some((l) => l.includes('dry-run 集計:') && l.includes('(total=2)')),
             true,
           );
         });
@@ -579,7 +610,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
 
   describe('Given: dry-run フラグなし（通常実行）', () => {
     describe('When: main([--no-review, ...]) を dry-run なしで呼び出す', () => {
-      describe('Then: T-SF-DR-06-02 - 内訳ログを出力しない', () => {
+      describe('Then: T-SF-DR-06-02 - 集計ログを出力しない', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -605,7 +636,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Normal] T-SF-DR-06-02: infoLogs に "dry-run 内訳:" が含まれない', async () => {
+        it('[Normal] T-SF-DR-06-02: infoLogs に "dry-run 集計:" が含まれない', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -619,7 +650,7 @@ describe('main - dry-run cached/skip 内訳 (T-SF-DR-06)', () => {
           ]);
 
           assertEquals(
-            loggerStub.infoLogs.every((l) => !l.includes('dry-run 内訳:')),
+            loggerStub.infoLogs.every((l) => !l.includes('dry-run 集計:')),
             true,
           );
         });

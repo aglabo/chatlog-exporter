@@ -15,9 +15,9 @@ import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 // ─── Local
 import { applyCacheToEntry, writeFrontmatter } from '../modules/setfm-write.ts';
+import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Stats } from '../types/phase.types.ts';
 
@@ -33,12 +33,12 @@ type _WriteProvider = (
  * エントリが書き込み対象かどうかを status で判定する predicate 関数。
  *
  * `review=true` の場合は `status === 'reviewed'` のみ true を返す。
- * `review=false` の場合は `status === 'reviewed'` または `status === 'need-review'` で true を返す。
+ * `review=false` の場合は `status === 'reviewed'` または `status === 'frontmatter'` で true を返す。
  * `status === 'written'` / `status === 'review-failed'` / `status === ''` は常に false。
  *
  * @param entry - 判定対象のエントリ
  * @param cache - フェーズキャッシュ
- * @param review - true の場合は 'reviewed' のみ、false の場合は 'reviewed' と 'need-review' の両方
+ * @param review - true の場合は 'reviewed' のみ、false の場合は 'reviewed' と 'frontmatter' の両方
  * @returns 書き込み対象なら true
  */
 export const filterWriteEntry = (
@@ -48,9 +48,9 @@ export const filterWriteEntry = (
 ): boolean => {
   const status = cache.read(filePath).status;
   if (review) {
-    return status === CACHE_STATUSES.REVIEWED;
+    return status === SETFM_CACHE_STATUSES.REVIEWED;
   } else {
-    return status === CACHE_STATUSES.REVIEWED || status === CACHE_STATUSES.NEED_REVIEW;
+    return status === SETFM_CACHE_STATUSES.REVIEWED || status === SETFM_CACHE_STATUSES.FRONTMATTER;
   }
 };
 
