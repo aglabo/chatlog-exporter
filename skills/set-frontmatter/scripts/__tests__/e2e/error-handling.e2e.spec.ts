@@ -147,20 +147,20 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
   });
 });
 
-// ─── T-SF-E2E-16: exit failure(sandbox バナー) が Phase 2.1 で main を reject（バグの発生箇所） ─
+// ─── T-SF-E2E-16: rate limit(sandbox バナー) が Phase 2.1 で main を reject（バグの発生箇所） ─
 
 /**
  * バグ再現テスト。Phase 2.1（type/category）の最初の runAI が exit 1 + sandbox バナー
- * （rate limit 文字列なし）で落ちたとき、以前はデフォルト type/category を黙って書き込んでいた。
- * 修正後は `ExitFailure` が judgeTypeAndCategory(即throw) → phaseTypeAndCategory(try/catchなし・素通し)
- * → withConcurrency abort → main と貫通し、`main()` が `ChatlogError(AiError/ExitFailure)` で reject する。
+ * （バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定）で落ちたとき、以前はデフォルト type/category を黙って書き込んでいた。
+ * 修正後は `RateLimit` が judgeTypeAndCategory(即throw) → phaseTypeAndCategory(try/catchなし・素通し)
+ * → withConcurrency abort → main と貫通し、`main()` が `ChatlogError(AiError/RateLimit)` で reject する。
  *
  * テスト ID 範囲: T-SF-E2E-16-01
  */
-describe('main - exit failure 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-16)', () => {
-  describe('Given: Phase2.1 最初の runAI が sandbox バナー exit failure を返すモック', () => {
+describe('main - rate limit(sandbox バナー) 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-16)', () => {
+  describe('Given: Phase2.1 最初の runAI が sandbox バナー rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--cache-dir", ..., "--no-review", "--dics", ...]) を呼び出す', () => {
-      describe('Then: T-SF-E2E-16 - main が ChatlogError(AiError/ExitFailure) で reject する', () => {
+      describe('Then: T-SF-E2E-16 - main が ChatlogError(AiError/RateLimit) で reject する', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -173,7 +173,7 @@ describe('main - exit failure 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          // 1回目(type/category)のみ banner exit failure。以降(frontmatter)は success。
+          // 1回目(type/category)のみ banner rate limit。以降(frontmatter)は success。
           // Phase 2.1 が握りつぶすと後続が成功し main は resolve するため、Phase 2.1 の
           // abort ゲート単体を分離検証できる（gate 未修正なら resolve = RED）。
           commandHandle = installCommandMock(
@@ -194,7 +194,7 @@ describe('main - exit failure 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Error] T-SF-E2E-16-01: Phase 2.1 の exit failure が貫通し ChatlogError(AiError/ExitFailure) で reject する', async () => {
+        it('[Error] T-SF-E2E-16-01: Phase 2.1 の rate limit(sandbox バナー) が貫通し ChatlogError(AiError/RateLimit) で reject する', async () => {
           const _err = await assertRejects(
             () =>
               main([
@@ -211,27 +211,27 @@ describe('main - exit failure 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-
             ChatlogError,
           ) as ChatlogError;
           assertEquals(_err.kind, 'AiError');
-          assertEquals(_err.subindex, 'ExitFailure');
+          assertEquals(_err.subindex, 'RateLimit');
         });
       });
     });
   });
 });
 
-// ─── T-SF-E2E-14: exit failure(sandbox バナー) が frontmatter フェーズを貫通して main を reject ─
+// ─── T-SF-E2E-14: rate limit(sandbox バナー) が frontmatter フェーズを貫通して main を reject ─
 
 /**
  * Phase 2.1（type/category）は成功し、Phase 2.2（frontmatter 生成）の runAI が
- * exit 1 + sandbox バナー（rate limit 文字列なし）で落ちたとき、`ExitFailure` が
+ * exit 1 + sandbox バナー（バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定）で落ちたとき、`RateLimit` が
  * generateFrontmatter(即throw) → phaseFrontmatter の abort ゲート → withConcurrency abort → main
- * と貫通し、`main()` が `ChatlogError(AiError/ExitFailure)` で reject することを検証する。
+ * と貫通し、`main()` が `ChatlogError(AiError/RateLimit)` で reject することを検証する。
  *
  * テスト ID 範囲: T-SF-E2E-14-01
  */
-describe('main - exit failure 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', () => {
-  describe('Given: Phase2.1 成功・Phase2.2 で sandbox バナー exit failure を返すモック', () => {
+describe('main - rate limit(sandbox バナー) 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', () => {
+  describe('Given: Phase2.1 成功・Phase2.2 で sandbox バナー rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
-      describe('Then: T-SF-E2E-14 - main が ChatlogError(AiError/ExitFailure) で reject する', () => {
+      describe('Then: T-SF-E2E-14 - main が ChatlogError(AiError/RateLimit) で reject する', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -244,7 +244,7 @@ describe('main - exit failure 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', 
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          // 1回目(type/category)成功、2回目以降(frontmatter)を banner exit failure にする
+          // 1回目(type/category)成功、2回目以降(frontmatter)を banner rate limit にする
           commandHandle = installCommandMock(
             makeSuccessThenBannerFailMock(1, 'type: research\ncategory: development'),
           );
@@ -260,7 +260,7 @@ describe('main - exit failure 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', 
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Error] T-SF-E2E-14-01: frontmatter フェーズの exit failure が貫通し ChatlogError(AiError/ExitFailure) で reject する', async () => {
+        it('[Error] T-SF-E2E-14-01: frontmatter フェーズの rate limit(sandbox バナー) が貫通し ChatlogError(AiError/RateLimit) で reject する', async () => {
           const _err = await assertRejects(
             () =>
               main([
@@ -277,29 +277,29 @@ describe('main - exit failure 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', 
             ChatlogError,
           ) as ChatlogError;
           assertEquals(_err.kind, 'AiError');
-          assertEquals(_err.subindex, 'ExitFailure');
+          assertEquals(_err.subindex, 'RateLimit');
         });
       });
     });
   });
 });
 
-// ─── T-SF-E2E-15: exit failure(sandbox バナー) が review フェーズを貫通して main を reject ─
+// ─── T-SF-E2E-15: rate limit(sandbox バナー) が review フェーズを貫通して main を reject ─
 
 /**
  * Phase 2.1（type/category）と Phase 2.2（frontmatter）は成功し、Phase 3.1（review）の
- * runAI が exit 1 + sandbox バナー（rate limit 文字列なし）で落ちたとき、`ExitFailure` が
+ * runAI が exit 1 + sandbox バナー（バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定）で落ちたとき、`RateLimit` が
  * reviewFrontmatter(即throw) → phaseReview の abort ゲート → withConcurrency abort → main
- * と貫通し、`main()` が `ChatlogError(AiError/ExitFailure)` で reject することを検証する。
+ * と貫通し、`main()` が `ChatlogError(AiError/RateLimit)` で reject することを検証する。
  *
  * review フェーズを実行するため `--no-review` は付けない。
  *
  * テスト ID 範囲: T-SF-E2E-15-01
  */
-describe('main - exit failure 貫通 (review フェーズ) (T-SF-E2E-15)', () => {
-  describe('Given: Phase2.1/2.2 成功・Phase3.1(review) で sandbox バナー exit failure を返すモック', () => {
+describe('main - rate limit(sandbox バナー) 貫通 (review フェーズ) (T-SF-E2E-15)', () => {
+  describe('Given: Phase2.1/2.2 成功・Phase3.1(review) で sandbox バナー rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--dics", ...]) を呼び出す', () => {
-      describe('Then: T-SF-E2E-15 - main が ChatlogError(AiError/ExitFailure) で reject する', () => {
+      describe('Then: T-SF-E2E-15 - main が ChatlogError(AiError/RateLimit) で reject する', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -312,7 +312,7 @@ describe('main - exit failure 貫通 (review フェーズ) (T-SF-E2E-15)', () =>
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          // 1回目(type/category)+2回目(frontmatter)成功、3回目以降(review)を banner exit failure にする。
+          // 1回目(type/category)+2回目(frontmatter)成功、3回目以降(review)を banner rate limit にする。
           // frontmatter フェーズが必須フィールドを生成できるよう title/topics/tags を返す。
           commandHandle = installCommandMock(
             makeSuccessThenBannerFailMock(
@@ -332,7 +332,7 @@ describe('main - exit failure 貫通 (review フェーズ) (T-SF-E2E-15)', () =>
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Error] T-SF-E2E-15-01: review フェーズの exit failure が貫通し ChatlogError(AiError/ExitFailure) で reject する', async () => {
+        it('[Error] T-SF-E2E-15-01: review フェーズの rate limit(sandbox バナー) が貫通し ChatlogError(AiError/RateLimit) で reject する', async () => {
           const _err = await assertRejects(
             () =>
               main([
@@ -348,7 +348,7 @@ describe('main - exit failure 貫通 (review フェーズ) (T-SF-E2E-15)', () =>
             ChatlogError,
           ) as ChatlogError;
           assertEquals(_err.kind, 'AiError');
-          assertEquals(_err.subindex, 'ExitFailure');
+          assertEquals(_err.subindex, 'RateLimit');
         });
       });
     });

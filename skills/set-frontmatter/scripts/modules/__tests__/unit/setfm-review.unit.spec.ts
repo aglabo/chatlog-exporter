@@ -102,14 +102,14 @@ class _CountingRateLimitMock extends BaseMockCommand {
   }
 }
 
-/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。rate limit 文字列を含まない。 */
+/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定される。 */
 const _SANDBOX_BANNER =
   '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
 
 /**
- * claude CLI が exit 1 で落ち、stderr に rate limit 文字列を含まない sandbox バナーのみを返すモック。
+ * claude CLI が exit 1 で落ち、stderr に sandbox バナーのみを返すモック。
  *
- * `runAI` の `_RATE_LIMIT_PATTERN` にヒットしないため `ChatlogError('AiError', 'ExitFailure', ...)` に
+ * sandbox バナー本文が `runAI` の `_SANDBOX_DISABLED_PATTERN` にヒットし `ChatlogError('AiError', 'RateLimit', ...)` に
  * 分類される。fatal 伝播（`{ validity: 'error' }` に握りつぶさず即 throw すること）を検証する。
  */
 class _SandboxBannerFailMock extends BaseMockCommand {
@@ -237,7 +237,7 @@ describe('reviewFrontmatter', () => {
       assertEquals(_err.kind, 'AiError');
     });
 
-    it('[Error] T-SF-RV-11-02: CLI が exit 1 + sandbox バナーのみ → ChatlogError(AiError/ExitFailure) を throw', async () => {
+    it('[Error] T-SF-RV-11-02: CLI が exit 1 + sandbox バナーのみ → ChatlogError(AiError/RateLimit) を throw', async () => {
       commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
 
       const _entry = _makeChatlogEntry();
@@ -246,7 +246,7 @@ describe('reviewFrontmatter', () => {
         ChatlogError,
       ) as ChatlogError;
       assertEquals(_err.kind, 'AiError');
-      assertEquals(_err.subindex, 'ExitFailure');
+      assertEquals(_err.subindex, 'RateLimit');
     });
   });
 
