@@ -17,11 +17,11 @@ import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 // ─── Local
 import { reviewFrontmatter } from '../modules/setfm-review.ts';
 import { extractEntryFrontmatter, filterFrontmatterFields } from '../modules/setfm-write.ts';
 import type { SetfmConfig } from '../types/args.types.ts';
+import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 import type { ReviewResult } from '../types/phase.types.ts';
@@ -49,7 +49,7 @@ export const needsReviewAi = (
   entry: ChatlogEntry,
   cache: ChatlogCache<SetfmCache>,
 ): boolean => {
-  return cache.read(entry.filePath!).status !== CACHE_STATUSES.REVIEWED;
+  return cache.read(entry.filePath!).status !== SETFM_CACHE_STATUSES.REVIEWED;
 };
 
 export const phaseReview = async (
@@ -95,7 +95,7 @@ export const phaseReview = async (
             type: _correctedType,
             category: _correctedCategory,
             frontmatter: _fmSnapshot,
-            status: CACHE_STATUSES.REVIEWED,
+            status: SETFM_CACHE_STATUSES.REVIEWED,
           });
         } else if (r.validity === 'corrected') {
           logger.info(`${LOGGER_TEXT.INDENT}review corrected: ${getFilename(entry.filePath!)}`);
@@ -109,7 +109,7 @@ export const phaseReview = async (
             type: _correctedType,
             category: _correctedCategory,
             frontmatter: _fmSnapshot,
-            status: CACHE_STATUSES.REVIEWED,
+            status: SETFM_CACHE_STATUSES.REVIEWED,
           });
         } else {
           // r.validity === 'error'
@@ -117,7 +117,7 @@ export const phaseReview = async (
           const _existing = cache.read(entry.filePath!);
           await cache.write(entry.filePath!, {
             ..._existing,
-            status: CACHE_STATUSES.REVIEW_FAILED,
+            status: SETFM_CACHE_STATUSES.REVIEW_FAILED,
           });
         }
       }

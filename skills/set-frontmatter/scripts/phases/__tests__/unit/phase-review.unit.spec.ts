@@ -23,6 +23,8 @@ import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
+// constants
+import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
@@ -266,7 +268,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
-        status: 'need-review' as const,
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
         frontmatter: { title: 'cached-title' },
       });
       const { stub } = _makeCorrectedStub({
@@ -283,7 +285,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
-        status: 'need-review' as const,
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
         type: 'existing-type',
       });
       const { stub } = _makeCorrectedStub({
@@ -300,7 +302,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
-        status: 'need-review' as const,
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
         frontmatter: { topics: ['existing-topic'] },
       });
       const { stub } = _makeCorrectedStub({
@@ -324,14 +326,14 @@ describe('phaseReview', () => {
       const { stub } = _makeCorrectedStub({ validity: 'error', errors: ['review failed'] });
       const entry = _makeEntry(filePath);
       await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
-      assertEquals(cache.read(filePath).status, 'review-failed');
+      assertEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.REVIEW_FAILED);
     });
 
     it('[Normal] T-03-03-02: validity=error → cache.delete は呼ばれない', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       // pre-populate cache
-      await cache.write(filePath, { status: 'need-review' as const, frontmatter: { title: 'kept' } });
+      await cache.write(filePath, { status: SETFM_CACHE_STATUSES.FRONTMATTER, frontmatter: { title: 'kept' } });
       const deleteSpy = spy(cache, 'delete');
       const { stub } = _makeCorrectedStub({ validity: 'error', errors: [] });
       const entry = _makeEntry(filePath);
@@ -353,7 +355,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       await cache.write(filePath, {
         frontmatter: { title: 'cached-title' },
-        status: 'need-review' as const,
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
       });
 
       const entry = _makeEntry(filePath);
@@ -371,7 +373,7 @@ describe('phaseReview', () => {
       const cache = await _makeCache();
       await cache.write(filePath, {
         frontmatter: { title: 'cached-title' },
-        status: 'need-review' as const,
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
       });
 
       const entry = _makeEntry(filePath);
@@ -419,17 +421,17 @@ describe('phaseReview', () => {
       it('[Normal] T-04-06-01: status=reviewed → false', async () => {
         const filePath = '/path/to/a.md';
         const cache = await _makeCache();
-        await cache.write(filePath, { status: 'reviewed' as const });
+        await cache.write(filePath, { status: SETFM_CACHE_STATUSES.REVIEWED });
         assertEquals(needsReviewAi(_makeEntry(filePath), cache), false);
       });
     });
 
     /** status!=reviewed で AI 必要なエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-04-06-02: status=need-review → true', async () => {
+      it('[Edge] T-04-06-02: status=frontmatter → true', async () => {
         const filePath = '/path/to/b.md';
         const cache = await _makeCache();
-        await cache.write(filePath, { status: 'need-review' as const });
+        await cache.write(filePath, { status: SETFM_CACHE_STATUSES.FRONTMATTER });
         assertEquals(needsReviewAi(_makeEntry(filePath), cache), true);
       });
     });
