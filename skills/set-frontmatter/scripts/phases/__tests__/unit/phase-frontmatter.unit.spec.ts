@@ -24,6 +24,8 @@ import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
+// constants
+import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
@@ -141,7 +143,7 @@ const _FULL_FRONTMATTER = {
  *
  * `ChatlogCache` は basename をキーに使うため、`/path/to/a.md` は `a` に対応する。
  *
- * @param status - キャッシュエントリの status 値（例: `'need-review'` / `'set-types'`）
+ * @param status - キャッシュエントリの status 値（例: `'frontmatter'` / `'type-category'`）
  * @param withFrontmatter - true のとき全5フィールドの frontmatter を含める
  * @returns `_makeCache` に渡す YAML 文字列
  */
@@ -343,14 +345,14 @@ describe('_phaseFrontmatter', () => {
   /**
    * キャッシュヒット判定（`_isGenerated`）に関するテスト。
    *
-   * status=`need-review`（frontmatter 保存済みの中間状態）および status=`set-types` の
+   * status=`frontmatter`（frontmatter 保存済みの中間状態）および status=`type-category` の
    * キャッシュがヒット扱いされ、AI 再生成をスキップして frontmatter が復元されることを検証する。
    */
   describe('キャッシュヒット判定（_isGenerated）', () => {
     /** frontmatter を保持したキャッシュがヒット扱いされ、生成がスキップされる正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-02-06-01: status=need-review + frontmatter あり → generateProvider 0回・frontmatter 復元', async () => {
-        const cache = await _makeCache(_cacheYaml('need-review', true));
+      it('[Normal] T-02-06-01: status=frontmatter + frontmatter あり → generateProvider 0回・frontmatter 復元', async () => {
+        const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, true));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
 
@@ -369,8 +371,8 @@ describe('_phaseFrontmatter', () => {
         assertEquals(entry.frontmatter.get('title'), _FULL_FRONTMATTER.title);
       });
 
-      it('[Normal] T-02-06-03: status=set-types + frontmatter あり → generateProvider 0回', async () => {
-        const cache = await _makeCache(_cacheYaml('set-types', true));
+      it('[Normal] T-02-06-03: status=type-category + frontmatter あり → generateProvider 0回', async () => {
+        const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.TYPE_CATEGORY, true));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
 
@@ -389,10 +391,10 @@ describe('_phaseFrontmatter', () => {
       });
     });
 
-    /** frontmatter が保存されていない need-review はヒット扱いされず生成経路へ入る境界ケース。 */
+    /** frontmatter が保存されていない frontmatter はヒット扱いされず生成経路へ入る境界ケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-02-06-02: status=need-review + frontmatter なし → generateProvider が呼ばれる', async () => {
-        const cache = await _makeCache(_cacheYaml('need-review', false));
+      it('[Edge] T-02-06-02: status=frontmatter + frontmatter なし → generateProvider が呼ばれる', async () => {
+        const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, false));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
 
@@ -420,8 +422,8 @@ describe('_phaseFrontmatter', () => {
   describe('needsFrontmatterAi', () => {
     /** キャッシュ生成済み・entry 既記入で AI 不要な正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-02-07-01: status=need-review + frontmatter あり（生成済み）→ false', async () => {
-        const cache = await _makeCache(_cacheYaml('need-review', true));
+      it('[Normal] T-02-07-01: status=frontmatter + frontmatter あり（生成済み）→ false', async () => {
+        const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, true));
         assertEquals(needsFrontmatterAi(_makeEntry('/path/to/a.md'), cache), false);
       });
 

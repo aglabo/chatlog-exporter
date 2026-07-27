@@ -191,7 +191,7 @@ describe('_phaseFrontmatter', () => {
    */
   describe('When: キャッシュヒット（事前スキップ）', () => {
     it('[Normal] T-SF-PF-01: frontmatter が設定済みのエントリ → generateProvider 未呼び出し、フロントマター復元', async () => {
-      cache = await _makeCache(buf, 'test:\n  status: "set-types"\n  frontmatter:\n    title: "Cached Title"');
+      cache = await _makeCache(buf, 'test:\n  status: "type-category"\n  frontmatter:\n    title: "Cached Title"');
       const entry = _makeEntry('/path/to/test.md', '# test');
 
       await phaseFrontmatter(
