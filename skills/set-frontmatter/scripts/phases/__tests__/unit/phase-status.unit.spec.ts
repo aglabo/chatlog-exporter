@@ -20,6 +20,8 @@ import { phaseStatus } from '../../phase-status.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+// constants
+import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import type { SetfmCache } from '../../../types/cache.types.ts';
@@ -105,7 +107,7 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
  * `phaseStatus` のユニットテストスイート。
  *
  * キャッシュ MISS 状態のエントリに対して、フロントマターフィールドの充足状態に応じた
- * status 値（`'need-review'` または `''`）がキャッシュに書き込まれることを検証する。
+ * status 値（`'frontmatter'` または `''`）がキャッシュに書き込まれることを検証する。
  * また、cache.status が `'written'` のエントリはスキップされることを検証する。
  *
  * テスト ID 範囲: T-SF-PS-01 〜 T-SF-PS-07
@@ -115,17 +117,17 @@ const _makeMissingTitleEntry = (filePath: string): ChatlogEntry =>
 describe('phaseStatus', () => {
   /**
    * フロントマターフィールド充足エントリの正常系。
-   * 全6フィールドが揃っているとき `status: 'need-review'` がキャッシュに書き込まれる。
+   * 全6フィールドが揃っているとき `status: 'frontmatter'` がキャッシュに書き込まれる。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-SF-PS-01: 全フィールド充足エントリ → cache.status === "need-review"', async () => {
+    it('[Normal] T-SF-PS-01: 全フィールド充足エントリ → cache.status === "frontmatter"', async () => {
       const buf = new Map<string, string>();
       const cache = await _makeCache(buf);
       const entry = _makeFullEntry('/path/to/full.md');
 
       await phaseStatus([entry], cache, false);
 
-      assertEquals(cache.read('/path/to/full.md').status, 'need-review');
+      assertEquals(cache.read('/path/to/full.md').status, SETFM_CACHE_STATUSES.FRONTMATTER);
     });
 
     it('[Normal] T-SF-PS-04: 混在配列（充足・不足・written）→ 各エントリが正しいステータス', async () => {
@@ -138,9 +140,9 @@ describe('phaseStatus', () => {
 
       await phaseStatus([fullEntry, missingEntry, writtenEntry], cache, false);
 
-      assertEquals(cache.read('/path/to/full.md').status, 'need-review');
-      assertEquals(cache.read('/path/to/missing.md').status, '');
-      assertEquals(cache.read('/path/to/written-entry.md').status, 'written');
+      assertEquals(cache.read('/path/to/full.md').status, SETFM_CACHE_STATUSES.FRONTMATTER);
+      assertEquals(cache.read('/path/to/missing.md').status, SETFM_CACHE_STATUSES.EMPTY);
+      assertEquals(cache.read('/path/to/written-entry.md').status, SETFM_CACHE_STATUSES.WRITTEN);
     });
   });
 
@@ -156,7 +158,7 @@ describe('phaseStatus', () => {
 
       await phaseStatus([entry], cache, false);
 
-      assertEquals(cache.read('/path/to/missing.md').status, '');
+      assertEquals(cache.read('/path/to/missing.md').status, SETFM_CACHE_STATUSES.EMPTY);
     });
   });
 
@@ -172,7 +174,7 @@ describe('phaseStatus', () => {
 
       await phaseStatus([entry], cache, false);
 
-      assertEquals(cache.read('/path/to/written.md').status, 'written');
+      assertEquals(cache.read('/path/to/written.md').status, SETFM_CACHE_STATUSES.WRITTEN);
     });
 
     it('[Edge] T-SF-PS-05: entries=[] → エラーなく完了、cache への書き込みなし', async () => {
