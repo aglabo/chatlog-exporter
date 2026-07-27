@@ -98,7 +98,9 @@ PATH_ARGS=()
 # 非パスモードの INPUT_DIR 決定:
 #   YEAR_MONTH あり: $CHATLOGS_BASE/normalizelogs/$AGENT/$YEAR/$YEAR_MONTH/$PROJECT
 #     （$YEAR は $YEAR_MONTH の先頭4文字）
-#   YEAR_MONTH なし: find で $CHATLOGS_BASE/normalizelogs/$AGENT 配下を列挙
+#   YEAR_MONTH なし: $CHATLOGS_BASE/normalizelogs/$AGENT/$PROJECT
+#     （$PROJECT が空なら $CHATLOGS_BASE/normalizelogs/$AGENT）
+# INPUT_DIR は配下の Markdown をスクリプトが再帰走査するため、ディレクトリ列挙・ループは不要。
 ```
 
 ## ステップ3: スクリプト実行
@@ -118,17 +120,10 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --dics "$DICS_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
-
-# 非パスモード・YEAR_MONTH が未指定の場合 (全年月):
-find "$CHATLOGS_BASE/normalizelogs/$AGENT" -mindepth 3 -maxdepth 3 -type d -name "$PROJECT" | sort | while read -r dir; do
-  echo "=== Processing: $dir ==="
-  deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
-    --input-dir "$dir" \
-    --dics "$DICS_DIR" \
-    $DRY_RUN_FLAG \
-    $REVIEW_FLAG
-done
 ```
+
+INPUT_DIR 配下の Markdown はスクリプトが再帰的に走査するため、ディレクトリを列挙してループ実行する必要はない。
+非パスモード・YEAR_MONTH 未指定（全年月）の場合も、ステップ2で決定した INPUT_DIR をそのまま `--input-dir` に渡す。
 
 ## ステップ4: 結果報告
 
