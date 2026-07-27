@@ -283,6 +283,33 @@ describe('processChunk', () => {
       );
       assertEquals(cache.read('/tmp/input/a.md'), {});
     });
+
+    it('[Error] T-CL-PC-09-01: 外部 signal が abort 済み → ChatlogError(Aborted/ExternalAbort) を握りつぶさず re-throw する', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+      const ctl = new AbortController();
+      ctl.abort();
+
+      const error = await assertRejects(
+        () => processChunk(metas, projects, model, cache, ctl),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'Aborted');
+      assertEquals(error.subindex, 'ExternalAbort');
+    });
+
+    it('[Error] T-CL-PC-09-02: 外部 signal が abort 済み → cache には ERROR が書き込まれない', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+      const ctl = new AbortController();
+      ctl.abort();
+
+      await assertRejects(
+        () => processChunk(metas, projects, model, cache, ctl),
+        ChatlogError,
+      );
+      assertEquals(cache.read('/tmp/input/a.md'), {});
+    });
   });
 
   /**
