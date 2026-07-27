@@ -40,6 +40,7 @@ describe('main - yaml 生成失敗', () => {
       describe('Then: T-SF-E2E-05 - fail=1 のサマリーが出力される', () => {
         let inputDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -47,6 +48,7 @@ describe('main - yaml 生成失敗', () => {
         beforeEach(async () => {
           inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
           // 全フェーズで空文字を返す（title: なし → cleanYaml で空になる）
           commandHandle = installCommandMock(
@@ -60,12 +62,23 @@ describe('main - yaml 生成失敗', () => {
           loggerStub.restore();
           await Deno.remove(inputDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
         it('T-SF-E2E-05-01: "fail=1" がサマリーに出力される', async () => {
-          await main(['--input-dir', inputDir, '--output-dir', outputDir, '--no-review', '--dics', dicsDir]);
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=1')), true);
         });
