@@ -20,7 +20,7 @@ import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 // constants
-import { CACHE_STATUSES } from '../../../../../_scripts/types/cache-status.const.types.ts';
+import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
@@ -194,7 +194,7 @@ describe('_phaseTypeAndCategory', () => {
    */
   describe('When: キャッシュヒット（事前スキップ）', () => {
     it('[Normal] T-SF-PA-01: type が設定済みのエントリ → judgeProvider 未呼び出し、frontmatter にキャッシュ値がセット', async () => {
-      cache = await _makeCache(buf, 'test:\n  type: "coding"\n  category: "typescript"\n  status: "set-types"');
+      cache = await _makeCache(buf, 'test:\n  type: "coding"\n  category: "typescript"\n  status: "type-category"');
       const entry = _makeEntry('/path/to/test.md', '# test');
 
       await phaseTypeAndCategory(
@@ -247,7 +247,7 @@ describe('_phaseTypeAndCategory', () => {
    */
   describe('When: 混在（ヒット + ミスが混在）', () => {
     it('[Normal] T-SF-PA-03: ヒット1件 + ミス1件の混在 → ヒット分は judgeProvider 未呼び出し、ミス分のみ呼び出し', async () => {
-      cache = await _makeCache(buf, 'hit:\n  type: "coding"\n  category: "typescript"\n  status: "set-types"');
+      cache = await _makeCache(buf, 'hit:\n  type: "coding"\n  category: "typescript"\n  status: "type-category"');
       const hitEntry = _makeEntry('/path/to/hit.md', '# hit');
       const missEntry = _makeEntry('/path/to/miss.md', '# miss');
 
@@ -289,7 +289,7 @@ describe('_phaseTypeAndCategory', () => {
         judgeStub,
       );
 
-      assertEquals(cache.read('/path/to/test.md').status, CACHE_STATUSES.SET_TYPES);
+      assertEquals(cache.read('/path/to/test.md').status, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
       assertEquals(buf.size > 0, true);
     });
   });
