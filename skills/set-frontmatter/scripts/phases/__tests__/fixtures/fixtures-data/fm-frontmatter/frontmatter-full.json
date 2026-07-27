@@ -1,7 +1,7 @@
 {
   "type": "research",
   "category": "development",
-  "status": "set-types",
+  "status": "type-category",
   "frontmatter": {
     "title": "Fixtures Full Test",
     "date": "2026-04-14",
