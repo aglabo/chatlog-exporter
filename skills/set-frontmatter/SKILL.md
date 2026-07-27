@@ -65,15 +65,15 @@ Glob ツールで `**/skills/set-frontmatter/SKILL.md` を検索し、そのデ�
 ```bash
 SKILL_DIR   = <set-frontmatter/SKILL.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH = $SKILL_DIR/scripts/set-frontmatter.ts
-DICS_DIR    = <cwd>/temp/dics
 ```
+
+辞書ディレクトリは `--dics` で指定しない。スクリプトは `config.yaml` の `dicsDir`（既定 `dics`、`.config/chatlog-exporter/` 相対）を自動解決する。
 
 ## ステップ2: 引数解析と対象ディレクトリ決定
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CHATLOGS_BASE="$REPO_ROOT/chatlogs"
-DICS_DIR="$REPO_ROOT/.config/chatlog-exporter/dics"
 AGENT="claude"   # デフォルト
 PROJECT=""
 YEAR_MONTH=""
@@ -109,7 +109,6 @@ PATH_ARGS=()
 # INPUT_DIR のみ指定 (OUTPUT_DIR は --output-dir を省略してスクリプトのデフォルトに委ねる):
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
-  --dics "$DICS_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
 
@@ -117,7 +116,6 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
 deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --output-dir "$OUTPUT_DIR" \
-  --dics "$DICS_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
 ```
