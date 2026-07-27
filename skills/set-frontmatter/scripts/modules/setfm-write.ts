@@ -20,8 +20,8 @@ import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/pat
 // ─── Local
 import { DEFAULT_ORDERED_FIELDS } from '../../../_scripts/constants/common.constants.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { CACHE_STATUSES } from '../../../_scripts/types/cache-status.const.types.ts';
 import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 
 // ─────────────────────────────────────────────
@@ -127,7 +127,7 @@ export const writeFrontmatter = async (
     await Deno.writeTextFile(_tmpFile, entry.renderEntry());
     await Deno.rename(_tmpFile, _outputPath);
     const _cached = cache.read(_inputPath);
-    await cache.write(_inputPath, { ..._cached, status: CACHE_STATUSES.WRITTEN });
+    await cache.write(_inputPath, { ..._cached, status: SETFM_CACHE_STATUSES.WRITTEN });
     return true;
   } catch (e) {
     await Deno.remove(_tmpFile).catch(() => {});
