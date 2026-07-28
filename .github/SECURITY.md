@@ -16,7 +16,7 @@ If you discover a security vulnerability, please **do not open a public issue**.
 Instead, contact the maintainers directly via one of the following methods:
 
 - Private report via GitHub Security Advisories
-  [Create a security advisory](https://github.com/atsushifx/chatlog-exporter/security/advisories/new)
+  [Create a security advisory](https://github.com/aglabo/chatlog-exporter/security/advisories/new)
 
 <!-- textlint-disable ja-technical-writing/sentence-length -->
 
