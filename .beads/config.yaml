@@ -25,7 +25,7 @@ json: false
 # actor: ""
 actor: "atsushifx"
 sync:
-  remote: "git+https://github.com/atsushifx/chatlog-exporter.git"
+  remote: "git+https://github.com/aglabo/chatlog-exporter.git"
 
 # Export events (audit trail) to .beads/events.jsonl on each flush/sync
 # When enabled, new events are appended incrementally using a high-water mark.
