@@ -25,9 +25,9 @@ import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 // test helpers
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
   makeNotFoundMock,
-  makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
@@ -73,7 +73,7 @@ function _buildMock(output: FixtureOutput, filePath: string): DenoCommandLike {
       case 'external/not-found':
         return makeNotFoundMock();
       case 'internal/invalid-json':
-        return makeSuccessMock(new TextEncoder().encode('not-json'));
+        return makeClaudeJsonMock('not-json');
       default:
         return makeFailMock(1);
     }
@@ -84,7 +84,7 @@ function _buildMock(output: FixtureOutput, filePath: string): DenoCommandLike {
     content: `content-${i}`,
   }));
   const _aiResult = [{ filePath, segments: _mockSegments }];
-  return makeSuccessMock(new TextEncoder().encode(JSON.stringify(_aiResult)));
+  return makeClaudeJsonMock(JSON.stringify(_aiResult));
 }
 
 // ─── ファイル駆動 fixtures tests ──────────────────────────────────────────────
