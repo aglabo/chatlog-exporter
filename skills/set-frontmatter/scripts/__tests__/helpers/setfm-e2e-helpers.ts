@@ -7,7 +7,7 @@
 // This software is released under the MIT License.
 
 // ─── Helpers
-import { BaseMockCommand } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { BaseMockCommand, wrapClaudeJson } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // types
 import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
@@ -98,12 +98,13 @@ export const makeCacheDir = async (basenames: string[]): Promise<string> => {
  */
 export const makeSequentialMock = (responses: Uint8Array[]): DenoCommandLike => {
   let callCount = 0;
+  const _wrapped = responses.map((r) => enc.encode(wrapClaudeJson(new TextDecoder().decode(r))));
   return class extends BaseMockCommand {
     private readonly _stdout: Uint8Array;
     constructor(_cmd: string, _opts: unknown) {
       super();
-      const idx = callCount < responses.length ? callCount : responses.length - 1;
-      this._stdout = responses[idx];
+      const idx = callCount < _wrapped.length ? callCount : _wrapped.length - 1;
+      this._stdout = _wrapped[idx];
       callCount++;
     }
     protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array }> {
@@ -151,7 +152,7 @@ export const SANDBOX_BANNER =
  */
 export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string): DenoCommandLike => {
   let callCount = 0;
-  const _okBytes = enc.encode(okStdout);
+  const _okBytes = enc.encode(wrapClaudeJson(okStdout));
   return class extends BaseMockCommand {
     private readonly _fail: boolean;
     constructor(_cmd: string, _opts: unknown) {
@@ -173,6 +174,44 @@ export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string)
   } as unknown as DenoCommandLike;
 };
 
+/** claude JSON の非 RateLimit エラー応答（`is_error:true` / `api_error_status:500`）。429 でないため `runAI` は `ExitFailure` に分類する。 */
+export const EXIT_FAILURE_JSON = '{"is_error":true,"api_error_status":500,"result":"boom"}';
+
+/**
+ * 最初の `okCount` 回は指定 stdout で成功し、それ以降は exit 1 + claude JSON エラー（`is_error:true` /
+ * `api_error_status:500`）で失敗するモック。
+ *
+ * 失敗時 stdout の `api_error_status` が 429 ではないため `runAI` は `RateLimit` ではなく `ExitFailure`
+ * （非 RateLimit の AI エラー）に分類する。set-frontmatter の各フェーズで ExitFailure が発生したとき、
+ * `main()` が reject せず `logger.error` を出して続行することを検証するために使用する。
+ *
+ * @param okCount - 成功させる先頭呼び出し回数（type/category: 0 / frontmatter: 1 / review: 2）
+ * @param okStdout - 成功時に返す stdout 文字列
+ * @returns `DenoCommandLike` モッククラス
+ */
+export const makeSuccessThenExitFailMock = (okCount: number, okStdout: string): DenoCommandLike => {
+  let callCount = 0;
+  const _okBytes = enc.encode(wrapClaudeJson(okStdout));
+  const _failBytes = enc.encode(EXIT_FAILURE_JSON);
+  /** okCount 回成功→以降 ExitFailure JSON を返す `DenoCommandLike` モック。 */
+  return class extends BaseMockCommand {
+    private readonly _fail: boolean;
+    /** 呼び出し回数を数え、okCount 到達後は失敗フラグを立てる。 */
+    constructor(_cmd: string, _opts: unknown) {
+      super();
+      this._fail = callCount >= okCount;
+      callCount++;
+    }
+    /** 失敗時は exit 1 + ExitFailure JSON、成功時は exit 0 + wrapClaudeJson(okStdout) を返す。 */
+    protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+      if (this._fail) {
+        return Promise.resolve({ success: false, code: 1, stdout: _failBytes, stderr: new Uint8Array() });
+      }
+      return Promise.resolve({ success: true, code: 0, stdout: _okBytes, stderr: new Uint8Array() });
+    }
+  } as unknown as DenoCommandLike;
+};
+
 /**
  * `failOn`（1始まり）番目の呼び出しだけ exit 1 + sandbox バナーで失敗し、他は success を返すモック。
  *
@@ -185,7 +224,7 @@ export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string)
  */
 export const makeBannerFailOnNthMock = (failOn: number, okStdout: string): DenoCommandLike => {
   let callCount = 0;
-  const _okBytes = enc.encode(okStdout);
+  const _okBytes = enc.encode(wrapClaudeJson(okStdout));
   return class extends BaseMockCommand {
     private readonly _fail: boolean;
     constructor(_cmd: string, _opts: unknown) {
