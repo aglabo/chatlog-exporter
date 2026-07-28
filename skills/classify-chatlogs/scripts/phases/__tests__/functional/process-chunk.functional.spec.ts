@@ -31,8 +31,8 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 import {
   BaseMockCommand,
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
-  makeSuccessMock,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import {
@@ -101,7 +101,7 @@ describe('processChunk', () => {
         { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(response)),
+        makeClaudeJsonMock(response),
       );
     });
 
@@ -204,7 +204,7 @@ describe('processChunk', () => {
       loggerStub.restore();
       loggerStub = makeLoggerStub();
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+        makeClaudeJsonMock('これはJSONではありません'),
       );
 
       const metas = [_makeClassifyChatlogEntry('a.md')];
@@ -220,7 +220,7 @@ describe('processChunk', () => {
       loggerStub.restore();
       loggerStub = makeLoggerStub();
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+        makeClaudeJsonMock('これはJSONではありません'),
       );
 
       const metas = [_makeClassifyChatlogEntry('a.md')];
@@ -240,7 +240,7 @@ describe('processChunk', () => {
       loggerStub.restore();
       loggerStub = makeLoggerStub();
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+        makeClaudeJsonMock('これはJSONではありません'),
       );
 
       const metas = [_makeClassifyChatlogEntry('a.md')];
@@ -330,7 +330,7 @@ describe('processChunk', () => {
         { file: 'b.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(response)),
+        makeClaudeJsonMock(response),
       );
     });
 
@@ -366,7 +366,7 @@ describe('processChunk', () => {
         { file: 'a.md', project: 'app2', confidence: 0.8, reason: 'matched second' },
       ]);
       mockHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(response)),
+        makeClaudeJsonMock(response),
       );
 
       const metas = [_makeClassifyChatlogEntry('a.md')];

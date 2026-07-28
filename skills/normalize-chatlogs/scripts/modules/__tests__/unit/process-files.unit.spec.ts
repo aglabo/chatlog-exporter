@@ -29,6 +29,7 @@ import {
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { logger } from '../../../../../_scripts/libs/io/logger.ts';
@@ -96,7 +97,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -117,7 +118,7 @@ describe('processFiles', () => {
         { title: 'Topic 2', summary: 'Summary 2', startLine: 2, endLine: 3 },
       ];
       const batch = [{ filePath, segments }];
-      const stdout = new TextEncoder().encode(JSON.stringify(batch));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(`${tmpDir}/dummy.md`, '# Test\n\nContent');
@@ -139,7 +140,7 @@ describe('processFiles', () => {
         { filePath: filePath1, segments },
         { filePath: filePath2, segments },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(batch));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
@@ -176,7 +177,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const batch = [{ filePath, segments: [] }];
-      const stdout = new TextEncoder().encode(JSON.stringify(batch));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(`${tmpDir}/dummy.md`, '# Test\n\nContent');
@@ -246,7 +247,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       const capturedArgs: { value: string[] } = { value: [] };
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
@@ -404,7 +405,7 @@ describe('processFiles', () => {
       await Deno.writeTextFile(goodFilePath, '# Test\n\nContent');
 
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath: goodFilePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath: goodFilePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
@@ -455,7 +456,7 @@ describe('processFiles', () => {
 
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
       const batch = filePaths.map((fp) => ({ filePath: fp, segments }));
-      const stdout = new TextEncoder().encode(JSON.stringify(batch));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
@@ -481,7 +482,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -501,7 +502,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -521,7 +522,7 @@ describe('processFiles', () => {
       // arrange — project frontmatter なしのファイル
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -544,7 +545,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -569,7 +570,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -597,7 +598,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -633,7 +634,7 @@ describe('processFiles', () => {
       // 2回目: 同じファイルを処理 → キャッシュ未登録なのでスキップされない
       mockHandle.restore();
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
       const stats2: Stats = initStats();
       const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
@@ -650,7 +651,7 @@ describe('processFiles', () => {
       // outputBase 側にファイルが存在するだけではスキップされてはならない。
       const filePath = normalizePath(`${tmpDir}/report.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       const capturedArgs: { value: string[] } = { value: [] };
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
@@ -676,7 +677,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
@@ -696,7 +697,7 @@ describe('processFiles', () => {
       // arrange
       const filePath = normalizePath(`${tmpDir}/dummy.md`);
       const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }];
-      const stdout = new TextEncoder().encode(JSON.stringify([{ filePath, segments }]));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock(new TextDecoder().decode(stdout), counter));
 

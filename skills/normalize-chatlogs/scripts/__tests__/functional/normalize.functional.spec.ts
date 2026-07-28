@@ -15,9 +15,11 @@ import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
 // test helpers
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 
@@ -66,7 +68,7 @@ describe('segmentChatlogs', () => {
               ],
             },
           ];
-          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(aiSegments))));
+          mockHandle = installCommandMock(makeClaudeJsonMock(JSON.stringify(aiSegments)));
 
           const resultMap = await segmentChatlogs([_makeEntry(filePath, 'Body A\nBody B')]);
           const result = resultMap.get(filePath);
@@ -89,7 +91,7 @@ describe('segmentChatlogs', () => {
               ],
             },
           ];
-          mockHandle = installCommandMock(makeCountingMock(JSON.stringify(aiSegments), counter));
+          mockHandle = installCommandMock(makeCountingMock(wrapClaudeJson(JSON.stringify(aiSegments)), counter));
 
           await segmentChatlogs([_makeEntry(filePath, 'some chat content')]);
 
@@ -124,7 +126,7 @@ describe('segmentChatlogs', () => {
 
         it('T-09-02-02: runAI が "not json" を返す場合に null を返す', async () => {
           const filePath = 'path/to/file.md';
-          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('not json')));
+          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(wrapClaudeJson('not json'))));
 
           const resultMap = await segmentChatlogs([_makeEntry(filePath, 'some chat content')]);
 
@@ -162,7 +164,7 @@ describe('segmentChatlogs', () => {
               })),
             },
           ];
-          mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(JSON.stringify(aiSegments))));
+          mockHandle = installCommandMock(makeClaudeJsonMock(JSON.stringify(aiSegments)));
 
           const resultMap = await segmentChatlogs([_makeEntry(filePath, content)]);
           const result = resultMap.get(filePath);

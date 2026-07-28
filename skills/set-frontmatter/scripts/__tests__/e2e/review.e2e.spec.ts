@@ -14,9 +14,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { enc, makeDicsDir, makeTargetDir } from '../helpers/setfm-e2e-helpers.ts';
+import { makeDicsDir, makeTargetDir } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -42,7 +42,7 @@ describe('main - --no-review モード', () => {
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
           commandHandle = installCommandMock(
-            makeSuccessMock(enc.encode('research')),
+            makeClaudeJsonMock('research'),
           );
           loggerStub = makeLoggerStub();
         });

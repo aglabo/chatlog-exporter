@@ -192,41 +192,43 @@ describe('phaseReview', () => {
   });
 
   /**
-   * reviewProvider が非 fatal エラー（AiError 以外）を throw したとき phase が継続するケース。
+   * reviewProvider が RateLimit 以外のエラー（非 AiError / AiError/ExitFailure）を throw したとき
+   * phase が abort せず継続し `logger.error` にログを出すケース。
    *
-   * fatal な AiError はバッチを abort する（別ケース T-04-05-01 / T-04-04-02 で検証）。
-   * 非 fatal なエラーは握りつぶして他エントリの処理を継続する。
+   * RateLimit のみバッチを abort する（別ケース T-04-05-01 で検証）。
+   * 非 RateLimit のエラーは握りつぶして他エントリの処理を継続する。
    */
-  describe('When: reviewProvider がエラーを throw する', () => {
-    it('[Normal] T-04-04-01: reviewProvider が非 fatal エラーを throw → abort せず他エントリ継続', async () => {
+  describe('When: reviewProvider が非 RateLimit エラーを throw する', () => {
+    it('[Normal] T-04-04-01: reviewProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
         throw new Error('simulated non-fatal failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
-      const warnSpy = spy(logger, 'warn');
+      const errorSpy = spy(logger, 'error');
       try {
         // Should resolve without throwing (catch inside phase)
         await phaseReview(entries, cache, _dics, _prompts, { concurrency: 2, dryRun: false }, _throwingStub);
-        assertEquals(warnSpy.calls.length >= 1, true);
+        assertEquals(errorSpy.calls.length >= 1, true);
       } finally {
-        warnSpy.restore();
+        errorSpy.restore();
       }
     });
 
-    it('[Error] T-04-04-02: reviewProvider が AiError/ExitFailure を throw → 握りつぶさず再 throw（abort）', async () => {
+    it('[Error] T-04-04-02: reviewProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
         throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
-
-      const error = await assertRejects(
-        () => phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, _throwingStub),
-        ChatlogError,
-      );
-      assertEquals(error.kind, 'AiError');
-      assertEquals(error.subindex, 'ExitFailure');
+      const errorSpy = spy(logger, 'error');
+      try {
+        // ExitFailure は再 throw せず resolve する
+        await phaseReview(entries, cache, _dics, _prompts, { concurrency: 1, dryRun: false }, _throwingStub);
+        assertEquals(errorSpy.calls.some((c) => String(c.args[0]).includes('review 失敗')), true);
+      } finally {
+        errorSpy.restore();
+      }
     });
   });
 

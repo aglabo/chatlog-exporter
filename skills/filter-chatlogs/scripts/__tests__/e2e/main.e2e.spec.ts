@@ -30,10 +30,10 @@ import { LOGGER_HEADER } from '../../../../_scripts/constants/logger-header.cons
 // mocks
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeCountingMock,
   makeFailMock,
   makeNotFoundMock,
-  makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // stub
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -228,14 +228,14 @@ describe('main - DISCARD 判定', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([{
                 file: 'discard.md',
                 decision: FILTER_DECISIONS.DISCARD,
                 confidence: 0.9,
                 reason: 'trivial',
               }]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -295,14 +295,14 @@ describe('main - KEEP 判定', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([{
                 file: 'keep.md',
                 decision: FILTER_DECISIONS.KEEP,
                 confidence: 0.9,
                 reason: 'valuable',
               }]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -362,15 +362,13 @@ describe('main - model 配線', () => {
           await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nmodel: haiku`);
           capturedArgs = { value: [] };
           commandHandle = installCommandMock(
-            makeSuccessMock(
-              new TextEncoder().encode(
-                JSON.stringify([{
-                  file: 'keep.md',
-                  decision: FILTER_DECISIONS.KEEP,
-                  confidence: 0.9,
-                  reason: 'valuable',
-                }]),
-              ),
+            makeClaudeJsonMock(
+              JSON.stringify([{
+                file: 'keep.md',
+                decision: FILTER_DECISIONS.KEEP,
+                confidence: 0.9,
+                reason: 'valuable',
+              }]),
               capturedArgs,
             ),
           );
@@ -427,7 +425,7 @@ describe('main - 対象ファイルなし', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('[]')),
+            makeClaudeJsonMock('[]'),
           );
           loggerStub = makeLoggerStub();
           exitStub = stub(Deno, 'exit');
@@ -481,12 +479,12 @@ describe('main - DISCARD + KEEP 混在', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([
                 { file: 'discard.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
                 { file: 'keep.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
               ]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -553,14 +551,14 @@ describe('main - period 絞り込み', () => {
         beforeEach(async () => {
           tempDir = await Deno.makeTempDir();
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([{
                 file: 'march.md',
                 decision: FILTER_DECISIONS.DISCARD,
                 confidence: 0.9,
                 reason: 'trivial',
               }]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -695,14 +693,14 @@ describe('main - confidence 閾値未満', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([{
                 file: 'low-conf.md',
                 decision: FILTER_DECISIONS.DISCARD,
                 confidence: 0.69,
                 reason: 'uncertain',
               }]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -872,12 +870,12 @@ describe('main - period 未指定', () => {
         beforeEach(async () => {
           tempDir = await Deno.makeTempDir();
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(
+            makeClaudeJsonMock(
               JSON.stringify([
                 { file: 'march.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
                 { file: 'april.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
               ]),
-            )),
+            ),
           );
           loggerStub = makeLoggerStub();
         });
@@ -1398,7 +1396,7 @@ describe('main - 判定集計ログ（正常系）', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('[]')),
+            makeClaudeJsonMock('[]'),
           );
           loggerStub = makeLoggerStub();
         });
@@ -1535,7 +1533,7 @@ describe('main - 判定集計ログ（判定対象なし）', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('[]')),
+            makeClaudeJsonMock('[]'),
           );
           loggerStub = makeLoggerStub();
         });

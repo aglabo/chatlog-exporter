@@ -24,10 +24,11 @@ import { generateFrontmatter } from '../../setfm-frontmatter.ts';
 import {
   BaseMockCommand,
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
   makeFirstNFailMock,
   makeSequencedSuccessMock,
-  makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type {
   CommandMockHandle,
@@ -214,7 +215,7 @@ describe('generateFrontmatter', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-SF-FM-01-01: runAI が有効な YAML を返す → true を返し entry.frontmatter に title がセットされる', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: "test title"\ntopics:\n  - ai\ntags:\n  - test\n')),
+        makeClaudeJsonMock('title: "test title"\ntopics:\n  - ai\ntags:\n  - test\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -226,10 +227,8 @@ describe('generateFrontmatter', () => {
 
     it('[Normal] T-SF-FM-01-02: runAI が type/category を含む YAML を返す → それらは entry.frontmatter に上書きされない', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'title: "overwrite test"\ntype: "new-type"\ncategory: "new-cat"\ntopics:\n  - ai\ntags:\n  - test\n',
-          ),
+        makeClaudeJsonMock(
+          'title: "overwrite test"\ntype: "new-type"\ncategory: "new-cat"\ntopics:\n  - ai\ntags:\n  - test\n',
         ),
       );
 
@@ -252,7 +251,7 @@ describe('generateFrontmatter', () => {
   describe('When: AiError はリトライで救済されない', () => {
     it('[Error] T-SF-FM-04-01: maxRetry=1, 1回目が AiError（2回目は成功しうる） → 救済せず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(
-        makeFirstNFailMock(1, 'title: "retry success"\ntopics:\n  - ai\ntags:\n  - test\n'),
+        makeFirstNFailMock(1, wrapClaudeJson('title: "retry success"\ntopics:\n  - ai\ntags:\n  - test\n')),
       );
 
       const _entry = _makeChatlogEntry();
@@ -294,7 +293,7 @@ describe('generateFrontmatter', () => {
 
     it('[Error] T-SF-FM-02-02: maxRetry=2, 3回すべて YAML パース失敗 → ChatlogError(InvalidYaml) を throw', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: test\n  invalid_indent: bad\n')),
+        makeClaudeJsonMock('title: test\n  invalid_indent: bad\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -306,7 +305,7 @@ describe('generateFrontmatter', () => {
 
     it('[Error] T-SF-FM-02-04: AI が必須フィールド不足の YAML を返す → false を返す', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: null\ntopics: null\n')),
+        makeClaudeJsonMock('title: null\ntopics: null\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -345,7 +344,7 @@ describe('generateFrontmatter', () => {
       const _badYaml = 'title: test\n  invalid_indent: bad\n';
       const _goodYaml = 'title: "finally succeeded"\ntopics:\n  - ai\ntags:\n  - test\n';
       commandHandle = installCommandMock(
-        makeSequencedSuccessMock([_badYaml, _badYaml, _goodYaml]),
+        makeSequencedSuccessMock([_badYaml, _badYaml, _goodYaml].map(wrapClaudeJson)),
       );
 
       const _entry = _makeChatlogEntry();
@@ -357,7 +356,7 @@ describe('generateFrontmatter', () => {
 
     it('[Edge] T-SF-FM-03-01: maxRetry=0, runAI が空文字列を返す → ChatlogError(InvalidYaml) を throw', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('')),
+        makeClaudeJsonMock(''),
       );
 
       const _entry = _makeChatlogEntry();
@@ -369,7 +368,7 @@ describe('generateFrontmatter', () => {
 
     it('[Edge] T-SF-FM-03-02: extractYaml が { ok: false } を返す → logger.warn が呼ばれ ChatlogError を throw', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('')),
+        makeClaudeJsonMock(''),
       );
       let warnStub: Stub<typeof logger, [string], void> | undefined;
       try {
@@ -393,7 +392,7 @@ describe('generateFrontmatter', () => {
     it('[Normal] T-SF-FM-05-01: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n'), capturedArgs),
+        makeClaudeJsonMock('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry();
@@ -407,7 +406,7 @@ describe('generateFrontmatter', () => {
     it('[Normal] T-SF-FM-05-02: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n'), capturedArgs),
+        makeClaudeJsonMock('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry();
@@ -438,7 +437,7 @@ describe('generateFrontmatter', () => {
     });
 
     it('[Normal] T-SF-FM-06-02: signal を渡すと runAI に転送され、外部 abort で内部 signal も aborted になる', async () => {
-      const _goodYaml = _enc.encode('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n');
+      const _goodYaml = _enc.encode(wrapClaudeJson('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n'));
       const captured: { instance: _SignalCaptureMock | null } = { instance: null };
       commandHandle = installCommandMock(_makeSignalCaptureMock(_goodYaml, captured));
       const controller = new AbortController();

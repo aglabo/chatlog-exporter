@@ -187,6 +187,15 @@ export function makeSuccessMock(
   };
 }
 
+/** claude --output-format json の成功 stdout エンベロープを組み立てる純粋関数。 */
+export const wrapClaudeJson = (payload: string): string => JSON.stringify({ result: payload });
+
+/** wrapClaudeJson を stdout に格納する成功系モック。makeSuccessMock の薄いラッパ。 */
+export const makeClaudeJsonMock = (
+  payload: string,
+  capturedArgs?: { value: string[] },
+): DenoCommandLike => makeSuccessMock(new TextEncoder().encode(wrapClaudeJson(payload)), capturedArgs);
+
 /** FailMockCommand を DenoCommandLike として返すヘルパー。 */
 export function makeFailMock(code: number): DenoCommandLike {
   return class extends FailMockCommand {

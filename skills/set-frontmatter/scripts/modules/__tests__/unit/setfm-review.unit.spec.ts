@@ -20,9 +20,10 @@ import { reviewFrontmatter } from '../../setfm-review.ts';
 import {
   BaseMockCommand,
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
   makeFirstNFailMock,
-  makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type {
   CommandMockHandle,
@@ -207,7 +208,7 @@ describe('reviewFrontmatter', () => {
   describe('When: 正常系', () => {
     it('[Normal] T-SF-RV-02-01: runAI が validity: pass を返す → { validity: pass, errors: [] } を返す', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('validity: pass\n')),
+        makeClaudeJsonMock('validity: pass\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -226,7 +227,7 @@ describe('reviewFrontmatter', () => {
   describe('When: AiError はリトライで救済されない', () => {
     it('[Error] T-SF-RV-11-01: maxRetry=1, 1回目が AiError（2回目は成功しうる） → 救済せず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(
-        makeFirstNFailMock(1, 'validity: pass\n'),
+        makeFirstNFailMock(1, wrapClaudeJson('validity: pass\n')),
       );
 
       const _entry = _makeChatlogEntry();
@@ -267,9 +268,7 @@ describe('reviewFrontmatter', () => {
 
     it('[Error] T-SF-RV-03-01: runAI が validity: fail + errors を返す (corrected_frontmatter なし) → { validity: error, errors: [wrong type] } を返す', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode('validity: fail\nerrors:\n  - wrong type\n'),
-        ),
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong type\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -305,7 +304,7 @@ describe('reviewFrontmatter', () => {
   describe('When: エッジケース', () => {
     it('[Edge] T-SF-RV-05-01: runAI が validity: キーなしの YAML を返す → デフォルト pass → { validity: pass, errors: [] }', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('type: research\ncategory: ai\n')),
+        makeClaudeJsonMock('type: research\ncategory: ai\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -316,9 +315,7 @@ describe('reviewFrontmatter', () => {
 
     it('[Edge] T-SF-RV-06-01: runAI が validity: fail + errors 2件を返す (corrected_frontmatter なし) → { validity: error, errors に2件 }', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode('validity: fail\nerrors:\n  - wrong type\n  - wrong category\n'),
-        ),
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong type\n  - wrong category\n'),
       );
 
       const _entry = _makeChatlogEntry();
@@ -329,10 +326,8 @@ describe('reviewFrontmatter', () => {
 
     it('[Edge] T-SF-RV-08-01: runAI が validity: pass + corrected_frontmatter.topics を含む → entry.frontmatter.get(topics) は変更されない', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: pass\nerrors: []\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n',
-          ),
+        makeClaudeJsonMock(
+          'validity: pass\nerrors: []\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n',
         ),
       );
 
@@ -345,10 +340,8 @@ describe('reviewFrontmatter', () => {
 
     it('[Edge] T-SF-RV-10-01: runAI が不正 YAML（インデント不整合）を返す → parseYaml が fail → { validity: error } を返す', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(
-          _enc.encode(
-            'validity: fail\ncorrected_frontmatter:\n  topics:\n - bad-indent\n',
-          ),
+        makeClaudeJsonMock(
+          'validity: fail\ncorrected_frontmatter:\n  topics:\n - bad-indent\n',
         ),
       );
 
@@ -366,9 +359,9 @@ describe('reviewFrontmatter', () => {
   describe('When: corrected_frontmatter → corrected フィールドへ', () => {
     it('[Normal] T-02-01-01: corrected_frontmatter に type/category/title → r.corrected に全フィールド', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode(
+        makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n  category: ai\n  title: New Title\n',
-        )),
+        ),
       );
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -380,9 +373,9 @@ describe('reviewFrontmatter', () => {
 
     it('[Normal] T-02-01-02: corrected_frontmatter に topics/tags → r.corrected に配列フィールド', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode(
+        makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n  tags:\n    - lang:typescript\n',
-        )),
+        ),
       );
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -393,9 +386,9 @@ describe('reviewFrontmatter', () => {
 
     it('[Normal] T-02-01-03: corrected_frontmatter 存在時 entry.frontmatter は変更されない', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode(
+        makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n',
-        )),
+        ),
       );
       const _entry = _makeChatlogEntry(); // initial type = 'research'
       await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -409,7 +402,7 @@ describe('reviewFrontmatter', () => {
   describe('When: fail + corrected_frontmatter なし → error', () => {
     it('[Error] T-02-03-01: validity: fail + corrected_frontmatter なし → { validity: error, errors: [...] }', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('validity: fail\nerrors:\n  - wrong type\n')),
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong type\n'),
       );
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -440,9 +433,9 @@ describe('reviewFrontmatter', () => {
   describe('When: corrected フィールドの trim/filter', () => {
     it('[Edge] T-02-05-01: corrected_frontmatter.title が空白のみ → r.corrected に title 含まれない', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode(
+        makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  title: "   "\n  type: tech\n',
-        )),
+        ),
       );
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -452,9 +445,9 @@ describe('reviewFrontmatter', () => {
 
     it('[Edge] T-02-05-02: corrected_frontmatter.topics に空文字列混在 → r.corrected.topics から除外', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode(
+        makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n    - ""\n    - behavior\n',
-        )),
+        ),
       );
       const _entry = _makeChatlogEntry();
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -464,7 +457,7 @@ describe('reviewFrontmatter', () => {
 
     it('[Edge] T-02-06-01: corrected オブジェクトのみ (corrected_frontmatter なし) → entry.frontmatter 変化なし + validity=error', async () => {
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('validity: fail\nerrors:\n  - wrong\ncorrected:\n  type: tech\n')),
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong\ncorrected:\n  type: tech\n'),
       );
       const _entry = _makeChatlogEntry(); // initial type = 'research'
       const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
@@ -480,7 +473,7 @@ describe('reviewFrontmatter', () => {
     it('[Normal] T-SF-RV-13-01: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('validity: pass\n'), capturedArgs),
+        makeClaudeJsonMock('validity: pass\n', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry();
@@ -494,7 +487,7 @@ describe('reviewFrontmatter', () => {
     it('[Normal] T-SF-RV-13-02: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('validity: pass\n'), capturedArgs),
+        makeClaudeJsonMock('validity: pass\n', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry();
@@ -526,7 +519,7 @@ describe('reviewFrontmatter', () => {
     });
 
     it('[Normal] T-SF-RV-14-02: signal を渡すと runAI に転送され、外部 abort で内部 signal も aborted になる', async () => {
-      const _goodYaml = _enc.encode('validity: pass\n');
+      const _goodYaml = _enc.encode(wrapClaudeJson('validity: pass\n'));
       const captured: { instance: _SignalCaptureMock | null } = { instance: null };
       commandHandle = installCommandMock(_makeSignalCaptureMock(_goodYaml, captured));
       const controller = new AbortController();

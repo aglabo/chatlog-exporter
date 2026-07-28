@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -78,7 +78,7 @@ describe('main - output structure', () => {
         { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', startLine: 1, endLine: 2 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });
@@ -129,7 +129,7 @@ describe('main - output structure', () => {
         },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });

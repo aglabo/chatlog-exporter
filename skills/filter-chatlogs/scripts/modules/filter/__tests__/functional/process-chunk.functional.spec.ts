@@ -21,9 +21,9 @@ import type { FilterStats } from '../../../../types/stats.types.ts';
 // ─── Helpers
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
   makeNotFoundMock,
-  makeSuccessMock,
 } from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogCache } from '../../../../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -192,7 +192,7 @@ describe('processChunk', () => {
             },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
@@ -219,7 +219,7 @@ describe('processChunk', () => {
             },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
@@ -247,7 +247,7 @@ describe('processChunk', () => {
             },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});
@@ -286,7 +286,7 @@ describe('processChunk', () => {
             { file: 'd.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -306,7 +306,7 @@ describe('processChunk', () => {
             { file: 'd2.md', decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -340,7 +340,7 @@ describe('processChunk', () => {
             { file: 'e.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'low conf' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -362,7 +362,7 @@ describe('processChunk', () => {
             { file: 'e2.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'low conf' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -599,7 +599,7 @@ describe('processChunk', () => {
           const filePath = await _createTempFile('g.md');
           const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+            makeClaudeJsonMock('これはJSONではありません'),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -617,7 +617,7 @@ describe('processChunk', () => {
           const filePath = await _createTempFile('g2.md');
           const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+            makeClaudeJsonMock('これはJSONではありません'),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -641,7 +641,7 @@ describe('processChunk', () => {
           const filePath = await _createTempFile('g3.md');
           const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+            makeClaudeJsonMock('これはJSONではありません'),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -660,7 +660,7 @@ describe('processChunk', () => {
           const file2 = await _createTempFile('g5.md');
           const entry2 = new ChatlogEntry(_TEMP_CONTENT, { filePath: file2 });
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode('これはJSONではありません')),
+            makeClaudeJsonMock('これはJSONではありません'),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -696,7 +696,7 @@ describe('processChunk', () => {
             { file: 'other.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -761,7 +761,7 @@ describe('processChunk', () => {
           ]);
           const capturedArgs: { value: string[] } = { value: [] };
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response), capturedArgs),
+            makeClaudeJsonMock(response, capturedArgs),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -797,7 +797,7 @@ describe('processChunk', () => {
           ]);
           const capturedArgs: { value: string[] } = { value: [] };
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response), capturedArgs),
+            makeClaudeJsonMock(response, capturedArgs),
           );
           const errStub = stub(console, 'error', () => {});
           const stats = _makeStats();
@@ -832,7 +832,7 @@ describe('processChunk', () => {
             { file: 'j.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.6, reason: 'trivial' },
           ]);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           const errStub = stub(console, 'error', () => {});
           const logStub = stub(console, 'log', () => {});

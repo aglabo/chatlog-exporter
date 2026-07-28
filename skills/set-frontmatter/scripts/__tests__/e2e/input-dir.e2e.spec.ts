@@ -14,10 +14,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
-import { enc, makeDicsDir } from '../helpers/setfm-e2e-helpers.ts';
+import { makeDicsDir } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
@@ -58,7 +58,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           });
 
           commandHandle = installCommandMock(
-            makeSuccessMock(enc.encode('research\ndevelopment'), { value: [] }),
+            makeClaudeJsonMock('research\ndevelopment', { value: [] }),
           );
           loggerStub = makeLoggerStub();
         });

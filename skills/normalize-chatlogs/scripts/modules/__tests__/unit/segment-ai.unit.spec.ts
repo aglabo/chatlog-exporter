@@ -27,10 +27,12 @@ import { logger } from '../../../../../_scripts/libs/io/logger.ts';
 import {
   BaseMockCommand,
   installCommandMock,
+  makeClaudeJsonMock,
   makeDelayedSuccessMock,
   makeFailMock,
   makeNotFoundMock,
   makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // classes
@@ -225,8 +227,7 @@ describe('segmentChatlogs', () => {
           ],
         },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
-      mockHandle = installCommandMock(makeSuccessMock(stdout));
+      mockHandle = installCommandMock(makeClaudeJsonMock(JSON.stringify(aiResult)));
 
       // act
       const result = await segmentChatlogs([_makeEntry('test.md', 'Body 1\nBody 2')]);
@@ -248,7 +249,7 @@ describe('segmentChatlogs', () => {
         { filePath: 'a.md', segments: [{ title: 'T1', summary: 'S1', startLine: 1, endLine: 1 }] },
         { filePath: 'b.md', segments: [{ title: 'T2', summary: 'S2', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -270,7 +271,7 @@ describe('segmentChatlogs', () => {
         endLine: i + 1,
       }));
       const aiResult = [{ filePath: 'big.md', segments: manySegments }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -290,7 +291,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'test.md', segments: [{ title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       const capturedArgs: { value: string[] } = { value: [] };
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
@@ -308,7 +309,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'test.md', segments: [{ title: 'Topic 1', summary: 'Summary 1', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       const capturedArgs: { value: string[] } = { value: [] };
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
@@ -342,7 +343,7 @@ describe('segmentChatlogs', () => {
     it('[Error] T-SCB-02-02: AIが不正JSONを返すとき全ファイルが null の Map を返す', async () => {
       // arrange
       const inputs = [_makeEntry('a.md', 'content a')];
-      const stdout = new TextEncoder().encode('not valid json');
+      const stdout = new TextEncoder().encode(wrapClaudeJson('not valid json'));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -375,7 +376,7 @@ describe('segmentChatlogs', () => {
     it('[Error] T-SCB-WL-02: AI が不正 JSON を返すとき logger.warn が呼ばれる', async () => {
       // arrange
       const inputs = [_makeEntry('file-b.md', 'content b')];
-      const stdout = new TextEncoder().encode('not valid json');
+      const stdout = new TextEncoder().encode(wrapClaudeJson('not valid json'));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
       let warnStub: Stub | undefined;
 
@@ -424,7 +425,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'solo.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -440,7 +441,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'unknown.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -459,7 +460,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 2 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       const captured: { instance: _StdinCaptureMock | null } = { instance: null };
       mockHandle = installCommandMock(_makeStdinCaptureMock(stdout, captured));
       const content = 'line A\nline B';
@@ -482,7 +483,7 @@ describe('segmentChatlogs', () => {
         const aiResult = [
           { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
         ];
-        const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+        const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
         const captured: { instance: _StdinCaptureMock | null } = { instance: null };
         mockHandle = installCommandMock(_makeStdinCaptureMock(stdout, captured));
         const content = Array.from({ length: lineIndex }, (_, i) => `L${i + 1}`).join('\n');
@@ -511,7 +512,7 @@ describe('segmentChatlogs', () => {
         { filePath: 'a.md', segments: [{ title: 'AT', summary: 'AS', startLine: 1, endLine: 2 }] },
         { filePath: 'b.md', segments: [{ title: 'BT', summary: 'BS', startLine: 1, endLine: 2 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -532,7 +533,7 @@ describe('segmentChatlogs', () => {
         { filePath: 'a.md', segments: [{ title: 'AT', summary: 'AS', startLine: 1, endLine: 1 }] },
         { filePath: 'b.md', segments: [{ title: 'BT', summary: 'BS', startLine: 2, endLine: 3 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -562,7 +563,7 @@ describe('segmentChatlogs', () => {
     it('[Error] T-SIO-LR-22: AIが不正 JSON を返すとき全ファイルが null の Map を返す', async () => {
       // arrange
       const inputs = [_makeEntry('a.md', 'content a')];
-      const stdout = new TextEncoder().encode('not valid json');
+      const stdout = new TextEncoder().encode(wrapClaudeJson('not valid json'));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -578,7 +579,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'unknown.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -599,7 +600,7 @@ describe('segmentChatlogs', () => {
         endLine: i + 1,
       }));
       const aiResult = [{ filePath: 'big.md', segments: aiSegments }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       // act
@@ -613,7 +614,7 @@ describe('segmentChatlogs', () => {
       // arrange — AI が 50ms 後に応答するモック
       const inputs = [_makeEntry('a.md', 'content a')];
       const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeDelayedSuccessMock(50, stdout));
 
       // act — 1ms タイムアウト: 50ms の遅延より先に abort される
@@ -630,7 +631,7 @@ describe('segmentChatlogs', () => {
       // arrange — AI が 50ms 後に応答するモック
       const inputs = [_makeEntry('a.md', 'content a')];
       const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', content: 'C' }] }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeDelayedSuccessMock(50, stdout));
 
       // act — 1ms タイムアウト: 50ms の遅延より先に abort される
@@ -644,7 +645,7 @@ describe('segmentChatlogs', () => {
       // arrange — AI が 50ms 後に応答するモック
       const inputs = [_makeEntry('a.md', 'C')];
       const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeDelayedSuccessMock(50, stdout));
 
       // act — timeoutMs 省略: デフォルト 120s >> 50ms 遅延
@@ -661,7 +662,7 @@ describe('segmentChatlogs', () => {
       // arrange
       const inputs = [_makeEntry('a.md', 'content a')];
       const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] }];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       const captured: { instance: _SignalCaptureMock | null } = { instance: null };
       mockHandle = installCommandMock(_makeSignalCaptureMock(stdout, captured));
       const controller = new AbortController();
@@ -683,7 +684,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       const capturedArgs: { value: string[] } = { value: [] };
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
@@ -705,7 +706,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'unknown.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
       let warnStub: Stub | undefined;
 
@@ -729,7 +730,7 @@ describe('segmentChatlogs', () => {
       const aiResult = [
         { filePath: 'known.md', segments: [] },
       ];
-      const stdout = new TextEncoder().encode(JSON.stringify(aiResult));
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(aiResult)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
       let warnStub: Stub | undefined;
 

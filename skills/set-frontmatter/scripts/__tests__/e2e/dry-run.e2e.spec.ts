@@ -14,11 +14,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
 import {
-  enc,
   makeCacheDir,
   makeDicsDir,
   makeTargetDir,
@@ -60,7 +59,7 @@ describe('main - dry-run モード', () => {
             'validity: pass',
           ];
           commandHandle = installCommandMock(
-            makeSuccessMock(enc.encode(phaseResponses.join('\n')), { value: [] }),
+            makeClaudeJsonMock(phaseResponses.join('\n'), { value: [] }),
           );
           void callIdx;
 
@@ -150,7 +149,7 @@ describe('main - dry-run モード', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await makeCacheDir(['test']);
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -215,7 +214,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await makeCacheDir(['written']);
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -264,7 +263,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await makeCacheDir(['test']);
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -313,7 +312,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -362,7 +361,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await makeCacheDir(['written']);
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -448,7 +447,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await makeCacheDir(['test']);
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -508,7 +507,7 @@ describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -572,7 +571,7 @@ describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
             }),
           );
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -623,7 +622,7 @@ describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
           outputDir = await Deno.makeTempDir();
           cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
-          commandHandle = installCommandMock(makeSuccessMock(enc.encode('research')));
+          commandHandle = installCommandMock(makeClaudeJsonMock('research'));
           loggerStub = makeLoggerStub();
         });
 
@@ -683,7 +682,7 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
           dicsDir = await makeDicsDir();
           // 全フェーズで空文字を返す（status が空になる条件）
           commandHandle = installCommandMock(
-            makeSuccessMock(enc.encode('')),
+            makeClaudeJsonMock(''),
           );
           loggerStub = makeLoggerStub();
         });

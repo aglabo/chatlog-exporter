@@ -16,7 +16,7 @@ import { main } from '../../normalize-chatlogs.ts';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 // mock
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // stub
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
@@ -83,7 +83,7 @@ describe('main - reproducibility', () => {
         { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });
@@ -138,7 +138,7 @@ describe('main - reproducibility', () => {
         { filePath: inputPath, segments: [{ title: 'Topic', summary: 'Summary', content: 'Body' }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });

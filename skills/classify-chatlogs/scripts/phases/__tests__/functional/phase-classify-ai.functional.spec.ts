@@ -28,8 +28,9 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 // ─── Internal Helpers
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeCountingMock,
-  makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   _makeClassifyChatlogEntry,
@@ -85,7 +86,7 @@ describe('classifyByAI', () => {
         { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched' },
         { file: 'b.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
-      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(response)));
+      mockHandle = installCommandMock(makeClaudeJsonMock(response));
 
       const targets: ChatlogEntry[] = [
         _makeClassifyChatlogEntry('a.md'),
@@ -103,7 +104,7 @@ describe('classifyByAI', () => {
       const response = JSON.stringify([
         { file: 'x.md', project: 'app1', confidence: 0.8, reason: 'matched' },
       ]);
-      mockHandle = installCommandMock(makeCountingMock(response, counter));
+      mockHandle = installCommandMock(makeCountingMock(wrapClaudeJson(response), counter));
 
       const targets: ChatlogEntry[] = ['a.md', 'b.md', 'c.md'].map((filename) => _makeClassifyChatlogEntry(filename));
 
@@ -120,7 +121,7 @@ describe('classifyByAI', () => {
       const response = JSON.stringify([
         { file: 'a.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
-      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(response)));
+      mockHandle = installCommandMock(makeClaudeJsonMock(response));
 
       const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
 

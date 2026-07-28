@@ -19,6 +19,7 @@ import { main } from '../../classify-chatlogs.ts';
 // ─── Helpers
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeCountingMock,
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -98,7 +99,7 @@ describe('main', () => {
         { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
       resetProjectRoot(inputDir);
-      const commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(response)));
+      const commandHandle = installCommandMock(makeClaudeJsonMock(response));
       const errStub = stub(console, 'error', () => {});
       GlobalConfig.resetInstance();
 
@@ -124,7 +125,7 @@ describe('main', () => {
         { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
       ]);
       resetProjectRoot(inputDir);
-      const commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(response)));
+      const commandHandle = installCommandMock(makeClaudeJsonMock(response));
       const loggerStub = makeLoggerStub();
       GlobalConfig.resetInstance();
 

@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
   makeSuccessMock,
 } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
@@ -79,7 +80,7 @@ describe('main - aggregation', () => {
         })),
       );
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(batchResponse)),
+        makeClaudeJsonMock(batchResponse),
       );
       loggerStub = makeLoggerStub();
     });

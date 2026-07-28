@@ -39,11 +39,13 @@ afterEach(() => {
 describe('runAI', () => {
   // ─── 空白付き stdout の trim ─────────────────────────────────────────────
 
-  describe('Given: Claude CLI が空白付き "  research  \\n" を返す成功モック', () => {
+  describe('Given: Claude CLI が先頭バナー付き JSON `{"result":"research"}` を返す成功モック', () => {
     describe('When: runAI(system, user) を呼び出す', () => {
-      describe('Then: T-LIB-AI-RA-IT-02 - trim されて "research" が返る', () => {
+      describe('Then: T-LIB-AI-RA-IT-02 - バナー除去 + .result 抽出で "research" が返る', () => {
         beforeEach(() => {
-          commandHandle = installCommandMock(makeSuccessMock(_enc.encode('  research  \n')));
+          const _banner =
+            '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+          commandHandle = installCommandMock(makeSuccessMock(_enc.encode(`${_banner}\n{"result":"research"}`)));
         });
 
         it('T-LIB-AI-RA-IT-02-01: 返り値が "research" になる', async () => {
