@@ -1,0 +1,11 @@
+allowBuilds:
+  esbuild: false
+
+# blume は内部の .blume/ サンドボックスから自身の依存（astro とそのプラグイン群）を
+# 解決する。pnpm 既定のシンボリックリンク型 node_modules だと .blume/ から辿れず
+# 'Cannot find module astro/config' で失敗するため、npm 互換のフラット配置にする。
+nodeLinker: hoisted
+
+# esbuild は blume（内部の Astro/Vite）が使うネイティブバイナリ。ビルドスクリプトを許可する。
+onlyBuiltDependencies:
+  - esbuild
