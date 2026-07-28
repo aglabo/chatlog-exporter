@@ -17,6 +17,7 @@ import {
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 // types
 import type {
@@ -56,16 +57,18 @@ const _makeEntry = (filePath: string, content: string): ChatlogEntry => new Chat
  * AI 応答 JSON（`segmentChatlogs` が期待する `{filePath, segments}[]` 形式）を文字列化する。
  *
  * @param aiEntries - `filePath` と `segments`（`startLine`/`endLine` を省略可能）の配列
- * @returns `Deno.Command` モックの stdout に渡す JSON 文字列
+ * @returns `Deno.Command` モックの stdout に渡す claude JSON エンベロープ文字列（`{"result":"<配列>"}`）
  */
 const _makeAiResponse = (
   aiEntries: Array<{ filePath: string; segments: Array<{ title: string; startLine?: number; endLine?: number }> }>,
 ): string =>
-  JSON.stringify(
-    aiEntries.map((e) => ({
-      filePath: e.filePath,
-      segments: e.segments.map((s) => ({ summary: 'summary', ...s })),
-    })),
+  wrapClaudeJson(
+    JSON.stringify(
+      aiEntries.map((e) => ({
+        filePath: e.filePath,
+        segments: e.segments.map((s) => ({ summary: 'summary', ...s })),
+      })),
+    ),
   );
 
 /**
