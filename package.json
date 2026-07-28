@@ -13,7 +13,7 @@
   ],
   "packageManager": "pnpm@11.17.0",
   "engines": {
-    "node": ">=22",
+    "node": ">=24",
     "pnpm": ">=11"
   },
   "author": "atsushifx",
@@ -23,6 +23,8 @@
     "url": "https://github.com/aglabo/chatlog-exporter.git"
   },
   "scripts": {
-    "prepare": "bash ./scripts/setup-dev-env.sh"
+    "prepare": "bash ./scripts/setup-dev-env.sh",
+    "docs:dev": "pushd aglabo.github.io && pnpm run docs:dev && popd",
+    "docs:build": "pushd aglabo.github.io && pnpm run docs:build && popd"
   }
 }
