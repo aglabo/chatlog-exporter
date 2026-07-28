@@ -251,19 +251,20 @@ describe('_phaseFrontmatter', () => {
   });
 
   /**
-   * generateProvider が非 fatal エラー（AiError 以外）を throw したとき phase が継続するケース。
+   * generateProvider が RateLimit 以外のエラー（非 AiError / AiError/ExitFailure）を throw したとき
+   * phase が abort せず継続し `logger.error` にログを出すケース。
    *
-   * fatal な AiError はバッチを abort する（別ケース T-02-05-01 で検証）。
-   * 非 fatal なエラー（例: content 起因の想定外例外）は握りつぶして他エントリの処理を継続する。
+   * RateLimit のみバッチを abort する（別ケース T-02-05-01 で検証）。
+   * 非 RateLimit のエラーは握りつぶして他エントリの処理を継続する。
    */
-  describe('When: generateProvider が非 fatal エラーを throw する', () => {
-    it('[Normal] T-02-04-01: generateProvider が非 fatal エラーを throw → abort せず他エントリ継続・warn ログが出る', async () => {
+  describe('When: generateProvider が非 RateLimit エラーを throw する', () => {
+    it('[Normal] T-02-04-01: generateProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
         throw new Error('simulated non-fatal failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
-      const warnSpy = spy(logger, 'warn');
+      const errorSpy = spy(logger, 'error');
       const cacheSpy = spy(cache, 'write');
       try {
         await phaseFrontmatter(
@@ -277,36 +278,36 @@ describe('_phaseFrontmatter', () => {
         );
         // Both entries fail (throw → catch in phase), no cache write happens
         assertEquals(cacheSpy.calls.length, 0);
-        // logger.warn was called at least once (for each failing entry)
-        assertEquals(warnSpy.calls.length >= 1, true);
+        // logger.error was called at least once (for each failing entry)
+        assertEquals(errorSpy.calls.length >= 1, true);
       } finally {
-        warnSpy.restore();
+        errorSpy.restore();
         cacheSpy.restore();
       }
     });
 
-    it('[Error] T-02-04-02: generateProvider が AiError/ExitFailure を throw → 握りつぶさず再 throw（abort）', async () => {
+    it('[Error] T-02-04-02: generateProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
         throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
       };
       const entries = [_makeEntry('/path/to/a.md'), _makeEntry('/path/to/b.md')];
-
-      const error = await assertRejects(
-        () =>
-          phaseFrontmatter(
-            entries,
-            cache,
-            1000,
-            _FAKE_DICS,
-            _FAKE_PROMPTS,
-            { concurrency: 1, dryRun: false },
-            _throwingStub,
-          ),
-        ChatlogError,
-      );
-      assertEquals(error.kind, 'AiError');
-      assertEquals(error.subindex, 'ExitFailure');
+      const errorSpy = spy(logger, 'error');
+      try {
+        // ExitFailure は再 throw せず resolve する
+        await phaseFrontmatter(
+          entries,
+          cache,
+          1000,
+          _FAKE_DICS,
+          _FAKE_PROMPTS,
+          { concurrency: 1, dryRun: false },
+          _throwingStub,
+        );
+        assertEquals(errorSpy.calls.some((c) => String(c.args[0]).includes('生成失敗')), true);
+      } finally {
+        errorSpy.restore();
+      }
     });
   });
 
