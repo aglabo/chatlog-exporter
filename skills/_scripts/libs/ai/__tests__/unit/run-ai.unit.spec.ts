@@ -428,6 +428,71 @@ describe('runAI', () => {
         }
       });
 
+      it('[Error] T-LIB-AI-RA-45: runAI — exit 1 かつ is_error:true/api_error_status:null/result:"...monthly spend limit..." → AiError/RateLimit', async () => {
+        const _origCommand = Deno.Command;
+        const _stdout =
+          '{"is_error":true,"api_error_status":null,"result":"You\'ve hit your monthly spend limit · raise it at claude.ai/settings/usage"}';
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(_stdout),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'RateLimit');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-46: runAI — exit 1 かつ is_error:true/api_error_status:null/result:"usage limit reached" → AiError/RateLimit', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('{"is_error":true,"api_error_status":null,"result":"usage limit reached"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'RateLimit');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Edge] T-LIB-AI-RA-47: runAI — exit 1 かつ is_error:true/api_error_status:null/result:"boom" (レートリミット表現なし) → AiError/ExitFailure (誤検出しない)', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('{"is_error":true,"api_error_status":null,"result":"boom"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
       it('[Error] T-LIB-AI-RA-40: runAI — exit 1 かつ stdout がプレーンテキスト(JSON パース不能) → フォールバックで AiError/ExitFailure', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({

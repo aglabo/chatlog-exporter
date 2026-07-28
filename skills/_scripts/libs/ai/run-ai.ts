@@ -31,7 +31,7 @@ export type RunAIOptions = {
 type _CommandSpec = { command: AiBackendCommand; args: string[]; hasSystemPromptWithArgs: boolean };
 
 /** レートリミット検出パターン。CLI は文言を stdout / stderr のいずれにも出しうる。`i` フラグのみ（`g` を付けると `.test()` がステートフルになる）。 */
-const _RATE_LIMIT_PATTERN = /rate.?limit|429|usage limit/i;
+const _RATE_LIMIT_PATTERN = /rate.?limit|429|usage limit|spend limit/i;
 
 /** rate limit で落ちた Claude CLI の起動バナー "⚠ Sandbox disabled: ..." を検出する。
  *  非ASCII の警告記号(⚠)は含めず、バナー本文(ASCII)で詳細にマッチする。大文字・小文字は厳密に区別する。 */
@@ -187,7 +187,9 @@ export const _formatClaudeError = (parsed: Record<string, unknown>): string => {
 const _interpretClaudeOutput = (parsed: Record<string, unknown>, stdout: string): string => {
   if (parsed.is_error === true) {
     logger.error(`${AI_BACKEND_COMMAND_MAP.claude} error (stdout): ${stdout}`);
-    const _subindex = parsed.api_error_status === 429 ? 'RateLimit' : 'ExitFailure';
+    const _isRateLimit = parsed.api_error_status === 429
+      || (typeof parsed.result === 'string' && _RATE_LIMIT_PATTERN.test(parsed.result));
+    const _subindex = _isRateLimit ? 'RateLimit' : 'ExitFailure';
     throw new ChatlogError('AiError', _subindex, _formatClaudeError(parsed));
   }
   if (typeof parsed.result !== 'string') {
