@@ -11,11 +11,16 @@
     "claude",
     "obsidian"
   ],
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=11"
+  },
   "author": "atsushifx",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/atsushifx/chatlog-exporter.git"
+    "url": "https://github.com/aglabo/chatlog-exporter.git"
   },
   "scripts": {
     "prepare": "bash ./scripts/setup-dev-env.sh"
