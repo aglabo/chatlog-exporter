@@ -13,8 +13,11 @@
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
-import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
+import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { isFatalAiError, isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
+import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
 
 // ─── Local
 import { formatDicEntries } from '../libs/dic-format-utils.ts';
@@ -50,8 +53,10 @@ const _buildTypeCategorySystemPrompt = (systemTemplate: string, dics: Dics, cate
  * ```
  *
  * 判定失敗（有効キー不一致など）時はフォールバック値をセットする。
- * ただし AI CLI が非0終了した致命的エラー（rate limit / exit failure）および abort 済み signal の
- * 場合は、フォールバックに落とさず例外を再 throw する。
+ * ただしエラー種別により挙動を分ける:
+ * - RateLimit / abort 済み signal → 例外を再 throw して中断する。
+ * - 非 RateLimit の AI エラー（exit failure 等）→ `logger.error` を出し、type/category を書かず skip する。
+ * - 非 AiError（パース失敗等）→ フォールバック値をセットする（後方互換）。
  */
 export const judgeTypeAndCategory = async (
   entry: ChatlogEntry,
@@ -98,10 +103,16 @@ export const judgeTypeAndCategory = async (
       category = _parsedCategory;
     }
   } catch (e) {
-    if (isFatalAiError(e) || signal?.aborted) {
+    // RateLimit / 外部 abort → 中断（isRateLimitError を isFatalAiError より先に判定する）
+    if (isRateLimitError(e) || signal?.aborted) {
       throw e;
     }
-    // fall through to fallback values
+    // 非 RateLimit の AI エラー → error ログを出し type/category を書かず skip
+    if (isFatalAiError(e)) {
+      logger.error(`${LOGGER_TEXT.INDENT}FAIL (type/category 判定失敗): ${getFilename(entry.filePath!)} — ${e}`);
+      return;
+    }
+    // 非 AiError（パース失敗等）→ フォールバック値をセット（後方互換）
     type = DEFAULT_FALLBACK_TYPE;
     category = DEFAULT_FALLBACK_CATEGORY;
   }
