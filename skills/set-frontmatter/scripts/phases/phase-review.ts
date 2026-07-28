@@ -13,7 +13,7 @@
 import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
 import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { isFatalAiError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
+import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
 import { logger } from '../../../_scripts/libs/io/logger.ts';
 import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
@@ -78,10 +78,10 @@ export const phaseReview = async (
         try {
           r = await _review(entry, dics, prompts, config.maxRetry ?? 0, config.model, ctl.signal);
         } catch (e) {
-          if (isFatalAiError(e) || ctl.signal.aborted) {
+          if (isRateLimitError(e) || ctl.signal.aborted) {
             throw e;
           }
-          logger.warn(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
+          logger.error(`${LOGGER_TEXT.INDENT}FAIL (review 失敗): ${getFilename(entry.filePath!)} — ${e}`);
           return;
         }
         if (r.validity === 'pass') {
