@@ -26,6 +26,7 @@ import { main } from '../../classify-chatlogs.ts';
 // mocks
 import {
   installCommandMock,
+  makeClaudeJsonMock,
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
@@ -98,7 +99,7 @@ describe('main - dry-run モード', () => {
           ]);
           resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           loggerStub = makeLoggerStub();
           GlobalConfig.resetInstance();
@@ -153,7 +154,7 @@ describe('main - 正常分類', () => {
           ]);
           resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           errStub = stub(console, 'error', () => {});
           GlobalConfig.resetInstance();
@@ -597,7 +598,7 @@ describe('main - 期間フィルタ', () => {
           ]);
           resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           loggerStub = makeLoggerStub();
           errStub = stub(console, 'error', () => {});
@@ -723,7 +724,7 @@ describe('main - --input-dir フルパス直接指定', () => {
           ]);
           resetProjectRoot(inputDir);
           commandHandle = installCommandMock(
-            makeSuccessMock(new TextEncoder().encode(response)),
+            makeClaudeJsonMock(response),
           );
           loggerStub = makeLoggerStub();
           GlobalConfig.resetInstance();
