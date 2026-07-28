@@ -20,7 +20,7 @@ import type { Stub } from '@std/testing/mock';
 import { main } from '../../normalize-chatlogs.ts';
 
 // ─── Helpers
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
 import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
@@ -80,7 +80,7 @@ describe('main', () => {
               },
             ]);
             commandHandle = installCommandMock(
-              makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+              makeClaudeJsonMock(segmentResponse),
             );
             loggerStub = makeLoggerStub();
             exitStub = stub(Deno, 'exit');
@@ -162,7 +162,7 @@ describe('main', () => {
               },
             ]);
             commandHandle = installCommandMock(
-              makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+              makeClaudeJsonMock(segmentResponse),
             );
             loggerStub = makeLoggerStub();
             exitStub = stub(Deno, 'exit');

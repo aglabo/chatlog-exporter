@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../normalize-chatlogs.ts';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
 import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
@@ -86,7 +86,7 @@ describe('normalize-chatlogs - full E2E', () => {
         { filePath: pathC, segments: [{ title: 'Topic C', summary: 'Summary C', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });
@@ -136,7 +136,7 @@ describe('normalize-chatlogs - full E2E', () => {
         },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });
@@ -189,7 +189,7 @@ describe('normalize-chatlogs - full E2E', () => {
         },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });

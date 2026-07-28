@@ -15,7 +15,7 @@ import { after, afterEach, before, beforeEach, describe, it } from '@std/testing
 import { main } from '../../normalize-chatlogs.ts';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-import { installCommandMock, makeSuccessMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import {
   makeTempDirs,
   removeTempDirs,
@@ -84,7 +84,7 @@ describe('main - I/O', () => {
         { filePath: pathB, segments: [{ title: 'Topic B', summary: 'Summary B', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });
@@ -142,7 +142,7 @@ describe('main - I/O', () => {
         { filePath: samplePath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       loggerStub = makeLoggerStub();
     });
@@ -210,7 +210,7 @@ describe('main - I/O', () => {
         { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });
@@ -262,7 +262,7 @@ describe('main - I/O', () => {
         { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });
@@ -313,7 +313,7 @@ describe('main - I/O', () => {
         { filePath: chatPath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });
@@ -367,7 +367,7 @@ describe('main - I/O', () => {
         },
       ]);
       commandHandle = installCommandMock(
-        makeSuccessMock(new TextEncoder().encode(segmentResponse)),
+        makeClaudeJsonMock(segmentResponse),
       );
       logSilencer = silenceLog();
     });
