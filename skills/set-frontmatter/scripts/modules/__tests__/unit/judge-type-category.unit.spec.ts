@@ -11,7 +11,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
-import { afterEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import {
@@ -23,13 +23,16 @@ import {
 import {
   BaseMockCommand,
   installCommandMock,
+  makeClaudeJsonMock,
   makeFailMock,
-  makeSuccessMock,
+  wrapClaudeJson,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type {
   CommandMockHandle,
   DenoCommandLike,
 } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // constants
@@ -325,9 +328,15 @@ describe('_buildTypeCategorySystemPrompt', () => {
  */
 describe('judgeTypeAndCategory', () => {
   let commandHandle: CommandMockHandle;
+  let loggerStub: LoggerStub;
+
+  beforeEach(() => {
+    loggerStub = makeLoggerStub();
+  });
 
   afterEach(() => {
     commandHandle?.restore();
+    loggerStub.restore();
   });
 
   // ─── 正常系 ─────────────────────────────────────────────────────────────────
@@ -341,7 +350,7 @@ describe('judgeTypeAndCategory', () => {
       '[Normal] T-SF-TC-11: AI が "type: discussion\\ncategory: development" を返す → 両フィールドが entry.frontmatter にセットされる',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('type: discussion\ncategory: development')),
+          makeClaudeJsonMock('type: discussion\ncategory: development'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -364,7 +373,7 @@ describe('judgeTypeAndCategory', () => {
       '[Edge] T-SF-TC-16: AI が "type: research" のみ（category なし）を返す → type=research, category=development（デフォルト）',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('type: research')),
+          makeClaudeJsonMock('type: research'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -379,7 +388,7 @@ describe('judgeTypeAndCategory', () => {
       '[Edge] T-SF-TC-17: AI が "category: development" のみ（type なし）を返す → type=research（デフォルト）, category=development',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('category: development')),
+          makeClaudeJsonMock('category: development'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -394,7 +403,7 @@ describe('judgeTypeAndCategory', () => {
       '[Edge] T-SF-TC-18: AI が逆順 "category: development\\ntype: research" を返す → 両方正しくセットされる',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('category: development\ntype: research')),
+          makeClaudeJsonMock('category: development\ntype: research'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -409,7 +418,7 @@ describe('judgeTypeAndCategory', () => {
       '[Edge] T-SF-TC-12: 不正な type キー → フォールバック type がセットされる',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('type: unknown_type\ncategory: development')),
+          makeClaudeJsonMock('type: unknown_type\ncategory: development'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -427,7 +436,7 @@ describe('judgeTypeAndCategory', () => {
       '[Edge] T-SF-TC-13: 不正な category キー → フォールバック category がセットされる',
       async () => {
         commandHandle = installCommandMock(
-          makeSuccessMock(_enc.encode('type: research\ncategory: unknown_category')),
+          makeClaudeJsonMock('type: research\ncategory: unknown_category'),
         );
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -444,21 +453,29 @@ describe('judgeTypeAndCategory', () => {
   // ─── エラー耐性 ─────────────────────────────────────────────────────────────
 
   /**
-   * AI CLI が非0終了で失敗したとき、フォールバックに落とさず fatal な `ChatlogError` を
-   * 再 throw することを検証する（rate limit を content 失敗と区別できないため fail-first）。
+   * AI CLI が非0終了で失敗したときのエラー分岐を検証する。
+   *
+   * 非 RateLimit の AI エラー（ExitFailure）は throw せず、type/category を書き込まずに skip し
+   * `logger.error` へ判定失敗ログを出す。RateLimit のみ再 throw で中断する（別ケース TC-21/23）。
    */
   describe('When: 異常系', () => {
     it(
-      '[Error] T-SF-TC-14: AI が失敗（exit code=1） → フォールバックせず ChatlogError(AiError) を throw',
+      '[Error] T-SF-TC-14: AI が失敗（exit code=1 / ExitFailure） → throw せず type/category 未設定・error ログを出す',
       async () => {
         commandHandle = installCommandMock(makeFailMock(1));
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
-        const _err = await assertRejects(
-          () => judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts()),
-          ChatlogError,
-        ) as ChatlogError;
-        assertEquals(_err.kind, 'AiError');
+        // throw しないこと（assertRejects を外し直接 await）
+        await judgeTypeAndCategory(_entry, _MAX_CONTENT_LENGTH, _makeDics(), _makePrompts());
+
+        // type/category は書き込まれない（skip）
+        assertEquals(_entry.frontmatter.get('type'), undefined);
+        assertEquals(_entry.frontmatter.get('category'), undefined);
+        // 判定失敗ログが 1 件以上（runAI 内部 error ログも同 stub に乗るため部分一致・件数下限で判定）
+        assertEquals(
+          loggerStub.errorLogs.some((l) => l.includes('type/category 判定失敗')),
+          true,
+        );
       },
     );
 
@@ -514,7 +531,7 @@ describe('judgeTypeAndCategory', () => {
     it('[Normal] T-SF-TC-19: model="haiku" を指定 → capturedArgs に --model haiku が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('type: discussion\ncategory: development'), capturedArgs),
+        makeClaudeJsonMock('type: discussion\ncategory: development', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -528,7 +545,7 @@ describe('judgeTypeAndCategory', () => {
     it('[Normal] T-SF-TC-20: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
-        makeSuccessMock(_enc.encode('type: discussion\ncategory: development'), capturedArgs),
+        makeClaudeJsonMock('type: discussion\ncategory: development', capturedArgs),
       );
 
       const _entry = _makeChatlogEntry('# テスト\n本文');
@@ -559,7 +576,7 @@ describe('judgeTypeAndCategory', () => {
     });
 
     it('[Normal] T-SF-TC-22: signal を渡すと runAI に転送され、外部 abort で内部 signal も aborted になる', async () => {
-      const _goodYaml = _enc.encode('type: discussion\ncategory: development');
+      const _goodYaml = _enc.encode(wrapClaudeJson('type: discussion\ncategory: development'));
       const captured: { instance: _SignalCaptureMock | null } = { instance: null };
       commandHandle = installCommandMock(_makeSignalCaptureMock(_goodYaml, captured));
       const controller = new AbortController();
