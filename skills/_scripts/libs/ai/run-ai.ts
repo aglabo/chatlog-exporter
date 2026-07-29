@@ -33,10 +33,6 @@ type _CommandSpec = { command: AiBackendCommand; args: string[]; hasSystemPrompt
 /** レートリミット検出パターン。CLI は文言を stdout / stderr のいずれにも出しうる。`i` フラグのみ（`g` を付けると `.test()` がステートフルになる）。 */
 const _RATE_LIMIT_PATTERN = /rate.?limit|429|usage limit|spend limit/i;
 
-/** rate limit で落ちた Claude CLI の起動バナー "⚠ Sandbox disabled: ..." を検出する。
- *  非ASCII の警告記号(⚠)は含めず、バナー本文(ASCII)で詳細にマッチする。大文字・小文字は厳密に区別する。 */
-const _SANDBOX_DISABLED_PATTERN = /Sandbox disabled: sandbox is enabled but the Windows sandbox is not active/;
-
 // ─── Functions
 
 /**
@@ -256,8 +252,7 @@ export const runAI = async (
     if (!_output.success) {
       if (_stderr) { logger.error(`${_spec.command} exited with code ${_output.code} (stderr): ${_stderr}`); }
       if (_stdout) { logger.error(`${_spec.command} exited with code ${_output.code} (stdout): ${_stdout}`); }
-      const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout)
-        || _SANDBOX_DISABLED_PATTERN.test(_stderr) || _SANDBOX_DISABLED_PATTERN.test(_stdout);
+      const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout);
       throw new ChatlogError(
         'AiError',
         _isRateLimit ? 'RateLimit' : 'ExitFailure',
