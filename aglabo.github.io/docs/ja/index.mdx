@@ -73,28 +73,13 @@ description: AIエージェントのセッション履歴をエクスポート�
 
 ## 導入手順
 
-<Steps>
-  <Step title="前提を確認する">
-    `claude` コマンド（Claude Code CLI）と `deno` が PATH 上にあることを確認します。
-  </Step>
-  <Step title="環境をセットアップする">
-    リポジトリのルートで開発環境セットアップスクリプトを実行します。
+chatlog-exporter は Claude Code のプロジェクトスキルとして動作します。リポジトリを fork・clone し、スキルを登録して、リポジトリのルートからスラッシュコマンドを実行します。
 
-    ```bash
-    bash scripts/setup-dev-env.sh
-    ```
-  </Step>
-  <Step title="スキルを呼び出す">
-    Claude Code 上でスラッシュコマンドを実行します。
-
-    ```bash
-    /export-chatlogs
-    ```
-  </Step>
-</Steps>
+- [クイックスタート](./user-guide/quickstart) — clone した直後から `/export-chatlogs` を1回実行するまで。
+- [インストール](./user-guide/install) — スキルの登録方法や設定の配置を含む、詳しいセットアップ手順。
 
 :::warning[前提条件]
-`claude` コマンドと `deno` が未インストールの場合、スキルは動作しません。先にどちらもインストールし、PATH を通してください。
+`claude` コマンド（Claude Code CLI）と `deno` が PATH 上にある必要があります。どちらかが欠けているとスキルは動作しません。先にどちらもインストールし、PATH を通してください。
 :::
 
 ## スキルの呼び出し
