@@ -27,15 +27,21 @@
     "**/*.dic",
     // Documents
     "**/*.md",
+    "**/*.mdx",
   ],
   "excludes": [
+    // node, etc
     "**/node_modules/**",
-    "**/*lock",
     "**/lib/**",
     "**/module/**",
     "**/dist/**",
-    "aglabo.github.io/**",
-    //
+    // ignore blume files
+    "aglabo.github.io/.blume/**",
+    "aglabo.github.io/.blume-verify/**",
+    "aglabo.github.io/node_modules/**",
+    "aglabo.github.io/dist/**",
+    // package managers lock files
+    "**/*lock",
     "**lock.*",
     // Documents
     "CONTRIBUTING**.md",
