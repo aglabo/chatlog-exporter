@@ -9,7 +9,7 @@
 // cspell:words MoveByAI
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -17,6 +17,8 @@ import { classifyByAI } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+// classes
+import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
 // types
 import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
 import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
@@ -27,6 +29,7 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
 import {
+  BaseMockCommand,
   installCommandMock,
   makeClaudeJsonMock,
   makeCountingMock,
@@ -37,12 +40,42 @@ import {
   _makeEmptyClassifyCache,
 } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
 
 // constants
 /** テスト共通の空プロジェクト辞書。分類対象プロジェクトを問わないテストで使用する。 */
 const _PROJECTS: ProjectDicEntry = { app1: {}, misc: {} };
+
+/**
+ * 非ゼロ exit かつ stderr に rate limit 文言を含む出力を模倣するモッククラス。
+ *
+ * `runAI` の rate limit 判定（stderr に対する `/rate.?limit|429/i`）を発火させ、
+ * `processChunk` に `ChatlogError('AiError', 'RateLimit', ...)` を re-throw させるために使用する。
+ * `BaseMockCommand.spawn()` は `output()` のみを呼ぶため、stderr を持つ `makeOutput()` を独自実装する。
+ */
+class _RateLimitMockCommand extends BaseMockCommand {
+  /** コマンドとオプションを受け取るが実行はしない（インターフェース互換用）。 */
+  constructor(_cmd: string, _opts: unknown) {
+    super();
+  }
+
+  /** 常に `success: false`・`code: 1`・stderr に `'rate limit exceeded'` を返す。 */
+  protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
+    return Promise.resolve({
+      success: false,
+      code: 1,
+      stdout: new Uint8Array(),
+      stderr: new TextEncoder().encode('rate limit exceeded'),
+    });
+  }
+}
+
+/** `_RateLimitMockCommand` を `DenoCommandLike` として返すファクトリヘルパー。 */
+const _makeRateLimitMock = (): DenoCommandLike => _RateLimitMockCommand as unknown as DenoCommandLike;
 
 /** テスト共通の分類設定。chunkSize/concurrency/model のみを指定する。 */
 const _makeConfig = (
@@ -61,7 +94,7 @@ const _makeConfig = (
  *
  * 渡された `ChatlogEntry[]` のチャンク分割並列実行・cache への書き込み・0件時の早期 return を検証する。
  *
- * テスト ID 範囲: T-CL-CBA-01 〜 T-CL-CBA-04
+ * テスト ID 範囲: T-CL-CBA-01 〜 T-CL-CBA-07
  *
  * @see classifyByAI
  */
@@ -231,6 +264,48 @@ describe('classifyByAI', () => {
 
       assertEquals(result, undefined);
       assertEquals(counter.calls, 0);
+    });
+  });
+
+  /**
+   * 異常系: rate limit エラー発生時、スキル入口の `classifyByAI` が例外を握りつぶさず上流へ re-throw するケース。
+   *
+   * `processChunk` の re-throw が `runChunked`（`withConcurrency` → `_wrapParallelError`）を通過しても
+   * `ChatlogError('AiError', 'RateLimit')` のまま伝播し、cache に分類結果が残らないことを保証する回帰テスト。
+   */
+  describe('When: 異常系', () => {
+    let mockHandle: CommandMockHandle;
+    let cache: ChatlogCache<ClassifyCache>;
+
+    beforeEach(async () => {
+      cache = await _makeEmptyClassifyCache();
+      mockHandle = installCommandMock(_makeRateLimitMock());
+    });
+
+    afterEach(() => {
+      mockHandle.restore();
+    });
+
+    it('[Error] T-CL-CBA-07-01: rate limit エラー → ChatlogError(AiError/RateLimit) が上流へ re-throw される', async () => {
+      const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
+
+      const error = await assertRejects(
+        () => classifyByAI(targets, _PROJECTS, _makeConfig(), cache, false),
+        ChatlogError,
+      );
+      assertEquals(error.kind, 'AiError');
+      assertEquals(error.subindex, 'RateLimit');
+    });
+
+    it('[Error] T-CL-CBA-07-02: rate limit エラーで中断 → cache に分類結果（MOVEBYAI）が書き込まれない', async () => {
+      const targets: ChatlogEntry[] = [_makeClassifyChatlogEntry('a.md')];
+
+      await assertRejects(
+        () => classifyByAI(targets, _PROJECTS, _makeConfig(), cache, false),
+        ChatlogError,
+      );
+
+      assertEquals(cache.read('/tmp/input/a.md'), {});
     });
   });
 });

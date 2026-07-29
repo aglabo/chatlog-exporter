@@ -135,22 +135,21 @@ export const makeRateLimitMock = (stdout = 'Claude usage limit reached'): DenoCo
   } as unknown as DenoCommandLike;
 };
 
-/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定される。 */
-export const SANDBOX_BANNER =
-  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+/** claude CLI が rate limit で落ちたときの stderr。`runAI` の `_RATE_LIMIT_PATTERN` (`usage limit`) にヒットし RateLimit 判定される。 */
+export const RATE_LIMIT_STDERR = 'Claude usage limit reached';
 
 /**
- * 最初の `okCount` 回は指定 stdout で成功し、それ以降は exit 1 + sandbox バナー（stderr）で失敗するモック。
+ * 最初の `okCount` 回は指定 stdout で成功し、それ以降は exit 1 + rate limit stderr で失敗するモック。
  *
- * バナー本文が `runAI` の `_SANDBOX_DISABLED_PATTERN` にヒットするため `RateLimit` に分類される。
+ * 失敗時 stderr が `runAI` の `_RATE_LIMIT_PATTERN` にヒットするため `RateLimit` に分類される。
  * Phase 2.1（type/category）を成功させてから後続フェーズ（frontmatter / review）で
- * rate limit(sandbox バナー) を発生させ、fatal 伝播でバッチが abort することを検証するために使用する。
+ * rate limit を発生させ、fatal 伝播でバッチが abort することを検証するために使用する。
  *
  * @param okCount - 成功させる先頭呼び出し回数
  * @param okStdout - 成功時に返す stdout 文字列
  * @returns `DenoCommandLike` モッククラス
  */
-export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string): DenoCommandLike => {
+export const makeSuccessThenRateLimitFailMock = (okCount: number, okStdout: string): DenoCommandLike => {
   let callCount = 0;
   const _okBytes = enc.encode(wrapClaudeJson(okStdout));
   return class extends BaseMockCommand {
@@ -166,7 +165,7 @@ export const makeSuccessThenBannerFailMock = (okCount: number, okStdout: string)
           success: false,
           code: 1,
           stdout: new Uint8Array(),
-          stderr: enc.encode(SANDBOX_BANNER),
+          stderr: enc.encode(RATE_LIMIT_STDERR),
         });
       }
       return Promise.resolve({ success: true, code: 0, stdout: _okBytes, stderr: new Uint8Array() });
@@ -213,16 +212,16 @@ export const makeSuccessThenExitFailMock = (okCount: number, okStdout: string): 
 };
 
 /**
- * `failOn`（1始まり）番目の呼び出しだけ exit 1 + sandbox バナーで失敗し、他は success を返すモック。
+ * `failOn`（1始まり）番目の呼び出しだけ exit 1 + rate limit stderr で失敗し、他は success を返すモック。
  *
- * 特定フェーズ 1 箇所だけを rate limit(sandbox バナー) にして、そのフェーズの abort ゲート単体が
+ * 特定フェーズ 1 箇所だけを rate limit にして、そのフェーズの abort ゲート単体が
  * バッチを止めることを分離検証するために使用する（後続フェーズが救済しない構成）。
  *
  * @param failOn - 失敗させる呼び出し番号（1始まり）
  * @param okStdout - success 時に返す stdout 文字列
  * @returns `DenoCommandLike` モッククラス
  */
-export const makeBannerFailOnNthMock = (failOn: number, okStdout: string): DenoCommandLike => {
+export const makeRateLimitFailOnNthMock = (failOn: number, okStdout: string): DenoCommandLike => {
   let callCount = 0;
   const _okBytes = enc.encode(wrapClaudeJson(okStdout));
   return class extends BaseMockCommand {
@@ -238,7 +237,7 @@ export const makeBannerFailOnNthMock = (failOn: number, okStdout: string): DenoC
           success: false,
           code: 1,
           stdout: new Uint8Array(),
-          stderr: enc.encode(SANDBOX_BANNER),
+          stderr: enc.encode(RATE_LIMIT_STDERR),
         });
       }
       return Promise.resolve({ success: true, code: 0, stdout: _okBytes, stderr: new Uint8Array() });

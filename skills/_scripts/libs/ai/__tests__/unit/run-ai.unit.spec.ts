@@ -70,7 +70,7 @@ const _makeRejectingCommandStub = () => {
 };
 
 // constants
-/** レートリミット検出のテーブル駆動ケース (RA-13〜15, RA-21, RA-22, RA-24)。stdout / stderr の両ストリームを検査対象とする。 */
+/** レートリミット検出のテーブル駆動ケース (RA-13〜15, RA-21, RA-22)。stdout / stderr の両ストリームを検査対象とする。 */
 const _rateLimitCases = [
   {
     id: 'T-LIB-AI-RA-13',
@@ -95,14 +95,6 @@ const _rateLimitCases = [
     desc: 'stdout に "Claude usage limit reached" (stderr 空)',
   },
   { id: 'T-LIB-AI-RA-22', label: 'Error', stdout: '', stderr: 'usage limit exceeded', desc: 'stderr に "usage limit"' },
-  {
-    id: 'T-LIB-AI-RA-24',
-    label: 'Error',
-    stdout: '',
-    stderr:
-      '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)',
-    desc: 'stderr に sandbox disabled バナー (rate limit 文字列なし)',
-  },
 ] as const;
 
 const _cases: Array<{ model: string; expected: CommandSpec }> = [
@@ -304,6 +296,29 @@ describe('runAI', () => {
           assertEquals(_err.kind, 'AiError');
           assertEquals(_err.subindex, 'ExitFailure');
           assertStringIncludes(_err.message, 'model not found');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-24: runAI — stderr に sandbox disabled バナー (rate limit 文字列なし) → RateLimit にならず AiError/ExitFailure', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new Uint8Array(),
+          stderr: new TextEncoder().encode(
+            '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)',
+          ),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
         } finally {
           Deno.Command = _origCommand;
         }
@@ -714,12 +729,15 @@ describe('runAI', () => {
     /**
      * レートリミット判定の誤検出防止に関するエッジケース。
      *
+     * フォールバック分岐のレートリミット判定は `_RATE_LIMIT_PATTERN`
+     * (`rate.?limit|429|usage limit|spend limit`) のみで行う。sandbox バナー系の文字列は
+     * レートリミットの代理シグナルとして扱わないため、いずれも ExitFailure に分類される。
+     *
      * - 正常終了(exit 0)の stdout はレートリミット検査対象外である（RA-23）。
-     * - sandbox バナー衝突: "disabled" を含まない "sandbox is enabled but not active" は
-     *   RateLimit に誤分類されず ExitFailure のままである（RA-25）。
-     * - 大文字小文字の区別: 小文字 "sandbox disabled" はマッチせず ExitFailure のままである（RA-26）。
-     * - バナー本文全体判定: "Sandbox disabled:" で始まっても後続がバナー本文と異なればマッチせず
-     *   ExitFailure のままである（RA-27）。
+     * - sandbox バナー本文 "sandbox is enabled but not active" は RateLimit にならず
+     *   ExitFailure である（RA-25）。
+     * - 小文字 "sandbox disabled" も RateLimit にならず ExitFailure である（RA-26）。
+     * - "Sandbox disabled:" で始まる任意の文字列も RateLimit にならず ExitFailure である（RA-27）。
      */
     describe('When: エッジケース', () => {
       it('[Edge] T-LIB-AI-RA-23: runAI — 正常終了 かつ .result に "usage limit" を含む → RateLimit 判定されず .result を返す', async () => {
@@ -777,7 +795,7 @@ describe('runAI', () => {
         }
       });
 
-      it('[Edge] T-LIB-AI-RA-26: runAI — stderr が小文字 "sandbox disabled" のみ（先頭 s 小文字）→ 大文字小文字を区別しマッチせず AiError/ExitFailure', async () => {
+      it('[Edge] T-LIB-AI-RA-26: runAI — stderr が小文字 "sandbox disabled" のみ（先頭 s 小文字）→ RateLimit にならず AiError/ExitFailure', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
           success: false,
@@ -798,7 +816,7 @@ describe('runAI', () => {
         }
       });
 
-      it('[Edge] T-LIB-AI-RA-27: runAI — stderr が "Sandbox disabled: something else entirely"（前方一致するがバナー本文と異なる）→ 本文全体で判定しマッチせず AiError/ExitFailure', async () => {
+      it('[Edge] T-LIB-AI-RA-27: runAI — stderr が "Sandbox disabled: something else entirely" → RateLimit にならず AiError/ExitFailure', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
           success: false,
