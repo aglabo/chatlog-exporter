@@ -1,0 +1,61 @@
+---
+title: Installation
+description: Install chatlog-exporter as Claude Code project skills by forking the repository and registering the skills locally.
+---
+
+chatlog-exporter runs as **Claude Code project skills**. There is no package to install from a registry yet — you fork the repository, clone it, and register the skills into Claude Code from the local checkout. You then run Claude Code from the repository root so the skills and their configuration resolve correctly.
+
+:::warning[Prerequisites]
+The `claude` command (Claude Code CLI) and `deno` must be on your PATH. If either is missing, the skills will not work. Install both first and add them to your PATH.
+:::
+
+<Steps>
+  <Step title="Fork and clone">
+    Fork the repository on GitHub, then clone your fork and move into it.
+
+    ```bash
+    git clone https://github.com/<your-account>/chatlog-exporter.git
+    cd chatlog-exporter
+    ```
+  </Step>
+  <Step title="Register the skills">
+    `.claude/skills` is excluded by `.gitignore`, so a fresh clone does not contain it. Claude Code discovers project skills under `.claude/skills`, so you need to point it at the `skills/` directory yourself.
+
+    Use whichever method works in your environment:
+
+    <Tabs>
+      <Tab title="Git Bash / macOS / Linux">
+        ```bash
+        ln -s ../skills .claude/skills
+        ```
+        On the default Windows Git Bash this may copy the directory instead of creating a real symbolic link. That still works for running the skills, but changes to `skills/` will not be reflected automatically.
+      </Tab>
+      <Tab title="Windows PowerShell">
+        ```powershell
+        New-Item -ItemType SymbolicLink -Path .claude\skills -Target ..\skills
+        ```
+        Creating a symbolic link on Windows requires Developer Mode to be enabled or an elevated (administrator) shell.
+      </Tab>
+      <Tab title="Copy (fallback)">
+        ```bash
+        cp -r skills .claude/skills
+        ```
+        Use this when symbolic links are not available. Re-run it whenever `skills/` changes.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Confirm the configuration">
+    The `.config/chatlog-exporter/` directory (`config.yaml`, `dics/`, `prompts/`) **is** tracked in git, so it comes with the clone — no copying required. The skills read it from the current working directory, so run Claude Code from the repository root.
+  </Step>
+  <Step title="Run a skill">
+    Start Claude Code in the repository root and invoke a slash command.
+
+    ```bash
+    /export-chatlogs
+    ```
+  </Step>
+</Steps>
+
+:::note
+`bash scripts/setup-dev-env.sh` installs `lefthook` and ShellSpec. Those are **development tools** for contributing to the repository; they are not required to run the skills.
+:::
