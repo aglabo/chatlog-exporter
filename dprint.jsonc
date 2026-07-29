@@ -34,6 +34,7 @@
     "**/lib/**",
     "**/module/**",
     "**/dist/**",
+    "aglabo.github.io/**",
     //
     "**lock.*",
     // Documents
