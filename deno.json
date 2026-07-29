@@ -9,9 +9,9 @@
   "lint": {
     "rules": {
     },
-    "exclude": [".worktrees"]
+    "exclude": [".worktrees", "aglabo.github.io"]
   },
-  "exclude": [".worktrees"],
+  "exclude": [".worktrees", "aglabo.github.io"],
   "compilerOptions": {
     "lib": ["deno.ns", "es2022", "dom"]
   },
