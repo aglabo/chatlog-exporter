@@ -87,24 +87,23 @@ class _RateLimitMockCommand extends BaseMockCommand {
   }
 }
 
-/** Windows で claude CLI が rate limit で落ちたとき実際に観測される起動バナー。バナー本文が `_SANDBOX_DISABLED_PATTERN` にヒットし RateLimit 判定される。 */
-const _SANDBOX_BANNER =
-  '⚠ Sandbox disabled: sandbox is enabled but the Windows sandbox is not active on this session (feature gate off)';
+/** claude CLI が rate limit で落ちたときの stderr。`runAI` の `_RATE_LIMIT_PATTERN` (`usage limit`) にヒットし RateLimit 判定される。 */
+const _RATE_LIMIT_STDERR = 'Claude usage limit reached';
 
 /**
- * claude CLI が exit 1 で落ち、stderr に sandbox バナーのみを返すモック。
+ * claude CLI が exit 1 で落ち、stderr に rate limit 文字列のみを返すモック。
  *
- * sandbox バナー本文が `runAI` の `_SANDBOX_DISABLED_PATTERN` にヒットし `ChatlogError('AiError', 'RateLimit', ...)` に
- * 分類される。実際に観測された rate limit 落ち（バナーのみ）を再現し、fatal 伝播を検証する。
+ * stderr が `runAI` の `_RATE_LIMIT_PATTERN` にヒットし `ChatlogError('AiError', 'RateLimit', ...)` に
+ * 分類される。実際に観測される rate limit 落ちを再現し、fatal 伝播を検証する。
  */
-class _SandboxBannerFailMock extends BaseMockCommand {
-  /** 常に exit 1 + stderr に sandbox バナーのみを返す。 */
+class _RateLimitFailMock extends BaseMockCommand {
+  /** 常に exit 1 + stderr に rate limit 文字列のみを返す。 */
   protected makeOutput(): Promise<{ success: boolean; code: number; stdout: Uint8Array; stderr: Uint8Array }> {
     return Promise.resolve({
       success: false,
       code: 1,
       stdout: new Uint8Array(),
-      stderr: _enc.encode(_SANDBOX_BANNER),
+      stderr: _enc.encode(_RATE_LIMIT_STDERR),
     });
   }
 }
@@ -480,9 +479,9 @@ describe('judgeTypeAndCategory', () => {
     );
 
     it(
-      '[Error] T-SF-TC-23: CLI が exit 1 + sandbox バナーのみ（rate limit 文字列なし） → ChatlogError(AiError/RateLimit) を throw',
+      '[Error] T-SF-TC-23: CLI が exit 1 + rate limit 文字列のみ → ChatlogError(AiError/RateLimit) を throw',
       async () => {
-        commandHandle = installCommandMock(_SandboxBannerFailMock as unknown as DenoCommandLike);
+        commandHandle = installCommandMock(_RateLimitFailMock as unknown as DenoCommandLike);
 
         const _entry = _makeChatlogEntry('# テスト\n本文');
         const _err = await assertRejects(
