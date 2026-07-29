@@ -8,7 +8,10 @@
 
 ## blume
 .blume/
-dist/
 
 # ignore node modules
 node_modules/
+
+# created page dir
+dist/
+.blume-verify/

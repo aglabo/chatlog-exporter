@@ -15,4 +15,11 @@ export default defineConfig({
     site: 'https://aglabo.github.io/chatlog-exporter',
     base: '/chatlog-exporter',
   },
+  i18n: {
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'ja', label: '日本語' },
+    ],
+  },
 });

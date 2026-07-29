@@ -1,10 +1,139 @@
 ---
-title: Introduction
-description: Welcome to your new Blume docs.
+title: chatlog-exporter
+description: A set of tools that exports, classifies, and organizes AI agent session logs into Markdown ready to import into Obsidian. Runs as Claude Code skills.
 ---
 
-## Introduction
+**chatlog-exporter** is a set of tools that exports, classifies, filters, and reshapes session logs from AI agents such as Claude and ChatGPT into Markdown you can import into Obsidian. It is implemented as Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is written in TypeScript (Deno runtime) and distributed as JSR packages.
 
-Welcome to **Blume** — markdown-first docs powered by Astro and Vite.
+<CardGroup cols={2}>
+  <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
+    Exports AI agent session logs to Markdown with noise removed. It strips system logs, short affirmative replies, and tool-use records, writing out only the substantive conversation. Supported agents: claude (default), codex, chatgpt.
+  </Card>
+  <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
+    Classifies chat logs into per-project subdirectories. It analyzes metadata with the Claude CLI to infer the project name and adds a `project` field to the frontmatter.
+  </Card>
+  <Card title="filter-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
+    Batch-judges exported Markdown with the claude CLI and deletes low-value files (DISCARD).
+  </Card>
+  <Card title="normalize-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
+    Splits chat logs into topic-based segments with AI and outputs them as Markdown with frontmatter.
+  </Card>
+  <Card title="set-frontmatter" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
+    Adds or overwrites frontmatter across ChatLog Markdown in bulk. AI generates title / summary / category / topics / tags.
+  </Card>
+</CardGroup>
 
-Edit `docs/index.mdx` to get started, then run `blume dev`.
+## Workflow
+
+Applying the five skills in the following order progressively refines raw session logs into Markdown ready for Obsidian.
+
+<Steps>
+  <Step title="export">
+    `/export-chatlogs` writes session logs to Markdown with noise removed.
+  </Step>
+  <Step title="classify">
+    `/classify-chatlogs` sorts them into per-project subdirectories.
+  </Step>
+  <Step title="filter">
+    `/filter-chatlogs` deletes low-value files.
+  </Step>
+  <Step title="normalize">
+    `/normalize-chatlogs` splits them into topic-based segments.
+  </Step>
+  <Step title="set-frontmatter">
+    `/set-frontmatter` adds title / summary / category / topics / tags.
+  </Step>
+</Steps>
+
+:::tip
+Each skill can run independently. Start with just `/export-chatlogs`, then combine the later skills as needed.
+:::
+
+## Project structure
+
+Each skill lives under `skills/`, with its specification described in `SKILL.md`.
+
+<FileTree>
+
+- skills/
+  - export-chatlogs/
+    - SKILL.md
+  - classify-chatlogs/
+    - SKILL.md
+  - filter-chatlogs/
+    - SKILL.md
+  - normalize-chatlogs/
+    - SKILL.md
+  - set-frontmatter/
+    - SKILL.md
+- scripts/
+  - setup-dev-env.sh
+
+</FileTree>
+
+## Getting started
+
+<Steps>
+  <Step title="Check prerequisites">
+    Make sure the `claude` command (Claude Code CLI) and `deno` are on your PATH.
+  </Step>
+  <Step title="Set up the environment">
+    Run the development environment setup script from the repository root.
+
+    ```bash
+    bash scripts/setup-dev-env.sh
+    ```
+  </Step>
+  <Step title="Invoke a skill">
+    Run a slash command from within Claude Code.
+
+    ```bash
+    /export-chatlogs
+    ```
+  </Step>
+</Steps>
+
+:::warning[Prerequisites]
+If the `claude` command and `deno` are not installed, the skills will not work. Install both first and add them to your PATH.
+:::
+
+## Invoking the skills
+
+Depending on your goal, run the corresponding slash command within Claude Code.
+
+<Tabs>
+  <Tab title="export">
+    ```bash
+    /export-chatlogs
+    ```
+    Exports session logs to Markdown with noise removed.
+  </Tab>
+  <Tab title="classify">
+    ```bash
+    /classify-chatlogs
+    ```
+    Classifies chat logs by project.
+  </Tab>
+  <Tab title="filter">
+    ```bash
+    /filter-chatlogs
+    ```
+    Deletes low-value files.
+  </Tab>
+  <Tab title="normalize">
+    ```bash
+    /normalize-chatlogs
+    ```
+    Splits logs into topic-based segments.
+  </Tab>
+  <Tab title="set-frontmatter">
+    ```bash
+    /set-frontmatter
+    ```
+    Adds or overwrites frontmatter in bulk.
+  </Tab>
+</Tabs>
+
+:::note
+This tool set is implemented in TypeScript (Deno runtime) and distributed as JSR packages. For the detailed specification of each skill, refer to its `SKILL.md`.
+:::

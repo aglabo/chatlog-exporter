@@ -1,0 +1,139 @@
+---
+title: chatlog-exporter
+description: AIエージェントのセッション履歴をエクスポート・分類・整理し、Obsidian へのインポート用に整えるツール群。Claude Code スキルとして動作します。
+---
+
+**chatlog-exporter** は、Claude や ChatGPT などの AIエージェントとのセッション履歴を、エクスポート・分類・フィルタ・整形し、Obsidian にインポートできる Markdown へと整備するツール群です。Claude Code のスキルとして実装されており、`/export-chatlogs` などのスラッシュコマンドから呼び出せます。TypeScript（Deno ランタイム）で書かれ、JSR パッケージとして提供されます。
+
+<CardGroup cols={2}>
+  <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
+    AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートします。システムログ・短文の肯定応答・ツール使用記録を除外し、実質的な会話だけを書き出します。対応エージェント: claude（デフォルト）, codex, chatgpt。
+  </Card>
+  <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
+    チャットログをプロジェクト別のサブディレクトリに分類します。Claude CLI でメタデータを解析してプロジェクト名を推定し、frontmatter に `project` フィールドを付加します。
+  </Card>
+  <Card title="filter-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
+    エクスポート済みの Markdown を claude CLI で一括バッチ判定し、再利用価値の低いファイル（DISCARD）を削除します。
+  </Card>
+  <Card title="normalize-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
+    チャットログを AI でトピック別のセグメントに分割し、frontmatter 付きの Markdown として出力します。
+  </Card>
+  <Card title="set-frontmatter" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
+    ChatLog Markdown に frontmatter を一括で付加・上書きします。AI が title / summary / category / topics / tags を生成します。
+  </Card>
+</CardGroup>
+
+## ワークフロー
+
+5つのスキルを次の順に適用すると、生のセッション履歴を Obsidian 用に整った Markdown へと段階的に整備できます。
+
+<Steps>
+  <Step title="export — エクスポート">
+    `/export-chatlogs` でセッション履歴をノイズ除外して Markdown に書き出します。
+  </Step>
+  <Step title="classify — 分類">
+    `/classify-chatlogs` でプロジェクト別のサブディレクトリに振り分けます。
+  </Step>
+  <Step title="filter — 選別">
+    `/filter-chatlogs` で再利用価値の低いファイルを削除します。
+  </Step>
+  <Step title="normalize — 正規化">
+    `/normalize-chatlogs` でトピック別セグメントに分割します。
+  </Step>
+  <Step title="set-frontmatter — メタデータ付与">
+    `/set-frontmatter` で title / summary / category / topics / tags を付加します。
+  </Step>
+</Steps>
+
+:::tip
+各スキルは独立して実行できます。まずは `/export-chatlogs` だけを試し、必要に応じて後続のスキルを組み合わせてください。
+:::
+
+## プロジェクト構造
+
+各スキルは `skills/` 以下に配置され、`SKILL.md` に仕様が記述されています。
+
+<FileTree>
+
+- skills/
+  - export-chatlogs/
+    - SKILL.md
+  - classify-chatlogs/
+    - SKILL.md
+  - filter-chatlogs/
+    - SKILL.md
+  - normalize-chatlogs/
+    - SKILL.md
+  - set-frontmatter/
+    - SKILL.md
+- scripts/
+  - setup-dev-env.sh
+
+</FileTree>
+
+## 導入手順
+
+<Steps>
+  <Step title="前提を確認する">
+    `claude` コマンド（Claude Code CLI）と `deno` が PATH 上にあることを確認します。
+  </Step>
+  <Step title="環境をセットアップする">
+    リポジトリのルートで開発環境セットアップスクリプトを実行します。
+
+    ```bash
+    bash scripts/setup-dev-env.sh
+    ```
+  </Step>
+  <Step title="スキルを呼び出す">
+    Claude Code 上でスラッシュコマンドを実行します。
+
+    ```bash
+    /export-chatlogs
+    ```
+  </Step>
+</Steps>
+
+:::warning[前提条件]
+`claude` コマンドと `deno` が未インストールの場合、スキルは動作しません。先にどちらもインストールし、PATH を通してください。
+:::
+
+## スキルの呼び出し
+
+目的に応じて、対応するスラッシュコマンドを Claude Code 上で実行します。
+
+<Tabs>
+  <Tab title="export">
+    ```bash
+    /export-chatlogs
+    ```
+    セッション履歴をノイズ除外して Markdown にエクスポートします。
+  </Tab>
+  <Tab title="classify">
+    ```bash
+    /classify-chatlogs
+    ```
+    チャットログをプロジェクト別に分類します。
+  </Tab>
+  <Tab title="filter">
+    ```bash
+    /filter-chatlogs
+    ```
+    再利用価値の低いファイルを削除します。
+  </Tab>
+  <Tab title="normalize">
+    ```bash
+    /normalize-chatlogs
+    ```
+    トピック別セグメントに分割します。
+  </Tab>
+  <Tab title="set-frontmatter">
+    ```bash
+    /set-frontmatter
+    ```
+    frontmatter を一括付加・上書きします。
+  </Tab>
+</Tabs>
+
+:::note
+本ツール群は TypeScript（Deno ランタイム）で実装され、JSR パッケージとして提供されます。各スキルの詳細な仕様は、それぞれの `SKILL.md` を参照してください。
+:::
