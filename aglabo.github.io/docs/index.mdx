@@ -73,28 +73,13 @@ Each skill lives under `skills/`, with its specification described in `SKILL.md`
 
 ## Getting started
 
-<Steps>
-  <Step title="Check prerequisites">
-    Make sure the `claude` command (Claude Code CLI) and `deno` are on your PATH.
-  </Step>
-  <Step title="Set up the environment">
-    Run the development environment setup script from the repository root.
+chatlog-exporter runs as Claude Code project skills. Fork and clone the repository, register the skills, and run a slash command from the repository root.
 
-    ```bash
-    bash scripts/setup-dev-env.sh
-    ```
-  </Step>
-  <Step title="Invoke a skill">
-    Run a slash command from within Claude Code.
-
-    ```bash
-    /export-chatlogs
-    ```
-  </Step>
-</Steps>
+- [Quickstart](./user-guide/quickstart) — from a fresh clone to running `/export-chatlogs` once.
+- [Installation](./user-guide/install) — full setup, including how to register the skills and where the configuration lives.
 
 :::warning[Prerequisites]
-If the `claude` command and `deno` are not installed, the skills will not work. Install both first and add them to your PATH.
+The `claude` command (Claude Code CLI) and `deno` must be on your PATH. If either is missing, the skills will not work. Install both first and add them to your PATH.
 :::
 
 ## Invoking the skills
