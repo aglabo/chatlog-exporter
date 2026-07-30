@@ -39,10 +39,10 @@ AIエージェントのセッション履歴をノイズ除外して Markdown �
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/commands/export-chatlogs.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/export-chatlogs/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR   = <export-chatlogs.md が存在するディレクトリの絶対パス>
+SKILL_DIR   = <SKILL.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlogs.ts
 ```
 

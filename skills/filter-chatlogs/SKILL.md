@@ -49,10 +49,10 @@ allowed-tools: Bash, Glob
 
 ## ステップ1: スクリプトパスの解決
 
-Glob ツールで `**/commands/filter-chatlogs.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
+Glob ツールで `**/filter-chatlogs/SKILL.md` を検索し、そのディレクトリを `SKILL_DIR` として確定する。
 
 ```bash
-SKILL_DIR         = <filter-chatlogs.md が存在するディレクトリの絶対パス>
+SKILL_DIR         = <SKILL.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH       = $SKILL_DIR/scripts/filter-chatlogs.ts
 NOISE_FILTER_PATH = $SKILL_DIR/scripts/noise-filter-chatlogs.ts
 ```
