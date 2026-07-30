@@ -1,0 +1,35 @@
+# src: .remarkignore
+# @(#) : ignore settings for remark lint
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## system dir
+.pnpm-store/
+.worktrees/
+
+## Other tools
+.beads/
+
+## AI Agents Dir
+# agents
+.claude/
+
+# mcp's
+.cocoindex_code/
+.serena/
+.lsmcp/
+.codegraph/
+
+
+## blume
+.blume/
+.blume-verify/
+
+# ignore node modules
+node_modules/
+
+# created page dir
+dist/
