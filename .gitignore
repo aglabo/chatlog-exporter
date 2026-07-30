@@ -100,6 +100,7 @@ tmp/
 
 ## Node
 node_modules/
+.pnpm-store/
 
 ## beads
 .beads/*
