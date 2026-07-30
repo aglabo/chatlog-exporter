@@ -1,0 +1,11 @@
+# src: templates/configs/.textlint/allowlist.yml
+#  @(#) : textlint allowlist
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+- "/(第|#|No.|no.)[0-9]+/"
+- "/[0-9]+[%つ個回番版面行列種章稿年年月日時分秒週割字段台層面頁点口通話曲課枚巻頁巻席門円人名羽匹冊店杯階枚式番]/"
+- "/[A-Za-z0-9]+[系用]/"

@@ -1,0 +1,46 @@
+# src: ./configs/textlintrc.yaml
+# @(#) : textlint configuration for Japanese text linting
+#
+# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+plugins: {}
+filters:
+  comments: true
+  allowlist:
+    allowlistConfigPaths:
+      - ./.textlint/allowlist.yml
+rules:
+  preset-ja-technical-writing:
+    sentence-length:
+      max: 100
+    max-kanji-continuous-len:
+      max: 8
+      allow: []
+    no-mix-dearu-desumasu: {
+      "preferInHeader": "である",
+      "preferInBody": "ですます",
+      "preferInList": "",
+    }
+    no-exclamation-question-mark: false
+    ja-no-mixed-period:
+      allowPeriodMarks:
+        - ":"
+    no-doubled-joshi:
+      strict: false
+  "@textlint-ja/preset-ai-writing": true
+  preset-ja-spacing:
+    ja-space-between-half-and-full-width:
+      space:
+        - alphabets
+        - numbers
+  common-misspellings: true
+  no-mixed-zenkaku-and-hankaku-alphabet: true
+  "@proofdict/proofdict":
+    dictURL: "https://atsushifx.github.io/proof-dictionary/"
+  prh:
+    rulePaths:
+      - ./.textlint/dicts/prh.yml
+      - ./.textlint/dicts/prh-my-settings.yml
