@@ -3,14 +3,19 @@ title: chatlog-exporter
 description: A set of tools that exports, classifies, and organizes AI agent session logs into Markdown ready to import into Obsidian. Runs as Claude Code skills.
 ---
 
-**chatlog-exporter** is a set of tools that exports, classifies, filters, and reshapes session logs from AI agents such as Claude and ChatGPT into Markdown you can import into Obsidian. It is implemented as Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is written in TypeScript (Deno runtime) and distributed as JSR packages.
+**chatlog-exporter** is a set of tools that exports, classifies, filters, and reshapes session logs
+from AI agents such as Claude and ChatGPT into Markdown you can import into Obsidian. It is implemented as
+Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is written in TypeScript
+(Deno runtime) and distributed as JSR packages.
 
 <CardGroup cols={2}>
   <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
-    Exports AI agent session logs to Markdown with noise removed. It strips system logs, short affirmative replies, and tool-use records, writing out only the substantive conversation. Supported agents: claude (default), codex, chatgpt.
+    Exports AI agent session logs to Markdown with noise removed. It strips system logs, short affirmative replies,
+    and tool-use records, writing out only the substantive conversation. Supported agents: claude (default), codex, chatgpt.
   </Card>
   <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
-    Classifies chat logs into per-project subdirectories. It analyzes metadata with the Claude CLI to infer the project name and adds a `project` field to the frontmatter.
+    Classifies chat logs into per-project subdirectories. It analyzes metadata with the Claude CLI to infer
+    the project name and adds a `project` field to the frontmatter.
   </Card>
   <Card title="filter-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
     Batch-judges exported Markdown with the claude CLI and deletes low-value files (DISCARD).
@@ -73,13 +78,18 @@ Each skill lives under `skills/`, with its specification described in `SKILL.md`
 
 ## Getting started
 
-chatlog-exporter runs as Claude Code project skills. Fork and clone the repository, register the skills, and run a slash command from the repository root.
+chatlog-exporter runs as Claude Code project skills. Fork and clone the repository, register the skills,
+and run a slash command from the repository root.
 
 - [Quickstart](./user-guide/quickstart) — from a fresh clone to running `/export-chatlogs` once.
-- [Installation](./user-guide/install) — full setup, including how to register the skills and where the configuration lives.
+- [Installation](./user-guide/install) — full setup, including how to register the skills and where the
+  configuration lives.
 
-:::warning[Prerequisites]
-The `claude` command (Claude Code CLI) and `deno` must be on your PATH. If either is missing, the skills will not work. Install both first and add them to your PATH.
+:::warning
+**Prerequisites**
+
+The `claude` command (Claude Code CLI) and `deno` must be on your PATH. If either is missing, the skills will not work.
+Install both first and add them to your PATH.
 :::
 
 ## Invoking the skills
@@ -120,5 +130,6 @@ Depending on your goal, run the corresponding slash command within Claude Code.
 </Tabs>
 
 :::note
-This tool set is implemented in TypeScript (Deno runtime) and distributed as JSR packages. For the detailed specification of each skill, refer to its `SKILL.md`.
+This tool set is implemented in TypeScript (Deno runtime) and distributed as JSR packages.
+For the detailed specification of each skill, refer to its `SKILL.md`.
 :::

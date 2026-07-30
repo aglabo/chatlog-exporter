@@ -3,11 +3,14 @@ title: chatlog-exporter
 description: AIエージェントのセッション履歴をエクスポート・分類・整理し、Obsidian へのインポート用に整えるツール群。Claude Code スキルとして動作します。
 ---
 
-**chatlog-exporter** は、Claude や ChatGPT などの AIエージェントとのセッション履歴を、エクスポート・分類・フィルタ・整形し、Obsidian にインポートできる Markdown へと整備するツール群です。Claude Code のスキルとして実装されており、`/export-chatlogs` などのスラッシュコマンドから呼び出せます。TypeScript（Deno ランタイム）で書かれ、JSR パッケージとして提供されます。
+**chatlog-exporter** は、Claude や ChatGPT などの AIエージェントとのセッション履歴を、
+エクスポート・分類・フィルタ・整形し、Obsidian にインポートできる Markdown へと整備するツール群です。
+Claude Code のスキルとして実装されており、`/export-chatlogs` などのスラッシュコマンドから呼び出せます。TypeScript（Deno ランタイム）で書かれ、JSR パッケージとして提供されます。
 
 <CardGroup cols={2}>
   <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
-    AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートします。システムログ・短文の肯定応答・ツール使用記録を除外し、実質的な会話だけを書き出します。対応エージェント: claude（デフォルト）, codex, chatgpt。
+    AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートします。
+    システムログ・短文の肯定応答・ツール使用記録を除外し、実質的な会話だけを書き出します。対応エージェント: claude（デフォルト）, codex, chatgpt。
   </Card>
   <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
     チャットログをプロジェクト別のサブディレクトリに分類します。Claude CLI でメタデータを解析してプロジェクト名を推定し、frontmatter に `project` フィールドを付加します。
@@ -78,7 +81,9 @@ chatlog-exporter は Claude Code のプロジェクトスキルとして動作�
 - [クイックスタート](./user-guide/quickstart) — clone した直後から `/export-chatlogs` を1回実行するまで。
 - [インストール](./user-guide/install) — スキルの登録方法や設定の配置を含む、詳しいセットアップ手順。
 
-:::warning[前提条件]
+:::warning
+**前提条件**
+
 `claude` コマンド（Claude Code CLI）と `deno` が PATH 上にある必要があります。どちらかが欠けているとスキルは動作しません。先にどちらもインストールし、PATH を通してください。
 :::
 
