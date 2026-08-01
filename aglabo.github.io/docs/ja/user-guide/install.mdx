@@ -3,9 +3,12 @@ title: インストール
 description: リポジトリを fork・clone し、スキルをローカルに登録して chatlog-exporter を Claude Code スキルとして導入します。
 ---
 
-chatlog-exporter は **Claude Code のプロジェクトスキル**として動作します。現時点ではレジストリからインストールできるパッケージはなく、リポジトリを fork・clone し、そのローカルチェックアウトからスキルを Claude Code に登録します。スキルとその設定が正しく解決されるよう、リポジトリのルートで Claude Code を起動して使います。
+chatlog-exporter は **Claude Code のプロジェクトスキル**として動作します。現時点ではレジストリからインストールできるパッケージはなく、
+リポジトリを fork・clone し、そのローカルチェックアウトからスキルを Claude Code に登録します。スキルとその設定が正しく解決されるよう、リポジトリのルートで Claude Code を起動して使います。
 
-:::warning[前提条件]
+:::warning
+**前提条件**
+
 `claude` コマンド（Claude Code CLI）と `deno` が PATH 上にある必要があります。どちらかが欠けているとスキルは動作しません。先に両方をインストールし、PATH を通してください。
 :::
 
@@ -19,7 +22,8 @@ chatlog-exporter は **Claude Code のプロジェクトスキル**として動�
     ```
   </Step>
   <Step title="スキルを登録する">
-    `.claude/skills` は `.gitignore` で除外されているため、clone した直後には含まれていません。Claude Code は `.claude/skills` 以下からプロジェクトスキルを認識するので、自分で `skills/` ディレクトリを指すように設定する必要があります。
+    `.claude/skills` は `.gitignore` で除外されているため、clone した直後には含まれていません。
+    Claude Code は `.claude/skills` 以下からプロジェクトスキルを認識するので、自分で `skills/` ディレクトリを指すように設定する必要があります。
 
     環境に応じて、いずれかの方法を使ってください。
 
@@ -45,7 +49,8 @@ chatlog-exporter は **Claude Code のプロジェクトスキル**として動�
     </Tabs>
   </Step>
   <Step title="設定を確認する">
-    `.config/chatlog-exporter/` ディレクトリ（`config.yaml`・`dics/`・`prompts/`）は git 追跡済みなので、clone に含まれます。コピーは不要です。スキルはこの設定をカレントディレクトリから読み込むため、リポジトリのルートで Claude Code を起動してください。
+    `.config/chatlog-exporter/` ディレクトリ（`config.yaml`・`dics/`・`prompts/`）は git 追跡済みなので、clone に含まれます。
+    コピーは不要です。スキルはこの設定をカレントディレクトリから読み込むため、リポジトリのルートで Claude Code を起動してください。
   </Step>
   <Step title="スキルを実行する">
     リポジトリのルートで Claude Code を起動し、スラッシュコマンドを実行します。

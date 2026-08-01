@@ -1,0 +1,16 @@
+# src: templates/.textlint/dict/prh-my-settings.yml
+#  @(#) : textlint prh dictionary
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## dict start
+rules:
+# - expected: 修正後の表現
+#   pattern: 修正対象（正規表現も可）
+#   specs:
+#     - from: 誤り
+#       to:   正しい表現
+## end of dict
