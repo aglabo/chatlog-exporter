@@ -1,0 +1,53 @@
+# .shellspec - ShellSpec project configuration
+# @(#) : ShellSpec configuration - unified testing options
+#
+# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## ShellSpec Configuration
+## Project-wide settings for shell script testing
+
+# Set shell to bash
+--shell bash
+
+# Specify spec directory
+--default-path "scripts/__tests__"
+
+# Spec file pattern (match .spec.sh instead of _spec.sh)
+--pattern "*.spec.sh"
+
+# Load path for shared helpers
+--load-path "scripts/__tests__"
+
+# Load spec_helper before each spec file
+--require spec_helper
+
+# Enable colored output
+--color
+
+# Show execution times
+# --profile
+--profile-limit=10
+
+# Show failure messages in detail
+--fail-fast=1
+
+# Set formatter (default: progress, options: documentation, tap, junit)
+--format documentation
+
+# Coverage settings (requires kcov)
+# --kcov
+# --kcov-options "--exclude-pattern=/usr"
+
+# Execution options
+--jobs 16
+
+# --random none
+
+# Output directory for reports
+--reportdir "temp/shellspec-reports"
+
+# Warning settings
+--warning-as-failure

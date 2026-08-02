@@ -26,9 +26,16 @@
     "prepare": "bash ./scripts/setup-dev-env.sh",
     "docs:dev": "pnpm --dir aglabo.github.io run docs:dev",
     "docs:build": "pnpm --dir aglabo.github.io run docs:build",
+    "check:sh": "bash runners/run-shfmt.sh --list .",
+    "format:sh": "bash runners/run-shfmt.sh --format .",
+    "check:dprint": "dprint check",
+    "format:dprint": "dprint fmt",
     "lint:spells": "cspell --config .vscode/cspell.json --cache --cache-location .cache/cspell/cSpellCache ",
     "lint:text": "textlint --config ./configs/textlintrc.yaml ",
-    "lint:mdx": "remark --rc-path ./configs/remark.config.mjs \"aglabo.github.io/docs/**/*.mdx\""
+    "lint:mdx": "remark --rc-path ./configs/remark.config.mjs \"aglabo.github.io/docs/**/*.mdx\"",
+    "lint:sh": "bash runners/run-shellcheck.sh ",
+    "test:sh": "bash runners/run-shellspec.sh ",
+    "test:sh:all": "bash runners/run-shellspec.sh all"
   },
   "devDependencies": {
     "remark-lint-emphasis-marker": "^4.0.1",
