@@ -1,0 +1,73 @@
+# src: .config/chatlog-exporter/prompts/category-rules.yaml
+# @(#) typeごとのcategory判定フォーカスガイド
+#
+# 構造: type → フォーカスガイド文字列（プロンプトに直接埋め込まれる）
+#
+# 目的:
+#   typeはcategoryを「決めない」。typeは「何に注目してcategoryを判断するか」のヒントを与えるだけ。
+#   categoryはログの内容・対象ドメインから独立して決定される。
+#
+# 設計方針（重要）:
+#   各ガイドは「誘導」であり「決定ロジック」ではない。
+#   「→ category名」を直接記述しない。
+#   「often indicate」「may suggest」「tends to」で弱める。
+#   最終判断は常に category.dic の PRIMARY PURPOSE ルールに従う。
+
+execution: |
+  WHEN  evaluating an execution log — look at the FILE PATHS and TARGETS that were modified:
+        - `.github/workflows/`, `.github/` → infrastructure signal
+        - `src/`, `lib/`, `packages/` → development signal
+        - `*.config.*`, `.eslintrc`, `mise.toml` → tooling signal
+        - prompt files, AI-related scripts → ai signal
+        - `.md`, `.rst` with no code changes → writing signal
+  WHILE reading path patterns — treat them as signals only, not decisions
+  NOT   choosing a category based on file extension alone
+  WHERE the purpose of the change matters more than where the file lives:
+        a script in `src/` that configures CI may still be infrastructure
+
+incident: |
+  WHEN  evaluating an incident log — look at WHERE the failure OCCURRED:
+        - CI pipeline / GitHub Actions / workflow job failure → infrastructure signal
+        - Local CLI tool / shell command / config parsing error → tooling signal
+        - Runtime code error / application crash / test failure → development signal
+        - AI API error / LLM agent failure / prompt execution failure → ai signal
+  WHILE identifying the failure location — use it as a signal, not a verdict
+  NOT   choosing infrastructure merely because the error appeared in a CI log;
+        check whether the ROOT CAUSE is in shared infrastructure or in application code
+  WHERE the fix target defines the category — not the tool used to detect the error
+
+discussion: |
+  WHEN  evaluating a discussion log — look at the SUBJECT MATTER being decided:
+        - CI/CD operations / deployment policy / release process → infrastructure signal
+        - API design / code architecture / module structure → development signal
+        - Tool selection / dev environment setup → tooling signal
+        - AI usage policy / agent design / prompt strategy → ai signal
+        - Concept clarification / learning without decision → knowledge signal
+        - Document structure / content strategy → writing signal
+  WHILE reading the discussion — focus on WHAT DOMAIN the decision belongs to, not how it was discussed
+  NOT   letting conversational format (Q&A, debate) influence the category choice
+  WHERE ambiguous: ask "What domain will be affected by this decision?"
+
+research: |
+  WHEN  evaluating a research log — look at the TECHNOLOGY or CONCEPT being researched:
+        - GitHub Actions / CI/CD systems / deployment pipelines → infrastructure signal
+        - Package managers / CLI tools (ShellSpec, mise, asdf) → tooling signal
+        - Programming languages / algorithms / frameworks → development signal
+        - LLM / prompt engineering / AI agents / Claude API → ai signal
+        - General software engineering concepts / design patterns → knowledge signal
+        - Writing techniques / documentation styles → writing signal
+  WHILE reading — focus on the SUBJECT DOMAIN of what is being researched
+  NOT   choosing based on the method of research (chat, reading docs, running commands)
+  WHERE the research target is the signal — not the process used to research it
+
+writing: |
+  WHEN  evaluating a writing log — look at the TYPE OF DOCUMENT and its intended audience:
+        - README / blog post / tutorial / release notes for external or team readers → writing signal
+        - ADR / tech spec that drives implementation decisions → may lean toward the target domain
+        - Operations runbook / deployment guide → may lean toward infrastructure
+        - Prompt files / AI usage guides → may lean toward ai
+  WHILE evaluating — ask: "Is this document a standalone deliverable, or a driver for implementation?"
+  NOT   classifying as writing if the document is a byproduct of a decision or implementation process
+  WHERE the boundary is:
+        standalone artifact for readers → writing
+        internal spec that directly drives implementation → corresponding domain (development/infrastructure/etc.)

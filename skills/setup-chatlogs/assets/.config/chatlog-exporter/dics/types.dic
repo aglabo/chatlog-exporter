@@ -1,0 +1,112 @@
+# src: .config/chatlog-exporter/dics/types.dic
+# @(#) ログ種別分類用辞書
+#
+# 構造: key / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
+#
+# 確定タイプ: execution / incident / discussion / research / writing（5種別）
+#
+# 判定優先順位（この順序で確認すること）:
+#   STEP 1: incident signal が実際に発生して行動を引き起こしたか？ → incident（無条件）
+#   STEP 2: 成果物が文書・仕様・記事・プロンプト文面か？          → writing
+#   STEP 3: コード/設定変更が主目的か（文書除く・incident修正除く）→ execution
+#   STEP 4: 将来の実装に影響する明示的・不可逆な決定があるか？    → discussion
+#   STEP 5: 理解・比較が主目的で実装も明示的決定もないか？        → research
+#
+# incident signal（これが1つでもあればSTEP 1で確定）:
+#   - エラーメッセージ・スタックトレース・CI失敗が会話の起点
+#   - 「動かない」「失敗した」「不整合」「期待と違う挙動」が出発点
+#   - 障害・バグの症状報告から始まっている
+#
+# なぜincident優先か:
+#   外形分類（何をやったか）と因果分類（なぜ始まったか）は別物。
+#   incident後に修正→execution, 調査→research, 方針決定→discussionが
+#   続いても、ログの「起点」はincidentのまま変わらない。
+
+execution:
+  def: A log where the primary purpose was implementing or modifying code, scripts, or configuration — not triggered by an error
+  desc: ファイル変更（コード・設定・スクリプト）が主目的の実作業ログ。成果物はコミットされたファイル変更。
+  rules:
+    when:
+      - 実装・変更が主目的であり、エラー・障害が起点ではない
+      - 既存機能の追加・拡張・リファクタリングを行った（incident なし）
+      - テストを実装・修正した（incident なし）
+    not:
+      - エラー・障害が会話の起点（→ incident が優先・無条件）
+      - ファイル変更がない計画・方針確定（→ discussion）
+      - 文書・記事の作成が主体（→ writing）
+    where:
+      - incident との境界：起点がエラー・障害であれば execution ではなく incident（ファイル変更の有無は無関係）
+      - discussion との境界：ファイル変更を伴う実装があれば execution（計画・方針のみなら discussion）
+  structure: 指示 → 実装 → 確認
+
+incident:
+  def: A log where an error, failure, or unexpected behavior was the starting point — this type dominates regardless of what follows
+  desc: エラー・障害が起点。後続に実装・調査・方針決定が含まれても type は incident のまま変わらない。
+  rules:
+    when:
+      - エラーメッセージ・スタックトレース・CI失敗が会話の起点になっている
+      - 「動かない」「失敗した」「不整合」「期待と違う挙動」が出発点
+      - 障害・バグの症状報告から始まっている
+    always:
+      - 起点がエラー・障害であれば、その後に実装・調査・方針決定が続いても type は incident のまま
+      - incident signal が1つでも確認できれば他のステップより優先される
+    not:
+      - 新機能の実装でエラーなく進行した（→ execution）
+      - エラーが出たが原因調査のみで修正なし（→ research）
+      - 計画中にリスクを議論しただけ（→ discussion）
+  structure: 症状 → 原因 → 解決 → 確認
+
+discussion:
+  def: A log where an explicit, irreversible decision affecting future implementation was the primary outcome — without code changes
+  desc: 将来の実装・運用に影響する不可逆な決定の明示が主目的。ファイル変更はないか副次的。
+  rules:
+    when:
+      - 将来の実装・運用に影響する不可逆な決定が明示されている（「〜に決定」「〜を採用」「〜方針とする」等）
+      - アーキテクチャ・設計・方針・仕様の確定が主目的（コード変更なし）
+      - 技術選定・命名規則・運用方針を議論して決定した
+    not:
+      - 決定を実装に落とし込んだ（→ execution）
+      - 技術調査のみで明示的決定に至らなかった（→ research）
+      - エラーが起点の対処方針検討（→ incident）
+      - 意見・好み・懸念の表明のみで確定していない（→ research）
+    always:
+      - 「〜に決定」「〜を採用する」「〜方針とする」「〜に統一する」などの明示的な確定表現が含まれていること
+    where:
+      - 技術検討のみで確定表現がなければ research
+      - 決定後に同じログで実装コードが続いていても、起点が決定ならば discussion
+  structure: 課題 → 検討 → 決定
+
+research:
+  def: A log where the primary purpose is information gathering, comparison, or conceptual understanding — with no explicit decision and no implementation
+  desc: 調査・質問・情報収集・概念理解が主体。明示的な決定も実装もない。
+  rules:
+    when:
+      - 調査・理解が主目的であり、明示的な決定も実装もない
+      - 技術・ツール・概念の調査・比較検討が主目的
+      - 実装を伴わない質問・回答・議論
+      - ドキュメント・記事を読んで理解した
+    not:
+      - 調査後にコードを実装した（→ execution）
+      - 調査結果をもとに設計判断が明示的に確定した（→ discussion）
+      - エラーが起点の原因調査（→ incident）
+    where:
+      - 「〜が最適」「〜を採用する」などの判断が明示されていれば discussion
+      - 調査後にコード実装が続いていれば execution
+  structure: 問い → 調査・回答 → 結論
+
+writing:
+  def: A log where the primary outcome is a written document, article, specification, or prompt text
+  desc: 文書・記事・仕様書・プロンプトの作成・整備が主体。成果物は公開可能な文章またはドキュメント。
+  rules:
+    when:
+      - README・仕様書・ブログ記事・設計文書を新規作成・大幅改訂した
+      - プロンプト文書・スキル定義を作成した
+      - 文章の校閲・構成改善が主目的
+    not:
+      - 設計判断の議論が主体（→ discussion）
+      - コードのコメント追加のみ（→ execution）
+      - 内部設計文書の意思決定が主体（→ discussion）
+    where:
+      - 内部向け設計文書（ADR・決定記録）で意思決定が主体なら discussion
+      - コード内のコメント・docstring 追加のみなら execution
+  structure: 題材 → 執筆 → 校閲

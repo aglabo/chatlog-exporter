@@ -1,0 +1,180 @@
+# src: .config/chatlog-exporter/projects.dic — プロジェクト辞書
+# @(#) プロジェクト分類用辞書
+#
+# 構造: key / def（AI判断用・キーを端的に定義する短文）/ category / desc（人間向け説明）/ rules（判断補助）
+# classify-chatlogs スキルが Claude CLI に渡してプロジェクト分類に使用する
+
+# ── ソフトウェア開発プロジェクト ─────────────────────────
+
+aplys:
+  def: A CLI tool project for API specification design and implementation
+  category: development
+  desc: aplys CLIツール。API仕様設計・CLI設計・実装を行う開発プロジェクト
+  rules:
+    when:
+      - aplys コマンド・API仕様・CLI実装に関するログ
+
+deckrd:
+  def: A document-driven development framework for requirements and task management
+  category: development
+  desc: ドキュメント駆動開発フレームワーク。要件定義・仕様設計・タスク管理のワークフロー実装
+  rules:
+    when:
+      - deckrd コマンド・要件定義・仕様設計フローに関するログ
+
+gstack:
+  def: A CLI dispatcher tool supporting multiple subcommands and multilingual output
+  category: development
+  desc: gstack CLIツール。ディスパッチャ化・多言語対応などの機能開発
+  rules:
+    when:
+      - gstack コマンド・ディスパッチャ設計に関するログ
+
+voift:
+  def: A project focused on CLAUDE.md design, requirements review, and spec improvement
+  category: development
+  desc: voift プロジェクト。CLAUDE.md設計・要件レビュー・仕様改善を行う開発プロジェクト
+  rules:
+    when:
+      - voift の設計・仕様・CLAUDE.md に関するログ
+
+ci-platform:
+  def: A CI/CD platform project for GitHub Actions design and security hardening
+  category: infrastructure
+  desc: CI/CDプラットフォーム整備。GitHub Actions設計・セキュリティ修正・ghalint対応
+  rules:
+    when:
+      - GitHub Actionsワークフロー・CI/CD基盤・ghalintに関するログ
+
+project-starter-template:
+  def: A starter template project for bootstrapping new applications with runner API
+  category: development
+  desc: プロジェクトスターターテンプレート。runner API設計・アプリ雛形の整備
+  rules:
+    when:
+      - スターターテンプレート・runner API・雛形設計に関するログ
+
+bdd-coder:
+  def: A BDD coding agent that implements code through Red-Green-Refactor cycles
+  category: development
+  desc: BDDコーダーエージェント。Red-Green-Refactorサイクルによるコード実装支援ツール
+  rules:
+    when:
+      - BDDコーダー・Red-Green-Refactorサイクルに関するログ
+
+reusable-workflows:
+  def: A collection of reusable GitHub Actions workflows for shared CI/CD patterns
+  category: infrastructure
+  desc: 再利用可能なGitHub Actionsワークフロー集。共通CI/CDパターンの整備
+  rules:
+    when:
+      - 再利用可能ワークフロー・共通CIパターンに関するログ
+
+esta:
+  def: The esta project
+  category: development
+  desc: esta プロジェクト
+  rules:
+    when:
+      - esta に関するログ
+
+lcl:
+  def: The lcl project
+  category: development
+  desc: lcl プロジェクト
+  rules:
+    when:
+      - lcl に関するログ
+
+# ── 開発ツール・環境構築 ─────────────────────────────────
+
+dev-tooling:
+  def: Development environment and tool configuration including WSL, Git, and editors
+  category: tooling
+  desc: 開発環境・ツール設定全般。WSL・APT・Git・エディタ設定・パッケージ管理
+  rules:
+    when:
+      - WSL・APT・Git・エディタ・パッケージ管理など開発環境全般のログ
+    not:
+      - 特定プロジェクトのツール設定（そのプロジェクト名で分類）
+
+obsidian:
+  def: Obsidian note-taking tool configuration and plugin management
+  category: tooling
+  desc: Obsidianおよび関連ツールの設定・活用。ノート管理・プラグイン設定
+  rules:
+    when:
+      - Obsidian・関連プラグインの設定・活用に関するログ
+
+# ── AI・プロンプト関連 ───────────────────────────────────
+
+prompt-review:
+  def: AI prompt review and improvement for blog and article generation workflows
+  category: ai
+  desc: AIプロンプトのレビュー・改善・分析。ブログレビュープロンプト・記事作成プロンプトの設計
+  rules:
+    when:
+      - プロンプト設計・改善・レビューが主目的のログ
+
+ai-tools:
+  def: Evaluation and comparison of AI tools including Copilot, ChatGPT, and Claude
+  category: ai
+  desc: AIツールの調査・比較・活用。GitHub Copilot・ChatGPT・Claude等のツール評価
+  rules:
+    when:
+      - AIツールの調査・比較・評価に関するログ
+
+tech-blog-review:
+  def: Technical blog article proofreading and quality improvement using AI prompts
+  category: writing
+  desc: 技術ブログ記事の校閲・レビュー。記事作成プロンプトの実行・記事品質改善
+  rules:
+    when:
+      - 技術ブログ記事の校閲・品質改善に関するログ
+
+sandbox-chatgpt:
+  def: A sandbox for testing ChatGPT prompts and verifying model behaviors
+  category: ai
+  desc: ChatGPT用サンドボックス。プロンプト動作確認・機能検証・実験的セッション
+  rules:
+    when:
+      - ChatGPTのプロンプト動作確認・実験的セッションのログ
+
+sandbox-ailogs:
+  def: A sandbox for developing AI log processing tools including frontmatter generation
+  category: ai
+  desc: AIログ処理ツールのサンドボックス。JSONL変換・フロントマター生成・分類スクリプトの開発
+  rules:
+    when:
+      - AIログ処理・フロントマター生成・分類スクリプト開発のログ
+
+chatlog-exporter:
+  def: A tool for exporting, classifying, and editing AI agent session logs for Obsidian import
+  category: development
+  desc: AIエージェント（Claude, ChatGPT等）のセッション履歴をエクスポート・分類・編集し、Obsidianへのインポート用に整備するツール群
+  rules:
+    when:
+      - export-chatlog・classify-chatlogs・filter-chatlog・normalize-chatlog・set-frontmatterスキルに関するログ
+      - chatlog-exporterのスクリプト・型定義・テストに関するログ
+
+# ── ロールプレイ・創作 ───────────────────────────────────
+
+roleplay:
+  def: Roleplay sessions and character design for AI characters such as Tsumugi
+  category: creative
+  desc: AIキャラクター（つむぎ等）のロールプレイセッション・キャラクター設定・自己紹介作成
+  rules:
+    when:
+      - AIキャラクターのロールプレイ・設定定義に関するログ
+
+# ── 未分類・雑多 ─────────────────────────────────────────
+
+misc:
+  def: Miscellaneous logs that do not belong to any specific project
+  category: casual
+  desc: 特定プロジェクトに属さない雑多なログ。日常的な質問・技術外の相談・一時的な調査
+  rules:
+    when:
+      - 特定プロジェクトに分類できないログ
+    not:
+      - 少しでも特定プロジェクトに関連する（そのプロジェクト名で分類）

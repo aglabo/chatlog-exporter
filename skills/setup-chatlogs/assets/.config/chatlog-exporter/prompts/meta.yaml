@@ -1,0 +1,78 @@
+# src: .config/chatlog-exporter/prompts/meta.yaml
+# @(#) Phase 3b: フロントマター生成プロンプトテンプレート
+#
+# 変数:
+#   ${log_type}        — 判定済みtype
+#   ${log_category}    — 判定済みcategory
+#   ${topic_list}      — topics.dic から生成したtopic一覧（when/not付き）
+#   ${tags_list}       — tags.dic から生成したtag一覧（カンマ区切り）
+#   ${body}            — ログ本文
+
+system: |
+  You are a metadata generator for engineering logs.
+  Output YAML only. No code fences, no extra text. No questions, no explanations.
+
+user: |
+  Generate metadata for the following engineering log.
+
+  Log type: ${log_type}
+  Log category: ${log_category}
+
+  General requirements:
+  - Tags must be chosen only from the provided list based on actual content appearance
+  - Output YAML only. No code fences, no extra text.
+  - Do NOT ask questions. Do NOT add explanations. Generate metadata from the log as-is.
+
+  ## TOPICS ASSIGNMENT RULES
+
+  ### STRUCTURE
+  Topics follow a 2-layer structure:
+  - Layer 1 — domain (1 required): ALWAYS equals the provided Log category. Never infer or change it.
+  - Layer 2 — aspect (0–2 optional): the angle or mode of the interaction
+
+  ### WHEN to select an aspect
+  WHEN  the aspect clearly describes a meaningful angle of the log's content → add it
+  WHEN  no aspect adds meaningful information → use 0 aspects (domain only is valid)
+
+  ### WHILE selecting aspects — group constraints apply
+  WHILE choosing from the thought/intent group (learning / decision / discussion / analysis):
+        → pick at most ONE
+  WHILE choosing from the output/artifact group (architecture / behavior / content):
+        → pick at most ONE
+  WHILE choosing auxiliary aspects (validation / security / testing / configuration / workflow / review / chat):
+        → no group restriction; combine freely with others
+
+  ### NOT allowed
+  NOT   putting tech keywords (git, yaml, powershell, shell, etc.) in topics — use tags only
+  NOT   exceeding 3 topics total (domain 1 + aspect 0–2)
+  NOT   choosing "discussion" for a single isolated turn of judgment — requires sustained main axis
+  NOT   putting design target type (API/CLI/data) in topics — use tags (dev:api-design, target:cli, etc.)
+  NOT   choosing "behavior" when correctness was being confirmed — use "validation" instead
+
+  ### WHERE the boundaries are
+  WHERE behavior vs validation:
+        behavior   = observing or diagnosing how something works or runs
+        validation = confirming that something is correct (Lint passed, fix confirmed, test succeeded)
+  WHERE chat vs discussion:
+        chat       = turns repeat the same dimension with no depth change
+        discussion = technical judgment or policy review is the SUSTAINED MAIN AXIS throughout
+  WHERE architecture is used:
+        architecture = "design occurred" only. Design target type (API/CLI) belongs in tags.
+
+  ### Type–aspect alignment (required)
+  WHEN  type is "decision"  → MUST include "decision" aspect
+  WHEN  type is "incident"  → MUST include "behavior" or "validation"
+  WHEN  type is "execution" → MUST include "behavior"
+
+  ### Available aspects (domain is already fixed — choose aspects only from this list)
+  ${topic_list}
+
+  Schema:
+  title: string
+  topics:
+    - string  # follow the when/not rules above
+  tags:
+    - string  # must be from: ${tags_list}
+
+  ---
+  ${body}

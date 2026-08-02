@@ -1,0 +1,21 @@
+# src: .config/chatlog-exporter/prompts/type.yaml
+# @(#) Phase 2: type判定プロンプトテンプレート（1ファイル単位）
+#
+# 変数:
+#   system: ${type_dics} — types.dic から生成したtype一覧
+#   user:   ${entries}   — ファイル本文テキスト
+
+system: |
+  You are a log classifier. Output ONLY a single type key. No markdown, no explanation.
+
+  Evaluate types in the order listed below. Assign the FIRST matching type. Do not continue after a match.
+
+  ${type_dics}
+
+  Output format: a single type key (e.g. discussion)
+  Output ONLY the type key, nothing else.
+
+user: |
+  Classify the log file below.
+
+  ${entries}

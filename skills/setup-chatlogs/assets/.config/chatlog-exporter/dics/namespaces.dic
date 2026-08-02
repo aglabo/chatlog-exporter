@@ -1,0 +1,102 @@
+# src: .config/chatlog-exporter/dics/namespaces.dic /sr namespaces.dic — タグネームスペース定義
+# @(#) タグのネームスペース定義辞書
+#
+# 構造: key / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
+#
+# 設計方針:
+#   ネームスペースは「何の観点でタグを付けるか」を表す分類軸。
+#   タグは <namespace>:<value> 形式で使用する。
+
+ai:
+  def: Tags for AI models, tools, and agent technologies used in the log
+  desc: AIモデル・AIツール・AIエージェント・プロンプト技術に関するタグ
+  rules:
+    when:
+      - 使用・言及したAIモデルやAI技術を記録する
+    not:
+      - AIを道具として使っただけで内容が別カテゴリの場合は内容側で分類する
+
+lang:
+  def: Tags for programming languages and data formats actually written or edited
+  desc: 使用されたプログラミング言語・スクリプト言語・データ形式
+  rules:
+    when:
+      - そのログでコードを実際に書いた・編集した言語に限定する
+    not:
+      - 単に話題に出ただけでは付けない
+
+tool:
+  def: Tags for development tools and CLI commands directly operated in the log
+  desc: 使用された開発ツール・CLIツール・ライブラリ・フレームワーク
+  rules:
+    when:
+      - そのログでツールを直接操作・設定した場合に付ける
+    not:
+      - ツール名が話題に出ただけでは付けない
+
+os:
+  def: Tags for the operating system or runtime environment actually used
+  desc: 対象OS・実行環境・ディストリビューション
+  rules:
+    when:
+      - そのログで実際に動かした・設定した環境に付ける
+    not:
+      - 理論上対応しているOSには付けない
+
+infra:
+  def: Tags for infrastructure operations such as CI/CD, cloud, and security
+  desc: CI/CD・クラウド・DevOps・システム運用基盤
+  rules:
+    when:
+      - システム運用基盤として何をしたかを記録する
+
+dev:
+  def: Tags for development practices such as testing, debugging, and design decisions
+  desc: 開発手法・品質管理・実装パターン（テスト・デバッグ・設計等）
+  rules:
+    when:
+      - 開発作業として何をしたかを記録する
+    not:
+      - tool/lang と重複しない（tool=何を使ったか、dev=何をしたか）
+
+workflow:
+  def: Tags for development process context such as PR, review, and branching
+  desc: 開発プロセス・作業フロー・ブランチ戦略・レビュープロセス
+  rules:
+    when:
+      - どの開発プロセスの文脈で動いていたかを記録する
+
+doc:
+  def: Tags for the type of document produced or edited in the log
+  desc: ドキュメント種別・技術文書・記事・仕様書
+  rules:
+    when:
+      - 何を書いたか・何の文書を扱ったかを記録する
+    not:
+      - 文書を読んで調査しただけでは付けない
+
+meta:
+  def: Tags for project management context such as planning, release, and versioning
+  desc: プロジェクト管理・バージョン管理・リリース・タスク管理
+  rules:
+    when:
+      - プロジェクト管理の文脈で動いていたかを記録する
+
+target:
+  def: Tags for the component or layer that was the subject of the work
+  desc: 作業対象のコンポーネント・レイヤー（CLI・API・レジストリ・バンドラー等）
+  rules:
+    when:
+      - 「何に対して作業したか」を明示したい場合に付ける
+      - 特に設計ログ・複数コンポーネントを扱うログで有効
+    not:
+      - 実装のついでに触った周辺コンポーネントには付けない
+
+concept:
+  def: Tags for architectural or design concepts central to the log
+  desc: 設計思想・アーキテクチャ概念（抽象化・レイヤー分割・責務分離等）
+  rules:
+    when:
+      - 設計思想・アーキテクチャ概念が主題または核心にある場合に付ける
+    not:
+      - 表面的に言及しただけでは付けない（設計判断の根拠になっている場合のみ）
