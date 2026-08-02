@@ -20,9 +20,14 @@ const _fetchProjectRoot = (): string => normalizePath(Deno.cwd());
 let _cachedRoot: string | null = null;
 
 /**
- * プロジェクトルートの絶対パスを返す。初回は git を実行し、以降はキャッシュを返す。
+ * プロジェクトルートの絶対パスを返す。
+ *
+ * 初回呼び出し時に `Deno.cwd()` を正規化して取得し、以降はモジュールレベルにキャッシュした値を返す。
+ * そのため値はプロセス中の最初の呼び出し時点のカレントディレクトリに固定される。
+ * 値を差し替えるには `resetProjectRoot()` を使う。
  *
  * @returns プロジェクトルートの絶対パス（正規化済み）
+ * @see resetProjectRoot
  */
 export const getProjectRoot = (): string => (_cachedRoot ??= _fetchProjectRoot());
 
