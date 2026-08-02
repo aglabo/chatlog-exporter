@@ -32,7 +32,7 @@ import { getProjectRoot, resetProjectRoot } from '../../dir-utils.ts';
 describe('getProjectRoot / resetProjectRoot', () => {
   beforeEach(() => resetProjectRoot());
 
-  /** seed 設定後に getProjectRoot() が git を実行せず即時返るテスト。 */
+  /** seed 設定後に getProjectRoot() がシードした値をそのまま返すテスト。 */
   describe('When: resetProjectRoot でパスをシードした場合', () => {
     it('[Normal] T-LIB-U-60-01: resetProjectRoot("/home/user/project") 後に getProjectRoot() → "/home/user/project" が返る', () => {
       resetProjectRoot('/home/user/project');
