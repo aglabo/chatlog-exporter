@@ -16,4 +16,6 @@ readonly _INIT_VARS_LIB_SH=1
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
 
 # PROJECT_ROOT: git repository root, or parent of SCRIPT_ROOT as fallback
-PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || dirname "${SCRIPT_ROOT}")}"
+# git runs with -C SCRIPT_ROOT so the runner's own repository is resolved,
+# not the repository the caller happened to be in when invoking the runner
+PROJECT_ROOT="${PROJECT_ROOT:-$(git -C "${SCRIPT_ROOT}" rev-parse --show-toplevel 2>/dev/null || dirname "${SCRIPT_ROOT}")}"
