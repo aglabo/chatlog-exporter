@@ -1,0 +1,89 @@
+# src: .config/chatlog-exporter/prompts/review.yaml
+# @(#) Phase 3.5: フロントマターレビュープロンプトテンプレート
+#
+# 変数:
+#   ${type_dics}        — types.dic から生成したtype一覧（when/not付き）
+#   ${topic_list}       — topics.dic から生成したtopic一覧（簡略版）
+#   ${category_list}    — category.dic から生成したcategory一覧（カンマ区切り）
+#   ${tags_list}        — tags.dic から生成したtag一覧（カンマ区切り）
+#   ${result_type}      — 生成済みtype
+#   ${result_category}  — 生成済みcategory
+#   ${result_yaml}      — 生成済みYAML（title/topics/tags）
+
+system: |
+  You are a strict frontmatter reviewer.
+  Output YAML only. No code fences, no extra text. No questions, no explanations.
+
+user: |
+  Review the following frontmatter against these rules:
+
+  ## RULE 0 — type
+  Must be one of the following. Choose the best match for the PRIMARY purpose.
+  ${type_dics}
+
+  ## RULE 1 — category
+  Must match the primary domain (not surface tools).
+  Must be one of: ${category_list}
+
+  ## RULE 2 — topics
+  Must follow a 2-layer structure: exactly 1 domain + 0–2 aspects. Must be from:
+  ${topic_list}
+
+  MUST   have exactly 1 domain entry — the same value as category
+         valid:   [development, behavior]
+         invalid: [development, behavior, development]   # domain duplicated as second entry
+         invalid: [development, development]             # domain listed twice, no aspect
+
+  WHEN  domain is missing or does not match category → flag as error
+  WHEN  domain appears more than once in topics → flag as error
+  WHEN  aspect violates group constraint → flag as error
+  WHEN  type–aspect alignment is broken → flag as error:
+        type=decision    requires "decision" aspect
+        type=incident    requires "behavior" or "validation"
+        type=execution   requires "behavior" as an aspect (not a second domain entry)
+          valid:   [development, behavior]
+          invalid: [development, behavior, development]  # domain must appear exactly once
+        type=discussion  strongly prefers "discussion" aspect
+          valid:   [development, discussion]
+          valid:   [development, discussion, architecture]
+
+  WHILE reviewing aspects — apply group constraints:
+        Thought/intent group (learning / decision / discussion / analysis): max 1
+        Output/artifact group (architecture / behavior / content): max 1
+        Auxiliary aspects (validation / security / testing / configuration / workflow / review / chat): no restriction
+
+  NOT   allowing tech/tool names in topics (git, yaml, powershell, shell, node, etc.) → tags only
+  NOT   allowing: debugging, troubleshooting, investigating, ci_cd, programming, configuring → expressed by type or category
+  NOT   exceeding 3 topics total (domain 1 + aspect 0–2)
+  NOT   putting design target type (API/CLI/data) in topics → use tags (dev:api-design, target:cli, etc.)
+  NOT   repeating the domain value as an aspect entry
+
+  WHERE behavior vs validation:
+        behavior   = observing or diagnosing how something works
+        validation = confirming correctness (Lint passed / fix confirmed / test succeeded)
+  WHERE chat vs discussion:
+        chat       = same dimension repeated across turns
+        discussion = technical judgment is the sustained main axis throughout
+
+  ## RULE 3 — tags
+  Must reflect actual tools, environment, and technical traits.
+  Must be from: ${tags_list}
+  Avoid redundancy between topics and tags.
+
+  Output schema:
+  validity: pass or fail
+  errors:
+    - string  # list violations; empty list if pass
+  corrected_frontmatter:
+    type: string
+    category: string
+    title: string
+    topics:
+      - string
+    tags:
+      - string
+
+  ---
+  type: ${result_type}
+  category: ${result_category}
+  ${result_yaml}
