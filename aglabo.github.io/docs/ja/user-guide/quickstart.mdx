@@ -21,13 +21,13 @@ description: chatlog-exporter をセットアップし、スラッシュコマ�
     ```
   </Step>
   <Step title="スキルを登録する">
-    `.claude/skills` は git 追跡外のため、clone した直後には含まれていません。自分で `skills/` へのリンクを張ります。
+    `.claude/skills` は git 追跡外のため、clone した直後には含まれていません。スクリプトでスキルを登録します。
 
     ```bash
-    ln -s ../skills .claude/skills
+    bash scripts/install-skills.sh
     ```
 
-    Windows の場合、またはリンクを作成できない場合は、PowerShell やコピーによる代替手段を [インストール](./install) で確認してください。
+    `.claude/skills` を `skills/` にリンクします。既存のリンクを削除して張り直すには `--force` を付けて再実行してください。オプションと手動での代替手段は [インストール](./install) を参照してください。
   </Step>
   <Step title="スキルを実行する">
     リポジトリのルートで Claude Code を起動し、スラッシュコマンドを実行します。

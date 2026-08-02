@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-# shellcheck source=runners/libs/init-vars.lib.sh
+# shellcheck disable=SC1091
 . "$(dirname "${BASH_SOURCE[0]}")/libs/init-vars.lib.sh"
 cd "${SCRIPT_ROOT}/.."
 
