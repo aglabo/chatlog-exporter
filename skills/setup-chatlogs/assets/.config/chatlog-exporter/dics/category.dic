@@ -1,0 +1,142 @@
+# src: .config/chatlog-exporter/dics/category.dic — チャットログ分類用カテゴリ辞書
+# @(#) ログカテゴリ分類用辞書
+#
+# 構造: key / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
+#
+# 設計方針:
+#   ログの「領域」を大きく仕切る軸。1ログに1カテゴリのみ割り当てる。
+#   迷ったら broader な方を選ぶ。topics より粒度が大きい。
+
+development:
+  def: Logs centered on writing, modifying, designing, or reviewing software code or logic
+  desc: ソフトウェア開発全般（プログラミング・設計・デバッグ・テスト・リファクタリング・実装議論）
+  rules:
+    when:
+      - コード・ロジックの実装・修正が主目的
+      - バグを調査・修正した（エラー起点でも実装変更が伴う）
+      - テストを設計・実装した
+      - 実装・設計・技術選択に対して最終判断を下した
+    while:
+      - ツール設定を含んでいても、コード実装が主軸であれば development を選ぶ
+    not:
+      - ツールの導入・設定が主目的でコード実装を伴わない（→ tooling）
+      - チーム・CI・共有環境に影響する設定が主目的（→ infrastructure）
+      - 判断材料の収集が目的で最終決定に至っていない（→ knowledge）
+    where:
+      - 「実装した」または「設計判断を確定した」が成立すれば development が最優先
+
+infrastructure:
+  def: Logs centered on execution environment, CI/CD pipeline control, or deployment operations
+  desc: DevOps・CI/CD・クラウド・システム運用・パイプライン構築・セキュリティ設定
+  rules:
+    when:
+      - チーム・CI・共有環境に影響する設定・構成変更が主目的
+      - GitHub Actionsワークフローを構築・設定・デバッグした
+      - クラウドリソース・サーバーの設定・運用を行った
+      - セキュリティポリシー・権限管理を整備した
+      - デプロイ・リリースパイプラインを操作した
+    while:
+      - 変更がチーム全体・CI環境に影響する場合に限る（個人環境は tooling）
+    not:
+      - パイプライン内の処理ロジック実装が主目的（→ development）
+      - 個人またはローカル環境に閉じた設定（→ tooling）
+    where:
+      - 「共有・チーム・CI」が影響範囲かどうかが infrastructure vs tooling の分岐点
+
+tooling:
+  def: Logs centered on introducing, configuring, or learning developer tools as the primary goal
+  desc: 開発ツールの選定・設定・活用（CLI・エディタ・パッケージ管理・開発環境構築）
+  rules:
+    when:
+      - 個人またはローカル環境に閉じたツール導入・設定が主目的
+      - エディタ・シェル・パッケージマネージャの環境整備
+      - ツールの使い方を調査・試した
+    while:
+      - ツールの設定変更が主であり、コード・ロジックの実装を伴わない
+    not:
+      - コード・ロジック実装が主目的（→ development）
+      - チーム・CI・共有環境に影響する設定（→ infrastructure）
+    where:
+      - 「どのツールを使うか・どう設定するか」が主題であれば tooling
+
+ai:
+  def: Logs centered on LLM usage, AI agent design, or prompt engineering as the primary subject
+  desc: AI関連技術全般（LLM・AIエージェント・AIツール開発・AI活用ワークフロー・プロンプト設計）
+  rules:
+    when:
+      - AIそのものの設計・評価・ワークフロー改善が主目的
+      - LLM・AIモデルの性能・挙動・比較の評価が主題
+      - AIエージェント・MCPサーバーの設計・実装
+      - プロンプト設計・改善・分析が主目的
+    while:
+      - AIが「何をしているか」が主題であるとき（AIが道具として使われているだけなら ai にしない）
+    not:
+      - AIを使って他カテゴリの作業を行っているだけ（成果物の内容で分類する）
+      - AIを使ったコード実装（→ development）
+      - AIを使ったドキュメント作成（→ writing）
+    where:
+      - 「AIの設計・評価」が主題か「AIを道具として使った結果」が主題かで分岐する
+
+writing:
+  def: Logs where the primary output is a structured document intended to be read by others
+  desc: 技術文書・記事・仕様書の作成と整理（README・ブログ・ドキュメント設計・校閲）
+  rules:
+    when:
+      - 他者が読むことを前提とした構造化ドキュメントを作成・編集した
+      - README・仕様書・設計文書・技術ブログを書いた
+      - プロンプト文書・スキル定義の文面を作成・整備した
+    while:
+      - 成果物が「他者が読む文章」である場合に限る（自分用メモは除く）
+    not:
+      - 成果物を生成せず理解・調査が目的（→ knowledge）
+      - 自分用の作業メモや会話内の要約（→ knowledge）
+      - コードのコメント追加のみ（→ development）
+    where:
+      - 「公開・共有を前提とした構造化文書」が成果物であることが判断基準
+
+knowledge:
+  def: Logs centered on researching or learning where no structured document artifact is produced
+  desc: 技術知識の整理・習得・調査（設計思想・アーキテクチャ議論・技術比較・チュートリアル）
+  rules:
+    when:
+      - 判断材料の収集・整理が目的で最終的な設計判断に至っていない
+      - 概念・アーキテクチャ・ベストプラクティスを学んだ
+      - 成果物を生成しない質問・回答・比較・調査
+    while:
+      - 実装も明示的な決定も構造化文書も生まれていない状態
+    not:
+      - 実装・修正を行った（→ development）
+      - 実装・選択に対して最終判断を下した（→ development）
+      - 他者が読む構造化ドキュメントを生成した（→ writing）
+    where:
+      - 「調べた・学んだ」が主目的で、それが何かの決定や実装につながっていない場合
+
+creative:
+  def: Logs centered on roleplay, character design, storytelling, or creative ideation
+  desc: 創作・アイデア生成・ロールプレイ（キャラ設計・ネーミング・ストーリー・AIキャラクター運用）
+  rules:
+    when:
+      - AIキャラクターの設定・ロールプレイセッション
+      - ネーミング・ストーリー・シナリオの創作
+      - アイデア出し・ブレインストーミングが主目的
+    while:
+      - 技術的な目的がなく、創作・表現が主軸である
+    not:
+      - 技術的な設計議論（→ development または knowledge）
+    where:
+      - 成果物が「物語・キャラクター・アイデア」であれば creative
+
+casual:
+  def: Logs consisting of everyday conversation, non-technical questions, or general consultation
+  desc: 雑談・思考整理・技術外の相談・日常的な質問（ガジェット・アプリ・アイデア議論）
+  rules:
+    when:
+      - 他カテゴリに明確に該当しない場合のみ（最後の手段）
+      - 技術外の日常的な質問・相談・雑談
+      - ガジェット・アプリ・生活上の疑問
+    while:
+      - 他のいずれのカテゴリにも当てはまらないことを確認した後にのみ選ぶ
+    not:
+      - 技術的な内容を含む（他カテゴリを必ず優先）
+    where:
+      - casual はフォールバック。技術的要素が1つでもあれば他カテゴリを優先する

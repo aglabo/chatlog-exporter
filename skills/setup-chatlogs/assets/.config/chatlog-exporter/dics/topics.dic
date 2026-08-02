@@ -1,0 +1,389 @@
+# topics.dic — チャットログ分類用トピック辞書
+# 構造: key / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
+#
+# 設計方針:
+#   2層構造: domain（何の話か・必須1つ）+ aspect（どういう観点か・0〜2つ）
+#   domain = category と完全一致（categoryの下位に従属）
+#   aspect = 「それとして扱う」と言える観点・行為
+#   tech系（git/yaml等）はtagsへ完全移行。topicsには含めない。
+#
+# domain の一覧（= category と完全一致）:
+#   development / infrastructure / tooling / ai / writing / knowledge / creative / casual
+#
+# aspect の一覧:
+#   思考・意思系: learning / decision / discussion / analysis
+#   実体・成果系: architecture / behavior / content
+#   補助・品質系: configuration / validation / workflow / security / testing / review
+#   対話系: chat
+#
+# 選定ルール:
+#   RULE 1: domain を必ず1つ選ぶ（= 選んだ category と一致させる）
+#   RULE 2: aspect は観点を補完する場合のみ選ぶ（0〜2個）
+#   RULE 3: tech系キーワード（git/yaml/powershell等）はtags専用、topicsには使わない
+#   RULE 4: 合計最大3つ（domain 1 + aspect 0〜2）
+#   RULE 5: domain は category と一致させる。category: writing → domain: writing
+#   RULE 6: 同系統のaspectは1つまで
+#           - 思考・意思系（learning / decision / discussion / analysis）から最大1つ
+#           - 実体・成果系（architecture / behavior / content）から最大1つ
+#   RULE 7: chat → discussion の昇格条件
+#           技術的判断・検討が対話の主軸として継続した場合のみ discussion に昇格する。
+#           単発の技術コメントや1ターンだけの判断では昇格しない。
+#           chat    = ターンが進んでも話題の次元が変わらない（感情・行動の繰り返し）
+#           discussion = 技術的判断・方針検討が対話を通じて主軸として続いている
+#   RULE 8: 設計対象の種類（API/CLI/データ/セキュリティ等）は必ず tags 側で表現すること。
+#           topics の architecture は「設計行為である」だけを表し、種類は dev:api-design / target:cli 等で補う。
+#   RULE 9: 修正・デバッグ・検証を伴うログでは validation を優先的に付与すること。
+#           Lint通過・修正確認・テスト成功など「正しさの確認」が伴う場合は behavior ではなく validation を選ぶ。
+#           behavior は「どう動くか」の観察・調査であり、「正しいかの確認」は validation。
+#   RULE 10: type と aspect を整合させること。
+#           - type: decision → decision を含む
+#           - type: incident → behavior または validation を含む
+#           - type: execution → behavior を含む
+#
+# 判定チェック:
+#   Q1: domain は category と一致しているか？  → 必ず YES にする
+#   Q2: 同系統のaspectを2つ以上選んでいないか？ → NO であること
+
+# ── domain: ジャンル軸（必須1つ・category と一致）────────────────────────────
+
+development:
+  def: "[domain] The log is about software development — code, design, debugging, or implementation"
+  desc: ソフトウェア開発全般（コード実装・設計・デバッグ・テスト・リファクタリング）
+  rules:
+    when:
+      - コード・ロジックの実装・修正・設計が主題
+      - バグ調査・テスト・リファクタリングが主題
+    while:
+      - ツール設定を含んでいても、コード実装が主軸であれば development を選ぶ
+    not:
+      - ツール導入・環境構築が主題（→ tooling または infrastructure）
+      - AI技術そのものが主題（→ ai）
+    where:
+      - category が development であるときのみ選ぶ（domain は category と一致させる）
+
+infrastructure:
+  def: "[domain] The log is about CI/CD, shared environments, deployment, or team-wide system operations"
+  desc: CI/CD・共有環境・デプロイ・パイプライン構築・セキュリティ設定
+  rules:
+    when:
+      - チーム・CI・共有環境に影響する設定・構成変更が主題
+      - GitHub Actionsワークフロー・デプロイパイプラインが主題
+    while:
+      - 変更がチーム全体・CI環境に影響する場合に限る
+    not:
+      - コード・ロジック実装が主目的（→ development）
+      - 個人またはローカル環境に閉じた設定（→ tooling）
+    where:
+      - category が infrastructure であるときのみ選ぶ
+
+tooling:
+  def: "[domain] The log is about developer tools, local environment setup, or tool configuration"
+  desc: 開発ツールの選定・設定・活用（CLI・エディタ・パッケージ管理・ローカル環境構築）
+  rules:
+    when:
+      - 個人またはローカル環境に閉じたツール導入・設定が主題
+      - エディタ・シェル・パッケージマネージャの環境整備
+    while:
+      - ツールの設定変更が主であり、コード・ロジックの実装を伴わない
+    not:
+      - コード・ロジック実装が主目的（→ development）
+      - チーム・CI・共有環境に影響する設定（→ infrastructure）
+    where:
+      - category が tooling であるときのみ選ぶ
+
+ai:
+  def: "[domain] The log is about AI/LLM technology, agents, prompts, or AI workflows"
+  desc: AI技術全般（LLM・AIエージェント・プロンプト設計・AIワークフロー・MCP）
+  rules:
+    when:
+      - AIそのものの設計・評価・ワークフロー改善が主目的
+      - AIエージェント・MCPサーバーの設計・実装が主題
+      - プロンプト・スキル定義の設計・改善が主題
+    while:
+      - AIが「何をしているか」が主題であるとき（AIを道具として使っているだけなら選ばない）
+    not:
+      - AIを使って別カテゴリの作業をしている（内容のdomainを選ぶ）
+    where:
+      - category が ai であるときのみ選ぶ
+
+writing:
+  def: "[domain] The log is about creating or editing structured documents intended for readers"
+  desc: 他者が読むことを前提とした構造化ドキュメントの作成・整備（README・仕様書・記事・プロンプト文面）
+  rules:
+    when:
+      - 他者が読むことを前提とした構造化ドキュメントを作成・編集した
+      - README・仕様書・技術ブログ・チュートリアルを書いた
+      - プロンプト文書・スキル定義の文面を作成・整備した
+    while:
+      - 成果物が「他者が読む文章」である場合に限る（自分用メモは除く）
+    not:
+      - 成果物を生成せず理解・調査が目的（→ knowledge）
+      - 自分用の作業メモや会話内の要約（→ knowledge）
+    where:
+      - category が writing であるときのみ選ぶ
+
+knowledge:
+  def: "[domain] The log is about researching, learning, or understanding without producing a document or decision"
+  desc: 技術知識の整理・習得・調査（概念理解・技術比較・ベストプラクティス調査）
+  rules:
+    when:
+      - 判断材料の収集・整理が目的で最終的な設計判断に至っていない
+      - 概念・アーキテクチャ・ベストプラクティスを学んだ
+      - 成果物を生成しない質問・回答・比較・調査
+    while:
+      - 実装も明示的な決定も構造化文書も生まれていない状態
+    not:
+      - 実装・修正を行った（→ development）
+      - 実装・選択に対して最終判断を下した（→ development）
+      - 他者が読む構造化ドキュメントを生成した（→ writing）
+    where:
+      - category が knowledge であるときのみ選ぶ
+
+creative:
+  def: "[domain] The log is about roleplay, character design, storytelling, or creative ideation"
+  desc: 創作・アイデア生成・ロールプレイ（キャラクター設定・ネーミング・ストーリー創作）
+  rules:
+    when:
+      - AIキャラクターの設定・ロールプレイセッションが主目的
+      - ネーミング・ストーリー・シナリオの創作が主目的
+    while:
+      - 技術的な目的がなく、創作・表現が主軸である
+    not:
+      - 技術的な設計議論（→ development または knowledge）
+    where:
+      - category が creative であるときのみ選ぶ
+
+casual:
+  def: "[domain] The log does not fit any specific domain — everyday questions or general consultation"
+  desc: 特定ジャンルに属さない雑談・日常相談・技術外の質問
+  rules:
+    when:
+      - 他のdomainに明確に該当しない場合のみ（最後の手段）
+      - 技術外の日常的な質問・生活上の相談
+    while:
+      - 他のいずれのdomainにも当てはまらないことを確認した後にのみ選ぶ
+    not:
+      - 技術的な内容を含む（他domainを必ず優先）
+    where:
+      - category が casual であるときのみ選ぶ。フォールバック専用
+
+# ── aspect: 観点軸（0〜2個）────────────────────────────────
+# 「このログをどういう観点・行為として扱うか」で選ぶ
+# RULE 6: 同系統から最大1つ（思考・意思系 / 実体・成果系）
+
+# ── 思考・意思系（最大1つ）
+
+learning:
+  def: "[aspect] The interaction was about understanding, learning, or investigating — without implementation"
+  desc: 理解・調査・学習・概念把握の観点（実装や決定を伴わない）
+  rules:
+    when:
+      - 技術・仕様・概念の調査・理解が主目的
+      - 実装を伴わない質問・回答・比較
+    while:
+      - 実装も明示的な決定も生まれていない状態
+    not:
+      - 調査後に実装した（→ architecture または behavior を追加）
+      - 調査後に決定した（→ decision を追加）
+    where:
+      - 「何かを知った」だけで終わっている場合。次のアクションにつながっていない
+
+analysis:
+  def: "[aspect] The interaction focused on analyzing structure, breaking down problems, or evaluating design — without final decision"
+  desc: 設計の検証・分解・評価フェーズの観点（最終判断に至らない分析・評価）
+  rules:
+    when:
+      - 既存設計・構造・問題を分解・評価した
+      - 設計案のトレードオフ・影響範囲を分析した（結論なし）
+    while:
+      - 分析・評価が行われているが、最終判断に至っていない状態
+    not:
+      - 分析後に決定した（→ decision）
+      - 単なる調査・学習（→ learning）
+    where:
+      - learning との違い：learning は「理解」、analysis は「評価・分解」。対象が既存の設計や構造
+
+decision:
+  def: "[aspect] The interaction involved making choices, evaluating options, or establishing policies"
+  desc: 意思決定・選択・方針策定の観点（結論に至った）
+  rules:
+    when:
+      - 技術選定・アプローチ選択・方針確定を行った
+      - トレードオフを検討して決定した
+      - type: decision のログには必ず付与する（RULE 10）
+    while:
+      - 将来の実装・運用に影響する不可逆な決定が明示されている状態
+    not:
+      - 結論に至らず議論・探索が主体（→ discussion）
+      - 決定を実装に落とし込んだ（→ architecture）
+    where:
+      - 「決めた」「採用する」「〜方針とする」など明示的な確定表現があること
+
+discussion:
+  def: "[aspect] The interaction involved questions that evolved — with design judgment as the sustained main axis"
+  desc: 技術的判断・方針検討が対話を通じて主軸として続いた観点
+  rules:
+    when:
+      - 技術的判断・方針検討が対話全体を通じて主軸として継続した
+      - 設計選択・技術検討に対して提案・反論・修正が繰り返された
+    while:
+      - 対話が続くにつれて問いの深さ・次元が変化し続けている状態
+    not:
+      - 単発の技術コメントや1ターンだけの判断（→ chat のまま）
+      - 議論の結果として明確な決定を下した（→ decision）
+    where:
+      - decision との違い：decision は「確定した」、discussion は「検討が主軸として続いた」
+
+# ── 実体・成果系（最大1つ）
+
+architecture:
+  def: "[aspect] The interaction focused on how something is designed, structured, or composed — including data schemas"
+  desc: システム設計・構造・インタフェース・データスキーマ設計の観点
+  rules:
+    when:
+      - システム設計・モジュール構造・API設計を設計・変更した
+      - データフォーマット・スキーマ・シリアライズを設計・変更した
+      - コードの構造改善・リファクタリングが主目的
+    while:
+      - 「どう設計するか・どう構成するか」が主軸になっている状態
+    not:
+      - 動作・挙動の確認が主目的（→ behavior）
+      - 設計対象の種類（API/CLI等）はタグで表現する（→ dev:api-design, target:cli 等）
+    where:
+      - RULE 8: 設計対象の種類は tags に書く。architecture は「設計行為である」だけを表す
+
+behavior:
+  def: "[aspect] The interaction focused on how something works, runs, or responds — observation and diagnosis without correctness verification"
+  desc: 動作・挙動・実行結果・エラーの観点（正確性確認ではなく動作観察・診断）
+  rules:
+    when:
+      - コードの実行動作・挙動を観察・診断した
+      - エラー・バグの症状や原因を調査した（修正確認は含まない）
+    while:
+      - type: incident または execution のログで付与する（RULE 10）
+    not:
+      - 構造・設計の変更が主目的（→ architecture）
+      - Lint通過・修正確認・テスト成功など正しさの確認が主（→ validation）
+    where:
+      - 「どう動くか」の観察・診断。「正しいか」の確認は validation に委ねる（RULE 9）
+
+content:
+  def: "[aspect] The interaction focused on the substance of documents, articles, or written artifacts"
+  desc: 文書・記事・仕様書・プロンプト文面など成果物の内容の観点
+  rules:
+    when:
+      - README・仕様書・記事・ブログの内容を作成・改訂した
+      - プロンプト・スキル定義の文面を設計・改善した
+    while:
+      - category が writing のログで主に使う
+    not:
+      - 文書を管理するコードの設計（→ architecture）
+      - 技術調査の結果整理（→ learning）
+    where:
+      - 「何を書いたか」の内容が主題。文書の構成・整理は doc:restructure 等のタグで補う
+
+# ── 補助・品質系（系統制限なし、必要な場合のみ）
+
+configuration:
+  def: "[aspect] The interaction focused on settings, values, or environment files"
+  desc: 設定値・設定ファイルの記述・変更・管理の観点
+  rules:
+    when:
+      - 設定ファイル・設定値の記述・変更が主目的
+      - 依存関係・パッケージバージョンの管理が主題
+    while:
+      - コード・ロジックの実装を伴わず、設定変更が主体である状態
+    not:
+      - 設定の構成方針・設計判断（→ architecture）
+    where:
+      - 「何の値を設定したか」が主題。設計判断を伴う場合は architecture を優先
+
+workflow:
+  def: "[aspect] The interaction involved PR, issue, branch, or development collaboration process"
+  desc: PR・Issue・ブランチ・開発フロープロセスの観点
+  rules:
+    when:
+      - PR作成・レビュー・マージのプロセスが重要な側面
+      - Issueの起票・クローズ・トリアージが主題の一部
+    while:
+      - 開発フロープロセス自体が注目点になっている状態
+    not:
+      - PR内のコード変更（→ architecture/behavior）
+    where:
+      - 「どう進めたか」のプロセスが主題。コード変更の内容は他の aspect で表す
+
+validation:
+  def: "[aspect] The interaction involved verification, linting, schema checking, or correctness confirmation"
+  desc: 検証・Lint・修正確認・テスト成功確認など「正しさを確かめる」観点
+  rules:
+    when:
+      - Lintツール通過・修正確認・テスト成功など正しさの確認が伴う
+      - スキーマ・フォーマット検証が重要な要素
+      - デバッグ・修正後の動作確認が主目的
+    while:
+      - type: incident または execution のログで正確性確認を含む場合（RULE 10）
+    not:
+      - 動作の観察・挙動の診断のみ（→ behavior）
+    where:
+      - RULE 9: 修正・デバッグ・検証を伴うログでは behavior より validation を優先する
+      - 「正しいか」を確認する行為。「どう動くか」を観察するのは behavior
+
+security:
+  def: "[aspect] The interaction involved security vulnerabilities, access controls, or secret management"
+  desc: セキュリティ脆弱性・アクセス制御・シークレット管理の観点
+  rules:
+    when:
+      - セキュリティ脆弱性・権限管理が重要な側面
+      - シークレット・トークン管理が主題の一部
+    while:
+      - セキュリティが主要な関心事として対話に現れている状態
+    not:
+      - セキュリティツールのインストールのみ（→ configuration）
+    where:
+      - 「セキュリティ上の正しさ」が主題のとき。ツール導入だけなら configuration
+
+testing:
+  def: "[aspect] The interaction involved test design, implementation, or execution"
+  desc: テスト設計・実装・実行の観点
+  rules:
+    when:
+      - テストコードを書いた・実行した
+      - テスト戦略・テスト設計を議論・確定した
+    while:
+      - テストが主目的の活動として行われている状態
+    not:
+      - テスト結果を見てバグ修正（→ behavior のみ）
+    where:
+      - 「テストを書く・設計する」が主題。テスト結果からバグを直す行為は behavior
+
+review:
+  def: "[aspect] The interaction involved evaluation, critique, or feedback on code, design, or artifacts"
+  desc: コード・設計・文書に対するレビュー・評価・フィードバックの観点
+  rules:
+    when:
+      - コードレビュー・設計レビューを実施・受けた
+      - 記事・仕様書へのフィードバック・批評が主題の一部
+    while:
+      - 評価・フィードバックの授受が対話の主軸になっている状態
+    not:
+      - レビュー後の修正実装（→ architecture/behavior を優先）
+      - Lintによる自動検証（→ validation）
+    where:
+      - 「人間が評価・批評する」行為。自動検証は validation、修正実装は architecture/behavior
+
+# ── 対話系
+
+chat:
+  def: "[aspect] The interaction repeated the same dimension across turns with no evolution of questions"
+  desc: 問いが進化しない雑談・ロールプレイの観点（ターンを経ても次元が変わらない）
+  rules:
+    when:
+      - ターンが進んでも話題の次元・深さが変わらない（感情・行動の繰り返し）
+      - 技術的判断・方針検討が対話の主軸として継続しない
+    while:
+      - 対話が進んでも問いの構造が変化しない状態
+    not:
+      - 技術的判断が継続的に深まっている（→ discussion）
+      - 技術的判断・方針検討が対話全体を通じて主軸として続いた（→ discussion に昇格）
+    where:
+      - discussion との違い：chat は次元が変わらない。discussion は判断・検討が深化し続ける
