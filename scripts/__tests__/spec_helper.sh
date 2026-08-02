@@ -29,24 +29,6 @@ make_fixture_repo() {
 }
 
 ##
-# @description Create a throwaway setup-chatlogs skill directory holding the assets to deploy
-#
-# Mirrors the layout the real skill ships with, so the copy examples can run
-# against a fixture instead of the checkout.
-#
-# @stdout Absolute path to the new skill directory
-make_fixture_skill_dir() {
-  local skill_dir
-  skill_dir="$(mktemp -d)"
-  mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/_scripts/libs"
-  echo 'agent: claude' >"${skill_dir}/assets/.config/chatlog-exporter/config.yaml"
-  echo 'category' >"${skill_dir}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
-  echo 'export const noop = () => {};' >"${skill_dir}/_scripts/libs/noop.ts"
-  echo "$skill_dir"
-}
-
-##
 # @description Create a throwaway git repository holding a runner that sources the real library
 #
 # The wrapper lives in `<repo>/runners/` and sources the checkout's actual
@@ -121,6 +103,48 @@ make_fixture_skill_dir() {
   echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
   echo 'export {};' >"${skill_dir}/_scripts/libs/noop.ts"
   echo "$skill_dir"
+}
+
+##
+# @description Create a throwaway repository whose .claude/skills is a symlink to its skills/
+#
+# Reproduces the layout that makes --force destructive in this checkout: the
+# skill ships from <repo>/skills/setup-chatlogs/, and <repo>/.claude/skills is a
+# symlink to ../skills, so the _scripts destination resolves back onto the shared
+# library at <repo>/skills/_scripts.
+#
+# skills/_scripts/__tests__/keep.md is the marker the specs assert on: the
+# distribution copy under skills/setup-chatlogs/_scripts/ deliberately omits
+# __tests__, so a destructive deploy loses the file and a guarded one keeps it.
+#
+# The root is always under mktemp -d, never the checkout: these specs exercise
+# the destructive path, so pointing them at the real tree would delete the
+# actual skills/_scripts/__tests__.
+#
+# @stdout Absolute path to the new repository root
+make_fixture_symlinked_repo() {
+  local repo skill
+  repo="$(mktemp -d)"
+  skill="${repo}/skills/setup-chatlogs"
+
+  # 共有ライブラリの実体。__tests__ は配布物には含まれないため、
+  # 破壊的な展開が起きるとこのファイルが失われる。
+  mkdir -p "${repo}/skills/_scripts/libs" "${repo}/skills/_scripts/__tests__"
+  echo 'export {};' >"${repo}/skills/_scripts/libs/noop.ts"
+  echo '# keep' >"${repo}/skills/_scripts/__tests__/keep.md"
+
+  # 配布物としてのスキルディレクトリ（__tests__ を持たない）。
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/_scripts/libs"
+  echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo 'export {};' >"${skill}/_scripts/libs/noop.ts"
+
+  mkdir -p "${repo}/.claude"
+  (cd "${repo}/.claude" && MSYS=winsymlinks:nativestrict ln -s ../skills skills)
+
+  git -C "$repo" init -q
+  echo "$repo"
 }
 
 ##
