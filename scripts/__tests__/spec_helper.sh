@@ -75,6 +75,55 @@ EOF
 }
 
 ##
+# @description Create a throwaway repository holding a minimal sync source tree
+#
+# Mirrors the three sync sources sync-skill-assets.sh reads, shrunk to tiny
+# stand-in payloads. The specs must never drive the sync against the real
+# checkout: asserting on it would turn "someone edited skills/_scripts/ and did
+# not re-sync" into a red unit suite, and --fail-fast=1 would stop everything.
+#
+# skills/_scripts/ carries a nested __tests__/helpers/__tests__ so the specs can
+# prove the exclusion prunes at every depth, not just at the top level.
+#
+# @stdout Absolute path to the new repository root
+make_fixture_source_repo() {
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p \
+    "${repo}/.config/chatlog-exporter/dics" \
+    "${repo}/skills/_scripts/libs/file-io" \
+    "${repo}/skills/_scripts/__tests__/unit" \
+    "${repo}/skills/_scripts/libs/__tests__/helpers/__tests__"
+  echo 'agent: claude' >"${repo}/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${repo}/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${repo}/deno.json"
+  echo 'export const noop = 0;' >"${repo}/skills/_scripts/libs/file-io/path-utils.ts"
+  echo 'export {};' >"${repo}/skills/_scripts/__tests__/unit/noop.unit.spec.ts"
+  echo 'export {};' >"${repo}/skills/_scripts/libs/__tests__/helpers/__tests__/deep.ts"
+  git -C "$repo" init -q
+  echo "$repo"
+}
+
+##
+# @description Create a throwaway skill directory holding a minimal deploy tree
+#
+# Mirrors the layout setup-chatlogs.sh expects under the skill directory, but
+# with tiny stand-in payloads: the specs assert on exact file contents, so the
+# real .config/chatlog-exporter/ must not be copied in here.
+#
+# @stdout Absolute path to the new skill directory
+make_fixture_skill_dir() {
+  local skill_dir
+  skill_dir="$(mktemp -d)"
+  mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/_scripts/libs"
+  echo 'agent: claude' >"${skill_dir}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${skill_dir}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
+  echo 'export {};' >"${skill_dir}/_scripts/libs/noop.ts"
+  echo "$skill_dir"
+}
+
+##
 # @description Report whether the shell cannot create real symbolic links
 #
 # Phrased negatively because `Skip if` takes a plain condition and cannot
