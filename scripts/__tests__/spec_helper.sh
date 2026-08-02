@@ -29,6 +29,52 @@ make_fixture_repo() {
 }
 
 ##
+# @description Create a throwaway setup-chatlogs skill directory holding the assets to deploy
+#
+# Mirrors the layout the real skill ships with, so the copy examples can run
+# against a fixture instead of the checkout.
+#
+# @stdout Absolute path to the new skill directory
+make_fixture_skill_dir() {
+  local skill_dir
+  skill_dir="$(mktemp -d)"
+  mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/_scripts/libs"
+  echo 'agent: claude' >"${skill_dir}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'category' >"${skill_dir}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
+  echo 'export const noop = () => {};' >"${skill_dir}/_scripts/libs/noop.ts"
+  echo "$skill_dir"
+}
+
+##
+# @description Create a throwaway git repository holding a runner that sources the real library
+#
+# The wrapper lives in `<repo>/runners/` and sources the checkout's actual
+# `init-vars.lib.sh` by absolute path, so `BASH_SOURCE[1]` resolves SCRIPT_ROOT
+# to the fixture repository rather than to the spec file. The library under test
+# is never copied: the real file is exercised so a regression cannot pass.
+#
+# The wrapper prints `SCRIPT_ROOT` and `PROJECT_ROOT` one per line.
+#
+# @arg $1 string Absolute path to the checkout root holding runners/libs/init-vars.lib.sh
+# @stdout Absolute path to the new repository root
+make_fixture_runner_repo() {
+  local checkout_root="$1"
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/runners"
+  cat >"${repo}/runners/wrapper.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+. "${checkout_root}/runners/libs/init-vars.lib.sh"
+echo "SCRIPT_ROOT=\${SCRIPT_ROOT}"
+echo "PROJECT_ROOT=\${PROJECT_ROOT}"
+EOF
+  git -C "$repo" init -q
+  echo "$repo"
+}
+
+##
 # @description Report whether the shell cannot create real symbolic links
 #
 # Phrased negatively because `Skip if` takes a plain condition and cannot
