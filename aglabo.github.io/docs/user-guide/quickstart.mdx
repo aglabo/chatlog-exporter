@@ -22,13 +22,14 @@ If either is missing, the skills will not work. Install both first.
     ```
   </Step>
   <Step title="Register the skills">
-    `.claude/skills` is not tracked in git, so a fresh clone does not include it. Link it to `skills/` yourself.
+    `.claude/skills` is not tracked in git, so a fresh clone does not include it. Register the skills with the script.
 
     ```bash
-    ln -s ../skills .claude/skills
+    bash scripts/install-skills.sh
     ```
 
-    On Windows, or if the link cannot be created, see [Installation](./install) for the PowerShell and copy alternatives.
+    It links `.claude/skills` to `skills/`. To remove the existing link and create it again, re-run it with `--force`.
+    See [Installation](./install) for the options and the manual alternatives.
   </Step>
   <Step title="Run a skill">
     Start Claude Code in the repository root, then run a slash command.

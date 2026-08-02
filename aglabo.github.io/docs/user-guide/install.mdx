@@ -12,6 +12,9 @@ You then run Claude Code from the repository root so the skills and their config
 
 The `claude` command (Claude Code CLI) and `deno` must be on your PATH. If either is missing, the skills will not work.
 Install both first and add them to your PATH.
+
+The skills also assume a bash shell. On Windows, use Git Bash — and enable Developer Mode so it can
+create symbolic links.
 :::
 
 <Steps>
@@ -27,29 +30,49 @@ Install both first and add them to your PATH.
     `.claude/skills` is excluded by `.gitignore`, so a fresh clone does not contain it.
     Claude Code discovers project skills under `.claude/skills`, so you need to point it at the `skills/` directory yourself.
 
-    Use whichever method works in your environment:
+    Run the install script:
 
-    <Tabs>
-      <Tab title="Git Bash / macOS / Linux">
-        ```bash
-        ln -s ../skills .claude/skills
-        ```
-        On the default Windows Git Bash this may copy the directory instead of creating a real symbolic link.
-        That still works for running the skills, but changes to `skills/` will not be reflected automatically.
-      </Tab>
-      <Tab title="Windows PowerShell">
-        ```powershell
-        New-Item -ItemType SymbolicLink -Path .claude\skills -Target ..\skills
-        ```
-        Creating a symbolic link on Windows requires Developer Mode to be enabled or an elevated (administrator) shell.
-      </Tab>
-      <Tab title="Copy (fallback)">
-        ```bash
-        cp -r skills .claude/skills
-        ```
-        Use this when symbolic links are not available. Re-run it whenever `skills/` changes.
-      </Tab>
-    </Tabs>
+    ```bash
+    bash scripts/install-skills.sh
+    ```
+
+    This links `.claude/skills` to `skills/`. Re-running it is safe — an existing correct link is
+    left untouched. The script requires a shell that can create symbolic links; on Windows that
+    means Git Bash with Developer Mode enabled.
+
+    To remove the existing link and create it again, add `--force`:
+
+    ```bash
+    bash scripts/install-skills.sh --force
+    ```
+
+    <Accordion>
+      <AccordionItem title="Registering the skills manually">
+        Use these if you would rather register the skills by hand.
+
+        <Tabs>
+          <Tab title="Git Bash / macOS / Linux">
+            ```bash
+            ln -s ../skills .claude/skills
+            ```
+            On the default Windows Git Bash this may copy the directory instead of creating a real symbolic link.
+            That still works for running the skills, but changes to `skills/` will not be reflected automatically.
+          </Tab>
+          <Tab title="Windows PowerShell">
+            ```powershell
+            New-Item -ItemType SymbolicLink -Path .claude\skills -Target ..\skills
+            ```
+            Creating a symbolic link on Windows requires Developer Mode to be enabled or an elevated shell.
+          </Tab>
+          <Tab title="Copy (fallback)">
+            ```bash
+            cp -r skills .claude/skills
+            ```
+            Use this when symbolic links are not available. Re-run it whenever `skills/` changes.
+          </Tab>
+        </Tabs>
+      </AccordionItem>
+    </Accordion>
   </Step>
   <Step title="Confirm the configuration">
     The `.config/chatlog-exporter/` directory (`config.yaml`, `dics/`, `prompts/`) **is** tracked in git,
@@ -66,6 +89,7 @@ Install both first and add them to your PATH.
 </Steps>
 
 :::note
-`bash scripts/setup-dev-env.sh` installs `lefthook` and ShellSpec.
+`bash scripts/setup-dev-env.sh` installs `lefthook` and ShellSpec, which `pnpm test:sh` then uses to run
+the shell script tests.
 Those are **development tools** for contributing to the repository; they are not required to run the skills.
 :::
