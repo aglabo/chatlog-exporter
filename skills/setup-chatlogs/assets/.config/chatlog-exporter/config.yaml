@@ -1,0 +1,36 @@
+# chatlog-exporter global default configuration
+# Edit this file to override default values for all scripts.
+# You can also specify another file with the --config <path> option.
+
+# Agent
+agent: claude
+
+# AI execution
+model: "haiku"
+timeoutMs: 120_000 # 2 min (ms)
+maxRetry: 2 # runAI の最大ﾘ監gﾗ牡C回数（0=ﾘ監gﾗ牡Cなし､A上限 10）
+
+# Hash generation
+hashLength: 8
+minRandomLength: 4
+maxRandomLength: 16
+
+# Parallel / batch processing
+chunkSize: 5
+concurrency: 4
+
+# Character count filters
+minCharCount: 1000 # Minimum content length
+minAssistantChars: 300 # Minimum assistant response length (when userTurns=1)
+maxContentLength: 4000 # Maximum content length
+
+# DISCARD threshold (filter-chatlog)
+discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value
+
+# Asset directories (relative to .config/<app-name>/)
+dicsDir: "dics"
+promptsDir: "prompts"
+chatlogsDir: "${ProjectRoot}/chatlogs"
+
+# Temporary cache
+cacheDir: "${TEMP}/cle-cache"
