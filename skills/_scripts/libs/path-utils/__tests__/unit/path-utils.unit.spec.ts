@@ -168,7 +168,7 @@ describe('normalizePath', () => {
     it('[Edge] T-LIB-U-80-03: プレースホルダーなしパスは従来通り正規化される', () => {
       assertEquals(normalizePath('/plain/path'), '/plain/path');
     });
-    it('[Edge] T-LIB-U-80-04: ${ProjectRoot}/x → /mock/root/x（git 実行なし）', () => {
+    it('[Edge] T-LIB-U-80-04: ${ProjectRoot}/x → /mock/root/x（シード値が展開される）', () => {
       assertEquals(normalizePath('${ProjectRoot}/x'), '/mock/root/x');
     });
   });
