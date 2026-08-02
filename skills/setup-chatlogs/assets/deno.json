@@ -1,0 +1,29 @@
+{
+  "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.23",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/yaml": "jsr:@std/yaml@^1.0.12",
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/testing": "jsr:@std/testing@^1.0.0"
+  },
+  "lint": {
+    "rules": {
+    },
+    "exclude": [".worktrees", "aglabo.github.io"]
+  },
+  "exclude": [".worktrees", "aglabo.github.io"],
+  "compilerOptions": {
+    "lib": ["deno.ns", "es2022", "dom"]
+  },
+  "tasks": {
+    "test": "deno task test:module all",
+    "test:unit": "deno task test:module unit",
+    "test:integration": "deno task test:module integration",
+    "test:functional": "deno task test:module functional",
+    "test:e2e": "deno task test:module e2e",
+    "test:system": "deno task test:module system",
+    "test:fixtures": "deno task test:module fixtures",
+    "test:scripts": "deno task test:module all scripts",
+    "test:module": "deno run --allow-read --allow-write --allow-run scripts/aplys-tester.ts"
+  }
+}
