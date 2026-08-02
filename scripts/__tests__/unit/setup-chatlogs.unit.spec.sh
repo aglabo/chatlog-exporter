@@ -229,6 +229,50 @@ Describe 'setup-chatlogs.sh'
     End
   End
 
+  Describe 'resolve_real_path'
+    Describe 'When: 正常系'
+      It '[Normal] T-SC-RP-01: symlink を解決した実パスを返す'
+        # symlink を解決しないと今回の重なりは検出できないため、解決することが要件。
+        # 期待値は resolve_real_path 自身で求める。cd + pwd -P と突き合わせると
+        # MSYS でマウント接頭辞が食い違い（/tmp と /w/temp）、解決の正しさとは
+        # 無関係に落ちるため。
+        Skip if 'symlinks unsupported' no_symlink_support
+        resolve_via_link() {
+          local dir
+          dir="$(mktemp -d)"
+          mkdir -p "${dir}/real"
+          (cd "$dir" && MSYS=winsymlinks:nativestrict ln -s real link)
+          [[ "$(resolve_real_path "${dir}/link")" == "$(resolve_real_path "${dir}/real")" ]] || return 1
+          # 解決後のパスに link 要素が残っていないことまで確かめる。
+          [[ "$(resolve_real_path "${dir}/link")" != *"/link" ]] || return 1
+          rm -rf "$dir"
+          echo "resolved"
+        }
+        When call resolve_via_link
+        The status should be success
+        The output should equal 'resolved'
+      End
+    End
+
+    Describe 'When: エッジケース'
+      It '[Edge] T-SC-RP-02: 存在しない展開先も解決できる'
+        # .claude/skills/_scripts は展開前には存在しないため、
+        # 非存在パスを解決できないと判定そのものが動かない。
+        resolve_missing() {
+          local dir
+          dir="$(mktemp -d)"
+          # 非存在の末尾は、実在する祖先の解決結果にそのまま連結される。
+          [[ "$(resolve_real_path "${dir}/no/such/dir")" == "$(resolve_real_path "$dir")/no/such/dir" ]] || return 1
+          rm -rf "$dir"
+          echo "resolved"
+        }
+        When call resolve_missing
+        The status should be success
+        The output should equal 'resolved'
+      End
+    End
+  End
+
   Describe 'run_setup'
     Describe 'When: 正常系'
       It '[Normal] T-SC-RS-01: 3 つの展開先すべてを配置する'
@@ -272,6 +316,57 @@ Describe 'setup-chatlogs.sh'
         The contents of file "${repo}/deno.json" should equal 'keep'
         The path "${repo}/.config/chatlog-exporter/config.yaml" should be exist
         The path "${repo}/.claude/skills/_scripts/libs/noop.ts" should be exist
+      End
+    End
+  End
+
+  Describe 'run_setup（展開先がソースツリーに重なる場合）'
+    # .claude/skills -> ../skills のリポジトリでは _scripts の展開先が
+    # 共有ライブラリの実体に解決する。フィクスチャは必ず mktemp -d 配下に作る:
+    # ここはガードが無ければ実際に削除が起きる経路であり、実チェックアウトを
+    # 指すと skills/_scripts/__tests__ を本当に消してしまう。
+    linked_setup() {
+      linked_repo="$(make_fixture_symlinked_repo)"
+    }
+
+    linked_cleanup() {
+      rm -rf "$linked_repo"
+    }
+
+    BeforeEach 'linked_setup'
+    AfterEach 'linked_cleanup'
+
+    Describe 'When: 異常系'
+      It '[Error] T-SC-RS-05: 展開先が symlink 経由でソースツリーに重なる → 拒否する'
+        # 配布物に含まれない __tests__ が消えないことまで確かめる。
+        Skip if 'symlinks unsupported' no_symlink_support
+        When call run_setup "${linked_repo}/skills/setup-chatlogs" "$linked_repo" force
+        The status should be failure
+        The stderr should include 'Error:'
+        The path "${linked_repo}/skills/_scripts/__tests__/keep.md" should be exist
+        The path "${linked_repo}/skills/_scripts/libs/noop.ts" should be exist
+      End
+
+      It '[Error] T-SC-RS-06: 拒否時は他の展開先も配置しない'
+        # 事前検証で中断するため、先頭の安全なエントリも配置されない。
+        # 半端に展開されたツリーを残さない既存方針と一致させる。
+        Skip if 'symlinks unsupported' no_symlink_support
+        When call run_setup "${linked_repo}/skills/setup-chatlogs" "$linked_repo" force
+        The status should be failure
+        The stderr should include 'Error:'
+        The path "${linked_repo}/.config/chatlog-exporter" should not be exist
+        The path "${linked_repo}/deno.json" should not be exist
+      End
+    End
+
+    Describe 'When: エッジケース'
+      It '[Edge] T-SC-RS-07: force なしでも重なる展開先は拒否する'
+        # force なしでも rm -rf の前に検証されるため、スキップではなく拒否になる。
+        Skip if 'symlinks unsupported' no_symlink_support
+        When call run_setup "${linked_repo}/skills/setup-chatlogs" "$linked_repo" ''
+        The status should be failure
+        The stderr should include 'Error:'
+        The path "${linked_repo}/skills/_scripts/__tests__/keep.md" should be exist
       End
     End
   End
