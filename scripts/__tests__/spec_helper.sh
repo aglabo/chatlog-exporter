@@ -148,6 +148,42 @@ make_fixture_symlinked_repo() {
 }
 
 ##
+# @description Create a throwaway repository holding a skill installed the standard way
+#
+# Reproduces what a skill manager leaves behind in a distribution project: the
+# skill sits at <repo>/.claude/skills/setup-chatlogs/ and .claude/skills is a
+# real directory, not a symlink. This is the layout the deploy must succeed in,
+# so no link is created here.
+#
+# The payloads mirror make_fixture_skill_dir: the specs assert on exact file
+# contents, so the real .config/chatlog-exporter/ must not be copied in.
+#
+# export-chatlogs/SKILL.md is the marker the specs assert on: it is a sibling of
+# the skill under <repo>/.claude/skills/, so a deploy that mistakes that
+# directory for its own source tree would take the sibling down with it.
+#
+# @stdout Absolute path to the new repository root
+make_fixture_installed_repo() {
+  local repo skill
+  repo="$(mktemp -d)"
+  skill="${repo}/.claude/skills/setup-chatlogs"
+
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/_scripts/libs" "${skill}/scripts"
+  echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo 'export {};' >"${skill}/_scripts/libs/noop.ts"
+  echo '# setup' >"${skill}/SKILL.md"
+
+  # 兄弟スキル。展開先を取り違えると巻き添えで消える位置に置く。
+  mkdir -p "${repo}/.claude/skills/export-chatlogs"
+  echo '# export' >"${repo}/.claude/skills/export-chatlogs/SKILL.md"
+
+  git -C "$repo" init -q
+  echo "$repo"
+}
+
+##
 # @description Report whether the shell cannot create real symbolic links
 #
 # Phrased negatively because `Skip if` takes a plain condition and cannot
