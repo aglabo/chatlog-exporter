@@ -16,12 +16,17 @@ set -euo pipefail
 readonly SYNC_ENTRIES=(
   ".config/chatlog-exporter|skills/setup-chatlogs/assets/.config/chatlog-exporter"
   "deno.json|skills/setup-chatlogs/assets/deno.json"
-  "skills/_scripts|skills/setup-chatlogs/_scripts"
+  "skills/_cle-libs|skills/setup-chatlogs/assets/_cle-libs"
 )
 
 # Directory name dropped from every synced tree. Tests are not part of a
-# distribution. Applied to all entries rather than just skills/_scripts/ so the
+# distribution. Applied to all entries rather than just skills/_cle-libs/ so the
 # sync and the check share one definition of the expected tree and cannot drift.
+#
+# setup-chatlogs.sh depends on this exclusion: assert_dest_not_development_tree
+# reads the presence of __tests__/ as proof that a deploy destination is the
+# shared library itself rather than a copy deployed from it, and refuses --force
+# there. Narrowing this exclusion would make that guard stop firing.
 readonly EXCLUDE_NAME="__tests__"
 
 ##
@@ -35,7 +40,7 @@ sources:
 
   .config/chatlog-exporter/ -> skills/setup-chatlogs/assets/.config/chatlog-exporter/
   deno.json                 -> skills/setup-chatlogs/assets/deno.json
-  skills/_scripts/          -> skills/setup-chatlogs/_scripts/
+  skills/_cle-libs/         -> skills/setup-chatlogs/assets/_cle-libs/
 
 __tests__ directories are excluded at every depth. Each destination is replaced
 as a whole, so files deleted from a source disappear from the distribution too.

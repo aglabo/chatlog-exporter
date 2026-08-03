@@ -135,7 +135,7 @@ Describe 'sync-skill-assets.sh'
       It '[Normal] T-SSA-CT-01: __tests__ を除いてツリーを複製する'
         # run_sync と run_check が同じ「期待されるツリー」定義を共有するための
         # 土台。ここが崩れると検査が通ったまま配布物だけ壊れる。
-        When call copy_tree "${repo}/skills/_scripts" "${repo}/out"
+        When call copy_tree "${repo}/skills/_cle-libs" "${repo}/out"
         The status should be success
         The path "${repo}/out/libs/file-io/path-utils.ts" should be exist
         The output should equal ''
@@ -147,7 +147,7 @@ Describe 'sync-skill-assets.sh'
         # tar の展開は上書きするだけで消さないため、事前削除が無いと
         # 削除済みソースの残骸が配布物に残り続ける。
         BeforeCall 'mkdir -p "${repo}/out"; echo stale >"${repo}/out/stale.ts"'
-        When call copy_tree "${repo}/skills/_scripts" "${repo}/out"
+        When call copy_tree "${repo}/skills/_cle-libs" "${repo}/out"
         The status should be success
         The path "${repo}/out/stale.ts" should not be exist
         The path "${repo}/out/libs/file-io/path-utils.ts" should be exist
@@ -163,7 +163,7 @@ Describe 'sync-skill-assets.sh'
         The output should include 'Synced'
         The path "${dist}/assets/.config/chatlog-exporter/config.yaml" should be exist
         The path "${dist}/assets/deno.json" should be exist
-        The path "${dist}/_scripts/libs/file-io/path-utils.ts" should be exist
+        The path "${dist}/assets/_cle-libs/libs/file-io/path-utils.ts" should be exist
       End
 
       It '[Normal] T-SSA-RS-02: ネストしたファイル実体まで到達する'
@@ -173,7 +173,7 @@ Describe 'sync-skill-assets.sh'
         The status should be success
         The output should include 'Synced'
         The contents of file "${dist}/assets/.config/chatlog-exporter/dics/category.dic" should equal 'develop'
-        The contents of file "${dist}/_scripts/libs/file-io/path-utils.ts" should equal 'export const noop = 0;'
+        The contents of file "${dist}/assets/_cle-libs/libs/file-io/path-utils.ts" should equal 'export const noop = 0;'
       End
     End
 
@@ -181,7 +181,7 @@ Describe 'sync-skill-assets.sh'
       It '[Error] T-SSA-RS-04: 同期元が欠けていたら何も配置しない'
         # 先頭の同期元は揃っているので、事前検証が無いと 1・2 番目を配置してから
         # 失敗する。半端に同期されたツリーを残さないことを確かめる。
-        BeforeCall 'rm -rf "${repo}/skills/_scripts"'
+        BeforeCall 'rm -rf "${repo}/skills/_cle-libs"'
         When call run_sync "$repo"
         The status should be failure
         The stderr should include 'source not found'
@@ -203,12 +203,12 @@ Describe 'sync-skill-assets.sh'
       End
 
       It '[Edge] T-SSA-RS-05: 前回の同期で残った古いファイルを消す'
-        BeforeCall 'mkdir -p "${dist}/_scripts/libs"; echo stale >"${dist}/_scripts/libs/removed.ts"'
+        BeforeCall 'mkdir -p "${dist}/assets/_cle-libs/libs"; echo stale >"${dist}/assets/_cle-libs/libs/removed.ts"'
         When call run_sync "$repo"
         The status should be success
         The output should include 'Synced'
-        The path "${dist}/_scripts/libs/removed.ts" should not be exist
-        The path "${dist}/_scripts/libs/file-io/path-utils.ts" should be exist
+        The path "${dist}/assets/_cle-libs/libs/removed.ts" should not be exist
+        The path "${dist}/assets/_cle-libs/libs/file-io/path-utils.ts" should be exist
       End
     End
   End
@@ -242,7 +242,7 @@ Describe 'sync-skill-assets.sh'
       It '[Edge] T-SSA-RC-04: ソースで消したファイルが配布物に残っている → 失敗する'
         # diff は片側にしか無いファイルも差分として報告する。内容比較だけでは
         # 削除の取りこぼしを検出できない。
-        BeforeCall 'run_sync "$repo" >/dev/null; echo stale >"${dist}/_scripts/libs/removed.ts"'
+        BeforeCall 'run_sync "$repo" >/dev/null; echo stale >"${dist}/assets/_cle-libs/libs/removed.ts"'
         When call run_check "$repo"
         The status should be failure
         The stderr should include 'out of date'
