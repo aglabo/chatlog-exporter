@@ -155,7 +155,13 @@ resolve_spec_files() {
 
   local test_type="$1"
   shift
-  [[ "$test_type" == "system" ]] && SKIP_INTEGRATION_TESTS=0
+  # 統合テストのゲートを開く種別。integration は指定されれば毎回実行する。
+  # system は integration ゲートも通す必要があるため従来どおり開く。
+  # all は「すべて」の要求であり、閉じたままだと integration/system 単独指定の
+  # 和集合より弱いスイートになってしまうため同様に開く。
+  case "$test_type" in
+  integration | system | all) SKIP_INTEGRATION_TESTS=0 ;;
+  esac
 
   local -a file_filters=()
   local parsing_shellspec_args=0
