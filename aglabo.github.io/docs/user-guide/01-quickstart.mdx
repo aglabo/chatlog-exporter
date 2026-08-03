@@ -1,0 +1,64 @@
+---
+title: Quickstart
+description: Install chatlog-exporter and export your first session log with a single slash command.
+---
+
+This guide takes you from nothing installed to running `/export-chatlogs` once.
+For the options and the full setup details, see [Installation](./install).
+
+:::warning
+**Prerequisites**
+The following tools must be available.
+- `Deno`: the runtime every skill runs on
+- `claude` (Claude Code CLI): used by the skills that run AI processing
+- `bash` (Git Bash on Windows): used for the initial setup
+- A skill manager (`gh` or `npx`): used only at install time
+:::
+
+<Steps>
+  <Step title="Install the skills">
+    Install the skills with a skill manager.
+
+    <Tabs>
+      <Tab title="gh skill">
+        ```bash
+        gh skill install aglabo/chatlog-exporter --all --agent claude-code
+        ```
+      </Tab>
+      <Tab title="npx skills">
+        ```bash
+        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Set up the scripts and configuration">
+    To run the chatlog-exporter skills, the shared scripts and configuration files must be set up
+    and placed where the skills expect them.
+    Running the `/setup-chatlogs` skill puts the scripts and configuration in place.
+
+    ```bash
+    /setup-chatlogs
+    ```
+
+    It deploys the following files and directories.
+
+    - `.config/chatlog-exporter/`: the configuration files chatlog-exporter uses (relative to the current directory)
+    - `deno.json`: the settings for running the Deno scripts (relative to the current directory)
+    - `_cle-libs/`: the libraries every skill shares (placed beside the skills)
+  </Step>
+  <Step title="Export a chatlog">
+    From the directory you installed the skills in, run the following command.
+
+    Example:
+    ```bash
+    /export-chatlogs claude 2026-06
+    ```
+
+    This example exports the Claude Code logs for June 2026.
+  </Step>
+</Steps>
+
+:::tip
+Each skill can run independently. Start with just `/export-chatlogs`, then combine the later skills as needed.
+:::
