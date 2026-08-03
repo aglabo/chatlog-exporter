@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # src: ./skills/setup-chatlogs/scripts/setup-chatlogs.sh
-# @(#) : Deploy chatlog-exporter configuration and shared scripts into the current directory
+# @(#) : Deploy chatlog-exporter configuration into the current directory and shared scripts beside this skill
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
@@ -10,13 +10,15 @@
 
 set -euo pipefail
 
-# Entries to deploy, as "<source relative to skill dir>|<destination relative to the target directory>".
-# _scripts lands under .claude/skills/ so the ../../_scripts/ imports in the
-# sibling skills resolve unchanged.
+# Entries to deploy, as "<source relative to skill dir>|<destination relative to its base>".
+# What the destination is relative to is decided by resolve_dest_base from the
+# source alone: _scripts lands beside the skill so the ../../_scripts/ imports in
+# the sibling skills resolve wherever the skill was installed, including User
+# scope, and everything else lands where the command is run from.
 readonly DEPLOY_ENTRIES=(
   "assets/.config/chatlog-exporter|.config/chatlog-exporter"
   "assets/deno.json|deno.json"
-  "_scripts|.claude/skills/_scripts"
+  "_scripts|_scripts"
 )
 
 ##
@@ -70,11 +72,12 @@ copy_entry() {
 # @return 0 If every source is present
 # @return 1 If a source is missing
 assert_sources_exist() {
-  local skill_dir="$1"
+  local skill_root="$1"
   local entry src
 
   for entry in "${DEPLOY_ENTRIES[@]}"; do
-    src="${skill_dir}/${entry%%|*}"
+    IFS='|' read -r src _ <<<"$entry"
+    src="${skill_root}/${src}"
     if [[ ! -e "$src" ]]; then
       echo "Error: source not found: $src" >&2
       return 1
@@ -88,7 +91,7 @@ assert_sources_exist() {
 # This file lives in <skill dir>/scripts/, so the skill directory is two levels up.
 #
 # @stdout Path to the skill directory
-resolve_skill_dir() {
+resolve_skill_root() {
   # Subshell so resolving the path never moves the caller's working directory.
   (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 }
@@ -107,83 +110,101 @@ resolve_target_dir() {
 }
 
 ##
-# @description Reject a --force deploy when the skills directory is a symlink
+# @description Resolve the skills directory the skill itself is installed under
 #
-# The skills directory is a real directory wherever the skill is installed
-# normally, and a symlink to ../skills only in the chatlog-exporter checkout
-# itself. That link is the difference, so it is what gets tested: comparing
-# resolved paths cannot work here, because a normal install and the source
-# checkout produce the same shape (the _scripts destination is always a sibling
-# of the skill under the skills directory) and a correct guard would have to
-# call both the same.
+# The shared library is deployed here, beside the skill, so the ../../_scripts/
+# imports in the sibling skills resolve from wherever the skill was installed.
+# This file lives in <skills dir>/<skill>/scripts/, so the skills directory is
+# three levels up.
+#
+# @stdout Path to the skills directory
+resolve_skills_dir() {
+  # Subshell so resolving the path never moves the caller's working directory.
+  (cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+}
+
+##
+# @description Resolve which directory an entry's destination is relative to
+#
+# Only the shared library goes beside the skill; everything else is relative to
+# where the command was run. That is the whole rule, so it is read off the
+# source rather than carried as a separate column that could disagree with it.
+#
+# @arg $1 string Source relative to the skill dir
+# @arg $2 string Directory to deploy into
+# @arg $3 string Directory the skill is installed under
+# @stdout The resolved base directory
+
+resolve_dest_base() {
+  local src="$1" target_dir="$2" skills_dir="$3"
+
+  if [[ "$src" == "_scripts" ]]; then
+    echo "$skills_dir"
+  else
+    echo "$target_dir"
+  fi
+}
+
+##
+# @description Reject a --force deploy onto the chatlog-exporter development tree
+#
+# The layout cannot tell the two apart: a legitimate User-scope install and the
+# checkout itself both put _scripts beside the skill under a skills directory,
+# so a correct guard comparing shapes or resolved paths would have to call them
+# the same. The contents differ instead. sync-skill-assets.sh excludes __tests__
+# from the distribution, so it is only ever present in the development tree, and
+# its presence at the destination is the one reliable signal.
+#
+# -d follows symbolic links, so this also covers the checkout layout where
+# .claude/skills is a link to ../skills and the destination resolves through it
+# onto the shared library itself.
+#
+# The path checked is where _scripts is actually written, not where the command
+# was run. Those differ: the destination comes from BASH_SOURCE, so it stays on
+# the development tree no matter the working directory, while a cwd-based check
+# only finds its marker at the repository root and waves the rest through.
 #
 # Only --force can do damage. Without it copy_entry skips a destination that
 # already exists, and never reaches its removal.
 #
-# @arg $1 string Directory to deploy into
+# @arg $1 string The _scripts path the deploy would write to
 # @arg $2 string Non-empty when --force was given
 # @return 0 If the deploy may proceed
-# @return 1 If the skills directory is a symlink and --force was given
-assert_skills_dir_not_symlink() {
-  local base="$1" force="$2"
-  local skills_dir
+# @return 1 If the destination holds __tests__ and --force was given
+assert_dest_not_development_tree() {
+  local dest="$1" force="$2"
 
   [[ -n "$force" ]] || return 0
+  [[ -d "${dest}/__tests__" ]] || return 0
 
-  # 監視対象は _scripts の展開先の親。エントリから導出するのは、展開先が
-  # 変わったときにガードが黙って別の場所を見に行かないようにするため。
-  # 導出できなければ止める。見張る先を失ったまま --force を通さない。
-  local dest
-  dest="$(scripts_destination)" || return 1
-  skills_dir="${base}/$(dirname "$dest")"
-  [[ -L "$skills_dir" ]] || return 0
-
-  echo "Error: ${skills_dir} is a symbolic link, which is how the chatlog-exporter" >&2
-  echo "       checkout itself is laid out, not a project deployed into." >&2
-  echo "       Deploying with --force here would replace the shared library through" >&2
-  echo "       that link and lose the files the distribution omits, such as __tests__/." >&2
+  echo "Error: ${dest} holds __tests__/, so it is the chatlog-exporter development" >&2
+  echo "       tree itself, not a project deployed into. The distribution never" >&2
+  echo "       carries __tests__/, so nothing installed normally looks like this." >&2
+  echo "       Deploying with --force here would replace the shared library and lose" >&2
+  echo "       the files the distribution omits, such as __tests__/." >&2
   echo "       Nothing was deployed. Run this from the project you want it deployed into." >&2
   return 1
 }
 
 ##
-# @description Report where the shared _scripts library is deployed
-#
-# Read out of DEPLOY_ENTRIES rather than written down twice, so the guard above
-# and the copy below cannot drift apart.
-#
-# @stdout The _scripts destination, relative to the target directory
-# @return 1 If no entry deploys _scripts
-scripts_destination() {
-  local entry
-
-  for entry in "${DEPLOY_ENTRIES[@]}"; do
-    if [[ "${entry%%|*}" == "_scripts" ]]; then
-      echo "${entry##*|}"
-      return 0
-    fi
-  done
-
-  echo "Error: no _scripts entry in DEPLOY_ENTRIES" >&2
-  return 1
-}
-
-##
-# @description Deploy every entry from the skill directory into the target directory
+# @description Deploy every entry from the skill directory to its own base
 # @arg $1 string Skill directory holding assets/ and _scripts/
 # @arg $2 string Directory to deploy into
-# @arg $3 string Non-empty to overwrite destinations that already exist
+# @arg $3 string Directory the skill is installed under
+# @arg $4 string Non-empty to overwrite destinations that already exist
 # @return 0 If every entry is copied or skipped
-# @return 1 If a source is missing or the skills directory is a symlink under --force
+# @return 1 If a source is missing
 run_setup() {
-  local skill_dir="$1" base="$2" force="$3"
-  local entry
+  local skill_root="$1" target_dir="$2" skills_dir="$3" force="$4"
+  local entry src dest base_dir
 
-  assert_sources_exist "$skill_dir" || return 1
-  assert_skills_dir_not_symlink "$base" "$force" || return 1
+  # 展開元がすべて揃ってから書き始める。半端なツリーを残さないため。
+  assert_sources_exist "$skill_root" || return 1
 
   for entry in "${DEPLOY_ENTRIES[@]}"; do
-    copy_entry "${skill_dir}/${entry%%|*}" "${base}/${entry##*|}" "$force" || return 1
+    IFS='|' read -r src dest <<<"$entry"
+    base_dir="$(resolve_dest_base "$src" "$target_dir" "$skills_dir")"
+    copy_entry "${skill_root}/${src}" "${base_dir}/${dest}" "$force" || return 1
   done
 }
 
@@ -193,20 +214,25 @@ usage() {
   cat <<'EOF'
 Usage: bash skills/setup-chatlogs/scripts/setup-chatlogs.sh [--force] [--help]
 
-Deploys the chatlog-exporter configuration and shared scripts into the current
-directory. Run it from the directory you want them deployed into:
+Deploys the chatlog-exporter configuration into the current directory and the
+shared scripts next to this skill. Run it from the directory you want the
+configuration deployed into:
 
-  assets/.config/chatlog-exporter/ -> .config/chatlog-exporter/
-  assets/deno.json                 -> deno.json
-  _scripts/                        -> .claude/skills/_scripts/
+  assets/.config/chatlog-exporter/ -> <current dir>/.config/chatlog-exporter/
+  assets/deno.json                 -> <current dir>/deno.json
+  _scripts/                        -> <skills dir>/_scripts/
+
+The shared library goes beside the skill, under the skills directory it is
+installed in, because every skill imports it as ../../_scripts/ and that path
+resolves from where the skill lives, not from where the command is run.
 
 An entry whose destination already exists is skipped as a whole and reported;
 existing destinations are never merged file by file.
 
---force is refused before anything is written when .claude/skills is a symbolic
-link, which is how the chatlog-exporter checkout itself is laid out. Overwriting
-through that link would replace the shared library and lose the files the
-distribution omits, such as __tests__/.
+--force is refused before anything is written when the destination holds
+__tests__/, which marks it as the chatlog-exporter development tree rather than
+a project deployed into. Overwriting there would replace the shared library and
+lose the files the distribution omits, such as __tests__/ itself.
 
 Options:
   --force  Overwrite destinations that already exist
@@ -252,7 +278,8 @@ parse_args() {
 # @description Main entry point
 # @arg $@ string Command line options (--force, --help)
 # @return 0 If the entries are deployed
-# @return 1 If the options are invalid or a source is missing
+# @return 1 If the options are invalid, the run is refused as a --force deploy onto
+#           the development tree, or a source is missing
 main() {
   local force
   if ! force="$(parse_args "$@")"; then
@@ -265,10 +292,15 @@ main() {
     return 0
   fi
 
-  local skill_dir target_dir
-  skill_dir="$(resolve_skill_dir)"
+  local skill_root target_dir skills_dir
+  skill_root="$(resolve_skill_root)"
   target_dir="$(resolve_target_dir)"
-  run_setup "$skill_dir" "$target_dir" "$force"
+  skills_dir="$(resolve_skills_dir)"
+
+  # 共有ライブラリを実際に置き換える先を見張る。--force 実行時だけ中断する。
+  assert_dest_not_development_tree "${skills_dir}/_scripts" "$force" || return 1
+
+  run_setup "$skill_root" "$target_dir" "$skills_dir" "$force"
 }
 
 # Only run when executed directly, so tests can source this file for its functions.
