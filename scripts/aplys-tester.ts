@@ -32,9 +32,9 @@ export const TYPES_REQUIRING_ENV = new Set<string>(['unit', 'functional', 'e2e',
 // 特殊モジュール: 固有のパス構造を持つ
 const _SPECIAL_GLOB_TABLE = {
   'all': '**/__tests__',
-  'libs': '**/_scripts/**/__tests__',
+  'libs': '**/_cle-libs/**/__tests__',
   'scripts': 'scripts/**/__tests__',
-  'classes': '**/_scripts/classes/**/__tests__',
+  'classes': '**/_cle-libs/classes/**/__tests__',
 } as const;
 
 // スキルモジュール: 短縮名 → フルモジュール名
