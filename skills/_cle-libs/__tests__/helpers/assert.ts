@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/assert.ts
+// src: skills/_cle-libs/__tests__/helpers/assert.ts
 // @(#): テスト共通アサーション関数
 //       null チェック・真偽値・ファイル存在を一箇所に集約する
 //

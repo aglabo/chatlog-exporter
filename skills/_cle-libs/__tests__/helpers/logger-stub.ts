@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/logger-stub.ts
+// src: skills/_cle-libs/__tests__/helpers/logger-stub.ts
 // @(#): logger スタブユーティリティ
 //       logger オブジェクトの各メソッドをスタブし、出力メッセージを配列でキャプチャする
 //

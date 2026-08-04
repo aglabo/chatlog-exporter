@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/find-fixture-dirs.unit.spec.ts
+// src: skills/_cle-libs/__tests__/helpers/find-fixture-dirs.unit.spec.ts
 // @(#): findFixtureDirs ユニットテスト
 //       isFixtureDirProvider を DI して実ファイルシステムに依存しないテストを実施する
 //

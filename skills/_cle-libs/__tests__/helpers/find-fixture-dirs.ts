@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/find-fixture-dirs.ts
+// src: skills/_cle-libs/__tests__/helpers/find-fixture-dirs.ts
 // @(#): findFixtureDirs — fixture ディレクトリ再帰収集ヘルパー
 //       isFixtureDirProvider を DI で注入し、テスト可能な設計にする
 //

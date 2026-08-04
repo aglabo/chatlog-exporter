@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/chatlog-entry-helpers.ts
+// src: skills/_cle-libs/__tests__/helpers/chatlog-entry-helpers.ts
 // @(#): ChatlogEntry テストヘルパー
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

@@ -2,7 +2,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// src: skills/_scripts/__tests__/helpers/__tests__/assert.unit.spec.ts
+// src: skills/_cle-libs/__tests__/helpers/__tests__/assert.unit.spec.ts
 // @(#): assert ヘルパー関数ユニットテスト
 //       対象: assertTrue / assertNull / assertNotNull / assertFileExist / assertFileNotExist
 //             assertThrowsChatlogError / assertRejectsChatlogError

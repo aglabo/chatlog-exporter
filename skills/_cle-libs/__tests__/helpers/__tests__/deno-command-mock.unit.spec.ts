@@ -1,4 +1,4 @@
-// src: skills/_scripts/__tests__/helpers/__tests__/deno-command-mock.unit.spec.ts
+// src: skills/_cle-libs/__tests__/helpers/__tests__/deno-command-mock.unit.spec.ts
 // @(#): deno-command-mock ヘルパー関数ユニットテスト
 //       対象: wrapClaudeJson
 //
