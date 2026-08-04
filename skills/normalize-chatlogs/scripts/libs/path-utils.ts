@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getBasename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 /**
  * Extracts the base name (without extension and trailing hash) from a file path.

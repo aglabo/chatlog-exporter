@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { runExport } from '../../export-chatlogs.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
 import type { ExportConfig } from '../../types/export-config.types.ts';
 

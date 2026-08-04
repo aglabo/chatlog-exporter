@@ -10,7 +10,7 @@
 // Deno Test module
 import { assertEquals } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // test helpers
 import {
@@ -20,13 +20,13 @@ import {
   makeFailMock,
   makeSuccessMock,
   wrapClaudeJson,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 
 // test target
 import { segmentChatlogs } from '../../modules/segment-ai.ts';
 // classes
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { SegmentPlan } from '../../types/normalize.types.ts';
 

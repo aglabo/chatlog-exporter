@@ -14,13 +14,13 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
-import { installCommandMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { installCommandMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 import { enc, makeDicsDir, makeSequentialMock } from '../helpers/setfm-e2e-helpers.ts';
 // types
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
 // ─── Tests
 

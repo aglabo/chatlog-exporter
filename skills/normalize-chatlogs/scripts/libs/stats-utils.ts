@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
 
 // ─── Local
 // types

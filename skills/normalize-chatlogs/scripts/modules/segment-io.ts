@@ -10,23 +10,23 @@
 // ─── shared modules ───────────────────────────────────────────────────────────
 
 // types
-import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
+import type { HashProvider } from '../../../_cle-libs/types/providers.types.ts';
 
 // classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { ChatlogFrontmatter } from '../../../_scripts/classes/ChatlogFrontmatter.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { ChatlogFrontmatter } from '../../../_cle-libs/classes/ChatlogFrontmatter.class.ts';
 
 // --- file operations ---
-import { backupOldPath } from '../../../_scripts/libs/file-ops/backup-old-path.ts';
+import { backupOldPath } from '../../../_cle-libs/libs/file-ops/backup-old-path.ts';
 
 // --- file-io ---
-import { writeTextFile } from '../../../_scripts/libs/file-io/write-utils.ts';
+import { writeTextFile } from '../../../_cle-libs/libs/file-io/write-utils.ts';
 
 // --- io ---
-import { generateHash } from '../../../_scripts/libs/io/hash.ts';
+import { generateHash } from '../../../_cle-libs/libs/io/hash.ts';
 
 // --- path ---
-import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getBasename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── internasl modules
 // functions

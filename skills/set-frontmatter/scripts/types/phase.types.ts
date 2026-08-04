@@ -6,7 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 
 // ─────────────────────────────────────────────
 // フェーズ結果型

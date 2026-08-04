@@ -11,24 +11,24 @@
 // ─────────────────────────────────────────────
 
 // -- classes --
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 
 // -- types --
-import type { HashProvider } from '../../_scripts/types/providers.types.ts';
+import type { HashProvider } from '../../_cle-libs/types/providers.types.ts';
 
 // -- constants --
 import {
   DEFAULT_AGENT,
   DEFAULT_NORMALIZE_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
-} from '../../_scripts/constants/defaults.constants.ts';
+} from '../../_cle-libs/constants/defaults.constants.ts';
 
 // -- file-io --
-import { resolveChatlogsDir, resolveOutputBase } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { dirExistsSync } from '../../_scripts/libs/file-ops/exists-utils.ts';
+import { resolveChatlogsDir, resolveOutputBase } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { dirExistsSync } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
 
 // -- io --
-import { logger } from '../../_scripts/libs/io/logger.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
 
 // ─────────────────────────────────────────────
 // local modules

@@ -18,8 +18,8 @@ import { _rebuildSegments } from '../../phase-write.ts';
 import { toCacheKey } from '../../../libs/cache-utils.ts';
 import { extractLines } from '../../../libs/line-utils.ts';
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 

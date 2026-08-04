@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // constants
-import { DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CONCURRENCY } from '../../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type { NormalizeConfig } from '../types/normalize.types.ts';
 

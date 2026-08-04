@@ -16,7 +16,7 @@ import { loadClassifyEntries } from '../../load-entries.ts';
 
 // ─── Helpers
 // types
-import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../../../_cle-libs/types/frontmatter.types.ts';
 import type { FindBufferEntriesOptions } from '../../../types/classify.types.ts';
 import type { LoadClassifyEntryFailure } from '../../../types/load-classify-entry.types.ts';
 

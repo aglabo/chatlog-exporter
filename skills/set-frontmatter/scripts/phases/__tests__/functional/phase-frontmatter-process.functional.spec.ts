@@ -17,8 +17,8 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';

@@ -16,10 +16,10 @@ import { stub } from '@std/testing/mock';
 // ─── Test target
 import { prefilterFiles } from '../../../modules/prefilter.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { makePeriodDir, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
 // constants
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';

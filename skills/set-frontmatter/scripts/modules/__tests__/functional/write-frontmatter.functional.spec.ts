@@ -20,10 +20,10 @@ import type { Stub } from '@std/testing/mock';
 import { writeFrontmatter } from '../../setfm-write.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { fileOrDirExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 

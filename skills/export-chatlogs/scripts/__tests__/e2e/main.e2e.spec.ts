@@ -20,11 +20,11 @@ import type { Stub } from '@std/testing/mock';
 import { main } from '../../export-chatlogs.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { writeJsonl } from '../_helpers/jsonl-writer.ts';
 // types
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import type { ChatGPTConversation } from '../../exporter/types/chatgpt-entry.types.ts';
 
 // ─── Internal Helpers

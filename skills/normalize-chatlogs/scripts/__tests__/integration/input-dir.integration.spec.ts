@@ -13,7 +13,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { dirExistsSync } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { dirExistsSync } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 
 // ─── dirExistsSync 統合テスト ──────────────────────────────────────────────
 

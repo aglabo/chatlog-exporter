@@ -25,10 +25,10 @@ import {
 } from '../../modules/setfm-write.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
-import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../../_cle-libs/types/frontmatter.types.ts';
 import type { SetfmCache } from '../../types/cache.types.ts';
 
 // ─── Internal Helpers

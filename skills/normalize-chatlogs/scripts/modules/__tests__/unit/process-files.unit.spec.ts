@@ -18,22 +18,22 @@ import type { Stub } from '@std/testing/mock';
 // ─── Test target
 import { processFiles } from '../../process-files.ts';
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 
 // ─── Helpers
-import { assertDirExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertDirExist } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 import {
   installCommandMock,
   makeCountingMock,
   makeFailMock,
   makeSuccessMock,
   wrapClaudeJson,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { initStats } from '../../../libs/stats-utils.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';

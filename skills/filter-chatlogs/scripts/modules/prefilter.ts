@@ -17,17 +17,17 @@ import {
   hasUserTurn,
   isSingleUserTurn,
   parseConversation,
-} from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
-import { removeFile } from '../../../_scripts/libs/file-ops/remove-utils.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+} from '../../../_cle-libs/libs/chatlogs/conversation-utils.ts';
+import { removeFile } from '../../../_cle-libs/libs/file-ops/remove-utils.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 // constants
-import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_cle-libs/constants/config-schema.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 
 // ─── internal ───
 // classes
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // functions
 import { checkFilename } from '../libs/classify-file.ts';
 import { extractConversation } from '../libs/common-utils.ts';

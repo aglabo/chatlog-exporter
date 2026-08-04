@@ -8,7 +8,7 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 const SCRIPT_PATH = normalizePath(new URL('../../classify-chatlogs.ts', import.meta.url).pathname);
 

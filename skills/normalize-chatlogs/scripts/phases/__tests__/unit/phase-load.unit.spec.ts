@@ -19,10 +19,10 @@ import type { Stub } from '@std/testing/mock';
 import { phaseLoad } from '../../phase-load.ts';
 
 // ─── Helpers
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
 import type { NormalizeConfig } from '../../../types/normalize.types.ts';
 

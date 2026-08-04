@@ -8,12 +8,12 @@
 
 // ─── shared ───
 // classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // functions
-import { parseConversation, renderConversation } from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
-import { dirExists } from '../../../_scripts/libs/file-ops/exists-utils.ts';
+import { parseConversation, renderConversation } from '../../../_cle-libs/libs/chatlogs/conversation-utils.ts';
+import { dirExists } from '../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // types
-import type { StatProvider } from '../../../_scripts/types/providers.types.ts';
+import type { StatProvider } from '../../../_cle-libs/types/providers.types.ts';
 
 // ─── internal ───
 // constants

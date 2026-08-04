@@ -23,11 +23,11 @@ import {
 } from '../../segment-io.ts';
 
 // ─── Helpers
-import { assertFileExist } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertFileExist } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { ChatlogFrontmatter } from '../../../../../_scripts/classes/ChatlogFrontmatter.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { ChatlogFrontmatter } from '../../../../../_cle-libs/classes/ChatlogFrontmatter.class.ts';
 
 // ─── Tests
 

@@ -16,7 +16,7 @@
 // ─── BDD modules
 import { assertEquals, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';

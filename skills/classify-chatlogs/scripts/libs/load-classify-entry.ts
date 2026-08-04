@@ -8,13 +8,13 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
-import { isFileIoError } from '../../../_scripts/libs/file-io/read-utils.ts';
+import { loadChatlogEntry } from '../../../_cle-libs/libs/file-io/chatlog-entry-loader.ts';
+import { isFileIoError } from '../../../_cle-libs/libs/file-io/read-utils.ts';
 
 // ─── Local
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { LoadClassifyEntryFailure } from '../types/load-classify-entry.types.ts';
 
 /**

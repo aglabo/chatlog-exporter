@@ -17,8 +17,8 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 import { phaseTypeAndCategory } from '../../phase-type-category.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types

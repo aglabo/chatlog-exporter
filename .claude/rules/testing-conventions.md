@@ -60,7 +60,7 @@ import type { Stub } from '@std/testing/mock'; // 型が必要な場合のみ
 
 ```typescript
 // ─── Test target
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // functions
 import { buildConfig } from '../../export-chatlog.ts';
 ```
@@ -72,7 +72,7 @@ import { buildConfig } from '../../export-chatlog.ts';
 
 ```typescript
 // ─── Helpers
-import { normalizePath } from '../../../../_scripts/libs/file-io/path-utils.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/file-io/path-utils.ts';
 // constants
 import { BASE_CONFIG } from '../constants/config.ts';
 // types

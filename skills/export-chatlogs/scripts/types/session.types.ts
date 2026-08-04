@@ -6,7 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import type { Turn } from '../../../_scripts/types/conversation.types.ts';
+import type { Turn } from '../../../_cle-libs/types/conversation.types.ts';
 
 /**
  * エクスポートセッションのメタ情報。

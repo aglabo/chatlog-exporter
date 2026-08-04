@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write
 // src: scripts/__tests__/functional/find-md-files.functional.spec.ts
 // @(#): findFiles の機能テスト - GlobProvider 注入によるモック
-//       対象: findFiles (skills/_scripts/libs/find-files.ts 経由で呼び出し)
+//       対象: findFiles (skills/_cle-libs/libs/find-files.ts 経由で呼び出し)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,8 +12,8 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
-import type { GlobProvider } from '../../../../_scripts/types/providers.types.ts';
+import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
+import type { GlobProvider } from '../../../../_cle-libs/types/providers.types.ts';
 
 // ─── local helpers ────────────────────────────────────────────────────────────
 

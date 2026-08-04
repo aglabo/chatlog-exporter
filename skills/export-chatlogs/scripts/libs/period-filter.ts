@@ -8,9 +8,9 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // error
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // libs
-import { isoToLocalDayMs } from '../../../_scripts/libs/text/date-utils.ts';
+import { isoToLocalDayMs } from '../../../_cle-libs/libs/text/date-utils.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types

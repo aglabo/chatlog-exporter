@@ -15,8 +15,8 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { loadFilterEntries, loadFilterEntry } from '../../load-filter-entry.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { CLEResult } from '../../../types/cache.types.ts';
 // constants

@@ -16,18 +16,18 @@ import { buildClassifyPrompt } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // functions
 import {
   findFixtureDirs,
   type IsFixtureDirProvider,
-} from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../../../../_cle-libs/libs/file-ops/find-files.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { loadProjectDic } from '../../../libs/load-project-dic.ts';
 
 // ─── Internal Helpers

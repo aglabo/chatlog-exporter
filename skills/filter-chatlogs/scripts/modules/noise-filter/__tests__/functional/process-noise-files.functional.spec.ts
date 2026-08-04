@@ -15,12 +15,12 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { processNoiseFiles } from '../../process-noise-files.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { fileExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { makeLoggerStub } from '../../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogEntry } from '../../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { fileExists } from '../../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { makeRepeatedContent } from '../../../../__tests__/_helpers/fixtures.ts';
 // types
-import type { LoggerStub } from '../../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
 import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../../../../__tests__/_helpers/constants.ts';
 

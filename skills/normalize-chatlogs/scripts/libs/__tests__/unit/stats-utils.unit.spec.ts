@@ -15,8 +15,8 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { initStats, reportStats } from '../../stats-utils.ts';
 
 // ─── Helpers
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // types
 import type { Stats } from '../../../types/normalize.types.ts';
 

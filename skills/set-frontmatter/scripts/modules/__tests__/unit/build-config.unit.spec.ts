@@ -17,11 +17,11 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { buildConfig } from '../../setfm-config.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
-import { joinPath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { joinPath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_CACHE_ROOT, DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CACHE_ROOT, DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 

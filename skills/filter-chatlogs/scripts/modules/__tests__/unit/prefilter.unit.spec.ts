@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { isExcludedByContent, isExcludedByFilename, isSystemOnlyMessage } from '../../prefilter.ts';
 // constants
-import { DEFAULT_CONFIG_VALUES } from '../../../../../_scripts/constants/config-schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../../../_cle-libs/constants/config-schema.constants.ts';
 
 // ─── Internal Helpers
 

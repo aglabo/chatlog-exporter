@@ -19,13 +19,13 @@ import type { Stub } from '@std/testing/mock';
 import { phaseWrite } from '../../phase-write.ts';
 
 // ─── Helpers
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 import { toCacheKey } from '../../../libs/cache-utils.ts';
 import { initStats } from '../../../libs/stats-utils.ts';
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';

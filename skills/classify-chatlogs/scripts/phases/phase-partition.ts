@@ -9,8 +9,8 @@
 
 // ─── Local
 // types
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { ClassifyCache, ClassifyPartition } from '../types/classify.types.ts';
 
 /**

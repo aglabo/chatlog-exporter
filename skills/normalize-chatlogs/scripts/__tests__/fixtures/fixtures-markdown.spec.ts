@@ -15,8 +15,8 @@ import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test helpers
-import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { findFixtureDirs } from '../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 import { collectOutputFiles } from './helpers/fixture-helpers.ts';
 
 // test target

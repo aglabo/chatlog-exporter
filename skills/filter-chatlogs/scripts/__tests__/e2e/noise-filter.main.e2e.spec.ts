@@ -18,19 +18,19 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { main } from '../../noise-filter-chatlogs.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // types
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_cle-libs/constants/defaults.constants.ts';
 // e2e helpers
-import { assertFileExist, assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
-import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { assertFileExist, assertFileNotExist } from '../../../../_cle-libs/__tests__/helpers/assert.ts';
+import { fileExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { makePeriodDir, makeRepeatedContent, makeTestDirs, makeValidContent } from '../_helpers/fixtures.ts';
 // helpers
-import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
+import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 

@@ -61,10 +61,10 @@ EOF
 #
 # Mirrors the three sync sources sync-skill-assets.sh reads, shrunk to tiny
 # stand-in payloads. The specs must never drive the sync against the real
-# checkout: asserting on it would turn "someone edited skills/_scripts/ and did
+# checkout: asserting on it would turn "someone edited skills/_cle-libs/ and did
 # not re-sync" into a red unit suite, and --fail-fast=1 would stop everything.
 #
-# skills/_scripts/ carries a nested __tests__/helpers/__tests__ so the specs can
+# skills/_cle-libs/ carries a nested __tests__/helpers/__tests__ so the specs can
 # prove the exclusion prunes at every depth, not just at the top level.
 #
 # @stdout Absolute path to the new repository root
@@ -73,15 +73,15 @@ make_fixture_source_repo() {
   repo="$(mktemp -d)"
   mkdir -p \
     "${repo}/.config/chatlog-exporter/dics" \
-    "${repo}/skills/_scripts/libs/file-io" \
-    "${repo}/skills/_scripts/__tests__/unit" \
-    "${repo}/skills/_scripts/libs/__tests__/helpers/__tests__"
+    "${repo}/skills/_cle-libs/libs/file-io" \
+    "${repo}/skills/_cle-libs/__tests__/unit" \
+    "${repo}/skills/_cle-libs/libs/__tests__/helpers/__tests__"
   echo 'agent: claude' >"${repo}/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${repo}/.config/chatlog-exporter/dics/category.dic"
   echo '{"tasks":{}}' >"${repo}/deno.json"
-  echo 'export const noop = 0;' >"${repo}/skills/_scripts/libs/file-io/path-utils.ts"
-  echo 'export {};' >"${repo}/skills/_scripts/__tests__/unit/noop.unit.spec.ts"
-  echo 'export {};' >"${repo}/skills/_scripts/libs/__tests__/helpers/__tests__/deep.ts"
+  echo 'export const noop = 0;' >"${repo}/skills/_cle-libs/libs/file-io/path-utils.ts"
+  echo 'export {};' >"${repo}/skills/_cle-libs/__tests__/unit/noop.unit.spec.ts"
+  echo 'export {};' >"${repo}/skills/_cle-libs/libs/__tests__/helpers/__tests__/deep.ts"
   git -C "$repo" init -q
   echo "$repo"
 }
@@ -97,11 +97,11 @@ make_fixture_source_repo() {
 make_fixture_skill_dir() {
   local skill_dir
   skill_dir="$(mktemp -d)"
-  mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/_scripts/libs"
+  mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/assets/_cle-libs/libs"
   echo 'agent: claude' >"${skill_dir}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill_dir}/assets/.config/chatlog-exporter/dics/category.dic"
   echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
-  echo 'export {};' >"${skill_dir}/_scripts/libs/noop.ts"
+  echo 'export {};' >"${skill_dir}/assets/_cle-libs/libs/noop.ts"
   echo "$skill_dir"
 }
 
@@ -110,16 +110,16 @@ make_fixture_skill_dir() {
 #
 # Reproduces the layout that makes --force destructive in this checkout: the
 # skill ships from <repo>/skills/setup-chatlogs/, and <repo>/.claude/skills is a
-# symlink to ../skills, so the _scripts destination resolves back onto the shared
-# library at <repo>/skills/_scripts.
+# symlink to ../skills, so the _cle-libs destination resolves back onto the shared
+# library at <repo>/skills/_cle-libs.
 #
-# skills/_scripts/__tests__/keep.md is the marker the specs assert on: the
-# distribution copy under skills/setup-chatlogs/_scripts/ deliberately omits
+# skills/_cle-libs/__tests__/keep.md is the marker the specs assert on: the
+# distribution copy under skills/setup-chatlogs/assets/_cle-libs/ deliberately omits
 # __tests__, so a destructive deploy loses the file and a guarded one keeps it.
 #
 # The root is always under mktemp -d, never the checkout: these specs exercise
 # the destructive path, so pointing them at the real tree would delete the
-# actual skills/_scripts/__tests__.
+# actual skills/_cle-libs/__tests__.
 #
 # @stdout Absolute path to the new repository root
 make_fixture_symlinked_repo() {
@@ -129,16 +129,16 @@ make_fixture_symlinked_repo() {
 
   # 共有ライブラリの実体。__tests__ は配布物には含まれないため、
   # 破壊的な展開が起きるとこのファイルが失われる。
-  mkdir -p "${repo}/skills/_scripts/libs" "${repo}/skills/_scripts/__tests__"
-  echo 'export {};' >"${repo}/skills/_scripts/libs/noop.ts"
-  echo '# keep' >"${repo}/skills/_scripts/__tests__/keep.md"
+  mkdir -p "${repo}/skills/_cle-libs/libs" "${repo}/skills/_cle-libs/__tests__"
+  echo 'export {};' >"${repo}/skills/_cle-libs/libs/noop.ts"
+  echo '# keep' >"${repo}/skills/_cle-libs/__tests__/keep.md"
 
   # 配布物としてのスキルディレクトリ（__tests__ を持たない）。
-  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/_scripts/libs"
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
   echo '{"tasks":{}}' >"${skill}/assets/deno.json"
-  echo 'export {};' >"${skill}/_scripts/libs/noop.ts"
+  echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
 
   mkdir -p "${repo}/.claude"
   (cd "${repo}/.claude" && MSYS=winsymlinks:nativestrict ln -s ../skills skills)
@@ -168,16 +168,87 @@ make_fixture_installed_repo() {
   repo="$(mktemp -d)"
   skill="${repo}/.claude/skills/setup-chatlogs"
 
-  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/_scripts/libs" "${skill}/scripts"
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs" "${skill}/scripts"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
   echo '{"tasks":{}}' >"${skill}/assets/deno.json"
-  echo 'export {};' >"${skill}/_scripts/libs/noop.ts"
+  echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
   echo '# setup' >"${skill}/SKILL.md"
 
   # 兄弟スキル。展開先を取り違えると巻き添えで消える位置に置く。
   mkdir -p "${repo}/.claude/skills/export-chatlogs"
   echo '# export' >"${repo}/.claude/skills/export-chatlogs/SKILL.md"
+
+  git -C "$repo" init -q
+  echo "$repo"
+}
+
+##
+# @description Create a throwaway home holding a skill installed in User scope
+#
+# Reproduces what a skill manager leaves behind when it installs into the user's
+# home rather than a project: the skill sits at
+# <home>/.claude/skills/setup-chatlogs/ and the project it is run against is a
+# separate directory entirely. That gap is the bug this fixture exists for — the
+# shared library must land next to the skill, not next to the project, or the
+# sibling skills' ../../_cle-libs/ imports resolve to nothing.
+#
+# export-chatlogs/ carries the import that has to resolve, so the specs can
+# assert on the destination the real skills actually reach for.
+#
+# @stdout Absolute path to the new home root
+make_fixture_user_scope_home() {
+  local home skill
+  home="$(mktemp -d)"
+  skill="${home}/.claude/skills/setup-chatlogs"
+
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs" "${skill}/scripts"
+  echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
+  echo '# setup' >"${skill}/SKILL.md"
+
+  # 兄弟スキル。この import が解決する位置が _cle-libs の正しい展開先である。
+  mkdir -p "${home}/.claude/skills/export-chatlogs/scripts"
+  echo '# export' >"${home}/.claude/skills/export-chatlogs/SKILL.md"
+  echo "import '../../_cle-libs/libs/noop.ts';" >"${home}/.claude/skills/export-chatlogs/scripts/export-chatlogs.ts"
+
+  echo "$home"
+}
+
+##
+# @description Create a throwaway checkout whose skills/ holds the shared library itself
+#
+# The source-checkout layout without the symlink: the skill ships from
+# <repo>/skills/setup-chatlogs/ and the shared library it deploys lives beside it
+# at <repo>/skills/_cle-libs. Deploying the library next to the skill therefore
+# targets the development tree directly, with no link in the way.
+#
+# skills/_cle-libs/__tests__/keep.md is the marker the specs assert on, and the
+# one thing that tells this layout apart from a legitimate User-scope install:
+# the distribution copy under skills/setup-chatlogs/assets/_cle-libs/ never carries
+# __tests__, because sync-skill-assets.sh excludes it.
+#
+# Always under mktemp -d, never the checkout: this is the destructive path.
+#
+# @stdout Absolute path to the new repository root
+make_fixture_source_checkout() {
+  local repo skill
+  repo="$(mktemp -d)"
+  skill="${repo}/skills/setup-chatlogs"
+
+  # 共有ライブラリの実体。__tests__ は配布物には含まれない。
+  mkdir -p "${repo}/skills/_cle-libs/libs" "${repo}/skills/_cle-libs/__tests__"
+  echo 'export {};' >"${repo}/skills/_cle-libs/libs/noop.ts"
+  echo '# keep' >"${repo}/skills/_cle-libs/__tests__/keep.md"
+
+  # 配布物としてのスキルディレクトリ（__tests__ を持たない）。
+  mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs"
+  echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
+  echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
 
   git -C "$repo" init -q
   echo "$repo"

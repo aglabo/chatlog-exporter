@@ -34,7 +34,7 @@
     "format:dprint": "dprint fmt",
     "lint:spells": "cspell --config .vscode/cspell.json --cache --cache-location .cache/cspell/cSpellCache ",
     "lint:text": "textlint --config ./configs/textlintrc.yaml ",
-    "lint:mdx": "remark --rc-path ./configs/remark.config.mjs \"aglabo.github.io/docs/**/*.mdx\"",
+    "lint:markdown": "remark --rc-path ./configs/remark.config.mjs \"aglabo.github.io/docs/**/*.mdx\"",
     "lint:sh": "bash runners/run-shellcheck.sh ",
     "test:sh": "bash runners/run-shellspec.sh ",
     "test:sh:all": "bash runners/run-shellspec.sh all"

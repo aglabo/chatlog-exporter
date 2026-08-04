@@ -24,20 +24,20 @@ import {
   makeClaudeJsonMock,
   makeFailMock,
   makeNotFoundMock,
-} from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { ChatlogCache } from '../../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../../_scripts/classes/ChatlogError.class.ts';
-import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/config-schema.constants.ts';
-import { DEFAULT_AI_MODEL } from '../../../../../../_scripts/constants/defaults.constants.ts';
+} from '../../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { ChatlogCache } from '../../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../../../../_cle-libs/constants/config-schema.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type {
   CommandMockHandle,
   DenoCommandLike,
-} from '../../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 // exists
-import { fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { fileOrDirExists } from '../../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 // types

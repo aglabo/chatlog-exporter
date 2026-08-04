@@ -18,13 +18,13 @@ import type { FilterConfig } from '../../../types/filter.types.ts';
 
 // ─── Helpers
 // constants
-import { DEFAULT_CONFIG_VALUES } from '../../../../../_scripts/constants/config-schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../../../_cle-libs/constants/config-schema.constants.ts';
 import { DEFAULT_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // helpers
-import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
+import { resetProjectRoot } from '../../../../../_cle-libs/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 

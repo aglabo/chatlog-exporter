@@ -18,10 +18,10 @@ import { buildOutputPath, renderMarkdown } from '../../libs/session-writer.ts';
 
 // ─── Helpers
 // types
-import type { Turn } from '../../../../_scripts/types/conversation.types.ts';
+import type { Turn } from '../../../../_cle-libs/types/conversation.types.ts';
 import type { SessionMeta } from '../../types/session.types.ts';
 // constants
-import { ConversationRole } from '../../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../../_cle-libs/types/conversation-role.const.types.ts';
 
 // ─── Internal Helpers
 

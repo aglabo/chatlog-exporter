@@ -26,16 +26,16 @@
 // cspell:words dics setfm
 
 // ─── Shared scripts
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../_scripts/classes/GlobalConfig.class.ts';
-import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { logger } from '../../_scripts/libs/io/logger.ts';
-import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../_cle-libs/classes/GlobalConfig.class.ts';
+import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
+import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
+import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // ─── Local
-import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
 import { phaseFrontmatter } from './phases/phase-frontmatter.ts';
 import { phaseReview } from './phases/phase-review.ts';

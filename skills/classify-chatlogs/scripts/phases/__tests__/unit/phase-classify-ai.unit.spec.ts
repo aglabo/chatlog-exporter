@@ -11,7 +11,7 @@ import { assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 import {
@@ -20,9 +20,9 @@ import {
 } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
-import { renderFrontmatter } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
+import { renderFrontmatter } from '../../../../../_cle-libs/libs/text/frontmatter-utils.ts';
 // types
-import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../../../_cle-libs/types/frontmatter.types.ts';
 
 // ─── Internal Helpers
 

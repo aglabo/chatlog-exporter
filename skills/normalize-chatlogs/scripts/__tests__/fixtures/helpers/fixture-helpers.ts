@@ -9,7 +9,7 @@
 
 import { expandGlob } from '@std/fs';
 
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 /**
  * fixtures ディレクトリ下の output-<N>.md を番号順に収集して返す。

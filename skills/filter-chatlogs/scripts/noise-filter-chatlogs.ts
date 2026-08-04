@@ -35,18 +35,18 @@
 
 // ─── shared ───
 // functions
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
-import { logger } from '../../_scripts/libs/io/logger.ts';
+import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../_cle-libs/libs/file-ops/find-files.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
 // classes
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 // constants
-import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 
 // ─── internal ───
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type { NoiseFilterStats } from './types/stats.types.ts';
 // functions

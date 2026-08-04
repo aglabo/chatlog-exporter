@@ -12,10 +12,10 @@ import { describe, it } from '@std/testing/bdd';
 // test target
 import { loadProjectDic } from '../../load-project-dic.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Helpers
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── フィクスチャパス ──────────────────────────────────────────────────────────
 

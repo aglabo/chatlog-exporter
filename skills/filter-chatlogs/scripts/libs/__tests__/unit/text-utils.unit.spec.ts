@@ -1,5 +1,5 @@
 // src: scripts/libs/__tests__/unit/text-utils.unit.spec.ts
-// @(#): _scripts テキストユーティリティのユニットテスト
+// @(#): _cle-libs テキストユーティリティのユニットテスト
 //       対象: parseFrontmatterEntries / parseAiJsonArray
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -10,12 +10,12 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Helpers
 // functions
-import { parseFrontmatterEntries } from '../../../../../_scripts/libs/text/frontmatter-utils.ts';
-import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
+import { parseFrontmatterEntries } from '../../../../../_cle-libs/libs/text/frontmatter-utils.ts';
+import { parseAiJsonArray } from '../../../../../_cle-libs/libs/text/json-utils.ts';
 // types
 import type { ClaudeResult } from '../../../types/filter.types.ts';
 // constants

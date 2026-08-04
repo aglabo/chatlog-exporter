@@ -18,9 +18,9 @@ import { loadClassifyEntry } from '../../load-classify-entry.ts';
 
 // ─── helpers
 // errors
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── test
 

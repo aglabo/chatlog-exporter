@@ -18,7 +18,7 @@ import { classifyByNoAI, processClassifyNoAI } from '../../phase-classify-noai.t
 
 // ─── Helpers
 // types
-import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';

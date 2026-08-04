@@ -8,15 +8,15 @@
 
 // ─── shared ───
 // classes
-import type { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
+import type { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
 // functions
-import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
-import { logger } from '../../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../../_scripts/libs/parallel/concurrency.ts';
-import { getFilename } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { fileExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { removeFile } from '../../../../_cle-libs/libs/file-ops/remove-utils.ts';
+import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../../_cle-libs/libs/parallel/concurrency.ts';
+import { getFilename } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { LOGGER_TEXT } from '../../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../../_cle-libs/constants/logger.constants.ts';
 
 // ─── internal ───
 // functions

@@ -13,13 +13,13 @@ import { describe, it } from '@std/testing/bdd';
 // test target
 import { loadProjectDic } from '../../load-project-dic.ts';
 // types
-import type { ResolveConfigPathOptions } from '../../../../../_scripts/types/path-utils.types.ts';
+import type { ResolveConfigPathOptions } from '../../../../../_cle-libs/types/path-utils.types.ts';
 import type { ProjectDicEntry } from '../../../types/classify.types.ts';
 // classed
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Helpers
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── テスト用フィクスチャ ──────────────────────────────────────────────────────
 

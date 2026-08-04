@@ -10,15 +10,15 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { loadChatlogEntry as _loadEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
-import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
+import { loadChatlogEntry as _loadEntry } from '../../../_cle-libs/libs/file-io/chatlog-entry-loader.ts';
+import { findFiles } from '../../../_cle-libs/libs/file-ops/find-files.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
+import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // classes
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Local
 // types

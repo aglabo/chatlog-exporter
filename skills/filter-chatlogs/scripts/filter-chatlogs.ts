@@ -19,22 +19,22 @@
 
 // ─── shared ───
 // classes
-import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 // functions
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles } from '../../_scripts/libs/file-ops/find-files.ts';
-import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgs } from '../../_scripts/libs/io/parse-args.ts';
-import { runChunked } from '../../_scripts/libs/parallel/concurrency.ts';
-import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
+import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../_cle-libs/libs/file-ops/find-files.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
+import { parseArgs } from '../../_cle-libs/libs/io/parse-args.ts';
+import { runChunked } from '../../_cle-libs/libs/parallel/concurrency.ts';
+import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
-import { LOGGER_HEADER } from '../../_scripts/constants/logger-header.constants.ts';
-import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
+import { LOGGER_HEADER } from '../../_cle-libs/constants/logger-header.constants.ts';
+import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 // types
-import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../_cle-libs/types/args-schema.types.ts';
 
 // ─── internal ───
 // functions

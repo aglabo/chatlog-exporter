@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // types
-import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+import type { DefaultArgFields, ParsedArgs } from '../../../_cle-libs/types/args-schema.types.ts';
 import type { FilterDecision } from './filter-decision.const.types.ts';
 
 /** `noise-filter-chatlogs` の `main` が使用する設定。すべてのフィールドに値が入る。 */

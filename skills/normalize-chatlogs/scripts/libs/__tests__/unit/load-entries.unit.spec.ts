@@ -16,7 +16,7 @@ import { loadEntries } from '../../load-entries.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Tests
 

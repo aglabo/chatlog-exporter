@@ -227,8 +227,8 @@ describe('buildBaseGlob', () => {
   describe('Given: moduleName が "libs"', () => {
     describe('When: buildBaseGlob("libs") を呼び出す', () => {
       describe('Then: T-AT-BG-03 - libs 用の特殊パスを返す', () => {
-        it('T-AT-BG-03-01: 戻り値が "**/_scripts/**/__tests__" である', () => {
-          assertEquals(buildBaseGlob('libs'), '**/_scripts/**/__tests__');
+        it('T-AT-BG-03-01: 戻り値が "**/_cle-libs/**/__tests__" である', () => {
+          assertEquals(buildBaseGlob('libs'), '**/_cle-libs/**/__tests__');
         });
       });
     });
@@ -279,8 +279,8 @@ describe('buildBaseGlob', () => {
   describe('Given: moduleName が "classes"', () => {
     describe('When: buildBaseGlob("classes") を呼び出す', () => {
       describe('Then: T-AT-BG-08 - classes 用の特殊パスを返す', () => {
-        it('T-AT-BG-08-01: 戻り値が "**/_scripts/classes/**/__tests__" である', () => {
-          assertEquals(buildBaseGlob('classes'), '**/_scripts/classes/**/__tests__');
+        it('T-AT-BG-08-01: 戻り値が "**/_cle-libs/classes/**/__tests__" である', () => {
+          assertEquals(buildBaseGlob('classes'), '**/_cle-libs/classes/**/__tests__');
         });
       });
     });

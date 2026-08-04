@@ -20,14 +20,14 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // error
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 // libs
-import { logger } from '../../_scripts/libs/io/logger.ts';
-import { parseArgs } from '../../_scripts/libs/io/parse-args.ts';
-import { joinPath } from '../../_scripts/libs/path-utils/path-utils.ts';
-import type { ArgSchema } from '../../_scripts/types/args-schema.types.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
+import { parseArgs } from '../../_cle-libs/libs/io/parse-args.ts';
+import { joinPath } from '../../_cle-libs/libs/path-utils/path-utils.ts';
+import type { ArgSchema } from '../../_cle-libs/types/args-schema.types.ts';
 // constants
-import { DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CHATLOGS_DIR, DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // exporters

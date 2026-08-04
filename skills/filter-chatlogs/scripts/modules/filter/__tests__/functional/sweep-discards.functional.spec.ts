@@ -19,9 +19,9 @@ import { sweepDiscards } from '../../sweep-discards.ts';
 import type { FilterStats } from '../../../../types/stats.types.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { DEFAULT_CONFIG_VALUES } from '../../../../../../_scripts/constants/config-schema.constants.ts';
-import { fileOrDirExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { ChatlogCache } from '../../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../../../../_cle-libs/constants/config-schema.constants.ts';
+import { fileOrDirExists } from '../../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';

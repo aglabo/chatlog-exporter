@@ -8,13 +8,13 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { findEntries } from '../../../_scripts/libs/file-ops/find-entries.ts';
-import { homeDir } from '../../../_scripts/libs/path-utils/path-env.ts';
-import { normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { isoToDate } from '../../../_scripts/libs/text/date-utils.ts';
+import { readTextFile } from '../../../_cle-libs/libs/file-io/read-utils.ts';
+import { findEntries } from '../../../_cle-libs/libs/file-ops/find-entries.ts';
+import { homeDir } from '../../../_cle-libs/libs/path-utils/path-env.ts';
+import { normalizePath } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { isoToDate } from '../../../_cle-libs/libs/text/date-utils.ts';
 // constants
-import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../_cle-libs/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // libs
@@ -22,7 +22,7 @@ import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { resolveSessionId, writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
 // types
-import type { Turn } from '../../../_scripts/types/conversation.types.ts';
+import type { Turn } from '../../../_cle-libs/types/conversation.types.ts';
 import type { ExportConfig } from '../types/export-config.types.ts';
 import type { ExportResult } from '../types/export-result.types.ts';
 import type { PeriodRange } from '../types/filter.types.ts';

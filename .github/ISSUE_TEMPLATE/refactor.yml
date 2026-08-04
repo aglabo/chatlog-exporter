@@ -47,7 +47,7 @@ body:
       placeholder: |
         Files / Directories:
           - skills/filter-chatlog/scripts/prefilter-chatlog.ts
-          - skills/_scripts/libs/
+          - skills/_cle-libs/libs/
 
         Modules / Classes:
           - prefilter-chatlog module
@@ -65,7 +65,7 @@ body:
       description: |
         Describe the specific structural or architectural changes. Avoid vague descriptions like "clean up" — explain what changes and why.
       placeholder: |
-        - Replace `loadFrontmatter()` with shared `parseFrontmatterEntries()` from `_scripts/libs/`
+        - Replace `loadFrontmatter()` with shared `parseFrontmatterEntries()` from `_cle-libs/libs/`
         - Replace inline filename extraction with `getFileName()` from `path-utils.ts`
         - Consolidate pattern constants into `patterns.constants.ts`
     validations:

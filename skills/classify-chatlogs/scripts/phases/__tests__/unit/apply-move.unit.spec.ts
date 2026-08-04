@@ -17,10 +17,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { _applyMove } from '../../phase-write.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 

@@ -10,10 +10,10 @@
 //
 // ─── Imports
 // types
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
-import type { GlobProvider } from '../../../_scripts/types/providers.types.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { DefaultArgFields, ParsedArgs } from '../../../_cle-libs/types/args-schema.types.ts';
+import type { GlobProvider } from '../../../_cle-libs/types/providers.types.ts';
 import type { LoadClassifyEntryFailure } from './load-classify-entry.types.ts';
 
 // ─────────────────────────────────────────────

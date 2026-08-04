@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import { inPeriod, parsePeriod } from '../../libs/period-filter.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Tests
 

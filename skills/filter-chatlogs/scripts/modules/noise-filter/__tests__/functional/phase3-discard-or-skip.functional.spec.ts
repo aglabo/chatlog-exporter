@@ -15,10 +15,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { _phase3DiscardOrSkip } from '../../process-noise-files.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { fileExists } from '../../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { makeLoggerStub } from '../../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { fileExists } from '../../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // types
-import type { LoggerStub } from '../../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 

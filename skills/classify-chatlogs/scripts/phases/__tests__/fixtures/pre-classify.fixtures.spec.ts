@@ -19,17 +19,17 @@ import { classifyByNoAI } from '../../phase-classify-noai.ts';
 
 // ─── Helpers
 // types
-import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { FrontmatterFields } from '../../../../../_scripts/types/frontmatter.types.ts';
+import type { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { FrontmatterFields } from '../../../../../_cle-libs/types/frontmatter.types.ts';
 import type { ClassifyAction } from '../../../types/classify.types.ts';
 // functions
 import {
   findFixtureDirs,
   type IsFixtureDirProvider,
-} from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // helpers
 import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 

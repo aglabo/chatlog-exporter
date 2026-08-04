@@ -14,8 +14,8 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 // test target
 import { buildConfig } from '../../classify-config.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 
 describe('buildConfig (CLI 引数解析)', () => {
   beforeEach(() => {

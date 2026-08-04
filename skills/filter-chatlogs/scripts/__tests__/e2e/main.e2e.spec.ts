@@ -21,10 +21,10 @@ import type { Stub } from '@std/testing/mock';
 // ─── Test target
 import { main } from '../../filter-chatlogs.ts';
 // classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
-import { LOGGER_HEADER } from '../../../../_scripts/constants/logger-header.constants.ts';
+import { LOGGER_HEADER } from '../../../../_cle-libs/constants/logger-header.constants.ts';
 
 // ─── Helpers
 // mocks
@@ -34,22 +34,22 @@ import {
   makeCountingMock,
   makeFailMock,
   makeNotFoundMock,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // stub
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_cle-libs/constants/defaults.constants.ts';
 import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // types
-import type { CommandMockHandle, DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { CommandMockHandle, DenoCommandLike } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // e2e helpers
-import { assertFileNotExist } from '../../../../_scripts/__tests__/helpers/assert.ts';
-import { fileExists } from '../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { assertFileNotExist } from '../../../../_cle-libs/__tests__/helpers/assert.ts';
+import { fileExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
 // helpers
-import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
+import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 

@@ -8,7 +8,7 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // constants
-import { DEFAULT_AGENT, DEFAULT_CONCURRENCY } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_CONCURRENCY } from '../../../_cle-libs/constants/defaults.constants.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types

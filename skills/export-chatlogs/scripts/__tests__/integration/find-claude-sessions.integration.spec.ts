@@ -15,7 +15,7 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { findClaudeSessions } from '../../exporter/claude-exporter.ts';
 import { parsePeriod } from '../../libs/period-filter.ts';
 

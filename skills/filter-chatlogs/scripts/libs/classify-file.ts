@@ -15,13 +15,13 @@ import {
   hasUserTurn,
   isSingleUserTurn,
   parseConversation,
-} from '../../../_scripts/libs/chatlogs/conversation-utils.ts';
+} from '../../../_cle-libs/libs/chatlogs/conversation-utils.ts';
 // constants
-import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../_cle-libs/types/conversation-role.const.types.ts';
 // types
-import type { Conversation, Turn } from '../../../_scripts/types/conversation.types.ts';
+import type { Conversation, Turn } from '../../../_cle-libs/types/conversation.types.ts';
 // classes
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── internal ───
 // constants

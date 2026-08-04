@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { findFilesFlat } from '../../../_scripts/libs/file-ops/find-files.ts';
+import { findFilesFlat } from '../../../_cle-libs/libs/file-ops/find-files.ts';
 
 // ─── Local
 // types
