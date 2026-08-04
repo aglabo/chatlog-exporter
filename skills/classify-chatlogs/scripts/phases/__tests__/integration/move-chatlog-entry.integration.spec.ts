@@ -16,11 +16,11 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // utils
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { dirExists, fileExists, fileOrDirExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { dirExists, fileExists, fileOrDirExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // internal helpers
 import { _makeEmptyClassifyCache } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 // types

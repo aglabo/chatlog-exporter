@@ -12,7 +12,7 @@ import {
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_CONCURRENCY,
-} from '../../../_scripts/constants/defaults.constants.ts';
+} from '../../../_cle-libs/constants/defaults.constants.ts';
 import type { ClassifyConfig } from '../types/classify.types.ts';
 
 // ─────────────────────────────────────────────

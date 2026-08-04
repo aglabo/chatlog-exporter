@@ -10,16 +10,16 @@
 // cspell:words noai
 
 // ─── Shared scripts
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── Local
 // types
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { ClassifyCache, ClassifyConfig } from '../types/classify.types.ts';
 // constants
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 

@@ -19,11 +19,11 @@ import { processChunk } from '../../phase-classify-ai.ts';
 // types
 import type { ClassifyCache, ProjectDicEntry } from '../../../types/classify.types.ts';
 // classes
-import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import type { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
@@ -33,8 +33,8 @@ import {
   installCommandMock,
   makeClaudeJsonMock,
   makeFailMock,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import {
   _makeClassifyChatlogEntry,
   _makeEmptyClassifyCache,
@@ -43,8 +43,8 @@ import {
 import type {
   CommandMockHandle,
   DenoCommandLike,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
 /**
  * 非ゼロ exit かつ stderr に rate limit 文言を含む出力を模倣するモッククラス。

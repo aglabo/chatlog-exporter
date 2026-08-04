@@ -10,15 +10,15 @@
 // cspell:words MoveByAI
 
 // ─── Shared scripts
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
-import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runChunked } from '../../../_scripts/libs/parallel/concurrency.ts';
-import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { isRateLimitError } from '../../../_cle-libs/libs/ai/rate-limit-utils.ts';
+import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runChunked } from '../../../_cle-libs/libs/parallel/concurrency.ts';
+import { parseAiJsonArray } from '../../../_cle-libs/libs/text/json-utils.ts';
 
 // ─── Local
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type {
   ClassifyCache,
@@ -26,7 +26,7 @@ import type {
   ProjectDicEntry,
 } from '../types/classify.types.ts';
 // constants
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 

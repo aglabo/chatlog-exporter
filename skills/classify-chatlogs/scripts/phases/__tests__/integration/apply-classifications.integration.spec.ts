@@ -18,7 +18,7 @@ import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Internal Helpers
 import { _makeEmptyClassifyCache, _makeStats } from '../../../__tests__/_helpers/classify-test-helpers.ts';

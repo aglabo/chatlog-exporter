@@ -22,13 +22,13 @@ import {
   makeClaudeJsonMock,
   makeCountingMock,
   makeSuccessMock,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
-import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-utils.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── Internal Helpers
 

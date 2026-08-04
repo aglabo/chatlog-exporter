@@ -17,15 +17,15 @@
 // cspell:words noai
 
 // ─── Shared scripts
-import { ChatlogCache } from '../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogError } from '../../_scripts/classes/ChatlogError.class.ts';
-import { resolveChatlogsDir } from '../../_scripts/libs/file-io/resolve-directory.ts';
-import { dirExists } from '../../_scripts/libs/file-ops/exists-utils.ts';
-import { logger } from '../../_scripts/libs/io/logger.ts';
-import { getFilename } from '../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
+import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { logger } from '../../_cle-libs/libs/io/logger.ts';
+import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_scripts/constants/defaults.constants.ts';
-import { LOGGER_TEXT } from '../../_scripts/constants/logger.constants.ts';
+import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
+import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 
 // ─── Local
 import { findChatlogFilePaths } from './libs/find-files-flat.ts';

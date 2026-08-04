@@ -16,15 +16,15 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { classifyByAI } from '../../phase-classify-ai.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import type { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import type { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { ClassifyCache, ClassifyConfig, ProjectDicEntry } from '../../../types/classify.types.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { CLASSIFY_ACTIONS } from '../../../types/classify.types.ts';
 
 // ─── Internal Helpers
@@ -34,7 +34,7 @@ import {
   makeClaudeJsonMock,
   makeCountingMock,
   wrapClaudeJson,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import {
   _makeClassifyChatlogEntry,
   _makeEmptyClassifyCache,
@@ -43,8 +43,8 @@ import {
 import type {
   CommandMockHandle,
   DenoCommandLike,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
 // constants
 /** テスト共通の空プロジェクト辞書。分類対象プロジェクトを問わないテストで使用する。 */

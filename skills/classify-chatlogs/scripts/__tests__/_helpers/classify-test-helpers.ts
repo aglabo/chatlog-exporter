@@ -8,12 +8,12 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { renderFrontmatter } from '../../../../_scripts/libs/text/frontmatter-utils.ts';
+import { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { renderFrontmatter } from '../../../../_cle-libs/libs/text/frontmatter-utils.ts';
 import type { ClassifyCache, ClassifyStats } from '../../types/classify.types.ts';
 // types
-import type { FrontmatterFields } from '../../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../../_cle-libs/types/frontmatter.types.ts';
 
 // ─── Exports
 

@@ -8,13 +8,13 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── Local
 import { loadClassifyEntry } from './load-classify-entry.ts';
 // types
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { ClassifyCache, ClassifyConfig, FindBufferEntriesOptions } from '../types/classify.types.ts';
 import type { LoadClassifyEntryFailure } from '../types/load-classify-entry.types.ts';
 // constants

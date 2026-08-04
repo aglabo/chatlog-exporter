@@ -8,12 +8,12 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
-import { isValidModel } from '../../../_scripts/libs/ai/model-utils.ts';
-import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_cle-libs/constants/config-schema.constants.ts';
+import { isValidModel } from '../../../_cle-libs/libs/ai/model-utils.ts';
+import { parseArgs } from '../../../_cle-libs/libs/io/parse-args.ts';
 // types
-import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_cle-libs/types/args-schema.types.ts';
 
 // ─── Local
 // types
