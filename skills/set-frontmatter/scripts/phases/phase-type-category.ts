@@ -10,12 +10,12 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
+import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // ─── Local
 import { judgeTypeAndCategory } from '../modules/setfm-type-category.ts';
 import type { SetfmConfig } from '../types/args.types.ts';

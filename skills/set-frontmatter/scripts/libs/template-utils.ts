@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
 // テンプレート変数置換

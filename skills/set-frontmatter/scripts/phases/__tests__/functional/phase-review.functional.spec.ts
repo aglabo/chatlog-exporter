@@ -17,9 +17,9 @@ import { describe, it } from '@std/testing/bdd';
 import { phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // types
 import type { SetfmCache } from '../../../types/cache.types.ts';
 import type { Dics, Prompts } from '../../../types/dics.types.ts';

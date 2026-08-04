@@ -10,12 +10,12 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { extractYaml } from '../../../_scripts/libs/text/frontmatter-utils.ts';
-import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { extractYaml } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
+import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 
 // ─── Local
 import { formatDicEntries, formatDicEntriesShort } from '../libs/dic-format-utils.ts';

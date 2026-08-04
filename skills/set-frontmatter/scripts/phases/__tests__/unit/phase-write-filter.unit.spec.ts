@@ -17,8 +17,8 @@ import { describe, it } from '@std/testing/bdd';
 import { filterWriteEntry } from '../../phase-write.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
 import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types

@@ -9,7 +9,7 @@
 
 // cspell:words setfm
 
-import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 import type { SetfmCacheStatus } from './cache.const.type.ts';
 
 /** フェーズ単位のキャッシュデータ。各フェーズ完了後に該当フィールドを追記する。 */

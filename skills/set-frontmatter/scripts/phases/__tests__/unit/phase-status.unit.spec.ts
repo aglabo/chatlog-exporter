@@ -17,13 +17,13 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { phaseStatus } from '../../phase-status.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
-import type { LoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import type { SetfmCache } from '../../../types/cache.types.ts';
 
 // ─── Internal Helpers

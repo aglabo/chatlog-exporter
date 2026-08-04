@@ -12,7 +12,7 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { loadChatlogEntry } from '../../setfm-entry-loader.ts';

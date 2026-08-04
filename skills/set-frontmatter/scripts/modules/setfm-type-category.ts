@@ -10,14 +10,14 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_scripts/constants/defaults.constants.ts';
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import { isFatalAiError, isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
-import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_cle-libs/constants/defaults.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
+import { isFatalAiError, isRateLimitError } from '../../../_cle-libs/libs/ai/rate-limit-utils.ts';
+import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── Local
 import { formatDicEntries } from '../libs/dic-format-utils.ts';

@@ -24,15 +24,15 @@ import {
   makeFailMock,
   makeFirstNFailMock,
   wrapClaudeJson,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type {
   CommandMockHandle,
   DenoCommandLike,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 

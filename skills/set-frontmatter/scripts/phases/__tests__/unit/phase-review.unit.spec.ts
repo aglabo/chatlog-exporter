@@ -19,10 +19,10 @@ import { spy } from '@std/testing/mock';
 import { needsReviewAi, phaseReview } from '../../phase-review.ts';
 
 // ─── Helpers
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 // constants
 import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types

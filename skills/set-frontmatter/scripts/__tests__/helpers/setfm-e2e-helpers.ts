@@ -7,9 +7,9 @@
 // This software is released under the MIT License.
 
 // ─── Helpers
-import { BaseMockCommand, wrapClaudeJson } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { BaseMockCommand, wrapClaudeJson } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // types
-import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { DenoCommandLike } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 
 export const enc = new TextEncoder();
 

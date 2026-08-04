@@ -9,7 +9,7 @@
 // cspell:words setfm
 
 // types
-import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+import type { DefaultArgFields, ParsedArgs } from '../../../_cle-libs/types/args-schema.types.ts';
 
 // ─────────────────────────────────────────────
 // 設定型

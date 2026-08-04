@@ -11,16 +11,16 @@
 
 // ─── Shared scripts
 import { join, relative } from '@std/path';
-import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { extractChatlogBaseDir } from '../../../_scripts/libs/file-io/resolve-directory.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getDirectory, getFilename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { extractChatlogBaseDir } from '../../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { getDirectory, getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── Local
-import { DEFAULT_ORDERED_FIELDS } from '../../../_scripts/constants/common.constants.ts';
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
-import type { FrontmatterFields } from '../../../_scripts/types/frontmatter.types.ts';
+import { DEFAULT_ORDERED_FIELDS } from '../../../_cle-libs/constants/common.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
+import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
 import type { SetfmCache } from '../types/cache.types.ts';
 

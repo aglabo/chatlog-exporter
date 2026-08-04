@@ -13,13 +13,13 @@
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Shared scripts
-import { readTextFile } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { resolveConfigPath } from '../../../_scripts/libs/path-utils/resolve-path.ts';
-import { toStringArrayWithNull, toStringWithNull } from '../../../_scripts/libs/text/string-utils.ts';
+import { readTextFile } from '../../../_cle-libs/libs/file-io/read-utils.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { resolveConfigPath } from '../../../_cle-libs/libs/path-utils/resolve-path.ts';
+import { toStringArrayWithNull, toStringWithNull } from '../../../_cle-libs/libs/text/string-utils.ts';
 // classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../_cle-libs/classes/GlobalConfig.class.ts';
 
 // ─── Local
 // types

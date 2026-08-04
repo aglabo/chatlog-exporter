@@ -10,12 +10,12 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
-import { isAbsolutePath, joinPath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { parseArgs } from '../../../_cle-libs/libs/io/parse-args.ts';
+import { isAbsolutePath, joinPath } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_cle-libs/constants/config-schema.constants.ts';
 // types
-import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_cle-libs/types/args-schema.types.ts';
 
 // ─── Local
 // types
