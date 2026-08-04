@@ -20,7 +20,7 @@
 import { assertEquals, assertExists, assertMatch } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
-import { assertNull } from '../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // test helpers
 import {
@@ -28,16 +28,16 @@ import {
   makeClaudeJsonMock,
   makeFailMock,
   makeNotFoundMock,
-} from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { DenoCommandLike } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { findFixtureDirs } from '../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { DenoCommandLike } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { findFixtureDirs } from '../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
 // exists
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
+import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 
 // test target
 import { segmentChatlogs } from '../../modules/segment-ai.ts';
 // classes
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── fixtures ルートパス ──────────────────────────────────────────────────────
 

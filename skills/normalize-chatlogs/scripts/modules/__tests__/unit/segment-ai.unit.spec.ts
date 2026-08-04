@@ -12,7 +12,7 @@ import { assert, assertEquals, assertFalse, assertNotEquals, assertRejects } fro
 import { afterEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
-import type { DenoCommandLike } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import type { DenoCommandLike } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // types
 import type { Stub } from '@std/testing/mock';
 
@@ -20,9 +20,9 @@ import type { Stub } from '@std/testing/mock';
 import { segmentChatlogs } from '../../segment-ai.ts';
 
 // ─── Helpers
-import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 // functions
-import { logger } from '../../../../../_scripts/libs/io/logger.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 // mock helpers
 import {
   BaseMockCommand,
@@ -33,13 +33,13 @@ import {
   makeNotFoundMock,
   makeSuccessMock,
   wrapClaudeJson,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { CommandMockHandle } from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 
 // ─── Internal Helpers
 

@@ -9,10 +9,10 @@
 
 // --- shared
 // functions
-import { parseArgs } from '../../../_scripts/libs/io/parse-args.ts';
+import { parseArgs } from '../../../_cle-libs/libs/io/parse-args.ts';
 
 // types
-import type { ArgSchema } from '../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema } from '../../../_cle-libs/types/args-schema.types.ts';
 
 // --- internal
 // types

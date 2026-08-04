@@ -9,14 +9,14 @@
 
 // ─── Shared scripts
 // constants
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 // functions
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { getBasename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Local
 import { loadEntries } from '../libs/load-entries.ts';

@@ -16,8 +16,8 @@ import { hasSegments, toCacheKey } from '../../cache-utils.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 

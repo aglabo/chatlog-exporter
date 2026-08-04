@@ -16,25 +16,25 @@ import { main } from '../../normalize-chatlogs.ts';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 // mock
-import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // stub
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
 // functions
 import {
   makeTempDirs,
   removeTempDirs,
   silenceLog,
-} from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
-import { readTextFile } from '../../../../_scripts/libs/file-io/read-utils.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+} from '../../../../_cle-libs/__tests__/helpers/e2e-setup.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // types
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import type { LogSilencer } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import type { HashProvider } from '../../../../_scripts/types/providers.types.ts';
+import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type { LogSilencer } from '../../../../_cle-libs/__tests__/helpers/e2e-setup.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import type { HashProvider } from '../../../../_cle-libs/types/providers.types.ts';
 
 // ─── Internal Helpers
 

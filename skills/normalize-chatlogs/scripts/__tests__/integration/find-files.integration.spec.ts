@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write
 // src: scripts/__tests__/integration/normalize-chatlogs-findMd.integration.spec.ts
 // @(#): findFiles の統合テスト - 実ファイルシステムを使った検証
-//       対象: findFiles (skills/_scripts/libs/find-files.ts)
+//       対象: findFiles (skills/_cle-libs/libs/find-files.ts)
 //       テスト種別: 正常系 / 異常系 / エッジケース
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -13,7 +13,7 @@ import { assertEquals, assertGreater } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
+import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 
 // ─── findFiles integration tests ───────────────────────────────────────────
 

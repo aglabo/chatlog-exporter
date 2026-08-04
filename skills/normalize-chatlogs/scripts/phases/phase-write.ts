@@ -9,17 +9,17 @@
 
 // ─── Shared scripts
 // functions
-import { isFileIoError } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
-import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { isFileIoError } from '../../../_cle-libs/libs/file-io/read-utils.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
+import { getBasename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { HashProvider } from '../../../_cle-libs/types/providers.types.ts';
 // classes
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 
 // ─── Local
 import { toCacheKey } from '../libs/cache-utils.ts';

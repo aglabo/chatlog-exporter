@@ -8,10 +8,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── Local
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { loadEntry } from './load-entry.ts';
 // types
 import type { LoadEntryFailure } from '../types/load-entry.types.ts';

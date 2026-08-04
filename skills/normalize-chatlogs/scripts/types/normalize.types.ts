@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // types
-import type { DefaultArgFields, ParsedArgs } from '../../../_scripts/types/args-schema.types.ts';
+import type { DefaultArgFields, ParsedArgs } from '../../../_cle-libs/types/args-schema.types.ts';
 
 /**
  * {@link segmentChatlogs} が AI から受け取る 1 トピックセグメント。

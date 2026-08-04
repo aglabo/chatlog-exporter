@@ -9,25 +9,25 @@
 
 // --- shared
 // constants
-import { LOGGER_TEXT } from '../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 // functions
-import { dirExists } from '../../../_scripts/libs/file-ops/exists-utils.ts';
-import { findFiles } from '../../../_scripts/libs/file-ops/find-files.ts';
-import { logger } from '../../../_scripts/libs/io/logger.ts';
-import { getBasename, normalizePath } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { dirExists } from '../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { findFiles } from '../../../_cle-libs/libs/file-ops/find-files.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
+import { getBasename, normalizePath } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // constants
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import type { HashProvider } from '../../../_scripts/types/providers.types.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { HashProvider } from '../../../_cle-libs/types/providers.types.ts';
 import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../types/normalize.types.ts';
 
 // classes
-import { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // --- internal modules
 import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';

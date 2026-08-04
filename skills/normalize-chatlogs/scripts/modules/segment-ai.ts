@@ -10,26 +10,26 @@
 // ─── shared modules ───────────────────────────────────────────────────────────
 
 // classes
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // functions
 // --- ai ---
-import { isRateLimitError } from '../../../_scripts/libs/ai/rate-limit-utils.ts';
-import { runAI } from '../../../_scripts/libs/ai/run-ai.ts';
+import { isRateLimitError } from '../../../_cle-libs/libs/ai/rate-limit-utils.ts';
+import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
 
 // constants
-import { DEFAULT_AI_MODEL } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../_cle-libs/constants/defaults.constants.ts';
 
 // --- io ---
-import { logger } from '../../../_scripts/libs/io/logger.ts';
+import { logger } from '../../../_cle-libs/libs/io/logger.ts';
 
 // --- text ---
-import { parseAiJsonArray } from '../../../_scripts/libs/text/json-utils.ts';
+import { parseAiJsonArray } from '../../../_cle-libs/libs/text/json-utils.ts';
 
 // --- path ---
-import { getBasename } from '../../../_scripts/libs/path-utils/path-utils.ts';
+import { getBasename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── internasl modules
 // types

@@ -18,14 +18,14 @@ import {
   makeFailMock,
   makeSuccessMock,
   wrapClaudeJson,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // types
 import type {
   CommandMockHandle,
   DenoCommandLike,
-} from '../../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
+} from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Test target
 import { phaseSegment } from '../../phase-segment.ts';
@@ -33,10 +33,10 @@ import { phaseSegment } from '../../phase-segment.ts';
 // ─── Helpers
 import { toCacheKey } from '../../../libs/cache-utils.ts';
 // classes
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
-import { DEFAULT_AI_MODEL } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';

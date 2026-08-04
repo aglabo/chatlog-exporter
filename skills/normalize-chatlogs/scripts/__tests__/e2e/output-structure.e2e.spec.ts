@@ -12,17 +12,17 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-import type { CommandMockHandle } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { installCommandMock, makeClaudeJsonMock } from '../../../../_scripts/__tests__/helpers/deno-command-mock.ts';
-import { makeTempDirs, removeTempDirs } from '../../../../_scripts/__tests__/helpers/e2e-setup.ts';
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { assertAllOutputFiles } from '../../../../_scripts/__tests__/helpers/output-validator.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
-import { normalizePath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { makeTempDirs, removeTempDirs } from '../../../../_cle-libs/__tests__/helpers/e2e-setup.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { assertAllOutputFiles } from '../../../../_cle-libs/__tests__/helpers/output-validator.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // test target
-import { findFiles } from '../../../../_scripts/libs/file-ops/find-files.ts';
+import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 import { main } from '../../normalize-chatlogs.ts';
 
 // ─── Internal Helpers

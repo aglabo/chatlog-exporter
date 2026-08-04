@@ -9,9 +9,9 @@
 
 // ─── Shared scripts
 // classes
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 // types
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Local
 import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';
@@ -20,7 +20,7 @@ import { segmentChatlogs } from '../modules/segment-ai.ts';
 import { BATCH_SIZE } from '../constants/normalize.constants.ts';
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // libs
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 // types
 import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig } from '../types/normalize.types.ts';
