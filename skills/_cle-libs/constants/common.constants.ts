@@ -1,4 +1,4 @@
-// src: skills/_scripts/constants/common.constants.ts
+// src: skills/_cle-libs/constants/common.constants.ts
 // @(#): スクリプト共通定数定義
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

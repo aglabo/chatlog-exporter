@@ -1,4 +1,4 @@
-// src: skills/_scripts/constants/config-schema.constants.ts
+// src: skills/_cle-libs/constants/config-schema.constants.ts
 // @(#): GlobalConfig スキーマ定数
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

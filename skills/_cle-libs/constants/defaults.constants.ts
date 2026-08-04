@@ -1,4 +1,4 @@
-// src: _scripts/constants/defaults.constants.ts
+// src: _cle-libs/constants/defaults.constants.ts
 // @(#): 全スクリプト共通のデフォルト値定数
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

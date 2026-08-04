@@ -1,4 +1,4 @@
-// src: _scripts/constants/logger-header.constants.ts
+// src: _cle-libs/constants/logger-header.constants.ts
 // @(#): ロガー出力ヘッダ定数定義
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

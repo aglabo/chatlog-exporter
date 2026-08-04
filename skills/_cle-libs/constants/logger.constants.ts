@@ -1,4 +1,4 @@
-// src: _scripts/constants/logger.constants.ts
+// src: _cle-libs/constants/logger.constants.ts
 // @(#): ロガー出力用共通定数定義
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

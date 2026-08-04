@@ -1,4 +1,4 @@
-// src: _scripts/constants/agents.constants.ts
+// src: _cle-libs/constants/agents.constants.ts
 // @(#): サポートする AI エージェント識別子の共通定数
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
