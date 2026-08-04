@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/ChatlogFrontmatter.class.ts
+// src: skills/_cle-libs/classes/ChatlogFrontmatter.class.ts
 // @(#): Chatlog フロントマタークラス
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

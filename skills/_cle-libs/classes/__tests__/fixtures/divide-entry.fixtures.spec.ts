@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/fixtures/divide-content.fixtures.spec.ts
+// src: skills/_cle-libs/classes/__tests__/fixtures/divide-content.fixtures.spec.ts
 // @(#): ChatlogEntry.frontmatterText / content fixtures テスト
 //       fixtures-data/divide-content/ 下の各ディレクトリをスキャンし
 //       input.md を処理し、expected.yaml の期待値と照合する

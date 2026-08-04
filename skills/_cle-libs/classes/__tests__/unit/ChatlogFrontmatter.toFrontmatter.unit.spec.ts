@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/unit/ChatlogFrontmatter.toFrontmatter.unit.spec.ts
+// src: skills/_cle-libs/classes/__tests__/unit/ChatlogFrontmatter.toFrontmatter.unit.spec.ts
 // @(#): ChatlogFrontmatter#toFrontmatter ユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

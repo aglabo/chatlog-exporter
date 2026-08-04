@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/fixtures/render-entry.fixtures.spec.ts
+// src: skills/_cle-libs/classes/__tests__/fixtures/render-entry.fixtures.spec.ts
 // @(#): ChatlogEntry.renderEntry() fixtures テスト
 //       fixtures-data/render-entry/ 下の各ディレクトリをスキャンし
 //       input.md を処理し、expected.md の期待値と照合する

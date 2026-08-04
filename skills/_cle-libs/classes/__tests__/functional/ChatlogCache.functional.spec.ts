@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/functional/ChatlogCache.functional.spec.ts
+// src: skills/_cle-libs/classes/__tests__/functional/ChatlogCache.functional.spec.ts
 // @(#): ChatlogCache functional テスト - 実ファイルIOを使った検証
 //       対象: ChatlogCache<T>
 //

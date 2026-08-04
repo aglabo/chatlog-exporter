@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/ChatlogCache.class.ts
+// src: skills/_cle-libs/classes/ChatlogCache.class.ts
 // @(#): ファイルベース JSON キャッシュクラス（ディレクトリ状態をインスタンスに保持）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

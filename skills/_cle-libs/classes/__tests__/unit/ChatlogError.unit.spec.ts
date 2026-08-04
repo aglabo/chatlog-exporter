@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/unit/ChatlogError.unit.spec.ts
+// src: skills/_cle-libs/classes/__tests__/unit/ChatlogError.unit.spec.ts
 // @(#): ChatlogError クラスのユニットテスト
 //       対象: ChatlogError
 //

@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/ChatlogEntry.class.ts
+// src: skills/_cle-libs/classes/ChatlogEntry.class.ts
 // @(#): Chatlog エントリクラス
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

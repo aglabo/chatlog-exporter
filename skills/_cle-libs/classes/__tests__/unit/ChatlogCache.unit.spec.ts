@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/unit/ChatlogCache.unit.spec.ts
+// src: skills/_cle-libs/classes/__tests__/unit/ChatlogCache.unit.spec.ts
 // @(#): ChatlogCache クラス ユニットテスト
 //       対象: ChatlogCache
 //

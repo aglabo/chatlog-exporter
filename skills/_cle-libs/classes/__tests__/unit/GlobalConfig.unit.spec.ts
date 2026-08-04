@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/unit/GlobalConfig.unit.spec.ts
+// src: skills/_cle-libs/classes/__tests__/unit/GlobalConfig.unit.spec.ts
 // @(#): GlobalConfig シングルトン ユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

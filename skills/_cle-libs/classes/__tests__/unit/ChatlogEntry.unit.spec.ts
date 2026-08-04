@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/__tests__/unit/ChatlogEntry.unit.spec.ts
+// src: skills/_cle-libs/classes/__tests__/unit/ChatlogEntry.unit.spec.ts
 // @(#): ChatlogEntry ユニットテスト
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

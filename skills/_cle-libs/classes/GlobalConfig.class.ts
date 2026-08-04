@@ -1,4 +1,4 @@
-// src: skills/_scripts/classes/GlobalConfig.class.ts
+// src: skills/_cle-libs/classes/GlobalConfig.class.ts
 // @(#): グローバル設定シングルトン（スキーマ検証付き）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
