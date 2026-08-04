@@ -33,7 +33,7 @@ bash scripts/setup-dev-env.sh
 
 ```bash
 skills/
-├── _scripts/          # 共通実装（types/, constants/, libs/）
+├── _cle-libs/          # 共通実装（types/, constants/, libs/）
 ├── classify-chatlogs/  # プロジェクト別分類
 ├── export-chatlog/    # ログエクスポート
 ├── filter-chatlog/    # ノイズフィルタ
@@ -51,7 +51,7 @@ skills/
 - `main` への直接 push
 - テストなしの新機能追加
 - `any` 型の使用
-- `_scripts/` 配下の型・定数を実装ファイルに直書き
+- `_cle-libs/` 配下の型・定数を実装ファイルに直書き
 - 依頼範囲を超えたリファクタリング・機能追加
 
 ## コーディング規約・ルール
