@@ -12,13 +12,15 @@ set -euo pipefail
 
 # Entries to deploy, as "<source relative to skill dir>|<destination relative to its base>".
 # What the destination is relative to is decided by resolve_dest_base from the
-# source alone: _scripts lands beside the skill so the ../../_scripts/ imports in
-# the sibling skills resolve wherever the skill was installed, including User
-# scope, and everything else lands where the command is run from.
+# source alone: assets/_cle-libs lands beside the skill, as _cle-libs, so the
+# ../../_cle-libs/ imports in the sibling skills resolve wherever the skill was
+# installed, including User scope. Everything else lands where the command is
+# run from. Every source sits under assets/, but only this one is re-based, so
+# the destination column drops the prefix rather than mirroring it.
 readonly DEPLOY_ENTRIES=(
   "assets/.config/chatlog-exporter|.config/chatlog-exporter"
   "assets/deno.json|deno.json"
-  "_scripts|_scripts"
+  "assets/_cle-libs|_cle-libs"
 )
 
 ##
@@ -68,7 +70,7 @@ copy_entry() {
 # Checked up front so a missing source aborts the run without leaving a
 # partially deployed tree behind.
 #
-# @arg $1 string Skill directory holding assets/ and _scripts/
+# @arg $1 string Skill directory holding assets/
 # @return 0 If every source is present
 # @return 1 If a source is missing
 assert_sources_exist() {
@@ -112,7 +114,7 @@ resolve_target_dir() {
 ##
 # @description Resolve the skills directory the skill itself is installed under
 #
-# The shared library is deployed here, beside the skill, so the ../../_scripts/
+# The shared library is deployed here, beside the skill, so the ../../_cle-libs/
 # imports in the sibling skills resolve from wherever the skill was installed.
 # This file lives in <skills dir>/<skill>/scripts/, so the skills directory is
 # three levels up.
@@ -138,7 +140,7 @@ resolve_skills_dir() {
 resolve_dest_base() {
   local src="$1" target_dir="$2" skills_dir="$3"
 
-  if [[ "$src" == "_scripts" ]]; then
+  if [[ "$src" == "assets/_cle-libs" ]]; then
     echo "$skills_dir"
   else
     echo "$target_dir"
@@ -149,7 +151,7 @@ resolve_dest_base() {
 # @description Reject a --force deploy onto the chatlog-exporter development tree
 #
 # The layout cannot tell the two apart: a legitimate User-scope install and the
-# checkout itself both put _scripts beside the skill under a skills directory,
+# checkout itself both put _cle-libs beside the skill under a skills directory,
 # so a correct guard comparing shapes or resolved paths would have to call them
 # the same. The contents differ instead. sync-skill-assets.sh excludes __tests__
 # from the distribution, so it is only ever present in the development tree, and
@@ -159,7 +161,7 @@ resolve_dest_base() {
 # .claude/skills is a link to ../skills and the destination resolves through it
 # onto the shared library itself.
 #
-# The path checked is where _scripts is actually written, not where the command
+# The path checked is where _cle-libs is actually written, not where the command
 # was run. Those differ: the destination comes from BASH_SOURCE, so it stays on
 # the development tree no matter the working directory, while a cwd-based check
 # only finds its marker at the repository root and waves the rest through.
@@ -167,7 +169,7 @@ resolve_dest_base() {
 # Only --force can do damage. Without it copy_entry skips a destination that
 # already exists, and never reaches its removal.
 #
-# @arg $1 string The _scripts path the deploy would write to
+# @arg $1 string The _cle-libs path the deploy would write to
 # @arg $2 string Non-empty when --force was given
 # @return 0 If the deploy may proceed
 # @return 1 If the destination holds __tests__ and --force was given
@@ -188,7 +190,7 @@ assert_dest_not_development_tree() {
 
 ##
 # @description Deploy every entry from the skill directory to its own base
-# @arg $1 string Skill directory holding assets/ and _scripts/
+# @arg $1 string Skill directory holding assets/
 # @arg $2 string Directory to deploy into
 # @arg $3 string Directory the skill is installed under
 # @arg $4 string Non-empty to overwrite destinations that already exist
@@ -220,10 +222,10 @@ configuration deployed into:
 
   assets/.config/chatlog-exporter/ -> <current dir>/.config/chatlog-exporter/
   assets/deno.json                 -> <current dir>/deno.json
-  _scripts/                        -> <skills dir>/_scripts/
+  assets/_cle-libs/                -> <skills dir>/_cle-libs/
 
 The shared library goes beside the skill, under the skills directory it is
-installed in, because every skill imports it as ../../_scripts/ and that path
+installed in, because every skill imports it as ../../_cle-libs/ and that path
 resolves from where the skill lives, not from where the command is run.
 
 An entry whose destination already exists is skipped as a whole and reported;
@@ -298,7 +300,7 @@ main() {
   skills_dir="$(resolve_skills_dir)"
 
   # 共有ライブラリを実際に置き換える先を見張る。--force 実行時だけ中断する。
-  assert_dest_not_development_tree "${skills_dir}/_scripts" "$force" || return 1
+  assert_dest_not_development_tree "${skills_dir}/_cle-libs" "$force" || return 1
 
   run_setup "$skill_root" "$target_dir" "$skills_dir" "$force"
 }
