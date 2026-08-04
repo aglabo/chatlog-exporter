@@ -23,6 +23,12 @@ pre-commit:
       skip:
         - empty
 
+# verify the distributable skill assets are regenerated from their sources
+pre-push:
+  commands:
+    skill-assets:
+      run: bash ./scripts/sync-skill-assets.sh --check
+
 prepare-commit-msg:
   commands:
     prepare-message-script:
