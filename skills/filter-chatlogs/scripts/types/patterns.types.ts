@@ -8,7 +8,7 @@
 
 // ─── shared ───
 // types
-import type { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+import type { ConversationRole } from '../../../_cle-libs/types/conversation-role.const.types.ts';
 
 /** ConversationEntry の制御値を一元管理するオブジェクト定数。 */
 export const ENTRY_CONTROL = {

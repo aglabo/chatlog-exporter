@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { _phase3PartitionByContent } from '../../prefilter.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── Internal Helpers
 

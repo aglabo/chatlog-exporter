@@ -17,7 +17,7 @@ import { stub } from '@std/testing/mock';
 import { _discardFiles } from '../../../modules/prefilter.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { makePeriodDir, makeRepeatedContent } from '../../_helpers/fixtures.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../types/filter-decision.const.types.ts';

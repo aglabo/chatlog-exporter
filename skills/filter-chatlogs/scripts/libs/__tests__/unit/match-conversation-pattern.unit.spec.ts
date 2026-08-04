@@ -10,16 +10,16 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { _matchConversationPattern } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
 // constants
-import { ConversationRole } from '../../../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../../../_cle-libs/types/conversation-role.const.types.ts';
 // types
-import type { Conversation } from '../../../../../_scripts/types/conversation.types.ts';
+import type { Conversation } from '../../../../../_cle-libs/types/conversation.types.ts';
 import type { NoiseConversationPattern } from '../../../types/patterns.types.ts';
 
 // ─── Internal Helpers

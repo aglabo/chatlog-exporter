@@ -17,7 +17,7 @@ import { buildBatchPrompt } from '../../../libs/batch-prompt.ts';
 // ─── Helpers
 import { makeFrontmatter, makePlainContent, makeValidContent } from '../../_helpers/fixtures.ts';
 // classes
-import { ChatlogEntry } from '../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { CHUNK_SIZE, MAX_PROMPT_LENGTH, OVER_MAX_CHARS_LENGTH } from '../../_helpers/constants.ts';
 

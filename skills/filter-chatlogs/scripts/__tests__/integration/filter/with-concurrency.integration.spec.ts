@@ -10,7 +10,7 @@ import { assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // test target
-import { withConcurrency } from '../../../../../_scripts/libs/parallel/concurrency.ts';
+import { withConcurrency } from '../../../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── T-FL-WC-01: タスク数 < limit → 全タスク実行 ─────────────────────────────
 

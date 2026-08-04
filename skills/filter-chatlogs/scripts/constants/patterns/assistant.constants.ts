@@ -8,7 +8,7 @@
 
 // ─── shared ───
 // constants
-import { ConversationRole } from '../../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../../_cle-libs/types/conversation-role.const.types.ts';
 
 // ─── internal ───
 // constants

@@ -8,12 +8,12 @@
 
 // ─── shared ───
 // functions
-import { parseConversation } from '../../../../_scripts/libs/chatlogs/conversation-utils.ts';
-import { removeFile } from '../../../../_scripts/libs/file-ops/remove-utils.ts';
-import { logger } from '../../../../_scripts/libs/io/logger.ts';
-import { runConcurrent } from '../../../../_scripts/libs/parallel/concurrency.ts';
+import { parseConversation } from '../../../../_cle-libs/libs/chatlogs/conversation-utils.ts';
+import { removeFile } from '../../../../_cle-libs/libs/file-ops/remove-utils.ts';
+import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../../_cle-libs/libs/parallel/concurrency.ts';
 // classes
-import { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── internal ───
 // types

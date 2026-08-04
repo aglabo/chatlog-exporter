@@ -8,8 +8,8 @@
 
 // ─── shared ───
 // constants
-import { DEFAULT_CONFIG_VALUES } from '../../../_scripts/constants/config-schema.constants.ts';
-import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CONFIG_VALUES } from '../../../_cle-libs/constants/config-schema.constants.ts';
+import { DEFAULT_AGENT, DEFAULT_CHATLOGS_DIR } from '../../../_cle-libs/constants/defaults.constants.ts';
 
 // ─── internal ───
 // types

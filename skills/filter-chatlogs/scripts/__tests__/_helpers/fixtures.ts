@@ -9,7 +9,7 @@
 
 // ─── Helpers
 // functions
-import { agentPath } from '../../../../_scripts/libs/file-io/resolve-directory.ts';
+import { agentPath } from '../../../../_cle-libs/libs/file-io/resolve-directory.ts';
 
 /**
  * フロントマターのみ（本文なし）の Markdown を生成する。

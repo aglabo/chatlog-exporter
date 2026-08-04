@@ -8,9 +8,9 @@
 
 // ─── shared ───
 // classes
-import type { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // functions
-import { buildConversationEntries } from '../../../_scripts/libs/ai/prompt-utils.ts';
+import { buildConversationEntries } from '../../../_cle-libs/libs/ai/prompt-utils.ts';
 
 // ─── internal ───
 // constants

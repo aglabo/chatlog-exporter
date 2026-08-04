@@ -13,10 +13,10 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { checkFilename, classifyConversation, readConversation } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { resolveChatlogsDir } from '../../../../../_scripts/libs/file-io/resolve-directory.ts';
-import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
-import { getFilename } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { resolveChatlogsDir } from '../../../../../_cle-libs/libs/file-io/resolve-directory.ts';
+import { findFiles } from '../../../../../_cle-libs/libs/file-ops/find-files.ts';
+import { getFilename } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { makeRepeatedContent } from '../../_helpers/fixtures.ts';
 // constants
 import { NOISE_FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';

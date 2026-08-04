@@ -16,11 +16,11 @@ import { buildConfig } from '../../../configs/noise-filter-config.ts';
 
 // ─── Helpers
 // classes
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_NOISE_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // helpers
-import { resetProjectRoot } from '../../../../../_scripts/libs/path-utils/dir-utils.ts';
+import { resetProjectRoot } from '../../../../../_cle-libs/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 

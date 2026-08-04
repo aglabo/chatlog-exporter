@@ -10,7 +10,7 @@
 // ─── BDD modules
 import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-import { assertNotNull, assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import {
@@ -27,7 +27,7 @@ import {
 // constants
 import { MIN_ASSISTANT_CHARS } from '../../../constants/common.constants.ts';
 // types
-import type { Turn } from '../../../../../_scripts/types/conversation.types.ts';
+import type { Turn } from '../../../../../_cle-libs/types/conversation.types.ts';
 
 // ─── Tests
 

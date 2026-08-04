@@ -15,13 +15,13 @@ import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Test target
-import { runAI } from '../../../../../_scripts/libs/ai/run-ai.ts';
-import { parseAiJsonArray } from '../../../../../_scripts/libs/text/json-utils.ts';
+import { runAI } from '../../../../../_cle-libs/libs/ai/run-ai.ts';
+import { parseAiJsonArray } from '../../../../../_cle-libs/libs/text/json-utils.ts';
 
 // ─── Helpers
-import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { findFixtureDirs } from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // types
 import type { FilterDecision } from '../../../types/filter-decision.const.types.ts';
 

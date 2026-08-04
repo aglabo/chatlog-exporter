@@ -8,16 +8,16 @@
 
 // ─── shared ───
 // classes
-import type { ChatlogCache } from '../../../../_scripts/classes/ChatlogCache.class.ts';
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
+import type { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // functions
-import { runAI } from '../../../../_scripts/libs/ai/run-ai.ts';
-import { logger } from '../../../../_scripts/libs/io/logger.ts';
-import { parseAiJsonArray } from '../../../../_scripts/libs/text/json-utils.ts';
+import { runAI } from '../../../../_cle-libs/libs/ai/run-ai.ts';
+import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
+import { parseAiJsonArray } from '../../../../_cle-libs/libs/text/json-utils.ts';
 // constants
-import { LOGGER_TEXT } from '../../../../_scripts/constants/logger.constants.ts';
+import { LOGGER_TEXT } from '../../../../_cle-libs/constants/logger.constants.ts';
 // types
-import type { ChatlogEntry } from '../../../../_scripts/classes/ChatlogEntry.class.ts';
+import type { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
 // ─── internal ───
 // functions

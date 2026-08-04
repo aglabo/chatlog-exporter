@@ -15,7 +15,7 @@ import { describe, it } from '@std/testing/bdd';
 import { _phase2ClassifyConversations } from '../../process-noise-files.ts';
 
 // ─── Helpers
-import { ChatlogEntry } from '../../../../../../_scripts/classes/ChatlogEntry.class.ts';
+import { ChatlogEntry } from '../../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 

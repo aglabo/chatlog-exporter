@@ -11,9 +11,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // test target
-import { ChatlogCache } from '../../../../../_scripts/classes/ChatlogCache.class.ts';
-import { findFiles } from '../../../../../_scripts/libs/file-ops/find-files.ts';
-import { getFilename } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
+import { findFiles } from '../../../../../_cle-libs/libs/file-ops/find-files.ts';
+import { getFilename } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { buildBatchPrompt } from '../../../libs/batch-prompt.ts';
 import { loadFilterEntries } from '../../../libs/load-filter-entry.ts';
 import { prefilterFiles } from '../../../modules/prefilter.ts';

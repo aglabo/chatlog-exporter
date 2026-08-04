@@ -15,9 +15,9 @@ import { describe, it } from '@std/testing/bdd';
 import { extractConversation, validateChatlogsDir } from '../../common-utils.ts';
 
 // ─── Helpers
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { StatProvider } from '../../../../../_scripts/types/providers.types.ts';
+import type { StatProvider } from '../../../../../_cle-libs/types/providers.types.ts';
 
 // ─── Internal Helpers
 

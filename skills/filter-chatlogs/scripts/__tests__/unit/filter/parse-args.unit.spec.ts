@@ -12,17 +12,17 @@ import { assert, assertEquals, assertThrows } from '@std/assert';
 import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { _setByTypeForTest, parseArgs } from '../../../../../_scripts/libs/io/parse-args.ts';
+import { _setByTypeForTest, parseArgs } from '../../../../../_cle-libs/libs/io/parse-args.ts';
 
 // ─── Helpers
 // classes
-import { ChatlogError } from '../../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
-import { DEFAULT_CHATLOGS_DIR } from '../../../../../_scripts/constants/defaults.constants.ts';
+import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { DEFAULT_FILTER_CONFIG } from '../../../constants/common.constants.ts';
 // types
-import type { ArgSchema, ArgSchemaEntry, ParsedArgs } from '../../../../../_scripts/types/args-schema.types.ts';
+import type { ArgSchema, ArgSchemaEntry, ParsedArgs } from '../../../../../_cle-libs/types/args-schema.types.ts';
 import type { FilterParsedConfig } from '../../../types/filter.types.ts';
 
 // ─── Internal Helpers

@@ -8,15 +8,15 @@
 // https://opensource.org/licenses/MIT
 
 // ─── Shared scripts
-import { loadChatlogEntry } from '../../../_scripts/libs/file-io/chatlog-entry-loader.ts';
-import { isFileIoError } from '../../../_scripts/libs/file-io/read-utils.ts';
-import { runConcurrent } from '../../../_scripts/libs/parallel/concurrency.ts';
+import { loadChatlogEntry } from '../../../_cle-libs/libs/file-io/chatlog-entry-loader.ts';
+import { isFileIoError } from '../../../_cle-libs/libs/file-io/read-utils.ts';
+import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── Local
-import { ChatlogEntry } from '../../../_scripts/classes/ChatlogEntry.class.ts';
-import { ChatlogError } from '../../../_scripts/classes/ChatlogError.class.ts';
+import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
-import type { ChatlogCache } from '../../../_scripts/classes/ChatlogCache.class.ts';
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import type { CLEResult } from '../types/cache.types.ts';
 import type { LoadFilterEntryFailure } from '../types/load-filter-entry.types.ts';
 // constants
