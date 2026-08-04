@@ -13,7 +13,7 @@
 import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
-import { assertNull } from '../../../../../_scripts/__tests__/helpers/assert.ts';
+import { assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
 // ─── Test target
 import { parsePeriod } from '../../../libs/period-filter.ts';
@@ -21,14 +21,14 @@ import { parseClaudeSession } from '../../claude-exporter.ts';
 import { parseCodexSession } from '../../codex-exporter.ts';
 
 // ─── Helpers
-import { findFixtureDirs } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
-import { normalizePath } from '../../../../../_scripts/libs/path-utils/path-utils.ts';
+import { findFixtureDirs } from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // types
-import type { IsFixtureDirProvider } from '../../../../../_scripts/__tests__/helpers/find-fixture-dirs.ts';
+import type { IsFixtureDirProvider } from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
 import type { PeriodRange } from '../../../types/filter.types.ts';
 // exists
-import { readTextFile } from '../../../../../_scripts/libs/file-io/read-utils.ts';
-import { fileExists } from '../../../../../_scripts/libs/file-ops/exists-utils.ts';
+import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { fileExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 
 // ─── Internal Helpers
 

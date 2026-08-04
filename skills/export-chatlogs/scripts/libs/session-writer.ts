@@ -8,17 +8,17 @@
 
 // ─── Shared modules ─────────────────────────────────────────────────────────
 // libs
-import { generateHash, sessionHash } from '../../../_scripts/libs/io/hash.ts';
-import { getDirectory } from '../../../_scripts/libs/path-utils/path-utils.ts';
-import { normalizeLine } from '../../../_scripts/libs/text/line-utils.ts';
-import { textToSlug } from '../../../_scripts/libs/text/slug-utils.ts';
-import { quoteString } from '../../../_scripts/libs/text/string-utils.ts';
+import { generateHash, sessionHash } from '../../../_cle-libs/libs/io/hash.ts';
+import { getDirectory } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { normalizeLine } from '../../../_cle-libs/libs/text/line-utils.ts';
+import { textToSlug } from '../../../_cle-libs/libs/text/slug-utils.ts';
+import { quoteString } from '../../../_cle-libs/libs/text/string-utils.ts';
 // constants
-import { ConversationRole } from '../../../_scripts/types/conversation-role.const.types.ts';
+import { ConversationRole } from '../../../_cle-libs/types/conversation-role.const.types.ts';
 
 // ─── Local modules ───────────────────────────────────────────────────────────
 // types
-import type { Turn } from '../../../_scripts/types/conversation.types.ts';
+import type { Turn } from '../../../_cle-libs/types/conversation.types.ts';
 import type { ExportedSession, SessionMeta } from '../types/session.types.ts';
 
 /** sessionId が欠落している場合に使用するフォールバックのハッシュ生成ベース文字列。 */

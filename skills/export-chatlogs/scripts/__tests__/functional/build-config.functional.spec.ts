@@ -14,17 +14,17 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // test target
 import { buildConfig } from '../../export-chatlogs.ts';
 // classes
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
 import {
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_ORIGINAL_LOGS_DIR,
-} from '../../../../_scripts/constants/defaults.constants.ts';
+} from '../../../../_cle-libs/constants/defaults.constants.ts';
 import { DEFAULT_EXPORT_CONFIG } from '../../constants/defaults.constants.ts';
 // helpers
-import { resetProjectRoot } from '../../../../_scripts/libs/path-utils/dir-utils.ts';
-import { joinPath } from '../../../../_scripts/libs/path-utils/path-utils.ts';
+import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-utils.ts';
+import { joinPath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─── ヘルパー ──────────────────────────────────────────────────────────────────
 

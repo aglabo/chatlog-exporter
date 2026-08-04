@@ -17,11 +17,11 @@ import { main } from '../../export-chatlogs.ts';
 import type { RunExportProvider } from '../../export-chatlogs.ts';
 
 // ─── Helpers
-import { makeLoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
-import { ChatlogError } from '../../../../_scripts/classes/ChatlogError.class.ts';
-import { GlobalConfig } from '../../../../_scripts/classes/GlobalConfig.class.ts';
+import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // types
-import type { LoggerStub } from '../../../../_scripts/__tests__/helpers/logger-stub.ts';
+import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import type { ExportResult } from '../../types/export-result.types.ts';
 
 // ─── Internal Helpers
