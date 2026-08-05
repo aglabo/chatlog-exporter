@@ -1,0 +1,114 @@
+---
+title: インストール
+description: スキルマネージャーで Chatlog Exporter をインストールし、/setup-chatlogs で設定と共有ライブラリを展開します。
+---
+
+Chatlog Exporter は **エージェントスキル**として配布しています。`gh skill` または `npx skills` などのスキルマネージャーでインストールし、`/setup-chatlogs` で初期設定します。
+
+`/setup-chatlogs` による初期設定は、省略できません。
+`/setup-chatlogs` が他のスキルの実行に必要なファイル (設定ファイル、分類辞書、共通ライブラリ) を設定するためです。
+
+:::warning
+**使用ツール**
+以下のツールが使用可能である必要があります。
+- `GitHub CLI` / `npm`: スキルのインストール用 (インストール時のみ)
+- `Deno`: 各スキルの TypeScript 実行環境
+- `claude` (Claude Code CLI): AI 処理を行うスキルが使用
+- `bash`: Chatlog Exporter 初期設定用。Windowsの場合はGit Bashを使用してください
+:::
+
+<Steps>
+  <Step title="Chatlog Exporterのインストール">
+    リポジトリから Chatlog Exporter のすべてのスキルをインストールします。
+    使用しているスキルマネージャーに応じて、下記のコマンドを実行してください。
+
+    <Tabs>
+      <Tab title="gh skill">
+        GitHub CLI の場合、次の構文でスキルをインストールします。
+
+        ```bash
+        gh skill install <package> --all --agent <agent>
+        ```
+        `<package>`: スキルのリポジトリ URL。GitHub リポジトリの場合、`https://github.com/` を省略できる。
+                     Chatlog Exporter の場合、`aglabo/chatlog-exporter` となる。
+        `--all`:     指定されたリポジトリに全てのスキルをインストールするオプション。
+                     指定しない場合、自分でインストールするスキルを選ぶ。
+        `<agent>`:   スキルをインストールするAIコーディングエージェント。
+                     Claude Code にインストールする場合、`claude-code` となる。
+
+        Claude Code に Chatlog Exporter をインストールする場合は、次のようになります。
+
+        ```bash
+        gh skill install aglabo/chatlog-exporter --all --agent claude-code
+        ```
+
+        :::tip
+        `gh skills` は `gh skill` のエイリアスなので、どちらの表記でも動作します。
+        :::
+      </Tab>
+      <Tab title="npx skills">
+        `npx skills` は、`npm`/`pnpm` で使用できる エージェントスキルマネージャー です。
+        `npx skills <subcommand>` の形式で使用し、スキルのインストール／アンインストールなどができます。
+
+        スキルを追加する場合は、次の形式で `npx skills` を実行します。
+
+        ```bash
+        npx skills add <package> --all --agent <agent>
+        ```
+        `<package>`: スキルのリポジトリ URL。GitHub リポジトリの場合は、`https://github.com/` を省略できる。
+                     Chatlog Exporter の場合、`aglabo/chatlog-exporter`となる。
+        `--all`:     指定されたリポジトリに全てのスキルをインストールするオプション。
+                     指定しない場合、自分でインストールするスキルを選ぶ。
+        `<agent>`:   スキルをインストールするAIコーディングエージェント。
+                     Claude Code にインストールする場合、`claude-code`となる。
+                     省略時は、インタラクティブに選択する。
+
+        Chatlog Exporter をインストールするときは、次のようになります。
+
+        ```bash
+        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        ```
+
+      </Tab>
+    </Tabs>
+
+    :::note
+    GitHub CLI のエージェントスキル対応はプレビュー段階であり、インターフェースが変更される可能性があります。
+    :::
+  </Step>
+  <Step title="Chatlog Exporterの初期設定">
+    Chatlog Exporter を使用する場合、最初に `/setup-chatlogs` を実行して、設定ファイルや辞書を初期設定します。
+
+    ```bash
+    /setup-chatlogs
+    ```
+
+    上記を実行すると、以下の 3 エントリを展開します。
+
+    | 展開先                      | 内容                                                      | 基準                   |
+    | --------------------------- | --------------------------------------------------------- | ---------------------- |
+    | `.config/chatlog-exporter/` | `config.yaml`・分類辞書 `dics/`・AI 処理が使う `prompts/` | カレントディレクトリ   |
+    | `deno.json`                 | Chatlog Exporter 用の Deno 設定 (使用ライブラリなど)      | カレントディレクトリ   |
+    | `_cle-libs/`                | 各スキルが共有する型・定数・ライブラリ                    | スキルの隣             |
+
+    `_cle-libs/` だけはスキルの隣に展開します。各スキルが `../../_cle-libs/` として参照するため、
+    スキルをインストールした場所に配置する必要があるからです。
+
+    すでにセットアップ済みの場合は、上記の展開をスキップします。
+
+    :::warning
+    `.config/chatlog-exporter/` と `deno.json` は**カレントディレクトリ**を基準にして展開します。リポジトリルートとは限りません。
+    リポジトリルート以外のサブディレクトリで実行してもエラーにはならず、サブディレクトリを基準に展開されます。
+    実行前にカレントディレクトリを確認してください。
+    :::
+  </Step>
+  <Step title="スキルを実行する">
+    セットアップを実行したディレクトリで、スラッシュコマンドを実行します。
+
+    ```bash
+    /export-chatlogs
+    ```
+  </Step>
+</Steps>
+
+最小構成での最初の実行は [クイックスタート](./quickstart) を参照してください。

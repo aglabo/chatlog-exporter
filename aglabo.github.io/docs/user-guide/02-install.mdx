@@ -1,0 +1,116 @@
+---
+title: Installation
+description: Install chatlog-exporter with a skill manager, then deploy its configuration and shared libraries with /setup-chatlogs.
+---
+
+chatlog-exporter is distributed as **agent skills**. Install them with a skill manager such as
+`gh skill` or `npx skills`, then set them up with `/setup-chatlogs`.
+
+The setup step with `/setup-chatlogs` cannot be skipped.
+`/setup-chatlogs` puts in place the files the other skills need to run
+(the configuration files, the classification dictionaries, and the shared libraries).
+
+:::warning
+**Tools used**
+The following tools must be available.
+- `GitHub CLI` / `npm`: for installing the skills (install time only)
+- `Deno`: the TypeScript runtime every skill runs on
+- `claude` (Claude Code CLI): used by the skills that run AI processing
+- `bash`: for the chatlog-exporter initial setup. On Windows, use Git Bash
+:::
+
+<Steps>
+  <Step title="Install chatlog-exporter">
+    Install all of the chatlog-exporter skills from the repository.
+    Run the command for whichever skill manager you use.
+
+    <Tabs>
+      <Tab title="gh skill">
+        With the GitHub CLI, install the skills using the following syntax.
+
+        ```bash
+        gh skill install <package> --all --agent <agent>
+        ```
+        `<package>`: the skill repository URL. For a GitHub repository, `https://github.com/` can be omitted.
+                     For chatlog-exporter this is `aglabo/chatlog-exporter`.
+        `--all`:     the option to install every skill in the given repository.
+                     Without it, you choose which skills to install yourself.
+        `<agent>`:   the AI coding agent to install the skills into.
+                     To install into Claude Code, this is `claude-code`.
+
+        To install chatlog-exporter into Claude Code, the command is as follows.
+
+        ```bash
+        gh skill install aglabo/chatlog-exporter --all --agent claude-code
+        ```
+
+        :::tip
+        `gh skills` is an alias for `gh skill`, so both spellings work.
+        :::
+      </Tab>
+      <Tab title="npx skills">
+        `npx skills` is an agent skill manager you can use with `npm`/`pnpm`.
+        It is used in the form `npx skills <subcommand>`, and can install and uninstall skills.
+
+        To add skills, run `npx skills` in the following form.
+
+        ```bash
+        npx skills add <package> --all --agent <agent>
+        ```
+        `<package>`: the skill repository URL. For a GitHub repository, `https://github.com/` can be omitted.
+                     For chatlog-exporter this is `aglabo/chatlog-exporter`.
+        `--all`:     the option to install every skill in the given repository.
+                     Without it, you choose which skills to install yourself.
+        `<agent>`:   the AI coding agent to install the skills into.
+                     To install into Claude Code, this is `claude-code`.
+                     If omitted, you select it interactively.
+
+        To install chatlog-exporter, the command is as follows.
+
+        ```bash
+        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        ```
+
+      </Tab>
+    </Tabs>
+
+    :::note
+    Agent skills support in the GitHub CLI is in preview and its interface may change.
+    :::
+  </Step>
+  <Step title="Set up chatlog-exporter">
+    To use chatlog-exporter, first run `/setup-chatlogs` to set up the configuration files and dictionaries.
+
+    ```bash
+    /setup-chatlogs
+    ```
+
+    Running the above deploys the following 3 entries.
+
+    | Destination                 | What it is                                                            | Relative to           |
+    | --------------------------- | --------------------------------------------------------------------- | --------------------- |
+    | `.config/chatlog-exporter/` | `config.yaml`, the `dics/` dictionaries, and the `prompts/` the AI steps use | The current directory |
+    | `deno.json`                 | The Deno settings for chatlog-exporter (the libraries it uses, and so on) | The current directory |
+    | `_cle-libs/`                | The types, constants, and libraries every skill shares                | Beside the skills     |
+
+    Only `_cle-libs/` is deployed beside the skills. Each skill refers to it as `../../_cle-libs/`,
+    so it has to sit where the skills were installed.
+
+    If the setup has already been done, the deployment above is skipped.
+
+    :::warning
+    `.config/chatlog-exporter/` and `deno.json` are deployed relative to the **current directory**, which is not necessarily the repository root.
+    Running it in a subdirectory other than the repository root does not raise an error; it deploys relative to that subdirectory instead.
+    Check the current directory before running it.
+    :::
+  </Step>
+  <Step title="Run a skill">
+    From the directory you ran the setup in, run a slash command.
+
+    ```bash
+    /export-chatlogs
+    ```
+  </Step>
+</Steps>
+
+For a minimal first run, see [Quickstart](./quickstart).
