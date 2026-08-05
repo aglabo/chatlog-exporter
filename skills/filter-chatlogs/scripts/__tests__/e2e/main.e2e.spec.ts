@@ -166,12 +166,15 @@ describe('main - dry-run モード', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-01-01: ファイルが削除されずに残る', async () => {
@@ -310,12 +313,15 @@ describe('main - KEEP 判定', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: keep.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-03-01: ファイルが残っている', async () => {
@@ -329,14 +335,14 @@ describe('main - KEEP 判定', () => {
   });
 });
 
-// ─── T-FL-E2E-14: model 配線 ─────────────────────────────────────────────────
+// ─── T-FL-E2E-23: model 配線 ─────────────────────────────────────────────────
 
 /**
  * `main` 関数の E2E テストスイート（model 配線）。
  *
  * config.yaml の `model` 設定が claude CLI 起動引数の `--model` にそのまま反映されることを検証する。
  *
- * テスト ID 範囲: T-FL-E2E-14
+ * テスト ID 範囲: T-FL-E2E-23
  *
  * @see main
  */
@@ -350,7 +356,7 @@ describe('main - model 配線', () => {
     /** `main([...args])` を呼び出すとき。 */
     describe('When: main([...args]) を呼び出す', () => {
       /** claude CLI の起動引数に --model haiku が含まれること。 */
-      describe('Then: T-FL-E2E-14 - claude CLI の起動引数に --model haiku が含まれる', () => {
+      describe('Then: T-FL-E2E-23 - claude CLI の起動引数に --model haiku が含まれる', () => {
         let tempDir: string;
         let chatlogsDir: string;
         let commandHandle: CommandMockHandle;
@@ -382,7 +388,7 @@ describe('main - model 配線', () => {
           await Deno.remove(tempDir, { recursive: true });
         });
 
-        it('T-FL-E2E-14-01: capturedArgs に --model と haiku が含まれる', async () => {
+        it('T-FL-E2E-23-01: capturedArgs に --model と haiku が含まれる', async () => {
           await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
 
           const modelIndex = capturedArgs.value.indexOf('--model');
@@ -429,12 +435,15 @@ describe('main - 対象ファイルなし', () => {
           );
           loggerStub = makeLoggerStub();
           exitStub = stub(Deno, 'exit');
+          // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
           exitStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -640,12 +649,15 @@ describe('main - Claude CLI NotFound', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-07-01: NotFound エラーで main が reject される', async () => {
@@ -768,12 +780,15 @@ describe('main - Claude CLI 異常終了', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-09-01: ファイルが残っている（全件 KEEP 扱い）', async () => {
@@ -1536,11 +1551,14 @@ describe('main - 判定集計ログ（判定対象なし）', () => {
             makeClaudeJsonMock('[]'),
           );
           loggerStub = makeLoggerStub();
+          // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
@@ -1593,12 +1611,15 @@ describe('main - 判定集計ログ（dry-run）', () => {
         afterEach(async () => {
           commandHandle.restore();
           loggerStub.restore();
+          GlobalConfig.resetInstance();
           await Deno.remove(tempDir, { recursive: true });
         });
 
         describe('Given: chat.md を chatlogsDir に配置', () => {
           beforeEach(async () => {
             await Deno.writeTextFile(`${chatlogsDir}/chat.md`, _makeValidContent());
+            // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+            await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
           });
 
           it('T-FL-E2E-20-01: 判定済み数（judged=0）がログに出力される', async () => {

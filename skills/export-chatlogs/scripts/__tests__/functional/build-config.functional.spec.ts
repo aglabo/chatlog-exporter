@@ -184,7 +184,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it("T-EC-BC-06-01: exportDir 未設定, chatlogsDir 未登録 → result.exportDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
           const result = buildConfig([]);
@@ -208,7 +208,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-19-01: args=["--export-dir", "/foo"] → result.exportDir === /foo', () => {
           const result = buildConfig(['--export-dir', '/foo']);
@@ -232,7 +232,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-20-01: args=["--output-dir", "/foo"] → result.exportDir !== /foo（chatlogsDir 由来の導出値になる）', () => {
           const result = buildConfig(['--output-dir', '/foo']);
@@ -258,7 +258,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-09-01: args=["--input-dir", "/input"] → result.inputDir === /input', () => {
           const result = buildConfig(['--input-dir', '/input']);
@@ -282,7 +282,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-10-01: inputDir 未指定 → result.inputDir === undefined', () => {
           const result = buildConfig([]);
@@ -308,7 +308,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-11-01: args=["claude", "2026-01"] → result.period === 2026-01', () => {
           const result = buildConfig(['claude', '2026-01']);
@@ -332,7 +332,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-12-01: period 未指定 → result.period === undefined', () => {
           const result = buildConfig([]);
@@ -358,7 +358,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it("T-EC-BC-13-01: defaults 省略, chatlogsDir 未登録 → result.exportDir === DEFAULT_CHATLOGS_DIR + '/originalLogs'", () => {
           const result = buildConfig([]);
@@ -384,7 +384,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-16-01: args=["claude", "--dry-run"] → result.dryRun === true', () => {
           const result = buildConfig(['claude', '--dry-run']);
@@ -408,7 +408,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-17-01: args=["--unknown"] → ChatlogError(InvalidArgs) がスローされる', () => {
           assertThrows(() => buildConfig(['--unknown']), ChatlogError, 'Invalid Args');
@@ -459,7 +459,7 @@ describe('buildConfig', () => {
         beforeEach(async () => {
           resetProjectRoot('/home/user/project');
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-EC-BC-22-01: concurrency 未設定 → result.concurrency === DEFAULT_EXPORT_CONFIG.concurrency', () => {
           const result = buildConfig([]);

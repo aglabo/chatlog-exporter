@@ -18,6 +18,7 @@ import { GlobalConfig } from '../../GlobalConfig.class.ts';
 import type { ReadTextFileSyncProvider } from '../../../types/providers.types.ts';
 // constants
 import { DEFAULT_CONFIG_VALUES } from '../../../constants/config-schema.constants.ts';
+import { DEFAULT_APP_NAME, DEFAULT_CONFIG_FILE } from '../../../constants/defaults.constants.ts';
 // classes
 import { ChatlogError } from '../../ChatlogError.class.ts';
 
@@ -62,7 +63,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-141
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-152
  *
  * @see GlobalConfig
  */
@@ -93,8 +94,8 @@ describe('GlobalConfig', () => {
         assertEquals(_first.get('agent'), _second.get('agent'));
       });
 
-      it('[Normal] T-CLS-GC-40: 引数なしで呼ぶと get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
-        const _config = GlobalConfig.getInstance();
+      it('[Normal] T-CLS-GC-40: 引数なし+既定設定ファイル未存在 → get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
+        const _config = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         assertEquals(_config.get('agent'), 'claude');
         assertEquals(_config.get('chatlogsDir'), './chatlogs');
       });
@@ -164,7 +165,7 @@ describe('GlobalConfig', () => {
         };
         const _config = GlobalConfig.getInstance({ appName: 'my-app' });
         _config.loadConfigFile({ readTextFileProvider: _trackingRead });
-        assert(_calledPath.endsWith('.config/my-app/config.yaml'));
+        assertEquals(_calledPath, '.config/my-app/config.yaml');
       });
 
       it('[Normal] T-CLS-GC-88: appName 未指定時、loadConfigFile が .config/chatlog-exporter/config.yaml を読む', () => {
@@ -175,7 +176,95 @@ describe('GlobalConfig', () => {
         };
         const _config = GlobalConfig.getInstance();
         _config.loadConfigFile({ readTextFileProvider: _trackingRead });
-        assert(_calledPath.endsWith('.config/chatlog-exporter/config.yaml'));
+        assertEquals(_calledPath, '.config/chatlog-exporter/config.yaml');
+      });
+
+      it('[Normal] T-CLS-GC-149: defaultConfigFile が configDir 相対名のとき configDir の前置はちょうど 1 回', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        GlobalConfig.getInstance({
+          defaultConfigFile: DEFAULT_CONFIG_FILE,
+          readTextFileProvider: _trackingRead,
+        });
+        assertEquals(_calledPath, `.config/${DEFAULT_APP_NAME}/${DEFAULT_CONFIG_FILE}`);
+      });
+
+      it('[Normal] T-CLS-GC-150: appName 指定 + defaultConfigFile が configDir 相対名 → .config/<appName>/config.yaml を読む', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        GlobalConfig.getInstance({
+          appName: 'my-app',
+          defaultConfigFile: DEFAULT_CONFIG_FILE,
+          readTextFileProvider: _trackingRead,
+        });
+        assertEquals(_calledPath, `.config/my-app/${DEFAULT_CONFIG_FILE}`);
+      });
+
+      it('[Normal] T-CLS-GC-143: defaultConfigFile 指定 → そのファイルの値が DEFAULT_CONFIG_VALUES を上書きする', () => {
+        const _config = GlobalConfig.getInstance({
+          defaultConfigFile: '/mock/default-config.yaml',
+          readTextFileProvider: _makeReadOk('agent: chatgpt\nchatlogsDir: /tmp/from-default\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertEquals(_config.get('chatlogsDir'), '/tmp/from-default');
+        // 未指定フィールドは DEFAULT_CONFIG_VALUES のまま
+        assertEquals(_config.get('cacheDir'), DEFAULT_CONFIG_VALUES.cacheDir);
+      });
+
+      it('[Normal] T-CLS-GC-144: configFile と defaultConfigFile 併用 → configFile が優先され defaultConfigFile は読まれない', () => {
+        const _readPaths: string[] = [];
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _readPaths.push(path);
+          return 'agent: chatgpt\n';
+        };
+        const _config = GlobalConfig.getInstance({
+          configFile: '/mock/explicit.yaml',
+          defaultConfigFile: '/mock/default-config.yaml',
+          readTextFileProvider: _trackingRead,
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertEquals(_readPaths, ['/mock/explicit.yaml']);
+      });
+
+      it('[Normal] T-CLS-GC-151: 引数なし + 既定設定ファイル存在 → その値が DEFAULT_CONFIG_VALUES を上書きする', () => {
+        const _config = GlobalConfig.getInstance({
+          readTextFileProvider: _makeReadOk('agent: chatgpt\nchatlogsDir: /tmp/from-default-file\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertEquals(_config.get('chatlogsDir'), '/tmp/from-default-file');
+        // 未指定フィールドは DEFAULT_CONFIG_VALUES のまま
+        assertEquals(_config.get('cacheDir'), DEFAULT_CONFIG_VALUES.cacheDir);
+      });
+
+      it('[Normal] T-CLS-GC-152: 引数なし → .config/<appName>/config.yaml をちょうど 1 回読む', () => {
+        const _readPaths: string[] = [];
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _readPaths.push(path);
+          return 'agent: chatgpt\n';
+        };
+        GlobalConfig.getInstance({ readTextFileProvider: _trackingRead });
+        assertEquals(_readPaths, [`.config/${DEFAULT_APP_NAME}/${DEFAULT_CONFIG_FILE}`]);
+      });
+
+      it('[Normal] T-CLS-GC-145: yaml と defaultConfigFile 併用 → yaml が優先され readTextFileProvider は呼ばれない', () => {
+        const _called = { flag: false };
+        const _trackingRead: ReadTextFileSyncProvider = (_path: string) => {
+          _called.flag = true;
+          return 'agent: codex\n';
+        };
+        const _config = GlobalConfig.getInstance({
+          yaml: 'agent: chatgpt\n',
+          defaultConfigFile: '/mock/default-config.yaml',
+          readTextFileProvider: _trackingRead,
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
+        assertFalse(_called.flag);
       });
     });
 
@@ -242,7 +331,7 @@ describe('GlobalConfig', () => {
       });
 
       it('[Edge] T-CLS-GC-65: 既存インスタンスがある場合 yaml オプションは無視される', () => {
-        const _first = GlobalConfig.getInstance();
+        const _first = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         assertEquals(_first.get('agent'), 'claude');
         const _second = GlobalConfig.getInstance({ yaml: 'agent: chatgpt\n' });
         assertStrictEquals(_first, _second);
@@ -250,7 +339,7 @@ describe('GlobalConfig', () => {
       });
 
       it('[Edge] T-CLS-GC-66: 既存インスタンスがある場合 configFile オプションは無視される', () => {
-        const _first = GlobalConfig.getInstance();
+        const _first = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         const _second = GlobalConfig.getInstance({
           configFile: '/mock/config.yaml',
           readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
@@ -281,6 +370,30 @@ describe('GlobalConfig', () => {
         const _config = GlobalConfig.getInstance({ yaml: 'agent: chatgpt\n' });
         assertEquals(_config.get('cacheDir'), '${TEMP}/cle-cache');
       });
+
+      it('[Edge] T-CLS-GC-146: defaultConfigFile 指定+ファイル未存在 → 例外なし DEFAULT_CONFIG_VALUES のまま', () => {
+        const _config = GlobalConfig.getInstance({
+          defaultConfigFile: '/mock/missing-default.yaml',
+          readTextFileProvider: _notFoundRead,
+        });
+        assertEquals(_config.values(), DEFAULT_CONFIG_VALUES);
+      });
+
+      it('[Edge] T-CLS-GC-148: 既存インスタンスがある場合 defaultConfigFile オプションは無視される', () => {
+        const _called = { flag: false };
+        const _trackingRead: ReadTextFileSyncProvider = (_path: string) => {
+          _called.flag = true;
+          return 'agent: chatgpt\n';
+        };
+        const _first = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
+        const _second = GlobalConfig.getInstance({
+          defaultConfigFile: '/mock/default-config.yaml',
+          readTextFileProvider: _trackingRead,
+        });
+        assertStrictEquals(_first, _second);
+        assertEquals(_second.get('agent'), 'claude');
+        assertFalse(_called.flag);
+      });
     });
   });
 
@@ -293,7 +406,7 @@ describe('GlobalConfig', () => {
    */
   describe('get', () => {
     it('[Normal] T-CLS-GC-03: 設定済みキーの値を返す', () => {
-      const _config = GlobalConfig.getInstance();
+      const _config = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
       assertEquals(_config.get('model'), 'sonnet');
     });
   });
@@ -327,8 +440,8 @@ describe('GlobalConfig', () => {
   describe('values', () => {
     /** getInstance 直後・YAML 上書き後の全フィールド取得ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-GC-81: getInstance 直後は DEFAULT_CONFIG_VALUES と一致する全フィールドを返す', () => {
-        const _config = GlobalConfig.getInstance();
+      it('[Normal] T-CLS-GC-81: getInstance 直後（既定設定ファイル未存在）は DEFAULT_CONFIG_VALUES と一致する全フィールドを返す', () => {
+        const _config = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         assertEquals(_config.values(), DEFAULT_CONFIG_VALUES);
       });
 
@@ -760,7 +873,7 @@ describe('GlobalConfig', () => {
       });
 
       it('[Normal] T-CLS-GC-32: loadConfigFile 後も get("agent") は DEFAULT_CONFIG_VALUES の値のまま（純粋関数性）', () => {
-        const _config = GlobalConfig.getInstance();
+        const _config = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         _config.loadConfigFile({
           configPath: '/mock/config.yaml',
           readTextFileProvider: _makeReadOk('agent: chatgpt\n'),

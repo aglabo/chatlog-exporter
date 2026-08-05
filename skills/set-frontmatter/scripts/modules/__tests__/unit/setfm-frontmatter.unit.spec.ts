@@ -36,8 +36,7 @@ import type {
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
-// constants
-import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 // types
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
@@ -206,6 +205,7 @@ describe('generateFrontmatter', () => {
 
   afterEach(() => {
     commandHandle?.restore();
+    GlobalConfig.resetInstance();
   });
 
   /**
@@ -402,18 +402,20 @@ describe('generateFrontmatter', () => {
       assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
     });
 
-    it('[Normal] T-SF-FM-05-02: model 省略 → capturedArgs に --model DEFAULT_AI_MODEL が含まれる', async () => {
+    it('[Normal] T-SF-FM-05-02: model 省略 → capturedArgs に GlobalConfig の model が含まれる', async () => {
       const capturedArgs: { value: string[] } = { value: [] };
       commandHandle = installCommandMock(
         makeClaudeJsonMock('title: "t"\ntopics:\n  - ai\ntags:\n  - test\n', capturedArgs),
       );
+      GlobalConfig.resetInstance();
+      GlobalConfig.getInstance({ yaml: 'model: sonnet\n' });
 
       const _entry = _makeChatlogEntry();
       await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
 
       const modelIndex = capturedArgs.value.indexOf('--model');
       assertEquals(modelIndex !== -1, true);
-      assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
+      assertEquals(capturedArgs.value[modelIndex + 1], 'sonnet');
     });
   });
 

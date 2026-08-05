@@ -16,7 +16,7 @@ import { resolveConfigPath } from '../libs/path-utils/resolve-path.ts';
 import { parseNumber, parseString } from '../libs/text/string-utils.ts';
 // constants
 import { DEFAULT_CONFIG_SCHEMA, DEFAULT_CONFIG_VALUES } from '../constants/config-schema.constants.ts';
-import { DEFAULT_APP_NAME } from '../constants/defaults.constants.ts';
+import { DEFAULT_APP_NAME, DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 // types
 import type { ConfigKey } from '../constants/config-schema.constants.ts';
 import type { ConfigSchema, ConfigValue, ConfigValues } from '../types/config-schema.types.ts';
@@ -48,8 +48,12 @@ export class GlobalConfig {
 
   /**
    * シングルトンインスタンスを返す。インスタンスが未生成の場合は `options` を使って新規生成する。
+   * 設定ソースの優先順位は `yaml` > `configFile` > `defaultConfigFile` > `DEFAULT_CONFIG_FILE` > `DEFAULT_CONFIG_VALUES`。
    * - `yaml` が指定されていれば YAML 文字列を直接パースして `_fields` を上書きする（`configFile` より優先）。
    * - `configFile` が指定されていれば YAML を読み込んで `_fields` を上書きする（DEFAULT_CONFIG_VALUES + YAML 値）。
+   * - `defaultConfigFile` は `yaml`・`configFile` がいずれも未指定のときだけ読み込む既定の設定ファイルパス。
+   * - `yaml`・`configFile`・`defaultConfigFile` がいずれも未指定の場合は `DEFAULT_CONFIG_FILE`
+   *   （`configDir` 相対の `config.yaml`）を読み込む。
    * - ファイルが存在しない場合 (`FileDirNotFound`) はエラーを無視して `DEFAULT_CONFIG_VALUES` のまま返す。
    * - `appName` はオプションとして受け付け、`configDir`（設定ファイル・辞書・プロンプトの基準ディレクトリ）の組み立てに使用する。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
@@ -58,6 +62,7 @@ export class GlobalConfig {
     schema?: ConfigSchema;
     configFile?: string;
     yaml?: string;
+    defaultConfigFile?: string;
     readTextFileProvider?: ReadTextFileSyncProvider;
     appName?: string;
   }): GlobalConfig {
@@ -66,13 +71,14 @@ export class GlobalConfig {
     }
 
     GlobalConfig._instance = new GlobalConfig(options?.schema, options?.appName);
+    // 設定ソースの優先順位: yaml > configFile > defaultConfigFile > DEFAULT_CONFIG_VALUES
     if (options?.yaml !== undefined) {
       const _loaded = GlobalConfig._instance.parseYaml(options.yaml);
       GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
-    } else if (options?.configFile) {
+    } else {
       const _loaded = GlobalConfig._instance.loadConfigFile({
-        configPath: options.configFile,
-        readTextFileProvider: options.readTextFileProvider,
+        configPath: options?.configFile ?? options?.defaultConfigFile,
+        readTextFileProvider: options?.readTextFileProvider,
         throwFileNotFound: false,
       });
       GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
@@ -178,7 +184,7 @@ export class GlobalConfig {
     const _throwFileNotFound = options?.throwFileNotFound ?? true;
     const _resolved = resolveConfigPath({
       configPath: options?.configPath,
-      defaultPath: `${this.configDir}/config.yaml`,
+      defaultPath: DEFAULT_CONFIG_FILE,
       config: this,
     });
     let _text: string;

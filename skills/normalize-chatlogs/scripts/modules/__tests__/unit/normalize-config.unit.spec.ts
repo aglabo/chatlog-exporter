@@ -44,6 +44,11 @@ describe('buildConfig', () => {
     describe('Given: 空配列', () => {
       describe('When: buildConfig([]) を呼び出す', () => {
         describe('Then: T-NC-BC-01 - デフォルト値が適用される', () => {
+          // 実在する設定ファイルの値が混入しないよう、空 YAML でシングルトンを事前生成する
+          beforeEach(() => {
+            GlobalConfig.getInstance({ yaml: '' });
+          });
+
           it('T-NC-BC-01-01: concurrency が GlobalConfig のデフォルト値 4 になる', () => {
             assertEquals(buildConfig([]).concurrency, 4);
           });
@@ -115,6 +120,11 @@ describe('buildConfig', () => {
     });
 
     describe('Given: オプションなしの空配列', () => {
+      beforeEach(() => {
+        // 実在する config.yaml を読み込ませず DEFAULT_CONFIG_VALUES を基準にする
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
       describe('When: buildConfig([]) を呼び出す', () => {
         describe('Then: T-NC-BC-09 - GlobalConfig が管理するフィールドはデフォルト値が自動マージされる', () => {
           it('T-NC-BC-09-01: chatlogsDir が GlobalConfig のデフォルト値になる', () => {

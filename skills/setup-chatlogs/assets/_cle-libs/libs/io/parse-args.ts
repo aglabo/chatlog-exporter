@@ -10,6 +10,8 @@
 // functions
 import { isKnownAgent } from '../../constants/agents.constants.ts';
 import { normalizePath, toSlashPath } from '../path-utils/path-utils.ts';
+// constants
+import { DEFAULT_CONFIG_FILE } from '../../constants/defaults.constants.ts';
 // classes
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
@@ -322,11 +324,19 @@ export const parseOptions = <T>(
  *   `positionals[1]` は period 型固定（存在する場合のみ検査）。
  *   `positionals[2]` 以降はすべて directory 型（`output-dir`、1個のみ許容）。
  * - 上記以外の型混在・順序違反はすべて `ChatlogError('InvalidArgs', ...)` を throw する。
+ *
+ * @param args - CLI 引数配列全体
+ * @param schema - 呼び出し元が追加するスキーマ
+ * @param defaults - CLI・GlobalConfig いずれにも値がない場合に使う既定値
+ * @param defaultConfigFile - `--config` 未指定時に読み込む既定の設定ファイルパス。
+ *   省略時は `DEFAULT_CONFIG_FILE`（`configDir` 相対の `config.yaml`）を使う。
+ *   マージ対象ではなく戻り値 `T` には含まれない。
  */
 export const parseArgs = <T extends { period?: string; agent?: string; chatlogsDir?: string }>(
   args: string[],
   schema: ArgSchema<T>,
   defaults: Partial<T> = {},
+  defaultConfigFile: string = DEFAULT_CONFIG_FILE,
 ): T => {
   const { config: _config, positionals: _positionals } = parseOptions<T>(args, schema);
   const _schemaMap = _initSchema(schema);
@@ -334,7 +344,10 @@ export const parseArgs = <T extends { period?: string; agent?: string; chatlogsD
   _parsePositionals(_config, _positionals, _schemaMap);
 
   // 優先度: CLI 解析値 > GlobalConfig 値 > defaults
-  const _globalConfig = GlobalConfig.getInstance({ configFile: _config.configFile as string | undefined });
+  const _globalConfig = GlobalConfig.getInstance({
+    configFile: _config.configFile as string | undefined,
+    defaultConfigFile,
+  });
   const _globalValues = _globalConfig.values();
   const _merged: ParsedArgs = {
     ...(defaults as ParsedArgs),
