@@ -3,12 +3,15 @@
 # You can also specify another file with the --config <path> option.
 
 # Agent
+# Default agent used when no agent is given on the command line.
+# Priority: CLI argument > this file > built-in default ("claude").
+# Supported: claude, codex, chatgpt
 agent: claude
 
 # AI execution
 model: "haiku"
 timeoutMs: 120_000 # 2 min (ms)
-maxRetry: 2 # runAI の最大ﾘ監gﾗ牡C回数（0=ﾘ監gﾗ牡Cなし､A上限 10）
+maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Hash generation
 hashLength: 8

@@ -14,11 +14,12 @@ import { isAbsolutePath, joinPath, normalizePath } from '../path-utils/path-util
 // ─────────────────────────────────────────────
 
 /**
- * 期間文字列をディレクトリパス断片に変換する。
- * - YYYY-MM 形式 → `YYYY/YYYY-MM`
- * - YYYY 形式 → `YYYY`
+ * 期間文字列（`YYYY-MM` 形式）をディレクトリパス断片 `YYYY/YYYY-MM` に変換する。
+ *
+ * CLI は `YYYY-MM` 形式のみを受理するため、`YYYY` 単体は入力されない。
  */
 export const periodToPath = (period: string): string => {
+  // TODO(cle-6tz): YYYY 非対応確定により到達不能。コード削除は後続作業。
   if (period.length === 4) {
     return period;
   }
@@ -28,7 +29,6 @@ export const periodToPath = (period: string): string => {
 /**
  * エージェントのチャットログサブパスを構築する。
  * - period 未指定 → `agent`
- * - period = YYYY → `agent/YYYY`
  * - period = YYYY-MM → `agent/YYYY/YYYY-MM`
  */
 export const agentPath = (agent: string, period?: string): string => {

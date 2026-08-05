@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
 // src: scripts/classify-chatlogs.ts
 // @(#): classify-chatlogs オーケストレーション — チャットログをプロジェクト別サブディレクトリに分類する
 //
@@ -10,7 +10,7 @@
  * classify-chatlogs.ts — チャットログをプロジェクト別サブディレクトリに分類する
  *
  * 使い方:
- *   deno run --allow-read --allow-run --allow-write classify-chatlogs.ts \
+ *   deno run --allow-read --allow-run --allow-write --allow-env classify-chatlogs.ts \
  *     [agent] [YYYY-MM] [--dry-run] [--config FILE] [--input-dir DIR]
  */
 

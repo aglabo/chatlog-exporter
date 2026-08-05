@@ -5,8 +5,8 @@ description: >
   /export-chatlogs で呼び出す。
   システムログ・短文肯定応答（「y」「はい」「ok」等）・ツール使用記録を除外し、
   指定エージェント・期間・プロジェクトの実質的な会話のみを書き出す。
-  対応エージェント: claude（デフォルト）, codex, chatgpt
-argument-hint: "[agent] [YYYY-MM|YYYY] [inputPath]"
+  対応エージェント: claude, codex, chatgpt（既定は config.yaml の agent、組み込み既定は claude）
+argument-hint: "[agent] [YYYY-MM] [--input-dir DIR]"
 allowed-tools: Bash, Glob
 ---
 
@@ -24,18 +24,24 @@ AIエージェントのセッション履歴をノイズ除外して Markdown �
 
 `$ARGUMENTS` を解析し、以下のルールで引数を処理:
 
-- 引数なし → `claude` agent・全期間
+- 引数なし → デフォルト agent・全期間
 - `agent`（例: `codex`）→ 指定 agent・全期間
-- `YYYY-MM`（例: `2026-03`）→ `claude` agent・指定月
-- `YYYY`（例: `2026`）→ `claude` agent・指定年
 - `agent YYYY-MM`（例: `codex 2026-03`）→ 指定 agent・指定月
 
-引数の判定ルール:
+> **デフォルト agent**: 位置引数で agent を指定しない場合は `config.yaml` の `agent` が使われる。
+> 優先順位は **CLI 引数 > `config.yaml` > 組み込み既定（`claude`）**。
+> 既定を変えるには `.config/chatlog-exporter/config.yaml` の `agent:` を編集する。
 
-- `YYYY-MM` パターン（`^[0-9]{4}-[0-9]{2}$`）→ YEAR_MONTH
-- `YYYY` パターン（`^[0-9]{4}$`）→ YEAR
-- 既知の agent リスト（`claude`, `codex`, `chatgpt`）→ AGENT
-- `\` → `/` 正規化後に `/` を含む文字列 → INPUT_PATH（`chatgpt` 専用の入力ディレクトリ）
+位置引数の判定ルール（インデックス固定パターン）:
+
+- **パターンA**: 1つ目がスラッシュを含むパス → 入力ディレクトリ
+- **パターンB**: 1つ目が既知のエージェント（`claude`, `chatgpt`, `codex`）→ AGENT。
+  2つ目がある場合は `YYYY-MM` 形式が**必須**（違反すると `InvalidPeriodPosition` エラー）
+- 上記いずれにも当てはまらない1つ目の引数 → `UnknownPositional` エラー
+
+> **注意**: 期間は `YYYY-MM` 形式のみ受け付ける。
+> `YYYY`（年のみ）は agent の後ろに置いてもエラーになる。
+> また `YYYY-MM` を単独の位置引数として渡すこともできない（agent と併記する）。
 
 ## ステップ1: スクリプトパスの解決
 
@@ -61,48 +67,73 @@ deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 
 - 引数なし → `deno run ... "$SCRIPT_PATH"`
 - `agent` のみ → `deno run ... "$SCRIPT_PATH" codex`
-- `YYYY-MM` のみ → `deno run ... "$SCRIPT_PATH" 2026-03`
 - `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" codex 2026-03`
-- `chatlogsDir` 指定時 → `deno run ... "$SCRIPT_PATH" --chatlogs-dir "$CHATLOGS_DIR"`
-- dry-run 確認時 → `deno run ... "$SCRIPT_PATH" --dry-run`（※現状 `main()` 側で書き込みスキップは未実装のため、実際にはファイルが生成される点に注意）
 - `--export-dir DIR` を明示指定したい場合のみ追加する（この場合 `originalLogs` は挟まれず、指定パスがそのまま使われる）
 
-#### その他の利用可能なオプション
+#### 利用可能なオプション一覧
 
-以下のオプションもそのまま渡せる（`$ARGUMENTS` の位置引数ルールとは独立したフラグ）:
+| オプション         | 説明                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| `--export-dir DIR` | 出力先ディレクトリを明示指定（`originalLogs` を挟まない）            |
+| `--input-dir DIR`  | 入力ディレクトリ（agent ごとに意味が異なる。下記参照）               |
+| `--config FILE`    | GlobalConfig ファイルのパス                                          |
+| `--dry-run`        | **未実装**: 解析されるだけで無視され、ファイルは通常どおり生成される |
 
-- `--input-dir DIR` — 入力ディレクトリ（chatgpt エージェントの位置引数と同義）
-- `--chatlogs-dir DIR` — チャットログ格納ディレクトリ
-- `--export-dir DIR` — 出力先ディレクトリを明示指定（`originalLogs` を挟まない）
-- `--dry-run` — dry-run モード（**現状未実装**: フラグは解析されるが、書き込みスキップの動作は行われない）
+> `--chatlogs-dir` というオプションは**存在しない**（渡すと `UnknownOption` で異常終了する）。
+> 出力先を変えたい場合は `--export-dir`、入力元を変えたい場合は `--input-dir` を使う。
+> 格納先の既定値は `config.yaml` の `chatlogsDir`（既定 `./chatlogs`）で設定する。
+>
+> `--output-dir` / `--model` も解析されるが、このスキルでは使用されず破棄される。
+
+`--input-dir` の意味はエージェントごとに異なる:
+
+- `claude` — Claude プロジェクトのルート（既定 `~/.claude/projects`）を上書きする
+- `chatgpt` — エクスポート済み ChatGPT ディレクトリ（**必須**）
+- `codex` — 無視される
 
 #### chatgpt エージェントの場合
 
-`chatgpt` が指定された場合、エクスポート済み ChatGPT ディレクトリを **位置引数**（`inputPath`）で指定する（**必須**）。
-`\` は `/` に自動正規化されるため Windows パスもそのまま渡せる。
+`chatgpt` が指定された場合、エクスポート済み ChatGPT ディレクトリの指定が**必須**。
 未指定の場合はエラーを出力して終了する。
 
-- `chatgpt /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt "$INPUT_DIR"`
-- `chatgpt 2026-03 /path/to/export` → `deno run ... "$SCRIPT_PATH" chatgpt 2026-03 "$INPUT_DIR"`
-- `chatgpt /path/to/export 2026-03` → 順番を逆にしても同様に動作する
+```bash
+deno run ... "$SCRIPT_PATH" chatgpt --input-dir "$INPUT_DIR"
+deno run ... "$SCRIPT_PATH" chatgpt 2026-03 --input-dir "$INPUT_DIR"
+```
 
-フラグ形式（`--input-dir DIR`）も引き続き使用可能。
+> **注意**: 入力ディレクトリを位置引数で渡すことはできない。
+> `chatgpt /path/to/export` は agent の次が期間形式でないためエラーになり、
+> `chatgpt 2026-03 /path/to/export` は3つ目が `--output-dir` として解釈され破棄される。
+> 必ず `--input-dir` フラグを使う。
 
 スクリプトは以下を除外してエクスポート:
 
 - システムログ（`isMeta: true` エントリ、AGENTS.md・permissions等の注入コンテンツ）
 - ツール使用・ツール結果エントリ
 - スラッシュコマンド（`/clear`、`/help`、`/reset`、`/exit`、`/quit`）
-- システムタグで始まるメッセージ（`<system-reminder` 等）
+- システムタグで始まるメッセージ（`<system-reminder`、`<command-name`、`<command-message` 等）
+- 定型メッセージ（`[Request interrupted`、`Tool loaded.`、`Unknown skill:` 等）
 - 短文肯定応答（20 文字以下で「y」「yes」「はい」「ok」「進めて」等）
+
+また、冒頭 10 行以内に `commit message generator` / `commit-message` を含むセッションは
+**セッション単位で丸ごと除外**される。
 
 ## ステップ3: 結果通知
 
 スクリプト完了後、`stderr` のサマリー行を読んでユーザーに結果を通知する。
 
+サマリーは **stderr** に `::info::` プレフィックス付きで、以下の形式で出力される:
+
+```bash
+::info:: 完了: 12 件処理 (出力: 10 / スキップ: 2 / エラー: 0)
+::info:: 出力先: ./chatlogs/originalLogs/claude/
+```
+
+出力された個々のファイルパスは **stdout** に出力される。
+
 通知形式:
 
-- 書き出したファイル数と出力先ディレクトリ
+- 処理件数（出力 / スキップ / エラー）と出力先ディレクトリ
 - 書き出しが 0 件の場合は、その理由と確認方法を案内する
 
 ## 出力ディレクトリ構造
@@ -113,21 +144,24 @@ chatlogs/
        └── <agent>/
             └── YYYY/
                  └── YYYY-MM/
-                      └── <project>/
-                           └── YYYY-MM-DD-{slug}-{sessionid8}.md
+                      └── YYYY-MM-DD-{slug}-{sessionid12}.md
 ```
+
+プロジェクト別のサブディレクトリはこの段階では作られない
+（`project` はフロントマターのフィールドとしてのみ保持される）。
+プロジェクト別への振り分けは後工程の `/classify-chatlogs` が行う。
 
 ### エージェント別データソース
 
-| agent     | データソース                                              |
-| --------- | --------------------------------------------------------- |
-| `claude`  | `~/.claude/projects/*/**.jsonl`                           |
-| `codex`   | `~/.codex/sessions/YYYY/MM/DD/*.jsonl`                    |
-| `chatgpt` | `<inputPath で指定したディレクトリ>/conversations-*.json` |
+| agent     | データソース                                                  |
+| --------- | ------------------------------------------------------------- |
+| `claude`  | `~/.claude/projects/<project>/*.jsonl`（`subagents/` は除外） |
+| `codex`   | `~/.codex/sessions/` 配下を再帰探索した `*.jsonl`             |
+| `chatgpt` | `<--input-dir で指定したディレクトリ>/conversations-*.json`   |
 
 ### 注意: 再エクスポート時のファイル名重複
 
-出力ファイル名（`{sessionid8}` 部分）は sessionId のハッシュから生成される。
+出力ファイル名（`{sessionid12}` 部分）は sessionId のハッシュ先頭12文字から生成される。
 ハッシュ生成規則やファイル名の命名規則が将来変更された場合、旧規則で出力済みの
 ファイルは自動的には削除されない。同一セッションが新旧2つのファイル名で重複して
 存在すると、後続の `/filter-chatlog` や `/classify-chatlogs` が同じ会話を
