@@ -26,6 +26,8 @@
     "prepare": "bash ./scripts/setup-dev-env.sh",
     "install-skills": "bash ./scripts/install-skills.sh ",
     "sync:skill-assets": "bash ./scripts/sync-skill-assets.sh ",
+    "check:skill-assets": "bash ./scripts/sync-skill-assets.sh --check",
+    "check:skill-assets:head": "bash ./scripts/sync-skill-assets.sh --check-head",
     "docs:dev": "pnpm --dir aglabo.github.io run docs:dev",
     "docs:build": "pnpm --dir aglabo.github.io run docs:build",
     "check:sh": "bash runners/run-shfmt.sh --list .",

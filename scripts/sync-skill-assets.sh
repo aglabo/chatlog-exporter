@@ -33,7 +33,7 @@ readonly EXCLUDE_NAME="__tests__"
 # @description Print usage to stdout
 usage() {
   cat <<'EOF'
-Usage: bash scripts/sync-skill-assets.sh [--check] [--help]
+Usage: bash scripts/sync-skill-assets.sh [--check] [--check-head] [--help]
 
 Regenerates the distributable copies under skills/setup-chatlogs/ from their
 sources:
@@ -46,8 +46,9 @@ __tests__ directories are excluded at every depth. Each destination is replaced
 as a whole, so files deleted from a source disappear from the distribution too.
 
 Options:
-  --check  Report whether the distribution is out of date; write nothing
-  --help   Show this help
+  --check       Report whether the distribution is out of date; write nothing
+  --check-head  Same as --check, but against the committed HEAD tree
+  --help        Show this help
 EOF
 }
 
@@ -56,19 +57,22 @@ EOF
 #
 # Kept free of side effects so the option rules can be verified on their own.
 # Every option is read before a mode is chosen, so the priority is
-# help > check no matter what order the options are written in.
+# help > check-head > check no matter what order the options are written in.
+# check-head outranks check because it verifies the wider surface: the tree that
+# would actually reach the remote rather than the working tree.
 #
-# @arg $@ string Command line options (--check, --help)
-# @stdout One of: help, check, "" (empty, plain sync)
+# @arg $@ string Command line options (--check, --check-head, --help)
+# @stdout One of: help, check-head, check, "" (empty, plain sync)
 # @return 0 If the options are valid
 # @return 1 If an option is unknown
 parse_args() {
-  local help=false check=false
+  local help=false check=false check_head=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
     --help) help=true ;;
     --check) check=true ;;
+    --check-head) check_head=true ;;
     *)
       echo "Error: unknown option: $1" >&2
       return 1
@@ -79,6 +83,8 @@ parse_args() {
 
   if [[ "$help" == "true" ]]; then
     echo "help"
+  elif [[ "$check_head" == "true" ]]; then
+    echo "check-head"
   elif [[ "$check" == "true" ]]; then
     echo "check"
   else
@@ -210,8 +216,48 @@ run_check() {
 }
 
 ##
+# @description Report whether the committed HEAD tree's distribution matches its sources
+#
+# run_check reads the working tree, which leaves one case open: a contributor
+# edits a source, commits it, re-runs the sync, and never commits the
+# regenerated distribution. The working tree agrees with itself, so --check
+# passes and the push goes through, but what lands on the remote is a commit
+# whose sources are new and whose distribution is stale.
+#
+# Extracting HEAD into a scratch directory and checking that instead closes the
+# gap, and reuses run_check verbatim so both modes keep a single definition of
+# what the distribution should contain.
+#
+# @arg $1 string Repository root directory
+# @stdout An "up to date" report line when the committed distribution matches
+# @return 0 If the committed distribution matches its sources
+# @return 1 If HEAD cannot be read or the committed distribution is out of date
+run_check_head() {
+  local base="$1"
+  local head_tree status=0
+
+  head_tree="$(mktemp -d)"
+
+  if ! git -C "$base" archive HEAD | tar -xf - -C "$head_tree"; then
+    rm -rf -- "$head_tree"
+    echo "Error: cannot read the committed tree (HEAD)" >&2
+    return 1
+  fi
+
+  # errexit would abort here on drift before the scratch directory is removed.
+  run_check "$head_tree" || status=$?
+
+  rm -rf -- "$head_tree"
+
+  if [[ "$status" -ne 0 ]]; then
+    echo "Hint: the sources are committed but the regenerated distribution may not be" >&2
+    return "$status"
+  fi
+}
+
+##
 # @description Main entry point
-# @arg $@ string Command line options (--check, --help)
+# @arg $@ string Command line options (--check, --check-head, --help)
 # @return 0 If the distribution is synced or verified
 # @return 1 If the options are invalid, a source is missing, or the check fails
 main() {
@@ -228,6 +274,11 @@ main() {
 
   local repo_root
   repo_root="$(resolve_repo_root)"
+
+  if [[ "$mode" == "check-head" ]]; then
+    run_check_head "$repo_root"
+    return
+  fi
 
   if [[ "$mode" == "check" ]]; then
     run_check "$repo_root"
