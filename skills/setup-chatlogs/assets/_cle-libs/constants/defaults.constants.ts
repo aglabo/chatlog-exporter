@@ -18,6 +18,9 @@ export const DEFAULT_APP_NAME = 'chatlog-exporter';
 /** 設定ファイル取得基準ディレクトリ */
 export const DEFAULT_CONFIG_DIR = `.config/${DEFAULT_APP_NAME}`;
 
+/** `--config` 未指定時に読み込む既定の設定ファイル名。`configDir` 相対。 */
+export const DEFAULT_CONFIG_FILE = 'config.yaml';
+
 // ─────────────────────────────────────────────
 // ディレクトリ
 // ─────────────────────────────────────────────
