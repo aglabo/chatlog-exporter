@@ -36,6 +36,7 @@ rules:
       space:
         - alphabets
         - numbers
+    textlint-rule-preset-ja-spacing: false
   common-misspellings: true
   no-mixed-zenkaku-and-hankaku-alphabet: true
   "@proofdict/proofdict":

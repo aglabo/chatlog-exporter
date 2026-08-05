@@ -13,6 +13,8 @@
   // deno settings
   "deno.enable": true,
   "deno.config": "deno.json",
+  // textlint
+  "textlint.configPath": "./configs/textlintrc.yaml",
   // trusted JSON schema hosts
   "json.schemaDownload.enable": true,
   "json.schemaDownload.trustedDomains": {
