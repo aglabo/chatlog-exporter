@@ -9,7 +9,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
-import { beforeEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import {
@@ -25,7 +25,11 @@ import {
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 // constants
-import { DEFAULT_CACHE_ROOT, DEFAULT_CHATLOGS_DIR } from '../../../../constants/defaults.constants.ts';
+import {
+  DEFAULT_CACHE_ROOT,
+  DEFAULT_CHATLOGS_DIR,
+  DEFAULT_CONFIG_FILE,
+} from '../../../../constants/defaults.constants.ts';
 // types
 import type { ArgSchema, ParsedArgs } from '../../../../types/args-schema.types.ts';
 
@@ -48,6 +52,19 @@ const TEST_SCHEMA: ArgSchema<TestConfig> = [
   { option: '--dry-run', field: 'dryRun', type: 'flag' },
   { option: '--verbose', field: 'verbose', type: 'flag' },
 ];
+
+// functions
+
+/**
+ * GlobalConfig シングルトンを「設定ファイルなし」の状態で事前生成する。
+ *
+ * `parseArgs` は第4引数省略時に既定設定ファイル (`DEFAULT_CONFIG_FILE`) を読むため、
+ * 事前生成しないと実在する `.config/chatlog-exporter/config.yaml` の値がテストに混入する。
+ * `getInstance` は既存インスタンスがあれば即座に返すため、これでファイル読み込みを回避できる。
+ */
+const _seedDefaultGlobalConfig = (): void => {
+  GlobalConfig.getInstance({ yaml: '' });
+};
 
 // ─── Tests
 
@@ -230,6 +247,7 @@ describe('parseArgsToConfig', () => {
         }
 
         it('T-PA-01-01: agent が GlobalConfig のデフォルト値 "claude" になる（自動マージ）', () => {
+          _seedDefaultGlobalConfig();
           const result = parseArgs<TestConfig>([], TEST_SCHEMA);
           assertEquals(result.agent, 'claude');
         });
@@ -546,6 +564,7 @@ describe('parseArgsToConfig', () => {
     /** chatlogsDir が CLI 未設定の場合は GlobalConfig のデフォルト値が使われる。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-PA-18-02: chatlogsDir が CLI 未設定 → GlobalConfig のデフォルト値になる（スローしない）', () => {
+        _seedDefaultGlobalConfig();
         const result = parseArgs<TestConfig>([], TEST_SCHEMA);
         assertEquals(result.chatlogsDir, DEFAULT_CHATLOGS_DIR);
       });
@@ -942,6 +961,7 @@ describe('parseArgsToConfig', () => {
       });
 
       it('[Edge] T-PA-37-03: --model 未指定・config.yaml 未指定 → GlobalConfig デフォルト値 "sonnet" になる', () => {
+        _seedDefaultGlobalConfig();
         const result = parseArgs<TestConfig & { model?: string }>([], TEST_SCHEMA);
         assertEquals(result.model, 'sonnet');
       });
@@ -1152,6 +1172,7 @@ describe('parseArgs (defaults / globalConfig merge)', () => {
   /** 後方互換性・境界値の確認を行うエッジケース。 */
   describe('When: エッジケース', () => {
     it('[Edge] T-PA-35-05: defaults/globalConfig 省略の2引数呼び出し → GlobalConfig のデフォルト値が自動マージされる', () => {
+      _seedDefaultGlobalConfig();
       const result = parseArgs<TestConfig>(['--output', '/out'], TEST_SCHEMA);
       assertEquals(result.outputDir, '/out');
       assertEquals(result.agent, 'claude');
@@ -1159,6 +1180,7 @@ describe('parseArgs (defaults / globalConfig merge)', () => {
     });
 
     it('[Edge] T-PA-35-06: defaults={} 明示指定・globalConfig なし → GlobalConfig のデフォルト値が自動マージされる', () => {
+      _seedDefaultGlobalConfig();
       const result = parseArgs<TestConfig>(['--output', '/out'], TEST_SCHEMA, {});
       assertEquals(result.outputDir, '/out');
       assertEquals(result.agent, 'claude');
@@ -1168,6 +1190,84 @@ describe('parseArgs (defaults / globalConfig merge)', () => {
       GlobalConfig.getInstance({ yaml: 'agent: chatgpt\n' });
       const result = parseArgs<TestConfig>([], TEST_SCHEMA, { outputDir: '/default-out' });
       assertEquals(result.outputDir, '/default-out');
+    });
+  });
+});
+
+// ─── T-PA-38: defaultConfigFile ──────────────────────────────────────────────
+
+/**
+ * `parseArgs` 第4引数 `defaultConfigFile` のテストスイート。
+ *
+ * デバッグ・テスト用に「デフォルト設定ファイル」を注入できることを検証する。
+ * 優先度 CLI 引数 > `--config` > `defaultConfigFile` > `defaults` を確認する。
+ *
+ * 実機の `.config/chatlog-exporter/config.yaml` に依存しないよう、
+ * 一時ディレクトリ配下の絶対パスを `defaultConfigFile` に渡す。
+ *
+ * テスト ID 範囲: T-PA-38-01 〜 T-PA-38-05
+ *
+ * @see parseArgs
+ */
+describe('parseArgs (defaultConfigFile)', () => {
+  let tempDir: string;
+  let defaultConfigPath: string;
+  let explicitConfigPath: string;
+
+  beforeEach(async () => {
+    GlobalConfig.resetInstance();
+    tempDir = await Deno.makeTempDir({ prefix: 'cle-parse-args-' });
+    defaultConfigPath = `${tempDir}/default-config.yaml`;
+    explicitConfigPath = `${tempDir}/explicit-config.yaml`;
+    await Deno.writeTextFile(defaultConfigPath, 'agent: chatgpt\nmodel: haiku\n');
+    await Deno.writeTextFile(explicitConfigPath, 'agent: codex\n');
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
+  /** defaultConfigFile が読み込まれ、優先度どおりにマージされる正常系。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PA-38-01: defaultConfigFile 指定 → その設定ファイルの値が結果にマージされる', () => {
+      const result = parseArgs<TestConfig>([], TEST_SCHEMA, {}, defaultConfigPath);
+      assertEquals(result.agent, 'chatgpt');
+    });
+
+    it('[Normal] T-PA-38-02: --config 指定 + defaultConfigFile → --config が優先される', () => {
+      const result = parseArgs<TestConfig>(
+        ['--config', explicitConfigPath],
+        TEST_SCHEMA,
+        {},
+        defaultConfigPath,
+      );
+      assertEquals(result.agent, 'codex');
+    });
+
+    it('[Normal] T-PA-38-03: CLI 位置引数 → defaultConfigFile の値より CLI が優先される', () => {
+      const result = parseArgs<TestConfig>(['claude'], TEST_SCHEMA, {}, defaultConfigPath);
+      assertEquals(result.agent, 'claude');
+    });
+
+    it('[Normal] T-PA-38-04: defaults 指定 + defaultConfigFile → 設定ファイル値が defaults を上書きする', () => {
+      const result = parseArgs<TestConfig>([], TEST_SCHEMA, { agent: 'codex' }, defaultConfigPath);
+      assertEquals(result.agent, 'chatgpt');
+    });
+  });
+
+  /** 第4引数省略時の後方互換性と、戻り値への混入がないことを確認するエッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-PA-38-05: 第4引数省略（3引数呼び出し）→ DEFAULT_CONFIG_FILE を明示指定した場合と同じ結果になる', () => {
+      GlobalConfig.resetInstance();
+      const _omitted = parseArgs<TestConfig>([], TEST_SCHEMA, {});
+      GlobalConfig.resetInstance();
+      const _explicit = parseArgs<TestConfig>([], TEST_SCHEMA, {}, DEFAULT_CONFIG_FILE);
+      assertEquals(_omitted, _explicit);
+    });
+
+    it('[Edge] T-PA-38-06: defaultConfigFile は戻り値に混入しない', () => {
+      const result = parseArgs<TestConfig>([], TEST_SCHEMA, {}, defaultConfigPath);
+      assertFalse('defaultConfigFile' in result);
     });
   });
 });
