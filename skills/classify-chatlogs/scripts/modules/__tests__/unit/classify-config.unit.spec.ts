@@ -20,6 +20,8 @@ import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.clas
 describe('buildConfig (CLI 引数解析)', () => {
   beforeEach(() => {
     GlobalConfig.resetInstance();
+    // 実在する config.yaml を読み込ませず DEFAULT_CONFIG_VALUES を基準にする
+    GlobalConfig.getInstance({ yaml: '' });
   });
 
   // ─── T-CL-PA-02: --input-dir オプション ─────────────────────────────────────

@@ -185,7 +185,7 @@ describe('buildConfig', () => {
       /** DEFAULT_CHATLOGS_DIR が chatlogsDir に使われることを検証する。 */
       describe('Then: T-FL-BC-32 - DEFAULT_CHATLOGS_DIR が chatlogsDir に使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-32: chatlogsDir 未設定 → result.chatlogsDir === DEFAULT_CHATLOGS_DIR', () => {
           const result = buildConfig([]);
@@ -205,7 +205,7 @@ describe('buildConfig', () => {
       /** `result.dryRun === true` になることを検証する。 */
       describe('Then: T-FL-BC-07 - result.dryRun === true', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-07: args=[--dry-run] → result.dryRun === true', () => {
           const result = buildConfig(['--dry-run']);
@@ -223,7 +223,7 @@ describe('buildConfig', () => {
       /** デフォルト値 false が使われることを検証する。 */
       describe('Then: T-FL-BC-08 - result.dryRun === false', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-08: dryRun 未指定 → result.dryRun === false', () => {
           const result = buildConfig([]);
@@ -245,7 +245,7 @@ describe('buildConfig', () => {
       /** `result.period` に CLI の period が設定されることを検証する。 */
       describe('Then: T-FL-BC-09 - result.period === CLI の period', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-09: args=[claude, 2026-03] → result.period === 2026-03', () => {
           const result = buildConfig(['claude', '2026-03']);
@@ -260,7 +260,7 @@ describe('buildConfig', () => {
       /** `result.period === undefined` になることを検証する。 */
       describe('Then: T-FL-BC-10 - result.period === undefined', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-10: period 未指定 → result.period === undefined', () => {
           const result = buildConfig([]);
@@ -298,7 +298,7 @@ describe('buildConfig', () => {
       /** GlobalConfig の DEFAULT_CONFIG_VALUES.chunkSize が使われることを検証する。 */
       describe('Then: T-FL-BC-11b - GlobalConfig のデフォルト chunkSize が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-11b: chunkSize 未設定 → result.chunkSize === GlobalConfig デフォルト値', () => {
           const result = buildConfig([]);
@@ -336,7 +336,7 @@ describe('buildConfig', () => {
       /** `ChatlogError('InvalidArgs', 'NotAnInteger', ...)` が throw されることを検証する。 */
       describe('Then: T-FL-BC-34 - ChatlogError(InvalidArgs, NotAnInteger) が throw される', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-34: args=[--chunk-size, abc] → ChatlogError(InvalidArgs, NotAnInteger)', () => {
           assertThrows(
@@ -356,7 +356,7 @@ describe('buildConfig', () => {
       /** `=` 区切り記法でも正しく chunkSize に反映されることを検証する。 */
       describe('Then: T-FL-BC-35 - result.chunkSize === 1', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-35: args=[--chunk-size=1] → result.chunkSize === 1', () => {
           const result = buildConfig(['--chunk-size=1']);
@@ -376,7 +376,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-FL-BC-36 - ChatlogError(InvalidArgs, OutOfRange) が throw される', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-36: args=[--chunk-size, 0] → ChatlogError(InvalidArgs, OutOfRange)', () => {
           assertThrows(
@@ -424,7 +424,7 @@ describe('buildConfig', () => {
       /** GlobalConfig の DEFAULT_CONFIG_VALUES.concurrency が使われることを検証する。 */
       describe('Then: T-FL-BC-16 - GlobalConfig のデフォルト concurrency が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-16: concurrency 未設定 → result.concurrency === GlobalConfig デフォルト値', () => {
           const result = buildConfig([]);
@@ -456,7 +456,7 @@ describe('buildConfig', () => {
       /** GlobalConfig の DEFAULT_CONFIG_VALUES.minCharCount が使われることを検証する。 */
       describe('Then: T-FL-BC-23 - GlobalConfig のデフォルト minCharCount が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-23: minCharCount 未設定 → result.minCharCount === DEFAULT_FILTER_CONFIG.minCharCount', () => {
           const result = buildConfig([]);
@@ -488,7 +488,7 @@ describe('buildConfig', () => {
       /** GlobalConfig の DEFAULT_CONFIG_VALUES.minAssistantChars が使われることを検証する。 */
       describe('Then: T-FL-BC-26 - GlobalConfig のデフォルト minAssistantChars が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-26: minAssistantChars 未設定 → result.minAssistantChars === DEFAULT_FILTER_CONFIG.minAssistantChars', () => {
           const result = buildConfig([]);
@@ -550,7 +550,7 @@ describe('buildConfig', () => {
       /** DEFAULT_FILTER_CONFIG.discardThreshold が使われることを検証する。 */
       describe('Then: T-FL-BC-29 - DEFAULT_FILTER_CONFIG.discardThreshold が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-29: discardThreshold 未設定 → result.discardThreshold === DEFAULT_FILTER_CONFIG.discardThreshold', () => {
           const result = buildConfig([]);
@@ -605,7 +605,7 @@ describe('buildConfig', () => {
       /** GlobalConfig のデフォルト model（DEFAULT_CONFIG_VALUES.model）が使われることを検証する。 */
       describe('Then: T-FL-BC-41 - GlobalConfig のデフォルト model が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-41: model 未設定 → result.model === DEFAULT_CONFIG_VALUES.model', () => {
           const result = buildConfig([]);
@@ -625,7 +625,7 @@ describe('buildConfig', () => {
       /** `result.singleFile === true` になることを検証する。 */
       describe('Then: T-FL-BC-39 - result.singleFile === true', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-39: args=[--single-file] → result.singleFile === true', () => {
           const result = buildConfig(['--single-file']);
@@ -643,7 +643,7 @@ describe('buildConfig', () => {
       /** デフォルト値 false が使われることを検証する。 */
       describe('Then: T-FL-BC-40 - result.singleFile === false', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-40: singleFile 未指定 → result.singleFile === false', () => {
           const result = buildConfig([]);
@@ -665,7 +665,7 @@ describe('buildConfig', () => {
       /** `result` に `configFile` フィールドが含まれないことを検証する。 */
       describe('Then: T-FL-BC-13 - result に configFile フィールドが含まれない', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-FL-BC-13: args=[--config, cfg.yaml] → configFile in result === false', () => {
           const result: FilterConfig = buildConfig(['--config', 'cfg.yaml']);

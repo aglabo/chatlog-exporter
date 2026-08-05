@@ -105,6 +105,8 @@ describe('main (noise-filter) - dry-run モード', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
@@ -158,6 +160,8 @@ describe('main (noise-filter) - 通常実行（削除あり）', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
@@ -213,6 +217,8 @@ describe('main (noise-filter) - 事前フィルタによる内容ベース削除
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
@@ -268,6 +274,8 @@ describe('main (noise-filter) - 全件 keep', () => {
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
@@ -322,6 +330,8 @@ describe('main (noise-filter) - 空ディレクトリ', () => {
         beforeEach(async () => {
           tempDir = await Deno.makeTempDir();
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {
@@ -435,6 +445,11 @@ describe('main (noise-filter) - 存在しない inputDir', () => {
     describe('When: main(["claude", "--input-dir", "/nonexistent/path"]) を呼び出す', () => {
       /** `ChatlogError` が throw され `main` が reject されること。 */
       describe('Then: T-PF-E2E-08 - main が ChatlogError で reject される', () => {
+        beforeEach(async () => {
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig('');
+        });
+
         afterEach(() => {
           GlobalConfig.resetInstance();
         });
@@ -486,6 +501,8 @@ describe('main (noise-filter) - 読み込み失敗ファイルの削除防止', 
         beforeEach(async () => {
           ({ tempDir, chatlogsDir } = await _makeTestDirs());
           loggerStub = makeLoggerStub();
+          // GlobalConfig を実 config.yaml から隔離し、minCharCount 等をデフォルト値に固定する
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'`);
         });
 
         afterEach(async () => {

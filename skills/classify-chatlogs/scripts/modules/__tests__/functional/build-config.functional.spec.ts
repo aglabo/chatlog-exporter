@@ -145,7 +145,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-07 - CLI 引数がデフォルトを上書きする', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-07-01: --dry-run --input-dir=/custom/input → result.dryRun === true, result.inputDir === /custom/input', () => {
           const result = buildConfig(['--dry-run', '--input-dir=/custom/input']);
@@ -204,7 +204,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-12 - result.dryRun === true', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-12-01: --dry-run → result.dryRun === true', () => {
           const result = buildConfig(['--dry-run']);
@@ -218,7 +218,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-13 - DEFAULT_CLASSIFY_CONFIG.dryRun が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-13-01: dryRun 未指定 → result.dryRun === DEFAULT_CLASSIFY_CONFIG.dryRun', () => {
           const result = buildConfig([]);
@@ -234,7 +234,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-14 - result.inputDir === 指定値', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-14-01: --input-dir=/custom/input → result.inputDir === /custom/input', () => {
           const result = buildConfig(['--input-dir=/custom/input']);
@@ -284,7 +284,7 @@ describe('buildConfig', () => {
     describe('When: GlobalConfig に chatlogsDir が未登録（schema: {}）', () => {
       describe('Then: T-CL-BC-15 - DEFAULT_CLASSIFY_CONFIG.chatlogsDir が使われる', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance({ schema: {} });
+          await GlobalConfig.getInstance({ schema: {}, yaml: '' });
         });
         it('T-CL-BC-15-01: inputDir 未指定, chatlogsDir 未登録 → result.chatlogsDir === DEFAULT_CLASSIFY_CONFIG.chatlogsDir', () => {
           const result = buildConfig([]);
@@ -300,7 +300,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-16 - result.period === 指定値', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-16-01: --period=2026-01 → result.period === 2026-01', () => {
           const result = buildConfig(['--period=2026-01']);
@@ -314,7 +314,7 @@ describe('buildConfig', () => {
     describe('When: buildConfig を呼び出す', () => {
       describe('Then: T-CL-BC-17 - result.period === undefined', () => {
         beforeEach(async () => {
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-17-01: period 未指定 → result.period === undefined', () => {
           const result = buildConfig([]);
@@ -331,7 +331,7 @@ describe('buildConfig', () => {
       describe('Then: T-CL-BC-18 - dicsDir 配下の projects.dic が使われる', () => {
         let globalConfig: GlobalConfig;
         beforeEach(async () => {
-          globalConfig = await GlobalConfig.getInstance();
+          globalConfig = await GlobalConfig.getInstance({ yaml: '' });
         });
         it('T-CL-BC-18-01: projectsDic 未設定 → result.projectsDic === `${dicsDir}/projects.dic`', () => {
           const result = buildConfig([]);
@@ -429,7 +429,7 @@ describe('buildConfig', () => {
         });
         it('T-CL-BC-23-02: projectsDic 未設定かつ既定 dicsDir → result.projectsDic === dics/projects.dic', async () => {
           GlobalConfig.resetInstance();
-          await GlobalConfig.getInstance();
+          await GlobalConfig.getInstance({ yaml: '' });
           const result = buildConfig([]);
           assertEquals(result.projectsDic, 'dics/projects.dic');
         });

@@ -28,8 +28,8 @@ import {
 import { ChatlogCache } from '../../../../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { DEFAULT_CONFIG_VALUES } from '../../../../../../_cle-libs/constants/config-schema.constants.ts';
-import { DEFAULT_AI_MODEL } from '../../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type {
   CommandMockHandle,
@@ -167,6 +167,7 @@ describe('processChunk', () => {
 
   afterEach(async () => {
     commandHandle?.restore();
+    GlobalConfig.resetInstance();
     await Deno.remove(tempDir, { recursive: true });
   });
 
@@ -789,7 +790,9 @@ describe('processChunk', () => {
     describe('When: processChunk([file], stats, threshold, cache, ctl) を呼び出す', () => {
       /** claude CLI の起動引数に --model DEFAULT_AI_MODEL が含まれることを検証する。 */
       describe('Then: T-FL-PCK-13 - claude CLI の起動引数に --model DEFAULT_AI_MODEL が含まれる', () => {
-        it('T-FL-PCK-13-01: capturedArgs に --model と DEFAULT_AI_MODEL が含まれる', async () => {
+        it('T-FL-PCK-13-01: capturedArgs に --model と GlobalConfig の model が含まれる', async () => {
+          GlobalConfig.resetInstance();
+          GlobalConfig.getInstance({ yaml: 'model: sonnet\n' });
           const filePath = await _createTempFile('m2.md');
           const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
           const response = JSON.stringify([
@@ -809,7 +812,7 @@ describe('processChunk', () => {
 
           const modelIndex = capturedArgs.value.indexOf('--model');
           assertEquals(modelIndex !== -1, true);
-          assertEquals(capturedArgs.value[modelIndex + 1], DEFAULT_AI_MODEL);
+          assertEquals(capturedArgs.value[modelIndex + 1], 'sonnet');
         });
       });
     });

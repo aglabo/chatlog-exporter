@@ -38,6 +38,8 @@ import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/default
 describe('buildConfig (noise-filter)', () => {
   beforeEach(() => {
     GlobalConfig.resetInstance();
+    // 実在する config.yaml を読み込ませず DEFAULT_CONFIG_VALUES を基準にする
+    GlobalConfig.getInstance({ yaml: '' });
   });
 
   /** 引数なし・agent/period・フラグ・オプション形式の正常ケース。 */
