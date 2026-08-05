@@ -97,7 +97,7 @@ describe('[AI] main - 短文ファイルの misc 分類', { ignore: !_shouldRunA
           // フロントマターなし・50 文字未満 → Claude CLI を呼ばず misc へ直接分類
           await Deno.copyFile(`${FIXTURE_SYSTEM_DATA}/short/input.md`, `${monthDir}/test-file.md`);
 
-          const { code, stderr } = await _runClassify(['claude', '--chatlogs-dir', monthDir, '--config', configFile]);
+          const { code, stderr } = await _runClassify(['claude', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(code, 0);
 

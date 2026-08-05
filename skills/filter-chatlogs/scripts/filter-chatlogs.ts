@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
 // src: scripts/filter-chatlogs.ts
 // @(#): チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
 //
@@ -10,7 +10,8 @@
  * filter-chatlogs.ts — チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
  *
  * 使い方:
- *   deno run --allow-read --allow-run filter-chatlogs.ts [YYYY-MM] [--dry-run] [--input-dir DIR]
+ *   deno run --allow-read --allow-run --allow-write --allow-env filter-chatlogs.ts \
+ *     [agent] [YYYY-MM] [--dry-run] [--single-file] [--input-dir DIR]
  */
 
 // ─────────────────────────────────────────────
