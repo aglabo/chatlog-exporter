@@ -87,6 +87,35 @@ make_fixture_source_repo() {
 }
 
 ##
+# @description Commit the fixture repository's current tree as a single commit
+#
+# `make_fixture_source_repo` only runs `git init`, so the fixture has no HEAD and
+# `git archive HEAD` fails there. Anything exercising the committed tree has to
+# create a commit first, and the specs need to do it more than once: the point of
+# --check-head is the gap between HEAD and the working tree, which only exists
+# once part of the tree is committed and part is not.
+#
+# The identity is set on the repository rather than relied upon globally. CI and
+# hook environments frequently have no user.email configured, and `git commit`
+# refuses to run without one.
+#
+# Signing is disabled explicitly for the same reason in reverse: a developer with
+# commit.gpgsign=true globally would otherwise have every fixture commit prompt
+# for a passphrase or fail outright. The fixture commits are throwaway, so their
+# signatures carry no meaning.
+#
+# @arg $1 string Absolute path to the fixture repository root
+# @return 0 If the commit is created
+commit_fixture_repo() {
+  local repo="$1"
+  git -C "$repo" config user.email 'spec@example.com'
+  git -C "$repo" config user.name 'Spec Fixture'
+  git -C "$repo" config commit.gpgsign false
+  git -C "$repo" add -A
+  git -C "$repo" commit -q --no-gpg-sign -m 'fixture'
+}
+
+##
 # @description Create a throwaway skill directory holding a minimal deploy tree
 #
 # Mirrors the layout setup-chatlogs.sh expects under the skill directory, but

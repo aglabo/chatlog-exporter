@@ -23,11 +23,13 @@ pre-commit:
       skip:
         - empty
 
-# verify the distributable skill assets are regenerated from their sources
+# verify the distributable skill assets are regenerated from their sources.
+# reads the committed tree, not the working tree: regenerating the assets without
+# committing them would otherwise pass here and let the drift reach the remote.
 pre-push:
   commands:
     skill-assets:
-      run: bash ./scripts/sync-skill-assets.sh --check
+      run: bash ./scripts/sync-skill-assets.sh --check-head
 
 prepare-commit-msg:
   commands:

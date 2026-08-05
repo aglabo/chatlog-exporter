@@ -1,7 +1,7 @@
 # src: ./scripts/__tests__/unit/sync-skill-assets.unit.spec.sh
 # @(#) : Unit tests for scripts/sync-skill-assets.sh
 #        対象: usage / parse_args / resolve_repo_root / copy_tree /
-#              run_sync / run_check
+#              run_sync / run_check / run_check_head
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
@@ -38,6 +38,13 @@ Describe 'sync-skill-assets.sh'
         The output should not include '--force'
       End
 
+      It '[Normal] T-SSA-US-03: --check-head を案内する'
+        # 実装が受理するオプションはヘルプに載っていなければ利用者から見えない。
+        When call usage
+        The status should be success
+        The output should include '--check-head'
+      End
+
       It '[Normal] T-SSA-US-02: 実際の配置に一致する起動パスを案内する'
         # 利用者はこの行を見て起動するため、実在するパスであることを保証する。
         When call usage
@@ -64,6 +71,12 @@ Describe 'sync-skill-assets.sh'
       It '[Normal] T-SSA-PA-04: --help → help'
         When call parse_args --help
         The output should equal 'help'
+        The status should be success
+      End
+
+      It '[Normal] T-SSA-PA-10: --check-head → check-head'
+        When call parse_args --check-head
+        The output should equal 'check-head'
         The status should be success
       End
     End
@@ -95,6 +108,32 @@ Describe 'sync-skill-assets.sh'
         # 指定順に関わらず help が勝つことを、help を後ろに置いて確かめる。
         When call parse_args --check --help
         The output should equal 'help'
+        The status should be success
+      End
+
+      It '[Edge] T-SSA-PA-11: --help は --check-head より優先される（help が後）'
+        When call parse_args --check-head --help
+        The output should equal 'help'
+        The status should be success
+      End
+
+      It '[Edge] T-SSA-PA-12: --help は --check-head より優先される（help が先）'
+        # 全オプションを読んでから判定するため、指定順に依存しない。
+        When call parse_args --help --check-head
+        The output should equal 'help'
+        The status should be success
+      End
+
+      It '[Edge] T-SSA-PA-13: --check-head は --check より優先される（check-head が後）'
+        # 併記されたときは検査範囲の広い（HEAD ツリーまで見る）ほうを採る。
+        When call parse_args --check --check-head
+        The output should equal 'check-head'
+        The status should be success
+      End
+
+      It '[Edge] T-SSA-PA-14: --check-head は --check より優先される（check-head が先）'
+        When call parse_args --check-head --check
+        The output should equal 'check-head'
         The status should be success
       End
     End
@@ -258,6 +297,115 @@ Describe 'sync-skill-assets.sh'
           cat "${dist}/assets/deno.json"
         }
         When call check_preserves_drift
+        The status should be success
+        The output should equal 'drift'
+      End
+    End
+  End
+
+  Describe 'run_check_head'
+    # HEAD ツリー（＝リモートに届く内容）を検査する。run_check が作業ツリーしか
+    # 見ないため、「ソースはコミットしたが再生成した配布物をコミットし忘れた」
+    # 状態が pre-push をすり抜けてリモートに到達しうる。その穴を塞ぐ。
+
+    ##
+    # 「ソースは新しいが配布物は古い」コミットを HEAD に作り、
+    # 作業ツリー上は同期済みという状態を組み立てる。
+    #
+    # 1. 同期済みの状態を丸ごとコミット（HEAD は整合）
+    # 2. ソースだけ編集してコミット（HEAD は不整合。配布物は未再生成）
+    # 3. 配布物を再生成するがコミットしない（作業ツリーは整合）
+    make_uncommitted_assets() {
+      run_sync "$repo" >/dev/null || return 1
+      commit_fixture_repo "$repo" || return 1
+      echo 'agent: codex' >"${repo}/.config/chatlog-exporter/config.yaml"
+      commit_fixture_repo "$repo" || return 1
+      run_sync "$repo" >/dev/null || return 1
+    }
+
+    Describe 'When: 正常系'
+      It '[Normal] T-SSA-RCH-01: 同期済みで全てコミット済みなら成功する'
+        BeforeCall 'run_sync "$repo" >/dev/null; commit_fixture_repo "$repo"'
+        When call run_check_head "$repo"
+        The status should be success
+        The output should include 'up to date'
+      End
+    End
+
+    Describe 'When: 異常系'
+      It '[Error] T-SSA-RCH-02: 配布物が未コミットでも作業ツリー検査は通ってしまう'
+        # 塞ごうとしている穴そのもの。run_check が成功することを明示しておかないと、
+        # T-SSA-RCH-03 が「元から壊れていただけ」なのか
+        # 「run_check_head が新たに検出した」のか区別できない。
+        BeforeCall 'make_uncommitted_assets'
+        When call run_check "$repo"
+        The status should be success
+        The output should include 'up to date'
+      End
+
+      It '[Error] T-SSA-RCH-03: 配布物が未コミットなら HEAD 検査は失敗する'
+        # T-SSA-RCH-02 と同じ状態に対して結果が反転することが、穴が塞がった証拠。
+        BeforeCall 'make_uncommitted_assets'
+        When call run_check_head "$repo"
+        The status should be failure
+        The stderr should include 'out of date'
+      End
+
+      It '[Error] T-SSA-RCH-04: コミットが無いリポジトリでは失敗する'
+        # HEAD が無ければ検査対象のツリーを取り出せない。黙って成功すると
+        # 「検査した」という誤った保証を与えてしまう。
+        When call run_check_head "$repo"
+        The status should be failure
+        The stderr should be present
+      End
+    End
+
+    Describe 'When: エッジケース'
+      It '[Edge] T-SSA-RCH-05: 成功しても一時ディレクトリを残さない'
+        # TMPDIR を専用の空ディレクトリに向けることで、この呼び出しが作った
+        # 一時ディレクトリだけを観測する。
+        head_check_in_isolated_tmp() {
+          local tmp_home
+          tmp_home="$(mktemp -d)"
+          run_sync "$repo" >/dev/null || return 1
+          commit_fixture_repo "$repo" || return 1
+          TMPDIR="$tmp_home" run_check_head "$repo" >/dev/null 2>&1 || return 1
+          ls -A "$tmp_home"
+        }
+        When call head_check_in_isolated_tmp
+        The status should be success
+        The output should equal ''
+      End
+
+      It '[Edge] T-SSA-RCH-06: 失敗しても一時ディレクトリを残さない'
+        # 失敗経路の後始末が漏れると、pre-push が落ちるたびにゴミが積もる。
+        head_check_failure_in_isolated_tmp() {
+          local tmp_home
+          tmp_home="$(mktemp -d)"
+          make_uncommitted_assets || return 1
+          TMPDIR="$tmp_home" run_check_head "$repo" >/dev/null 2>&1 && return 1
+          ls -A "$tmp_home"
+        }
+        When call head_check_failure_in_isolated_tmp
+        The status should be success
+        The output should equal ''
+      End
+
+      It '[Edge] T-SSA-RCH-07: 検査は作業ツリーを書き換えない'
+        # HEAD を展開して検査する以上、作業ツリーには一切触れてはならない。
+        # 実行前後で git status が変わらないことをもって読み取り専用を示す。
+        head_check_preserves_worktree() {
+          local before after
+          run_sync "$repo" >/dev/null || return 1
+          commit_fixture_repo "$repo" || return 1
+          echo drift >"${dist}/assets/deno.json"
+          before="$(git -C "$repo" status --porcelain)"
+          run_check_head "$repo" >/dev/null 2>&1 || true
+          after="$(git -C "$repo" status --porcelain)"
+          [[ "$before" == "$after" ]] || return 1
+          cat "${dist}/assets/deno.json"
+        }
+        When call head_check_preserves_worktree
         The status should be success
         The output should equal 'drift'
       End
