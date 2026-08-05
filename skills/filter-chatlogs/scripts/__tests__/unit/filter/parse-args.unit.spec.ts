@@ -47,6 +47,8 @@ type Args = FilterParsedConfig;
 describe('parseArgs', () => {
   beforeEach(() => {
     GlobalConfig.resetInstance();
+    // 実在する config.yaml を読み込ませず DEFAULT_CONFIG_VALUES を基準にする
+    GlobalConfig.getInstance({ yaml: '' });
   });
 
   // ─── T-FL-PA-01: デフォルト値 ───────────────────────────────────────────────
