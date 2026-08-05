@@ -33,7 +33,6 @@ import { joinPath } from '../../../path-utils/path-utils.ts';
  *
  * `periodToPath(period)` は期間文字列をディレクトリパス断片に変換する。
  * - YYYY-MM 形式 → `YYYY/YYYY-MM`
- * - YYYY 形式 → `YYYY`
  *
  * テスト ID 範囲: T-LIB-RD-01-01 〜 T-LIB-RD-01-03
  *
@@ -60,7 +59,8 @@ describe('periodToPath', () => {
   /**
    * YYYY 形式の期間文字列 "2026" を渡す前提条件グループ。
    *
-   * YYYY 形式のとき `YYYY` がそのまま返ることを検証する。
+   * CLI は `YYYY-MM` のみを受理するため、この入力は実運用では到達しない。
+   * 実装が現在返す値を固定する回帰ケース（cle-6tz）。
    */
   describe('Given: YYYY 形式の期間文字列 "2026"', () => {
     /** `periodToPath("2026")` を呼び出すとき。 */
@@ -97,7 +97,6 @@ describe('periodToPath', () => {
  *
  * `agentPath(agent, period?)` はエージェントのチャットログサブパスを構築する。
  * - period 未指定 → `agent`
- * - period = YYYY → `agent/YYYY`
  * - period = YYYY-MM → `agent/YYYY/YYYY-MM`
  *
  * テスト ID 範囲: T-LIB-RD-02-01 〜 T-LIB-RD-02-04
@@ -142,7 +141,8 @@ describe('agentPath', () => {
   /**
    * `period` が YYYY 形式 "2026" の前提条件グループ。
    *
-   * YYYY 形式のとき `agent/YYYY` が返ることを検証する。
+   * CLI は `YYYY-MM` のみを受理するため、この入力は実運用では到達しない。
+   * 実装が現在返す値を固定する回帰ケース（cle-6tz）。
    */
   describe('Given: period が YYYY 形式 "2026"', () => {
     /** `agentPath("claude", "2026")` を呼び出すとき。 */
