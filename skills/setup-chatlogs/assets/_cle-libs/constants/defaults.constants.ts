@@ -29,7 +29,7 @@ export const DEFAULT_CONFIG_FILE = 'config.yaml';
 export const DEFAULT_CHATLOGS_DIR = './chatlogs';
 
 /** normalize-chatlogs が出力するセグメントのデフォルトベースディレクトリ。 */
-export const DEFAULT_NORMALIZE_DIR = 'normalizelogs';
+export const DEFAULT_NORMALIZE_DIR = 'normalizeLogs';
 
 /** export-chatlogs が出力先に付加するサブディレクトリ名。`chatlogsDir` と `joinPath()` で組み合わせて使用する。 */
 export const DEFAULT_ORIGINAL_LOGS_DIR = 'originalLogs';

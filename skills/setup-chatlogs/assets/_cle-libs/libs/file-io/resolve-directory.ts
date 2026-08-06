@@ -124,7 +124,7 @@ export const extractChatlogPath = (filePath: string): string => {
  * pattern is not found, or if it matches at the start of the path.
  *
  * @param filePath - Path to the source chatlog file
- * @returns Base directory like `'chatlogs/normalizelogs'`, or `''`
+ * @returns Base directory like `'chatlogs/normalizeLogs'`, or `''`
  */
 export const extractChatlogBaseDir = (filePath: string): string => {
   const _normalized = normalizePath(filePath);
