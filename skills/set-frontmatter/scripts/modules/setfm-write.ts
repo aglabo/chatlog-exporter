@@ -19,6 +19,7 @@ import { getDirectory, getFilename } from '../../../_cle-libs/libs/path-utils/pa
 
 // ─── Local
 import { DEFAULT_ORDERED_FIELDS } from '../../../_cle-libs/constants/common.constants.ts';
+import { DEFAULT_NORMALIZE_DIR, DEFAULT_OUTPUT_DIR } from '../../../_cle-libs/constants/defaults.constants.ts';
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 import { SETFM_CACHE_STATUSES } from '../types/cache.const.type.ts';
@@ -114,8 +115,8 @@ export const writeFrontmatter = async (
 
   const _baseDir = extractChatlogBaseDir(_inputPath);
   const _resolvedInputDir = _baseDir || inputDir;
-  const _resolvedOutputDir = _baseDir && _baseDir.endsWith('normalizelogs')
-    ? _baseDir.replace(/normalizelogs$/, 'outputLogs')
+  const _resolvedOutputDir = _baseDir && _baseDir.endsWith(DEFAULT_NORMALIZE_DIR)
+    ? _baseDir.slice(0, -DEFAULT_NORMALIZE_DIR.length) + DEFAULT_OUTPUT_DIR
     : outputDir;
 
   const _relPath = relative(_resolvedInputDir, _inputPath);

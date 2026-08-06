@@ -28,6 +28,7 @@
 // ─── Shared scripts
 import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../_cle-libs/classes/GlobalConfig.class.ts';
+import { DEFAULT_NORMALIZE_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
 import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
@@ -122,7 +123,7 @@ export const main = async (args: string[]): Promise<void> => {
     chatlogsDir: _config.chatlogsDir,
     agent: _config.agent,
     period: _config.period,
-    addOnDir: 'normalizelogs',
+    addOnDir: DEFAULT_NORMALIZE_DIR,
     override: _config.inputDir || undefined,
   });
 

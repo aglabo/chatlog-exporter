@@ -11,7 +11,7 @@ allowed-tools: Bash, Glob
 
 # set-frontmatter スキル
 
-`chatlogs/normalizelogs/<agent>/` 配下のChatLog Markdownに、AIが生成したフロントマターを並列付加・上書きする。
+`chatlogs/normalizeLogs/<agent>/` 配下のChatLog Markdownに、AIが生成したフロントマターを並列付加・上書きする。
 `.config/chatlog-exporter/dics/` の辞書ファイルを参照して category / topics / tags を選定する。
 
 ## 前提条件
@@ -50,8 +50,8 @@ allowed-tools: Bash, Glob
 
 例:
 
-- `/set-frontmatter chatlogs/normalizelogs/claude/2026/2026-04` → input=そのパス、output=デフォルト
-- `/set-frontmatter chatlogs/normalizelogs/claude/2026/2026-04 chatlogs/outputLogs/claude/2026-04` → input=1つ目、output=2つ目
+- `/set-frontmatter chatlogs/normalizeLogs/claude/2026/2026-04` → input=そのパス、output=デフォルト
+- `/set-frontmatter chatlogs/normalizeLogs/claude/2026/2026-04 chatlogs/outputLogs/claude/2026-04` → input=1つ目、output=2つ目
 - `/set-frontmatter claude 2026-03` → claude/2026/2026-03
 - `/set-frontmatter chatgpt 2026-03` → chatgpt/2026/2026-03
 - `/set-frontmatter claude --dry-run` → claude 全年月 (dry-run)
@@ -96,7 +96,7 @@ PATH_ARGS=()
 （`chatlogsDir` は `config.yaml` の値。既定は `./chatlogs`。git は使用しない）:
 
 ```bash
-<chatlogsDir>/normalizelogs/<agent>[/<YYYY>/<YYYY-MM>]
+<chatlogsDir>/normalizeLogs/<agent>[/<YYYY>/<YYYY-MM>]
 ```
 
 プロジェクト名はパスに含まれない。`INPUT_DIR` 配下の Markdown はスクリプトが再帰走査するため、
@@ -106,9 +106,9 @@ PATH_ARGS=()
 
 `--output-dir` 未指定時の既定は `<chatlogsDir>/outputLogs` になる。
 
-> **重要**: 入力パスが `.../normalizelogs/<YYYY>/<YYYY-MM>` 形式に一致する場合、
-> 出力先は入力パスの `normalizelogs` を `outputLogs` に置換したパスに**自動的に上書きされ**、
-> `--output-dir` の指定は無視される。標準的な `chatlogs/normalizelogs/...` を入力にする限り、
+> **重要**: 入力パスが `.../normalizeLogs/<YYYY>/<YYYY-MM>` 形式に一致する場合、
+> 出力先は入力パスの `normalizeLogs` を `outputLogs` に置換したパスに**自動的に上書きされ**、
+> `--output-dir` の指定は無視される。標準的な `chatlogs/normalizeLogs/...` を入力にする限り、
 > 出力は常に対応する `chatlogs/outputLogs/...` になる。
 
 ## ステップ3: スクリプト実行
@@ -200,7 +200,7 @@ tags:
 | オプション         | 説明                                                         |
 | ------------------ | ------------------------------------------------------------ |
 | `--input-dir DIR`  | 入力ディレクトリ（agent / period を無視）                    |
-| `--output-dir DIR` | 出力先（`normalizelogs` 入力時は自動上書きされる。上記参照） |
+| `--output-dir DIR` | 出力先（`normalizeLogs` 入力時は自動上書きされる。上記参照） |
 | `--dics DIR`       | 辞書ディレクトリ                                             |
 | `--prompts DIR`    | プロンプトディレクトリ                                       |
 | `--concurrency N`  | 並列実行数（デフォルト: 4）                                  |
