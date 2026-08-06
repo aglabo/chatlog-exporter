@@ -36,7 +36,7 @@ import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-
  *
  * `--input-dir` 未指定時に GlobalConfig の `chatlogsDir` を基準として
  * `originalLogs` を挟んだパスから入力ファイルを読み込むこと、および
- * `--output-dir` 未指定時に `normalizelogs` を挟んだパスへ
+ * `--output-dir` 未指定時に `normalizeLogs` を挟んだパスへ
  * `agent/yyyy/yyyy-mm` でミラーリングされることを検証する。
  *
  * テスト ID 範囲: T-NC-MAIN-01〜02
@@ -129,10 +129,10 @@ describe('main', () => {
       });
     });
 
-    /** --output-dir 未指定時、chatlogsDir/normalizelogs 配下へ agent/yyyy/yyyy-mm でミラーリングされるケース。 */
+    /** --output-dir 未指定時、chatlogsDir/normalizeLogs 配下へ agent/yyyy/yyyy-mm でミラーリングされるケース。 */
     describe('Given: chatlogsDir 配下の originalLogs/<agent>/<yyyy>/<yyyy-mm> にファイルが存在', () => {
       describe('When: --output-dir を指定せず main() を呼び出す', () => {
-        describe('Then: T-NC-MAIN-02 - outputBase が normalizelogs/<agent>/<yyyy>/<yyyy-mm> にミラーリングされる', () => {
+        describe('Then: T-NC-MAIN-02 - outputBase が normalizeLogs/<agent>/<yyyy>/<yyyy-mm> にミラーリングされる', () => {
           let chatlogsDir: string;
           let configFile: string;
           let commandHandle: CommandMockHandle;
@@ -177,7 +177,7 @@ describe('main', () => {
             await Deno.remove(chatlogsDir, { recursive: true });
           });
 
-          it('T-NC-MAIN-02-01: 出力ファイルが normalizelogs/claude/2026/2026-03/my-project/ 配下に生成される', async () => {
+          it('T-NC-MAIN-02-01: 出力ファイルが normalizeLogs/claude/2026/2026-03/my-project/ 配下に生成される', async () => {
             await main([
               '--config',
               configFile,
@@ -187,7 +187,7 @@ describe('main', () => {
               '2026-03',
             ]);
 
-            const mirroredBase = `${chatlogsDir}/normalizelogs/claude/2026/2026-03`;
+            const mirroredBase = `${chatlogsDir}/normalizeLogs/claude/2026/2026-03`;
             const files = await findFiles(mirroredBase);
             const underProject = files.filter((f) => normalizePath(f).includes(`${mirroredBase}/my-project`));
             assertEquals(underProject.length > 0, true);
