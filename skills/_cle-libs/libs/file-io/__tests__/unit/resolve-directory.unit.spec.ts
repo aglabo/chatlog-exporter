@@ -286,7 +286,7 @@ describe('resolveOutputBase', () => {
         chatlogsDir: '/custom/chatlogs',
         agent: 'claude',
         period: '2026-03',
-        addOnDir: 'normalizelogs',
+        addOnDir: 'normalizeLogs',
       };
       assertEquals(
         resolveOutputBase(_opts),
@@ -294,7 +294,7 @@ describe('resolveOutputBase', () => {
           chatlogsDir: '/custom/chatlogs',
           agent: 'claude',
           period: '2026-03',
-          addOnDir: 'normalizelogs',
+          addOnDir: 'normalizeLogs',
         }),
       );
     });
@@ -369,9 +369,9 @@ describe('extractChatlogPath', () => {
       assertEquals(extractChatlogPath('/chatlogs/chat.md'), '');
     });
 
-    it('[Edge] T-ECP-03-03: originalLogs 以外の addOnDir（normalizelogs）でも agent/yyyy/yyyy-mm を返す', () => {
+    it('[Edge] T-ECP-03-03: originalLogs 以外の addOnDir（normalizeLogs）でも agent/yyyy/yyyy-mm を返す', () => {
       assertEquals(
-        extractChatlogPath('chatlogs/normalizelogs/codex/2026/2026-04/proj/f.md'),
+        extractChatlogPath('chatlogs/normalizeLogs/codex/2026/2026-04/proj/f.md'),
         'codex/2026/2026-04',
       );
     });
@@ -417,24 +417,24 @@ describe('extractChatlogPath', () => {
 describe('extractChatlogBaseDir', () => {
   /** `<agent>/<yyyy>/<yyyy-mm>` を含む正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-ECB-01-01: chatlogs/normalizelogs/codex/2026/2026-04 を含むパスから chatlogs/normalizelogs を返す', () => {
+    it('[Normal] T-ECB-01-01: chatlogs/normalizeLogs/codex/2026/2026-04 を含むパスから chatlogs/normalizeLogs を返す', () => {
       assertEquals(
-        extractChatlogBaseDir('chatlogs/normalizelogs/codex/2026/2026-04/chatlog-exporter/2026-04-03-xxx.md'),
-        'chatlogs/normalizelogs',
+        extractChatlogBaseDir('chatlogs/normalizeLogs/codex/2026/2026-04/chatlog-exporter/2026-04-03-xxx.md'),
+        'chatlogs/normalizeLogs',
       );
     });
 
     it('[Normal] T-ECB-01-02: Windows ドライブレターの絶対パスでも正しく解決される', () => {
       assertEquals(
-        extractChatlogBaseDir('C:/work/chatlogs/normalizelogs/claude/2026/2026-03/proj/f.md'),
-        'C:/work/chatlogs/normalizelogs',
+        extractChatlogBaseDir('C:/work/chatlogs/normalizeLogs/claude/2026/2026-03/proj/f.md'),
+        'C:/work/chatlogs/normalizeLogs',
       );
     });
 
     it('[Normal] T-ECB-01-03: バックスラッシュ区切りパスも正規化して解決される', () => {
       assertEquals(
-        extractChatlogBaseDir('C:\\work\\chatlogs\\normalizelogs\\codex\\2026\\2026-04\\proj\\f.md'),
-        'C:/work/chatlogs/normalizelogs',
+        extractChatlogBaseDir('C:\\work\\chatlogs\\normalizeLogs\\codex\\2026\\2026-04\\proj\\f.md'),
+        'C:/work/chatlogs/normalizeLogs',
       );
     });
   });
@@ -450,7 +450,7 @@ describe('extractChatlogBaseDir', () => {
     });
 
     it('[Edge] T-ECB-02-03: <agent>/<yyyy> のみ（月なし）のときは空文字列を返す', () => {
-      assertEquals(extractChatlogBaseDir('/chatlogs/normalizelogs/claude/2026/file.md'), '');
+      assertEquals(extractChatlogBaseDir('/chatlogs/normalizeLogs/claude/2026/file.md'), '');
     });
   });
 });
