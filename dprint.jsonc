@@ -67,6 +67,9 @@
   },
   "json": {},
   "markdown": {
+    "associations": [
+      "**/*.mdx"
+    ],
     "emphasisKind": "asterisks",
   },
   "yaml": {
