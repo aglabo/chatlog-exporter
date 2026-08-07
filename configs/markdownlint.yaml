@@ -1,0 +1,44 @@
+# src: ./configs:.markdownlint.yaml
+# @(#) : markdown lint config
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## markdown lint rule configs
+#
+default: true
+
+## lint rule settings
+# whitespace
+whitespace: true
+
+# heading
+no-duplicate-heading:
+  siblings_only: true # allow duplicate headings if they are not siblings
+
+# line length
+line-length:
+  line_length: 120
+  code_block_line_length: 120
+
+# list item
+ol-prefix: true
+
+# html
+no-inline-html: false
+
+# styles
+emphasis-style:
+  style: asterisk
+strong-style:
+  style: asterisk
+
+# Tabs
+no-hard-tabs: true
+
+# Tables
+# Table columns
+table-column-style:
+  style: aligned

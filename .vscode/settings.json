@@ -8,13 +8,19 @@
 {
   //  chatlog dictionary files
   "files.associations": {
-    "*.dic": "yaml"
+    "*.dic": "yaml",
+    "*.mdx": "markdown"
   },
   // deno settings
   "deno.enable": true,
   "deno.config": "deno.json",
   // textlint
   "textlint.configPath": "./configs/textlintrc.yaml",
+  // markdown
+  "markdownlint.configFile": "./configs/markdownlint.yaml",
+  "[markdown]": {
+    "editor.defaultFormatter": "dprint.dprint",
+  },
   // trusted JSON schema hosts
   "json.schemaDownload.enable": true,
   "json.schemaDownload.trustedDomains": {
