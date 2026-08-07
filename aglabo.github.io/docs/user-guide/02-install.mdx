@@ -13,10 +13,12 @@ The setup step with `/setup-chatlogs` cannot be skipped.
 :::warning
 **Tools used**
 The following tools must be available.
+
 - `GitHub CLI` / `npm`: for installing the skills (install time only)
 - `Deno`: the TypeScript runtime every skill runs on
 - `claude` (Claude Code CLI): used by the skills that run AI processing
 - `bash`: for the chatlog-exporter initial setup. On Windows, use Git Bash
+
 :::
 
 <Steps>
@@ -55,20 +57,25 @@ The following tools must be available.
         To add skills, run `npx skills` in the following form.
 
         ```bash
-        npx skills add <package> --all --agent <agent>
+        npx skills add <package> --skill '*' --agent <agent>
         ```
-        `<package>`: the skill repository URL. For a GitHub repository, `https://github.com/` can be omitted.
-                     For chatlog-exporter this is `aglabo/chatlog-exporter`.
-        `--all`:     the option to install every skill in the given repository.
-                     Without it, you choose which skills to install yourself.
-        `<agent>`:   the AI coding agent to install the skills into.
-                     To install into Claude Code, this is `claude-code`.
-                     If omitted, you select it interactively.
+        `<package>`:   the skill repository URL. For a GitHub repository, `https://github.com/` can be omitted.
+                       For chatlog-exporter this is `aglabo/chatlog-exporter`.
+        `--skill '*'`: the option to install every skill in the given repository.
+                       Without it, you choose which skills to install yourself.
+        `<agent>`:     the AI coding agent to install the skills into.
+                       To install into Claude Code, this is `claude-code`.
+                       If omitted, you select it interactively.
+
+        :::warning
+        For `npx skills`, `--all` is shorthand for `--skill '*' --agent '*' -y`, so it overrides `--agent`.
+        To install into Claude Code only, use `--skill '*'` rather than `--all`.
+        :::
 
         To install chatlog-exporter, the command is as follows.
 
         ```bash
-        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        npx skills add aglabo/chatlog-exporter --skill '*' --agent claude-code
         ```
 
       </Tab>
@@ -77,7 +84,8 @@ The following tools must be available.
     :::note
     Agent skills support in the GitHub CLI is in preview and its interface may change.
     :::
-  </Step>
+
+</Step>
   <Step title="Set up chatlog-exporter">
     To use chatlog-exporter, first run `/setup-chatlogs` to set up the configuration files and dictionaries.
 
@@ -103,14 +111,16 @@ The following tools must be available.
     Running it in a subdirectory other than the repository root does not raise an error; it deploys relative to that subdirectory instead.
     Check the current directory before running it.
     :::
-  </Step>
+
+</Step>
   <Step title="Run a skill">
     From the directory you ran the setup in, run a slash command.
 
     ```bash
     /export-chatlogs
     ```
-  </Step>
+
+</Step>
 </Steps>
 
 For a minimal first run, see [Quickstart](./quickstart).
