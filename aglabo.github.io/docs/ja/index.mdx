@@ -8,43 +8,48 @@ description: AIエージェントのセッション履歴をエクスポート�
 Claude Code のスキルとして実装されており、`/export-chatlogs` などのスラッシュコマンドから呼び出せます。TypeScript（Deno ランタイム）で書かれ、JSR パッケージとして提供されます。
 
 <CardGroup cols={2}>
-  <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
+  <Card title="export-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
     AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートします。
     システムログ・短文の肯定応答・ツール使用記録を除外し、実質的な会話だけを書き出します。対応エージェント: claude（デフォルト）, codex, chatgpt。
   </Card>
-  <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
+  <Card title="classify-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
     チャットログをプロジェクト別のサブディレクトリに分類します。Claude CLI でメタデータを解析してプロジェクト名を推定し、frontmatter に `project` フィールドを付加します。
   </Card>
-  <Card title="filter-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
+  <Card title="filter-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
     エクスポート済みの Markdown を claude CLI で一括バッチ判定し、再利用価値の低いファイル（DISCARD）を削除します。
   </Card>
-  <Card title="normalize-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
+  <Card title="normalize-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
     チャットログを AI でトピック別のセグメントに分割し、frontmatter 付きの Markdown として出力します。
   </Card>
-  <Card title="set-frontmatter" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
+  <Card title="set-frontmatter"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
     ChatLog Markdown に frontmatter を一括で付加・上書きします。AI が title / summary / category / topics / tags を生成します。
   </Card>
 </CardGroup>
 
 ## ワークフロー
 
-5つのスキルを次の順に適用すると、生のセッション履歴を Obsidian 用に整った Markdown へと段階的に整備できます。
+スキルを次の順に適用すると、生のセッション履歴を Obsidian 用に整った Markdown へと段階的に整備できます。
 
 <Steps>
   <Step title="export — エクスポート">
     `/export-chatlogs` でセッション履歴をノイズ除外して Markdown に書き出します。
   </Step>
-  <Step title="classify — 分類">
-    `/classify-chatlogs` でプロジェクト別のサブディレクトリに振り分けます。
-  </Step>
   <Step title="filter — 選別">
     `/filter-chatlogs` で再利用価値の低いファイルを削除します。
+  </Step>
+  <Step title="classify — 分類">
+    `/classify-chatlogs` でプロジェクト別のサブディレクトリに振り分けます。
   </Step>
   <Step title="normalize — 正規化">
     `/normalize-chatlogs` でトピック別セグメントに分割します。
   </Step>
-  <Step title="set-frontmatter — メタデータ付与">
-    `/set-frontmatter` で title / summary / category / topics / tags を付加します。
+  <Step title="set-frontmatter — Frontmatter付与">
+    `/set-frontmatter` で title / category / topics などの frontmatter を付加します。
   </Step>
 </Steps>
 
@@ -81,6 +86,7 @@ chatlog-exporter はエージェントスキルとして配布しています。
 
 - [クイックスタート](./user-guide/quickstart) — 何もインストールしていない状態から `/export-chatlogs` を1回実行するまで。
 - [インストール](./user-guide/install) — インストーラのオプションや設定の配置を含む、詳しいセットアップ手順。
+- [基本ワークフロー](./user-guide/basic-workflow) — 5つのスキルを順に適用して Obsidian 用 Markdown に仕上げる手順。
 
 :::warning
 **前提条件**
