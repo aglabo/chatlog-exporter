@@ -202,13 +202,13 @@ describe('writeFrontmatter', () => {
     });
   });
 
-  // ─── inputDir が normalizelogs ルートより深い絞り込み済みパスの場合 ─────────
+  // ─── inputDir が normalizeLogs ルートより深い絞り込み済みパスの場合 ─────────
 
-  describe('Given: inputDir が normalizelogs ルートより深い絞り込み済みパス', () => {
+  describe('Given: inputDir が normalizeLogs ルートより深い絞り込み済みパス', () => {
     describe('When: writeFrontmatter(entry, cache, outputDir, inputDir) を呼び出す', () => {
       describe('Then: T-SF-WF-05 - filePath から逆算した agent/yyyy/yyyy-mm 階層で出力される', () => {
         it('T-SF-WF-05-01: outputDir/agent/yyyy/yyyy-mm/... に出力される', async () => {
-          const inputBaseDir = `${tempDir}/chatlogs/normalizelogs`;
+          const inputBaseDir = `${tempDir}/chatlogs/normalizeLogs`;
           const outputBaseDir = `${tempDir}/chatlogs/outputLogs`;
           const narrowedInputDir = `${inputBaseDir}/codex/2026/2026-04`;
           const filePath = `${narrowedInputDir}/chatlog-exporter/2026-04-03-xxx.md`;
@@ -222,6 +222,25 @@ describe('writeFrontmatter', () => {
 
           const expectedOutputPath = `${outputBaseDir}/codex/2026/2026-04/chatlog-exporter/2026-04-03-xxx.md`;
           assertEquals(await fileOrDirExists(expectedOutputPath), true);
+        });
+
+        it('T-SF-WF-05-02: 入力が normalizeLogs 配下なら outputDir 引数を無視し outputLogs へ振り替える', async () => {
+          const inputBaseDir = `${tempDir}/chatlogs/normalizeLogs`;
+          const narrowedInputDir = `${inputBaseDir}/claude/2026/2026-05`;
+          const filePath = `${narrowedInputDir}/chatlog-exporter/2026-05-01-yyy.md`;
+          // 振り替えが働かない場合にのみ使われる、無関係な出力先
+          const unrelatedOutputDir = `${tempDir}/chatlogs/otherLogs`;
+
+          await Deno.mkdir(`${narrowedInputDir}/chatlog-exporter`, { recursive: true });
+          await Deno.writeTextFile(filePath, '# テスト\n本文');
+          const entry = _makeChatlogEntry(filePath);
+          _setAllFields(entry);
+
+          await writeFrontmatter(entry, cache, unrelatedOutputDir, narrowedInputDir);
+
+          const redirectedPath =
+            `${tempDir}/chatlogs/outputLogs/claude/2026/2026-05/chatlog-exporter/2026-05-01-yyy.md`;
+          assertEquals(await fileOrDirExists(redirectedPath), true);
         });
       });
     });

@@ -147,13 +147,13 @@ deno run --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変�
 
 ## 出力ディレクトリ構造
 
-出力先ベースは `--output-dir` 未指定時 `chatlogs/normalizelogs/<agent>[/<year>/<yearMonth>]` に解決される
+出力先ベースは `--output-dir` 未指定時 `chatlogs/normalizeLogs/<agent>[/<year>/<yearMonth>]` に解決される
 （`agent` / `period` から組み立てられ、`period` 省略時は `<agent>` まで）。
 
 `agent` + `YYYY-MM` を指定した場合:
 
 ```bash
-chatlogs/normalizelogs/
+chatlogs/normalizeLogs/
   └── <agent>/
        └── <year>/
             └── <yearMonth>/
@@ -164,7 +164,7 @@ chatlogs/normalizelogs/
 入力を任意パスで指定した場合（`period` が付かないため `<agent>` まで）:
 
 ```bash
-chatlogs/normalizelogs/
+chatlogs/normalizeLogs/
   └── <agent>/
        └── <project>/
             └── <baseName>-<XX>-<hash7>.md

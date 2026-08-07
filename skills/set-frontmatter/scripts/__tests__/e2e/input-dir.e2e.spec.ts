@@ -27,15 +27,15 @@ import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-
 // ─── T-SF-E2E-12: --input-dir 未指定 → resolveChatlogsDir による agent 絞り込み ────
 
 /**
- * `--input-dir` を省略したとき、`chatlogsDir/normalizelogs/<agent>` が
+ * `--input-dir` を省略したとき、`chatlogsDir/normalizeLogs/<agent>` が
  * `resolveChatlogsDir` により算出され、そのディレクトリ配下のファイルが処理されることを検証する。
  *
  * テスト ID 範囲: T-SF-E2E-12-01
  */
 describe('main - --input-dir 未指定（デフォルト絞り込み）', () => {
-  describe('Given: chatlogsDir/normalizelogs/claude 配下に .md ファイルを配置し --input-dir を省略', () => {
+  describe('Given: chatlogsDir/normalizeLogs/claude 配下に .md ファイルを配置し --input-dir を省略', () => {
     describe('When: main(["claude", "--output-dir", outDir, ...]) を呼び出す（GlobalConfig.chatlogsDir で注入）', () => {
-      describe('Then: T-SF-E2E-12 - chatlogsDir/normalizelogs/claude 配下のファイルが処理される', () => {
+      describe('Then: T-SF-E2E-12 - chatlogsDir/normalizeLogs/claude 配下のファイルが処理される', () => {
         let chatlogsDir: string;
         let outputDir: string;
         let dicsDir: string;
@@ -44,7 +44,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
 
         beforeEach(async () => {
           chatlogsDir = await Deno.makeTempDir();
-          const agentDir = `${chatlogsDir}/normalizelogs/claude`;
+          const agentDir = `${chatlogsDir}/normalizeLogs/claude`;
           await Deno.mkdir(agentDir, { recursive: true });
           await Deno.writeTextFile(`${agentDir}/test.md`, '# テスト\n本文テキスト');
 
@@ -72,7 +72,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('[Normal] T-SF-E2E-12-01: chatlogsDir/normalizelogs/claude/test.md がメタ読み込みされる', async () => {
+        it('[Normal] T-SF-E2E-12-01: chatlogsDir/normalizeLogs/claude/test.md がメタ読み込みされる', async () => {
           await main([
             'claude',
             '--output-dir',
