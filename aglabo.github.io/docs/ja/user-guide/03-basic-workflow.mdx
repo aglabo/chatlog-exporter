@@ -1,0 +1,168 @@
+---
+title: 基本ワークフロー
+description: スキルを順に適用し、生のセッション履歴を Obsidian にインポートできる Markdown へ変換します。
+---
+
+## 基本ワークフロー
+
+このガイドでは、`Chatlog Exporter` の スキルを順に適用し、生のセッション履歴を Obsidian 用の Markdown へ整える流れを案内します。
+各スキルは独立して実行できるので、途中まで実行して結果を確認しながら進められます。
+スキルの実行には、`/setup-chatlogs` で初期設定を済ませておく必要があります。
+詳しくは、[インストール](02-install.mdx) を参照してください。
+
+:::warning
+**前提条件**
+
+以下を満たしている必要があります。
+
+- `/setup-chatlogs` を実行済みであること (設定ファイル・辞書・共有ライブラリが配置されている)
+- `Deno`: 各スキルの実行環境
+- `claude` (Claude Code CLI): AI 処理を行うスキルが使用
+- セットアップを実行したディレクトリで、各スラッシュコマンドを実行すること
+
+:::
+
+:::tip
+`--dry-run` オプションを付けると、スキルを実行せず、処理対象になるファイルを確認できます。 (`/export-chatlog` を除く)
+AIの呼び出しを行わないためトークンを消費しませんが、その分、確認できるのは処理対象であってAIの判定結果ではありません。
+:::
+
+<Steps>
+<Step title="export - ログの抽出">
+
+### 1. ログの抽出
+
+`/export-chatlogs` で、AI エージェントのセッション履歴を Markdown ファイルとして出力します。
+このとき、システムが使用しているセッションなど、ノイズとなる履歴は除外します。
+エージェント名と期間を指定します。エージェントを省略した場合は `claude` を対象とします。
+
+```bash
+/export-chatlogs claude 2026-06
+```
+
+抽出したファイルは `chatlogs/originalLogs/claude/2026/2026-06/` 以下に出力されます。
+
+:::note
+再実行すると同じ会話が別名で二重に出力される場合があります。
+やり直すときは、対象期間のディレクトリ (例: `chatlogs/originalLogs/claude/2026/2026-06/`) を削除してから実行してください。
+:::
+</Step>
+<Step title="filter — 不要ログの削除">
+
+### 2. 不要ログの削除
+
+`/filter-chatlogs` で、再利用価値の低いログを削除します。
+パターンマッチによる機械的な判定と、AIによる判定の2種類があります。
+それぞれ、ログを KEEP / DISCARD に分類し、DISCARD のログを削除します。
+
+- パターンマッチフィルター
+  パターンマッチによる機械的な削除は、フィルター名に `noise-filter` を指定します。
+
+  ```bash
+  /filter-chatlogs noise-filter claude 2026-06
+  ```
+
+- AIフィルター:
+  AIによるフィルターは、フィルター名に `filter` を指定します。
+
+  ```bash
+  /filter-chatlogs filter claude 2026-06
+  ```
+
+:::warning
+
+- このスキルは**ファイルを削除します**。まず `--dry-run` を付けて、削除対象になる
+  ファイルを確認してから、フラグなしで実行してください。
+- AIフィルターの `--dry-run` は claude CLI を呼び出さないため、KEEP/DISCARD の判定は
+  行われません (`judged=0`)。確認できるのは判定対象になるファイルの一覧だけで、
+  削除判定そのものの妥当性は事前に検証できません。
+- AI判定の場合は、それぞれのログを読んで判定するため、トークンを消費します。
+  まず、パターンマッチフィルターで不要なファイルを削除してから、AIフィルターで内容を判定すべきです。
+
+:::
+</Step>
+
+<Step title="classify — プロジェクトの分類">
+
+### 3. プロジェクト別の分類
+
+`/classify-chatlogs` で、抽出したログをプロジェクト別のサブディレクトリへ振り分けます。
+`.config/chatlog-exporter/dics/projects.dic` の辞書をもとに、AI がプロジェクト名を推定します。
+
+```bash
+/classify-chatlogs claude 2026-06
+```
+
+ログの内容からプロジェクト名が判別できなかった場合、プロジェクト名は `misc` となります。
+その後、ファイルを `chatlogs/originalLogs/claude/2026/2026-06/<プロジェクト名>/` 下に移動します。
+frontmatter に `project` フィールドが付きます。
+
+:::tip
+
+- `projects.dic` を編集することで、自身のプロジェクトを追加できます。
+
+:::
+</Step>
+<Step title="normalize — トピックス別にログを分割">
+
+### 4. トピックス別にログを分割
+
+`/normalize-chatlogs` では、1 つのログを AI がトピックス別に複数のセグメントへ分割します (内容によっては、1つのみ)。
+このスキルは引数を省略できません。エージェント名と期間、またはパスを指定してください。
+
+```bash
+/normalize-chatlogs claude 2026-06
+```
+
+分割したファイルは `chatlogs/normalizeLogs/claude/2026/2026-06/<プロジェクト名>/` へ出力します。
+ここから出力先が `originalLogs` ではなく `normalizeLogs` に変わる点に注意してください。
+</Step>
+<Step title="filter (2) — トピックスの整理">
+
+### 5. トピックスの整理
+
+トピックス別に分割したログファイルの中には、短すぎるログや、内容のないログなどが存在します。
+再度、`/filter-chatlogs` を実行して、上記の不要なログを削除します。
+
+```bash
+/filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+```
+
+トピックスログのパスを指定すると、トピックスに分割後のログを判定します。
+
+:::warning
+`claude 2026-06`の形式のばあい、旧来の `chatlogs/originalLogs/claude/2026/2026-06/` を指定したことになります。
+`"chatlogs/normalizeLogs/claude/2026/2026-06"` とトピックスログのあるディレクトリを指定します。
+:::
+</Step>
+<Step title="set-frontmatter — Frontmatter の付与">
+
+### 6. Frontmatter の付与
+
+ログを解析し、種別、カテゴリーなどのログ分類用の Frontmatter を付与します。
+タグは `#<namespace>/<tag>` 形式で付与し、Obsidian 上での検索をしやすくしています。
+
+```bash
+/set-frontmatter claude 2026-06
+```
+
+完成したファイルは `chatlogs/outputLogs/claude/2026/2026-06/<プロジェクト名>/` 下に出力します。
+このディレクトリの内容を、そのまま Obsidian の Vault へ取り込めます。
+
+:::tip
+
+- ログの種別、カテゴリー判定、トピックス判定、レビューによるメタ情報チェックをAIを何回も呼び出します。
+  エージェントAIに余裕があるときに実行すると良いでしょう。
+- AI によるレビュー処理を省いて短時間で処理したい場合は `--no-review` を指定します。
+
+:::
+</Step>
+</Steps>
+
+以上で、`chatlogs/outputLogs/` に Obsidian へインポートできる Markdown が揃います。
+
+:::tip
+各スキルは独立して実行できます。
+まずは `/export-chatlogs` だけを試し、出力を確認しながら後続のスキルを 1 つずつ追加していくとよいでしょう。
+:::

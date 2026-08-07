@@ -9,10 +9,12 @@ For the options and the full setup details, see [Installation](./install).
 :::warning
 **Prerequisites**
 The following tools must be available.
+
 - `Deno`: the runtime every skill runs on
 - `claude` (Claude Code CLI): used by the skills that run AI processing
 - `bash` (Git Bash on Windows): used for the initial setup
 - A skill manager (`gh` or `npx`): used only at install time
+
 :::
 
 <Steps>
@@ -27,11 +29,12 @@ The following tools must be available.
       </Tab>
       <Tab title="npx skills">
         ```bash
-        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        npx skills add aglabo/chatlog-exporter --skill '*' --agent claude-code
         ```
       </Tab>
     </Tabs>
-  </Step>
+
+</Step>
   <Step title="Set up the scripts and configuration">
     To run the chatlog-exporter skills, the shared scripts and configuration files must be set up
     and placed where the skills expect them.
@@ -46,7 +49,8 @@ The following tools must be available.
     - `.config/chatlog-exporter/`: the configuration files chatlog-exporter uses (relative to the current directory)
     - `deno.json`: the settings for running the Deno scripts (relative to the current directory)
     - `_cle-libs/`: the libraries every skill shares (placed beside the skills)
-  </Step>
+
+</Step>
   <Step title="Export a chatlog">
     From the directory you installed the skills in, run the following command.
 
@@ -56,7 +60,8 @@ The following tools must be available.
     ```
 
     This example exports the Claude Code logs for June 2026.
-  </Step>
+
+</Step>
 </Steps>
 
 :::tip

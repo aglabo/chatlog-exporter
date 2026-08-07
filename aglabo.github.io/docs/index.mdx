@@ -9,21 +9,26 @@ Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is w
 (Deno runtime) and distributed as JSR packages.
 
 <CardGroup cols={2}>
-  <Card title="export-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
+  <Card title="export-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md" icon="rocket">
     Exports AI agent session logs to Markdown with noise removed. It strips system logs, short affirmative replies,
     and tool-use records, writing out only the substantive conversation. Supported agents: claude (default), codex, chatgpt.
   </Card>
-  <Card title="classify-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
+  <Card title="classify-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md" icon="folder-tree">
     Classifies chat logs into per-project subdirectories. It analyzes metadata with the Claude CLI to infer
     the project name and adds a `project` field to the frontmatter.
   </Card>
-  <Card title="filter-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
+  <Card title="filter-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md" icon="filter">
     Batch-judges exported Markdown with the claude CLI and deletes low-value files (DISCARD).
   </Card>
-  <Card title="normalize-chatlogs" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
+  <Card title="normalize-chatlogs"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md" icon="wand-sparkles">
     Splits chat logs into topic-based segments with AI and outputs them as Markdown with frontmatter.
   </Card>
-  <Card title="set-frontmatter" href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
+  <Card title="set-frontmatter"
+    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md" icon="tags">
     Adds or overwrites frontmatter across ChatLog Markdown in bulk. AI generates title / summary / category / topics / tags.
   </Card>
 </CardGroup>
@@ -84,6 +89,8 @@ chatlog-exporter is distributed as agent skills. Install them with `gh skill` or
 - [Quickstart](./user-guide/quickstart) — from nothing installed to running `/export-chatlogs` once.
 - [Installation](./user-guide/install) — full setup, including the installer options and where the
   configuration lives.
+- [Basic workflow](./user-guide/basic-workflow) — applying the skills in order to finish with Markdown
+  for Obsidian.
 
 :::warning
 **Prerequisites**

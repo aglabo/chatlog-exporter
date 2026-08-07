@@ -9,10 +9,12 @@ description: Chatlog Exporter をインストールし、スラッシュコマ�
 :::warning
 **必要ツール**
 以下のツールが実行できる必要があります。
+
 - `Deno`: 各スキルの実行環境
 - `claude` (Claude Code CLI): AI 処理を行うスキルが使用
 - `bash` (Windowsの場合、Git Bash): 初期設定用
 - スキルマネージャー (`gh` または `npx`): インストール時のみ使用
+
 :::
 
 <Steps>
@@ -27,11 +29,12 @@ description: Chatlog Exporter をインストールし、スラッシュコマ�
       </Tab>
       <Tab title="npx skills">
         ```bash
-        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        npx skills add aglabo/chatlog-exporter --skill '*' --agent claude-code
         ```
       </Tab>
     </Tabs>
-  </Step>
+
+</Step>
   <Step title="スクリプト、設定ファイルのセットアップ">
     `Chatlog Exporter`の各スキルを実行するためには、共通スクリプトおよび設定ファイルをセットアップし、所定の位置に配置しておく必要があります。
     スキル`/setup-chatlogs`を実行することで、スクリプト・設定ファイルを配置します。
@@ -45,7 +48,8 @@ description: Chatlog Exporter をインストールし、スラッシュコマ�
     - `.config/chatlog-exporter/`: Chatlog Exporter用各種設定ファイル (カレントディレクトリ基準)
     - `deno.json`: Denoスクリプト実行用設定 (カレントディレクトリ基準)
     - `_cle-libs/`: 各スキルが共有するライブラリ (スキルの隣に配置)
-  </Step>
+
+</Step>
   <Step title="Chatlogの抽出">
     スキルをインストールしたディレクトリ上で、次のコマンドを実行します。
 
@@ -55,9 +59,11 @@ description: Chatlog Exporter をインストールし、スラッシュコマ�
     ```
 
     上記の例では、Claude Code の 2026 年 6 月分のログを抽出します。
-  </Step>
+
+</Step>
 </Steps>
 
 :::tip
 各スキルは独立して実行できます。まずは `/export-chatlogs` だけを試し、必要に応じて後続のスキルを組み合わせてください。
+5つのスキルを順に適用する手順は [基本ワークフロー](./basic-workflow) を参照してください。
 :::

@@ -1,0 +1,178 @@
+---
+title: Basic workflow
+description: Apply the skills in order to turn raw session logs into Markdown ready to import into Obsidian.
+---
+
+## Basic workflow
+
+This guide walks you through applying the `chatlog-exporter` skills in order to reshape raw session
+history into Markdown for Obsidian.
+Each skill runs independently, so you can stop partway and check the results as you go.
+Running the skills requires that you have finished the initial setup with `/setup-chatlogs`.
+For details, see [Installation](./install).
+
+:::warning
+**Prerequisites**
+
+The following must be in place.
+
+- `/setup-chatlogs` has been run (the configuration files, dictionaries, and shared libraries are deployed)
+- `Deno`: the runtime every skill runs on
+- `claude` (Claude Code CLI): used by the skills that run AI processing
+- Run each slash command from the directory you ran the setup in
+
+:::
+
+:::tip
+Adding the `--dry-run` option lets you check which files a skill would act on without running it (except for `/export-chatlog`).
+It skips the AI call, so it consumes no tokens — but for the same reason it shows the targets, not the AI's results.
+:::
+
+<Steps>
+  <Step title="export — Export the logs">
+
+    ### 1. Export the logs
+
+    `/export-chatlogs` writes the session history of an AI agent out as Markdown files.
+    As it does so, it excludes noise such as the sessions the system itself uses.
+    Specify the agent name and the period. If you omit the agent, `claude` is used.
+
+    ```bash
+    /export-chatlogs claude 2026-06
+    ```
+
+    The exported files are written under `chatlogs/originalLogs/claude/2026/2026-06/`.
+
+    :::note
+    Running it again can write the same conversation out a second time under a different name.
+    To start over, delete the directory for that period (for example
+    `chatlogs/originalLogs/claude/2026/2026-06/`) before running it.
+    :::
+
+</Step>
+  <Step title="filter — Delete unneeded logs">
+
+    ### 2. Delete unneeded logs
+
+    `/filter-chatlogs` deletes logs that are of little value to keep.
+    There are two kinds of judgment: mechanical pattern matching, and judgment by AI.
+    Each classifies the logs as KEEP or DISCARD, and deletes the DISCARD ones.
+
+    - Pattern-matching filter
+      For mechanical deletion by pattern matching, give `noise-filter` as the filter name.
+
+      ```bash
+      /filter-chatlogs noise-filter claude 2026-06
+      ```
+
+    - AI filter:
+      For filtering by AI, give `filter` as the filter name.
+
+      ```bash
+      /filter-chatlogs filter claude 2026-06
+      ```
+
+    :::warning
+
+    - This skill *deletes files*. Add `--dry-run` first to review which files are
+      targeted, and only once you have confirmed them, run it without the flag.
+    - The AI filter's `--dry-run` does not call the claude CLI, so it makes no
+      KEEP/DISCARD judgments (`judged=0`). It only lists the files that would be
+      judged; it cannot validate the deletion decisions in advance.
+    - The AI judgment reads each log to judge it, so it consumes tokens.
+      Delete the unneeded files with the pattern-matching filter first, then judge the
+      contents with the AI filter.
+
+    :::
+
+</Step>
+
+<Step title="classify — Classify by project">
+
+    ### 3. Classify by project
+
+    `/classify-chatlogs` sorts the exported logs into per-project subdirectories.
+    Based on the dictionary at `.config/chatlog-exporter/dics/projects.dic`, the AI infers the project name.
+
+    ```bash
+    /classify-chatlogs claude 2026-06
+    ```
+
+    If the project name cannot be determined from the contents of a log, the project name becomes `misc`.
+    The files are then moved under `chatlogs/originalLogs/claude/2026/2026-06/<project>/`.
+    A `project` field is added to the frontmatter.
+
+    :::tip
+
+    - Editing `projects.dic` lets you add your own projects.
+
+    :::
+
+</Step>
+  <Step title="normalize — Split logs by topic">
+
+    ### 4. Split logs by topic
+
+    With `/normalize-chatlogs`, the AI splits a single log into several topic-based segments
+    (depending on the contents, there may be only one).
+    This skill does not allow its arguments to be omitted. Specify the agent name and the period, or a path.
+
+    ```bash
+    /normalize-chatlogs claude 2026-06
+    ```
+
+    The split files are written to `chatlogs/normalizeLogs/claude/2026/2026-06/<project>/`.
+    Note that from here on the output location changes from `originalLogs` to `normalizeLogs`.
+
+</Step>
+  <Step title="filter (2) — Tidy up the topics">
+
+    ### 5. Tidy up the topics
+
+    Among the log files split by topic, some are too short and some have no substance.
+    Run `/filter-chatlogs` again to delete those unneeded logs.
+
+    ```bash
+    /filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+    /filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+    ```
+
+    Specifying the path to the topic logs judges the logs after they have been split into topics.
+
+    :::warning
+    The `claude 2026-06` form refers to the earlier `chatlogs/originalLogs/claude/2026/2026-06/`.
+    Specify `"chatlogs/normalizeLogs/claude/2026/2026-06"`, the directory holding the topic logs.
+    :::
+
+</Step>
+  <Step title="set-frontmatter — Add frontmatter">
+
+    ### 6. Add frontmatter
+
+    This analyzes the logs and adds the frontmatter used to classify them, such as type and category.
+    Tags are added in the `#<namespace>/<tag>` form, which makes them easier to search within Obsidian.
+
+    ```bash
+    /set-frontmatter claude 2026-06
+    ```
+
+    The finished files are written under `chatlogs/outputLogs/claude/2026/2026-06/<project>/`.
+    The contents of this directory can be imported into an Obsidian vault as they are.
+
+    :::tip
+
+    - Judging the log type, the category, and the topics, and reviewing the metadata, calls the AI many times.
+      It is best run when your agent AI has capacity to spare.
+    - To skip the AI review and finish faster, specify `--no-review`.
+
+    :::
+
+</Step>
+</Steps>
+
+With that, `chatlogs/outputLogs/` holds Markdown ready to import into Obsidian.
+
+:::tip
+Each skill can run independently.
+Start by trying just `/export-chatlogs`, then add the later skills one at a time while checking the output.
+:::
