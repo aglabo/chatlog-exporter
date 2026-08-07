@@ -11,10 +11,12 @@ Chatlog Exporter は **エージェントスキル**として配布していま�
 :::warning
 **使用ツール**
 以下のツールが使用可能である必要があります。
+
 - `GitHub CLI` / `npm`: スキルのインストール用 (インストール時のみ)
 - `Deno`: 各スキルの TypeScript 実行環境
 - `claude` (Claude Code CLI): AI 処理を行うスキルが使用
 - `bash`: Chatlog Exporter 初期設定用。Windowsの場合はGit Bashを使用してください
+
 :::
 
 <Steps>
@@ -53,20 +55,25 @@ Chatlog Exporter は **エージェントスキル**として配布していま�
         スキルを追加する場合は、次の形式で `npx skills` を実行します。
 
         ```bash
-        npx skills add <package> --all --agent <agent>
+        npx skills add <package> --skill '*' --agent <agent>
         ```
-        `<package>`: スキルのリポジトリ URL。GitHub リポジトリの場合は、`https://github.com/` を省略できる。
-                     Chatlog Exporter の場合、`aglabo/chatlog-exporter`となる。
-        `--all`:     指定されたリポジトリに全てのスキルをインストールするオプション。
-                     指定しない場合、自分でインストールするスキルを選ぶ。
-        `<agent>`:   スキルをインストールするAIコーディングエージェント。
-                     Claude Code にインストールする場合、`claude-code`となる。
-                     省略時は、インタラクティブに選択する。
+        `<package>`:   スキルのリポジトリ URL。GitHub リポジトリの場合は、`https://github.com/` を省略できる。
+                       Chatlog Exporter の場合、`aglabo/chatlog-exporter`となる。
+        `--skill '*'`: 指定されたリポジトリの全てのスキルをインストールするオプション。
+                       指定しない場合、自分でインストールするスキルを選ぶ。
+        `<agent>`:     スキルをインストールするAIコーディングエージェント。
+                       Claude Code にインストールする場合、`claude-code`となる。
+                       省略時は、インタラクティブに選択する。
+
+        :::warning
+        `npx skills` の `--all` は `--skill '*' --agent '*' -y` のショートハンドであり、`--agent` の指定を打ち消します。
+        インストール先を Claude Code だけに限定するには、`--all` ではなく `--skill '*'` を使用してください。
+        :::
 
         Chatlog Exporter をインストールするときは、次のようになります。
 
         ```bash
-        npx skills add aglabo/chatlog-exporter --all --agent claude-code
+        npx skills add aglabo/chatlog-exporter --skill '*' --agent claude-code
         ```
 
       </Tab>
@@ -75,7 +82,8 @@ Chatlog Exporter は **エージェントスキル**として配布していま�
     :::note
     GitHub CLI のエージェントスキル対応はプレビュー段階であり、インターフェースが変更される可能性があります。
     :::
-  </Step>
+
+</Step>
   <Step title="Chatlog Exporterの初期設定">
     Chatlog Exporter を使用する場合、最初に `/setup-chatlogs` を実行して、設定ファイルや辞書を初期設定します。
 
@@ -101,14 +109,16 @@ Chatlog Exporter は **エージェントスキル**として配布していま�
     リポジトリルート以外のサブディレクトリで実行してもエラーにはならず、サブディレクトリを基準に展開されます。
     実行前にカレントディレクトリを確認してください。
     :::
-  </Step>
+
+</Step>
   <Step title="スキルを実行する">
     セットアップを実行したディレクトリで、スラッシュコマンドを実行します。
 
     ```bash
     /export-chatlogs
     ```
-  </Step>
+
+</Step>
 </Steps>
 
 最小構成での最初の実行は [クイックスタート](./quickstart) を参照してください。
