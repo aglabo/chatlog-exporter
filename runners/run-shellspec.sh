@@ -18,8 +18,8 @@ SHELLSPEC="${SHELLSPEC:-${PROJECT_ROOT}/.tools/shellspec/shellspec}"
 
 readonly TEST_TYPES=("all" "unit" "functional" "integration" "system" "e2e")
 
-# Spec root directory, relative to PROJECT_ROOT. Must match --default-path in .shellspec
-readonly SPEC_ROOT_DIR="scripts/__tests__"
+# Directory name holding spec files, relative to each source tree
+readonly TEST_DIR_NAME="__tests__"
 
 SKIP_INTEGRATION_TESTS="${SKIP_INTEGRATION_TESTS:-1}"
 SPEC_SEARCH_ROOT="${SPEC_SEARCH_ROOT:-${PROJECT_ROOT}}"
@@ -61,8 +61,8 @@ expand_spec_glob() {
   )
 
   if [[ ${#matches[@]} -eq 0 ]]; then
-    echo "Warning: No spec files found matching glob '${pattern}'" >&2
-    return 0
+    echo "Error: No spec files found matching glob '${pattern}'" >&2
+    return 1
   fi
 
   local file
@@ -94,11 +94,24 @@ get_spec_files() {
   local test_type="$1"
   shift
 
+  # get_filelist applies these filters as unanchored regexes, so they have to be
+  # delimited as whole path components: the trailing separator keeps "unit" from
+  # matching "__tests__/unitary", and the leading one keeps "all" from matching
+  # "not__tests__". Both filters contain a separator, so each takes get_filelist's
+  # path-filter branch and is used as-is.
+  #
+  # Separators are written as [/] rather than a bare /: on Windows/Git Bash the
+  # MSYS argument path conversion rewrites a pattern shaped like /c/ before rg
+  # ever receives it (confirmed via MSYS_NO_PATHCONV), which silently matches
+  # nothing. A pattern starting with [ is left alone. This is not an rg defect.
+  #
+  # TEST_DIR_NAME and TEST_TYPES hold no regex metacharacters, so interpolating
+  # them directly is safe.
   local type_filter
   if [[ "$test_type" == "all" ]]; then
-    type_filter="${SPEC_ROOT_DIR}/"
+    type_filter="(^|[/])${TEST_DIR_NAME}[/]"
   else
-    type_filter="${SPEC_ROOT_DIR}/${test_type}/"
+    type_filter="(^|[/])${TEST_DIR_NAME}[/]${test_type}[/]"
   fi
 
   local -a spec_files
@@ -134,6 +147,13 @@ resolve_spec_files() {
     local -a expanded_specs
     mapfile -t expanded_specs < <(expand_spec_glob "$first_arg")
     mapfile -t RESOLVED_SPEC_FILES < <(filter_runnable_specs "${expanded_specs[@]}")
+    # mapfile masks expand_spec_glob's exit status, so the emptiness has to be
+    # re-checked here. mapfile yields either a zero-length array or a single
+    # empty element for empty input, hence both conditions.
+    if [[ ${#RESOLVED_SPEC_FILES[@]} -eq 0 || -z "${RESOLVED_SPEC_FILES[0]}" ]]; then
+      echo "Error: No runnable spec files found matching glob '${first_arg}'" >&2
+      return 1
+    fi
     shift
     SHELLSPEC_ARGS=("$@")
     printf '%s\n' "${RESOLVED_SPEC_FILES[@]}"
@@ -155,10 +175,11 @@ resolve_spec_files() {
 
   local test_type="$1"
   shift
-  # 統合テストのゲートを開く種別。integration は指定されれば毎回実行する。
-  # system は integration ゲートも通す必要があるため従来どおり開く。
-  # all は「すべて」の要求であり、閉じたままだと integration/system 単独指定の
-  # 和集合より弱いスイートになってしまうため同様に開く。
+  # Test types that open the integration test gate.
+  # "integration" always runs the integration tests when requested.
+  # "system" needs the integration gate open as well.
+  # "all" means everything, so keeping the gate closed would make it a weaker
+  # suite than running "integration" and "system" separately.
   case "$test_type" in
   integration | system | all) SKIP_INTEGRATION_TESTS=0 ;;
   esac
@@ -178,8 +199,8 @@ resolve_spec_files() {
   local -a spec_files
   mapfile -t spec_files < <(get_spec_files "$test_type" "${file_filters[@]}")
   if [[ ${#spec_files[@]} -eq 0 || -z "${spec_files[0]}" ]]; then
-    echo "Warning: No spec files found for test type '${test_type}'" >&2
-    return 0
+    echo "Error: No spec files found for test type '${test_type}'" >&2
+    return 1
   fi
 
   RESOLVED_SPEC_FILES=("${spec_files[@]}")
@@ -196,13 +217,44 @@ run_shellspec() {
   (cd "$PROJECT_ROOT" && export SKIP_INTEGRATION_TESTS && bash "$SHELLSPEC" "${normalized_args[@]}")
 }
 
+usage() {
+  cat <<'USAGE'
+Usage: run-shellspec.sh <test-type|spec-file|spec-glob> [--integration] [shellspec-options]
+
+Test types:
+  all           Run every spec
+  unit          Run unit specs
+  functional    Run functional specs
+  integration   Run integration specs
+  system        Run system specs
+  e2e           Run e2e specs
+
+Options:
+  --integration Run integration tests that are skipped by default
+
+Examples:
+  run-shellspec.sh all
+  run-shellspec.sh unit
+  run-shellspec.sh path/to/foo.spec.sh
+  run-shellspec.sh 'path/to/__tests__/unit/*.spec.sh'
+USAGE
+}
+
 main() {
   if [[ $# -eq 0 ]]; then
-    run_shellspec
-    exit $?
+    usage >&2
+    exit 1
   fi
 
   parse_options "$@" >/dev/null
+
+  # Options-only invocation (e.g. "--integration") selects no specs. Running
+  # shellspec's default path here would report success without checking the
+  # specs the caller meant to run, so ask for an explicit selection instead.
+  if [[ ${#PARSED_ARGS[@]} -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
 
   local resolved resolved_file
   resolved_file=$(mktemp)
@@ -212,10 +264,7 @@ main() {
     echo "$resolved" >&2
     exit 1
   fi
-  resolved=$(cat "$resolved_file")
   rm -f "$resolved_file"
-
-  [[ -z "$resolved" ]] && exit 0
 
   run_shellspec "${RESOLVED_SPEC_FILES[@]}" "${SHELLSPEC_ARGS[@]}"
 }
