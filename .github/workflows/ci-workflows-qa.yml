@@ -1,7 +1,7 @@
 # src: ./.github/workflows/ci-workflows-qa.yml
 # @(#) : Caller workflow for GitHub Actions workflow QA in .github repository
 #
-# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+# Copyright (c) 2025- atsushifx <https://github.com/atsushifx>
 #
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
@@ -32,10 +32,10 @@ jobs:
     name: Actionlint
     permissions:
       contents: read
-    uses: aglabo/ci-platform/.github/workflows/ru-qa-actionlint.yml@3b3ba7602e8588aefbd08babedb8364da5b73c27 # v0.3.2
+    uses: aglabo/ci-platform/.github/workflows/ru-qa-actionlint.yml@d49d96532dbf95a356a5756864fa45e33a0fa033 # v0.3.4
 
   ghalint:
     name: Ghalint
     permissions:
       contents: read
-    uses: aglabo/ci-platform/.github/workflows/ru-qa-ghalint.yml@3b3ba7602e8588aefbd08babedb8364da5b73c27 # v0.3.2
+    uses: aglabo/ci-platform/.github/workflows/ru-qa-ghalint.yml@d49d96532dbf95a356a5756864fa45e33a0fa033 # v0.3.4
