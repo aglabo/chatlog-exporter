@@ -29,7 +29,7 @@ import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 // classes
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // functions
-import { checkFilename } from '../libs/classify-file.ts';
+import { checkFilename, isPreambleTurn } from '../libs/classify-file.ts';
 import { extractConversation } from '../libs/common-utils.ts';
 // constants
 import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
@@ -45,14 +45,19 @@ import type { BaseStats } from '../types/stats.types.ts';
 /**
  * テキストがシステム/コマンドタグのみで構成されているかどうかを判定する。
  *
- * `SYSTEM_TAG_PREFIXES` に登録されたプレフィックスで始まる場合に `true` を返す。
+ * 次のいずれかに該当する場合に `true` を返す。
+ * 1. `SYSTEM_TAG_PREFIXES` に登録されたプレフィックスで始まる
+ * 2. ターン全体が Codex 注入のプリアンブルである（`isPreambleTurn`）
+ *
+ * Codex 注入タグは本題が後続しうるため前方一致では判定できない。
+ * 「プリアンブル + 実質的な質問」のターンを誤除外しないよう、ターン全体で判定する。
  *
  * @param text - 判定対象のテキスト
  * @returns システム/コマンドタグのみなら `true`
  */
 export const isSystemOnlyMessage = (text: string): boolean => {
   const stripped = text.trim();
-  return SYSTEM_TAG_PREFIXES.some((prefix) => stripped.startsWith(prefix));
+  return SYSTEM_TAG_PREFIXES.some((prefix) => stripped.startsWith(prefix)) || isPreambleTurn(stripped);
 };
 
 /**

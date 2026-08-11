@@ -35,7 +35,7 @@ function _makeBody(options: { userText?: string; assistantText?: string; extraPa
  * SYSTEM_TAG_PREFIXES に含まれるプレフィックスで始まるテキストを検出することを検証する。
  * trim後のマッチ・不一致ケース・境界値を網羅する。
  *
- * テスト ID 範囲: T-PF-IS-01 〜 T-PF-IS-05
+ * テスト ID 範囲: T-PF-IS-01 〜 T-PF-IS-06
  *
  * @see isSystemOnlyMessage
  */
@@ -80,6 +80,27 @@ describe('isSystemOnlyMessage', () => {
 
     it('[Normal] T-PF-IS-05-03: `<environment_context>`（Codex 注入タグ）→ true', () => {
       assert(isSystemOnlyMessage('<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>'));
+    });
+  });
+
+  /** Codex プリアンブルの後に本題が続くターンを誤ってシステム扱いしないケース。 */
+  describe('When: 異常系（プリアンブル + 本題）', () => {
+    it('[Error] T-PF-IS-06-01: `<recommended_plugins>` の後に本題が続く → false（誤除外しない）', () => {
+      const text = '<recommended_plugins>\n- Slack\n</recommended_plugins>\nこの設計についてどう思いますか？';
+
+      assertFalse(isSystemOnlyMessage(text));
+    });
+
+    it('[Error] T-PF-IS-06-02: `<INSTRUCTIONS>` の後に本題が続く → false（誤除外しない）', () => {
+      const text = '<INSTRUCTIONS>\nPlease answer in Japanese\n</INSTRUCTIONS>\nこの関数の責務を教えてください。';
+
+      assertFalse(isSystemOnlyMessage(text));
+    });
+
+    it('[Error] T-PF-IS-06-03: `<environment_context>` の後に本題が続く → false（誤除外しない）', () => {
+      const text = '<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>\nビルドが失敗する原因は？';
+
+      assertFalse(isSystemOnlyMessage(text));
     });
   });
 
@@ -376,6 +397,38 @@ describe('isExcludedByContent', () => {
           const { excluded } = isExcludedByContent(body, minCharCount);
 
           assertFalse(excluded);
+        });
+      });
+    });
+  });
+
+  // ─── T-FL-IC-08: Codex プリアンブル + 本題 → excluded=false ──────────────────
+
+  describe('Given: Codex プリアンブルの後に実質的な質問が続く単一 User ターン', () => {
+    describe('When: isExcludedByContent(body) を呼び出す', () => {
+      describe('Then: T-FL-IC-08 - プリアンブルだけを理由に除外されず excluded=false が返される', () => {
+        /** プリアンブル + 本題の User ターンと、十分な長さの Assistant 応答を持つ本文。 */
+        const _preambleWithQuestionBody = [
+          '### User',
+          '<recommended_plugins>',
+          '- Slack (slack@openai-curated-remote)',
+          '</recommended_plugins>',
+          `この設計についてどう思いますか？${'詳しく説明してください。'.repeat(40)}`,
+          '',
+          '### Assistant',
+          'a'.repeat(500),
+        ].join('\n');
+
+        it('[Normal] T-FL-IC-08-01: プリアンブル + 本題 → excluded=false', () => {
+          const { excluded } = isExcludedByContent(_preambleWithQuestionBody);
+
+          assertFalse(excluded);
+        });
+
+        it('[Normal] T-FL-IC-08-02: reason が空文字列（除外理由が付かない）', () => {
+          const { reason } = isExcludedByContent(_preambleWithQuestionBody);
+
+          assertEquals(reason, '');
         });
       });
     });
