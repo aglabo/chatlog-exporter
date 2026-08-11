@@ -35,7 +35,7 @@ function _makeBody(options: { userText?: string; assistantText?: string; extraPa
  * SYSTEM_TAG_PREFIXES に含まれるプレフィックスで始まるテキストを検出することを検証する。
  * trim後のマッチ・不一致ケース・境界値を網羅する。
  *
- * テスト ID 範囲: T-PF-IS-01 〜 T-PF-IS-04
+ * テスト ID 範囲: T-PF-IS-01 〜 T-PF-IS-05
  *
  * @see isSystemOnlyMessage
  */
@@ -68,6 +68,18 @@ describe('isSystemOnlyMessage', () => {
 
     it('[Normal] T-PF-IS-01-07: `---\\ntitle: test\\n---\\n` → true', () => {
       assert(isSystemOnlyMessage('---\ntitle: test\n---\n'));
+    });
+
+    it('[Normal] T-PF-IS-05-01: `<recommended_plugins>`（Codex 注入タグ）→ true', () => {
+      assert(isSystemOnlyMessage('<recommended_plugins>\nHere is a list of plugins.\n</recommended_plugins>'));
+    });
+
+    it('[Normal] T-PF-IS-05-02: `<INSTRUCTIONS>`（Codex 注入タグ）→ true', () => {
+      assert(isSystemOnlyMessage('<INSTRUCTIONS>\nPlease provide all answers in Japanese\n</INSTRUCTIONS>'));
+    });
+
+    it('[Normal] T-PF-IS-05-03: `<environment_context>`（Codex 注入タグ）→ true', () => {
+      assert(isSystemOnlyMessage('<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>'));
     });
   });
 
