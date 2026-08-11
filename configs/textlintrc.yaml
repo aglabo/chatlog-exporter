@@ -38,8 +38,18 @@ rules:
       space:
         - alphabets
         - numbers
-    ja-space-around-code: true
-    ja-space-around-strong: true
+    ja-space-around-code:
+      before: true
+      after: true
+    ja-space-around-link:
+      before: true
+      after: true
+    ja-space-around-strong:
+      before: true
+      after: true
+    ja-space-around-emphasis:
+      before: true
+      after: true
   "@textlint-ja/no-synonyms": true
   common-misspellings: true
   no-mixed-zenkaku-and-hankaku-alphabet: true
