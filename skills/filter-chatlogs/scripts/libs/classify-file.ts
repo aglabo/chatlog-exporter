@@ -32,6 +32,8 @@ import {
   NOISE_FILENAME_PATTERNS,
   NOISE_PROMPT_PATTERNS,
   NOISE_USER_PATTERNS,
+  PREAMBLE_BLOCK_PATTERNS,
+  PREAMBLE_RESIDUE_PATTERNS,
   SYSTEM_TAG_REGEX,
 } from '../constants/patterns.constants.ts';
 // types
@@ -104,6 +106,45 @@ const _matchConversationPattern = (
   return null;
 };
 
+/**
+ * テキストが Codex 自動注入のプリアンブルのみで構成されているかどうかを判定する。
+ *
+ * `PREAMBLE_TAG_NAMES` のタグを開閉ペアごと除去し、続いて `PREAMBLE_RESIDUE_PATTERNS`
+ * に一致する定型行を除去したうえで、残余が空であればプリアンブルとみなす。
+ * 本題が混在する場合は残余が空にならないため `false` を返す。
+ *
+ * @param text - 判定対象の User ターン本文
+ * @returns プリアンブルのみなら `true`
+ */
+export const isPreambleTurn = (text: string): boolean => {
+  if (!text.trim()) { return false; }
+
+  const _stripped = PREAMBLE_BLOCK_PATTERNS
+    .reduce((acc, pat) => acc.replaceAll(pat, ''), text)
+    .split('\n')
+    .filter((line) => line.trim() && !PREAMBLE_RESIDUE_PATTERNS.some((pat) => pat.test(line.trim())))
+    .join('\n');
+
+  return _stripped.trim() === '';
+};
+
+/**
+ * 会話先頭から連続するプリアンブル User ターンを除去する。
+ *
+ * Codex ログは User ターン 1 がプリアンブル、User ターン 2 以降が実質的な会話という構造を取る。
+ * 判定関数群がプリアンブルを実質ターンと誤認しないよう、判定の手前で正規化する。
+ * 除去対象は先頭からの連続分のみで、途中に現れる同形のターンは残す。
+ *
+ * @param conversation - 解析済みの会話ターン配列
+ * @returns プリアンブルを除去した会話ターン配列
+ */
+export const stripPreamble = (conversation: Conversation): Conversation => {
+  const _firstReal = conversation.findIndex(
+    (turn) => !(turn.role === ConversationRole.user && isPreambleTurn(turn.content)),
+  );
+  return _firstReal === -1 ? [] : conversation.slice(_firstReal);
+};
+
 export const checkFilename = (filename: string): string | null => {
   const lower = filename.toLowerCase();
   for (const pat of NOISE_FILENAME_PATTERNS) {
@@ -117,8 +158,8 @@ export const checkUserContent = (conversation: Conversation): string | null => {
 
   const _userTurns = getUserTurns(conversation);
 
-  // 全Userターンがシステムタグのみ
-  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.content))) {
+  // 全Userターンがシステムタグのみ、または Codex プリアンブルのみ
+  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.content) || isPreambleTurn(t.content))) {
     return '全UserターンがシステムTagのみ';
   }
 
@@ -134,8 +175,8 @@ export const checkUserContent = (conversation: Conversation): string | null => {
     const _patternReason = _matchUserPattern(text, NOISE_USER_PATTERNS);
     if (_patternReason) { return _patternReason; }
 
-    // システムタグのみ
-    if (SYSTEM_TAG_REGEX.test(text)) { return 'UserがシステムTagのみ'; }
+    // システムタグのみ、または Codex プリアンブルのみ
+    if (SYSTEM_TAG_REGEX.test(text) || isPreambleTurn(text)) { return 'UserがシステムTagのみ'; }
   }
 
   return null;
@@ -194,14 +235,19 @@ export const readConversation = (text: string): Conversation => {
 /**
  * 会話に対して User本文・会話パターン・プロンプトパターン・Assistant応答長のチェックを順に適用する。
  *
+ * 各チェックは「User ターンが 1 件」または「先頭 User ターン」を前提とするため、
+ * 判定の前に `stripPreamble` で Codex 注入のプリアンブルを取り除いて正規化する。
+ *
  * @param conversation - 解析済みの会話ターン配列
  * @returns 最初に一致したチェックの reason。いずれも一致しない場合は `null`
  */
-export const classifyConversation = (conversation: Conversation): string | null =>
-  checkUserContent(conversation)
-    ?? checkConversationPattern(conversation)
-    ?? checkPromptContent(conversation)
-    ?? checkAssistantContent(conversation);
+export const classifyConversation = (conversation: Conversation): string | null => {
+  const _conv = stripPreamble(conversation);
+  return checkUserContent(_conv)
+    ?? checkConversationPattern(_conv)
+    ?? checkPromptContent(_conv)
+    ?? checkAssistantContent(_conv);
+};
 
 /**
  * ファイル名パターンのみでノイズ判定を行い、一致した場合は `NoiseDiscardFile` を返す。

@@ -17,7 +17,13 @@ import { ENTRY_CONTROL } from '../../types/patterns.types.ts';
 // types
 import type { NoiseConversationPattern } from '../../types/patterns.types.ts';
 
-/** システムタグのみと判断するプレフィックス正規表現。 */
+/**
+ * システムタグのみと判断するプレフィックス正規表現。
+ *
+ * 前方一致のため、先頭に現れればターン全体がシステム入力とみなせるタグに限る。
+ * Codex 注入タグ（`recommended_plugins` 等）は本題が後続しうるため、
+ * ここではなくターン全体を見る `isPreambleTurn` で判定する。
+ */
 export const SYSTEM_TAG_REGEX =
   /^<(system-reminder|command-name|command-message|local-command-stdout|ide_opened_file|ide_selection)\b/;
 
