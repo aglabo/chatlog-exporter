@@ -42,7 +42,7 @@ import type { Turn } from '../../../../../_cle-libs/types/conversation.types.ts'
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-06
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-07
  *
  * @see checkFilename
  */
@@ -147,6 +147,18 @@ describe('checkFilename', () => {
 
       assertNotNull(result);
     });
+
+    it('[Edge] T-PF-CF-07-01: スラッグ内に語を含む正当なログ → null（誤除外しない）', () => {
+      const result = checkFilename('2026-08-11-which-recommended-plugins-should-i-install-abc123.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-07-02: 日付なしで前後にハイフンがある名前 → null（誤除外しない）', () => {
+      const result = checkFilename('notes-recommended-plugins-list.md');
+
+      assertNull(result);
+    });
   });
 });
 
@@ -159,7 +171,7 @@ describe('checkFilename', () => {
  *
  * User ターンなし・システムタグのみ・コマンドのみ・NOISE_USER_PATTERNS（スラッシュ/パス）・1ターン限定ルールを検証する。
  *
- * テスト ID 範囲: T-PF-UC-01 〜 T-PF-UC-09
+ * テスト ID 範囲: T-PF-UC-01 〜 T-PF-UC-10
  *
  * @see checkUserContent
  */
@@ -284,6 +296,19 @@ describe('checkUserContent', () => {
 
   /** 通常テキストや複数ターンで 1ターン限定ルールが適用されないケース。 */
   describe('When: 正常系', () => {
+    it('[Normal] T-PF-UC-10-01: 単一 User ターンがプリアンブル + 本題 → null を返す（誤除外しない）', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content: '<recommended_plugins>\n- Slack\n</recommended_plugins>\nこの設計についてどう思いますか？',
+        },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkUserContent(turns);
+
+      assertNull(result);
+    });
+
     it('[Normal] T-PF-UC-08-01: 通常テキストの単一 User ターン → null を返す', () => {
       const turns = _makeTurns([
         { role: 'user', content: 'この機能の設計についてどう思いますか？' },

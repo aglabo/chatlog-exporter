@@ -158,8 +158,8 @@ export const checkUserContent = (conversation: Conversation): string | null => {
 
   const _userTurns = getUserTurns(conversation);
 
-  // 全Userターンがシステムタグのみ
-  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.content))) {
+  // 全Userターンがシステムタグのみ、または Codex プリアンブルのみ
+  if (_userTurns.every((t) => SYSTEM_TAG_REGEX.test(t.content) || isPreambleTurn(t.content))) {
     return '全UserターンがシステムTagのみ';
   }
 
@@ -175,8 +175,8 @@ export const checkUserContent = (conversation: Conversation): string | null => {
     const _patternReason = _matchUserPattern(text, NOISE_USER_PATTERNS);
     if (_patternReason) { return _patternReason; }
 
-    // システムタグのみ
-    if (SYSTEM_TAG_REGEX.test(text)) { return 'UserがシステムTagのみ'; }
+    // システムタグのみ、または Codex プリアンブルのみ
+    if (SYSTEM_TAG_REGEX.test(text) || isPreambleTurn(text)) { return 'UserがシステムTagのみ'; }
   }
 
   return null;
