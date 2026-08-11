@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertEquals } from '@std/assert';
+import { assert, assertEquals, assertFalse } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
@@ -20,7 +20,9 @@ import {
   checkPromptContent,
   checkUserContent,
   classifyConversation,
+  isPreambleTurn,
   readConversation,
+  stripPreamble,
 } from '../../../libs/classify-file.ts';
 
 // ─── Helpers
@@ -40,7 +42,7 @@ import type { Turn } from '../../../../../_cle-libs/types/conversation.types.ts'
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-04
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-06
  *
  * @see checkFilename
  */
@@ -94,6 +96,18 @@ describe('checkFilename', () => {
 
       assertNull(result);
     });
+
+    it('[Normal] T-PF-CF-05-01: 日付+ハッシュ付き recommended-plugins ログ → null でない', () => {
+      const result = checkFilename('2026-07-30-recommended-plugins-cfa0110de248.md');
+
+      assertNotNull(result);
+    });
+
+    it('[Normal] T-PF-CF-05-02: 別ハッシュの recommended-plugins ログ → null でない', () => {
+      const result = checkFilename('2026-07-30-recommended-plugins-49f4148fa064.md');
+
+      assertNotNull(result);
+    });
   });
 
   /** 大文字小文字を区別しない検証ケース。 */
@@ -115,6 +129,24 @@ describe('checkFilename', () => {
 
       assert(result!.includes('ファイル名パターン:'));
     });
+
+    it('[Edge] T-PF-CF-06-01: 前ハイフンなし "recommended-plugins.md" → null（誤除外しない）', () => {
+      const result = checkFilename('recommended-plugins.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-06-02: 後続語のみ "recommended-plugins-for-vscode.md" → null（誤除外しない）', () => {
+      const result = checkFilename('recommended-plugins-for-vscode.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-06-03: 大文字混在 "2026-07-30-Recommended-Plugins-abc123.md" → null でない', () => {
+      const result = checkFilename('2026-07-30-Recommended-Plugins-abc123.md');
+
+      assertNotNull(result);
+    });
   });
 });
 
@@ -127,7 +159,7 @@ describe('checkFilename', () => {
  *
  * User ターンなし・システムタグのみ・コマンドのみ・NOISE_USER_PATTERNS（スラッシュ/パス）・1ターン限定ルールを検証する。
  *
- * テスト ID 範囲: T-PF-UC-01 〜 T-PF-UC-08
+ * テスト ID 範囲: T-PF-UC-01 〜 T-PF-UC-09
  *
  * @see checkUserContent
  */
@@ -212,6 +244,36 @@ describe('checkUserContent', () => {
     it('[Error] T-PF-UC-06-02: "docs/readme.md" → reason を返す', () => {
       const turns = _makeTurns([
         { role: 'user', content: 'docs/readme.md' },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkUserContent(turns);
+
+      assertNotNull(result);
+    });
+
+    it('[Error] T-PF-UC-09-01: 単一 User ターンが <recommended_plugins> のみ → reason を返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkUserContent(turns);
+
+      assertNotNull(result);
+    });
+
+    it('[Error] T-PF-UC-09-02: 単一 User ターンが <INSTRUCTIONS> のみ → reason を返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<INSTRUCTIONS>\nPlease answer in Japanese\n</INSTRUCTIONS>' },
+        { role: 'assistant', content: '回答' },
+      ]);
+      const result = checkUserContent(turns);
+
+      assertNotNull(result);
+    });
+
+    it('[Error] T-PF-UC-09-03: 単一 User ターンが <environment_context> のみ → reason を返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>' },
         { role: 'assistant', content: '回答' },
       ]);
       const result = checkUserContent(turns);
@@ -955,3 +1017,274 @@ describe('classifyConversation', () => {
 
 // NOTE: NOISE_USER_PATTERNS_* の定数直接参照テスト（T-PF-NP-01〜04）は削除済み。
 // checkUserContent 経由で同等ロジックを検証しているため再追加しないこと。
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isPreambleTurn
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `isPreambleTurn` のユニットテストスイート。
+ *
+ * Codex が会話冒頭に自動注入するプリアンブルターンの識別を検証する。
+ * タグブロック・定型見出しのみで構成される場合に true、本題が混在する場合に false を返す。
+ *
+ * テスト ID 範囲: T-PF-PR-01 〜 T-PF-PR-03
+ *
+ * @see isPreambleTurn
+ */
+describe('isPreambleTurn', () => {
+  /** タグブロック・定型見出しのみで構成されるプリアンブルを識別するケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PF-PR-01-01: <recommended_plugins> ブロックのみ → true', () => {
+      const text = '<recommended_plugins>\n- Slack (slack@openai-curated-remote)\n</recommended_plugins>';
+
+      assert(isPreambleTurn(text));
+    });
+
+    it('[Normal] T-PF-PR-01-02: <INSTRUCTIONS> ブロックのみ → true', () => {
+      const text = '<INSTRUCTIONS>\nPlease provide all answers in Japanese\n</INSTRUCTIONS>';
+
+      assert(isPreambleTurn(text));
+    });
+
+    it('[Normal] T-PF-PR-01-03: <environment_context> ブロックのみ → true', () => {
+      const text = '<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>';
+
+      assert(isPreambleTurn(text));
+    });
+
+    it('[Normal] T-PF-PR-01-04: 実ログのプリアンブル全体（3ブロック + AGENTS.md 見出し）→ true', () => {
+      const text = [
+        '<recommended_plugins>',
+        'Here is a list of plugins that are available but not installed.',
+        '',
+        '- Slack (slack@openai-curated-remote)',
+        '</recommended_plugins>',
+        '# AGENTS.md instructions for C:\\Users\\atsushifx\\workspaces\\develop\\chatlog-exporter',
+        '',
+        '<INSTRUCTIONS>',
+        'Please provide all answers in Japanese',
+        '',
+        '## Quick Reference',
+        '',
+        '```bash',
+        'bd ready',
+        '```',
+        '</INSTRUCTIONS>',
+        '<environment_context>',
+        '  <cwd>C:\\Users\\atsushifx\\workspaces\\develop\\chatlog-exporter</cwd>',
+        '  <shell>powershell</shell>',
+        '</environment_context>',
+      ].join('\n');
+
+      assert(isPreambleTurn(text));
+    });
+  });
+
+  /** 本題が混在するターン・通常の会話を誤ってプリアンブル扱いしないケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-PF-PR-02-01: タグブロックの後に本題が続く → false（誤除外しない）', () => {
+      const text = '<recommended_plugins>\n- Slack\n</recommended_plugins>\nこの設計についてどう思いますか？';
+
+      assertFalse(isPreambleTurn(text));
+    });
+
+    it('[Error] T-PF-PR-02-02: タグブロックの前に本題がある → false', () => {
+      const text = 'まず質問です。\n<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>';
+
+      assertFalse(isPreambleTurn(text));
+    });
+
+    it('[Error] T-PF-PR-02-03: 通常の会話テキスト → false', () => {
+      assertFalse(isPreambleTurn('この機能の設計についてどう思いますか？'));
+    });
+
+    it('[Error] T-PF-PR-02-04: 未知のタグブロックのみ → false', () => {
+      assertFalse(isPreambleTurn('<unknown_tag>\ncontent\n</unknown_tag>'));
+    });
+  });
+
+  /** 空文字列・空白のみ・閉じタグ欠落など境界値のケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-PF-PR-03-01: 空文字列 → false', () => {
+      assertFalse(isPreambleTurn(''));
+    });
+
+    it('[Edge] T-PF-PR-03-02: 空白のみ → false', () => {
+      assertFalse(isPreambleTurn('   \n  '));
+    });
+
+    it('[Edge] T-PF-PR-03-03: 閉じタグ欠落 → false（ブロックとして除去できない）', () => {
+      assertFalse(isPreambleTurn('<recommended_plugins>\n- Slack'));
+    });
+
+    it('[Edge] T-PF-PR-03-04: AGENTS.md 定型見出しのみ → true', () => {
+      assert(isPreambleTurn('# AGENTS.md instructions for C:\\Users\\foo\\bar'));
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// stripPreamble
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `stripPreamble` のユニットテストスイート。
+ *
+ * 会話先頭から連続するプリアンブル User ターンを除去し、実質的な会話のみを返すことを検証する。
+ *
+ * テスト ID 範囲: T-PF-SP-01 〜 T-PF-SP-03
+ *
+ * @see stripPreamble
+ */
+describe('stripPreamble', () => {
+  /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
+    return turns;
+  }
+
+  /** 先頭のプリアンブルターンが除去されるケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PF-SP-01-01: 先頭プリアンブル 1 ターンを除去し残りを返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+        { role: 'user', content: '---\nname: commit-message-generator\n---\n本文' },
+        { role: 'assistant', content: 'コミットメッセージです' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 2);
+      assertEquals(result[0].content, '---\nname: commit-message-generator\n---\n本文');
+    });
+
+    it('[Normal] T-PF-SP-01-02: 連続する複数プリアンブルターンをすべて除去する', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+        { role: 'user', content: '<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>' },
+        { role: 'user', content: '本題の質問' },
+        { role: 'assistant', content: '回答' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 2);
+      assertEquals(result[0].content, '本題の質問');
+    });
+
+    it('[Normal] T-PF-SP-01-03: プリアンブルがない会話は変更せず返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '設計について質問です' },
+        { role: 'assistant', content: '回答' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 2);
+      assertEquals(result[0].content, '設計について質問です');
+    });
+  });
+
+  /** 除去対象が先頭に限られることを検証するケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-PF-SP-02-01: 途中のプリアンブル相当ターンは除去しない', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '本題の質問' },
+        { role: 'assistant', content: '回答' },
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 3);
+    });
+
+    it('[Edge] T-PF-SP-02-02: 空の会話 → 空配列を返す', () => {
+      const result = stripPreamble([]);
+
+      assertEquals(result.length, 0);
+    });
+
+    it('[Edge] T-PF-SP-02-03: 全ターンがプリアンブル → 空配列を返す', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+        { role: 'user', content: '<INSTRUCTIONS>\nrules\n</INSTRUCTIONS>' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 0);
+    });
+
+    it('[Edge] T-PF-SP-02-04: 先頭が Assistant ターンなら除去しない', () => {
+      const turns = _makeTurns([
+        { role: 'assistant', content: '先制発話' },
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+      ]);
+
+      const result = stripPreamble(turns);
+
+      assertEquals(result.length, 2);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// classifyConversation（プリアンブル除去の統合）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `classifyConversation` のプリアンブル除去統合テストスイート。
+ *
+ * Codex ログ（プリアンブル + エージェント定義 + 応答）が除外判定されること、
+ * プリアンブル直後に実質的な会話が続くログは保持されることを検証する。
+ *
+ * テスト ID 範囲: T-PF-CP-01 〜 T-PF-CP-02
+ *
+ * @see classifyConversation
+ */
+describe('classifyConversation（プリアンブル除去）', () => {
+  /** @param turns - ロール・テキストペアから Turn[] を生成するヘルパー。 */
+  function _makeTurns(turns: Array<{ role: 'user' | 'assistant'; content: string }>): Turn[] {
+    return turns;
+  }
+
+  /** プリアンブル除去により既存ノイズパターンが適用されるケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PF-CP-01-01: プリアンブル + スキル定義YAML → reason を返す（除外対象）', () => {
+      const turns = _makeTurns([
+        {
+          role: 'user',
+          content: '<recommended_plugins>\n- Slack\n</recommended_plugins>\n'
+            + '# AGENTS.md instructions for C:\\work\n'
+            + '<INSTRUCTIONS>\nrules\n</INSTRUCTIONS>\n'
+            + '<environment_context>\n  <cwd>C:\\work</cwd>\n</environment_context>',
+        },
+        { role: 'user', content: '---\nname: commit-message-generator\ndescription: Generates messages.\n---\n本文' },
+        { role: 'assistant', content: '=== commit header ===\nfix(x): y\n=== commit footer ===' },
+      ]);
+
+      const result = classifyConversation(turns);
+
+      assertNotNull(result);
+    });
+  });
+
+  /** プリアンブル直後に実質的な会話が続くログを誤除外しないケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-PF-CP-02-01: プリアンブル + 通常の質問 → null（保持する）', () => {
+      const turns = _makeTurns([
+        { role: 'user', content: '<recommended_plugins>\n- Slack\n</recommended_plugins>' },
+        { role: 'user', content: 'この設計のトレードオフを教えてください。アーキテクチャ上の懸念はありますか？' },
+        {
+          role: 'assistant',
+          content: '主なトレードオフは結合度と拡張性です。'.repeat(20),
+        },
+      ]);
+
+      const result = classifyConversation(turns);
+
+      assertNull(result);
+    });
+  });
+});
