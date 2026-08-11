@@ -14,6 +14,32 @@ import { ConversationRole } from '../../../../_cle-libs/types/conversation-role.
 // types
 import type { NoiseConversationPattern } from '../../types/patterns.types.ts';
 
+/**
+ * プリアンブル判定で開閉ペアごと除去するタグ名一覧（非公開）。派生定数の共通ソース。
+ *
+ * Codex が会話冒頭に自動注入するタグ。内部に任意の Markdown を含むため、
+ * 行単位ではなく `<tag>` 〜 `</tag>` の領域ごと除去する。
+ */
+const _PREAMBLE_TAG_NAMES: string[] = [
+  'recommended_plugins',
+  'INSTRUCTIONS',
+  'environment_context',
+];
+
+/** プリアンブルタグブロックを開閉ペアごと除去する正規表現一覧。 */
+export const PREAMBLE_BLOCK_PATTERNS: RegExp[] = _PREAMBLE_TAG_NAMES.map(
+  (tag) => new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'g'),
+);
+
+/**
+ * タグブロック除去後に残る定型行のパターン一覧。
+ *
+ * Codex がプリアンブルに含める裸の見出し。これらのみが残る場合もプリアンブルとみなす。
+ */
+export const PREAMBLE_RESIDUE_PATTERNS: RegExp[] = [
+  /^#\s+AGENTS\.md\s+instructions\s+for\s+\S.*$/,
+];
+
 /** chatlog-exporter スラッシュコマンドパターン。checkUserContent() で使用。 */
 export const NOISE_USER_PATTERNS_CHATLOG: NoiseConversationPattern[] = [
   {

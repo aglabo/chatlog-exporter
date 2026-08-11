@@ -17,9 +17,13 @@ import { ENTRY_CONTROL } from '../../types/patterns.types.ts';
 // types
 import type { NoiseConversationPattern } from '../../types/patterns.types.ts';
 
-/** システムタグのみと判断するプレフィックス正規表現。 */
+/**
+ * システムタグのみと判断するプレフィックス正規表現。
+ *
+ * `INSTRUCTIONS` は Codex が常に大文字で出力するため、`i` フラグは付けずリテラルで列挙する。
+ */
 export const SYSTEM_TAG_REGEX =
-  /^<(system-reminder|command-name|command-message|local-command-stdout|ide_opened_file|ide_selection)\b/;
+  /^<(system-reminder|command-name|command-message|local-command-stdout|ide_opened_file|ide_selection|recommended_plugins|INSTRUCTIONS|environment_context)\b/;
 
 /** Assistantの応答内容によるノイズパターン。checkAssistantContent() で使用。 */
 export const NOISE_ASSISTANT_PATTERNS: NoiseConversationPattern[] = [

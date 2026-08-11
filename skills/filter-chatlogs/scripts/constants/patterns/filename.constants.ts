@@ -14,6 +14,10 @@ export const SYSTEM_TAG_PREFIXES: string[] = [
   '<local-command-stdout',
   '<ide_opened_file',
   '<ide_selection',
+  // Codex が会話冒頭に自動注入するタグ
+  '<recommended_plugins',
+  '<INSTRUCTIONS',
+  '<environment_context',
   '---\n',
 ] as const;
 
@@ -26,6 +30,8 @@ const _BASE_FILENAME_PATTERNS: string[] = [
   'command-message-deckrd-coder',
   'pr-temp-idd-pr',
   'temp-idd-pr-pr-current-draft',
+  // Codex プリアンブル断片がタイトル化したログ（前後ハイフンで日付・ハッシュ付き形式に限定）
+  '-recommended-plugins-',
 ];
 
 /** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */
