@@ -17,7 +17,7 @@
   // textlint
   "textlint.configPath": "./configs/textlintrc.yaml",
   // markdown
-  "markdownlint.configFile": "./configs/markdownlint.yaml",
+  "markdownlint.configFile": "./configs/.markdownlint.yaml",
   "[markdown]": {
     "editor.defaultFormatter": "dprint.dprint",
   },

@@ -32,12 +32,15 @@ rules:
       strict: false
   "@textlint-ja/preset-ai-writing": true
   preset-ja-spacing:
+    ja-no-space-around-slash: false
+    ja-no-space-around-parentheses: false
     ja-space-between-half-and-full-width:
       space:
         - alphabets
         - numbers
-    ja-space-around-inline-code: true
+    ja-space-around-code: true
     ja-space-around-strong: true
+  "@textlint-ja/no-synonyms": true
   common-misspellings: true
   no-mixed-zenkaku-and-hankaku-alphabet: true
   "@proofdict/proofdict":

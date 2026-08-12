@@ -1,0 +1,24 @@
+# src: ./configs/.markdownlint-cli2.yaml
+# @(#) : markdown linter execute config
+#
+# Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## Files
+globs:
+
+## Ignores
+# ignore gitignore
+gitignore: true
+# ignore files globs
+ignores:
+  - ".serena/**"
+  - ".tools/**"
+  - "temp/**"
+  - "tmp/**"
+
+## ruleset
+config:
+  extends: .markdownlint.yaml
