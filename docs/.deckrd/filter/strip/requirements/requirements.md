@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 5.0.0
+version: 5.3.1
 created: "2026-08-12"
 ---
 
@@ -23,8 +23,8 @@ created: "2026-08-12"
 - `filter strip <agent> <YYYY-MM>` サブコマンドの新設 (period は必須。REQ-C-008 参照)
 - 対象ディレクトリ配下の `.md` を走査し、定型部マーカーを持つファイルのみを対象に、先頭から最初の `## Summary` 直前までを除去する
 - 元ファイルを `.bak` として退避し、元のファイル名で strip 済みファイルを書き出す
-- 既存 `.bak` および frontmatter の `_status: stripped` を処理済みマーカーとして扱い、再実行を冪等にする
-- 全件 strip 成功 (全ファイルの `_status` が `stripped`) 時に `.bak` を一括削除する
+- `ChatlogCache` の処理済み記録および既存 `.bak` を処理済みの根拠として扱い、再実行を冪等にする (DR-14)
+- error が 0 件であり、かつ退避の包含関係が成立する場合に `.bak` を一括削除する (DR-16)
 - `--dry-run` による非破壊確認
 - 処理結果サマリー (対象件数・除去バイト数・`.bak` 削除件数) の報告
 
@@ -50,10 +50,9 @@ created: "2026-08-12"
     normalize 等の既存用途向け。strip は `.bak` 方式の `backupPath` を用いる (DR-03 参照)
   - `skills/_cle-libs/libs/file-ops/exists-utils.ts` — `fileExists` (退避ファイルの存在判定に用いる)
   - `skills/_cle-libs/libs/text/frontmatter-utils.ts` — `divideEntry` / `hasFrontmatter` (いずれも読み取り専用)
-  - `skills/_cle-libs/classes/ChatlogFrontmatter.class.ts` — `set()` / `toFrontmatter()`。`_status` の付与に用いる (DR-04) 。
-    `toFrontmatter()` は既定引数で呼ばず `fieldOrder` を明示する
-  - `skills/_cle-libs/constants/common.constants.ts` — `FRONTMATTER_DELIMITER` / `DEFAULT_ORDERED_FIELDS`。DR-04 の
-    `PRIVATE_STATUS_FIELD` / `CHATLOG_STATUSES` をここに追加する
+  - `skills/_cle-libs/classes/ChatlogFrontmatter.class.ts` — frontmatter の同一性比較に用いる (AC-024) 。
+    strip は frontmatter を再構築しないため `set()` / `toFrontmatter()` は用いない (DR-14)
+  - `skills/_cle-libs/classes/ChatlogCache.class.ts` — 処理済み状態の記録・参照に用いる (DR-14)
   - `skills/_cle-libs/classes/ChatlogEntry.class.ts` — `renderEntry()` は**本機能では使用しない** (DR-04)。
     `DEFAULT_ORDERED_FIELDS` への並べ替えと tag への `#` 付与を伴うため
   - `skills/_cle-libs/classes/ChatlogError.class.ts` / `libs/io/logger.ts`
@@ -68,10 +67,12 @@ created: "2026-08-12"
 
 ```text
 [User / CLI]        --> +----------------------+ --> [<name>.md      (strip 済み)]
- filter strip           |     filter strip     |      frontmatter に _status: stripped
+ filter strip           |     filter strip     |      frontmatter は不変
  <agent> <YYYY-MM>      |                      |
                         |                      | --> [<name>.md.bak  (元ファイル退避)]
-[originalLogs/*.md] --> |                      |      全件 stripped なら最後に一括削除
+[originalLogs/*.md] --> |                      |      error 0 かつ包含成立なら一括削除
+                        |                      |
+[ChatlogCache]      <-> |                      |      (処理済み状態の記録・参照)
                         |                      |
 [config.yaml        --> |                      | --> [Summary: total/stripped/
  GlobalConfig]          +----------------------+       passthrough/error
@@ -97,8 +98,10 @@ created: "2026-08-12"
 | DR-10 | 退避削除の失敗を報告し、終了コードに反映する                                       | ../decision-records.md#DR-10 |
 | DR-11 | REQ-F-008 の到達不能な判定基準を削除する                                           | ../decision-records.md#DR-11 |
 | DR-12 | `backupPath` の戻り値を `Promise<string>` に単純化する                             | ../decision-records.md#DR-12 |
-| DR-13 | ファイル単位の分類を 3 つに統合する (skipped を passthrough へ)                    | ../decision-records.md#DR-13 |
+| DR-13 | ファイル単位の分類を 3 つに統合する (DR-15 により破棄)                             | ../decision-records.md#DR-13 |
 | DR-14 | 処理済みマーカーをキャッシュへ移し、本体の frontmatter を変更しない                | ../decision-records.md#DR-14 |
+| DR-15 | 処理済みスキップを `done` として独立した分類に戻す                                 | ../decision-records.md#DR-15 |
+| DR-16 | 退避削除の前に退避の包含関係を検査する                                             | ../decision-records.md#DR-16 |
 
 <!-- markdownlint-restore --->
 
@@ -114,17 +117,26 @@ created: "2026-08-12"
 | `## Summary` を持たない                     | 266  |
 | 定型部が最初の `## Summary` より後ろ        | 4    |
 
-複数 `## Summary` を持つファイルは 976 件存在しますが、先頭 strip 後も定型部が残るのは **2 件**にとどまります。
-したがって単純な先頭アンカー方式で 6398 件を処理でき、取りこぼしは 6 件 (残存 2 + 後方配置 4) に限定されます。
+除去対象 6398 件のうち複数 `## Summary` を持つファイルは 976 件存在しますが、
+先頭 strip 後も定型部が残るものは **0 件**です。
+定型部マーカーを複数持つファイルは 271 件ありますが、いずれも最初の `## Summary` より前に集中しており、
+先頭 strip により全て除去されます。
 
-**`## Summary` を持つ 10290 件の内訳 (REQ-F-000 の根拠) :**
+したがって単純な先頭アンカー方式で 6398 件を処理でき、取りこぼしは後方配置の 4 件に限定されます。
+
+なお「先頭 strip 後もなお定型部が残る」構造は原理的に起こりえます。
+定型部マーカーが 2 個目以降の `## Summary` 以降に位置する場合です。
+実測では該当しませんが、テンプレートの変更により将来発生しうるため、
+Edge ケースとしての扱いは維持します (specifications.md Edge 14) 。
+
+**`## Summary` を持つ 10288 件の内訳 (REQ-F-000 の根拠) :**
 
 | 分類                      | 件数 |
 | ------------------------- | ---- |
-| 定型部を持つ (除去対象)   | 6402 |
-| 定型部を持たない (対象外) | 3888 |
+| 定型部を持つ (除去対象)   | 6398 |
+| 定型部を持たない (対象外) | 3890 |
 
-`## Summary` の存在のみを条件とすると 3888 件を誤って破壊します。
+`## Summary` の存在のみを条件とすると 3890 件を誤って破壊します。
 除去には定型部マーカーの存在確認を必須とします (REQ-F-000) 。
 
 ### DR-02 の根拠
@@ -147,7 +159,7 @@ THEN the system SHALL 当該ファイルを対象外 (passthrough) として無�
 ```
 
 **Rationale**: `## Summary` の存在だけを条件にすると、定型部を持たないファイルまで先頭が削除されます。
-実測では `## Summary` を持つ 10290 件のうち **3888 件は定型部を持ちません**。
+実測では `## Summary` を持つ 10288 件のうち **3890 件は定型部を持ちません**。
 これらのファイルの「先頭部」はタイトル・`## 会話ログ` 見出し・実際のユーザー発話であり、除去は実コンテンツの破壊にあたります。
 さらに `### User` 発話の本文が偶然 `## Summary` で始まる例 (`2026-07-25-summary-22dc01be88ca.md`) も存在するため、
 定型部マーカーの存在確認は誤削除を防ぐ必須の前提条件です。
@@ -188,11 +200,12 @@ GIVEN 対象ファイルが frontmatter を持つ
 THEN the system SHALL 既存の全フィールド (session_id / date / project 等) を値・順序ともに変更せずに保持する。
 ```
 
-ただし REQ-F-009 に定める処理済みマーカー `_status: stripped` の**追加**のみを例外として許容します。
-既存フィールドの変更・削除・並べ替えを行ってはなりません。
+例外はありません。フィールドの追加・変更・削除・並べ替えのいずれも行ってはなりません (DR-14) 。
+処理済み状態は `ChatlogCache` に記録するため、frontmatter への付与を要しません。
 
 **Rationale**: frontmatter は分類・検索のためのメタデータであり、本文の除去とは独立して維持される必要があります。
-処理済みマーカーは `.bak` 削除後の冪等性担保に必須であるため、追加のみを例外とします。
+処理済みマーカーの保持先を `ChatlogCache` としたことで (DR-14) 、frontmatter を完全に不変とできます。
+同一性の判定基準は AC-024 に定めます。
 
 **Acceptance Criteria**:
 
@@ -244,7 +257,7 @@ THEN the system SHALL 元ファイルを `<name>.md.bak` にリネームした�
 ```text
 GIVEN 対象ファイルに対応する `<name>.md.bak` が既に存在する
   NOT DO 当該ファイルを再度 strip する、または既存の `.bak` を上書きする
-THEN the system SHALL 当該ファイルを strip 済みとみなしてスキップし、passthrough (処理済みスキップ) として計上する。
+THEN the system SHALL 当該ファイルを strip 済みとみなしてスキップし、done として計上する。
 ```
 
 **Rationale**: 二重実行時に strip 済み内容で `.bak` を上書きすると、元ログを永久に失います。既存 `.bak` の存在を処理済みマーカーとして扱うことで、再実行を冪等にします。
@@ -271,8 +284,8 @@ strip 処理は本体の frontmatter を変更してはなりません (DR-14) �
 
 再実行時の判定順序は次のとおりとします。
 
-1. キャッシュに処理済みの記録がある → passthrough / 処理済みスキップ (`.bak` の有無によらず)
-2. `<name>.md.bak` が存在する → passthrough / 処理済みスキップ (REQ-F-007)
+1. キャッシュに処理済みの記録がある → done (`.bak` の有無によらず)
+2. `<name>.md.bak` が存在する → done (REQ-F-007)
 3. 定型部マーカーを持たない → passthrough (REQ-F-000)
 
 手順 1 は本体を読み取らずに判定できます。
@@ -286,9 +299,33 @@ Provider はパスのみを受け取るため手順 1 の判定を担えず、�
 キャッシュ status の値は実装ファイルに直書きせず、定数として定義します。
 
 **Rationale**: REQ-F-010 により `.bak` は正常終了時に削除されるため、`.bak` を唯一の処理済みマーカーとすると冪等性が失われます。
-実測では strip 後の本文は `## Summary` 起点となり定型部マーカーを含まないため大半は REQ-F-000 で保護されますが、
-先頭 strip 後も定型部が残る 2 件は再実行で再度 strip され本文を失います。
+実測では strip 後の本文は `## Summary` 起点となり定型部マーカーを含まないため、
+全件が REQ-F-000 で保護されます (先頭 strip 後も定型部が残るファイルは実測 0 件) 。
+ただし定型部マーカーが 2 個目以降の `## Summary` 以降に位置する構造は原理的に起こりえ、
+その場合は再実行で再度 strip され本文を失います。
 キャッシュへの記録は `.bak` 削除後も残るため、この経路を塞ぎます。
+
+**frontmatter の不変性の判定基準**
+
+AC-024 の一致はバイト単位ではなく、`ChatlogFrontmatter` による同一性比較で判定します。
+
+`_cle-libs` の `writeTextFile` は `normalizeLine` を適用するため、
+CRLF 入力では frontmatter 部の改行も LF へ変換されます (REQ-NF-003) 。
+改行コードの正規化は決定事項であり、これを取りやめません。
+したがってバイト単位の一致は成立せず、判定基準として用いることができません。
+
+同一性は次の条件で判定します。
+
+1. キー集合が一致すること
+2. 各キーについて値が一致すること (`string` は `===`、`string[]` は長さと各要素の `===`、型が異なれば不一致)
+
+**キーの出現順序は比較対象に含めません。**
+strip は frontmatter を再構築しないため順序は物理的に不変であり、
+順序まで判定条件に含めると、将来 frontmatter を経由する処理が入った際に過剰な制約となります。
+
+判定は `ChatlogFrontmatter` に同一性比較の手段を追加して行います。
+文字列表現の比較に依存すると、改行コード・引用符・インデントの差異が
+内容の変化として誤検出されるためです。
 
 処理済み状態を本体ではなくキャッシュに置く理由は DR-14 に記します。
 本体を変更しないことで、private フィールドの下流への漏出と、
@@ -301,18 +338,19 @@ frontmatter 再構築に伴う未知フィールドの消失が構造的に発�
 
 **Acceptance Criteria**:
 
-| AC ID  | Scenario                                                           |
-| ------ | ------------------------------------------------------------------ |
-| AC-013 | strip 済みファイルの処理済み状態がキャッシュに記録される           |
-| AC-014 | `.bak` 削除後に再実行しても strip 済みファイルが再処理されない     |
-| AC-024 | strip 済みファイルの frontmatter が strip 前とバイト単位で一致する |
+| AC ID  | Scenario                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------ |
+| AC-013 | strip 済みファイルの処理済み状態がキャッシュに記録される                                         |
+| AC-014 | `.bak` 削除後に再実行しても strip 済みファイルが再処理されない                                   |
+| AC-024 | strip 済みファイルの frontmatter が strip 前と同一である (`ChatlogFrontmatter` による同一性比較) |
 
 ### REQ-F-010: 正常終了時の `.bak` 一括削除
 
 - EARS Type: event-driven
 
 ```text
-GIVEN strip 処理が全対象ファイルの走査を完了し、error を計上したファイルが 1 件も無い
+GIVEN strip 処理が全対象ファイルの走査を完了し、error を計上したファイルが 1 件も無く、
+      かつ stripped と判定した全ファイルに対応する `.bak` が存在する
   WHEN 処理が終了する
 THEN the system SHALL 対象ディレクトリ配下の `.bak` を全て削除する。
 ```
@@ -321,17 +359,37 @@ THEN the system SHALL 対象ディレクトリ配下の `.bak` を全て削除�
 
 - error を計上したファイルが 1 件以上ある (調査・復旧のため全 `.bak` を保持する)
 - `--dry-run` が指定されている (そもそも `.bak` を作成しない)
+- stripped と判定したファイルのうち、対応する `.bak` を持たないものがある (DR-16)
 
-**Rationale**: strip 完了後も `.bak` を残すとディスク使用量が実質倍になります (対象 6402 件・元データ 275.3MB 規模) 。
+3 つ目の条件は次の包含関係として表現します。
+
+```text
+{ stripped と判定したファイルのパス } ⊆ { 存在する .bak のパス }
+```
+
+包含が成立しない場合、`.bak` を保持し、不足する `.bak` のパスを報告します。
+終了コードは成功以外とします。
+
+件数の比較では代替できません。
+前回実行の中断により残った `.bak`、Phase 4 と Phase 5 の間での中断、
+他プロセス由来の `.bak` により、件数は `stripped` と一致しないためです。
+いずれも正常な状態であり、件数の等式で異常と判定するのは誤りです。
+
+**Rationale**: strip 完了後も `.bak` を残すとディスク使用量が実質倍になります (対象 6398 件・元データ 275.3MB 規模) 。
 
 削除は対象ディレクトリ単位の一括操作とします。
 REQ-C-008 により対象は単一の `<agent> <YYYY-MM>` ディレクトリに限定されるため、
 配下の `.bak` はすべて strip の作業対象であり、退避パスを個別に追跡する必要がありません。
 
-削除の可否は error の有無のみで判断します。
+削除の可否は error の有無と `.bak` の包含関係で判断します。
 `_status` を条件に用いない理由は、passthrough と判定されたファイルが書き込みを受けず
 `_status` を持たないため、「全ファイルが `stripped`」という条件が実質的に成立しないためです
-(実測では対象 6402 件に対し passthrough が 3888 件) 。
+(実測では対象 6398 件に対し passthrough が 3890 件) 。
+
+包含関係を条件に加える理由は、error が 0 件であっても
+「`stripped` と計上したのに `.bak` が無い」状態を検出できないためです (DR-16) 。
+当該ファイルは復旧手段を持たないまま本体が書き換わった状態であり、
+この状態で残りの `.bak` を一括削除すると被害が拡大します。
 
 前回実行の中断により残った `.bak` も削除対象に含みます。
 当該実行が全件を error なく処理し終えた時点で、対象ディレクトリの内容は正常な strip 済み状態であり、
@@ -403,12 +461,21 @@ THEN the system SHALL ファイルへの書き込みおよび `.bak` 作成を�
 dry-run の出力には、ファイルごとに次の情報を含めなければなりません。
 
 - ファイルパス
-- 判定結果 (stripped / passthrough / error) 。passthrough では処理済みスキップに該当するかを併記する
+- 判定結果 (stripped / done / passthrough / error)
 - 判定理由 (マーカー無し / `## Summary` 無し / `.bak` 既存 / 除去率異常など)
 - 除去対象となる行範囲、および除去バイト数
 
+分類は通常実行と同一の規則で決定しなければならず、集計構造も通常実行と一致しなければなりません (DR-15) 。
+dry-run 固有の差異は `stripped` の表示上の時制に限られます。
+
+dry-run では、ファイルへの書き込みと `.bak` 作成に加え、キャッシュへの処理済み記録も行いません。
+記録した場合、次回の通常実行が全件 done となり、strip が実行されません。
+
 **Rationale**: 6000 件規模の破壊的操作の前に、影響範囲を確認する手段が必要です。
 件数とバイト数だけでは事前レビューとして不十分であり、dry-run 出力を監査ログとして機能させます。
+
+集計構造を通常実行と一致させる理由は、モードによって分類が異なると
+dry-run の結果から通常実行の結果を予測できず、事前検証としての用途が失われるためです。
 
 **Acceptance Criteria**:
 
@@ -475,19 +542,20 @@ frontmatter が無いファイルには付与先が存在しません。
 ```text
 GIVEN strip 処理が全対象ファイルの走査を完了した
   WHEN 処理が終了する
-THEN the system SHALL total / stripped / passthrough / error の件数、passthrough のうち処理済みスキップの件数、除去前後の合計バイト数、
+THEN the system SHALL total / stripped / done / passthrough / error の件数、除去前後の合計バイト数、
      および `.bak` の削除有無 (削除件数、または保持理由) を出力する。
 ```
 
-分類は stripped / passthrough / error の 3 つとします (DR-13) 。
-passthrough は「除去対象外」と「処理済みスキップ」の 2 経路を含むため、
-後者の件数を内訳として報告しなければなりません。
-内訳を欠くと、除去した実行と全件が処理済みであった実行を区別できません。
+分類は stripped / done / passthrough / error の 4 つとします (DR-15) 。
+`done` は処理済みスキップ (REQ-F-007 / REQ-F-009) を表し、`passthrough` は除去対象外を表します。
+両者を統合すると、除去した実行と全件が処理済みであった実行を区別できません。
 
-全ファイルの評価を終えた時点で、次の式が成立しなければなりません (DR-13) 。
+`done` は dry-run 専用ではなく、通常実行のサマリーにも計上します。
+
+全ファイルの評価を終えた時点で、次の式が成立しなければなりません (DR-15) 。
 
 ```text
-stripped + passthrough == total  かつ  error == 0
+stripped + done + passthrough == total  かつ  error == 0
 ```
 
 `.bak` の削除に失敗したファイルが 1 件以上ある場合、
@@ -504,7 +572,7 @@ stripped + passthrough == total  かつ  error == 0
 
 | AC ID  | Scenario                          |
 | ------ | --------------------------------- |
-| AC-008 | サマリーに 5 分類の件数が含まれる |
+| AC-008 | サマリーに 4 分類の件数が含まれる |
 
 ## 5. Non-Functional Requirements
 
@@ -570,6 +638,18 @@ DR-03 に定める `BackupProvider` 方式を `_cle-libs` に新規追加し、�
 
 既存の `writeTextFile` および `backupOldPath` の挙動は変更しません。
 `backupOldPath` は戻り値を `Promise<string | null>` に拡張するのみで、連番セマンティクスを維持します。
+
+あわせて frontmatter の同一性比較を `ChatlogFrontmatter` に追加します (AC-024) 。
+
+- `ChatlogFrontmatter` (`classes/ChatlogFrontmatter.class.ts`) — 2 つの frontmatter が
+  同一の内容を持つかを判定する手段を追加する。
+  キー集合と各キーの値を比較し、キーの出現順序は比較対象に含めない。
+  値は `string` / `string[]` のいずれかであり (`FrontmatterFields`) 、
+  `string[]` は長さと各要素を順に比較する
+
+既存のメソッドの挙動は変更しません。追加のみとします。
+判定を呼び出し側でインラインに実装してはなりません。
+frontmatter の内部表現はクラスが保持しており、比較もクラスの責務であるためです。
 
 ### REQ-C-002: 見出し検出ユーティリティの配置
 
@@ -806,7 +886,7 @@ Scenario: 既存 .bak があるファイルはスキップされる
   Given <name>.md.bak が既に存在するファイル <name>.md
   When  filter strip を実行する
   Then  <name>.md が変更されない
-  And   passthrough として計上され、処理済みスキップの内訳に含まれる
+  And   done として計上される
 
 # AC-009: 二重実行しても .bak の内容が変化しない
 # Requirement: REQ-F-007
@@ -816,20 +896,29 @@ Scenario: 再実行が冪等である
   Then  全ての .bak の内容が 1 回目実行後と一致する
   And   元ログが失われていない
 
-# AC-013: strip 済みファイルの frontmatter に _status: stripped が付く
+# AC-013: strip 済みファイルの処理済み状態がキャッシュに記録される
 # Requirement: REQ-F-009
-Scenario: 処理済みマーカーが記録される
+Scenario: 処理済み状態が記録される
   Given 定型部マーカーを持つファイル
   When  filter strip を実行する
-  Then  出力ファイルの frontmatter に _status: stripped が含まれる
-  And   既存フィールドの値と順序が変更されていない
+  Then  当該ファイルの処理済み状態が ChatlogCache に記録される
+  And   出力ファイルの frontmatter が strip 前と同一である
+
+# AC-024: strip 済みファイルの frontmatter が strip 前と同一である
+# Requirement: REQ-F-009
+Scenario: frontmatter が不変である
+  Given 定型部マーカーを持つファイル
+  When  filter strip を実行する
+  Then  strip 前後の frontmatter が ChatlogFrontmatter の同一性比較で一致する
+  And   キーの出現順序は比較対象に含めない
+  And   改行コードが CRLF から LF へ正規化されても一致と判定される
 
 # AC-014: .bak 削除後に再実行しても strip 済みファイルが再処理されない
 # Requirement: REQ-F-009
 Scenario: .bak 削除後も冪等である
   Given filter strip が全件成功し .bak が削除されたディレクトリ
   When  filter strip を再度実行する
-  Then  strip 済みファイルは全て passthrough (処理済みスキップ) として計上される
+  Then  strip 済みファイルは全て done として計上される
   And   本文が変更されていない
 
 # AC-015: 全件成功時に .bak が削除される
@@ -870,15 +959,15 @@ Scenario: dry-run が監査ログとして機能する
   When  filter strip --dry-run を実行する
   Then  各ファイルのパス・判定結果・判定理由・除去バイト数が出力される
 
-# AC-008: サマリーに 5 分類の件数が含まれる
+# AC-008: サマリーに 4 分類の件数が含まれる
 # Requirement: REQ-F-006
 Scenario: 処理結果が報告される
   Given 除去対象と対象外が混在するディレクトリ
   When  filter strip を実行する
-  Then  total / stripped / passthrough / error の件数と処理済みスキップの内訳が出力される
+  Then  total / stripped / done / passthrough / error の件数が出力される
 
 # AC-017: _status を持つファイルの正式版出力に _status が無い
-# Requirement: REQ-F-011
+# Requirement: REQ-F-011 (DR-14 により Superseded。以下は DR-14 以前の記録)
 Scenario: private フィールドが正式版に持ち出されない
   Given frontmatter に _status: stripped を持つ originalLogs 配下のファイル
   When  normalize および set-frontmatter を経て outputLogs に出力する
@@ -886,7 +975,7 @@ Scenario: private フィールドが正式版に持ち出されない
   And   normalizeLogs の frontmatter にも _status が含まれない
 
 # AC-018: 未知フィールドを持つファイルで既存フィールドが消失しない
-# Requirement: REQ-C-005
+# Requirement: REQ-C-005 (DR-14 により Superseded。以下は DR-14 以前の記録)
 Scenario: fieldOrder 明示により未知フィールドが保持される
   Given DEFAULT_ORDERED_FIELDS に無いフィールドを持つ除去対象ファイル
   When  filter strip を実行する
@@ -1020,5 +1109,10 @@ Scenario: --input-dir 指定時に実行を拒否する
 | 2026-08-12 | 3.0.0   | spec harden レビュー（DR-10 / DR-11 / DR-12）を反映。REQ-F-008 の判定基準から到達不能な「`## Summary` 以降が存在しない」を削除し 3 点から 2 点へ（DR-11）。REQ-F-006 に退避削除の失敗報告と終了コードの規定を追加（DR-10）。REQ-C-001 の `backupPath` 戻り値を `Promise<string>` に変更（DR-12）                                                                                                                     |
 | 2026-08-12 | 4.0.0   | DR-13 を反映。ファイル単位の分類を 4 つから 3 つへ統合し、skipped を passthrough に含める。REQ-F-006 に処理済みスキップの内訳報告と全件処理の判定式を追加。REQ-F-007 / REQ-F-009 / REQ-F-005 / REQ-NF-003 の分類表記と AC-006 / AC-014 / AC-008 の期待値を更新                                                                                                                                                       |
 | 2026-08-12 | 5.0.0   | DR-14 を反映し DR-04 を破棄。処理済みマーカーを本体の frontmatter から `ChatlogCache` へ移し、strip は本体の frontmatter を変更しない。REQ-F-009 をキャッシュ記録として再定義し AC-024 を新設。本体への `_status` 付与に由来する REQ-F-011 / REQ-C-005 / REQ-C-006 を Superseded とする                                                                                                                              |
+| 2026-08-13 | 5.1.0   | DR-15 を反映し DR-13 を破棄。分類を 3 つから 4 つへ戻し、処理済みスキップを `done` として独立させる。REQ-F-006 の報告項目と判定式を 4 分類へ変更し、内訳報告の規定を削除。REQ-F-005 に集計構造の一致とキャッシュ非記録を追加。REQ-F-007 / REQ-F-009 の分類表記と AC-006 / AC-008 / AC-014 の期待値を更新                                                                                                             |
+| 2026-08-13 | 5.2.0   | DR-16 を反映。REQ-F-010 の削除条件に `.bak` の包含関係を追加し、破れた場合の報告と終了コードを規定。件数比較で代替できない理由を記録。削除範囲は不変                                                                                                                                                                                                                                                                 |
+| 2026-08-13 | 5.2.1   | claude/2026-07 の再実測により DR-01 の根拠データを訂正。除去対象 6402→6398 / `## Summary` 保有 10290→10288 / 対象外 3888→3890。「先頭 strip 後も定型部が残る 2 件」は実測 0 件のため訂正し、取りこぼしを 6 件→4 件（後方配置のみ）へ。要件・受け入れ基準の変更は伴わない                                                                                                                                             |
+| 2026-08-13 | 5.3.0   | codex risk レビューの対応候補 C に対応。AC-024 の「バイト単位で一致」を `ChatlogFrontmatter` による同一性比較へ改める (CRLF 正規化は決定事項として維持)。REQ-F-009 に判定基準 (キー集合と値の一致・キー順は非対象) を追加。REQ-C-001 に同一性比較の追加を記載                                                                                                                                                        |
+| 2026-08-13 | 5.3.1   | DR-14 で無効化された `_status` 由来の陳腐化記述を一掃 (issue cle-ax1)。Scope / System Context Diagram / 利用ライブラリ / REQ-F-002 / AC-013 Gherkin を現行仕様へ更新し、AC-024 の Gherkin を新設。Superseded 済みの REQ-F-011 / REQ-C-005 配下の記述は歴史的記録として維持し、Gherkin に Superseded 注記を追加。要件の追加・変更は伴わない                                                                           |
 
 <!-- markdownlint-enable line-length -->
