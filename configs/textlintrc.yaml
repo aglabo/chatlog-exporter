@@ -39,7 +39,7 @@ rules:
         - alphabets
         - numbers
     ja-space-around-code: true
-    ja-space-around-string: true
+    ja-space-around-strong: true
   "@textlint-ja/no-synonyms": true
   common-misspellings: true
   no-mixed-zenkaku-and-hankaku-alphabet: true
