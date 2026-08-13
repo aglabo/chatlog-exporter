@@ -172,5 +172,5 @@ body:
       placeholder: |
         - [ ] All identified duplicate logic is replaced with shared library calls
         - [ ] `deno task test:unit` passes without modification
-        - [ ] `dprint fmt --check` passes
+        - [ ] `dprint check` passes
         - [ ] External behavior is identical before and after the change
