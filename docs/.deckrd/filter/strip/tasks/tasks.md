@@ -1,0 +1,1189 @@
+---
+title: "Implementation Tasks"
+module: filter/strip
+status: Active
+created: "2026-08-13 00:00:00"
+source: specifications.md
+---
+
+<!-- textlint-disable ja-technical-writing/sentence-length -->
+<!-- textlint-disable ja-technical-writing/max-comma -->
+<!-- markdownlint-disable no-duplicate-heading line-length -->
+
+> This document contains implementation tasks derived from specifications.
+> Each task corresponds to a single unit test case (`it()` block).
+
+## Conventions
+
+タスク ID は deckrd 標準の `T-XX-YY-ZZ`、`Test ID` は
+`.claude/rules/testing-conventions.md` 準拠の実テスト ID を併記します。
+
+- `Rule` は `specifications.md` の R-NNN / AC-NNN / Edge NN を指します。
+  `SPEC-NNN` および `IMPL-NNN` は本プロジェクトに存在しません。
+- 実装単位は Commit 1〜11 で識別します。Commit 11 (SKILL.md) は BDD 免除のため対象外です。
+- **Stage 1 (C1〜C4) の変更は `skills/setup-chatlogs/assets/_cle-libs/` にも同期が必要です。**
+  片側のみの更新は `setup-chatlogs` を無言で破壊します。
+
+### 実データで 0 件のケース (合成 fixture 必須)
+
+以下は実データ 6398 件で発生件数 0 です。実ログを流用できません。
+
+| ケース                | Task ID    |
+| --------------------- | ---------- |
+| 除去後の本文が空      | T-05-03-01 |
+| 除去率が 99% 超       | T-05-03-02 |
+| 先頭 strip 後も定型部 | T-05-04-05 |
+
+---
+
+## Task Summary
+
+| Test Target                            | Commit | Scenarios | Cases   | Status      |
+| -------------------------------------- | ------ | --------- | ------- | ----------- |
+| T-01: `backupToBak` / `backupOldPath`  | C1, C4 | 5         | 11      | in progress |
+| T-02: `writeTextFile` (BackupProvider) | C2     | 4         | 8       | pending     |
+| T-03: frontmatter 同一性比較           | C3     | 3         | 9       | pending     |
+| T-04: 境界検出                         | C6     | 3         | 9       | pending     |
+| T-05: 判定カスケード                   | C7, C5 | 5         | 27      | pending     |
+| T-06: 書き込みパイプライン             | C8     | 4         | 13      | pending     |
+| T-07: バックアップ一括削除             | C9     | 4         | 16      | pending     |
+| T-08: エントリポイント                 | C10    | 4         | 20      | pending     |
+| **合計**                               | —      | **32**    | **113** | —           |
+
+<!-- Status may be: pending | in progress | done -->
+
+---
+
+## T-01: `backupToBak` / `backupOldPath`
+
+> Commit 1 / Commit 4。`BackupProvider` 型の新設と、既存 `backupOldPath` の戻り値拡幅。
+> 配置: `skills/_cle-libs/libs/file-ops/backup-to-bak.ts` (新規)、
+> `skills/_cle-libs/libs/file-ops/backup-old-path.ts` (既存)。
+> Test ID: `backupToBak` は `T-LIB-BTB` を新規採番、`backupOldPath` は既存 `T-LIB-B` を継続。
+
+### [正常] Normal Cases
+
+#### T-01-01: 退避先が存在しない通常の退避
+
+- [ ] **T-01-01-01**: `<name>.md` を `<name>.md.bak` へ退避し、作成したパスを返す
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-01-01`
+  - Rule: R-009 / DR-17
+  - Scenario: Given `<name>.md.bak` が存在しない, When `backupToBak(path)` を呼ぶ
+  - Expected: Then 戻り値が `<name>.md.bak` のパスであること
+
+- [ ] **T-01-01-02**: 退避に `RenameProvider` が 1 回だけ呼ばれる
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-01-02`
+  - Rule: R-009
+  - Scenario: Given `.bak` が存在しない, When `backupToBak(path)` を呼ぶ
+  - Expected: Then 注入した `RenameProvider` が `(path, path + '.bak')` で 1 回呼ばれること
+
+#### T-01-02: `BackupProvider` 型への適合 (DR-17)
+
+- [ ] **T-01-02-01**: `backupToBak` が `BackupProvider` として代入可能である
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-02-01`
+  - Rule: DR-17
+  - Scenario: Given `BackupProvider` 型の変数, When `backupToBak` を代入する
+  - Expected: Then 型エラーなく代入でき、`(path) => Promise<string | null>` を満たすこと
+
+- [ ] **T-01-02-02**: `backupOldPath` が `BackupProvider` として代入可能である
+  - Target: `backupOldPath`
+  - Test ID: `T-LIB-B-07`
+  - Rule: DR-17 / Commit 4
+  - Scenario: Given 戻り値を `Promise<string | null>` へ拡幅した後, When `BackupProvider` 型に代入する
+  - Expected: Then 型エラーなく代入できること
+
+- [ ] **T-01-02-03**: `backupOldPath` が作成した退避パスを返す
+  - Target: `backupOldPath`
+  - Test ID: `T-LIB-B-08`
+  - Rule: Commit 4
+  - Scenario: Given 退避先が存在しない, When `backupOldPath(path)` を呼ぶ
+  - Expected: Then 戻り値が作成した `.old-NN` パスであること (旧実装の `void` ではない)
+
+#### T-01-03: `.old-NN` 連番の維持 (リグレッション)
+
+- [ ] **T-01-03-01**: `.old-01` が既存なら `.old-02` を採番する
+  - Target: `backupOldPath`
+  - Test ID: `T-LIB-B-09`
+  - Rule: Commit 4 / REQ-C-007
+  - Scenario: Given `<name>.old-01.md` が既に存在する, When `backupOldPath(path)` を呼ぶ
+  - Expected: Then `<name>.old-02.md` へ退避し、そのパスを返すこと
+
+- [ ] **T-01-03-02**: 戻り値型の拡幅が連番採番の挙動を変えない
+  - Target: `backupOldPath`
+  - Test ID: `T-LIB-B-10`
+  - Rule: Commit 4
+  - Scenario: Given `.old-01` 〜 `.old-03` が存在する, When `backupOldPath(path)` を呼ぶ
+  - Expected: Then `.old-04` が選ばれ、既存の連番規則が保たれること
+
+### [異常] Error Cases
+
+#### T-01-04: 退避不能・失敗
+
+- [ ] **T-01-04-01**: リネーム失敗の例外を握りつぶさない
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-04-01`
+  - Rule: fail-first / R-009
+  - Scenario: Given `RenameProvider` が例外を投げる, When `backupToBak(path)` を呼ぶ
+  - Expected: Then 例外がそのまま伝播し、`null` へ握り潰されないこと
+
+- [ ] **T-01-04-02**: 元ファイルが存在しない場合に例外が伝播する
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-04-02`
+  - Rule: fail-first
+  - Scenario: Given `<name>.md` が存在しない, When `backupToBak(path)` を呼ぶ
+  - Expected: Then `NotFound` 相当の例外が伝播すること
+
+### [エッジケース] Edge Cases
+
+#### T-01-05: 既存 `.bak` のスキップ (DR-17)
+
+- [ ] **T-01-05-01**: 既存 `.bak` があれば `null` を返し例外を投げない
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-05-01`
+  - Rule: DR-17 / R-004
+  - Scenario: Given `<name>.md.bak` が既に存在する, When `backupToBak(path)` を呼ぶ
+  - Expected: Then 戻り値が `null` であり、例外を投げないこと
+
+- [ ] **T-01-05-02**: 既存 `.bak` があればリネームを実行しない
+  - Target: `backupToBak`
+  - Test ID: `T-LIB-BTB-05-02`
+  - Rule: DR-17 / AC-009
+  - Scenario: Given `<name>.md.bak` が既に存在する, When `backupToBak(path)` を呼ぶ
+  - Expected: Then `RenameProvider` が 1 度も呼ばれず、既存 `.bak` の内容が不変であること
+
+---
+
+## T-02: `writeTextFile` (BackupProvider 対応)
+
+> Commit 2。`skills/_cle-libs/libs/file-io/write-utils.ts` の第 3 引数追加。
+> 戻り値を `Promise<void>` から `Promise<string | null>` へ拡幅する。
+> 既存 spec ファイル `__tests__/unit/write-utils.unit.spec.ts` に T- ID が無いため
+> `T-LIB-WTF` を新設する。
+
+### [正常] Normal Cases
+
+#### T-02-01: 副作用順序 (tmp → backup → swap)
+
+- [ ] **T-02-01-01**: 一時ファイル書き出しが退避より先に起こる
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-01-01`
+  - Rule: R-009 手順 1-2
+  - Scenario: Given `BackupProvider` を注入, When `writeTextFile(path, content, provider)` を呼ぶ
+  - Expected: Then 一時ファイルへの書き込みが `BackupProvider` 呼び出しより先に記録されること
+
+- [ ] **T-02-01-02**: 退避がスワップより先に起こる
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-01-02`
+  - Rule: R-009 手順 2-3 / REQ-NF-005
+  - Scenario: Given `BackupProvider` と `RenameProvider` を注入, When 書き込みを実行する
+  - Expected: Then `BackupProvider` が最終リネーム (tmp → 本体) より先に呼ばれること
+
+- [ ] **T-02-01-03**: 作成した退避パスを戻り値として返す
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-01-03`
+  - Rule: DR-03 / R-009
+  - Scenario: Given `BackupProvider` が退避パスを返す, When 書き込みを実行する
+  - Expected: Then `writeTextFile` の戻り値がその退避パスと一致すること
+
+#### T-02-02: 第 3 引数を省略した既存挙動
+
+- [ ] **T-02-02-01**: `BackupProvider` 省略時に退避を作らず書き込む
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-02-01`
+  - Rule: Commit 2 (後方互換)
+  - Scenario: Given 第 3 引数を渡さない, When `writeTextFile(path, content)` を呼ぶ
+  - Expected: Then 内容が書き込まれ、退避ファイルが作成されないこと
+
+- [ ] **T-02-02-02**: `BackupProvider` 省略時の戻り値が `null` である
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-02-02`
+  - Rule: Commit 2
+  - Scenario: Given 第 3 引数を渡さない, When 書き込みが成功する
+  - Expected: Then 戻り値が `null` であること (退避未作成を表す)
+
+### [異常] Error Cases
+
+#### T-02-03: 各段階の失敗
+
+- [ ] **T-02-03-01**: 退避の失敗時に本体を書き換えない
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-03-01`
+  - Rule: R-009 / REQ-NF-004
+  - Scenario: Given `BackupProvider` が例外を投げる, When 書き込みを実行する
+  - Expected: Then 例外が伝播し、元ファイルの内容が変化しないこと
+
+- [ ] **T-02-03-02**: 一時ファイル書き込みの失敗時に退避しない
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-03-02`
+  - Rule: R-009 手順 1
+  - Scenario: Given 一時ファイルへの書き込みが失敗する, When 書き込みを実行する
+  - Expected: Then `BackupProvider` が呼ばれず、元ファイルが不変であること
+
+### [エッジケース] Edge Cases
+
+#### T-02-04: 退避未作成でも書き込みは成功する
+
+- [ ] **T-02-04-01**: `BackupProvider` が `null` を返しても書き込みは完了する
+  - Target: `writeTextFile`
+  - Test ID: `T-LIB-WTF-04-01`
+  - Rule: DR-17 / R-009
+  - Scenario: Given `BackupProvider` が `null` を返す (既存 `.bak` によるスキップ), When 書き込みを実行する
+  - Expected: Then 例外を投げず内容が書き込まれ、戻り値が `null` であること
+
+---
+
+## T-03: frontmatter 同一性比較
+
+> Commit 3。`skills/_cle-libs/classes/ChatlogFrontmatter.class.ts` へ比較メソッドを追加。
+> 既存 spec ファイル `classes/__tests__/unit/ChatlogFrontmatter.unit.spec.ts` の
+> **`T-CLS-CF` を 51 から継続採番する** (既存は `T-CLS-CF-11` 〜 `T-CLS-CF-50`)。
+> 比較条件は キー集合の一致 + 各値の一致。**キー順序は比較対象に含めない** (Section 4.2)。
+
+### [正常] Normal Cases
+
+#### T-03-01: 同一と判定すべき組
+
+- [ ] **T-03-01-01**: 同一のキー集合と値を持つ組が同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-51`
+  - Rule: AC-024
+  - Scenario: Given 同じキーと値を持つ 2 つの frontmatter, When 比較する
+  - Expected: Then 同一と判定されること
+
+- [ ] **T-03-01-02**: キー順序が異なっても同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-52`
+  - Rule: AC-024 / Section 4.2 (キー順序は比較対象外)
+  - Scenario: Given 同じキー集合・値でキーの並び順のみが異なる 2 つ, When 比較する
+  - Expected: Then 同一と判定されること
+
+- [ ] **T-03-01-03**: `string[]` の全要素が一致すれば同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-53`
+  - Rule: AC-024
+  - Scenario: Given `tags: ['a','b']` を持つ同値の 2 つ, When 比較する
+  - Expected: Then 同一と判定されること
+
+### [異常] Error Cases
+
+#### T-03-02: 同一でないと判定すべき組
+
+- [ ] **T-03-02-01**: キーが欠落していれば非同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-54`
+  - Rule: AC-024 (キー集合の一致)
+  - Scenario: Given 一方のみ `category` を持つ 2 つ, When 比較する
+  - Expected: Then 非同一と判定されること
+
+- [ ] **T-03-02-02**: キーが増えていれば非同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-55`
+  - Rule: AC-024 (キー集合の一致)
+  - Scenario: Given 一方に未知フィールドが 1 つ多い 2 つ, When 比較する
+  - Expected: Then 非同一と判定されること
+
+- [ ] **T-03-02-03**: `string` の値が異なれば非同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-56`
+  - Rule: AC-024 (`string` は `===`)
+  - Scenario: Given `title` の値のみ異なる 2 つ, When 比較する
+  - Expected: Then 非同一と判定されること
+
+- [ ] **T-03-02-04**: `string[]` の長さが異なれば非同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-57`
+  - Rule: AC-024 (`string[]` は長さと各要素)
+  - Scenario: Given `tags: ['a']` と `tags: ['a','b']`, When 比較する
+  - Expected: Then 非同一と判定されること
+
+### [エッジケース] Edge Cases
+
+#### T-03-03: 境界値と正規化の影響
+
+- [ ] **T-03-03-01**: 空の frontmatter 同士が同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-58`
+  - Rule: AC-024 (境界値)
+  - Scenario: Given キーを 1 つも持たない 2 つ, When 比較する
+  - Expected: Then 同一と判定されること
+
+- [ ] **T-03-03-02**: `string[]` の要素順が異なれば非同一と判定される
+  - Target: `ChatlogFrontmatter` 同一性比較
+  - Test ID: `T-CLS-CF-59`
+  - Rule: AC-024 (各要素の一致)
+  - Scenario: Given `tags: ['a','b']` と `tags: ['b','a']`, When 比較する
+  - Expected: Then 非同一と判定されること (配列は順序を保持する値である)
+
+---
+
+## T-04: 境界検出
+
+> Commit 6。R-005 / R-006 が用いる検出。行頭完全一致のみで **Markdown を構文解析しない**。
+> `^## Summary$` の **最初の出現** を境界とし、`^## TOPICS ASSIGNMENT RULES$` の存在を確認する。
+> 両文字列は `skills/filter-chatlogs/scripts/constants/strip.constants.ts` に定数として定義する
+> (実装ファイルへの直書きは禁止)。
+
+### [正常] Normal Cases
+
+#### T-04-01: 見出しとマーカーの検出
+
+- [ ] **T-04-01-01**: `## Summary` の最初の出現位置を返す
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-01-01`
+  - Rule: R-005 / REQ-C-004
+  - Scenario: Given `## Summary` を 2 箇所に持つ本文, When 境界を検出する
+  - Expected: Then 最初の出現の位置が返ること
+
+- [ ] **T-04-01-02**: 定型部マーカーの存在を検出する
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-01-02`
+  - Rule: R-006 / REQ-C-004
+  - Scenario: Given `## TOPICS ASSIGNMENT RULES` を含む本文, When マーカーを確認する
+  - Expected: Then 存在ありと判定されること
+
+- [ ] **T-04-01-03**: 境界文字列を定数から参照する
+  - Target: `STRIP_BOUNDARY_HEADING` / `STRIP_TEMPLATE_MARKER`
+  - Test ID: `T-FL-SBD-01-03`
+  - Rule: Section 4.2 (定数化の義務) / Commit 5
+  - Scenario: Given 定数モジュール, When 値を参照する
+  - Expected: Then `## Summary` / `## TOPICS ASSIGNMENT RULES` が定数として公開されていること
+
+### [異常] Error Cases
+
+#### T-04-02: 検出できない入力
+
+- [ ] **T-04-02-01**: `## Summary` を持たない本文で不在を返す
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-02-01`
+  - Rule: R-005 / Edge 2
+  - Scenario: Given `## Summary` を 1 つも含まない本文, When 境界を検出する
+  - Expected: Then 不在を示す結果が返り、例外を投げないこと
+
+- [ ] **T-04-02-02**: 空文字列の本文で不在を返す
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-02-02`
+  - Rule: R-005 (境界値)
+  - Scenario: Given 空文字列の本文, When 境界を検出する
+  - Expected: Then 不在を示す結果が返り、例外を投げないこと
+
+### [エッジケース] Edge Cases
+
+#### T-04-03: 行頭完全一致の境界条件
+
+- [ ] **T-04-03-01**: CRLF と LF で同一の検出結果になる
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-03-01`
+  - Rule: REQ-NF-003 / Edge 11
+  - Scenario: Given 同一内容の CRLF 版と LF 版, When それぞれ境界を検出する
+  - Expected: Then 検出結果が一致すること
+
+- [ ] **T-04-03-02**: 行頭でない `## Summary` を検出しない
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-03-02`
+  - Rule: REQ-C-004 (行頭完全一致)
+  - Scenario: Given `text ## Summary` のように行途中に現れる本文, When 境界を検出する
+  - Expected: Then 不在と判定されること
+
+- [ ] **T-04-03-03**: 後置テキストを伴う見出しを検出しない
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-03-03`
+  - Rule: REQ-C-004 (`^## Summary$` の完全一致)
+  - Scenario: Given `## Summary of work` という見出し行, When 境界を検出する
+  - Expected: Then 不在と判定されること (表記ゆれは対象外)
+
+- [ ] **T-04-03-04**: コードフェンス内のマーカーも構文解析せず検出する
+  - Target: 境界検出
+  - Test ID: `T-FL-SBD-03-04`
+  - Rule: REQ-C-004 (構文解析をしない)
+  - Scenario: Given コードフェンス内に `## TOPICS ASSIGNMENT RULES` を持つ本文, When マーカーを確認する
+  - Expected: Then 存在ありと判定されること (フェンスを解釈しない仕様どおり)
+
+---
+
+## T-05: 判定カスケード
+
+> Commit 7 (+ Commit 5 の型・定数を消費)。R-002 〜 R-008 を **単一の純粋な判定関数** に閉じる。
+> 判定結果は `outcome` / `reason` / `removalStartLine` / `removalEndLine` / `removedBytes`。
+> 配置: `skills/filter-chatlogs/scripts/types/strip.types.ts` (新規)。
+> **順序の変更は許されない** (Section 4.2)。除去率 = 除去バイト数 ÷ 本文バイト数 (frontmatter 除外)。
+
+### [正常] Normal Cases
+
+#### T-05-01: 各規則が単独で成立する場合
+
+- [ ] **T-05-01-01**: キャッシュに処理済み記録があれば done
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-01`
+  - Rule: R-003 / AC-014 / Edge 4
+  - Scenario: Given キャッシュに記録があり退避を持たない, When 判定する
+  - Expected: Then `outcome === 'done'` であること
+
+- [ ] **T-05-01-02**: 退避ファイルが既に存在すれば done
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-02`
+  - Rule: R-004 / AC-006 / Edge 3
+  - Scenario: Given `<name>.md.bak` が存在しキャッシュ記録が無い, When 判定する
+  - Expected: Then `outcome === 'done'` であること
+
+- [ ] **T-05-01-03**: `## Summary` が無ければ passthrough
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-03`
+  - Rule: R-005 / AC-004 / Edge 2
+  - Scenario: Given `## Summary` を 1 つも持たない本文, When 判定する
+  - Expected: Then `outcome === 'passthrough'` であること
+
+- [ ] **T-05-01-04**: マーカーが境界より前に無ければ passthrough
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-04`
+  - Rule: R-006 / AC-010 / Edge 1
+  - Scenario: Given `## Summary` を持つがその手前にマーカーが無い, When 判定する
+  - Expected: Then `outcome === 'passthrough'` であること
+
+- [ ] **T-05-01-05**: 全条件を満たせば stripped
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-05`
+  - Rule: R-008 / AC-001
+  - Scenario: Given 先頭に定型部を持ち `## Summary` が続く本文, When 判定する
+  - Expected: Then `outcome === 'stripped'` であること
+
+- [ ] **T-05-01-06**: 除去範囲が本文先頭から `## Summary` 直前までである
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-06`
+  - Rule: R-008 / DR-01 / AC-002
+  - Scenario: Given 先頭型の定型部を持つ本文, When 判定する
+  - Expected: Then `removalStartLine` が本文先頭、`removalEndLine` が `## Summary` の直前行であること
+
+- [ ] **T-05-01-07**: 除去バイト数が算出される
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-07`
+  - Rule: R-007 / AC-012
+  - Scenario: Given 除去対象を持つ本文, When 判定する
+  - Expected: Then `removedBytes` が除去範囲のバイト数と一致すること
+
+- [ ] **T-05-01-08**: 判定理由が結果に含まれる
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-01-08`
+  - Rule: AC-012 / REQ-F-005
+  - Scenario: Given 任意の入力, When 判定する
+  - Expected: Then `reason` に成立した規則を識別できる値が入ること
+
+#### T-05-02: カスケード順序の不変条件
+
+- [ ] **T-05-02-01**: frontmatter 欠落がキャッシュ記録より優先される
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-02-01`
+  - Rule: R-002 > R-003 (Section 4.2)
+  - Scenario: Given frontmatter が無く、かつキャッシュに処理済み記録がある, When 判定する
+  - Expected: Then `outcome === 'error'` であること (R-002 が勝つ)
+
+- [ ] **T-05-02-02**: キャッシュ記録が退避の存在より優先される
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-02-02`
+  - Rule: R-003 > R-004 (冪等性の維持)
+  - Scenario: Given キャッシュ記録があり、退避も存在する, When 判定する
+  - Expected: Then `reason` が R-003 由来であること (R-004 ではない)
+
+- [ ] **T-05-02-03**: `## Summary` 不在がマーカー判定より優先される
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-02-03`
+  - Rule: R-005 > R-006 (Section 4.2)
+  - Scenario: Given `## Summary` が無く、本文中にマーカーのみ存在する, When 判定する
+  - Expected: Then `reason` が R-005 由来の passthrough であること
+
+- [ ] **T-05-02-04**: 安全弁が書き込み判定より優先される
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-02-04`
+  - Rule: R-007 > R-008 (Section 4.2)
+  - Scenario: Given 除去条件を満たすが除去後の本文が空になる, When 判定する
+  - Expected: Then `outcome === 'error'` であること (stripped にならない)
+
+### [異常] Error Cases
+
+#### T-05-03: 安全弁と前提の破れ
+
+- [ ] **T-05-03-01**: 除去後の本文が空なら error (合成 fixture)
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-01`
+  - Rule: R-007 / AC-011 / Edge 5
+  - Scenario: Given 除去後に本文が空になる合成入力, When 判定する
+  - Expected: Then `outcome === 'error'` であること
+  - Note: 実測 0 件のため合成 fixture が必須
+
+- [ ] **T-05-03-02**: 除去率が 99% を超えれば error (合成 fixture)
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-02`
+  - Rule: R-007 / Edge 6
+  - Scenario: Given 除去率が 99% を超える合成入力, When 判定する
+  - Expected: Then `outcome === 'error'` であること
+  - Note: 実測最大 96.23%。実データでは発火しないため合成 fixture が必須
+
+- [ ] **T-05-03-03**: frontmatter を持たなければ error
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-03`
+  - Rule: R-002 / AC-023 / Edge 15 / DR-09
+  - Scenario: Given frontmatter を持たない `.md`, When 判定する
+  - Expected: Then `outcome === 'error'` であること
+
+- [ ] **T-05-03-04**: I/O エラーを error として計上し処理を継続する
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-04`
+  - Rule: DD-03 / DR-21
+  - Scenario: Given 読み取りが `PermissionDenied` を返す, When 判定する
+  - Expected: Then 当該ファイルが error に計上され、例外が実行全体を止めないこと
+
+- [ ] **T-05-03-05**: I/O 以外の例外は再スローする
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-05`
+  - Rule: fail-first / DR-21
+  - Scenario: Given 読み取りが I/O 以外の例外を投げる, When 判定する
+  - Expected: Then 例外が伝播し、error に丸め込まれないこと
+
+- [ ] **T-05-03-06**: 1 件の error が残り全件の処理を止めない
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-03-06`
+  - Rule: **DD-03** / REQ-F-008
+  - Scenario: Given 3 件中 1 件目が error になる入力群, When 順に判定する
+  - Expected: Then 2 件目・3 件目も判定され、それぞれの結果が得られること
+
+### [エッジケース] Edge Cases
+
+#### T-05-04: 境界的な入力
+
+- [ ] **T-05-04-01**: 未知フィールドを持つ frontmatter でも stripped になる
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-01`
+  - Rule: Edge 9 / REQ-C-005
+  - Scenario: Given frontmatter に未知フィールドを持つ除去対象, When 判定する
+  - Expected: Then `outcome === 'stripped'` であり、未知フィールドが失われないこと
+
+- [ ] **T-05-04-02**: CRLF 入力でも stripped になる
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-02`
+  - Rule: Edge 11 / REQ-NF-003
+  - Scenario: Given 改行コードが CRLF の除去対象, When 判定する
+  - Expected: Then `outcome === 'stripped'` であり、LF 版と同じ除去範囲になること
+
+- [ ] **T-05-04-03**: 偶然 `## Summary` で始まる発話は passthrough
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-03`
+  - Rule: Edge 12 / REQ-F-000
+  - Scenario: Given ユーザー発話は偶然 `## Summary` で始まりマーカーが無い, When 判定する
+  - Expected: Then `outcome === 'passthrough'` であること (マーカー不在により保護される)
+
+- [ ] **T-05-04-04**: マーカーが境界より後ろなら passthrough
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-04`
+  - Rule: Edge 13 / REQ-C-004
+  - Scenario: Given 定型部が最初の `## Summary` より後ろにある, When 判定する
+  - Expected: Then `outcome === 'passthrough'` であること (先頭アンカー方式の対象外)
+
+- [ ] **T-05-04-05**: 先頭 strip 後もマーカーの残る入力が stripped になる (合成 fixture)
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-05`
+  - Rule: Edge 14 / REQ-F-009
+  - Scenario: Given マーカーが 2 個目以降の `## Summary` 以降にも存在する合成入力, When 判定する
+  - Expected: Then 先頭の除去が行われ `outcome === 'stripped'` であること
+  - Note: 実測 0 件のため合成 fixture が必須
+
+- [ ] **T-05-04-06**: 除去率の分母が frontmatter を含まない
+  - Target: 判定カスケード
+  - Test ID: `T-FL-SCC-04-06`
+  - Rule: R-007 (除去率の定義)
+  - Scenario: Given 本文が同一で frontmatter の長さのみ異なる 2 入力, When それぞれ判定する
+  - Expected: Then 算出される除去率が一致すること
+
+#### T-05-05: 型・定数の形状 (Commit 5)
+
+- [ ] **T-05-05-01**: `StripStats` が 5 分類の件数を保持する
+  - Target: `StripStats`
+  - Test ID: `T-FL-SCC-05-01`
+  - Rule: Section 3.2 / AC-008
+  - Scenario: Given `StripStats` 型の値, When 各フィールドを参照する
+  - Expected: Then `total` / `stripped` / `done` / `passthrough` / `error` を持つこと
+
+- [ ] **T-05-05-02**: `StripStats` が `BaseStats` を継承しない
+  - Target: `StripStats`
+  - Test ID: `T-FL-SCC-05-02`
+  - Rule: Commit 5 / DR-15
+  - Scenario: Given `StripStats` の定義, When `BaseStats` の `keep`/`skip`/`remove` を参照する
+  - Expected: Then それらのキーを持たないこと (`skip` はモード依存で `done` と衝突するため)
+
+- [ ] **T-05-05-03**: `STRIP_CACHE_STATUSES` が `as const` + 派生 union である
+  - Target: `STRIP_CACHE_STATUSES`
+  - Test ID: `T-FL-SCC-05-03`
+  - Rule: Commit 5 / REQ-C-001
+  - Scenario: Given 定数定義, When 型を参照する
+  - Expected: Then `CACHE_STATUSES` と同じ `as const` + `typeof X[keyof typeof X]` の形であること
+
+---
+
+## T-06: 書き込みパイプライン
+
+> Commit 8。Phase 3/4/5 を分割不能な 1 単位として扱う。
+> R-009 の順序: 1) tmp へ書き出す → 2) 元を `.bak` へ退避 → 3) tmp を本体名へ移動。
+> テスト種別は integration (実 tmp ディレクトリを使う)。
+
+### [正常] Normal Cases
+
+#### T-06-01: 正常な書き込みと退避
+
+- [ ] **T-06-01-01**: `.bak` に元の内容が保存される
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-01-01`
+  - Rule: R-009 / AC-005
+  - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
+  - Expected: Then `<name>.md.bak` の内容が strip 前の原文と一致すること
+
+- [ ] **T-06-01-02**: 本体が除去後の内容に置き換わる
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-01-02`
+  - Rule: R-009 / AC-001 / AC-002
+  - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
+  - Expected: Then `<name>.md` が `## Summary` から始まり、以降の内容が strip 前と一致すること
+
+- [ ] **T-06-01-03**: frontmatter が strip 前と同一である
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-01-03`
+  - Rule: AC-024 / AC-003 / DR-14
+  - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
+  - Expected: Then `ChatlogFrontmatter` の同一性比較で strip 前と同一と判定されること
+
+- [ ] **T-06-01-04**: 一時ファイルが残らない
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-01-04`
+  - Rule: R-009 / REQ-NF-004
+  - Scenario: Given 書き込みが正常完了する, When 完了後のディレクトリを走査する
+  - Expected: Then `<name>.md.tmp` が存在しないこと
+
+#### T-06-02: キャッシュ記録のタイミング
+
+- [ ] **T-06-02-01**: スワップ成功後にキャッシュへ記録する
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-02-01`
+  - Rule: R-009 / AC-013 / REQ-F-009
+  - Scenario: Given 書き込みが正常完了する, When 記録処理を確認する
+  - Expected: Then キャッシュへの記録が最終リネームの後に行われること
+
+- [ ] **T-06-02-02**: スワップ失敗時にキャッシュへ記録しない
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-02-02`
+  - Rule: R-009 / R-003
+  - Scenario: Given 手順 3 のリネームが失敗する, When 書き込みを実行する
+  - Expected: Then キャッシュに記録されないこと (次回実行が誤って done でスキップしない)
+
+### [異常] Error Cases
+
+#### T-06-03: 中断と防御的分岐
+
+- [ ] **T-06-03-01**: 手順 1 の中断で元ファイルが完全なまま残る
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-03-01`
+  - Rule: AC-020 / REQ-NF-005
+  - Scenario: Given tmp への書き出し中に中断する, When 状態を確認する
+  - Expected: Then `<name>.md` に元の完全な内容が残ること
+
+- [ ] **T-06-03-02**: 手順 2 の中断で元ファイルが完全なまま残る
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-03-02`
+  - Rule: AC-020 / REQ-NF-005
+  - Scenario: Given 退避のリネーム中に中断する, When 状態を確認する
+  - Expected: Then `<name>.md` または `<name>.md.bak` の一方に完全な元の内容が残ること
+
+- [ ] **T-06-03-03**: 手順 3 の中断で退避に元の内容が残る
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-03-03`
+  - Rule: AC-020 / REQ-NF-005 / R-014
+  - Scenario: Given 手順 2 と 3 の間で中断する, When 状態を確認する
+  - Expected: Then `<name>.md` が存在せず、`<name>.md.bak` に完全な元の内容が残ること (孤立退避)
+
+- [ ] **T-06-03-04**: 退避未作成の戻り値を error として計上し書き込みを見送る
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-03-04`
+  - Rule: Commit 8 (防御的分岐) / REQ-NF-005
+  - Scenario: Given `writeTextFile` が `null` を返す経路に到達する, When 書き込みを実行する
+  - Expected: Then error として計上し、本体を書き換えないこと
+  - Note: spec 上は「退避未作成でも書き込みは成功」だが、R-004 により本経路は
+    到達不能。到達した場合 REQ-NF-005 の保証が崩れるため防御的に error とする
+
+### [エッジケース] Edge Cases
+
+#### T-06-04: 書き込み後の境界状態
+
+- [ ] **T-06-04-01**: 手順 2 と 3 の間の中断が孤立退避を生成する
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-04-01`
+  - Rule: R-014 / REQ-NF-005 / DR-23
+  - Scenario: Given 手順 2 の直後に中断する, When ディレクトリの状態を確認する
+  - Expected: Then `<name>.md` が存在せず `<name>.md.bak` のみが残り、
+    R-014 が孤立退避として検出できる状態になっていること
+
+- [ ] **T-06-04-02**: 既存 `.bak` があるファイルは書き込み経路に到達しない
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-04-02`
+  - Rule: R-004 / AC-009
+  - Scenario: Given `<name>.md.bak` が既に存在する, When 一連の処理を実行する
+  - Expected: Then R-004 により done と判定され、`.bak` の内容が上書きされないこと
+
+- [ ] **T-06-04-03**: CRLF 入力でも frontmatter の同一性が保たれる
+  - Target: 書き込みパイプライン
+  - Test ID: `T-FL-SWP-04-03`
+  - Rule: AC-024 / Edge 11 / REQ-NF-003
+  - Scenario: Given 改行コードが CRLF の除去対象, When 書き込みを実行する
+  - Expected: Then 本文が LF へ正規化される一方、frontmatter が同一性比較で
+    strip 前と同一と判定されること (バイト単位一致では判定しない)
+
+---
+
+## T-07: バックアップ一括削除
+
+> Commit 9。Phase 6 (R-010 〜 R-013)。削除は **実行の最後に一括で** 行う。
+> 包含関係: `{ stripped と判定したパス } ⊆ { 存在する退避のパス }`。
+> 検査は stripped 側のパスから期待退避パス `<name>.md.bak` を構成し、退避一覧との
+> **完全一致** で確認する (DR-25)。大文字小文字の変換は行わない。
+> 報告は **元の形** のパスを出す。
+
+### [正常] Normal Cases
+
+#### T-07-01: 削除の実行条件
+
+- [ ] **T-07-01-01**: 全件成功なら対象ディレクトリ配下の退避を一括削除する
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-01-01`
+  - Rule: R-010 / AC-015 / DD-02 / DR-08
+  - Scenario: Given error が 0 件で dry-run でなく包含が成立する, When 終了処理を実行する
+  - Expected: Then 対象ディレクトリ配下の `.bak` が全件削除されること
+
+- [ ] **T-07-01-02**: 前回実行の中断で残った退避も削除対象に含む
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-01-02`
+  - Rule: R-010 / Section 4.3
+  - Scenario: Given 当該実行が作成していない退避が配下に存在し error が 0 件, When 終了処理を実行する
+  - Expected: Then その退避も削除されること (作成元を区別しない)
+
+- [ ] **T-07-01-03**: passthrough と done の件数が削除可否に影響しない
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-01-03`
+  - Rule: R-010 / Section 4.3
+  - Scenario: Given stripped が 0 件で done と passthrough のみ、error が 0 件, When 終了処理を実行する
+  - Expected: Then 削除が実行されること
+
+### [異常] Error Cases
+
+#### T-07-02: 削除を止める条件と失敗の扱い
+
+- [ ] **T-07-02-01**: error が 1 件でもあれば退避を全保持する
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-02-01`
+  - Rule: R-011 / AC-016
+  - Scenario: Given error が 1 件以上ある, When 終了処理を実行する
+  - Expected: Then `.bak` が 1 件も削除されないこと
+
+- [ ] **T-07-02-02**: 削除失敗時に件数とパスを報告する
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-02-02`
+  - Rule: R-012 / DR-10
+  - Scenario: Given 削除のうち 2 件が失敗する, When 終了処理を実行する
+  - Expected: Then 失敗件数 2 と対象パスが報告されること
+
+- [ ] **T-07-02-03**: 削除失敗時の終了コードを成功以外とする
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-02-03`
+  - Rule: R-012 / DR-10 / DR-20
+  - Scenario: Given 削除に失敗した退避が 1 件以上ある, When 実行を終了する
+  - Expected: Then 終了コードが成功以外であること
+
+- [ ] **T-07-02-04**: 削除は 1 件失敗しても全件試行する
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-02-04`
+  - Rule: R-012 / Section 4.3
+  - Scenario: Given 5 件中 2 件目の削除が失敗する, When 終了処理を実行する
+  - Expected: Then 残り 3 件の削除も試行され、中断しないこと
+
+- [ ] **T-07-02-05**: 削除失敗が分類の件数を変えない
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-02-05`
+  - Rule: R-012 / Section 4.3
+  - Scenario: Given 削除に失敗した退避がある, When サマリーを確認する
+  - Expected: Then stripped / done / passthrough / error の件数が削除前と変わらないこと
+
+#### T-07-03: 包含関係の破れ (R-013)
+
+- [ ] **T-07-03-01**: 包含が成立しなければ退避を保持する
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-03-01`
+  - Rule: R-013 / DR-16
+  - Scenario: Given stripped と計上したのに対応する退避の無いファイルが存在する, When 終了処理を実行する
+  - Expected: Then 退避が 1 件も削除されないこと
+
+- [ ] **T-07-03-02**: 不足する退避のパスを報告する
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-03-02`
+  - Rule: R-013 / DR-16
+  - Scenario: Given 包含が成立しない, When 終了処理を実行する
+  - Expected: Then 不足する退避のパスが報告されること
+
+- [ ] **T-07-03-03**: 包含破れ時の終了コードを成功以外とする
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-03-03`
+  - Rule: R-013 / DR-20
+  - Scenario: Given 包含が成立しない, When 実行を終了する
+  - Expected: Then 終了コードが成功以外であること
+
+### [エッジケース] Edge Cases
+
+#### T-07-04: 件数比較では代替できない経路と正規化
+
+- [ ] **T-07-04-01**: 退避が stripped より多くても包含は成立する
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-04-01`
+  - Rule: R-013 / Section 4.3 (件数比較では代替できない)
+  - Scenario: Given 退避 5 件に対し stripped が 3 件で、3 件とも退避を持つ, When 包含を検査する
+  - Expected: Then 包含が成立すると判定されること (件数の不一致で異常としない)
+
+- [ ] **T-07-04-02**: 大文字小文字のみ異なる退避を一致とみなさない
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-04-02`
+  - Rule: DR-25
+  - Scenario: Given `Foo.md` を stripped と判定したが退避一覧に `Foo.md.bak` は無く `foo.md.bak` のみ存在する,
+    When 包含を検査する
+  - Expected: Then 包含が成立せず `Foo.md.bak` が不足として報告されること
+  - Note: 小文字化キーによる比較では誤って成立し、Phase 6 が退避を削除する (DR-22 を破棄した理由)
+
+- [ ] **T-07-04-03**: 報告するパスが元の形である
+  - Target: 包含関係の検査
+  - Test ID: `T-FL-SBS-04-03`
+  - Rule: DR-25
+  - Scenario: Given 大文字を含むパスが不足している, When 不足を報告する
+  - Expected: Then 大文字小文字を変換せず元の形のパスが出力されること
+
+- [ ] **T-07-04-04**: dry-run では削除しない
+  - Target: バックアップ一括削除
+  - Test ID: `T-FL-SBS-04-04`
+  - Rule: R-010 / AC-007 / Section 4.3
+  - Scenario: Given dry-run が指定され error が 0 件, When 終了処理を実行する
+  - Expected: Then 削除が実行されないこと (退避自体を作成しないため)
+
+- [ ] **T-07-04-05**: `normalizePath` がドライブレターを大文字化しファイル名の case を保つ
+  - Target: `normalizePath` / `toUnixPath`
+  - Test ID: `T-FL-SBS-04-05`
+  - Rule: DR-25 の前提検証
+  - Scenario: Given `c:\Dir\File.md` のような Windows パス, When `normalizePath` を適用する
+  - Expected: Then ドライブレターが大文字化され、ファイル名の大文字小文字が保持されること
+  - Note: DR-25 は期待退避パスを stripped 側のパスから構成するため、`normalizePath` が
+    ファイル名の case を保つことに依存する。未検証のため明示的に確認する
+
+---
+
+## T-08: エントリポイント
+
+> Commit 10。Phase 0/1/7。R-001 の受理ゲート、実行モード分岐 (R-014 / R-015)、サマリー出力。
+> 引数スキーマは `skills/filter-chatlogs/scripts/configs/strip-config.ts` に
+> `ArgSchema<StripParsedConfig>` として定義する (共通の `parseArgs` は変更しない — DD-04)。
+> 終了コードは `ChatlogError` を捕捉して `Deno.exit(1)` (DR-20)。
+
+### [正常] Normal Cases
+
+#### T-08-01: 通常モードとサマリー
+
+- [ ] **T-08-01-01**: `<agent> <YYYY-MM>` 指定で通常モードとして実行される
+  - Target: エントリポイント
+  - Test ID: `T-FL-SEP-01-01`
+  - Rule: R-014 / REQ-C-008
+  - Scenario: Given agent と年月が指定される, When 実行する
+  - Expected: Then 対象ディレクトリを列挙し R-002 以降が適用されること
+
+- [ ] **T-08-01-02**: サマリーに 4 分類の件数が含まれる
+  - Target: サマリー出力
+  - Test ID: `T-FL-SEP-01-02`
+  - Rule: AC-008 / REQ-F-006
+  - Scenario: Given 実行が完了する, When サマリーを出力する
+  - Expected: Then stripped / done / passthrough / error の件数がすべて含まれること
+
+- [ ] **T-08-01-03**: 全件処理の判定式が成立する
+  - Target: サマリー出力
+  - Test ID: `T-FL-SEP-01-03`
+  - Rule: DR-15 / Section 4.3
+  - Scenario: Given 異常なく全件を評価した実行, When 集計を確認する
+  - Expected: Then `stripped + done + passthrough === total` かつ `error === 0` であること
+
+- [ ] **T-08-01-04**: dry-run の集計構造が通常実行と一致する
+  - Target: サマリー出力
+  - Test ID: `T-FL-SEP-01-04`
+  - Rule: REQ-F-005 / Section 3.2
+  - Scenario: Given 同一入力に対する dry-run と通常実行, When 双方の集計を比較する
+  - Expected: Then 分類ごとの件数と集計構造が一致すること
+
+### [異常] Error Cases
+
+#### T-08-02: 受理ゲート (R-001)
+
+- [ ] **T-08-02-01**: 年月の省略で実行を拒否する
+  - Target: 受理ゲート
+  - Test ID: `T-FL-SEP-02-01`
+  - Rule: R-001 / AC-021 / Edge 7 / DR-07
+  - Scenario: Given 年月を省略して起動する, When 実行する
+  - Expected: Then 実行が拒否され、1 件も変更されないこと
+
+- [ ] **T-08-02-02**: `--input-dir` の指定で実行を拒否する
+  - Target: 受理ゲート
+  - Test ID: `T-FL-SEP-02-02`
+  - Rule: R-001 / AC-022 / Edge 8 / DR-07
+  - Scenario: Given 入力ディレクトリの override を指定して起動する, When 実行する
+  - Expected: Then 実行が拒否され、1 件も変更されないこと
+
+- [ ] **T-08-02-03**: 拒否は列挙より前に評価される
+  - Target: 受理ゲート
+  - Test ID: `T-FL-SEP-02-03`
+  - Rule: R-001 (Section 4.1) / AC-021
+  - Scenario: Given 年月を省略して起動する, When 実行する
+  - Expected: Then 列挙プロバイダが 1 度も呼ばれないこと
+
+- [ ] **T-08-02-04**: 拒否時の終了コードを成功以外とする
+  - Target: 受理ゲート
+  - Test ID: `T-FL-SEP-02-04`
+  - Rule: R-001 / DR-20
+  - Scenario: Given 受理範囲外の起動, When 実行が終了する
+  - Expected: Then `ChatlogError` を捕捉して終了コードが成功以外であること
+
+- [ ] **T-08-02-05**: 受理検査を共通の引数解析に持ち込まない
+  - Target: `strip-config.ts`
+  - Test ID: `T-FL-SEP-02-05`
+  - Rule: **DD-04** / REQ-C-008
+  - Scenario: Given strip の受理検査を追加した状態, When `filter` / `noise-filter` を実行する
+  - Expected: Then 既存の引数解析の挙動が変化しないこと
+
+#### T-08-03: 孤立退避の検出 (R-014)
+
+- [ ] **T-08-03-01**: 通常モードで孤立退避を error として計上する
+  - Target: 孤立退避の検出
+  - Test ID: `T-FL-SEP-03-01`
+  - Rule: R-014 / DR-23
+  - Scenario: Given `<name>.md` が無く `<name>.md.bak` が存在する, When 通常モードで実行する
+  - Expected: Then 当該 `<name>` が error に計上され、パスが報告されること
+
+- [ ] **T-08-03-02**: 孤立退避の error が一括削除を止める
+  - Target: 孤立退避の検出
+  - Test ID: `T-FL-SEP-03-02`
+  - Rule: R-014 / R-011 / DR-23
+  - Scenario: Given 孤立退避が 1 件存在し他は全件成功する, When 終了処理に到達する
+  - Expected: Then R-011 により退避が全保持されること (復旧材料を失わない)
+
+- [ ] **T-08-03-03**: 復帰後のキャッシュ削除失敗を error として計上する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-03-03`
+  - Rule: DR-24
+  - Scenario: Given `--recover-orphans` で復帰したファイルのキャッシュ削除が失敗する, When 実行する
+  - Expected: Then 当該ファイルが error に計上され、パスが報告されること
+  - Note: 復帰は完了しているがキャッシュが乖離したままであり、次回実行で strip が漏れる
+
+### [エッジケース] Edge Cases
+
+#### T-08-04: 復帰専用モード (R-015)
+
+- [ ] **T-08-04-01**: `--recover-orphans` で `.bak` を本体名へ復帰させる
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-01`
+  - Rule: R-015 / DR-23
+  - Scenario: Given `<name>.md` が無く `<name>.md.bak` が存在する, When `--recover-orphans` 付きで実行する
+  - Expected: Then `<name>.md.bak` が `<name>.md` へリネームされること
+
+- [ ] **T-08-04-02**: 復帰専用モードで strip を行わない
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-02`
+  - Rule: R-015 / DR-23
+  - Scenario: Given 除去対象のファイルも配下に存在する, When `--recover-orphans` 付きで実行する
+  - Expected: Then R-002 〜 R-013 が評価されず、除去対象が変更されないこと
+
+- [ ] **T-08-04-03**: `.tmp` のみの孤立は復帰せず報告のみ行う
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-03`
+  - Rule: R-015 / DR-23
+  - Scenario: Given `<name>.md.tmp` のみが存在する, When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰されず、報告のみ行われること (復帰元が存在しない)
+
+- [ ] **T-08-04-04**: `.bak` と `.tmp` が併存すれば `.bak` を採用し `.tmp` を残す
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-04`
+  - Rule: R-015 / DR-23
+  - Scenario: Given `<name>.md.bak` と `<name>.md.tmp` が併存する, When `--recover-orphans` 付きで実行する
+  - Expected: Then `.bak` が `<name>.md` へ復帰し、`.tmp` が残置されること
+
+- [ ] **T-08-04-10**: 復帰したファイルのキャッシュエントリを削除する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-10`
+  - Rule: DR-24
+  - Scenario: Given `<name>` に処理済みのキャッシュエントリが残り、`<name>.md` を伴わない `<name>.md.bak` のみ存在する,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰後に当該キャッシュエントリが削除されていること
+  - Note: 削除しないと次回実行が判定順序の手順 1 で done と誤判定し、定型部が恒久的に残る
+
+- [ ] **T-08-04-11**: 復帰しなかった `.tmp` 単独のキャッシュは削除しない
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-11`
+  - Rule: DR-24
+  - Scenario: Given `<name>.md.tmp` のみが存在し `<name>` にキャッシュエントリが残る,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰されず、キャッシュエントリも削除されないこと (削除対象は復帰したファイルに限る)
+
+- [ ] **T-08-04-12**: キャッシュエントリが存在しない復帰は no-op として成功する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-12`
+  - Rule: DR-24
+  - Scenario: Given `<name>` にキャッシュエントリが無く `<name>.md.bak` が存在する,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰が成功し、error として計上されないこと
+
+- [ ] **T-08-04-05**: 復帰専用モードでも R-001 の受理ゲートを評価する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-05`
+  - Rule: R-015 手順 1 / R-001
+  - Scenario: Given 年月を省略し `--recover-orphans` を指定する, When 実行する
+  - Expected: Then 実行が拒否され、復帰が行われないこと
+
+- [ ] **T-08-04-06**: 復帰専用モードと dry-run の併用で報告のみ行う
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-06`
+  - Rule: R-015 / AC-007
+  - Scenario: Given `--recover-orphans` と `--dry-run` を併用する, When 実行する
+  - Expected: Then 復帰されず、対象件数とパスの報告にとどまること
+
+- [ ] **T-08-04-07**: dry-run 時にファイルシステムが変更されない
+  - Target: エントリポイント
+  - Test ID: `T-FL-SEP-04-07`
+  - Rule: AC-007 / REQ-F-005
+  - Scenario: Given 除去対象を含むディレクトリ, When `--dry-run` 付きで実行する
+  - Expected: Then 内容・退避・キャッシュのいずれも変化しないこと
+
+- [ ] **T-08-04-08**: dry-run 分岐が各 Phase の内部に存在しない
+  - Target: エントリポイント
+  - Test ID: `T-FL-SEP-04-08`
+  - Rule: Section 3.2 / review finding F-04
+  - Scenario: Given dry-run 指定, When 実行経路を確認する
+  - Expected: Then `main` が Phase 3 〜 6 を呼ばないことで実現され、
+    各 Phase 内に `if (dryRun)` 分岐が存在しないこと
+
+- [ ] **T-08-04-09**: dry-run 出力に判定理由と除去範囲が含まれる
+  - Target: サマリー出力
+  - Test ID: `T-FL-SEP-04-09`
+  - Rule: AC-012 / REQ-F-005
+  - Scenario: Given dry-run 実行, When 出力を確認する
+  - Expected: Then パス・判定結果・理由・除去バイト数が含まれること
+
+---
+
+## Coverage Check
+
+母集団は Edge Cases 14 行 (Edge 10 を除く) + Active DD 2 件 + DR 14 件。
+
+### Edge Cases (spec Section 5)
+
+| Edge | 内容                                 | Task ID                            |
+| ---- | ------------------------------------ | ---------------------------------- |
+| 1    | `## Summary` ありマーカーなし        | T-05-01-04                         |
+| 2    | `## Summary` を 1 つも持たない       | T-04-02-01, T-05-01-03             |
+| 3    | 退避ファイルが既に存在               | T-05-01-02, T-01-05-01, T-06-04-02 |
+| 4    | キャッシュに記録あり・退避なし       | T-05-01-01                         |
+| 5    | 除去後の本文が空                     | T-05-03-01                         |
+| 6    | 除去率が 99% 超                      | T-05-03-02                         |
+| 7    | 年月を省略して起動                   | T-08-02-01                         |
+| 8    | 入力ディレクトリ override を指定     | T-08-02-02                         |
+| 9    | frontmatter に未知フィールド         | T-05-04-01, T-03-02-02             |
+| 10   | ネスト構造・ブロックスカラー         | 対象外 (前提外・仕様未規定)        |
+| 11   | 改行コードが CRLF                    | T-04-03-01, T-05-04-02, T-06-04-03 |
+| 12   | 偶然 `## Summary` で始まる発話       | T-05-04-03                         |
+| 13   | 定型部が最初の `## Summary` より後ろ | T-05-04-04                         |
+| 14   | 先頭 strip 後もなお定型部が残る      | T-05-04-05                         |
+| 15   | frontmatter を持たない               | T-05-03-03                         |
+
+### Active Design Decisions (spec Section 2.5)
+
+| DD    | 内容                                       | Task ID                |
+| ----- | ------------------------------------------ | ---------------------- |
+| DD-03 | 安全弁は個別ファイル単位・実行を中断しない | T-05-03-06, T-05-03-04 |
+| DD-04 | 受理検査は strip 側で行う                  | T-08-02-05             |
+
+> DD-01 は Obsolete (DR-14)、DD-02 は Promoted → DR-08 のため対象外。
+
+### Decision Records (spec Section 2.6)
+
+| DR    | 観測可能な振る舞い                     | Task ID                            |
+| ----- | -------------------------------------- | ---------------------------------- |
+| DR-01 | 除去境界は最初の `## Summary` 直前まで | T-05-01-06                         |
+| DR-02 | in-place + 退避                        | T-06-01-01, T-06-01-02             |
+| DR-03 | 退避を Provider として抽象化           | T-02-01-03, T-01-02-01             |
+| DR-05 | 並び順の明示義務                       | T-05-04-01                         |
+| DR-07 | 受理範囲の限定による強制               | T-08-02-01, T-08-02-02             |
+| DR-08 | 対象ディレクトリ単位の一括削除         | T-07-01-01, T-07-01-02             |
+| DR-09 | frontmatter 欠落を error とする        | T-05-03-03                         |
+| DR-10 | 削除失敗の報告と終了コード反映         | T-07-02-02, T-07-02-03             |
+| DR-11 | R-007 と REQ-F-008 の 1 対 1 対応      | T-05-03-01, T-05-03-02             |
+| DR-14 | 処理済みマーカーをキャッシュへ移す     | T-06-01-03, T-06-02-01             |
+| DR-15 | `done` を独立分類として扱う            | T-05-01-01, T-08-01-03             |
+| DR-16 | 削除前に包含関係を検査                 | T-07-03-01, T-07-04-01             |
+| DR-17 | `backupToBak` は既存 `.bak` をスキップ | T-01-05-01, T-01-05-02             |
+| DR-23 | 孤立退避の検出と復帰専用モードの分離   | T-08-03-01, T-08-04-01, T-06-04-01 |
+| DR-24 | 復帰時のキャッシュエントリ削除         | T-08-04-10, T-08-04-11, T-08-03-03 |
+| DR-25 | 包含検査は期待退避パスの実在確認       | T-07-04-02, T-07-04-03, T-07-04-05 |
+
+> DR-04 (DR-14 により破棄) / DR-06 決定 1 (DR-08 により破棄) /
+> DR-12 (DR-17 により破棄) / DR-13 (DR-15 により破棄) は対象外。
+
+### Acceptance Criteria
+
+| AC     | Task ID                | AC     | Task ID                               |
+| ------ | ---------------------- | ------ | ------------------------------------- |
+| AC-001 | T-05-01-05, T-06-01-02 | AC-013 | T-06-02-01                            |
+| AC-002 | T-05-01-06, T-06-01-02 | AC-014 | T-05-01-01                            |
+| AC-003 | T-06-01-03             | AC-015 | T-07-01-01                            |
+| AC-004 | T-05-01-03             | AC-016 | T-07-02-01                            |
+| AC-005 | T-06-01-01             | AC-019 | (対象外 — DR-14 により定数制約が不要) |
+| AC-006 | T-05-01-02             | AC-020 | T-06-03-01 〜 T-06-03-03              |
+| AC-007 | T-07-04-04, T-08-04-07 | AC-021 | T-08-02-01, T-08-02-03                |
+| AC-008 | T-08-01-02             | AC-022 | T-08-02-02                            |
+| AC-009 | T-01-05-02             | AC-023 | T-05-03-03                            |
+| AC-010 | T-05-01-04             | AC-024 | T-03-01-01, T-06-01-03                |
+| AC-011 | T-05-03-01             |        |                                       |
+| AC-012 | T-05-01-08, T-08-04-09 |        |                                       |
+
+> AC-017 / AC-018 は DR-14 により Superseded のため対象外。
+
+**`[UNCOVERED]`: なし**
+
+---
+
+## Category Balance
+
+| Test Target | Normal | Error  | Edge   | Cases   | 判定    |
+| ----------- | ------ | ------ | ------ | ------- | ------- |
+| T-01        | 7      | 2      | 2      | 11      | [OK]    |
+| T-02        | 5      | 2      | 1      | 8       | [OK]    |
+| T-03        | 3      | 4      | 2      | 9       | [OK]    |
+| T-04        | 3      | 2      | 4      | 9       | [OK]    |
+| T-05        | 12     | 6      | 9      | 27      | [OK]    |
+| T-06        | 6      | 4      | 3      | 13      | [ADDED] |
+| T-07        | 3      | 8      | 5      | 16      | [OK]    |
+| T-08        | 4      | 7      | 9      | 20      | [OK]    |
+| **合計**    | **43** | **35** | **35** | **113** | —       |
+
+> **[ADDED] T-06**: 初版では Edge が 0 件であり Category Balance ゲートに違反していた。
+> 埋め草ではなく、仕様上実在する境界状態から 3 件を追加した (T-06-04-01 〜 T-06-04-03)。
+> とりわけ T-06-04-01 は R-014 の孤立退避が「どう生成されるか」を書き込み側から
+> 押さえるもので、T-08-03-01 (検出側) と対になる。
+
+ゼロ件のカテゴリを持つ Test Target は存在しない。
+
+---
+
+<!--
+Task ID Format: T-<TestTarget>-<Scenario>-<Case>
+- TestTarget: 2-digit (01, 02, ...)
+- Scenario: 2-digit (01, 02, ...)
+- Case: 2-digit (01, 02, ...)
+
+Test ID Format (.claude/rules/testing-conventions.md):
+- T-LIB-BTB / T-LIB-B / T-LIB-WTF / T-CLS-CF  → _cle-libs
+- T-FL-SBD / T-FL-SCC / T-FL-SWP / T-FL-SBS / T-FL-SEP → filter-chatlogs strip
+-->
