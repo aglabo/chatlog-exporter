@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 6.0.0
+version: 6.1.0
 created: "2026-08-12"
 ---
 
@@ -33,6 +33,7 @@ created: "2026-08-12"
 - ファイル単位の削除 (既存の `noise-filter` / `filter` の責務)
 - Codex プリアンブル判定によるファイル削除 (issue cle-cs4 の責務)
 - 定型部の再生成・復元機能 (`.bak` からの復元はユーザーによる手動操作とする)
+- 再 export 後のキャッシュ整合の自動回復 (再 export 時のキャッシュ消去はユーザーの責任とする)
 - `## Summary` を持たないファイルの内容変更
 - ネストされたログ内部 (2 個目以降の `## Summary` 以降) に出現する定型部の除去
 
@@ -291,6 +292,21 @@ strip 処理は本体の frontmatter を変更してはなりません (DR-14) �
 
 手順 1 は本体を読み取らずに判定できます。
 中断後の再実行では、未処理のファイルのみを後続の判定対象とします。
+
+**既知の制約 (再 export によるキャッシュの乖離)**:
+手順 1 は本体を読み取らないため、キャッシュの記録と本体の実体が乖離した場合にこれを検出できません。
+`export-chatlogs` の再実行により本体が未 strip の状態へ再生成されると
+(`writeSession` は既存ファイルを無条件に上書きします。DR-06 が定める復旧手段) 、
+キャッシュの処理済み記録はそのまま残るため、当該ファイルは手順 1 で done と判定され strip されません。
+報告上は done として正常終了するため、定型部の残存に気付けません。
+
+**再 export 時のキャッシュ消去は利用者の責任とします。** 再 export はワークフローの再開を意図した
+明示的な操作であり、キャッシュを消すか否かを判断する立場にあるのは利用者であるためです。
+本ツールは再 export を検知せず、キャッシュの自動的な無効化・再検証も行いません。
+運用上の手順は SKILL.md に記載します。
+
+なお `--recover-orphans` による復帰は strip 自身の副作用であり、利用者の責任には含めません。
+復帰したファイルのキャッシュエントリは strip が削除します (DR-24) 。
 
 この判定は書き込み前に行い、`BackupProvider` 側には持たせません (DR-03) 。
 Provider はパスのみを受け取るため手順 1 の判定を担えず、判定ロジックを分割すると保守性を損なうためです。
@@ -1118,5 +1134,6 @@ Scenario: --input-dir 指定時に実行を拒否する
 | 2026-08-13 | 5.3.0   | codex risk レビューの対応候補 C に対応。AC-024 の「バイト単位で一致」を `ChatlogFrontmatter` による同一性比較へ改める (CRLF 正規化は決定事項として維持)。REQ-F-009 に判定基準 (キー集合と値の一致・キー順は非対象) を追加。REQ-C-001 に同一性比較の追加を記載                                                                                                                                                        |
 | 2026-08-13 | 5.3.1   | DR-14 で無効化された `_status` 由来の陳腐化記述を一掃 (issue cle-ax1)。Scope / System Context Diagram / 利用ライブラリ / REQ-F-002 / AC-013 Gherkin を現行仕様へ更新し、AC-024 の Gherkin を新設。Superseded 済みの REQ-F-011 / REQ-C-005 配下の記述は歴史的記録として維持し、Gherkin に Superseded 注記を追加。要件の追加・変更は伴わない                                                                           |
 | 2026-08-13 | 6.0.0   | DR-17 を反映し DR-12 の決定を破棄 (MAJOR: decided approach discarded)。退避 Provider 名を `backupPath` から `backupToBak` へ改め、既存 `.bak` 到達時の挙動を throw からスキップ + `null` へ変更。REQ-C-001 の `BackupProvider` / `backupToBak` / `writeTextFile` の記述を更新し、`writeTextFile` の戻り値を DR-03 決定 4 のコード例どおり `Promise<string \| null>` に是正。REQ-F-009 の Provider 名を更新           |
+| 2026-08-13 | 6.1.0   | codex review (PR #409) の指摘「キャッシュの状態が再生成されたソースと乖離する」に対応。REQ-F-009 の判定順序に既知の制約を追記し、再 export 時のキャッシュ消去を利用者の責任として明記。Out of Scope に「再 export 後のキャッシュ整合の自動回復」を追加。`--recover-orphans` による復帰は strip 自身の副作用であるため利用者責任に含めず DR-24 で対処する旨を併記                                                     |
 
 <!-- markdownlint-enable line-length -->
