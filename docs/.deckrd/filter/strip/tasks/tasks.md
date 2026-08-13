@@ -741,8 +741,9 @@ source: specifications.md
 
 > Commit 9。Phase 6 (R-010 〜 R-013)。削除は **実行の最後に一括で** 行う。
 > 包含関係: `{ stripped と判定したパス } ⊆ { 存在する退避のパス }`。
-> 比較は `normalizePath` 適用後、ファイル名部分を **大文字小文字を無視** して行う (DR-22)。
-> 報告は小文字化キーではなく **元の形** のパスを出す。
+> 検査は stripped 側のパスから期待退避パス `<name>.md.bak` を構成し、退避一覧との
+> **完全一致** で確認する (DR-25)。大文字小文字の変換は行わない。
+> 報告は **元の形** のパスを出す。
 
 ### [正常] Normal Cases
 
@@ -842,19 +843,21 @@ source: specifications.md
   - Scenario: Given 退避 5 件に対し stripped が 3 件で、3 件とも退避を持つ, When 包含を検査する
   - Expected: Then 包含が成立すると判定されること (件数の不一致で異常としない)
 
-- [ ] **T-07-04-02**: 大文字小文字のみ異なるパスを不足と誤報告しない
+- [ ] **T-07-04-02**: 大文字小文字のみ異なる退避を一致とみなさない
   - Target: 包含関係の検査
   - Test ID: `T-FL-SBS-04-02`
-  - Rule: DR-22
-  - Scenario: Given stripped のパスと退避のパスがファイル名の大文字小文字のみ異なる, When 包含を検査する
-  - Expected: Then 包含が成立すると判定されること
+  - Rule: DR-25
+  - Scenario: Given `Foo.md` を stripped と判定したが退避一覧に `Foo.md.bak` は無く `foo.md.bak` のみ存在する,
+    When 包含を検査する
+  - Expected: Then 包含が成立せず `Foo.md.bak` が不足として報告されること
+  - Note: 小文字化キーによる比較では誤って成立し、Phase 6 が退避を削除する (DR-22 を破棄した理由)
 
 - [ ] **T-07-04-03**: 報告するパスが元の形である
   - Target: 包含関係の検査
   - Test ID: `T-FL-SBS-04-03`
-  - Rule: DR-22
+  - Rule: DR-25
   - Scenario: Given 大文字を含むパスが不足している, When 不足を報告する
-  - Expected: Then 小文字化したキーではなく元の形のパスが出力されること
+  - Expected: Then 大文字小文字を変換せず元の形のパスが出力されること
 
 - [ ] **T-07-04-04**: dry-run では削除しない
   - Target: バックアップ一括削除
@@ -866,10 +869,11 @@ source: specifications.md
 - [ ] **T-07-04-05**: `normalizePath` がドライブレターを大文字化しファイル名の case を保つ
   - Target: `normalizePath` / `toUnixPath`
   - Test ID: `T-FL-SBS-04-05`
-  - Rule: DR-22 の前提検証
+  - Rule: DR-25 の前提検証
   - Scenario: Given `c:\Dir\File.md` のような Windows パス, When `normalizePath` を適用する
   - Expected: Then ドライブレターが大文字化され、ファイル名の大文字小文字が保持されること
-  - Note: DR-22 の根拠がこの挙動に依存する。未検証のため明示的に確認する
+  - Note: DR-25 は期待退避パスを stripped 側のパスから構成するため、`normalizePath` が
+    ファイル名の case を保つことに依存する。未検証のため明示的に確認する
 
 ---
 
@@ -967,6 +971,14 @@ source: specifications.md
   - Scenario: Given 孤立退避が 1 件存在し他は全件成功する, When 終了処理に到達する
   - Expected: Then R-011 により退避が全保持されること (復旧材料を失わない)
 
+- [ ] **T-08-03-03**: 復帰後のキャッシュ削除失敗を error として計上する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-03-03`
+  - Rule: DR-24
+  - Scenario: Given `--recover-orphans` で復帰したファイルのキャッシュ削除が失敗する, When 実行する
+  - Expected: Then 当該ファイルが error に計上され、パスが報告されること
+  - Note: 復帰は完了しているがキャッシュが乖離したままであり、次回実行で strip が漏れる
+
 ### [エッジケース] Edge Cases
 
 #### T-08-04: 復帰専用モード (R-015)
@@ -998,6 +1010,31 @@ source: specifications.md
   - Rule: R-015 / DR-23
   - Scenario: Given `<name>.md.bak` と `<name>.md.tmp` が併存する, When `--recover-orphans` 付きで実行する
   - Expected: Then `.bak` が `<name>.md` へ復帰し、`.tmp` が残置されること
+
+- [ ] **T-08-04-10**: 復帰したファイルのキャッシュエントリを削除する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-10`
+  - Rule: DR-24
+  - Scenario: Given `<name>` に処理済みのキャッシュエントリが残り、`<name>.md` を伴わない `<name>.md.bak` のみ存在する,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰後に当該キャッシュエントリが削除されていること
+  - Note: 削除しないと次回実行が判定順序の手順 1 で done と誤判定し、定型部が恒久的に残る
+
+- [ ] **T-08-04-11**: 復帰しなかった `.tmp` 単独のキャッシュは削除しない
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-11`
+  - Rule: DR-24
+  - Scenario: Given `<name>.md.tmp` のみが存在し `<name>` にキャッシュエントリが残る,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰されず、キャッシュエントリも削除されないこと (削除対象は復帰したファイルに限る)
+
+- [ ] **T-08-04-12**: キャッシュエントリが存在しない復帰は no-op として成功する
+  - Target: 復帰専用モード
+  - Test ID: `T-FL-SEP-04-12`
+  - Rule: DR-24
+  - Scenario: Given `<name>` にキャッシュエントリが無く `<name>.md.bak` が存在する,
+    When `--recover-orphans` 付きで実行する
+  - Expected: Then 復帰が成功し、error として計上されないこと
 
 - [ ] **T-08-04-05**: 復帰専用モードでも R-001 の受理ゲートを評価する
   - Target: 復帰専用モード
@@ -1088,6 +1125,8 @@ source: specifications.md
 | DR-16 | 削除前に包含関係を検査                 | T-07-03-01, T-07-04-01             |
 | DR-17 | `backupToBak` は既存 `.bak` をスキップ | T-01-05-01, T-01-05-02             |
 | DR-23 | 孤立退避の検出と復帰専用モードの分離   | T-08-03-01, T-08-04-01, T-06-04-01 |
+| DR-24 | 復帰時のキャッシュエントリ削除         | T-08-04-10, T-08-04-11, T-08-03-03 |
+| DR-25 | 包含検査は期待退避パスの実在確認       | T-07-04-02, T-07-04-03, T-07-04-05 |
 
 > DR-04 (DR-14 により破棄) / DR-06 決定 1 (DR-08 により破棄) /
 > DR-12 (DR-17 により破棄) / DR-13 (DR-15 により破棄) は対象外。
