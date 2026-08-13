@@ -16,7 +16,8 @@ bd dolt push          # Push beads data to remote
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
 
-Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
+Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode.
+This causes the agent to hang indefinitely waiting for y/n input.
 
 **Use these forms instead:**
 
@@ -65,10 +66,10 @@ bd close <id>         # Complete work
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+1. File issues for remaining work - Create issues for anything that needs follow-up
+2. Run quality gates (if code changed) - Tests, linters, builds
+3. Update issue status - Close finished work, update in-progress items
+4. PUSH TO REMOTE - This is MANDATORY:
 
    ```bash
    git pull --rebase
@@ -77,9 +78,9 @@ bd close <id>         # Complete work
    git status  # MUST show "up to date with origin"
    ```
 
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+5. Clean up - Clear stashes, prune remote branches
+6. Verify - All changes committed AND pushed
+7. Hand off - Provide context for next session
 
 **CRITICAL RULES:**
 
