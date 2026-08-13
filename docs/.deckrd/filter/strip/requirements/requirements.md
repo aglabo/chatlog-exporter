@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 5.3.1
+version: 6.0.0
 created: "2026-08-12"
 ---
 
@@ -47,13 +47,13 @@ created: "2026-08-12"
   - `skills/_cle-libs/libs/file-io/write-utils.ts` — `writeTextFile` (tmp+rename の原子的書き込み) 。
     DR-03 により `BackupProvider` を受け取る第 3 引数を追加する
   - `skills/_cle-libs/libs/file-ops/backup-old-path.ts` — `backupOldPath` (退避名は `.old-NN.md` 連番)。
-    normalize 等の既存用途向け。strip は `.bak` 方式の `backupPath` を用いる (DR-03 参照)
+    normalize 等の既存用途向け。strip は `.bak` 方式の `backupToBak` を用いる (DR-03 / DR-17 参照)
   - `skills/_cle-libs/libs/file-ops/exists-utils.ts` — `fileExists` (退避ファイルの存在判定に用いる)
   - `skills/_cle-libs/libs/text/frontmatter-utils.ts` — `divideEntry` / `hasFrontmatter` (いずれも読み取り専用)
   - `skills/_cle-libs/classes/ChatlogFrontmatter.class.ts` — frontmatter の同一性比較に用いる (AC-024) 。
     strip は frontmatter を再構築しないため `set()` / `toFrontmatter()` は用いない (DR-14)
   - `skills/_cle-libs/classes/ChatlogCache.class.ts` — 処理済み状態の記録・参照に用いる (DR-14)
-  - `skills/_cle-libs/classes/ChatlogEntry.class.ts` — `renderEntry()` は**本機能では使用しない** (DR-04)。
+  - `skills/_cle-libs/classes/ChatlogEntry.class.ts` — `renderEntry()` は **本機能では使用しない** (DR-04)。
     `DEFAULT_ORDERED_FIELDS` への並べ替えと tag への `#` 付与を伴うため
   - `skills/_cle-libs/classes/ChatlogError.class.ts` / `libs/io/logger.ts`
 - Assumptions:
@@ -97,11 +97,12 @@ created: "2026-08-12"
 | DR-09 | frontmatter を持たないファイルを error として扱う                                  | ../decision-records.md#DR-09 |
 | DR-10 | 退避削除の失敗を報告し、終了コードに反映する                                       | ../decision-records.md#DR-10 |
 | DR-11 | REQ-F-008 の到達不能な判定基準を削除する                                           | ../decision-records.md#DR-11 |
-| DR-12 | `backupPath` の戻り値を `Promise<string>` に単純化する                             | ../decision-records.md#DR-12 |
+| DR-12 | `backupPath` の戻り値を `Promise<string>` に単純化する (DR-17 により破棄)          | ../decision-records.md#DR-12 |
 | DR-13 | ファイル単位の分類を 3 つに統合する (DR-15 により破棄)                             | ../decision-records.md#DR-13 |
 | DR-14 | 処理済みマーカーをキャッシュへ移し、本体の frontmatter を変更しない                | ../decision-records.md#DR-14 |
 | DR-15 | 処理済みスキップを `done` として独立した分類に戻す                                 | ../decision-records.md#DR-15 |
 | DR-16 | 退避削除の前に退避の包含関係を検査する                                             | ../decision-records.md#DR-16 |
+| DR-17 | 退避 Provider を `backupToBak` とし、既存 `.bak` はスキップして `null` を返す      | ../decision-records.md#DR-17 |
 
 <!-- markdownlint-restore --->
 
@@ -305,7 +306,7 @@ Provider はパスのみを受け取るため手順 1 の判定を担えず、�
 その場合は再実行で再度 strip され本文を失います。
 キャッシュへの記録は `.bak` 削除後も残るため、この経路を塞ぎます。
 
-**frontmatter の不変性の判定基準**
+**frontmatter の不変性の判定基準。**
 
 AC-024 の一致はバイト単位ではなく、`ChatlogFrontmatter` による同一性比較で判定します。
 
@@ -628,21 +629,23 @@ DR-03 に定める `BackupProvider` 方式を `_cle-libs` に新規追加し、�
 
 - `BackupProvider` 型 (`types/providers.types.ts`) — `(path: string) => Promise<string | null>`。
   戻り値は作成した退避先パス。`null` は退避を作成しなかったことを表す。
-  型は 2 実装の上位集合であり、`backupOldPath` が `null` を返す可能性を残すために維持する (DR-12)
-- `backupPath` (`libs/file-ops/`) — `<name>.md` を `<name>.md.bak` にリネームする Provider。
-  戻り値は `Promise<string>` とし、`null` を返さない (DR-12) 。
-  既存の `.bak` があるファイルは REQ-F-007 により呼び出し前にスキップされるため、
-  退避を作成しない状況には到達しない。到達した場合は前提の破れとして例外を throw する
+  `backupToBak` / `backupOldPath` の両実装がこの型と厳密に一致する (DR-17)
+- `backupToBak` (`libs/file-ops/backup-to-bak.ts`) — `<name>.md` を `<name>.md.bak` に
+  リネームする Provider。戻り値は `Promise<string | null>` (DR-17) 。
+  既存の `.bak` がある場合はリネームせずスキップし `null` を返す。例外は throw しない。
+  連番・世代管理は持たない
 - `writeTextFile` (`libs/file-io/write-utils.ts`) — 第 3 引数に `BackupProvider` を追加。
-  tmp 書き出し → 退避 → 差し替えの 3 ステップを行い、退避先パスを返す。未指定時は現行と同一の挙動
+  tmp 書き出し → 退避 → 差し替えの 3 ステップを行う。
+  退避先パス、または退避を作成しなかった場合は `null` を返す (`Promise<string | null>`、DR-03 決定 4 のコード例どおり) 。
+  `null` は書き込みの中断を意味せず、書き込みは成立している。未指定時は現行と同一の挙動
 
 既存の `writeTextFile` および `backupOldPath` の挙動は変更しません。
 `backupOldPath` は戻り値を `Promise<string | null>` に拡張するのみで、連番セマンティクスを維持します。
 
 あわせて frontmatter の同一性比較を `ChatlogFrontmatter` に追加します (AC-024) 。
 
-- `ChatlogFrontmatter` (`classes/ChatlogFrontmatter.class.ts`) — 2 つの frontmatter が
-  同一の内容を持つかを判定する手段を追加する。
+- `ChatlogFrontmatter` (`classes/ChatlogFrontmatter.class.ts`):
+  2 つの frontmatter が同一の内容を持つかを判定する手段を追加する。
   キー集合と各キーの値を比較し、キーの出現順序は比較対象に含めない。
   値は `string` / `string[]` のいずれかであり (`FrontmatterFields`) 、
   `string[]` は長さと各要素を順に比較する
@@ -662,7 +665,7 @@ frontmatter の内部表現はクラスが保持しており、比較もクラ�
 
 ### REQ-C-004: 境界判定は構文解析を行わない (事前検査済みデータへの単純ルール)
 
-境界判定は Markdown 構文解析によらず、本文中の `^## Summary$` (行頭完全一致) の**最初の出現**を用います。
+境界判定は Markdown 構文解析によらず、本文中の `^## Summary$` (行頭完全一致) の **最初の出現** を用います。
 コードフェンス内・引用内・リスト内・ユーザー発話本文内であるかは解釈しません。
 
 この単純化は次の実測に基づく前提条件のうえに成立します (claude/2026-07 で検証済み) 。
@@ -687,7 +690,7 @@ agent は常に単一値に解決されるためです。解決元は次の 2 �
 agent 未指定でも全エージェントを走査する経路は存在しません。
 したがって agent 軸については、実測結果と仕様上の分離の双方により前提が担保されます。
 
-**未検証のデータセットに対しては、事前に検査するまで適用してはならない**という制約は維持します。
+**未検証のデータセットに対しては、事前に検査するまで適用してはならない** という制約は維持します。
 本機能は新規のログ形式を追加しないため、現時点の前提は今後も維持される見込みです。
 ただし `set-frontmatter` の定型部テンプレートまたは `filter` の削除パターンが変更された場合は再検査を要します。
 
@@ -756,7 +759,7 @@ REQ-F-011 が沈黙のうちに破れます。実装・レビュー時に検知�
 ```text
 GIVEN strip 処理が strip 済み内容を書き出す
   WHERE 元ファイルの退避を伴う
-THEN the system SHALL `writeTextFile` に `backupPath` (DR-03) を渡して用い、`backupOldPath` との組み合わせを用いてはならない。
+THEN the system SHALL `writeTextFile` に `backupToBak` (DR-03 / DR-17) を渡して用い、`backupOldPath` との組み合わせを用いてはならない。
 ```
 
 **Rationale**: `writeTextFile` は tmp 書き出しと rename を内部で不可分に実行します。
@@ -1043,7 +1046,7 @@ Scenario: --input-dir 指定時に実行を拒否する
 | Q-04 (a): 他エージェントの未測定      | **解決。claude 以外は strip 対象が存在しない。** codex 42 件・chatgpt 9 件を実測し定型部マーカー保有 0 件を確認。これらは既存 filter が定型プロンプトファイルを削除済みであるため。加えて agent は常に単一値へ解決されるため他エージェントが同一実行で走査されることもない (REQ-C-004)              |
 | Q-04 (b): 他年月の未測定              | **未実測のまま、適用範囲外へ封じることで解決。** 2026-07 以外の年月は実測していない。period 省略時と `--input-dir` override 時に未検証の年月へ処理が及ぶため、REQ-C-008 でこの 2 経路の実行を拒否し、受理する範囲を実測済みの `<agent> <YYYY-MM>` に限定する                                        |
 | Q-05: strip 後の `.bak` 一括削除      | **全件成功 (error 0 件) 時のみ一括削除する。** REQ-F-010 として正規化。あわせて `.bak` 削除後の冪等性を担保するため frontmatter マーカーを REQ-F-009 として追加                                                                                                                                     |
-| Q-06: 退避ファイル命名と書き込み順序  | **`BackupProvider` として抽象化し、strip は `.bak` 方式 (`backupPath`) を使う。冪等判定は Provider ではなく呼び出し側に置く。** DR-03 として記録。`backupOldPath` は戻り値追加のみで連番セマンティクスを維持                                                                                        |
+| Q-06: 退避ファイル命名と書き込み順序  | **`BackupProvider` として抽象化し、strip は `.bak` 方式 (`backupPath`) を使う。冪等判定は Provider ではなく呼び出し側に置く。** DR-03 として記録。`backupOldPath` は戻り値追加のみで連番セマンティクスを維持。**DR-17 により Provider 名は `backupToBak` へ変更** (方式は不変)                      |
 | Q-07: 処理済みマーカーの付与経路      | **frontmatter 内の private フィールド `_status` として `ChatlogFrontmatter` の `set()` + `toFrontmatter()` で付与する (単一値、strip 済みは `stripped`) 。** DR-04 として記録。フィールド名・値は `_cle-libs` の共通定数とし、`toFrontmatter()` は既存キー順 + `_status` の `fieldOrder` を明示する |
 
 <!-- markdownlint-restore -->
@@ -1114,5 +1117,6 @@ Scenario: --input-dir 指定時に実行を拒否する
 | 2026-08-13 | 5.2.1   | claude/2026-07 の再実測により DR-01 の根拠データを訂正。除去対象 6402→6398 / `## Summary` 保有 10290→10288 / 対象外 3888→3890。「先頭 strip 後も定型部が残る 2 件」は実測 0 件のため訂正し、取りこぼしを 6 件→4 件（後方配置のみ）へ。要件・受け入れ基準の変更は伴わない                                                                                                                                             |
 | 2026-08-13 | 5.3.0   | codex risk レビューの対応候補 C に対応。AC-024 の「バイト単位で一致」を `ChatlogFrontmatter` による同一性比較へ改める (CRLF 正規化は決定事項として維持)。REQ-F-009 に判定基準 (キー集合と値の一致・キー順は非対象) を追加。REQ-C-001 に同一性比較の追加を記載                                                                                                                                                        |
 | 2026-08-13 | 5.3.1   | DR-14 で無効化された `_status` 由来の陳腐化記述を一掃 (issue cle-ax1)。Scope / System Context Diagram / 利用ライブラリ / REQ-F-002 / AC-013 Gherkin を現行仕様へ更新し、AC-024 の Gherkin を新設。Superseded 済みの REQ-F-011 / REQ-C-005 配下の記述は歴史的記録として維持し、Gherkin に Superseded 注記を追加。要件の追加・変更は伴わない                                                                           |
+| 2026-08-13 | 6.0.0   | DR-17 を反映し DR-12 の決定を破棄 (MAJOR: decided approach discarded)。退避 Provider 名を `backupPath` から `backupToBak` へ改め、既存 `.bak` 到達時の挙動を throw からスキップ + `null` へ変更。REQ-C-001 の `BackupProvider` / `backupToBak` / `writeTextFile` の記述を更新し、`writeTextFile` の戻り値を DR-03 決定 4 のコード例どおり `Promise<string \| null>` に是正。REQ-F-009 の Provider 名を更新           |
 
 <!-- markdownlint-enable line-length -->
