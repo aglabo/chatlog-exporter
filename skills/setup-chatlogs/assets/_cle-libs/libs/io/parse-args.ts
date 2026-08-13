@@ -25,8 +25,25 @@ import type {
 
 // -- internal modules ---
 // functions
-/** `YYYY-MM` 形式の文字列の場合 `true` を返す（CLI 位置引数の期間判定）。 */
+/**
+ * `YYYY-MM` 形式の文字列の場合 `true` を返す（CLI 位置引数の期間判定）。
+ *
+ * 形式のみを判定し、月レンジ（01〜12）は検証しない。月レンジは `_setByType` の
+ * `period` 型検証（`_isPeriodMonthInRange`）が担当する。
+ */
 export const isArgPeriod = (arg: string): boolean => /^\d{4}-\d{2}$/.test(arg);
+
+/**
+ * `YYYY-MM` 形式の月部が 01〜12 の範囲内の場合 `true` を返す。
+ * `isArgPeriod` を通過済みの文字列を前提とする。
+ *
+ * @param arg - `isArgPeriod` が `true` を返した期間文字列
+ * @returns 月が 1〜12 の場合 `true`
+ */
+const _isPeriodMonthInRange = (arg: string): boolean => {
+  const _month = parseInt(arg.slice(-2), 10);
+  return _month >= 1 && _month <= 12;
+};
 
 /** バックスラッシュをスラッシュに変換後に `/` を含む場合 `true` を返す（CLI 位置引数のディレクトリパス判定）。 */
 export const isArgDirectory = (arg: string): boolean => {
@@ -140,6 +157,13 @@ const _setByType = (
           'InvalidArgs',
           'InvalidPeriodFormat',
           `期間形式ではありません（YYYY-MM）: ${rawValue}`,
+        );
+      }
+      if (!_isPeriodMonthInRange(rawValue)) {
+        return new ChatlogError(
+          'InvalidArgs',
+          'InvalidPeriodRange',
+          `期間の月が範囲外です（01〜12）: ${rawValue}`,
         );
       }
       config[entry.field] = rawValue;
