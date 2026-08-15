@@ -2,14 +2,14 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 6.1.0
+version: 8.5.0
 created: "2026-08-12"
 ---
 
 <!-- cspell:words setfm -->
 
 <!-- textlint-disable
-  ja-spacing/ja-space-around-code
+  ja-technical-writing/sentence-length
   -->
 
 ## 1. Overview
@@ -23,7 +23,8 @@ created: "2026-08-12"
 - `filter strip <agent> <YYYY-MM>` サブコマンドの新設 (period は必須。REQ-C-008 参照)
 - 対象ディレクトリ配下の `.md` を走査し、定型部マーカーを持つファイルのみを対象に、先頭から最初の `## Summary` 直前までを除去する
 - 元ファイルを `.bak` として退避し、元のファイル名で strip 済みファイルを書き出す
-- `ChatlogCache` の処理済み記録および既存 `.bak` を処理済みの根拠として扱い、再実行を冪等にする (DR-14)
+- `ChatlogCache` の処理済み記録 (`stripped` / `passthrough`) および既存 `.bak` を処理済みの根拠として扱い、
+  再実行を冪等にする (DR-14 / DR-31)
 - error が 0 件であり、かつ退避の包含関係が成立する場合に `.bak` を一括削除する (DR-16)
 - `--dry-run` による非破壊確認
 - 処理結果サマリー (対象件数・除去バイト数・`.bak` 削除件数) の報告
@@ -276,21 +277,35 @@ THEN the system SHALL 当該ファイルを strip 済みとみなしてスキッ
 - EARS Type: event-driven
 
 ```text
-GIVEN 対象ファイルが除去対象と判定された
-  WHEN strip 処理が strip 済み内容を書き出す
+GIVEN 対象ファイルが除去対象と判定された、または除去対象外 (passthrough) と判定された
+  WHEN strip 処理が strip 済み内容を書き出す、または passthrough の判定が確定する
 THEN the system SHALL 当該ファイルの処理済み状態を `ChatlogCache` に記録する。
 ```
+
+記録する処理済み状態は次の 2 種とします (DR-31 決定 1) 。
+
+| status        | 記録の契機                         | rule (成立した規則) |
+| ------------- | ---------------------------------- | ------------------- |
+| `stripped`    | 除去した内容の書き込みが成立した   | R-008               |
+| `passthrough` | 除去対象を持たないと判定が確定した | R-005 または R-006  |
+
+`passthrough` の記録は本体を変更しないため、書き込みとは独立に判定の確定した時点で行います
+(DR-31 決定 4) 。`rule` には成立した規則をそのまま記録します。
+`passthrough` の記録に失敗した場合、当該ファイルは error として計上します (DR-31 決定 3) 。
+本体は無傷ですが、`stripped` と扱いを変えると記録の失敗が成功として報告されるためです。
 
 strip 処理は本体の frontmatter を変更してはなりません (DR-14) 。
 本体へ加える変更は、本文先頭から最初の `## Summary` 直前までの除去のみとします。
 
 再実行時の判定順序は次のとおりとします。
 
-1. キャッシュに処理済みの記録がある → done (`.bak` の有無によらず)
+1. キャッシュに処理済みの記録 (`stripped` または `passthrough`) がある → done (`.bak` の有無によらず。DR-31 決定 2)
 2. `<name>.md.bak` が存在する → done (REQ-F-007)
 3. 定型部マーカーを持たない → passthrough (REQ-F-000)
 
 手順 1 は本体を読み取らずに判定できます。
+`passthrough` を手順 1 に含める理由は、対象ディレクトリの大半が除去対象を持たないファイルであり、
+記録しなければ実行のたびに全件を読み直して再判定することになるためです (DR-31) 。
 中断後の再実行では、未処理のファイルのみを後続の判定対象とします。
 
 **既知の制約 (再 export によるキャッシュの乖離)**:
@@ -307,6 +322,12 @@ strip 処理は本体の frontmatter を変更してはなりません (DR-14) �
 
 なお `--recover-orphans` による復帰は strip 自身の副作用であり、利用者の責任には含めません。
 復帰したファイルのキャッシュエントリは strip が削除します (DR-24) 。
+
+復帰またはキャッシュエントリの削除に失敗したファイルが 1 件以上ある場合、
+失敗件数を報告したうえで終了コードを成功以外としなければなりません (DR-33) 。
+乖離を残したまま成功終了すると、次回実行は手順 1 で当該ファイルを永久に done と判定し、
+定型部が恒久的に残ります。この状態は 2 回目の `--recover-orphans` では回収できません (DR-27) 。
+報告は終了コードの生成に先行します (DR-20 決定 3) 。
 
 この判定は書き込み前に行い、`BackupProvider` 側には持たせません (DR-03) 。
 Provider はパスのみを受け取るため手順 1 の判定を担えず、判定ロジックを分割すると保守性を損なうためです。
@@ -359,6 +380,8 @@ frontmatter 再構築に伴う未知フィールドの消失が構造的に発�
 | ------ | ------------------------------------------------------------------------------------------------ |
 | AC-013 | strip 済みファイルの処理済み状態がキャッシュに記録される                                         |
 | AC-014 | `.bak` 削除後に再実行しても strip 済みファイルが再処理されない                                   |
+| AC-025 | passthrough と判定したファイルが status=`passthrough` / rule=成立規則 で記録される (DR-31)       |
+| AC-026 | passthrough を記録したファイルが再実行で done と判定され再判定されない (DR-31)                   |
 | AC-024 | strip 済みファイルの frontmatter が strip 前と同一である (`ChatlogFrontmatter` による同一性比較) |
 
 ### REQ-F-010: 正常終了時の `.bak` 一括削除
@@ -418,13 +441,21 @@ REQ-C-008 により対象は単一の `<agent> <YYYY-MM>` ディレクトリに�
 一次ソースは `~/.claude/projects/` 配下の JSONL セッションファイルであり、
 `originalLogs/` はその派生物です。`writeSession` は既存ファイルを無条件に上書きします。
 したがって `.bak` は「唯一の復旧手段」ではなく、再 export の手間を省く一次的な復旧手段です。
+ただし利用者が独自に置いた `.bak` は `originalLogs/` の派生物ではないため、再 export では復元できません。
+
+削除対象には当該実行が作成していない `.bak` も含まれます。
+そのため、削除する `.bak` のうち stripped と判定したファイルに由来しないものを、
+削除の前に件数とパスで警告として報告します (DR-34) 。
+報告は前回実行の中断により残った `.bak` と strip 以外の経路で置かれた `.bak` を区別しません。
+判定材料を持たないためです。報告は終了コードに影響しません。
 
 **Acceptance Criteria**:
 
-| AC ID  | Scenario                                    |
-| ------ | ------------------------------------------- |
-| AC-015 | 全件成功時に `.bak` が削除される            |
-| AC-016 | error が 1 件でもあれば `.bak` が保持される |
+| AC ID  | Scenario                                                            |
+| ------ | ------------------------------------------------------------------- |
+| AC-015 | 全件成功時に `.bak` が削除される                                    |
+| AC-016 | error が 1 件でもあれば `.bak` が保持される                         |
+| AC-025 | stripped に由来しない `.bak` の削除時に件数とパスが警告で報告される |
 
 ### REQ-F-011: private フィールドの正式版ログへの非出力
 
@@ -472,34 +503,46 @@ THEN the system SHALL private フィールドを strip の作業対象 (`origina
 ```text
 GIVEN `--dry-run` オプションが指定されている
   WHERE strip サブコマンドが実行される
-THEN the system SHALL ファイルへの書き込みおよび `.bak` 作成を一切行わず、対象ファイル一覧・判定理由・除去範囲・除去見込みバイト数を報告する。
+THEN the system SHALL ファイルへの書き込みおよび `.bak` 作成を一切行わず、対象ファイル一覧と判定結果を報告する。
 ```
 
-dry-run の出力には、ファイルごとに次の情報を含めなければなりません。
+dry-run の出力には、ファイルごとに次の情報を含めなければなりません (DR-29) 。
 
 - ファイルパス
-- 判定結果 (stripped / done / passthrough / error)
-- 判定理由 (マーカー無し / `## Summary` 無し / `.bak` 既存 / 除去率異常など)
-- 除去対象となる行範囲、および除去バイト数
+- 判定結果 (stripped / skipped / done / passthrough / error)
+- `error` の場合に限り、該当した判定規則の ID
 
-分類は通常実行と同一の規則で決定しなければならず、集計構造も通常実行と一致しなければなりません (DR-15) 。
-dry-run 固有の差異は `stripped` の表示上の時制に限られます。
+除去対象となる行範囲および除去バイト数は出力しません (DR-29) 。
+事前レビューで参照されるのは分類の一覧であり、1 件ごとの行範囲・バイト数は用いられないためです。
+除去規模の総量が必要な場合は REQ-F-006 のサマリーで足ります。
+
+`error` 以外の分類で判定規則の ID を出力しない理由は、正常系の分類は分類名だけで状態が判る一方、
+`error` は R-002 (前提の破れ) と R-007 (安全弁) で原因が全く異なるためです (DR-29) 。
+
+判定のカスケードは通常実行と同一でなければならず、集計構造 (件数フィールドの集合) も
+通常実行と一致しなければなりません。
+dry-run 固有の差異は、除去対象と判定したファイルが `stripped` ではなく `skipped` として
+報告される点に限られます (DR-29) 。書き込みを見送ったことをラベルで表すためです。
+件数も同様に `stripped` ではなく `skipped` へ計上するため、dry-run の `skipped` は
+同一入力に対する通常実行の `stripped` と一致します (DR-30) 。
 
 dry-run では、ファイルへの書き込みと `.bak` 作成に加え、キャッシュへの処理済み記録も行いません。
 記録した場合、次回の通常実行が全件 done となり、strip が実行されません。
+`passthrough` の記録も同様に行いません (DR-31 決定 5) 。
 
 **Rationale**: 6000 件規模の破壊的操作の前に、影響範囲を確認する手段が必要です。
 件数とバイト数だけでは事前レビューとして不十分であり、dry-run 出力を監査ログとして機能させます。
 
 集計構造を通常実行と一致させる理由は、モードによって分類が異なると
 dry-run の結果から通常実行の結果を予測できず、事前検証としての用途が失われるためです。
+`skipped` の件数は `stripped` へ加算するため、集計構造は 5 分類化の後も通常実行と一致します (DR-29) 。
 
 **Acceptance Criteria**:
 
-| AC ID  | Scenario                                   |
-| ------ | ------------------------------------------ |
-| AC-007 | dry-run 時にファイルシステムが変更されない |
-| AC-012 | dry-run 出力に判定理由と除去範囲が含まれる |
+| AC ID  | Scenario                                                  |
+| ------ | --------------------------------------------------------- |
+| AC-007 | dry-run 時にファイルシステムが変更されない                |
+| AC-012 | dry-run 出力にファイルパスと判定結果が 1 件ごとに含まれる |
 
 ### REQ-F-008: 異常検出による中断 (安全弁)
 
@@ -559,20 +602,48 @@ frontmatter が無いファイルには付与先が存在しません。
 ```text
 GIVEN strip 処理が全対象ファイルの走査を完了した
   WHEN 処理が終了する
-THEN the system SHALL total / stripped / done / passthrough / error の件数、除去前後の合計バイト数、
+THEN the system SHALL total / stripped / skipped / done / passthrough / error の件数、除去前後の合計バイト数、
      および `.bak` の削除有無 (削除件数、または保持理由) を出力する。
 ```
 
-分類は stripped / done / passthrough / error の 4 つとします (DR-15) 。
+分類は stripped / skipped / done / passthrough / error の 5 つとします (DR-15 / DR-29) 。
 `done` は処理済みスキップ (REQ-F-007 / REQ-F-009) を表し、`passthrough` は除去対象外を表します。
 両者を統合すると、除去した実行と全件が処理済みであった実行を区別できません。
+`skipped` は除去対象と判定しながら dry-run のため書き込みを見送った状態を表し、
+通常実行では発生しません (DR-29) 。
+
+サマリーの件数は分類と 1 対 1 に対応する 5 分類で報告します (DR-30) 。
+`stripped` は常に「書き換えた実績」、`skipped` は常に「書き換えなかった件数」であり、
+通常実行では `skipped` が 0、dry-run では `stripped` が 0 となって両者は排他になります。
+dry-run で「実行すれば何件 strip されるか」を知るには `skipped` を参照します。
 
 `done` は dry-run 専用ではなく、通常実行のサマリーにも計上します。
 
-全ファイルの評価を終えた時点で、次の式が成立しなければなりません (DR-15) 。
+除去前後の合計バイト数は `bytesBefore` / `bytesAfter` として件数と同じ行に出力します。
+集計対象は除去対象と分類したファイルに限ります。
+すなわち通常実行では `stripped`、dry-run では `skipped` です。
+値は **本文** (frontmatter を除く) の UTF-8 バイト数の合計です。
+対象ディレクトリ全体のサイズではありません。
+除去を伴わない分類 (`done` / `passthrough` / `error`) は本文バイト数を持ちません。
+判定カスケードは本文の分割を R-005 の直前まで行わないためです。
+R-002 (読み取り失敗・frontmatter 欠落) では本文自体が得られず、
+R-003 / R-004 (`done`) では本文を読む前に判定が確定します。
+したがって除去対象が 1 件も無い実行では両者とも 0 になります。
+除去前後の差は除去範囲のバイト数 (removedBytes) の合計です。
+removedBytes は除去範囲最終行の行末終端子を含みません。
+このため実ファイルの縮小量とは除去 1 件あたり 1 バイト異なります。
+dry-run でも同じ値を出力します。1 件ごとの明細は除去バイト数を出力しないため (REQ-F-005) 、
+実行した場合の除去規模を事前に知る手段はこのサマリーだけだからです。
+
+通常実行では、サマリーに加えて処理したファイルを 1 件ごとに報告しなければなりません (DR-29 決定 6) 。
+対象は `stripped` と `passthrough` の 2 分類とし、`done` は出力しません。
+再実行時は大半が `done` となるため、全件を出力するとその実行で実際に何が起きたかが読めなくなります。
+退避付き書き込みに失敗した場合は、当該ファイルをエラーとして別途報告します。
+
+全ファイルの評価を終えた時点で、次の式が成立しなければなりません (DR-15 / DR-30) 。
 
 ```text
-stripped + done + passthrough == total  かつ  error == 0
+stripped + skipped + done + passthrough == total  かつ  error == 0
 ```
 
 `.bak` の削除に失敗したファイルが 1 件以上ある場合、
@@ -587,9 +658,9 @@ stripped + done + passthrough == total  かつ  error == 0
 
 **Acceptance Criteria**:
 
-| AC ID  | Scenario                          |
-| ------ | --------------------------------- |
-| AC-008 | サマリーに 4 分類の件数が含まれる |
+| AC ID  | Scenario                                                  |
+| ------ | --------------------------------------------------------- |
+| AC-008 | サマリーに 5 分類の件数と除去前後の合計バイト数が含まれる |
 
 ## 5. Non-Functional Requirements
 
@@ -796,7 +867,8 @@ THEN the system SHALL `writeTextFile` に `backupToBak` (DR-03 / DR-17) を渡�
 
 ```text
 GIVEN strip の実行が要求された
-  WHERE period が省略されている、または `--input-dir` による override が指定されている
+  WHERE period が省略されている、`--input-dir` による override が指定されている、
+        または出力ディレクトリ (`--output-dir` もしくは第 3 位置引数) が指定されている
   NOT DO 処理対象ファイルを列挙する
 THEN the system SHALL 実行を拒否し、ファイルを 1 件も変更してはならない。
 ```
@@ -814,8 +886,14 @@ period は必須引数として扱い、省略と不正形式のいずれも受�
 | period (不正形式)      | 既存実装で拒否済 | agent の次の位置引数は `YYYY-MM` 形式が必須で、違反時は `InvalidPeriodPosition` を throw する (`_cle-libs/libs/io/parse-args.ts`)                                                      |
 | period (省略)          | **破れる**       | `agentPath()` が agent のみを返し (`_cle-libs/libs/file-io/resolve-directory.ts`) 、`findFiles` の再帰走査 (`_cle-libs/libs/file-ops/find-files.ts`) が agent 直下の全年月を対象にする |
 | `--input-dir` override | **破れる**       | `resolveChatlogsDir()` は override 指定時に agent / period / addOnDir をすべて無視する (`_cle-libs/libs/file-io/resolve-directory.ts`)                                                 |
+| 出力ディレクトリの指定 | **破れる**       | 共通 `parseArgs` が `--output-dir` と第 3 位置引数を `outputDir` へ格納するが、strip は in-place で書き換えるため値を参照しない (DR-32)                                                |
 
-したがって本要件が新たに閉じるのは「period の省略」と「override の指定」の 2 経路です。
+したがって本要件が新たに閉じるのは「period の省略」「override の指定」
+「出力ディレクトリの指定」の 3 経路です。
+
+出力ディレクトリを拒否する理由は、指定された値が `resolveChatlogsDir()` へ渡らないためです。
+利用者が出力先を変えたつもりの実行が `originalLogs/` を破壊的に書き換えます。
+strip は対象を in-place で書き換える処理であり、出力先という概念を持ちません (DR-32) 。
 
 **実装上の注意**: この拒否は strip サブコマンド固有の制約です。
 `filter` / `noise-filter` は period 省略を許容する既存挙動を維持するため、
@@ -823,10 +901,11 @@ period は必須引数として扱い、省略と不正形式のいずれも受�
 
 **Acceptance Criteria**:
 
-| AC ID  | Scenario                                                                  |
-| ------ | ------------------------------------------------------------------------- |
-| AC-021 | period を省略して実行すると拒否され、ファイルが 1 件も変更されない        |
-| AC-022 | `--input-dir` を指定して実行すると拒否され、ファイルが 1 件も変更されない |
+| AC ID  | Scenario                                                                    |
+| ------ | --------------------------------------------------------------------------- |
+| AC-021 | period を省略して実行すると拒否され、ファイルが 1 件も変更されない          |
+| AC-022 | `--input-dir` を指定して実行すると拒否され、ファイルが 1 件も変更されない   |
+| AC-027 | 出力ディレクトリを指定して実行すると拒否され、ファイルが 1 件も変更されない |
 
 ## 7. User Stories
 
@@ -897,7 +976,7 @@ Scenario: dry-run は非破壊である
   Given 除去対象を含むディレクトリ
   When  filter strip claude 2026-07 --dry-run を実行する
   Then  いずれのファイルも変更されず .bak も作成されない
-  And   対象件数と除去見込みバイト数が報告される
+  And   対象件数と分類ごとの件数が報告される
 
 # AC-006: 既存 .bak があるファイルがスキップされる
 # Requirement: REQ-F-007
@@ -954,6 +1033,15 @@ Scenario: 異常時は .bak を残す
   When  filter strip を実行する
   Then  対象ディレクトリ配下の .bak が全て残っている
 
+# AC-025: stripped に由来しない .bak の削除時に件数とパスが警告で報告される
+# Requirement: REQ-F-010
+Scenario: 当該実行の産物でない .bak の削除を報告する
+  Given 除去対象を含み error が発生しないディレクトリ
+  And   stripped と判定されないファイルに対応する .bak が存在する
+  When  filter strip を実行する
+  Then  当該 .bak の件数とパスが警告として報告される
+  And   対象ディレクトリ配下の .bak が全て削除されている
+
 # AC-011: 除去後が空になるファイルが error として保護される
 # Requirement: REQ-F-008
 Scenario: 除去範囲が異常なファイルは書き換えられない
@@ -971,19 +1059,34 @@ Scenario: frontmatter 欠落は前提の破れとして検出される
   And   .bak ファイルが作成されていない
   And   error として計上される
 
-# AC-012: dry-run 出力に判定理由と除去範囲が含まれる
-# Requirement: REQ-F-005
+# AC-012: dry-run 出力にファイルパスと判定結果が 1 件ごとに含まれる
+# Requirement: REQ-F-005 (DR-29 により改訂)
 Scenario: dry-run が監査ログとして機能する
   Given 除去対象・対象外・スキップ対象が混在するディレクトリ
   When  filter strip --dry-run を実行する
-  Then  各ファイルのパス・判定結果・判定理由・除去バイト数が出力される
+  Then  各ファイルのパスと判定結果が 1 行ずつ出力される
+  And   除去対象と判定したファイルが skipped として出力される
+  And   error と判定したファイルにのみ該当した判定規則の ID が併記される
+  And   除去範囲および除去バイト数は出力されない
 
-# AC-008: サマリーに 4 分類の件数が含まれる
+# AC-008: サマリーに 5 分類の件数と除去前後の合計バイト数が含まれる
 # Requirement: REQ-F-006
 Scenario: 処理結果が報告される
   Given 除去対象と対象外が混在するディレクトリ
   When  filter strip を実行する
-  Then  total / stripped / done / passthrough / error の件数が出力される
+  Then  total / stripped / skipped / done / passthrough / error の件数が出力される
+  And   除去前後の合計バイト数 (bytesBefore / bytesAfter) が出力される
+  And   除去前後の差が除去範囲のバイト数 (removedBytes) の合計と一致する
+
+Scenario: dry-run でも除去規模が報告される
+  Given 同一のディレクトリ
+  When  filter strip --dry-run を実行する
+  Then  除去前後の合計バイト数が通常実行と同じ値で出力される
+
+Scenario: 除去対象が無い実行ではバイト数が 0 になる
+  Given 除去対象を 1 件も含まないディレクトリ
+  When  filter strip を実行する
+  Then  bytesBefore と bytesAfter がいずれも 0 として出力される
 
 # AC-017: _status を持つファイルの正式版出力に _status が無い
 # Requirement: REQ-F-011 (DR-14 により Superseded。以下は DR-14 以前の記録)
@@ -1039,6 +1142,20 @@ Scenario: --input-dir 指定時に実行を拒否する
   Then  実行が拒否される
   And   対象ファイルの列挙が行われない
   And   いずれのファイルも変更されない
+
+# AC-027: 出力ディレクトリを指定して実行すると拒否され、ファイルが 1 件も変更されない
+# Requirement: REQ-C-008
+Scenario Outline: 出力ディレクトリ指定時に実行を拒否する
+  Given <指定方法> によって出力ディレクトリを与えた引数
+  When  filter strip を実行する
+  Then  実行が拒否される
+  And   対象ファイルの列挙が行われない
+  And   いずれのファイルも変更されない
+
+  Examples:
+    | 指定方法       |
+    | --output-dir   |
+    | 第 3 位置引数  |
 ```
 
 ## 9. Open Questions
@@ -1069,33 +1186,33 @@ Scenario: --input-dir 指定時に実行を拒否する
 
 ## 10. Traceability
 
-| REQ ID     | AC IDs         | Type           |
-| ---------- | -------------- | -------------- |
-| REQ-F-000  | AC-010         | Functional     |
-| REQ-F-001  | AC-001, AC-002 | Functional     |
-| REQ-F-002  | AC-003         | Functional     |
-| REQ-F-003  | AC-004         | Functional     |
-| REQ-F-004  | AC-005         | Functional     |
-| REQ-F-005  | AC-007, AC-012 | Functional     |
-| REQ-F-006  | AC-008         | Functional     |
-| REQ-F-007  | AC-006, AC-009 | Functional     |
-| REQ-F-008  | AC-011, AC-023 | Functional     |
-| REQ-F-009  | AC-013, AC-014 | Functional     |
-| REQ-F-010  | AC-015, AC-016 | Functional     |
-| REQ-F-011  | AC-017         | Functional     |
-| REQ-NF-001 | N/A            | Non-Functional |
-| REQ-NF-002 | N/A            | Non-Functional |
-| REQ-NF-003 | N/A            | Non-Functional |
-| REQ-NF-004 | N/A            | Non-Functional |
-| REQ-NF-005 | N/A            | Non-Functional |
-| REQ-C-001  | N/A            | Constraint     |
-| REQ-C-002  | N/A            | Constraint     |
-| REQ-C-003  | N/A            | Constraint     |
-| REQ-C-004  | N/A            | Constraint     |
-| REQ-C-005  | AC-018         | Constraint     |
-| REQ-C-006  | AC-019         | Constraint     |
-| REQ-C-007  | AC-020         | Constraint     |
-| REQ-C-008  | AC-021, AC-022 | Constraint     |
+| REQ ID     | AC IDs                 | Type           |
+| ---------- | ---------------------- | -------------- |
+| REQ-F-000  | AC-010                 | Functional     |
+| REQ-F-001  | AC-001, AC-002         | Functional     |
+| REQ-F-002  | AC-003                 | Functional     |
+| REQ-F-003  | AC-004                 | Functional     |
+| REQ-F-004  | AC-005                 | Functional     |
+| REQ-F-005  | AC-007, AC-012         | Functional     |
+| REQ-F-006  | AC-008                 | Functional     |
+| REQ-F-007  | AC-006, AC-009         | Functional     |
+| REQ-F-008  | AC-011, AC-023         | Functional     |
+| REQ-F-009  | AC-013, AC-014         | Functional     |
+| REQ-F-010  | AC-015, AC-016, AC-025 | Functional     |
+| REQ-F-011  | AC-017                 | Functional     |
+| REQ-NF-001 | N/A                    | Non-Functional |
+| REQ-NF-002 | N/A                    | Non-Functional |
+| REQ-NF-003 | N/A                    | Non-Functional |
+| REQ-NF-004 | N/A                    | Non-Functional |
+| REQ-NF-005 | N/A                    | Non-Functional |
+| REQ-C-001  | N/A                    | Constraint     |
+| REQ-C-002  | N/A                    | Constraint     |
+| REQ-C-003  | N/A                    | Constraint     |
+| REQ-C-004  | N/A                    | Constraint     |
+| REQ-C-005  | AC-018                 | Constraint     |
+| REQ-C-006  | AC-019                 | Constraint     |
+| REQ-C-007  | AC-020                 | Constraint     |
+| REQ-C-008  | AC-021, AC-022, AC-027 | Constraint     |
 
 ## 11. Change History
 
@@ -1106,34 +1223,40 @@ Scenario: --input-dir 指定時に実行を拒否する
 
 <!-- markdownlint-disable line-length -->
 
-| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-12 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 2026-08-12 | 1.1.0   | REQ-F-009 (frontmatter 処理済みマーカー) / REQ-F-010 (正常終了時の `.bak` 一括削除) を追加。Q-05 を解決                                                                                                                                                                                                                                                                                                              |
-| 2026-08-12 | 1.1.1   | `review req --phase explore` の指摘を反映。Q-06 (退避命名と書き込み順序) / Q-07 (`stripped: true` の付与経路) を追加。§2 に frontmatter 書き戻し経路とサブコマンド分岐の前提を追記。REQ-C-001 の未完文を補完し適用対象外を明記                                                                                                                                                                                       |
-| 2026-08-12 | 1.2.0   | DR-03 (`BackupProvider` 抽象化・冪等判定は呼び出し側) を決定し Q-06 を解決。`decision-record.md` を新規作成し DR-01 / DR-02 も収録。REQ-C-001 に新設 3 関数を明記し、REQ-F-009 / REQ-NF-005 / §2 を DR-03 に整合                                                                                                                                                                                                     |
-| 2026-08-12 | 1.2.1   | バージョン採番を SemVer に統一。frontmatter を 3 桁表記に修正し、既存版を重要度で再採番 (旧 1.2.0 → 1.1.1、旧 1.3.0 → 1.2.0) 。採番規約は `deckrd-rule-document-versioning.md` に集約                                                                                                                                                                                                                                |
-| 2026-08-12 | 1.2.2   | DR 文書を全フェーズ共通の成果物としてモジュール直下へ移動し、deckrd 規約に合わせ複数形へ改名 (`requirements/decision-record.md` → `../decision-records.md`) 。§3 のリンクを追随                                                                                                                                                                                                                                      |
-| 2026-08-12 | 1.3.0   | DR-04 (処理済みマーカーを private フィールド `_status` として `ChatlogFrontmatter` で付与) を決定し Q-07 を解決。マーカーを `stripped: true` から `_status: stripped` に変更し、`PRIVATE_STATUS_FIELD` / `CHATLOG_STATUSES` の共通定数化を REQ-F-009 に規定                                                                                                                                                          |
-| 2026-08-12 | 1.4.0   | REQ-F-011 (private フィールドの正式版ログへの非出力) / AC-017 を追加。DR-04 に不変条件として 3 段階の出力可否表を追記                                                                                                                                                                                                                                                                                                |
-| 2026-08-12 | 1.4.1   | Q-04 を解決 (codex 42 件・chatgpt 9 件の事前検査を実施し定型部マーカー 0 件を確認) 。REQ-C-004 に検査結果と再検査条件を追記                                                                                                                                                                                                                                                                                          |
-| 2026-08-12 | 1.5.0   | `review req --phase harden` を実施。散文の禁止事項を REQ-C-005 / REQ-C-006 / REQ-C-007 として規範化し AC-018 〜 AC-020 を追加。DR-05 として記録                                                                                                                                                                                                                                                                      |
-| 2026-08-12 | 1.5.1   | `review req --phase fix` を実施。§1.1 の不要マーカー `<>` を除去、REQ-C-001 の「バックアップ」を「退避」に統一、REQ-C-003 / REQ-C-004 の順序を修正、AC-020 を Scenario Outline 化して検証可能にした                                                                                                                                                                                                                  |
-| 2026-08-12 | 1.6.0   | DR-03 を改訂。`writeTextFileWithBackup` の新設をやめ、既存 `writeTextFile` に `BackupProvider` を受け取る第 3 引数を追加する方式へ変更。`backupPath` は既存 `.bak` があれば無視して `null` を返す                                                                                                                                                                                                                    |
-| 2026-08-12 | 1.7.0   | DR-06 を追加。`.bak` 削除条件を `error 0` から「全ファイルの `_status` が `stripped`」へ変更し、最終的な復旧手段が `export-chatlogs` の再実行であることを明記。`.bak` を「唯一の復旧手段」とする記述を補正                                                                                                                                                                                                           |
-| 2026-08-12 | 1.8.0   | DR-07 を決定し REQ-C-008 (対象範囲を `<agent> <YYYY-MM>` に限定する実行時拒否) / AC-021 / AC-022 を追加。codex risk review の対応候補 4 を解決。agent 軸は単一値解決により分離が保証されることを REQ-C-004 に明記し、Q-04 を (a) 他エージェント = 解決 / (b) 他年月 = 適用範囲外へ封じることで解決 に分離。period 必須化に伴い §1.2 / 図 / REQ-F-001 の `[YYYY-MM]` を `<YYYY-MM>` に統一                            |
-| 2026-08-12 | 2.0.0   | REQ-F-010 の削除条件を再定義。`_status` 基準 (v1.7.0) をやめ、error 0 件を条件とする対象ディレクトリ単位の一括削除に変更。passthrough が `_status` を持たず条件が実質成立しない問題を解消。除外条件「当該実行で作成していない既存 `.bak`」を削除し、中断により残った `.bak` も削除対象に含める。AC-015 / AC-016 の文言を対象ディレクトリ基準へ変更。REQ-C-001 の `BackupProvider` 戻り値の説明に `null` の意味を追記 |
-| 2026-08-12 | 2.1.0   | spec explore レビュー (F-01 / A-01) を反映。REQ-F-008 の判定基準に「frontmatter を持たない」を追加し AC-023 を新設。frontmatter は `renderMarkdown` により構造的に必ず存在するため、欠落を前提の破れとして error 扱いとする。あわせて除去率の算出式 (除去バイト数 ÷ 本文バイト数) を明記し、分母が本文であることを確定                                                                                               |
-| 2026-08-12 | 2.1.1   | REQ-F-008 の「frontmatter を持たない」基準の根拠として DR-09 を §3 に追加。要件の追加・変更は伴わない                                                                                                                                                                                                                                                                                                                |
-| 2026-08-12 | 3.0.0   | spec harden レビュー（DR-10 / DR-11 / DR-12）を反映。REQ-F-008 の判定基準から到達不能な「`## Summary` 以降が存在しない」を削除し 3 点から 2 点へ（DR-11）。REQ-F-006 に退避削除の失敗報告と終了コードの規定を追加（DR-10）。REQ-C-001 の `backupPath` 戻り値を `Promise<string>` に変更（DR-12）                                                                                                                     |
-| 2026-08-12 | 4.0.0   | DR-13 を反映。ファイル単位の分類を 4 つから 3 つへ統合し、skipped を passthrough に含める。REQ-F-006 に処理済みスキップの内訳報告と全件処理の判定式を追加。REQ-F-007 / REQ-F-009 / REQ-F-005 / REQ-NF-003 の分類表記と AC-006 / AC-014 / AC-008 の期待値を更新                                                                                                                                                       |
-| 2026-08-12 | 5.0.0   | DR-14 を反映し DR-04 を破棄。処理済みマーカーを本体の frontmatter から `ChatlogCache` へ移し、strip は本体の frontmatter を変更しない。REQ-F-009 をキャッシュ記録として再定義し AC-024 を新設。本体への `_status` 付与に由来する REQ-F-011 / REQ-C-005 / REQ-C-006 を Superseded とする                                                                                                                              |
-| 2026-08-13 | 5.1.0   | DR-15 を反映し DR-13 を破棄。分類を 3 つから 4 つへ戻し、処理済みスキップを `done` として独立させる。REQ-F-006 の報告項目と判定式を 4 分類へ変更し、内訳報告の規定を削除。REQ-F-005 に集計構造の一致とキャッシュ非記録を追加。REQ-F-007 / REQ-F-009 の分類表記と AC-006 / AC-008 / AC-014 の期待値を更新                                                                                                             |
-| 2026-08-13 | 5.2.0   | DR-16 を反映。REQ-F-010 の削除条件に `.bak` の包含関係を追加し、破れた場合の報告と終了コードを規定。件数比較で代替できない理由を記録。削除範囲は不変                                                                                                                                                                                                                                                                 |
-| 2026-08-13 | 5.2.1   | claude/2026-07 の再実測により DR-01 の根拠データを訂正。除去対象 6402→6398 / `## Summary` 保有 10290→10288 / 対象外 3888→3890。「先頭 strip 後も定型部が残る 2 件」は実測 0 件のため訂正し、取りこぼしを 6 件→4 件（後方配置のみ）へ。要件・受け入れ基準の変更は伴わない                                                                                                                                             |
-| 2026-08-13 | 5.3.0   | codex risk レビューの対応候補 C に対応。AC-024 の「バイト単位で一致」を `ChatlogFrontmatter` による同一性比較へ改める (CRLF 正規化は決定事項として維持)。REQ-F-009 に判定基準 (キー集合と値の一致・キー順は非対象) を追加。REQ-C-001 に同一性比較の追加を記載                                                                                                                                                        |
-| 2026-08-13 | 5.3.1   | DR-14 で無効化された `_status` 由来の陳腐化記述を一掃 (issue cle-ax1)。Scope / System Context Diagram / 利用ライブラリ / REQ-F-002 / AC-013 Gherkin を現行仕様へ更新し、AC-024 の Gherkin を新設。Superseded 済みの REQ-F-011 / REQ-C-005 配下の記述は歴史的記録として維持し、Gherkin に Superseded 注記を追加。要件の追加・変更は伴わない                                                                           |
-| 2026-08-13 | 6.0.0   | DR-17 を反映し DR-12 の決定を破棄 (MAJOR: decided approach discarded)。退避 Provider 名を `backupPath` から `backupToBak` へ改め、既存 `.bak` 到達時の挙動を throw からスキップ + `null` へ変更。REQ-C-001 の `BackupProvider` / `backupToBak` / `writeTextFile` の記述を更新し、`writeTextFile` の戻り値を DR-03 決定 4 のコード例どおり `Promise<string \| null>` に是正。REQ-F-009 の Provider 名を更新           |
-| 2026-08-13 | 6.1.0   | codex review (PR #409) の指摘「キャッシュの状態が再生成されたソースと乖離する」に対応。REQ-F-009 の判定順序に既知の制約を追記し、再 export 時のキャッシュ消去を利用者の責任として明記。Out of Scope に「再 export 後のキャッシュ整合の自動回復」を追加。`--recover-orphans` による復帰は strip 自身の副作用であるため利用者責任に含めず DR-24 で対処する旨を併記                                                     |
+| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-12 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-08-12 | 1.1.0   | REQ-F-009 (frontmatter 処理済みマーカー) / REQ-F-010 (正常終了時の `.bak` 一括削除) を追加。Q-05 を解決                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-08-12 | 1.1.1   | `review req --phase explore` の指摘を反映。Q-06 (退避命名と書き込み順序) / Q-07 (`stripped: true` の付与経路) を追加。§2 に frontmatter 書き戻し経路とサブコマンド分岐の前提を追記。REQ-C-001 の未完文を補完し適用対象外を明記                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2026-08-12 | 1.2.0   | DR-03 (`BackupProvider` 抽象化・冪等判定は呼び出し側) を決定し Q-06 を解決。`decision-record.md` を新規作成し DR-01 / DR-02 も収録。REQ-C-001 に新設 3 関数を明記し、REQ-F-009 / REQ-NF-005 / §2 を DR-03 に整合                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-12 | 1.2.1   | バージョン採番を SemVer に統一。frontmatter を 3 桁表記に修正し、既存版を重要度で再採番 (旧 1.2.0 → 1.1.1、旧 1.3.0 → 1.2.0) 。採番規約は `deckrd-rule-document-versioning.md` に集約                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-12 | 1.2.2   | DR 文書を全フェーズ共通の成果物としてモジュール直下へ移動し、deckrd 規約に合わせ複数形へ改名 (`requirements/decision-record.md` → `../decision-records.md`) 。§3 のリンクを追随                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-08-12 | 1.3.0   | DR-04 (処理済みマーカーを private フィールド `_status` として `ChatlogFrontmatter` で付与) を決定し Q-07 を解決。マーカーを `stripped: true` から `_status: stripped` に変更し、`PRIVATE_STATUS_FIELD` / `CHATLOG_STATUSES` の共通定数化を REQ-F-009 に規定                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2026-08-12 | 1.4.0   | REQ-F-011 (private フィールドの正式版ログへの非出力) / AC-017 を追加。DR-04 に不変条件として 3 段階の出力可否表を追記                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-12 | 1.4.1   | Q-04 を解決 (codex 42 件・chatgpt 9 件の事前検査を実施し定型部マーカー 0 件を確認) 。REQ-C-004 に検査結果と再検査条件を追記                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2026-08-12 | 1.5.0   | `review req --phase harden` を実施。散文の禁止事項を REQ-C-005 / REQ-C-006 / REQ-C-007 として規範化し AC-018 〜 AC-020 を追加。DR-05 として記録                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-08-12 | 1.5.1   | `review req --phase fix` を実施。§1.1 の不要マーカー `<>` を除去、REQ-C-001 の「バックアップ」を「退避」に統一、REQ-C-003 / REQ-C-004 の順序を修正、AC-020 を Scenario Outline 化して検証可能にした                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-08-12 | 1.6.0   | DR-03 を改訂。`writeTextFileWithBackup` の新設をやめ、既存 `writeTextFile` に `BackupProvider` を受け取る第 3 引数を追加する方式へ変更。`backupPath` は既存 `.bak` があれば無視して `null` を返す                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-08-12 | 1.7.0   | DR-06 を追加。`.bak` 削除条件を `error 0` から「全ファイルの `_status` が `stripped`」へ変更し、最終的な復旧手段が `export-chatlogs` の再実行であることを明記。`.bak` を「唯一の復旧手段」とする記述を補正                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 2026-08-12 | 1.8.0   | DR-07 を決定し REQ-C-008 (対象範囲を `<agent> <YYYY-MM>` に限定する実行時拒否) / AC-021 / AC-022 を追加。codex risk review の対応候補 4 を解決。agent 軸は単一値解決により分離が保証されることを REQ-C-004 に明記し、Q-04 を (a) 他エージェント = 解決 / (b) 他年月 = 適用範囲外へ封じることで解決 に分離。period 必須化に伴い §1.2 / 図 / REQ-F-001 の `[YYYY-MM]` を `<YYYY-MM>` に統一                                                                                                                                                                                                                                                                                                |
+| 2026-08-12 | 2.0.0   | REQ-F-010 の削除条件を再定義。`_status` 基準 (v1.7.0) をやめ、error 0 件を条件とする対象ディレクトリ単位の一括削除に変更。passthrough が `_status` を持たず条件が実質成立しない問題を解消。除外条件「当該実行で作成していない既存 `.bak`」を削除し、中断により残った `.bak` も削除対象に含める。AC-015 / AC-016 の文言を対象ディレクトリ基準へ変更。REQ-C-001 の `BackupProvider` 戻り値の説明に `null` の意味を追記                                                                                                                                                                                                                                                                     |
+| 2026-08-12 | 2.1.0   | spec explore レビュー (F-01 / A-01) を反映。REQ-F-008 の判定基準に「frontmatter を持たない」を追加し AC-023 を新設。frontmatter は `renderMarkdown` により構造的に必ず存在するため、欠落を前提の破れとして error 扱いとする。あわせて除去率の算出式 (除去バイト数 ÷ 本文バイト数) を明記し、分母が本文であることを確定                                                                                                                                                                                                                                                                                                                                                                   |
+| 2026-08-12 | 2.1.1   | REQ-F-008 の「frontmatter を持たない」基準の根拠として DR-09 を §3 に追加。要件の追加・変更は伴わない                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-12 | 3.0.0   | spec harden レビュー（DR-10 / DR-11 / DR-12）を反映。REQ-F-008 の判定基準から到達不能な「`## Summary` 以降が存在しない」を削除し 3 点から 2 点へ（DR-11）。REQ-F-006 に退避削除の失敗報告と終了コードの規定を追加（DR-10）。REQ-C-001 の `backupPath` 戻り値を `Promise<string>` に変更（DR-12）                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-12 | 4.0.0   | DR-13 を反映。ファイル単位の分類を 4 つから 3 つへ統合し、skipped を passthrough に含める。REQ-F-006 に処理済みスキップの内訳報告と全件処理の判定式を追加。REQ-F-007 / REQ-F-009 / REQ-F-005 / REQ-NF-003 の分類表記と AC-006 / AC-014 / AC-008 の期待値を更新                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2026-08-12 | 5.0.0   | DR-14 を反映し DR-04 を破棄。処理済みマーカーを本体の frontmatter から `ChatlogCache` へ移し、strip は本体の frontmatter を変更しない。REQ-F-009 をキャッシュ記録として再定義し AC-024 を新設。本体への `_status` 付与に由来する REQ-F-011 / REQ-C-005 / REQ-C-006 を Superseded とする                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-08-13 | 5.1.0   | DR-15 を反映し DR-13 を破棄。分類を 3 つから 4 つへ戻し、処理済みスキップを `done` として独立させる。REQ-F-006 の報告項目と判定式を 4 分類へ変更し、内訳報告の規定を削除。REQ-F-005 に集計構造の一致とキャッシュ非記録を追加。REQ-F-007 / REQ-F-009 の分類表記と AC-006 / AC-008 / AC-014 の期待値を更新                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-08-13 | 5.2.0   | DR-16 を反映。REQ-F-010 の削除条件に `.bak` の包含関係を追加し、破れた場合の報告と終了コードを規定。件数比較で代替できない理由を記録。削除範囲は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 2026-08-13 | 5.2.1   | claude/2026-07 の再実測により DR-01 の根拠データを訂正。除去対象 6402→6398 / `## Summary` 保有 10290→10288 / 対象外 3888→3890。「先頭 strip 後も定型部が残る 2 件」は実測 0 件のため訂正し、取りこぼしを 6 件→4 件（後方配置のみ）へ。要件・受け入れ基準の変更は伴わない                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-08-13 | 5.3.0   | codex risk レビューの対応候補 C に対応。AC-024 の「バイト単位で一致」を `ChatlogFrontmatter` による同一性比較へ改める (CRLF 正規化は決定事項として維持)。REQ-F-009 に判定基準 (キー集合と値の一致・キー順は非対象) を追加。REQ-C-001 に同一性比較の追加を記載                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-08-13 | 5.3.1   | DR-14 で無効化された `_status` 由来の陳腐化記述を一掃 (issue cle-ax1)。Scope / System Context Diagram / 利用ライブラリ / REQ-F-002 / AC-013 Gherkin を現行仕様へ更新し、AC-024 の Gherkin を新設。Superseded 済みの REQ-F-011 / REQ-C-005 配下の記述は歴史的記録として維持し、Gherkin に Superseded 注記を追加。要件の追加・変更は伴わない                                                                                                                                                                                                                                                                                                                                               |
+| 2026-08-13 | 6.0.0   | DR-17 を反映し DR-12 の決定を破棄 (MAJOR: decided approach discarded)。退避 Provider 名を `backupPath` から `backupToBak` へ改め、既存 `.bak` 到達時の挙動を throw からスキップ + `null` へ変更。REQ-C-001 の `BackupProvider` / `backupToBak` / `writeTextFile` の記述を更新し、`writeTextFile` の戻り値を DR-03 決定 4 のコード例どおり `Promise<string \| null>` に是正。REQ-F-009 の Provider 名を更新                                                                                                                                                                                                                                                                               |
+| 2026-08-13 | 6.1.0   | codex review (PR #409) の指摘「キャッシュの状態が再生成されたソースと乖離する」に対応。REQ-F-009 の判定順序に既知の制約を追記し、再 export 時のキャッシュ消去を利用者の責任として明記。Out of Scope に「再 export 後のキャッシュ整合の自動回復」を追加。`--recover-orphans` による復帰は strip 自身の副作用であるため利用者責任に含めず DR-24 で対処する旨を併記                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-16 | 7.0.0   | DR-29 を反映し、REQ-F-005 の「除去範囲・除去見込みバイト数を報告する」要求と、正常系分類にも判定理由を求める規定を削除 (MAJOR: requirement removed)。分類に `skipped` を加えて 5 値とし、dry-run 固有の差異を「表示上の時制」から「`skipped` というラベル」へ改める。`error` に限り判定規則 ID を出力する旨を規定。AC-012 を「ファイルパスと判定結果が 1 件ごとに含まれる」へ改訂し Gherkin を追随。REQ-F-006 に通常実行の per-file 報告 (`stripped` / `passthrough` のみ) を追加し、分類 5 値と統計 4 分類の非対称が意図的である旨を明記。AC-008 の「4 分類」は統計サマリーの分類であり不変。AC-007 の Gherkin から「除去見込みバイト数が報告される」を削除し「分類ごとの件数」へ改める |
+| 2026-08-16 | 8.0.0   | DR-30 を反映し DR-29 決定 3 のうち「件数は `StripStats.stripped` へ加算する」部分を破棄 (MAJOR: decided approach discarded)。REQ-F-006 のサマリーを分類と 1 対 1 に対応する 5 分類へ改め、`stripped` と `skipped` が排他である旨と dry-run で `skipped` を参照する旨を規定。「分類 5 値と統計 4 分類の非対称が意図的」とする記述を削除。全件処理の判定式を `stripped + skipped + done + passthrough == total` へ改訂。AC-008 を「サマリーに 5 分類の件数が含まれる」へ改訂し Gherkin を追随。REQ-F-005 に dry-run の `skipped` が通常実行の `stripped` と一致する旨を追加                                                                                                                |
+| 2026-08-16 | 8.1.0   | DR-31 を反映 (MINOR: 要求と AC を追加)。REQ-F-009 の記録契機に passthrough を追加し、記録する処理済み状態を `stripped` / `passthrough` の 2 種として表に整理。判定順序の手順 1 が両 status を処理済みとみなす旨、記録が書き込みとは独立に判定の確定時点で行われる旨、記録失敗を error に計上する旨を規定。AC-025 / AC-026 を追加し、REQ-F-005 の dry-run 非記録に passthrough を明記。Scope の処理済み記録の根拠を 2 status へ更新                                                                                                                                                                                                                                                       |
+| 2026-08-16 | 8.2.0   | REQ-F-006 の「除去前後の合計バイト数」を実装可能な形へ具体化 (MINOR: AC を追加)。サマリーへ `bytesBefore` / `bytesAfter` を出力する旨と、集計対象を除去対象と分類したファイル (通常実行は `stripped` / dry-run は `skipped`) に限る旨、値が本文 (frontmatter を除く) の UTF-8 バイト数である旨、除去を伴わない分類が本文バイト数を持たない理由を規定。AC-008 を「5 分類の件数と除去前後の合計バイト数が含まれる」へ改訂し、dry-run 一致と除去対象 0 件の Gherkin を追加                                                                                                                                                                                                                  |
+| 2026-08-16 | 8.3.0   | DR-32 を反映 (MINOR: AC を追加)。REQ-C-008 の受理拒否条件に「出力ディレクトリ (`--output-dir` もしくは第 3 位置引数) の指定」を追加し、EARS の WHERE 句と軸ごとの表に当該経路を追記。値が受理されても `resolveChatlogsDir()` へ渡らず `originalLogs/` を in-place で書き換える経路であることを Rationale に記録。AC-027 を追加し Gherkin をフラグ・位置引数の 2 例で記述。Traceability の REQ-C-008 に AC-027 を追加                                                                                                                                                                                                                                                                     |
+| 2026-08-16 | 8.4.0   | DR-33 を反映 (MINOR: 振る舞いを追加)。REQ-F-009 の `--recover-orphans` の記述に、復帰またはキャッシュエントリ削除に失敗したファイルが 1 件以上ある場合は失敗件数を報告のうえ終了コードを成功以外とする規定を追加。乖離を残したまま成功終了すると次回実行が判定順序の手順 1 で永久に done と判定すること、2 回目の `--recover-orphans` では回収できないこと（DR-27）、報告が終了コードの生成に先行すること（DR-20 決定 3）を根拠として併記。REQ-F-006 / REQ-F-010 の通常モードの終了コード規定は不変                                                                                                                                                                                      |
 
 <!-- markdownlint-enable line-length -->

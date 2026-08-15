@@ -1,9 +1,9 @@
 ---
 title: "Working Note: filter strip の主処理フェーズ構成"
 module: "filter/strip"
-based-on: specifications.md v3.5.0
+based-on: specifications.md v5.4.0
 status: Working Note
-version: 1.6.2
+version: 3.2.0
 created: "2026-08-13"
 ---
 
@@ -18,7 +18,33 @@ created: "2026-08-13"
 >
 > 正式な impl 文書化は別途 `/deckrd impl` の実行を要します。
 > 本書は振る舞い規則を新たに定めるものではなく、
-> specifications.md v3.5.0 に定義済みの規則を実行順序に沿って整理したものです。
+> specifications.md v5.1.0 に定義済みの規則を実行順序に沿って整理したものです。
+>
+> **Superseded 注記 (DR-28 / DR-29 / DR-31)**
+>
+> 本書は作成時点 (v1.6.2) の構成を記録した作業ノートです。
+> 以下の 4 点は **DR-28 / DR-29 / DR-31 により破棄済み** であり、現在の実装とは一致しません。
+> 該当箇所には個別に注記を置いています。
+>
+> 1. **フェーズ境界を「判定と副作用」で切る** という方針 (Section 1.1 / 3.2) — DR-28 が破棄。
+>    判定 (Phase 2) と書き込み (Phase 3〜5) は **1 ファイル単位のパイプラインへ統合** され、
+>    フェーズ間の全件バリアは存在しません。
+> 2. **dry-run を「main が Phase 3〜6 を呼ばない」形で実現する** という方針 (Section 3.2 / 3.3) —
+>    DR-28 以降の構造では `dryRun` を引数で受け取り 1 ファイルごとに内部で分岐します。
+> 3. **分類が 4 値である** こと、および **dry-run 明細が除去範囲・除去バイト数を出力する** こと
+>    (Section 2 の Phase 2 / Phase 7) — DR-29 が `StripOutcome` を 5 値化し、明細から
+>    `lines=` / `removedBytes=` を全廃しました。
+> 4. **キャッシュ書き込みが Phase 3〜5 (`writeStripped`) の内部にのみ存在する** こと
+>    (Section 2 の Phase 5 / Section 3.4) — DR-31 が `passthrough` の記録を追加し、
+>    その記録は Phase 2 の直後に `_classifyFile` が行います。
+>    dry-run で記録しないという結論は変わりませんが、根拠は配置ではなく `!dryRun` ガードです。
+>
+> 一方、以下は **現在も有効** です。破棄の対象に含めないでください。
+>
+> - Phase 0 (受理ゲート) / Phase 1 (列挙・キャッシュ) / Phase 6 (退避削除) / Phase 7 (報告) の各段
+> - Section 1.3 の「退避付き書き込みを 3 段階に分ける理由」。当該順序 (tmp → 退避 → 差し替え → `stripped` のキャッシュ記録) は
+>   REQ-NF-005 の規定として `writeStripped` の内部に存続します
+> - Section 5 (配置と再利用) / Section 6 (codex risk レビューとの接続) / Section 7 (誤りやすい点)
 
 ---
 
@@ -43,19 +69,31 @@ step 1 と step 6 に分かれて位置します (Section 4.2) 。
 これは DR-15 で spec に追記した「分類ロジックは単一の判定関数に閉じなければならず、
 副作用の有無のみを呼び出し側で分岐しなければならない」という規定とも一致します。
 
+> **破棄済み (DR-28)**: 上記の「フェーズ境界を判定と副作用で切る」という方針は
+> DR-28 により破棄されました。判定と書き込みは **1 ファイル単位のパイプライン**
+> (`_processFiles`) へ統合され、1 ファイルが「分類 → ログ出力 → 件数加算」を一気通貫で
+> 完結させます。フェーズ間の全件バリアは存在しません。
+>
+> ただし本節の前段 —「安全弁 (R-002 / R-007) が同一カスケードの step 1 と step 6 に分かれるため
+> 独立フェーズに切り出せない」および「境界検出は判定の材料であり分離できない」— は現在も有効です。
+> 判定カスケードが 1 つの関数 (`classifyStrip`) に閉じる根拠として存続します。
+>
+> なお DR-15 の「分類ロジックは単一の判定関数に閉じる」も存続します。破棄されたのは
+> フェーズ境界の切り方であり、カスケードの単一化ではありません。
+
 ### 1.2 ユニット → フェーズ対応
 
-| Unit (spec 2.3)  | Phase           | 備考                                      |
-| ---------------- | --------------- | ----------------------------------------- |
-| 引数受理ゲート   | Phase 0         | 1 対 1                                    |
-| (列挙・読み込み) | Phase 1         | spec 2.3 に対応ユニット無し (下記参照)    |
-| 境界検出         | Phase 2 の内部  | 判定の材料であり、単独では観測されない    |
-| 分類             | Phase 2         | R-002 〜 R-008 のカスケード全体           |
-| 安全弁           | Phase 2 の内部  | R-002 / R-007。カスケードの一部として作用 |
-| 退避付き書き込み | Phase 3 / 4 / 5 | REQ-NF-005 の 3 段階に分割 (下記参照)     |
-| 処理済み記録     | Phase 5         | 差し替えの成立と同時に記録します          |
-| 退避削除         | Phase 6         | 1 対 1。実行単位の後処理                  |
-| 結果報告         | Phase 7         | 1 対 1                                    |
+| Unit (spec 2.3)  | Phase           | 備考                                                                        |
+| ---------------- | --------------- | --------------------------------------------------------------------------- |
+| 引数受理ゲート   | Phase 0         | 1 対 1                                                                      |
+| (列挙・読み込み) | Phase 1         | spec 2.3 に対応ユニット無し (下記参照)                                      |
+| 境界検出         | Phase 2 の内部  | 判定の材料であり、単独では観測されない                                      |
+| 分類             | Phase 2         | R-002 〜 R-008 のカスケード全体                                             |
+| 安全弁           | Phase 2 の内部  | R-002 / R-007。カスケードの一部として作用                                   |
+| 退避付き書き込み | Phase 3 / 4 / 5 | REQ-NF-005 の 3 段階に分割 (下記参照)                                       |
+| 処理済み記録     | Phase 5 / 2     | `stripped` は差し替えの成立と同時に。`passthrough` は判定の確定直後 (DR-31) |
+| 退避削除         | Phase 6         | 1 対 1。実行単位の後処理                                                    |
+| 結果報告         | Phase 7         | 1 対 1                                                                      |
 
 Phase 1 は spec 2.3 のユニット一覧に対応項目がありません。
 Section 3.1 が入力を「対象ディレクトリ配下の `*.md`」と定めるため列挙は必須ですが、
@@ -85,6 +123,10 @@ REQ-NF-004 は一時ファイル経由による原子性を要求します。
 
 ## 2. フェーズ構成
 
+> **破棄済み (DR-28 / DR-29)**: 下図の Phase 2 → Phase 3/4/5 の分岐構造と
+> 「dry-run では呼ばない」の括りは破棄されました。現在の構造は本節末尾の
+> 「### 統合後の構成 (DR-28 / DR-29)」を参照してください。以下の図は作成時点の記録です。
+
 ```text
 Phase 0  受理ゲート            R-001            ← 列挙より前
    |  受理
@@ -112,6 +154,47 @@ Phase 2  判定                  R-002 〜 R-008   ← 純粋・dry-run と共�
                        v
                 Phase 7  結果報告               (集計)
 ```
+
+### 統合後の構成 (DR-28 / DR-29)
+
+判定と書き込みは 1 ファイル単位のパイプラインへ統合されました。
+Phase 2 と Phase 3〜5 の間にあった全件バリアは存在しません。
+
+```text
+Phase 0  受理ゲート            R-001            ← 列挙より前
+   |  受理
+   v
+Phase 1  一覧取得・キャッシュ  (規則なし)
+   |     + 孤立退避の検出       R-014
+   v
+Phase 2〜5  1 ファイル単位のパイプライン        ← runConcurrent(files, fn, concurrency)
+   |
+   |  ┌─ 1 ファイルにつきこの 3 段を一気通貫 ────────────────────┐
+   |  │ _classifyFile   判定 R-002〜R-008 (classifyStrip)        │
+   |  │                 └ stripped のみ writeStripped へ         │
+   |  │                    R-009 (tmp → .bak → .md + キャッシュ) │
+   |  │ _logFileOutcome  ログ出力 (dry-run 明細 / info / error)  │
+   |  │ _applyFileOutcome 件数加算 (StripStats)                   │
+   |  └───────────────────────────────────────────────────────────┘
+   |
+   |  分類: stripped / done / passthrough / error / skipped (5 値)
+   |        skipped = 除去対象だが dry-run のため見送り (R-008 到達時)
+   v
+Phase 6  退避削除               R-010〜R-013     ← ループの外。ディレクトリ単位
+   |                            (error 0 件 + 包含成立時のみ / dry-run では抑止)
+   v
+Phase 7  結果報告               (集計 5 分類)
+```
+
+図の `_classifyFile` は、`stripped` を `writeStripped` へ渡すほかに、`passthrough` の判定が
+確定した時点でキャッシュへ記録します (`_recordPassthrough`。DR-31 決定 4) 。
+したがってキャッシュ書き込みは `writeStripped` の内部だけではなく `_classifyFile` にも存在します。
+dry-run ではいずれの記録も行いません (DR-31 決定 5) 。
+
+並列度は `StripConfig.concurrency` (既定値: `DEFAULT_STRIP_CONFIG.concurrency` = 4) で上限を課します。
+`sweepBackups` (Phase 6) のみループの外に留めます。ディレクトリ単位の一括処理であり、
+R-011 の保持ゲートへ渡す `stats.error` が孤立退避・判定 error・書き込み失敗の 3 者を含んだ
+確定値である必要があるためです (DR-28 決定 4) 。
 
 ### Phase 0: 受理ゲート
 
@@ -148,20 +231,42 @@ R-001 は列挙より前に評価する必要があるためです (Section 4.2)
 
 本フェーズが本設計の中核です。
 
-**単一の純粋関数** として実装し、ファイルごとに次を返します。
+**単一の判定関数** として実装し、ファイルごとに次を返します。
+実装配置は `skills/filter-chatlogs/scripts/libs/classify-strip.ts` の `classifyStrip` です
+(DR-29 決定 4。動詞-目的語順の命名) 。
 
 ```text
 { outcome, reason, removalStartLine, removalEndLine, removedBytes }
 ```
 
-- `outcome` — stripped / done / passthrough / error の 4 分類 (DR-15)
+- `outcome` — stripped / done / passthrough / error / skipped の 5 分類 (DR-29 決定 3)
 - `reason` — 該当した規則 ID。REQ-F-005 が求める dry-run の「判定理由」に対応
 - `removalStartLine` / `removalEndLine` — 除去の開始行と終了行
 - `removedBytes` — 除去バイト数。R-007 の除去率算出にも用いる
 
-開始行と終了行を分けて保持するのは、REQ-F-005 が dry-run 出力に
-「除去対象となる行範囲」を求めるためです。
-範囲を単一の値として持つと、報告時に再計算が必要になります。
+> **改訂 (DR-29 / DR-30)**: 当初は「stripped / done / passthrough / error の 4 分類 (DR-15) 」であり、
+> かつ「**単一の純粋関数**」と記していました。いずれも現在は成立しません。
+>
+> - 分類は `skipped` を加えた **5 値** です。`skipped` は「除去対象だが dry-run のため見送った」
+>   を表し、`classifyStrip` が `dryRun` を受け取って R-008 到達時にのみ `stripped` から振り替えます。
+>   `StripStats` は分類と同名の `skipped` フィールドを持ち、件数は `stats.skipped` へ加算します
+>   (`stats.stripped` へは加算しません。DR-30) 。したがって統計サマリーも 5 分類であり、
+>   分類 5 値と 1 対 1 に対応します。通常実行では `skipped` が 0、dry-run では `stripped` が 0 と
+>   なり、両者は排他です。
+> - `classifyStrip` は `ChatlogCache` を直接受け取り R-003 を内部で評価し、R-004 では
+>   `fileExists` を呼びます。**副作用は持ちません** (`writeStripped` を呼びません) が、
+>   外部状態を参照するため **純粋関数ではありません**。`hasBackup` / `readProvider` は
+>   実 I/O を切り離すテスト用の注入口として `options` に残ります (DR-29 決定 1・2) 。
+> - また DR-29 決定 3 により「分類は判定規則と 1 対 1 で対応する (DR-15) 」は破棄されました。
+>   R-008 が `dryRun` により `stripped` / `skipped` の 2 分類へ分岐するためです。
+>   対応は「規則 → 分類」の一方向となります。
+
+開始行と終了行を分けて保持するのは、`writeStripped` が除去範囲として両者を必要とするためです。
+範囲を単一の値として持つと、書き込み時に再計算が必要になります。
+
+> **改訂 (DR-29 決定 5)**: 当初の根拠は「REQ-F-005 が dry-run 出力に『除去対象となる行範囲』を
+> 求めるため」でした。dry-run 明細からは `lines=` / `removedBytes=` を全廃したため、
+> この根拠は成立しません。フィールド自体は `writeStripped` が使うため **存続** します。
 
 除去範囲は常に本文先頭から最初の `## Summary` 直前までであるため (DR-01) 、
 開始行は本文先頭に固定されます。
@@ -170,14 +275,64 @@ R-001 は列挙より前に評価する必要があるためです (Section 4.2)
 
 境界検出と安全弁は本関数の内部に閉じます (1.1 参照) 。
 
-**dry-run と通常実行でバイト単位に同一の経路を通ります。**
-副作用を一切持たないため、モードによる分岐が不要です。
+**`passthrough` のキャッシュ記録は本フェーズの直後に行います (DR-31 決定 1・4) 。**
+R-005 または R-006 が成立したファイルについて、`status: 'passthrough'` と成立した規則
+(`rule`) をキャッシュへ記録します。記録するのは `classifyStrip` ではなく呼び出し側の
+`_classifyFile` (`_recordPassthrough`) であり、`classifyStrip` は副作用を持たないままです
+(DR-29 決定 2) 。
+
+`passthrough` は本体を変更せず退避も作らないため、Phase 3〜5 の書き込みシーケンスに乗りません。
+記録しなければ次回実行が同じファイルを読み直して再判定するため (DR-31 Context) 、
+分類が確定した時点で記録します。記録に失敗した場合、当該ファイルは error として計上します
+(DR-31 決定 3) 。dry-run では記録しません (DR-31 決定 5、Section 3.4) 。
+
+**`passthrough` のキャッシュ記録は本フェーズの直後に行います (DR-31 決定 1・4) 。**
+R-005 または R-006 が成立したファイルについて、`status: 'passthrough'` と成立した規則
+(`rule`) をキャッシュへ記録します。記録するのは `classifyStrip` ではなく呼び出し側の
+`_classifyFile` (`_recordPassthrough`) であり、`classifyStrip` は副作用を持たないままです
+(DR-29 決定 2) 。
+
+`passthrough` は本体を変更せず退避も作らないため、Phase 3〜5 の書き込みシーケンスに乗りません。
+記録しなければ次回実行が同じファイルを読み直して再判定するため (DR-31 Context) 、
+分類が確定した時点で記録します。記録に失敗した場合、当該ファイルは error として計上します
+(DR-31 決定 3) 。dry-run では記録しません (DR-31 決定 5、Section 3.4) 。
+
+**`passthrough` のキャッシュ記録は本フェーズの直後に行います (DR-31 決定 1・4) 。**
+R-005 または R-006 が成立したファイルについて、`status: 'passthrough'` と成立した規則
+(`rule`) をキャッシュへ記録します。記録するのは `classifyStrip` ではなく呼び出し側の
+`_classifyFile` (`_recordPassthrough`) であり、`classifyStrip` は副作用を持たないままです
+(DR-29 決定 2) 。
+
+`passthrough` は本体を変更せず退避も作らないため、Phase 3〜5 の書き込みシーケンスに乗りません。
+記録しなければ次回実行が同じファイルを読み直して再判定するため (DR-31 Context) 、
+分類が確定した時点で記録します。記録に失敗した場合、当該ファイルは error として計上します
+(DR-31 決定 3) 。dry-run では記録しません (DR-31 決定 5、Section 3.4) 。
+
+**`passthrough` のキャッシュ記録は本フェーズの直後に行います (DR-31 決定 1・4) 。**
+R-005 または R-006 が成立したファイルについて、`status: 'passthrough'` と成立した規則
+(`rule`) をキャッシュへ記録します。記録するのは `classifyStrip` ではなく呼び出し側の
+`_classifyFile` (`_recordPassthrough`) であり、`classifyStrip` は副作用を持たないままです
+(DR-29 決定 2) 。
+
+`passthrough` は本体を変更せず退避も作らないため、Phase 3〜5 の書き込みシーケンスに乗りません。
+記録しなければ次回実行が同じファイルを読み直して再判定するため (DR-31 Context) 、
+分類が確定した時点で記録します。記録に失敗した場合、当該ファイルは error として計上します
+(DR-31 決定 3) 。dry-run では記録しません (DR-31 決定 5、Section 3.4) 。
+
+**dry-run と通常実行は R-002 〜 R-007 まで同一の経路を通ります。**
+判定は副作用を持たないため、除去を伴わない分類はモードによって変化しません。
 これはレビュー指摘 F-04 への対応であり、
 分類を dry-run 専用経路で実装した場合に生じる通常実行との乖離を構造的に防ぎます。
 
+> **改訂 (DR-29 決定 3)**: 当初は「バイト単位に同一の経路を通ります。副作用を一切持たないため、
+> モードによる分岐が不要です」と記していました。現在の `classifyStrip` は `dryRun` を引数で
+> 受け取り、**R-008 に到達した場合のみ** `stripped` を `skipped` へ振り替えます。
+> 分岐はこの 1 点に限られ、R-002 〜 R-007 はモード非依存のままです。
+
 R-007 の判定には除去範囲の確定が必要なため、
 dry-run であっても除去範囲とバイト数を実際に計算します。
-計算しない場合、R-007 の判定と REQ-F-005 のバイト数報告がいずれも成立しません。
+計算しない場合、R-007 の判定が成立しません。
+(DR-29 決定 5 により明細への出力は行いませんが、算出は引き続き必要です。)
 
 ### Phase 3: strip 済みログ作成 (一時ファイル)
 
@@ -224,6 +379,9 @@ AC-024 が「strip 済みファイルの frontmatter が strip 前と同一で�
 記録するのは `STRIP_CACHE_STATUSES` の値であり、本体の frontmatter には書きません。
 キャッシュのキーはファイルパスで、他スキルと同一の `ChatlogCache` 機構を用います。
 
+本フェーズが記録するのは `stripped` のみです。`passthrough` の記録は書き込みを伴わないため
+Phase 2 の直後に行います (DR-31 決定 4) 。
+
 **記録は差し替えの後でなければなりません。**
 差し替えに失敗したファイルを処理済みとして記録すると、
 次回実行で R-003 により `done` と判定され、strip されないまま残ります。
@@ -267,6 +425,10 @@ AC-024 が「strip 済みファイルの frontmatter が strip 前と同一で�
 削除範囲は対象ディレクトリ配下の退避 **全件** です (DD-02) 。
 REQ-C-008 により対象が単一の agent・年月に限定されるため、退避パスの個別追跡を要しません。
 
+削除の前に、期待退避パスの集合に含まれない退避を件数とパスで警告報告します (DR-34) 。
+当該実行が作成していない退避も削除されるため、削除の事実を観測できる状態を保ちます。
+報告は判定・戻り値・終了コードを変えません。
+
 削除は全件について試行し、1 件の失敗で残りを中断しません (DR-10) 。
 削除失敗は分類に加えません。実行単位の後処理であり、粒度が異なるためです。
 
@@ -276,16 +438,46 @@ REQ-C-008 により対象が単一の agent・年月に限定されるため、�
 
 **規則**: なし (集計)
 
-4 分類の件数、除去前後の合計バイト数、退避削除の結果を報告します (REQ-F-006) 。
+5 分類の件数、除去前後の合計バイト数、退避削除の結果を報告します (REQ-F-006 / DR-30) 。
+サマリーの書式は次のとおりで、件数フィールドは `stripped` の直後に `skipped` を置きます。
+
+```text
+完了: total=6398 stripped=6390 skipped=0 done=5 passthrough=2 error=1
+完了 (dry-run): total=6398 stripped=0 skipped=6390 done=5 passthrough=2 error=1
+```
+
+通常実行では `skipped` が 0、dry-run では `stripped` が 0 となり、両者は排他です。
+dry-run で「実行すれば何件 strip されるか」を知るには `skipped` を参照します。
 
 全件処理の判定式が成立することを確認します。
 
 ```text
-stripped + done + passthrough == total  かつ  error == 0
+stripped + skipped + done + passthrough == total  かつ  error == 0
 ```
 
-dry-run では加えて、ファイルごとのパス・判定結果・判定理由・除去範囲 (開始行・終了行) ・
-除去バイト数を出力します (REQ-F-005) 。
+dry-run では加えて、ファイルごとに 1 行の明細を出力します (REQ-F-005) 。
+書式は次のとおりです (DR-29 決定 5) 。
+
+```text
+<path>: outcome=stripped (skip)
+<path>: outcome=passthrough
+<path>: outcome=done
+<path>: outcome=error rule=R-002
+```
+
+- `skipped` は `stripped (skip)` と表示します。他の分類に `(skip)` は付けません
+- `rule=` は `error` のときのみ出力します
+- `lines=` と `removedBytes=` は **全分類で出力しません**
+
+通常実行では、処理したファイルを 1 件ごとに `logger.info` で `<分類>: <path>` の形で
+報告します (DR-29 決定 6) 。対象は `stripped` と `passthrough` のみで、`done` は出力しません。
+再実行時は大半が `done` となり、全件を出力すると実際に何が起きたかが読めなくなるためです。
+書き込み失敗は従来どおり `logger.error` で出力します。
+
+> **改訂 (DR-29 決定 5)**: 当初は「ファイルごとのパス・判定結果・判定理由・除去範囲 (開始行・
+> 終了行) ・除去バイト数を出力します」と記していました。6000 件規模の事前レビューで参照される
+> のは分類の一覧であり、1 件ごとの行範囲・バイト数は使われていなかったため全廃しました。
+> 除去規模の総量が必要な場合は上記のサマリー (REQ-F-006) で足ります。
 
 ---
 
@@ -318,6 +510,34 @@ Phase 3 から Phase 6 は **呼び出し側 (main) がスキップ** します�
 副作用を持つフェーズが連続して並ぶため、境界は
 「Phase 2 までが判定、Phase 3 から Phase 6 が副作用、Phase 7 が報告」と単純になります。
 
+> **破棄済み (DR-28 / DR-29)**: 上の表と 2 段落は現在の実装と一致しません。
+>
+> DR-28 が判定と書き込みを 1 ファイル単位のパイプラインへ統合したため、
+> 「Phase 2 までが判定、Phase 3 から Phase 6 が副作用」という境界は存在しません。
+> また `dryRun` は `_processFiles` / `_classifyFile` / `classifyStrip` が引数で受け取り、
+> **1 ファイルごとに内部で分岐** します。呼び出し側の経路分岐によるスキップではありません。
+>
+> これは `recoverOrphans` が `_classifyRecovery` で 1 件ごとに分岐するのと同じ形へ揃えるための
+> **意図的な方針変更** であり、規約違反の見落としではありません。
+> 例外は `sweepBackups` (Phase 6) で、ディレクトリ単位の処理でありループ内で選べないため
+> `_processFiles` が dry-run 時に抑止します。
+>
+> 現在の dry-run 対応は次のとおりです。
+>
+> | Phase | 内容                         | dry-run                               | 通常実行 |
+> | ----- | ---------------------------- | ------------------------------------- | -------- |
+> | 0     | 受理ゲート                   | 実行                                  | 実行     |
+> | 1     | 一覧取得・キャッシュ         | 実行                                  | 実行     |
+> | 2〜5  | 判定・書き込みのパイプライン | 判定のみ実行 (書き込み・記録は見送り) | 実行     |
+> | 6     | 退避削除                     | **抑止**                              | 実行     |
+> | 7     | 結果報告                     | 実行 (明細を追加)                     | 実行     |
+>
+> 構造的保証が失われた代わりに、**保証はテストが担います**。dry-run で本体・退避・キャッシュの
+> いずれも変化しないこと (T-FL-SEP-06-14) 、`sweepBackups` へ到達しないこと (T-FL-SEP-06-15) 、
+> 件数が通常実行と一致すること (T-FL-SEP-06-16) 、明細が 1 ファイルにつき 1 行であること
+> (T-FL-SEP-06-17) を検証しています。
+> DR-31 以降は `passthrough` の記録が dry-run で発生しないことも検証対象です (T-FL-SEP-06-27) 。
+
 ### 3.3 逸脱の理由
 
 理由は 2 つあります。
@@ -340,6 +560,17 @@ strip の判定は純ロジックであり、回避すべきコストがあり�
 > **次に読む人へ**: この逸脱は意図的です。
 > 「他スキルと揃っていない」ことを理由に Phase 3 / 4 の内部へ `if (dryRun)` を
 > 差し戻すと、F-04 の指摘が再発します。
+>
+> **破棄済み (DR-28)**: 直前の「次に読む人へ」の指示は **現在は従ってはなりません**。
+> DR-28 以降、`dryRun` は `_processFiles` / `_classifyFile` / `classifyStrip` が引数で受け取り、
+> 1 ファイルごとに内部で分岐します。これは `recoverOrphans` と dry-run の扱いを揃えるための
+> **ユーザーの明示的な決定** であり、F-04 の再発ではありません。
+> 上記の記述を根拠に呼び出し側の経路分岐へ差し戻すと、この統一が失われます。
+>
+> なお本節 3.3 の「第二の理由」— strip の判定は AI を必要とせず、回避すべき高コスト処理が
+> ないため全件を本番と同一規則で評価できる — は現在も有効です。
+> 既存 `filter` モードの dry-run (全件を `stats.skip` に計上する形) に倣ってはならない、
+> という結論も変わりません。
 
 ### 3.4 キャッシュ書き込み
 
@@ -348,6 +579,18 @@ dry-run では処理済み状態をキャッシュに記録しません (REQ-F-0
 
 Phase 3 を呼び出さない設計により、この要件は構造的に満たされます。
 キャッシュ書き込みは Phase 3 の内部にのみ存在するためです。
+
+> **改訂 (DR-28 / DR-29)**: 現在は「Phase 3 を呼び出さない」構造ではありません。
+> `_classifyFile` が判定 `stripped` のときだけ `writeStripped` を呼び、dry-run では
+> `classifyStrip` が `skipped` を返すため書き込み経路へ入りません。
+> 保証は構造ではなくテスト (T-FL-SEP-06-14) が担います。
+>
+> **改訂 (DR-31)**: 「キャッシュ書き込みは Phase 3 (`writeStripped`) の内部にのみ存在する」
+> という前提も成立しません。`passthrough` の記録は `_classifyFile` が `_recordPassthrough`
+> により行い、Phase 3 を経由しません (DR-31 決定 4) 。
+> dry-run で記録されないという **結論自体は変わりません** が、その根拠は配置ではなく
+> `_classifyFile` の `!dryRun` ガードです (DR-31 決定 5) 。
+> ここでも保証はテスト (T-FL-SEP-06-27) が担います。
 
 ---
 
@@ -375,6 +618,14 @@ Phase 3 を呼び出さない設計により、この要件は構造的に満た
 R-009 のみ 3 フェーズにまたがりますが、これは規則の重複ではありません。
 R-009 が定めるのは操作の **順序** であり、その順序を 3 段階として明示的に表現したものです (1.3) 。
 
+> **注記**: 上表は作成時点の 12 行のままであり、DR-16 の R-013 / DR-23 の R-014 / R-015 を
+> 含みません (本文は「13 規則」と述べており、表側の記載漏れです) 。
+> 全 15 規則の対応は `implementation.md` Section 3「Rule Coverage」を正本としてください。
+>
+> DR-28 により Phase 2 と Phase 3/4/5 は 1 ファイル単位のパイプラインへ統合されたため、
+> 「規則 → フェーズ」の対応は実行順序を示すものであり、独立した実行単位を示すものでは
+> なくなりました。規則そのものと評価順序は不変です。
+
 ---
 
 ## 5. 配置と再利用
@@ -397,6 +648,8 @@ REQ-NF-001 が「既存の近接実装と同一の主処理構成を採る」と
 | `StripCache`           | `scripts/types/cache.types.ts`        | `CLEResult` と同じ場所              |
 | `STRIP_CACHE_STATUSES` | `scripts/types/cache.const.types.ts`  | const object + 派生ユニオン型       |
 | 判定結果の型           | `scripts/types/strip.types.ts` (新設) | `outcome` / `reason` / 除去範囲     |
+| `StripConfig`          | `scripts/types/strip-config.types.ts` | `concurrency` を含む (DR-28 決定 3) |
+| 判定カスケードの実装   | `scripts/libs/classify-strip.ts`      | `classifyStrip` (DR-29 決定 4)      |
 
 `StripStats` を `BaseStats` から継承してはなりません。
 `BaseStats.skip` は「dry-run により実行しなかった数」を意味し、
@@ -407,6 +660,8 @@ strip の `done` (処理済み・モード非依存) と衝突します。
 export interface StripStats {
   total: number;
   stripped: number;
+  /** dry-run のため書き込みを見送った件数 (通常実行では常に 0。DR-30) 。 */
+  skipped: number;
   done: number;
   passthrough: number;
   error: number;
@@ -419,9 +674,16 @@ export interface StripStats {
 
 ```text
 skills/filter-chatlogs/scripts/constants/strip.constants.ts
-  STRIP_BOUNDARY_HEADING = '## Summary'
-  STRIP_TEMPLATE_MARKER  = '## TOPICS ASSIGNMENT RULES'
+  STRIP_BOUNDARY_HEADING          = '## Summary'
+  STRIP_TEMPLATE_MARKER           = '## TOPICS ASSIGNMENT RULES'
+  STRIP_MAX_REMOVAL_RATE          = 0.99                  # R-007 の除去率上限
+  STRIP_CACHE_DELETE_ATTEMPTS     = 2                     # DR-27
+  STRIP_CACHE_DELETE_RETRY_WAIT_MS = 100                  # DR-27
 ```
+
+`STRIP_CACHE_DELETE_ATTEMPTS` / `STRIP_CACHE_DELETE_RETRY_WAIT_MS` は復帰専用モード (R-015) の
+キャッシュ削除の再試行に用います (DR-27) 。`GlobalConfig.maxRetry` は `runAI` 用かつ待機を
+持たないため転用せず、strip 固有の定数とします。
 
 配置は `filter-chatlogs` 配下とします。
 strip 固有の定数であり、他スキルから参照されないためです。
@@ -450,6 +712,23 @@ Edge 12 / 13 (保守側へ倒す分類) が既に決着させています。
 
 キャッシュは `new ChatlogCache<StripCache>('strip-cache')` で生成し、
 read/write の前に `await cache.ready` を要します。
+
+並列実行は `runConcurrent(files, fn, concurrency)` を用います (DR-28 決定 3) 。
+`_processFiles` の 1 ファイル単位パイプラインがこれを呼び、並列度に上限を課します。
+無制限の `Promise.all` を 6000 件規模で張るとファイル記述子が枯渇し、
+部分的に strip された状態と散在する `.bak` が残るためです。
+
+並列度は `StripConfig.concurrency` から取り、既定値 `DEFAULT_STRIP_CONFIG.concurrency` には
+`DEFAULT_CONFIG_VALUES.concurrency` を与えます。スキーマ定義
+(`config-schema.constants.ts`: `min: 1, max: 10`、既定 4) は既存のものを流用し、新設しません。
+これにより `DEFAULT_STRIP_CONFIG` が兄弟の `DEFAULT_FILTER_CONFIG` /
+`DEFAULT_NOISE_FILTER_CONFIG` と同じ形になります。
+
+`runConcurrent` はいずれかのタスクが reject すると未着手タスクを実行しませんが、
+本パイプラインでは問題になりません。`classifyStrip` は I/O エラーを throw せず
+`outcome: 'error'` として返し (R-002) 、`writeStripped` も `ChatlogError` を **戻り値** として
+返すためです。reject に至るのは想定外の例外のみであり、その場合に未着手ファイルへ
+破壊的書き換えを広げないことはむしろ望ましい挙動です (DR-28 Rationale) 。
 
 `BackupProvider` および `backupToBak` は未実装です (DR-17) 。Phase 3 の実装時に新設します。
 
@@ -532,15 +811,19 @@ error が 1 件でもあれば退避を全保持します (R-011) 。
 
 ## Change History
 
-| Date       | Version | Description                                                                                                                                                                                         |
-| ---------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-13 | 1.0.0   | 初版。specifications.md v3.1.0 に基づく 6 フェーズ構成を記録                                                                                                                                        |
-| 2026-08-13 | 1.1.0   | 退避付き書き込みを REQ-NF-005 の 3 段階に分割し 8 フェーズ構成へ変更。判定の戻り値を開始行・終了行に分離。Section 7 (誤りやすい点) を追加                                                           |
-| 2026-08-13 | 1.2.0   | Phase 3 と Phase 4 の順序を訂正 (REQ-NF-005 の正しい順序は「一時ファイル書き出し → 退避 → 差し替え」であり、退避が先ではない)。Section 5.2.1 に境界検出の定数を追加。based-on を spec v3.1.1 へ更新 |
-| 2026-08-13 | 1.3.0   | Section 6 に決着状況の列を追加。危険な前提 1 / 2 と対応候補 A の決着を記録。based-on を spec v3.1.2 へ更新                                                                                          |
-| 2026-08-13 | 1.4.0   | DR-16 を反映。Phase 6 に R-013 (退避の包含関係検査) を追加し、件数比較で代替できない理由を記録。規則の網羅性検証を 13 規則へ更新。based-on を spec v3.2.0 へ更新                                    |
-| 2026-08-13 | 1.4.1   | Edge 14 の実測値の訂正を反映（2 件→0 件）。based-on を spec v3.2.1 へ更新                                                                                                                           |
-| 2026-08-13 | 1.5.0   | 対応候補 B の決着を Section 6 に記録。based-on を spec v3.3.0 へ更新                                                                                                                                |
-| 2026-08-13 | 1.6.0   | 対応候補 C の決着を Section 6 に記録。Section 5.3 に frontmatter 同一性比較の追加を記載。based-on を spec v3.4.0 へ更新                                                                             |
-| 2026-08-13 | 1.6.1   | based-on を spec v3.4.1 へ更新。Section 7.1 の追跡 issue を完了として記録                                                                                                                           |
-| 2026-08-13 | 1.6.2   | DR-17 を反映し Phase 4 / Section 5.3 の Provider 名を `backupPath` から `backupToBak` へ更新。既存 `.bak` 時はスキップし `null` を返す旨を追記。based-on を spec v3.5.0 へ更新。フェーズ構成は不変  |
+| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-13 | 1.0.0   | 初版。specifications.md v3.1.0 に基づく 6 フェーズ構成を記録                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-08-13 | 1.1.0   | 退避付き書き込みを REQ-NF-005 の 3 段階に分割し 8 フェーズ構成へ変更。判定の戻り値を開始行・終了行に分離。Section 7 (誤りやすい点) を追加                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-13 | 1.2.0   | Phase 3 と Phase 4 の順序を訂正 (REQ-NF-005 の正しい順序は「一時ファイル書き出し → 退避 → 差し替え」であり、退避が先ではない)。Section 5.2.1 に境界検出の定数を追加。based-on を spec v3.1.1 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-08-13 | 1.3.0   | Section 6 に決着状況の列を追加。危険な前提 1 / 2 と対応候補 A の決着を記録。based-on を spec v3.1.2 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 2026-08-13 | 1.4.0   | DR-16 を反映。Phase 6 に R-013 (退避の包含関係検査) を追加し、件数比較で代替できない理由を記録。規則の網羅性検証を 13 規則へ更新。based-on を spec v3.2.0 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-08-13 | 1.4.1   | Edge 14 の実測値の訂正を反映（2 件→0 件）。based-on を spec v3.2.1 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-13 | 1.5.0   | 対応候補 B の決着を Section 6 に記録。based-on を spec v3.3.0 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-13 | 1.6.0   | 対応候補 C の決着を Section 6 に記録。Section 5.3 に frontmatter 同一性比較の追加を記載。based-on を spec v3.4.0 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-08-13 | 1.6.1   | based-on を spec v3.4.1 へ更新。Section 7.1 の追跡 issue を完了として記録                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-08-13 | 1.6.2   | DR-17 を反映し Phase 4 / Section 5.3 の Provider 名を `backupPath` から `backupToBak` へ更新。既存 `.bak` 時はスキップし `null` を返す旨を追記。based-on を spec v3.5.0 へ更新。フェーズ構成は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2026-08-16 | 2.0.0   | DR-27 / DR-28 / DR-29 を反映。冒頭に Superseded 注記を新設し、(1) フェーズ境界を「判定と副作用」で切る方針 (Section 1.1 / 3.2)、(2) dry-run を「main が Phase 3〜6 を呼ばない」形で実現する方針 (Section 3.2 / 3.3 の「次に読む人へ」を含む)、(3) 分類が 4 値であることと dry-run 明細が除去範囲・除去バイト数を出力すること (Section 2 Phase 2 / Phase 7) の 3 点を破棄済みとして記録。Section 2 に統合後の構成図 (1 ファイル単位パイプライン + `runConcurrent`) を追加。Phase 2 の「単一の純粋関数」を `libs/classify-strip.ts` の `classifyStrip` (cache 参照と `fileExists` を行うため純粋関数ではない) へ、分類を 5 値へ是正。Phase 7 に DR-29 の dry-run 明細書式と通常実行の per-file 報告を記載。Section 5.2 に `StripConfig` と判定カスケードの配置を、5.2.1 に `STRIP_CACHE_DELETE_*` (DR-27) を、5.3 に `runConcurrent` と `concurrency` の記述を追加。based-on を spec v4.0.0 へ更新。判定規則 R-001〜R-015 とその評価順序は不変 |
+| 2026-08-16 | 3.0.0   | DR-30 を反映し DR-29 決定 3 のうち「件数は `stats.stripped` へ加算する」部分を破棄 (MAJOR: decided approach discarded)。Section 2 の Phase 2 改訂注記から「`StripStats` に `skipped` フィールドは無く統計は 4 分類」を削除し、`stats.skipped` への加算・分類 5 値と統計 5 件数の 1 対 1 対応・`stripped` と `skipped` の排他へ改める。構成図の Phase 7 を「集計 5 分類」へ、Phase 7 の報告を 5 分類へ改め、サマリーの書式 (`stripped` の直後に `skipped`) を追記。全件処理の判定式を `stripped + skipped + done + passthrough == total` へ改訂。Section 5.2 の `StripStats` 定義へ `skipped` を追加。based-on を spec v5.0.0 へ更新。判定規則 R-001〜R-015 とその評価順序は不変                                                                                                                                                                                                                                                              |
+| 2026-08-16 | 3.1.0   | DR-31 を反映 (MINOR: 振る舞いを追加)。冒頭 Superseded 注記に第 4 項「キャッシュ書き込みが `writeStripped` の内部にのみ存在する」の破棄を追加し、Section 1.3 の存続範囲を `stripped` の記録に限定。Section 2 の Phase 2 に `passthrough` のキャッシュ記録 (記録者は `_classifyFile` / `_recordPassthrough`、`rule` は成立規則、記録失敗は error、dry-run では非記録) を追記し、Phase 5 の記録対象を `stripped` のみと明記。統合後の構成図の下に記録箇所の説明を追加。Section 3.4 に DR-31 の改訂注記を追加し、dry-run 非記録の根拠を配置から `!dryRun` ガード + テスト (T-FL-SEP-06-27) へ改める。based-on を spec v5.1.0 へ更新                                                                                                                                                                                                                                                                                                              |
+| 2026-08-16 | 3.2.0   | DR-34 を反映。Phase 6 に、削除の前に期待退避パスの集合に含まれない退避を件数とパスで警告報告する旨を追記。報告は判定・戻り値・終了コードを変えない。`based-on` を specifications.md v5.4.0 へ更新 (v5.1.0 からの遅れを併せて解消)。削除範囲は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
