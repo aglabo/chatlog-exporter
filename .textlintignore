@@ -10,6 +10,10 @@
 .claude/**
 .serena/**
 
+## Beads
+.beads/**
+
+## Others
 # temp
 **/temp/**
 **/tmp/**
@@ -22,3 +26,5 @@ releases/**
 
 ## Chatlogs
 chatlogs/**
+**/fixtures/**
+aglabo.github.io/**
