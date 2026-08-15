@@ -36,7 +36,7 @@
     "check:dprint": "dprint check",
     "format:dprint": "dprint fmt",
     "lint:spells": "cspell --config .vscode/cspell.json --cache --cache-location .cache/cspell/cSpellCache ",
-    "lint:text": "textlint --config ./configs/textlintrc.yaml ",
+    "lint:text": "textlint --config ./configs/textlintrc.yaml --cache --cache-location .cache/textlint/textlintCache ",
     "lint:markdown": "markdownlint --config ./configs/.markdownlint-cli2.yaml ",
     "lint:sh": "bash runners/run-shellcheck.sh ",
     "test:sh": "bash runners/run-shellspec.sh ",
