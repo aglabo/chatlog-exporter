@@ -3,9 +3,10 @@ name: filter-chatlogs
 description: >
   エクスポート済みチャットログMarkdownをclaude CLIで一括バッチ判定し、
   再利用価値の低いファイル（DISCARD）を削除する。
+  strip サブコマンドでは、AIを使わず本文先頭の定型部（TOPICS ASSIGNMENT RULES 等）を除去する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] / strip <agent> <YYYY-MM> [--dry-run] [--recover-orphans]"
 allowed-tools: Bash, Glob
 ---
 
@@ -25,9 +26,14 @@ allowed-tools: Bash, Glob
 
 `$ARGUMENTS` の先頭トークンでサブコマンドを判定する。
 
-- 先頭トークンが `noise-filter` → noise-filter モード (残りの引数を noise-filter スクリプトに渡す)
-- 先頭トークンが `filter` → filter モード (先頭トークンを除いた残りの引数を filter スクリプトに渡す)
-- それ以外 (サブコマンドなし) → filter モード (`$ARGUMENTS` 全体を filter スクリプトに渡す)
+- 先頭トークンが `noise-filter` → noise-filter モード（残りの引数を noise-filter スクリプトに渡す）
+- 先頭トークンが `filter` → filter モード（先頭トークンを除いた残りの引数を filter スクリプトに渡す）
+- 先頭トークンが `strip` → strip モード（先頭トークンを **除いた** 残りの引数を strip スクリプトに渡す）
+- それ以外（サブコマンドなし）→ filter モード（`$ARGUMENTS` 全体を filter スクリプトに渡す）
+
+> 重要: strip モードでは `strip` トークンを必ず除去してから渡す。strip スクリプトの引数スキーマは
+> `--recover-orphans` しか定義しておらず、`strip` が残ると第1位置引数として扱われ
+> `UnknownPositional` エラーになる。
 
 **filter モードの引数解析** (サブコマンドを除いた残りの引数に適用):
 
@@ -48,7 +54,14 @@ allowed-tools: Bash, Glob
 - `path` (例: `chatlogs/originalLogs/claude/2026/2026-04`) → 指定パスをそのまま渡す (agent/period の代わり)
 - `--dry-run` → 削除せず、ノイズ候補のパスと判定理由をログ出力
 
-位置引数の判定ルール (インデックス固定パターン):
+**strip モードの引数解析** (`strip` トークンを除いた残りの引数に適用):
+
+- `agent YYYY-MM`（例: `claude 2026-03`）→ **この形式のみ受理する**
+- `--dry-run` → 書き込み・退避・キャッシュ記録をせず、全件の判定内訳を出力
+- `--recover-orphans` → 復帰専用モード（後述）
+- `--single-file` は存在しない
+
+位置引数の判定ルール (インデックス固定パターン、**filter / noise-filter モード** に適用):
 
 - パターン A: 1つ目がスラッシュを含むパス → 入力ディレクトリ
 - パターン B: 1つ目が既知のエージェント (`claude`, `chatgpt`, `codex`) → AGENT。
@@ -57,7 +70,21 @@ allowed-tools: Bash, Glob
 
 > 注意: `YYYY-MM` を単独の位置引数として渡すことはできない (`不明な引数` エラーになる)。
 > また、プロジェクト名を3つ目の位置引数として渡すこともできない
-> (`InvalidDirectoryFormat` エラーになる)。プロジェクト単位の指定はサポートしていない。
+> （`InvalidDirectoryFormat` エラーになる）。プロジェクト単位の指定はサポートしていない。
+
+strip モードは上記より **狭い受理範囲** を持ち、パターン A・エージェント単独形・
+出力ディレクトリの指定（3つ目の位置引数を含む）を拒否する。
+6000 件規模の破壊的書き換えが未検証のデータセットに及ぶことを防ぐ安全弁であり、
+対象を `<agent> <YYYY-MM>` で明示した実行のみを受理する。
+
+| 入力                                                                    | 結果                                                                                                 |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 入力ディレクトリ指定（`--input-dir` またはスラッシュを含む1つ目の引数） | `strip は入力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: <path>` |
+| 出力ディレクトリ指定（`--output-dir` または3つ目の位置引数）            | `strip は出力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: <path>` |
+| 年月省略（例: `strip claude`）                                          | `strip は年月の指定を必須とします（例: claude 2026-03）`                                             |
+
+いずれも終了コード 1 で異常終了する。この検査は列挙・キャッシュ初期化を含む **一切の I/O より前** に
+行われるため、拒否された実行は 1 件もファイルを変更しない。
 
 ## ステップ1: スクリプトパスの解決
 
@@ -67,6 +94,7 @@ Glob ツールで `**/filter-chatlogs/SKILL.md` を検索し、そのディレ�
 SKILL_DIR         = <SKILL.md が存在するディレクトリの絶対パス>
 SCRIPT_PATH       = $SKILL_DIR/scripts/filter-chatlogs.ts
 NOISE_FILTER_PATH = $SKILL_DIR/scripts/noise-filter-chatlogs.ts
+STRIP_PATH        = $SKILL_DIR/scripts/strip-chatlogs.ts
 ```
 
 ## ステップ2: スクリプト実行
@@ -145,6 +173,80 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
 > 判定結果は永続キャッシュに保存されるため、再実行時は判定済みファイルの AI 呼び出しがスキップされる。
 > 削除は「記録 → 一括削除」の2段階であり、前回実行で DISCARD 判定されたファイルも今回の削除対象になる。
 
+### strip サブコマンドの場合
+
+先頭トークン `strip` を除去した残りを `$STRIP_ARGS` として渡す（`--input` は **追加しない**）。
+`ChatlogCache` の初期化で `TEMP` 環境変数を参照するため `--allow-env` が必須。
+AI を呼び出さないため `--allow-run` は不要 (noise-filter と同じ):
+
+```bash
+deno run --allow-read --allow-write --allow-env "$STRIP_PATH" $STRIP_ARGS
+```
+
+引数からオプションを組み立てるルール:
+
+- `agent YYYY-MM` → `deno run --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03`
+- `--dry-run` を含む → 末尾に `--dry-run` を追加
+- `--recover-orphans` を含む → 末尾に `--recover-orphans` を追加
+
+対象は `<chatlogsDir>/originalLogs/<agent>/<年>/<YYYY-MM>/` の **直下のみ**（非再帰）。
+
+スクリプトは次の順で処理する。
+
+1. 受理ゲート — 前述の受理範囲外なら、列挙より前に異常終了する
+2. 列挙と孤立退避の検出 — 対象ディレクトリ直下の `.md` を列挙する。
+   本体 `.md` が存在しないのに `.bak` だけが残っている「孤立退避」を検出し、`error` に計上する
+3. 判定 — 各ファイルを以下の順序で判定する（上から順に評価し、最初に該当した分類で確定する）
+
+   | 順序 | 条件                                                         | 分類          |
+   | ---- | ------------------------------------------------------------ | ------------- |
+   | 1    | frontmatter を持たない（読み取り失敗を含む）                 | `error`       |
+   | 2    | キャッシュに処理済み記録（`stripped` / `passthrough`）がある | `done`        |
+   | 3    | 対応する `.bak` が既に存在する                               | `done`        |
+   | 4    | 本文に `## Summary` が1つも無い                              | `passthrough` |
+   | 5    | 本文先頭〜最初の `## Summary` に定型部マーカーが無い         | `passthrough` |
+   | 6    | 除去後の本文が空、または除去率が 99% を超える                | `error`       |
+   | 7    | 上記いずれにも該当しない                                     | `stripped`    |
+
+   境界は行頭完全一致（`## Summary` の最初の出現、マーカーは `## TOPICS ASSIGNMENT RULES`）で検出し、
+   Markdown 構文解析は行わない
+
+   `passthrough`（順序 4・5）と確定したファイルは、その時点でキャッシュへ記録する
+   （`status=passthrough`、`rule` は成立した順序 4 / 5 の規則）。
+   記録しないと次回実行が同じファイルを読み直して再判定するため、大量ファイルで毎回のコストになる。
+   記録に失敗した場合は当該ファイルを `error` に計上する（本体は無変更）
+
+4. 書き込み — `stripped` のファイルを「`.tmp` へ書き出す → 元を `.bak` へ退避する → `.tmp` を本体名へ移動する」
+   の順で置き換える。`status=stripped` のキャッシュ記録は最終移動の成功後に行う
+5. 退避の一括削除 — `error` が 0 件かつ非 dry-run かつ、strip したパスがすべて退避として存在する場合にのみ、
+   対象ディレクトリ直下の `.bak` を一括削除する。
+
+   対象ディレクトリ直下の `.bak` はすべて strip の作業対象とみなすため、
+   strip 以外の経路で置かれた `.bak` も削除される。削除の前に、当該実行で strip したファイルに
+   由来しない `.bak` の件数とパスを警告として報告する（`::warn::` 行の `foreign:`）
+
+#### 再 export したときの注意
+
+キャッシュはファイル名で引かれ、内容が変わったかどうかは見ない。
+そのため同じセッションを再 export して定型部つきの内容を同じパスへ上書きすると、
+判定順序 2 で `done` となり定型部が残る。
+
+**運用フロー**: 再 export したら strip キャッシュ（`<cacheDir>/strip-cache/`）を手動で削除してから
+strip を再実行する。再 export はログを作り直す操作であり、filter・strip もやり直す前提のため、
+キャッシュの破棄はスキルではなく利用者が行う。
+
+#### 復帰専用モード（`--recover-orphans`）
+
+孤立退避を元のファイル名へ復帰させ、**strip は一切行わずに終了する** モード。
+
+- `.bak` を持つものだけを `.md` へリネームして復帰する（`.tmp` は参照しないため、併存していても残る）
+- 復帰したファイルのキャッシュエントリを削除する。削除しないと次回実行が判定順序 2 で `done` と誤判定し、
+  定型部が恒久的に残るため
+- `--dry-run` と併用した場合は復帰させず、対象件数とパスの報告にとどめる
+
+**運用フロー**: 孤立退避が検出されたら `--recover-orphans` で復帰させ、その後 **フラグ無しで再実行** して strip する。
+復帰しただけでは未 strip の状態に戻るだけで、定型部は除去されない。
+
 ## dry-run の挙動に関する注意
 
 filter モードの `--dry-run` は、**claude CLI を呼び出さず対象ファイルを一覧表示するだけ**。
@@ -153,6 +255,13 @@ filter モードの `--dry-run` は、**claude CLI を呼び出さず対象フ�
 - 対象ファイルはすべて `skip` に計上される
 
 判定結果を事前に確認する用途には使えない点に注意する。
+
+strip モードの `--dry-run` は **挙動が逆** であり、filter の注意点をそのまま持ち越してはならない。
+
+- 全ファイルを通常実行と **同一の規則で判定する**（件数・分類とも通常実行と一致する）
+- 書き込み・`.bak` 作成・**キャッシュ記録のいずれも行わない**（`passthrough` の記録も行わない）
+  （キャッシュに記録すると次回実行が全件 `done` になるため）
+- 事前レビューの用途に使える
 
 ## ステップ3: 結果通知
 
@@ -180,3 +289,82 @@ filter モードの `--dry-run` は、**claude CLI を呼び出さず対象フ�
 - 上記 4つのカウンタ (keep / skip / remove / error) を報告する (`total` は出力されない)
 - dry-run モードの場合はその旨を明示する
 - ノイズ判定されたファイルのパスと判定理由を簡潔にまとめる
+
+**strip モードの通知形式**:
+
+```bash
+::info:: 対象ファイル数: 6398
+::info::   stripped: /path/to/originalLogs/2026-03-01-session.md
+::info::   passthrough: /path/to/originalLogs/2026-03-02-plain.md
+::info:: 完了: total=6398 stripped=6390 skipped=0 done=5 passthrough=3 error=0 bytesBefore=41230118 bytesAfter=12904553
+```
+
+- 上記 6つのカウンタ（total / stripped / skipped / done / passthrough / error）を報告する
+- あわせて除去前後の合計バイト数（bytesBefore / bytesAfter）を報告する
+- カウンタは **`完了:` の行からのみ** 拾う。個別行を数え上げてはならない
+- `bytesBefore` / `bytesAfter` は **除去対象と分類されたファイルの本文**（frontmatter を除く）
+  UTF-8 バイト数の合計であり、対象ディレクトリ全体のサイズではない。
+  除去対象が 1 件も無い実行では両方とも 0 になる（集計ミスではない）
+- 通常実行では処理したファイルごとに `<分類>: <path>` の行が出力される。
+  分類は `stripped` / `passthrough` の 2 種のみで、`done`（処理済み）と判定 error は出力されない
+- **個別行は通知に転記しない**。上の例で `stripped` は 6390 件あり、
+  そのまま並べると通知が個別行で埋まる。通知にはカウンタと、
+  `error` があればその内容（`::error::` 行）のみを載せる
+- dry-run モードの場合は `完了 (dry-run): ...` となり、その旨を明示する。
+  **dry-run では `stripped=0` になる**。1 件も書き換えていないためであり、集計ミスではない。
+  「実行すれば何件 strip されるか」は `skipped` を見る
+
+  ```bash
+  ::info:: 完了 (dry-run): total=6398 stripped=0 skipped=6390 done=5 passthrough=3 error=0 bytesBefore=41230118 bytesAfter=12904553
+  ```
+
+  `stripped`（書き換えた実績）と `skipped`（見送った件数）は排他であり、
+  通常実行では `skipped=0`、dry-run では `stripped=0` となる
+
+  `bytesBefore` / `bytesAfter` は dry-run でも通常実行と同じ値になる。
+  1 件ごとの明細はバイト数を出さないため、実行前に除去規模を知る手段はこの 2 つだけである
+
+  この場合、上記の個別行（`stripped:` / `passthrough:`）は出力されず、代わりに下記の明細行が出る
+- dry-run の明細行はパスと判定結果のみを出力する。
+  除去対象は `stripped (skip)` と表示され、「実行すれば strip されるが dry-run のため見送った」ことを表す。
+  判定理由（`rule=`）は原因の特定を要する `error` のときだけ付く
+
+  ```bash
+  ::info:: <<dry-run>> <path>/strip-me.md: outcome=stripped (skip)
+  ::info:: <<dry-run>> <path>/plain.md: outcome=passthrough
+  ::info:: <<dry-run>> <path>/cached.md: outcome=done
+  ::info:: <<dry-run>> <path>/broken.md: outcome=error rule=R-002
+  ```
+
+**strip 復帰専用モードの通知形式**:
+
+```bash
+::info:: 完了（復帰専用）: recovered=3 skipped=1 error=0
+```
+
+- 報告に使うのは `完了（復帰専用）:` の行である。復帰処理そのものも件数行を出力するため、
+  行を選ばずに件数を拾うと二重に数えてしまう
+- `--dry-run` 併用時は `復帰対象: recovered=N skipped=N 件` の行を報告する
+- **`error > 0` のときは報告行を出力した後に終了コード 1 で異常終了する**。
+  error には「復帰リネームの失敗」と「復帰後のキャッシュ削除の失敗」の 2 種が含まれる。
+  後者は、本体に未 strip・キャッシュが処理済みという乖離を残しており、放置すると次回の strip 実行が
+  当該ファイルを永久に `done` と判定して定型部が残り続ける。再度 `--recover-orphans` を実行しても
+  復帰済みのファイルは孤立退避ではなくなっており回収できないため、error のパスを個別に対処する
+
+### strip の結果を読むときの注意
+
+- **通常モードでは `error > 0` でも終了コードは 0（正常終了）になる**。この場合は退避（`.bak`）が
+  削除されずに保持されている状態であり、対処が必要である。成功扱いのまま放置しない。
+  復帰専用モード（`--recover-orphans`）はこれと異なり、`error > 0` で終了コード 1 になる
+  （上記「strip 復帰専用モードの通知形式」参照）
+- **カウンタの合計は `total` と一致するとは限らない**。`error` には性質の異なる 2 種類が合算される。
+  - `.md` 由来の error（frontmatter 無し・除去率超過・書き込み失敗）→ `total` に **含まれる**
+  - 孤立退避由来の error → `.md` が無いため `total` に **含まれない**
+
+  したがって成立するのは `stripped + skipped + done + passthrough + (.md 由来の error) == total` であり、
+  `total=50 stripped=10 skipped=0 done=39 passthrough=0 error=4` のような行（`.md` 由来 1 件・孤立退避 3 件）は
+  矛盾ではない。合計が `total` に満たないことをもって集計ミスと判断しない
+- **`originalLogs/` 配下に strip 由来でない `.bak` を置かない**。手動で置いた `important.md.bak` があると、
+  対応する `important.md` は判定順序 3 で `done` となる。strip されないまま、当該 `.bak` が一括削除で失われる。
+  この実行は `error=0` / 終了コード 0 で完了するため、`::warn::` の `foreign:` 行が唯一の手がかりになる
+- 退避の一括削除に失敗した場合は、サマリー行を出力した **後** に終了コード 1 で異常終了する
