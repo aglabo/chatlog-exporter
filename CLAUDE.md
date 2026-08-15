@@ -2,16 +2,16 @@
 
 ## プロジェクト概要
 
-AIエージェント（Claude, ChatGPT 等）のセッション履歴をエクスポート・分類・編集し、Obsidian へのインポート用に整備するツール群。
+AI エージェント（Claude, ChatGPT 等）のセッション履歴をエクスポート・分類・編集し、Obsidian へのインポート用に整備するツール群。
 Claude Code スキルとして実装されており、`/export-chatlog` 等のコマンドで呼び出す。
 
 ## 技術スタック
 
-- **言語**: TypeScript（Deno ランタイム）
-- **パッケージ管理**: JSR（`@std/yaml`, `@std/assert`, `@std/testing`）
-- **フォーマッタ**: dprint（行幅 120、インデント 2 スペース、LF）
-- **Git hooks**: lefthook（commitlint / betterleaks / secretlint）
-- **外部 CLI**: claude, codex
+- 言語: TypeScript（Deno ランタイム）
+- パッケージ管理: JSR（`@std/yaml`, `@std/assert`, `@std/testing`）
+- フォーマッタ: dprint（行幅 120、インデント 2 スペース、LF）
+- Git hooks: lefthook（commitlint / betterleaks / secretlint）
+- 外部 CLI: claude, codex
 
 ## 主要コマンド
 
@@ -22,7 +22,7 @@ deno task test:unit         # ユニットテストのみ
 deno task test:module unit <module>  # 特定モジュール
 
 # フォーマット
-dprint fmt --check          # チェック
+dprint check                # チェック
 dprint fmt                  # 自動修正
 
 # 環境セットアップ
@@ -85,10 +85,10 @@ bd close <id>         # Complete work
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+1. File issues for remaining work - Create issues for anything that needs follow-up
+2. Run quality gates (if code changed) - Tests, linters, builds
+3. Update issue status - Close finished work, update in-progress items
+4. PUSH TO REMOTE - This is MANDATORY:
 
    ```bash
    git pull --rebase
@@ -97,9 +97,9 @@ bd close <id>         # Complete work
    git status  # MUST show "up to date with origin"
    ```
 
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+5. Clean up - Clear stashes, prune remote branches
+6. Verify - All changes committed AND pushed
+7. Hand off - Provide context for next session
 
 **CRITICAL RULES:**
 
