@@ -7,13 +7,14 @@
 # https://opensource.org/licenses/MIT
 
 ## Files
-globs:
+# globs:
 
 ## Ignores
 # ignore gitignore
 gitignore: true
 # ignore files globs
 ignores:
+  - "**/__tests__/**" # ignore test fixtures (raw)chatlog data)
   - ".serena/**"
   - ".tools/**"
   - "temp/**"
