@@ -39,6 +39,25 @@ const _addTagHashes = (entries: FrontmatterFields): FrontmatterFields => {
   return { ...entries, tags: _prefixed };
 };
 
+/**
+ * frontmatter の 2 つの値が同一かを判定する。
+ *
+ * 文字列同士は `===`、配列同士は長さと各要素を順序どおり比較する。
+ * 型が異なる場合（`string` と `string[]`）は非同一とする。
+ *
+ * 型不一致の早期 return は意図の明示が目的であり、振る舞い上は冗長である。
+ * この行を削除しても後段の `a === b` が同じく `false` を返すため、
+ * 差異を観測できるテストは書けない（削除しても全テストが PASS する）。
+ * 判定順序を「型 → 配列 → スカラー」と読める形に保つために残している。
+ */
+const _valuesEqual = (a: string | string[] | undefined, b: string | string[] | undefined): boolean => {
+  if (Array.isArray(a) !== Array.isArray(b)) { return false; }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, index) => item === b[index]);
+  }
+  return a === b;
+};
+
 export class ChatlogFrontmatter {
   private _entries: FrontmatterFields;
 
@@ -119,6 +138,13 @@ export class ChatlogFrontmatter {
   /** type / category / title の3フィールドがすべて充足しているか判定する。 */
   hasBaseFields(): boolean {
     return hasFrontmatterFields(this._entries, ['type', 'category', 'title']);
+  }
+
+  /** 他の `ChatlogFrontmatter` とキー集合・各値が同一かを判定する。キー順序は比較対象に含めない。 */
+  equals(other: ChatlogFrontmatter): boolean {
+    const _keys = Object.keys(this._entries);
+    if (_keys.length !== Object.keys(other._entries).length) { return false; }
+    return _keys.every((key) => _valuesEqual(this._entries[key], other._entries[key]));
   }
 
   toFrontmatter(fieldOrder: string[] = DEFAULT_ORDERED_FIELDS, opts?: { addTagHashes?: boolean }): string {
