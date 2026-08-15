@@ -188,7 +188,7 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
 
 分類が 1 種類しかない場合は `When:` ブロックを省略して `it` を直接置いてよい。
 
-**TOP レベルの例**
+##### TOP レベルの例
 
 ```typescript
 /**
@@ -203,7 +203,7 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
 describe('GlobalConfig', () => {
 ```
 
-**機能種別レベルの例**
+##### 機能種別レベルの例
 
 ```typescript
 /**
@@ -214,7 +214,7 @@ describe('GlobalConfig', () => {
 describe('getInstance', () => {
 ```
 
-**When / it レベルの例**
+##### When / it レベルの例
 
 ```typescript
 /** 引数なしまたは有効なオプションを渡す正常ケース。 */
@@ -254,7 +254,7 @@ it('T-EC-BC-01-01: parsed.agent=codex → result.agent === codex', () => { ... }
 
 ## 5. ファイル名
 
-```
+```text
 <テスト対象名>.<テスト種別>.spec.ts
 ```
 
