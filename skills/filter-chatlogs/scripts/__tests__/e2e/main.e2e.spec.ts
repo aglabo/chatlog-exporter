@@ -816,20 +816,20 @@ describe('main - Claude CLI 異常終了', () => {
  */
 describe('main - 存在しない period ディレクトリ → InputNotFound', () => {
   /**
-   * agent ディレクトリは存在するが、period ディレクトリ（2026-99）が存在しない前提。
+   * agent ディレクトリは存在するが、period ディレクトリ（2026-09）が存在しない前提。
    *
    * period 込みで存在確認を行い、存在しない場合は `ChatlogError` が throw されることを確認する。
    */
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
-    /** `main(["claude", "2026-99"])` を呼び出すとき（GlobalConfig に chatlogsDir を設定）。 */
-    describe('When: main(["claude", "2026-99"]) を呼び出す', () => {
+    /** `main(["claude", "2026-09"])` を呼び出すとき（GlobalConfig に chatlogsDir を設定）。 */
+    describe('When: main(["claude", "2026-09"]) を呼び出す', () => {
       /** `ChatlogError` が throw され `main` が reject されること。 */
       describe('Then: T-FL-E2E-11 - main が ChatlogError で reject される', () => {
         let tempDir: string;
         let loggerStub: LoggerStub;
 
         beforeEach(async () => {
-          // agent ディレクトリは存在するが、2026-99 月ディレクトリは存在しない
+          // agent ディレクトリは存在するが、2026-09 月ディレクトリは存在しない
           ({ tempDir } = await _makeTestDirs('claude', '2026-03'));
           // 探索ディレクトリは GlobalConfig.chatlogsDir + originalLogs から解決されるため、
           // agent ディレクトリは originalLogs 配下に作成する。
@@ -847,7 +847,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
 
         it('T-FL-E2E-11-01: ChatlogError で main が reject される', async () => {
           await assertRejects(
-            () => main(['claude', '2026-99']),
+            () => main(['claude', '2026-09']),
             ChatlogError,
           );
         });
