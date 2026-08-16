@@ -520,11 +520,11 @@ describe('parseArgsToConfig', () => {
   /**
    * `parseArgsToConfig` の `period` 型バリデーションテスト。
    *
-   * `--period` オプションに不正な形式の値を渡した場合に
+   * `--period` オプションに不正な形式・不正な月レンジの値を渡した場合に
    * `ChatlogError('InvalidArgs')` をスローすることを検証する。
    * 正常な YYYY-MM 形式は正常にセットされることも検証する。
    *
-   * テスト ID 範囲: T-PA-17-01 〜 T-PA-17-02
+   * テスト ID 範囲: T-PA-17-01 〜 T-PA-17-03
    */
   describe('Given: --period オプションに不正な形式の値', () => {
     /** period 型エントリを含むテスト用スキーマ。 */
@@ -538,6 +538,14 @@ describe('parseArgsToConfig', () => {
           () => parseArgs<TestConfig>(['--period', 'invalid-format'], _SCHEMA_WITH_PERIOD),
           ChatlogError,
           '期間形式ではありません',
+        );
+      });
+
+      it('[Error] T-PA-17-03: --period 2026-13 → ChatlogError(InvalidArgs) がスローされる（期間の月が範囲外です の詳細を含む）', () => {
+        assertThrows(
+          () => parseArgs<TestConfig>(['--period', '2026-13'], _SCHEMA_WITH_PERIOD),
+          ChatlogError,
+          '期間の月が範囲外です',
         );
       });
     });
@@ -1022,7 +1030,7 @@ describe('parseArgsToConfig', () => {
    * 固定パターンのみを許可し、それ以外の型混在・順序違反は
    * `ChatlogError('InvalidArgs')` をスローすることを検証する。
    *
-   * テスト ID 範囲: T-PA-POS-01 〜 T-PA-POS-14
+   * テスト ID 範囲: T-PA-POS-01 〜 T-PA-POS-15
    */
   describe('Given: インデックスベースの位置引数パターン', () => {
     describe('When: パターンA（directory 系）', () => {
@@ -1111,6 +1119,16 @@ describe('parseArgsToConfig', () => {
           () => parseArgs<TestConfig>(['claude', '2026-03', '2026-04'], TEST_SCHEMA),
           ChatlogError,
           'Invalid Args',
+        );
+      });
+    });
+
+    describe('When: 異常系（値の検証）', () => {
+      it('[Error] T-PA-POS-15: ["claude", "2026-13"] → 位置引数経路でも月レンジ検証で ChatlogError(InvalidPeriodRange)', () => {
+        assertThrows(
+          () => parseArgs<TestConfig>(['claude', '2026-13'], TEST_SCHEMA),
+          ChatlogError,
+          '期間の月が範囲外です',
         );
       });
     });
@@ -1332,7 +1350,7 @@ describe('isArgDirectory', () => {
  * `isArgPeriod` のユニットテストスイート。
  *
  * `YYYY-MM` 形式の文字列を期間引数として認識するかを検証する。
- * 月レンジ（01〜12）は検証しない（現行の振る舞い保存）。
+ * 月レンジ（01〜12）はここでは検証しない（`_setByType` の period 型検証が担当する）。
  *
  * テスト ID 範囲: T-LIB-U-12-01 〜 T-LIB-U-12-06
  *
@@ -1357,7 +1375,7 @@ describe('isArgPeriod', () => {
     it('[Edge] T-LIB-U-12-04: "" → false が返る（空文字列）', () => {
       assertFalse(isArgPeriod(''));
     });
-    it('[Edge] T-LIB-U-12-05: "2025-13" → true が返る（月レンジ非チェック、現行と同一）', () => {
+    it('[Edge] T-LIB-U-12-05: "2025-13" → true が返る（形式判定のみ。月レンジは `_setByType` が検証する）', () => {
       assert(isArgPeriod('2025-13'));
     });
     it('[Edge] T-LIB-U-12-06: "20260" → false が返る（5桁年は不一致）', () => {

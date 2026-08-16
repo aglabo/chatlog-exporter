@@ -41,7 +41,7 @@ const _entry = (type: ArgSchemaEntry['type'], field = 'result'): ArgSchemaEntry 
  * 各型（flag / string / agent / integer / number / directory）の
  * 正常系・異常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-SBT-FL-01 〜 T-SBT-PR-06
+ * テスト ID 範囲: T-SBT-FL-01 〜 T-SBT-PR-08-02
  *
  * @see _setByTypeForTest
  */
@@ -278,9 +278,9 @@ describe('_setByType', () => {
   /**
    * `period` 型の動作テスト。
    *
-   * `YYYY-MM` 形式の文字列は正常にセットされ、
-   * それ以外の形式（YYYY 単独を含む）はエラーになることを検証する。
-   * 月レンジ（01〜12）は `isArgPeriod` の仕様に合わせて検証しない。
+   * `YYYY-MM` 形式かつ月が 01〜12 の文字列は正常にセットされ、
+   * それ以外の形式（YYYY 単独を含む）は `InvalidPeriodFormat` エラーになることを検証する。
+   * 月レンジ外（`00` / `13` 以上）は `InvalidPeriodRange` エラーになる。
    */
   describe('period 型', () => {
     /** YYYY-MM 形式の正常ケース。 */
@@ -289,6 +289,20 @@ describe('_setByType', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '2026-03');
         assertEquals(config['result'], '2026-03');
+        assertNull(result);
+      });
+
+      it('[Normal] T-SBT-PR-08-01: rawValue "2026-01" → config[field] = "2026-01"（月レンジ下限）', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, _entry('period'), '2026-01');
+        assertEquals(config['result'], '2026-01');
+        assertNull(result);
+      });
+
+      it('[Normal] T-SBT-PR-08-02: rawValue "2026-12" → config[field] = "2026-12"（月レンジ上限）', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, _entry('period'), '2026-12');
+        assertEquals(config['result'], '2026-12');
         assertNull(result);
       });
     });
@@ -315,17 +329,26 @@ describe('_setByType', () => {
         assertNotNull(result);
         assert(result instanceof ChatlogError);
       });
-    });
 
-    /** 境界値・isArgPeriod の仕様に準じたケース。 */
-    describe('When: エッジケース', () => {
-      it('[Edge] T-SBT-PR-05: rawValue "2026-13" → config に設定される（月レンジ非チェック）', () => {
+      it('[Error] T-SBT-PR-05: rawValue "2026-13" → ChatlogError(InvalidPeriodRange)、config は未設定', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '2026-13');
-        assertEquals(config['result'], '2026-13');
-        assertNull(result);
+        assertNotNull(result);
+        assert(result instanceof ChatlogError);
+        assertEquals(config['result'], undefined);
       });
 
+      it('[Error] T-SBT-PR-07: rawValue "2026-00" → ChatlogError(InvalidPeriodRange)、config は未設定', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, _entry('period'), '2026-00');
+        assertNotNull(result);
+        assert(result instanceof ChatlogError);
+        assertEquals(config['result'], undefined);
+      });
+    });
+
+    /** 空文字列など、形式検証の前段で弾かれるケース。 */
+    describe('When: エッジケース', () => {
       it('[Edge] T-SBT-PR-06: rawValue "" → ChatlogError', () => {
         const config = _makeConfig();
         const result = _setByTypeForTest(config, _entry('period'), '');
