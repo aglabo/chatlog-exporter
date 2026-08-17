@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 8.5.0
+version: 8.5.1
 created: "2026-08-12"
 ---
 
@@ -455,7 +455,7 @@ REQ-C-008 により対象は単一の `<agent> <YYYY-MM>` ディレクトリに�
 | ------ | ------------------------------------------------------------------- |
 | AC-015 | 全件成功時に `.bak` が削除される                                    |
 | AC-016 | error が 1 件でもあれば `.bak` が保持される                         |
-| AC-025 | stripped に由来しない `.bak` の削除時に件数とパスが警告で報告される |
+| AC-028 | stripped に由来しない `.bak` の削除時に件数とパスが警告で報告される |
 
 ### REQ-F-011: private フィールドの正式版ログへの非出力
 
@@ -1019,6 +1019,23 @@ Scenario: .bak 削除後も冪等である
   Then  strip 済みファイルは全て done として計上される
   And   本文が変更されていない
 
+# AC-025: passthrough と判定したファイルが status=passthrough / rule=成立規則 で記録される
+# Requirement: REQ-F-009
+Scenario: passthrough の処理済み状態が記録される
+  Given ## Summary を持たないファイル
+  When  filter strip を実行する
+  Then  当該ファイルの status が passthrough として ChatlogCache に記録される
+  And   成立した判定規則 R-005 が rule として記録される
+  And   本文が変更されていない
+
+# AC-026: passthrough を記録したファイルが再実行で done と判定され再判定されない
+# Requirement: REQ-F-009
+Scenario: 記録済みの passthrough は再判定されない
+  Given AC-025 により status が passthrough として記録されたファイル
+  When  filter strip を再度実行する
+  Then  当該ファイルは done として計上される
+  And   本文の再判定が行われない
+
 # AC-015: 全件成功時に .bak が削除される
 # Requirement: REQ-F-010
 Scenario: 正常終了時に .bak が削除される
@@ -1033,7 +1050,7 @@ Scenario: 異常時は .bak を残す
   When  filter strip を実行する
   Then  対象ディレクトリ配下の .bak が全て残っている
 
-# AC-025: stripped に由来しない .bak の削除時に件数とパスが警告で報告される
+# AC-028: stripped に由来しない .bak の削除時に件数とパスが警告で報告される
 # Requirement: REQ-F-010
 Scenario: 当該実行の産物でない .bak の削除を報告する
   Given 除去対象を含み error が発生しないディレクトリ
@@ -1186,33 +1203,33 @@ Scenario Outline: 出力ディレクトリ指定時に実行を拒否する
 
 ## 10. Traceability
 
-| REQ ID     | AC IDs                 | Type           |
-| ---------- | ---------------------- | -------------- |
-| REQ-F-000  | AC-010                 | Functional     |
-| REQ-F-001  | AC-001, AC-002         | Functional     |
-| REQ-F-002  | AC-003                 | Functional     |
-| REQ-F-003  | AC-004                 | Functional     |
-| REQ-F-004  | AC-005                 | Functional     |
-| REQ-F-005  | AC-007, AC-012         | Functional     |
-| REQ-F-006  | AC-008                 | Functional     |
-| REQ-F-007  | AC-006, AC-009         | Functional     |
-| REQ-F-008  | AC-011, AC-023         | Functional     |
-| REQ-F-009  | AC-013, AC-014         | Functional     |
-| REQ-F-010  | AC-015, AC-016, AC-025 | Functional     |
-| REQ-F-011  | AC-017                 | Functional     |
-| REQ-NF-001 | N/A                    | Non-Functional |
-| REQ-NF-002 | N/A                    | Non-Functional |
-| REQ-NF-003 | N/A                    | Non-Functional |
-| REQ-NF-004 | N/A                    | Non-Functional |
-| REQ-NF-005 | N/A                    | Non-Functional |
-| REQ-C-001  | N/A                    | Constraint     |
-| REQ-C-002  | N/A                    | Constraint     |
-| REQ-C-003  | N/A                    | Constraint     |
-| REQ-C-004  | N/A                    | Constraint     |
-| REQ-C-005  | AC-018                 | Constraint     |
-| REQ-C-006  | AC-019                 | Constraint     |
-| REQ-C-007  | AC-020                 | Constraint     |
-| REQ-C-008  | AC-021, AC-022, AC-027 | Constraint     |
+| REQ ID     | AC IDs                                 | Type           |
+| ---------- | -------------------------------------- | -------------- |
+| REQ-F-000  | AC-010                                 | Functional     |
+| REQ-F-001  | AC-001, AC-002                         | Functional     |
+| REQ-F-002  | AC-003                                 | Functional     |
+| REQ-F-003  | AC-004                                 | Functional     |
+| REQ-F-004  | AC-005                                 | Functional     |
+| REQ-F-005  | AC-007, AC-012                         | Functional     |
+| REQ-F-006  | AC-008                                 | Functional     |
+| REQ-F-007  | AC-006, AC-009                         | Functional     |
+| REQ-F-008  | AC-011, AC-023                         | Functional     |
+| REQ-F-009  | AC-013, AC-014, AC-024, AC-025, AC-026 | Functional     |
+| REQ-F-010  | AC-015, AC-016, AC-028                 | Functional     |
+| REQ-F-011  | AC-017                                 | Functional     |
+| REQ-NF-001 | N/A                                    | Non-Functional |
+| REQ-NF-002 | N/A                                    | Non-Functional |
+| REQ-NF-003 | N/A                                    | Non-Functional |
+| REQ-NF-004 | N/A                                    | Non-Functional |
+| REQ-NF-005 | N/A                                    | Non-Functional |
+| REQ-C-001  | N/A                                    | Constraint     |
+| REQ-C-002  | N/A                                    | Constraint     |
+| REQ-C-003  | N/A                                    | Constraint     |
+| REQ-C-004  | N/A                                    | Constraint     |
+| REQ-C-005  | AC-018                                 | Constraint     |
+| REQ-C-006  | AC-019                                 | Constraint     |
+| REQ-C-007  | AC-020                                 | Constraint     |
+| REQ-C-008  | AC-021, AC-022, AC-027                 | Constraint     |
 
 ## 11. Change History
 
@@ -1258,5 +1275,7 @@ Scenario Outline: 出力ディレクトリ指定時に実行を拒否する
 | 2026-08-16 | 8.2.0   | REQ-F-006 の「除去前後の合計バイト数」を実装可能な形へ具体化 (MINOR: AC を追加)。サマリーへ `bytesBefore` / `bytesAfter` を出力する旨と、集計対象を除去対象と分類したファイル (通常実行は `stripped` / dry-run は `skipped`) に限る旨、値が本文 (frontmatter を除く) の UTF-8 バイト数である旨、除去を伴わない分類が本文バイト数を持たない理由を規定。AC-008 を「5 分類の件数と除去前後の合計バイト数が含まれる」へ改訂し、dry-run 一致と除去対象 0 件の Gherkin を追加                                                                                                                                                                                                                  |
 | 2026-08-16 | 8.3.0   | DR-32 を反映 (MINOR: AC を追加)。REQ-C-008 の受理拒否条件に「出力ディレクトリ (`--output-dir` もしくは第 3 位置引数) の指定」を追加し、EARS の WHERE 句と軸ごとの表に当該経路を追記。値が受理されても `resolveChatlogsDir()` へ渡らず `originalLogs/` を in-place で書き換える経路であることを Rationale に記録。AC-027 を追加し Gherkin をフラグ・位置引数の 2 例で記述。Traceability の REQ-C-008 に AC-027 を追加                                                                                                                                                                                                                                                                     |
 | 2026-08-16 | 8.4.0   | DR-33 を反映 (MINOR: 振る舞いを追加)。REQ-F-009 の `--recover-orphans` の記述に、復帰またはキャッシュエントリ削除に失敗したファイルが 1 件以上ある場合は失敗件数を報告のうえ終了コードを成功以外とする規定を追加。乖離を残したまま成功終了すると次回実行が判定順序の手順 1 で永久に done と判定すること、2 回目の `--recover-orphans` では回収できないこと（DR-27）、報告が終了コードの生成に先行すること（DR-20 決定 3）を根拠として併記。REQ-F-006 / REQ-F-010 の通常モードの終了コード規定は不変                                                                                                                                                                                      |
+| 2026-08-16 | 8.5.0   | DR-34 を反映 (MINOR: AC を追加)。REQ-F-010 に stripped 由来でない `.bak` の削除前警告 (件数とパスの報告・終了コードに影響しない旨) を規定し AC-028 を追加。前回実行の中断により残った `.bak` と strip 以外の経路で置かれた `.bak` を区別しない理由を併記                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-08-17 | 8.5.1   | AC 採番の衝突を解消 (PATCH: 要求と AC の実体は不変)。DR-34 由来の AC を AC-025 から AC-028 へ改番し (AC-025 / AC-026 は v8.1.0 で DR-31 へ割り当て済みのため保持)、Traceability の REQ-F-009 に AC-024 / AC-025 / AC-026 を追加、REQ-F-010 を AC-028 へ追随。AC-025 / AC-026 の Gherkin を新設                                                                                                                                                                                                                                                                                                                                                                                           |
 
 <!-- markdownlint-enable line-length -->
