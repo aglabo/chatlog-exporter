@@ -19,7 +19,7 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 // ─────────────────────────────────────────────
 /**
  * @description ChatlogFrontmatter クラスのユニットテストスイート。
- * get / set / remove / toFrontmatter および各コンストラクタ入力形式を網羅的に検証する。
+ * get / set / remove / equals / toFrontmatter および各コンストラクタ入力形式を網羅的に検証する。
  */
 describe('ChatlogFrontmatter', () => {
   /**
@@ -273,6 +273,129 @@ describe('ChatlogFrontmatter', () => {
         assertEquals(err.kind, tc.kind);
       });
     }
+  });
+
+  /**
+   * @description equals() メソッドのユニットテスト。
+   * キー集合・各値の一致判定、キー順序非依存、配列の順序依存比較を検証する。
+   */
+  describe('equals()', () => {
+    /** 同一と判定されることを期待する frontmatter 文字列のペア。 */
+    const _equalCases: { id: string; label: string; inputA: string; inputB: string }[] = [
+      {
+        id: 'T-CLS-CF-51',
+        label: '同じキー集合と値を持つ 2 つ',
+        inputA: '---\ntype: note\ntitle: Hello\n---\n',
+        inputB: '---\ntype: note\ntitle: Hello\n---\n',
+      },
+      {
+        id: 'T-CLS-CF-52',
+        label: '同じキー集合・値でキーの並び順のみが異なる 2 つ',
+        inputA: '---\ntype: note\ntitle: Hello\n---\n',
+        inputB: '---\ntitle: Hello\ntype: note\n---\n',
+      },
+      {
+        id: 'T-CLS-CF-53',
+        label: 'tags 配列を持ち値が等しい 2 つ',
+        inputA: '---\ntags:\n  - a\n  - b\n---\n',
+        inputB: '---\ntags:\n  - a\n  - b\n---\n',
+      },
+    ];
+
+    /** 非同一と判定されることを期待する frontmatter 文字列のペア。 */
+    const _notEqualErrorCases: { id: string; label: string; inputA: string; inputB: string }[] = [
+      {
+        id: 'T-CLS-CF-54',
+        label: '一方のみ category を持つ（キー欠落）',
+        inputA: '---\ntitle: Hello\ncategory: dev\n---\n',
+        inputB: '---\ntitle: Hello\n---\n',
+      },
+      {
+        id: 'T-CLS-CF-55',
+        label: '一方に未知フィールドが 1 つ多い（キー増加）',
+        inputA: '---\ntitle: Hello\n---\n',
+        inputB: '---\ntitle: Hello\nunknown: extra\n---\n',
+      },
+      {
+        id: 'T-CLS-CF-56',
+        label: 'title の値のみ異なる',
+        inputA: '---\ntitle: Hello\n---\n',
+        inputB: '---\ntitle: World\n---\n',
+      },
+      {
+        id: 'T-CLS-CF-57',
+        label: 'tags の配列長が異なる',
+        inputA: '---\ntags:\n  - a\n---\n',
+        inputB: '---\ntags:\n  - a\n  - b\n---\n',
+      },
+    ];
+
+    /** @description キー集合・各値がともに一致し同一と判定されるケース。 */
+    describe('When: 正常系', () => {
+      for (const tc of _equalCases) {
+        it(`${tc.id}: [Normal] ${tc.label} → 同一と判定される`, () => {
+          // arrange
+          const fmA = new ChatlogFrontmatter(tc.inputA);
+          const fmB = new ChatlogFrontmatter(tc.inputB);
+
+          // act
+          const result = fmA.equals(fmB);
+
+          // assert
+          assertEquals(result, true);
+        });
+      }
+    });
+
+    /** @description キー集合または値が食い違い非同一と判定されるケース。対称性もあわせて検証する。 */
+    describe('When: 異常系', () => {
+      for (const tc of _notEqualErrorCases) {
+        it(`${tc.id}: [Error] ${tc.label} → 非同一と判定される`, () => {
+          // arrange
+          const fmA = new ChatlogFrontmatter(tc.inputA);
+          const fmB = new ChatlogFrontmatter(tc.inputB);
+
+          // act & assert（equals は対称であるため両方向を検証する）
+          assertEquals(fmA.equals(fmB), false);
+          assertEquals(fmB.equals(fmA), false);
+        });
+      }
+    });
+
+    /** @description 空 frontmatter・配列要素順など境界的なケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CF-58: [Edge] キーを 1 つも持たない 2 つ（空 frontmatter） → 同一と判定される', () => {
+        // arrange
+        const fmA = new ChatlogFrontmatter('---\n---\n');
+        const fmB = new ChatlogFrontmatter('---\n---\n');
+
+        // act
+        const result = fmA.equals(fmB);
+
+        // assert
+        assertEquals(result, true);
+      });
+
+      it('T-CLS-CF-59: [Edge] tags の要素順のみが異なる 2 つ → 非同一と判定される', () => {
+        // arrange
+        const fmA = new ChatlogFrontmatter('---\ntags:\n  - a\n  - b\n---\n');
+        const fmB = new ChatlogFrontmatter('---\ntags:\n  - b\n  - a\n---\n');
+
+        // act & assert（equals は対称であるため両方向を検証する）
+        assertEquals(fmA.equals(fmB), false);
+        assertEquals(fmB.equals(fmA), false);
+      });
+
+      it('T-CLS-CF-60: [Edge] 同じキーが string と string[] の 2 つ → 非同一と判定される', () => {
+        // arrange（YAML のスカラーと 1 要素リストは別の値として扱う）
+        const fmA = new ChatlogFrontmatter('---\ntags: a\n---\n');
+        const fmB = new ChatlogFrontmatter('---\ntags:\n  - a\n---\n');
+
+        // act & assert（equals は対称であるため両方向を検証する）
+        assertEquals(fmA.equals(fmB), false);
+        assertEquals(fmB.equals(fmA), false);
+      });
+    });
   });
 
   /**

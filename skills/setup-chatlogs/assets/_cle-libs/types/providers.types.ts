@@ -47,6 +47,16 @@ export type MkdirProvider = (path: string, options?: { recursive?: boolean }) =>
 /** ファイルをリネーム（移動）する関数の型。テスト用インジェクションに利用する。 */
 export type RenameProvider = (oldPath: string, newPath: string) => Promise<void>;
 
+/**
+ * 指定ミリ秒待機する関数の型。テスト用インジェクションに利用する。
+ *
+ * リトライの待機に用いる。テストでは即座に解決する実装を注入し、実待機を避ける。
+ */
+export type SleepProvider = (ms: number) => Promise<void>;
+
+/** ファイルを退避し、作成した退避先パス（退避しなかった場合は null）を返す関数の型。テスト用インジェクションに利用する。 */
+export type BackupProvider = (path: string) => Promise<string | null>;
+
 /** ディレクトリを結果に含めるか判定する述語関数の型。 */
 export type DirProvider = (dir: string) => Promise<boolean>;
 
