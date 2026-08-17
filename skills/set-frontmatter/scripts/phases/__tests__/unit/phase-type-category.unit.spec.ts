@@ -162,7 +162,7 @@ const _makeJudgeStub = (): { stub: _JudgeProvider; getCount: () => number } => {
  * dryRun フラグの動作、キャッシュヒット/ミスの判定、
  * および `empty` / `review-failed` ステータス時の再判定、壊れたキャッシュの再判定を検証する。
  *
- * テスト ID 範囲: T-01-01-01 〜 T-01-04-07
+ * テスト ID 範囲: T-SF-PTC-01-01-01 〜 T-SF-PTC-01-04-07
  *
  * @see _phaseTypeAndCategoryForTest
  */
@@ -171,7 +171,7 @@ describe('_phaseTypeAndCategory', () => {
    * dryRun=false の正常系: judgeProvider と cache.write が従来通り呼ばれる。
    */
   describe('When: 正常系 dryRun=false', () => {
-    it('[Normal] T-01-01-01: entry 1件 / dryRun=false → judgeProvider が 1 回呼ばれる', async () => {
+    it('[Normal] T-SF-PTC-01-01-01: entry 1件 / dryRun=false → judgeProvider が 1 回呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -181,7 +181,7 @@ describe('_phaseTypeAndCategory', () => {
       assertEquals(getCount(), 1);
     });
 
-    it('[Normal] T-01-01-02: entry 1件 / dryRun=false → cache.write が 1 回以上呼ばれる', async () => {
+    it('[Normal] T-SF-PTC-01-01-02: entry 1件 / dryRun=false → cache.write が 1 回以上呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -198,7 +198,7 @@ describe('_phaseTypeAndCategory', () => {
    * dryRun=true の正常系: judgeProvider も cache.write も呼ばれない。
    */
   describe('When: 正常系 dryRun=true', () => {
-    it('[Normal] T-01-02-01: entry 1件 / dryRun=true → judgeProvider が 0 回呼ばれる', async () => {
+    it('[Normal] T-SF-PTC-01-02-01: entry 1件 / dryRun=true → judgeProvider が 0 回呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -208,7 +208,7 @@ describe('_phaseTypeAndCategory', () => {
       assertEquals(getCount(), 0);
     });
 
-    it('[Normal] T-01-02-02: entry 1件 / dryRun=true → cache.write が 0 回呼ばれる', async () => {
+    it('[Normal] T-SF-PTC-01-02-02: entry 1件 / dryRun=true → cache.write が 0 回呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub } = _makeJudgeStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -225,7 +225,7 @@ describe('_phaseTypeAndCategory', () => {
    * エッジケース: entries=[] のとき dryRun に関わらずエラーなく完了する。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-01-03-01: entries=[] / dryRun=true → エラーなく完了・judgeProvider 0 回', async () => {
+    it('[Edge] T-SF-PTC-01-03-01: entries=[] / dryRun=true → エラーなく完了・judgeProvider 0 回', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeJudgeStub();
 
@@ -245,7 +245,7 @@ describe('_phaseTypeAndCategory', () => {
     /** review-failed: type/category があっても再判定が必要なケース。 */
     describe('When: 異常系', () => {
       it(
-        '[Error] T-01-04-01: status=review-failed + type/category あり → judgeProvider が 1 回呼ばれる',
+        '[Error] T-SF-PTC-01-04-01: status=review-failed + type/category あり → judgeProvider が 1 回呼ばれる',
         async () => {
           const filePath = '/path/to/a.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.REVIEW_FAILED);
@@ -262,7 +262,7 @@ describe('_phaseTypeAndCategory', () => {
     /** type/category があり、status が review-failed 以外: キャッシュ値を適用してスキップ。 */
     describe('When: 正常系', () => {
       it(
-        '[Normal] T-01-04-02: status=type-category + type/category あり → judgeProvider が 0 回呼ばれる',
+        '[Normal] T-SF-PTC-01-04-02: status=type-category + type/category あり → judgeProvider が 0 回呼ばれる',
         async () => {
           const filePath = '/path/to/b.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
@@ -276,7 +276,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Normal] T-01-04-03: status=type-category + type/category あり → frontmatter にキャッシュ値が適用される',
+        '[Normal] T-SF-PTC-01-04-03: status=type-category + type/category あり → frontmatter にキャッシュ値が適用される',
         async () => {
           const filePath = '/path/to/b.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
@@ -294,7 +294,7 @@ describe('_phaseTypeAndCategory', () => {
     /** type/category がない: status 問わず再判定。 */
     describe('When: エッジケース', () => {
       it(
-        '[Edge] T-01-04-04: type/category なし（status 問わず）→ judgeProvider が 1 回呼ばれる',
+        '[Edge] T-SF-PTC-01-04-04: type/category なし（status 問わず）→ judgeProvider が 1 回呼ばれる',
         async () => {
           const cache = await _makeCache();
           const { stub, getCount } = _makeJudgeStub();
@@ -307,7 +307,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Edge] T-01-04-05: status=empty + cache に type/category あり → cache 優先で AI 不要（judge 0 回）・status を type-category へ昇格',
+        '[Edge] T-SF-PTC-01-04-05: status=empty + cache に type/category あり → cache 優先で AI 不要（judge 0 回）・status を type-category へ昇格',
         async () => {
           const filePath = '/path/to/broken.md';
           const cache = await _makeCache();
@@ -328,7 +328,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Edge] T-01-04-07: status=undefined（キャッシュミス）+ type/category あり → judgeProvider が 1 回呼ばれる（_needsReJudge の明示的 undefined 条件）',
+        '[Edge] T-SF-PTC-01-04-07: status=undefined（キャッシュミス）+ type/category あり → judgeProvider が 1 回呼ばれる（_needsReJudge の明示的 undefined 条件）',
         async () => {
           const filePath = '/path/to/undefined-status.md';
           // status フィールドを持たないキャッシュエントリ（status=undefined）
@@ -371,7 +371,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Edge] T-01-04-06: status=type-category + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
+        '[Edge] T-SF-PTC-01-04-06: status=type-category + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
         async () => {
           const filePath = '/path/to/partial.md';
           const cache = await _makeCache();
@@ -392,7 +392,7 @@ describe('_phaseTypeAndCategory', () => {
    * 先頭ファイルが RateLimit を throw したとき、残りのファイルの判定が中断されるケース。
    */
   describe('When: judgeProvider が RateLimit を throw する', () => {
-    it('[Error] T-01-05-01: 先頭が RateLimit → 2 番目以降の judgeProvider が呼ばれず ChatlogError を再 throw', async () => {
+    it('[Error] T-SF-PTC-01-05-01: 先頭が RateLimit → 2 番目以降の judgeProvider が呼ばれず ChatlogError を再 throw', async () => {
       const cache = await _makeCache();
       let _count = 0;
       const _rateLimitStub: _JudgeProvider = (_entry, _maxLen, _dics, _prompts) => {
@@ -426,7 +426,7 @@ describe('_phaseTypeAndCategory', () => {
    * この転送があることで、兄弟ファイルが RateLimit で abort したとき in-flight の judge が signal を受け取れる。
    */
   describe('When: signal 転送', () => {
-    it('[Normal] T-01-06-01: judgeProvider に AbortSignal が転送される', async () => {
+    it('[Normal] T-SF-PTC-01-06-01: judgeProvider に AbortSignal が転送される', async () => {
       const cache = await _makeCache();
       let _captured: AbortSignal | undefined;
       const _captureStub: _JudgeProvider = (entry, _maxLen, _dics, _prompts, _model, signal) => {
@@ -466,14 +466,14 @@ describe('_phaseTypeAndCategory', () => {
   describe('needsTypeCategoryAi', () => {
     /** キャッシュに type/category が有効に揃っており AI 不要な正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-01-08-01: status=type-category + type/category あり → false', async () => {
+      it('[Normal] T-SF-PTC-01-08-01: status=type-category + type/category あり → false', async () => {
         const filePath = '/path/to/ok.md';
         const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
         assertEquals(needsTypeCategoryAi(_makeEntry(filePath), cache), false);
       });
 
       it(
-        '[Normal] T-01-08-04: cache に type/category あり + entry.frontmatter に無し → cache 優先で false',
+        '[Normal] T-SF-PTC-01-08-04: cache に type/category あり + entry.frontmatter に無し → cache 優先で false',
         async () => {
           const filePath = '/path/to/cache-first.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
@@ -483,7 +483,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Normal] T-01-08-05: cache miss + entry.frontmatter に type/category あり → frontmatter 参照で false',
+        '[Normal] T-SF-PTC-01-08-05: cache miss + entry.frontmatter に type/category あり → frontmatter 参照で false',
         async () => {
           const filePath = '/path/to/fm-only.md';
           const cache = await _makeCache();
@@ -495,12 +495,12 @@ describe('_phaseTypeAndCategory', () => {
 
     /** キャッシュミス・再判定ステータスで AI 必要な異常系/エッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-01-08-02: cache miss（status undefined）→ true', async () => {
+      it('[Edge] T-SF-PTC-01-08-02: cache miss（status undefined）→ true', async () => {
         const cache = await _makeCache();
         assertEquals(needsTypeCategoryAi(_makeEntry('/path/to/miss.md'), cache), true);
       });
 
-      it('[Edge] T-01-08-03: status=review-failed + type/category あり → true', async () => {
+      it('[Edge] T-SF-PTC-01-08-03: status=review-failed + type/category あり → true', async () => {
         const filePath = '/path/to/rf.md';
         const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.REVIEW_FAILED);
         assertEquals(needsTypeCategoryAi(_makeEntry(filePath), cache), true);
@@ -523,14 +523,14 @@ describe('_phaseTypeAndCategory', () => {
         SETFM_CACHE_STATUSES.TYPE_CATEGORY,
       ];
       for (const status of _targetStatuses) {
-        it(`[Normal] T-01-12: status=${status || 'empty'} → true`, async () => {
+        it(`[Normal] T-SF-PTC-01-12: status=${status || 'empty'} → true`, async () => {
           const filePath = `/path/to/target-${status || 'empty'}.md`;
           const cache = await _makeCacheWithEntry(filePath, status);
           assertEquals(isTypeCategoryTarget(_makeEntry(filePath), cache), true);
         });
       }
 
-      it('[Normal] T-01-12-04: cache miss（status undefined）→ true', async () => {
+      it('[Normal] T-SF-PTC-01-12-04: cache miss（status undefined）→ true', async () => {
         const cache = await _makeCache();
         assertEquals(isTypeCategoryTarget(_makeEntry('/path/to/target-miss.md'), cache), true);
       });
@@ -544,7 +544,7 @@ describe('_phaseTypeAndCategory', () => {
         SETFM_CACHE_STATUSES.WRITTEN,
       ];
       for (const status of _outOfScope) {
-        it(`[Edge] T-01-13: status=${status} → false（対象外）`, async () => {
+        it(`[Edge] T-SF-PTC-01-13: status=${status} → false（対象外）`, async () => {
           const filePath = `/path/to/out-${status}.md`;
           const cache = await _makeCacheWithEntry(filePath, status);
           assertEquals(isTypeCategoryTarget(_makeEntry(filePath), cache), false);
@@ -557,7 +557,7 @@ describe('_phaseTypeAndCategory', () => {
     /** 既存 type/category が両方そろっており AI をスキップする正常系。 */
     describe('When: 正常系', () => {
       it(
-        '[Normal] T-01-07-01: cache miss + 既存 type/category あり → judgeProvider が 0 回呼ばれる',
+        '[Normal] T-SF-PTC-01-07-01: cache miss + 既存 type/category あり → judgeProvider が 0 回呼ばれる',
         async () => {
           const filePath = '/path/to/existing.md';
           const cache = await _makeCache();
@@ -571,7 +571,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Normal] T-01-07-02: cache miss + 既存 type/category あり → キャッシュに既存値と SET_TYPES が書かれる',
+        '[Normal] T-SF-PTC-01-07-02: cache miss + 既存 type/category あり → キャッシュに既存値と SET_TYPES が書かれる',
         async () => {
           const filePath = '/path/to/existing.md';
           const cache = await _makeCache();
@@ -591,7 +591,7 @@ describe('_phaseTypeAndCategory', () => {
     /** 既存 type/category が片方欠けており従来どおり再判定する回帰確認。 */
     describe('When: エッジケース', () => {
       it(
-        '[Edge] T-01-07-03: cache miss + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
+        '[Edge] T-SF-PTC-01-07-03: cache miss + category なし（片方欠け）→ judgeProvider が 1 回呼ばれる',
         async () => {
           const filePath = '/path/to/partial-existing.md';
           const cache = await _makeCache();
@@ -605,7 +605,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Edge] T-01-07-04: status=review-failed + 既存 type/category あり → judgeProvider が 1 回呼ばれる（AI 再判定）',
+        '[Edge] T-SF-PTC-01-07-04: status=review-failed + 既存 type/category あり → judgeProvider が 1 回呼ばれる（AI 再判定）',
         async () => {
           const filePath = '/path/to/review-failed-existing.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.REVIEW_FAILED);
@@ -631,7 +631,7 @@ describe('_phaseTypeAndCategory', () => {
     /** 対象外ステータス（frontmatter 等）は完全にスキップされるエッジケース。 */
     describe('When: エッジケース', () => {
       it(
-        '[Edge] T-01-11-01: status=frontmatter → 対象外（judge 0 回・cache 非変更・info 表示なし・frontmatter 非変更）',
+        '[Edge] T-SF-PTC-01-11-01: status=frontmatter → 対象外（judge 0 回・cache 非変更・info 表示なし・frontmatter 非変更）',
         async () => {
           const filePath = '/path/to/fm-status.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.FRONTMATTER);
@@ -663,7 +663,7 @@ describe('_phaseTypeAndCategory', () => {
     /** cache 優先解決・status 非降格・dry-run 無変更の対象内挙動。 */
     describe('When: 正常系', () => {
       it(
-        '[Normal] T-01-11-02: status=type-category + cache に type/cat あり + entry.fm に無し → cache 優先で AI 0 回・frontmatter へ cache 値反映',
+        '[Normal] T-SF-PTC-01-11-02: status=type-category + cache に type/cat あり + entry.fm に無し → cache 優先で AI 0 回・frontmatter へ cache 値反映',
         async () => {
           const filePath = '/path/to/cache-first-integ.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
@@ -679,7 +679,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Normal] T-01-11-03: status=type-category を非AIで処理 → status が type-category を維持（降格なし）',
+        '[Normal] T-SF-PTC-01-11-03: status=type-category を非AIで処理 → status が type-category を維持（降格なし）',
         async () => {
           const filePath = '/path/to/no-demote.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.TYPE_CATEGORY);
@@ -693,7 +693,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Normal] T-01-11-04: dryRun + status=empty + cache に type/cat あり → judge 0 回・cache 非変更（status は empty のまま）・existing 表示',
+        '[Normal] T-SF-PTC-01-11-04: dryRun + status=empty + cache に type/cat あり → judge 0 回・cache 非変更（status は empty のまま）・existing 表示',
         async () => {
           const filePath = '/path/to/dry-empty-existing.md';
           const cache = await _makeCache();
@@ -734,7 +734,7 @@ describe('_phaseTypeAndCategory', () => {
     /** existing ケース: existing 表示・AI スキップ・cache 非変更。 */
     describe('When: 正常系', () => {
       it(
-        '[Normal] T-01-10-01: dryRun + cache miss + 既存 type/category あり → existing 表示・judgeProvider 0 回・cache 非変更',
+        '[Normal] T-SF-PTC-01-10-01: dryRun + cache miss + 既存 type/category あり → existing 表示・judgeProvider 0 回・cache 非変更',
         async () => {
           const filePath = '/path/to/dry-existing.md';
           const cache = await _makeCache();
@@ -760,7 +760,7 @@ describe('_phaseTypeAndCategory', () => {
     /** existing 扱いにならず従来の AI 判定 dry-run 表示になるエッジケース。 */
     describe('When: エッジケース', () => {
       it(
-        '[Edge] T-01-10-02: dryRun + cache miss + category なし（片方欠け）→ 従来の type/category 表示・cache 非変更',
+        '[Edge] T-SF-PTC-01-10-02: dryRun + cache miss + category なし（片方欠け）→ 従来の type/category 表示・cache 非変更',
         async () => {
           const filePath = '/path/to/dry-partial.md';
           const cache = await _makeCache();
@@ -783,7 +783,7 @@ describe('_phaseTypeAndCategory', () => {
       );
 
       it(
-        '[Edge] T-01-10-03: dryRun + status=review-failed + 既存 type/category あり → 従来の type/category 表示・cache 非変更',
+        '[Edge] T-SF-PTC-01-10-03: dryRun + status=review-failed + 既存 type/category あり → 従来の type/category 表示・cache 非変更',
         async () => {
           const filePath = '/path/to/dry-rf.md';
           const cache = await _makeCacheWithEntry(filePath, SETFM_CACHE_STATUSES.REVIEW_FAILED);

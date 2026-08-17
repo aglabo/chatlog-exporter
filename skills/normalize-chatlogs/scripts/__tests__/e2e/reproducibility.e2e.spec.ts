@@ -59,7 +59,7 @@ const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
  * R-010: 入力ファイルは処理後も変化しない。
  */
 describe('main - reproducibility', () => {
-  // ─── T-15-04-02: 再実行時のバックアップ ──────────────────────────────────────
+  // ─── T-NC-ERP-15-04-02: 再実行時のバックアップ ──────────────────────────────────────
 
   /** エッジケース: 再実行時に normalize済みファイルをスキップする (R-011) */
   describe('Given: 出力ファイルがすでに存在する処理済み入力ファイル', () => {
@@ -96,8 +96,8 @@ describe('main - reproducibility', () => {
     });
 
     describe('When: main() を同一入力で 2 回呼び出す', () => {
-      describe('Then: Task T-15-04-02 - 再実行時に normalize済みファイルをスキップする', () => {
-        it('T-15-04-02-01: 2 回目の呼び出しで done=1 がレポートに含まれる', async () => {
+      describe('Then: Task T-NC-ERP-15-04-02 - 再実行時に normalize済みファイルをスキップする', () => {
+        it('T-NC-ERP-15-04-02-01: 2 回目の呼び出しで done=1 がレポートに含まれる', async () => {
           // Fixed hash so both runs generate the same output filename
           const fixedHash: HashProvider = () => '0000000';
 
@@ -116,7 +116,7 @@ describe('main - reproducibility', () => {
     });
   });
 
-  // ─── T-15-04-03: 入力ファイル不変保証 ───────────────────────────────────────
+  // ─── T-NC-ERP-15-04-03: 入力ファイル不変保証 ───────────────────────────────────────
 
   /** エッジケース: 実行後も入力ファイルの内容が変化しない (R-010) */
   describe('Given: 既知の内容を持つ入力 MD ファイル', () => {
@@ -151,8 +151,8 @@ describe('main - reproducibility', () => {
     });
 
     describe('When: main() が完了する', () => {
-      describe('Then: Task T-15-04-03 - 実行全体を通じて入力ファイルが変更されない', () => {
-        it('T-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
+      describe('Then: Task T-NC-ERP-15-04-03 - 実行全体を通じて入力ファイルが変更されない', () => {
+        it('T-NC-ERP-15-04-03-01: 入力ファイルの内容が main() 実行後も変化しない', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const afterContent = await readTextFile(`${inputDir}/input.md`);

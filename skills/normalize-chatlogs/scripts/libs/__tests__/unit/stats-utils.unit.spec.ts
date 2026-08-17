@@ -44,7 +44,7 @@ describe('initStats', () => {
  *
  * console.log への出力内容を LoggerStub で検証する。
  *
- * テスト ID 範囲: T-14-01-01 〜 T-14-05-01
+ * テスト ID 範囲: T-NC-STA-14-01-01 〜 T-NC-STA-14-05-01
  *
  * @see reportStats
  */
@@ -61,7 +61,7 @@ describe('reportStats', () => {
 
   /** エッジケース: 全カウントが 0 でもスローせず出力する */
   describe('Given: 全カウントが 0 の stats', () => {
-    it('[Edge] T-14-02-01: throw せずに stdout に出力される', () => {
+    it('[Edge] T-NC-STA-14-02-01: throw せずに stdout に出力される', () => {
       const stats: Stats = { success: 0, fail: 0, done: 0, error: 0, skip: 0 };
 
       reportStats(stats);
@@ -73,7 +73,7 @@ describe('reportStats', () => {
 
   /** 正常系: fail が非ゼロのとき失敗件数を stdout に明示する */
   describe('Given: fail が非ゼロの stats', () => {
-    it('[Normal] T-14-03-01: stdout に失敗件数が明示される', () => {
+    it('[Normal] T-NC-STA-14-03-01: stdout に失敗件数が明示される', () => {
       const stats: Stats = { success: 0, fail: 3, done: 0, error: 0, skip: 0 };
 
       reportStats(stats);
@@ -85,7 +85,7 @@ describe('reportStats', () => {
 
   /** 正常系: 全5フィールドが出力文字列に含まれる。 */
   describe('Given: 全フィールドが異なる値を持つ stats', () => {
-    it('[Normal] T-14-04-01: success/done/skip/fail/error すべてがレポートに含まれる', () => {
+    it('[Normal] T-NC-STA-14-04-01: success/done/skip/fail/error すべてがレポートに含まれる', () => {
       const stats: Stats = { success: 1, fail: 2, done: 3, error: 4, skip: 5 };
 
       reportStats(stats);
@@ -101,7 +101,7 @@ describe('reportStats', () => {
 
   /** エッジケース: error が非ゼロのときエラー件数を stdout に明示する */
   describe('Given: error が非ゼロの stats', () => {
-    it('[Edge] T-14-05-01: stdout にエラー件数が明示される', () => {
+    it('[Edge] T-NC-STA-14-05-01: stdout にエラー件数が明示される', () => {
       const stats: Stats = { success: 0, fail: 0, done: 0, error: 2, skip: 0 };
 
       reportStats(stats);

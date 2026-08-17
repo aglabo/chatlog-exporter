@@ -82,7 +82,7 @@ describe('moveChatlogEntry', () => {
     await Deno.remove(tempDir, { recursive: true });
   });
 
-  // ─── T-CL-CF-02: 正常移動 ────────────────────────────────────────────────
+  // ─── T-CL-CFI-02: 正常移動 ────────────────────────────────────────────────
 
   describe('Given: 実在するファイルと dryRun=false', () => {
     let entry: ChatlogEntry;
@@ -95,8 +95,8 @@ describe('moveChatlogEntry', () => {
     });
 
     describe('When: moveChatlogEntry(entry, "app1", tempDir, false, cache) を呼び出す', () => {
-      describe('Then: T-CL-CF-02 - ファイルが app1/ サブディレクトリへ移動される', () => {
-        it('T-CL-CF-02-04: action が MOVE になる', async () => {
+      describe('Then: T-CL-CFI-02 - ファイルが app1/ サブディレクトリへ移動される', () => {
+        it('T-CL-CFI-02-04: action が MOVE になる', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -104,7 +104,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(_result.action, CLASSIFY_ACTIONS.MOVE);
         });
 
-        it('T-CL-CF-02-06: dstDir（tempDir/app1）が存在する', async () => {
+        it('T-CL-CFI-02-06: dstDir（tempDir/app1）が存在する', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -112,7 +112,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(await dirExists(`${tempDir}/app1`), true);
         });
 
-        it('T-CL-CF-02-01: dstPath にファイルが存在する', async () => {
+        it('T-CL-CFI-02-01: dstPath にファイルが存在する', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -120,7 +120,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(await fileExists(`${tempDir}/app1/${_SRC_FILENAME}`), true);
         });
 
-        it('T-CL-CF-02-02: srcPath が存在しない', async () => {
+        it('T-CL-CFI-02-02: srcPath が存在しない', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -128,7 +128,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(await fileOrDirExists(srcPath), false, 'srcPath がまだ存在する');
         });
 
-        it('T-CL-CF-02-03: dstPath のテキストに "project: app1" が含まれる', async () => {
+        it('T-CL-CFI-02-03: dstPath のテキストに "project: app1" が含まれる', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -137,7 +137,7 @@ describe('moveChatlogEntry', () => {
           assertStringIncludes(_dstText, 'project: "app1"');
         });
 
-        it('T-CL-CF-02-05: message に "moved:" が含まれる', async () => {
+        it('T-CL-CFI-02-05: message に "moved:" が含まれる', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -145,7 +145,7 @@ describe('moveChatlogEntry', () => {
           assertStringIncludes(_result.message, 'moved:');
         });
 
-        it('T-CL-CF-02-07: 移動成功後、対応する cache エントリが削除される（read が空オブジェクトを返す）', async () => {
+        it('T-CL-CFI-02-07: 移動成功後、対応する cache エントリが削除される（read が空オブジェクトを返す）', async () => {
           const cache = await _makeEmptyClassifyCache();
           await cache.write(srcPath, { project: 'app1' });
 
@@ -157,7 +157,7 @@ describe('moveChatlogEntry', () => {
     });
   });
 
-  // ─── T-CL-CF-03: 移動失敗 ────────────────────────────────────────────────
+  // ─── T-CL-CFI-03: 移動失敗 ────────────────────────────────────────────────
 
   describe('Given: 存在しないファイルパスと dryRun=false', () => {
     let entry: ChatlogEntry;
@@ -170,14 +170,14 @@ describe('moveChatlogEntry', () => {
     });
 
     describe('When: moveChatlogEntry(entry, "app1", tempDir, false, cache) を呼び出す（srcPath 不在）', () => {
-      describe('Then: T-CL-CF-03 - 例外なしで action が ERROR になる', () => {
-        it('T-CL-CF-03-01: 例外がスローされない', async () => {
+      describe('Then: T-CL-CFI-03 - 例外なしで action が ERROR になる', () => {
+        it('T-CL-CFI-03-01: 例外がスローされない', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
         });
 
-        it('T-CL-CF-03-02: action が ERROR になる', async () => {
+        it('T-CL-CFI-03-02: action が ERROR になる', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -185,7 +185,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(_result.action, CLASSIFY_ACTIONS.ERROR);
         });
 
-        it('T-CL-CF-03-03: message に "move failed:" が含まれる', async () => {
+        it('T-CL-CFI-03-03: message に "move failed:" が含まれる', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -193,7 +193,7 @@ describe('moveChatlogEntry', () => {
           assertStringIncludes(_result.message, 'move failed:');
         });
 
-        it('T-CL-CF-03-04: action が MOVE でない', async () => {
+        it('T-CL-CFI-03-04: action が MOVE でない', async () => {
           const cache = await _makeEmptyClassifyCache();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -201,7 +201,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(_result.action !== CLASSIFY_ACTIONS.MOVE, true);
         });
 
-        it('T-CL-CF-03-05: 移動失敗時、cache エントリは削除されない（read が書き込んだ値のまま）', async () => {
+        it('T-CL-CFI-03-05: 移動失敗時、cache エントリは削除されない（read が書き込んだ値のまま）', async () => {
           const cache = await _makeEmptyClassifyCache();
           const srcPath = `${tempDir}/missing.md`;
           await cache.write(srcPath, { project: 'app1' });
@@ -214,7 +214,7 @@ describe('moveChatlogEntry', () => {
     });
   });
 
-  // ─── T-CL-CF-04: 移動成功だが cache.delete が失敗 ────────────────────────
+  // ─── T-CL-CFI-04: 移動成功だが cache.delete が失敗 ────────────────────────
 
   describe('Given: 実在するファイル（実移動は成功する）だが cache.delete が non-NotFound エラーを throw する', () => {
     let entry: ChatlogEntry;
@@ -227,8 +227,8 @@ describe('moveChatlogEntry', () => {
     });
 
     describe('When: moveChatlogEntry(entry, "app1", tempDir, false, cache) を呼び出す', () => {
-      describe('Then: T-CL-CF-04 - cache 削除失敗が move 失敗に化けない', () => {
-        it('T-CL-CF-04-01: action が MOVE になる', async () => {
+      describe('Then: T-CL-CFI-04 - cache 削除失敗が move 失敗に化けない', () => {
+        it('T-CL-CFI-04-01: action が MOVE になる', async () => {
           const cache = await _makeCacheWithFailingDelete();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -236,7 +236,7 @@ describe('moveChatlogEntry', () => {
           assertEquals(_result.action, CLASSIFY_ACTIONS.MOVE);
         });
 
-        it('T-CL-CF-04-02: message に "moved:" が含まれる', async () => {
+        it('T-CL-CFI-04-02: message に "moved:" が含まれる', async () => {
           const cache = await _makeCacheWithFailingDelete();
 
           const _result = await moveChatlogEntry(entry, 'app1', tempDir, false, cache);
@@ -244,7 +244,7 @@ describe('moveChatlogEntry', () => {
           assertStringIncludes(_result.message, 'moved:');
         });
 
-        it('T-CL-CF-04-03: 実ファイルが tempDir/app1/ へ移動済みである', async () => {
+        it('T-CL-CFI-04-03: 実ファイルが tempDir/app1/ へ移動済みである', async () => {
           const cache = await _makeCacheWithFailingDelete();
 
           await moveChatlogEntry(entry, 'app1', tempDir, false, cache);

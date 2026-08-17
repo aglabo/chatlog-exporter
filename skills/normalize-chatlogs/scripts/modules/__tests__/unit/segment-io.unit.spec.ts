@@ -42,7 +42,7 @@ import { ChatlogFrontmatter } from '../../../../../_cle-libs/classes/ChatlogFron
  * hash7 は `hashFn` 引数として注入した値が使われる。
  * `hashFn` 未指定時は `generateHash(baseName, { length: 7 })` で SHA-256 由来の 7 文字ハッシュを返す。
  *
- * テスト ID 範囲: T-06-01-01 〜 T-06-04-01
+ * テスト ID 範囲: T-SIO-06-01-01 〜 T-SIO-06-04-01
  *
  * @see generateOutputFileName
  */
@@ -55,7 +55,7 @@ describe('generateOutputFileName', () => {
 
   /** 標準的な chatlog ファイルパスと index から正しいフォーマットのファイル名を返す正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-06-01-01: index=0 のとき hashFn 戻り値を使い <baseName>-01-<hash7>.md を返す', async () => {
+    it('[Normal] T-SIO-06-01-01: index=0 のとき hashFn 戻り値を使い <baseName>-01-<hash7>.md を返す', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 0, hashFn);
@@ -63,7 +63,7 @@ describe('generateOutputFileName', () => {
       assertEquals(result, 'test-file-01-abc1234.md');
     });
 
-    it('[Normal] T-06-01-02: index=1 のとき連番が "02" になる', async () => {
+    it('[Normal] T-SIO-06-01-02: index=1 のとき連番が "02" になる', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 1, hashFn);
@@ -71,7 +71,7 @@ describe('generateOutputFileName', () => {
       assertEquals(result, 'test-file-02-abc1234.md');
     });
 
-    it('[Normal] T-06-01-03: index=9 のとき連番が "10" になる', async () => {
+    it('[Normal] T-SIO-06-01-03: index=9 のとき連番が "10" になる', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
 
       const result = await generateOutputFileName(filePath, 9, hashFn);
@@ -79,7 +79,7 @@ describe('generateOutputFileName', () => {
       assertEquals(result, 'test-file-10-abc1234.md');
     });
 
-    it('[Normal] T-06-04-01: ソースの末尾ハッシュを除去したベース名で出力名を生成する', async () => {
+    it('[Normal] T-SIO-06-04-01: ソースの末尾ハッシュを除去したベース名で出力名を生成する', async () => {
       const filePath = 'chatlogs/claude/2026/2026-03/2026-03-11-topic-abc1234.md';
 
       const result = await generateOutputFileName(filePath, 0, hashFn);
@@ -97,14 +97,14 @@ describe('generateOutputFileName', () => {
  * セグメントオブジェクト `{title, summary, content}` から Markdown ファイルコンテンツを生成する関数の
  * 正常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-11-01-01 〜 T-11-02-01
+ * テスト ID 範囲: T-SIO-11-01-01 〜 T-SIO-11-02-01
  *
  * @see generateSegmentFile
  */
 describe('generateSegmentFile', () => {
   /** summary・content フィールドが正しいセクションとして出力される正常ケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-11-01-01: 返却文字列に `## Summary\\nFix CI pipeline` が含まれる', () => {
+    it('[Normal] T-SIO-11-01-01: 返却文字列に `## Summary\\nFix CI pipeline` が含まれる', () => {
       const seg = { title: 'Fix CI pipeline', summary: 'Fix CI pipeline', content: '### User\nHow do I fix CI?' };
 
       const result = generateSegmentFile(seg);
@@ -112,7 +112,7 @@ describe('generateSegmentFile', () => {
       assert(result.includes('## Summary\n\nFix CI pipeline'));
     });
 
-    it('[Normal] T-11-01-02: 返却文字列に START_BODY_HEADING + "\\n### User\\nHow do I..." が含まれる', () => {
+    it('[Normal] T-SIO-11-01-02: 返却文字列に START_BODY_HEADING + "\\n### User\\nHow do I..." が含まれる', () => {
       const seg = { title: 'Debug session', summary: 'Debug session', content: '### User\nHow do I...' };
 
       const result = generateSegmentFile(seg);
@@ -123,7 +123,7 @@ describe('generateSegmentFile', () => {
 
   /** 全フィールドが空でも両セクション見出しを含む文字列を返すエッジケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-11-02-01: 返却文字列に `## Summary` と START_BODY_HEADING の両セクション見出しが含まれる', () => {
+    it('[Edge] T-SIO-11-02-01: 返却文字列に `## Summary` と START_BODY_HEADING の両セクション見出しが含まれる', () => {
       const seg = { title: '', summary: '', content: '' };
 
       const result = generateSegmentFile(seg);
@@ -142,7 +142,7 @@ describe('generateSegmentFile', () => {
  * ChatlogFrontmatter インスタンスとセグメントメタデータを合成して `---` デリミタ付きフロントマターを
  * コンテンツの先頭に付加する関数の正常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-12-01-01 〜 T-12-03-02
+ * テスト ID 範囲: T-SIO-12-01-01 〜 T-SIO-12-03-02
  *
  * @see attachFrontmatter
  */
@@ -155,7 +155,7 @@ describe('attachFrontmatter', () => {
       fm = new ChatlogFrontmatter('');
     });
 
-    it('[Normal] T-12-01-01: 出力フロントマターに project: "ci-platform" が含まれる', () => {
+    it('[Normal] T-SIO-12-01-01: 出力フロントマターに project: "ci-platform" が含まれる', () => {
       fm.set('project', 'ci-platform');
       fm.set('date', '2026-03-01');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234' };
@@ -166,7 +166,7 @@ describe('attachFrontmatter', () => {
       assert(result.includes('project: "ci-platform"'));
     });
 
-    it('[Normal] T-12-01-02: 出力フロントマターに title・log_id が含まれ summary は含まれない', () => {
+    it('[Normal] T-SIO-12-01-02: 出力フロントマターに title・log_id が含まれ summary は含まれない', () => {
       fm.set('project', 'ci-platform');
       const segmentMeta = { title: 'Fix CI', log_id: 'abc1234' };
       const content = '## Summary\nFix CI';
@@ -178,7 +178,7 @@ describe('attachFrontmatter', () => {
       assertFalse(result.includes('summary:'));
     });
 
-    it('[Normal] T-12-03-01: 出力が `---\\n` で始まりフロントマターブロックが `\\n---\\n` で終わる', () => {
+    it('[Normal] T-SIO-12-03-01: 出力が `---\\n` で始まりフロントマターブロックが `\\n---\\n` で終わる', () => {
       fm.set('project', 'test');
       const segmentMeta = { title: 'T', log_id: 'x' };
       const content = '## Summary\ntext';
@@ -189,7 +189,7 @@ describe('attachFrontmatter', () => {
       assert(result.includes('\n---\n'));
     });
 
-    it('[Normal] T-12-03-02: コンテンツボディがフロントマターブロックの後に重複なく続く', () => {
+    it('[Normal] T-SIO-12-03-02: コンテンツボディがフロントマターブロックの後に重複なく続く', () => {
       const segmentMeta = { title: 'T', log_id: 'x' };
       const content = '## Summary\ntext';
 
@@ -208,7 +208,7 @@ describe('attachFrontmatter', () => {
       fm = new ChatlogFrontmatter('');
     });
 
-    it('[Edge] T-12-02-01: 出力フロントマターが AI 生成フィールド（title・log_id）のみを含む', () => {
+    it('[Edge] T-SIO-12-02-01: 出力フロントマターが AI 生成フィールド（title・log_id）のみを含む', () => {
       const segmentMeta = { title: 'Topic', log_id: 'aaabbbb' };
       const content = '## Summary\nTopic content';
 

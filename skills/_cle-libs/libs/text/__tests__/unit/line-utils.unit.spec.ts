@@ -20,8 +20,8 @@ import { normalizeLine } from '../../line-utils.ts';
 describe('normalizeLine', () => {
   describe('Given: CRLF のみの文字列', () => {
     describe('When: normalizeLine を実行する', () => {
-      describe('Then: T-LIB-U-07-01 - \\r\\n が \\n に変換される', () => {
-        it('T-LIB-U-07-01: CRLF が LF に変換される', () => {
+      describe('Then: T-LIB-LU-07-01 - \\r\\n が \\n に変換される', () => {
+        it('T-LIB-LU-07-01: CRLF が LF に変換される', () => {
           assertEquals(normalizeLine('line1\r\nline2\r\nline3'), 'line1\nline2\nline3');
         });
       });
@@ -30,8 +30,8 @@ describe('normalizeLine', () => {
 
   describe('Given: 単独 CR のみの文字列', () => {
     describe('When: normalizeLine を実行する', () => {
-      describe('Then: T-LIB-U-07-02 - \\r が \\n に変換される', () => {
-        it('T-LIB-U-07-02: 単独 CR が LF に変換される', () => {
+      describe('Then: T-LIB-LU-07-02 - \\r が \\n に変換される', () => {
+        it('T-LIB-LU-07-02: 単独 CR が LF に変換される', () => {
           assertEquals(normalizeLine('line1\rline2\rline3'), 'line1\nline2\nline3');
         });
       });
@@ -40,8 +40,8 @@ describe('normalizeLine', () => {
 
   describe('Given: CRLF・CR・LF が混在する文字列', () => {
     describe('When: normalizeLine を実行する', () => {
-      describe('Then: T-LIB-U-07-03 - 全ての行末が \\n に統一される', () => {
-        it('T-LIB-U-07-03: CRLF・CR・LF 混在が全て LF に変換される', () => {
+      describe('Then: T-LIB-LU-07-03 - 全ての行末が \\n に統一される', () => {
+        it('T-LIB-LU-07-03: CRLF・CR・LF 混在が全て LF に変換される', () => {
           assertEquals(normalizeLine('line1\r\nline2\rline3\nline4'), 'line1\nline2\nline3\nline4');
         });
       });
@@ -50,8 +50,8 @@ describe('normalizeLine', () => {
 
   describe('Given: LF のみの文字列（変換不要）', () => {
     describe('When: normalizeLine を実行する', () => {
-      describe('Then: T-LIB-U-07-04 - 入力と同一の文字列が返る', () => {
-        it('T-LIB-U-07-04: LF のみの文字列は変更されない', () => {
+      describe('Then: T-LIB-LU-07-04 - 入力と同一の文字列が返る', () => {
+        it('T-LIB-LU-07-04: LF のみの文字列は変更されない', () => {
           assertEquals(normalizeLine('line1\nline2\nline3'), 'line1\nline2\nline3');
         });
       });
@@ -60,8 +60,8 @@ describe('normalizeLine', () => {
 
   describe('Given: 空文字列', () => {
     describe('When: normalizeLine を実行する', () => {
-      describe('Then: T-LIB-U-07-05 - 空文字列が返る', () => {
-        it('T-LIB-U-07-05: 空文字列は空文字列のまま返る', () => {
+      describe('Then: T-LIB-LU-07-05 - 空文字列が返る', () => {
+        it('T-LIB-LU-07-05: 空文字列は空文字列のまま返る', () => {
           assertEquals(normalizeLine(''), '');
         });
       });

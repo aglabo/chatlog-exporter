@@ -51,7 +51,7 @@ const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
  * reportStats() が出力する "Results: success=N, skip=N, fail=N" 形式を検証する。
  */
 describe('main - aggregation', () => {
-  // ─── T-15-01-02: 並列処理の全件成功集計 ─────────────────────────────────────
+  // ─── T-NC-EAG-15-01-02: 並列処理の全件成功集計 ─────────────────────────────────────
 
   /** 正常系: 4 件の MD ファイルを並列処理し全件 success=4 を報告する */
   describe('Given: 4 件の MD ファイルを含むディレクトリとデフォルト並列数 4', () => {
@@ -93,8 +93,8 @@ describe('main - aggregation', () => {
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-01-02 - withConcurrency を使ってファイルを並列処理する', () => {
-        it('T-15-01-02-01: 全 4 件が処理されて結果レポートに success=4 が含まれる', async () => {
+      describe('Then: Task T-NC-EAG-15-01-02 - withConcurrency を使ってファイルを並列処理する', () => {
+        it('T-NC-EAG-15-01-02-01: 全 4 件が処理されて結果レポートに success=4 が含まれる', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=4/);
@@ -103,7 +103,7 @@ describe('main - aggregation', () => {
     });
   });
 
-  // ─── T-15-03-02: バッチ全体失敗時の集計 ────────────────────────────────────
+  // ─── T-NC-EAG-15-03-02: バッチ全体失敗時の集計 ────────────────────────────────────
 
   /**
    * 異常系: AI がバッチ全体で exit 失敗 → 全 3 ファイルが fail に集計される。
@@ -141,8 +141,8 @@ describe('main - aggregation', () => {
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-03-02 - AI バッチ呼び出し失敗でバッチ内全ファイルが fail にカウントされる', () => {
-        it('T-15-03-02-01: fail=3 がレポートに含まれる', async () => {
+      describe('Then: Task T-NC-EAG-15-03-02 - AI バッチ呼び出し失敗でバッチ内全ファイルが fail にカウントされる', () => {
+        it('T-NC-EAG-15-03-02-01: fail=3 がレポートに含まれる', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch([...loggerStub.infoLogs, ...loggerStub.warnLogs].join('\n'), /fail=3/);
@@ -151,7 +151,7 @@ describe('main - aggregation', () => {
     });
   });
 
-  // ─── T-15-04-01: 空ディレクトリの 0 件集計 ──────────────────────────────────
+  // ─── T-NC-EAG-15-04-01: 空ディレクトリの 0 件集計 ──────────────────────────────────
 
   /** エッジケース: 空ディレクトリで 0 件レポートを出力する */
   describe('Given: .md ファイルが存在しない空ディレクトリ', () => {
@@ -177,8 +177,8 @@ describe('main - aggregation', () => {
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-04-01 - 空ディレクトリでも完了し 0 件レポートを出力する', () => {
-        it('T-15-04-01-01: success=0, skip=0, fail=0 がレポートに含まれる', async () => {
+      describe('Then: Task T-NC-EAG-15-04-01 - 空ディレクトリでも完了し 0 件レポートを出力する', () => {
+        it('T-NC-EAG-15-04-01-01: success=0, skip=0, fail=0 がレポートに含まれる', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=0.*skip=0.*fail=0/);

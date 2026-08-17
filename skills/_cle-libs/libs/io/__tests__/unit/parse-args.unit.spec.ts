@@ -1295,8 +1295,8 @@ describe('parseArgs (defaultConfigFile)', () => {
 describe('isArgDirectory', () => {
   describe('Given: スラッシュを含む Unix スタイルのパス', () => {
     describe('When: isArgDirectory を実行する', () => {
-      describe('Then: T-LIB-U-11-01 - true が返る', () => {
-        it('T-LIB-U-11-01: /path/to/dir はディレクトリ引数として認識される', () => {
+      describe('Then: T-LIB-PA-11-01 - true が返る', () => {
+        it('T-LIB-PA-11-01: /path/to/dir はディレクトリ引数として認識される', () => {
           assert(isArgDirectory('/path/to/dir'));
         });
       });
@@ -1305,8 +1305,8 @@ describe('isArgDirectory', () => {
 
   describe('Given: スラッシュを含む相対パス', () => {
     describe('When: isArgDirectory を実行する', () => {
-      describe('Then: T-LIB-U-11-02 - true が返る', () => {
-        it('T-LIB-U-11-02: ./chatlogs はディレクトリ引数として認識される', () => {
+      describe('Then: T-LIB-PA-11-02 - true が返る', () => {
+        it('T-LIB-PA-11-02: ./chatlogs はディレクトリ引数として認識される', () => {
           assert(isArgDirectory('./chatlogs'));
         });
       });
@@ -1315,8 +1315,8 @@ describe('isArgDirectory', () => {
 
   describe('Given: スラッシュを含まない単純な文字列', () => {
     describe('When: isArgDirectory を実行する', () => {
-      describe('Then: T-LIB-U-11-03 - false が返る', () => {
-        it('T-LIB-U-11-03: claude はディレクトリ引数として認識されない', () => {
+      describe('Then: T-LIB-PA-11-03 - false が返る', () => {
+        it('T-LIB-PA-11-03: claude はディレクトリ引数として認識されない', () => {
           assertFalse(isArgDirectory('claude'));
         });
       });
@@ -1325,8 +1325,8 @@ describe('isArgDirectory', () => {
 
   describe('Given: バックスラッシュパス（Windows 形式）', () => {
     describe('When: isArgDirectory を実行する', () => {
-      describe('Then: T-LIB-U-11-04 - normalizePath 後にスラッシュを含むので true が返る', () => {
-        it('T-LIB-U-11-04: C:\\Users\\foo はスラッシュ正規化後にディレクトリ引数として認識される', () => {
+      describe('Then: T-LIB-PA-11-04 - normalizePath 後にスラッシュを含むので true が返る', () => {
+        it('T-LIB-PA-11-04: C:\\Users\\foo はスラッシュ正規化後にディレクトリ引数として認識される', () => {
           assert(isArgDirectory('C:\\Users\\foo'));
         });
       });
@@ -1335,8 +1335,8 @@ describe('isArgDirectory', () => {
 
   describe('Given: 空文字列', () => {
     describe('When: isArgDirectory を実行する', () => {
-      describe('Then: T-LIB-U-11-05 - false が返る', () => {
-        it('T-LIB-U-11-05: 空文字列はディレクトリ引数として認識されない', () => {
+      describe('Then: T-LIB-PA-11-05 - false が返る', () => {
+        it('T-LIB-PA-11-05: 空文字列はディレクトリ引数として認識されない', () => {
           assertFalse(isArgDirectory(''));
         });
       });
@@ -1352,33 +1352,33 @@ describe('isArgDirectory', () => {
  * `YYYY-MM` 形式の文字列を期間引数として認識するかを検証する。
  * 月レンジ（01〜12）はここでは検証しない（`_setByType` の period 型検証が担当する）。
  *
- * テスト ID 範囲: T-LIB-U-12-01 〜 T-LIB-U-12-06
+ * テスト ID 範囲: T-LIB-PA-12-01 〜 T-LIB-PA-12-06
  *
  * @see isArgPeriod
  */
 describe('isArgPeriod', () => {
   /** `YYYY-MM` 形式として正常に認識されるケース。 */
   describe('When: 正常系', () => {
-    it('[Normal] T-LIB-U-12-01: "2026-03" → true が返る', () => {
+    it('[Normal] T-LIB-PA-12-01: "2026-03" → true が返る', () => {
       assert(isArgPeriod('2026-03'));
     });
-    it('[Normal] T-LIB-U-12-02: "2026" → false が返る（年のみ指定は非対応）', () => {
+    it('[Normal] T-LIB-PA-12-02: "2026" → false が返る（年のみ指定は非対応）', () => {
       assertFalse(isArgPeriod('2026'));
     });
-    it('[Normal] T-LIB-U-12-03: "not-a-date" → false が返る', () => {
+    it('[Normal] T-LIB-PA-12-03: "not-a-date" → false が返る', () => {
       assertFalse(isArgPeriod('not-a-date'));
     });
   });
 
   /** 境界値・特殊入力のケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-LIB-U-12-04: "" → false が返る（空文字列）', () => {
+    it('[Edge] T-LIB-PA-12-04: "" → false が返る（空文字列）', () => {
       assertFalse(isArgPeriod(''));
     });
-    it('[Edge] T-LIB-U-12-05: "2025-13" → true が返る（形式判定のみ。月レンジは `_setByType` が検証する）', () => {
+    it('[Edge] T-LIB-PA-12-05: "2025-13" → true が返る（形式判定のみ。月レンジは `_setByType` が検証する）', () => {
       assert(isArgPeriod('2025-13'));
     });
-    it('[Edge] T-LIB-U-12-06: "20260" → false が返る（5桁年は不一致）', () => {
+    it('[Edge] T-LIB-PA-12-06: "20260" → false が返る（5桁年は不一致）', () => {
       assertFalse(isArgPeriod('20260'));
     });
   });

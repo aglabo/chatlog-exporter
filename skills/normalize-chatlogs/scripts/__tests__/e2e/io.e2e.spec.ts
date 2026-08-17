@@ -53,7 +53,7 @@ const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
  * --input-dir / --agent --year-month によるパス解決と出力ファイル生成を確認する。
  */
 describe('main - I/O', () => {
-  // ─── T-15-01-01: --input-dir によるファイル生成 ───────────────────────────────────
+  // ─── T-NC-EIO-15-01-01: --input-dir によるファイル生成 ───────────────────────────────────
 
   /** 正常系: --input-dir で指定したディレクトリの MD ファイルを処理してセグメント出力ファイルを生成する */
   describe('Given: マルチトピック MD ファイルが存在するディレクトリを --input-dir で指定する', () => {
@@ -97,8 +97,8 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-01-01 - 収集した全 MD ファイルを処理してセグメント出力ファイルを生成する', () => {
-        it('T-15-01-01-01: outputDir 配下に 2 件以上のセグメント出力ファイルが生成される', async () => {
+      describe('Then: Task T-NC-EIO-15-01-01 - 収集した全 MD ファイルを処理してセグメント出力ファイルを生成する', () => {
+        it('T-NC-EIO-15-01-01-01: outputDir 配下に 2 件以上のセグメント出力ファイルが生成される', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const files = await findFiles(outputDir);
@@ -108,7 +108,7 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-02-01: --input-dir によるパス解決（chatlogs 形式ディレクトリ） ───────────
+  // ─── T-NC-EIO-15-02-01: --input-dir によるパス解決（chatlogs 形式ディレクトリ） ───────────
 
   /** 正常系: --input-dir で chatlogs/<agent>/<year>/<year-month>/ を指定して処理する */
   describe('Given: --input-dir で chatlogs/claude/2026/2026-03 と対応パスが存在する', () => {
@@ -155,14 +155,14 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", AGENT_DIR, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-02-01 - chatlogs/<agent>/<year>/<year-month>/ から入力を解決してファイルを処理する', () => {
-        it('T-15-02-01-01: chatlogs/claude/2026/2026-03/ 内のファイルが処理されて出力が生成される', async () => {
+      describe('Then: Task T-NC-EIO-15-02-01 - chatlogs/<agent>/<year>/<year-month>/ から入力を解決してファイルを処理する', () => {
+        it('T-NC-EIO-15-02-01-01: chatlogs/claude/2026/2026-03/ 内のファイルが処理されて出力が生成される', async () => {
           await main(['--input-dir', AGENT_DIR, '--output-dir', outputDir]);
 
           assertMatch(loggerStub.infoLogs.join('\n'), /success=1/);
         });
 
-        it('T-15-02-01-02: 入力ディレクトリと出力先が logger.info でログ出力される', async () => {
+        it('T-NC-EIO-15-02-01-02: 入力ディレクトリと出力先が logger.info でログ出力される', async () => {
           await main(['--input-dir', AGENT_DIR, '--output-dir', outputDir]);
 
           const normalizedLogs = loggerStub.infoLogs.map((line) => normalizePath(line)).join('\n');
@@ -175,7 +175,7 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-05: chatlogs形式入力パスに応じた出力パス構造 ──────────────────────
+  // ─── T-NC-EIO-15-05: chatlogs形式入力パスに応じた出力パス構造 ──────────────────────
 
   /** 正常系: chatlogs形式の入力パス (chatlogs/<agent>/<yyyy>/<yyyy-mm>) に対して
    *  出力が normalized-logs/<agent>/<yyyy>/<yyyy-mm>/<project>/ 以下に生成される */
@@ -224,7 +224,7 @@ describe('main - I/O', () => {
 
     describe('When: main(["--input-dir", CHATLOG_INPUT_DIR, "--output", outputBase]) を呼び出す', () => {
       describe('Then: 出力が <outputBase>/my-app/ 以下に生成される', () => {
-        it('T-15-05-01-01: 出力ファイルのパスが <outputBase>/my-app/ を含む', async () => {
+        it('T-NC-EIO-15-05-01-01: 出力ファイルのパスが <outputBase>/my-app/ を含む', async () => {
           const fixedHash: HashProvider = () => 'abc1234';
           await main(['--input-dir', CHATLOG_INPUT_DIR, '--output-dir', outputBase], fixedHash);
 
@@ -238,7 +238,7 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-06: 任意ディレクトリ入力時は <outputBase>/<project>/ 以下に出力 ───
+  // ─── T-NC-EIO-15-06: 任意ディレクトリ入力時は <outputBase>/<project>/ 以下に出力 ───
 
   /** 正常系: 任意パスの入力ディレクトリに対して出力が <outputBase>/<project>/ 以下に生成される */
   describe('Given: 任意パスのディレクトリと project フロントマターを持つ MD ファイル', () => {
@@ -275,8 +275,8 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: Task T-15-06-01 - 出力が <outputBase>/custom-project/ 以下に生成される', () => {
-        it('T-15-06-01-01: 出力ファイルのパスが <outputBase>/custom-project/ を含む', async () => {
+      describe('Then: Task T-NC-EIO-15-06-01 - 出力が <outputBase>/custom-project/ 以下に生成される', () => {
+        it('T-NC-EIO-15-06-01-01: 出力ファイルのパスが <outputBase>/custom-project/ を含む', async () => {
           const fixedHash: HashProvider = () => 'def5678';
           await main(['--input-dir', inputDir, '--output-dir', outputBase], fixedHash);
 
@@ -289,7 +289,7 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-07: project なし（misc フォールバック）────────────────────────────
+  // ─── T-NC-EIO-15-07: project なし（misc フォールバック）────────────────────────────
 
   /** エッジケース: project フィールドなしの場合、出力が <outputBase>/misc/ 以下に生成される */
   describe('Given: project フロントマターなしの MD ファイル', () => {
@@ -326,8 +326,8 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: Task T-15-07-01 - project なし時は misc サブディレクトリに出力される', () => {
-        it('T-15-07-01-01: 出力ファイルのパスが <outputBase>/misc/ を含む', async () => {
+      describe('Then: Task T-NC-EIO-15-07-01 - project なし時は misc サブディレクトリに出力される', () => {
+        it('T-NC-EIO-15-07-01-01: 出力ファイルのパスが <outputBase>/misc/ を含む', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputBase]);
 
           const files = await findFiles(outputBase);
@@ -339,7 +339,7 @@ describe('main - I/O', () => {
     });
   });
 
-  // ─── T-15-04-04: 単一トピックから 1 件生成 ──────────────────────────────────
+  // ─── T-NC-EIO-15-04-04: 単一トピックから 1 件生成 ──────────────────────────────────
 
   /** エッジケース: 単一トピックのチャットログから出力ファイルが正確に 1 件生成される */
   describe('Given: 単一トピックのチャットログファイルを含むディレクトリ', () => {
@@ -380,8 +380,8 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-04-04 - 単一トピックの MD ファイルから出力ファイルが正確に 1 件生成される', () => {
-        it('T-15-04-04-01: outputDir 配下に正確に 1 件の .md ファイルが生成される', async () => {
+      describe('Then: Task T-NC-EIO-15-04-04 - 単一トピックの MD ファイルから出力ファイルが正確に 1 件生成される', () => {
+        it('T-NC-EIO-15-04-04-01: outputDir 配下に正確に 1 件の .md ファイルが生成される', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const files = await findFiles(outputDir);

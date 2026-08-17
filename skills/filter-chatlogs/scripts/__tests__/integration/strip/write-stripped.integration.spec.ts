@@ -191,7 +191,7 @@ afterEach(async () => {
  * R-009 の書き込み順序（1) tmp へ書き出す → 2) 元を `.bak` へ退避 → 3) tmp を本体名へ移動）を
  * 分割不能な 1 単位として検証する。実 tmp ディレクトリ上で実際の FS 操作を行う。
  *
- * テスト ID 範囲: T-FL-SWP-01-01 〜 T-FL-SWP-04-03
+ * テスト ID 範囲: T-FL-STW-01-01 〜 T-FL-STW-04-03
  *
  * @see writeStripped
  */
@@ -205,7 +205,7 @@ describe('writeStripped', () => {
   describe('正常な書き込みと退避', () => {
     /** stripped と判定されたファイルを実際に書き込む正常ケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-FL-SWP-01-01: `.bak` の内容が strip 前の原文と一致する', async () => {
+      it('[Normal] T-FL-STW-01-01: `.bak` の内容が strip 前の原文と一致する', async () => {
         const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -215,7 +215,7 @@ describe('writeStripped', () => {
         assertEquals(await Deno.readTextFile(bakPath), _STRIPPED_SOURCE);
       });
 
-      it('[Normal] T-FL-SWP-01-02: 本体が `## Summary` から始まり以降の内容が strip 前と一致する', async () => {
+      it('[Normal] T-FL-STW-01-02: 本体が `## Summary` から始まり以降の内容が strip 前と一致する', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -230,7 +230,7 @@ describe('writeStripped', () => {
         assertEquals(content, _expectedTail);
       });
 
-      it('[Normal] T-FL-SWP-01-03: frontmatter が strip 前と同一と判定される', async () => {
+      it('[Normal] T-FL-STW-01-03: frontmatter が strip 前と同一と判定される', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -240,7 +240,7 @@ describe('writeStripped', () => {
         assert(_after.equals(_frontmatterOf(_STRIPPED_SOURCE)));
       });
 
-      it('[Normal] T-FL-SWP-01-04: 書き込み完了後に `.tmp` が残らない', async () => {
+      it('[Normal] T-FL-STW-01-04: 書き込み完了後に `.tmp` が残らない', async () => {
         const { filePath, tmpPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -260,7 +260,7 @@ describe('writeStripped', () => {
   describe('キャッシュ記録のタイミング', () => {
     /** 書き込みが正常完了し、スワップ後に記録されるケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-FL-SWP-02-01: キャッシュへの記録が最終リネームの後に行われる', async () => {
+      it('[Normal] T-FL-STW-02-01: キャッシュへの記録が最終リネームの後に行われる', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -286,7 +286,7 @@ describe('writeStripped', () => {
         assertEquals(_order, ['swap', 'cache']);
       });
 
-      it('[Normal] T-FL-SWP-02-03: 成功時にキャッシュへ stripped が記録される', async () => {
+      it('[Normal] T-FL-STW-02-03: 成功時にキャッシュへ stripped が記録される', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -298,7 +298,7 @@ describe('writeStripped', () => {
 
     /** 手順 3 のリネームが失敗するケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-FL-SWP-02-02: スワップ失敗時にキャッシュへ記録されない', async () => {
+      it('[Error] T-FL-STW-02-02: スワップ失敗時にキャッシュへ記録されない', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -312,7 +312,7 @@ describe('writeStripped', () => {
         assertEquals(cache.read(filePath).status, undefined);
       });
 
-      it('[Error] T-FL-SWP-02-04: キャッシュ書き込み失敗時に reject せず ChatlogError を返す', async () => {
+      it('[Error] T-FL-STW-02-04: キャッシュ書き込み失敗時に reject せず ChatlogError を返す', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -328,7 +328,7 @@ describe('writeStripped', () => {
         assert(error instanceof ChatlogError);
       });
 
-      it('[Error] T-FL-SWP-02-05: キャッシュ書き込み失敗は CacheWriteFailed として失敗を返す', async () => {
+      it('[Error] T-FL-STW-02-05: キャッシュ書き込み失敗は CacheWriteFailed として失敗を返す', async () => {
         const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -347,7 +347,7 @@ describe('writeStripped', () => {
         assertEquals(error.subindex, 'CacheWriteFailed');
       });
 
-      it('[Error] T-FL-SWP-02-06: キャッシュ書き込み失敗でも本体の置換自体は完了している', async () => {
+      it('[Error] T-FL-STW-02-06: キャッシュ書き込み失敗でも本体の置換自体は完了している', async () => {
         const { filePath, tmpPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -375,7 +375,7 @@ describe('writeStripped', () => {
   describe('中断と防御的分岐', () => {
     /** 中断・防御的分岐により原文が保全されるケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-FL-SWP-03-01: 手順 1 の中断で本体に元の完全な内容が残る', async () => {
+      it('[Error] T-FL-STW-03-01: 手順 1 の中断で本体に元の完全な内容が残る', async () => {
         const { filePath, tmpPath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -395,7 +395,7 @@ describe('writeStripped', () => {
         assertFalse(await fileExists(bakPath));
       });
 
-      it('[Error] T-FL-SWP-03-02: 手順 2 の中断で本体か退避の一方に元の完全な内容が残る', async () => {
+      it('[Error] T-FL-STW-03-02: 手順 2 の中断で本体か退避の一方に元の完全な内容が残る', async () => {
         const { filePath, bakPath, tmpPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -424,7 +424,7 @@ describe('writeStripped', () => {
         assertEquals(await Deno.readTextFile(_bodyExists ? filePath : bakPath), _STRIPPED_SOURCE);
       });
 
-      it('[Error] T-FL-SWP-03-03: 手順 3 の中断で本体が存在せず退避に元の内容が残る', async () => {
+      it('[Error] T-FL-STW-03-03: 手順 3 の中断で本体が存在せず退避に元の内容が残る', async () => {
         const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         const decision = await _classifyFresh(filePath);
 
@@ -440,7 +440,7 @@ describe('writeStripped', () => {
         assertEquals(await Deno.readTextFile(bakPath), _STRIPPED_SOURCE);
       });
 
-      it('[Error] T-FL-SWP-03-04: 退避が既存なら BackupAlreadyExists を返し本体を書き換えない', async () => {
+      it('[Error] T-FL-STW-03-04: 退避が既存なら BackupAlreadyExists を返し本体を書き換えない', async () => {
         const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         // 判定は退避なしの前提で得てから、書き込み直前に退避が存在する状態を作る
         const decision = await _classifyFresh(filePath);
@@ -465,7 +465,7 @@ describe('writeStripped', () => {
   describe('書き込み後の境界状態', () => {
     /** 境界的な FS 状態・入力形式のケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-FL-SWP-04-01: 手順 2 と 3 の間の中断が R-014 で検出可能な孤立退避を生成する', async () => {
+      it('[Edge] T-FL-STW-04-01: 手順 2 と 3 の間の中断が R-014 で検出可能な孤立退避を生成する', async () => {
         // 手順 2 直後の中断状態を直接構築する: 本体が消え退避のみが残る
         const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         await Deno.rename(filePath, bakPath);
@@ -476,7 +476,7 @@ describe('writeStripped', () => {
         assertEquals(await Deno.readTextFile(bakPath), _STRIPPED_SOURCE);
       });
 
-      it('[Edge] T-FL-SWP-04-02: 退避が既存なら R-004 で done と判定され退避が上書きされない', async () => {
+      it('[Edge] T-FL-STW-04-02: 退避が既存なら R-004 で done と判定され退避が上書きされない', async () => {
         const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
         await Deno.writeTextFile(bakPath, '既存の退避内容');
 
@@ -491,7 +491,7 @@ describe('writeStripped', () => {
         assertEquals(await Deno.readTextFile(filePath), _STRIPPED_SOURCE);
       });
 
-      it('[Edge] T-FL-SWP-04-03: CRLF 入力でも frontmatter が同一と判定される', async () => {
+      it('[Edge] T-FL-STW-04-03: CRLF 入力でも frontmatter が同一と判定される', async () => {
         const { filePath } = await _setup('crlf.md', _CRLF_SOURCE);
         const decision = await _classifyFresh(filePath);
 

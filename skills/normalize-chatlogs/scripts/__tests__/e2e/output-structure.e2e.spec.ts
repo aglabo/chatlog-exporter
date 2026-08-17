@@ -48,7 +48,7 @@ const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
  * 持つことを assertAllOutputFiles で確認する。
  */
 describe('main - output structure', () => {
-  // ─── T-15-01-01-02: frontmatter 付き出力ファイルの構造 ──────────────────────
+  // ─── T-NC-EOS-15-01-01-02: frontmatter 付き出力ファイルの構造 ──────────────────────
 
   /** 正常系: 各出力ファイルが YAML frontmatter を含む */
   describe('Given: frontmatter 付き MD ファイルが存在するディレクトリを --dir で指定する', () => {
@@ -91,8 +91,8 @@ describe('main - output structure', () => {
     });
 
     describe('When: main(["--dir", inputDir, "--output", outputDir]) を呼び出す', () => {
-      describe('Then: Task T-15-01-01-02 - 各出力ファイルが YAML frontmatter を含む', () => {
-        it('T-15-01-01-02-01: 各出力ファイルが ---\\n で始まる YAML frontmatter と ## Summary セクションを含む', async () => {
+      describe('Then: Task T-NC-EOS-15-01-01-02 - 各出力ファイルが YAML frontmatter を含む', () => {
+        it('T-NC-EOS-15-01-01-02-01: 各出力ファイルが ---\\n で始まる YAML frontmatter と ## Summary セクションを含む', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputDir]);
 
           const files = await findFiles(outputDir);

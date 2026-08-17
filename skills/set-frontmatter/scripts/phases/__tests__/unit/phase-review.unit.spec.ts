@@ -120,7 +120,7 @@ const _prompts = {} as Prompts;
  * dryRun=false では reviewProvider と cache.write が呼ばれ、
  * dryRun=true では両方とも呼ばれないことを検証する。
  *
- * テスト ID 範囲: T-04-01 〜 T-04-03
+ * テスト ID 範囲: T-SF-PRV-04-01 〜 T-SF-PRV-04-03
  *
  * @see phaseReview
  */
@@ -129,7 +129,7 @@ describe('phaseReview', () => {
    * dryRun=false の動作: reviewProvider と cache.write が実行される。
    */
   describe('When: dryRun=false', () => {
-    it('[Normal] T-04-01-01: dryRun=false → reviewProvider 1回呼ばれる', async () => {
+    it('[Normal] T-SF-PRV-04-01-01: dryRun=false → reviewProvider 1回呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -139,7 +139,7 @@ describe('phaseReview', () => {
       assertEquals(getCount(), 1);
     });
 
-    it('[Normal] T-04-01-02: dryRun=false → cache.write 1回以上呼ばれる', async () => {
+    it('[Normal] T-SF-PRV-04-01-02: dryRun=false → cache.write 1回以上呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -155,7 +155,7 @@ describe('phaseReview', () => {
    * dryRun=true の動作: reviewProvider も cache.write も呼ばれない。
    */
   describe('When: dryRun=true', () => {
-    it('[Normal] T-04-02-01: dryRun=true → reviewProvider 0回', async () => {
+    it('[Normal] T-SF-PRV-04-02-01: dryRun=true → reviewProvider 0回', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -165,7 +165,7 @@ describe('phaseReview', () => {
       assertEquals(getCount(), 0);
     });
 
-    it('[Normal] T-04-02-02: dryRun=true → cache.write 0回', async () => {
+    it('[Normal] T-SF-PRV-04-02-02: dryRun=true → cache.write 0回', async () => {
       const cache = await _makeCache();
       const { stub } = _makeReviewStub();
       const entries = [_makeEntry('/path/to/a.md')];
@@ -181,7 +181,7 @@ describe('phaseReview', () => {
    * エッジケース: entries=[] のとき dryRun=true でも正常に解決する。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-04-03-01: entries=[] / dryRun=true → resolves, reviewProvider 0回', async () => {
+    it('[Edge] T-SF-PRV-04-03-01: entries=[] / dryRun=true → resolves, reviewProvider 0回', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeReviewStub();
 
@@ -195,11 +195,11 @@ describe('phaseReview', () => {
    * reviewProvider が RateLimit 以外のエラー（非 AiError / AiError/ExitFailure）を throw したとき
    * phase が abort せず継続し `logger.error` にログを出すケース。
    *
-   * RateLimit のみバッチを abort する（別ケース T-04-05-01 で検証）。
+   * RateLimit のみバッチを abort する（別ケース T-SF-PRV-04-05-01 で検証）。
    * 非 RateLimit のエラーは握りつぶして他エントリの処理を継続する。
    */
   describe('When: reviewProvider が非 RateLimit エラーを throw する', () => {
-    it('[Normal] T-04-04-01: reviewProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
+    it('[Normal] T-SF-PRV-04-04-01: reviewProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
         throw new Error('simulated non-fatal failure');
@@ -215,7 +215,7 @@ describe('phaseReview', () => {
       }
     });
 
-    it('[Error] T-04-04-02: reviewProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
+    it('[Error] T-SF-PRV-04-04-02: reviewProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _ReviewProvider = (_entry, _dics, _prompts) => {
         throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
@@ -236,7 +236,7 @@ describe('phaseReview', () => {
    * validity='corrected' のとき r.corrected を cache.frontmatter に書き込むケース。
    */
   describe('When: validity=corrected → r.corrected をキャッシュに書き込む', () => {
-    it('[Normal] T-03-01-01: corrected={type,category,title,topics,tags} → cache.frontmatter に反映', async () => {
+    it('[Normal] T-SF-PRV-03-01-01: corrected={type,category,title,topics,tags} → cache.frontmatter に反映', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       const { stub } = _makeCorrectedStub({
@@ -252,7 +252,7 @@ describe('phaseReview', () => {
       assertEquals(fm?.['title'], 'T');
     });
 
-    it('[Normal] T-03-01-02: corrected の type/category が cache.type/category に設定される', async () => {
+    it('[Normal] T-SF-PRV-03-01-02: corrected の type/category が cache.type/category に設定される', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       const { stub } = _makeCorrectedStub({
@@ -266,7 +266,7 @@ describe('phaseReview', () => {
       assertEquals(cache.read(filePath).category, 'ai');
     });
 
-    it('[Edge] T-03-01-03: r.corrected に空文字フィールドがある → cache の既存値が保持される', async () => {
+    it('[Edge] T-SF-PRV-03-01-03: r.corrected に空文字フィールドがある → cache の既存値が保持される', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
@@ -283,7 +283,7 @@ describe('phaseReview', () => {
       assertEquals(cache.read(filePath).frontmatter?.['title'], 'cached-title');
     });
 
-    it('[Edge] T-03-01-05: r.corrected.type が空文字 → cache.type は既存値のまま', async () => {
+    it('[Edge] T-SF-PRV-03-01-05: r.corrected.type が空文字 → cache.type は既存値のまま', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
@@ -300,7 +300,7 @@ describe('phaseReview', () => {
       assertEquals(cache.read(filePath).type, 'existing-type');
     });
 
-    it('[Edge] T-03-01-04: r.corrected に空配列フィールドがある → cache の既存値が保持される', async () => {
+    it('[Edge] T-SF-PRV-03-01-04: r.corrected に空配列フィールドがある → cache の既存値が保持される', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
@@ -322,7 +322,7 @@ describe('phaseReview', () => {
    * validity='error' のとき cache.status が 'review-failed' になり cache.delete が呼ばれないケース。
    */
   describe('When: validity=error → status が review-failed になる', () => {
-    it('[Normal] T-03-03-01: validity=error → cache.status === review-failed', async () => {
+    it('[Normal] T-SF-PRV-03-03-01: validity=error → cache.status === review-failed', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       const { stub } = _makeCorrectedStub({ validity: 'error', errors: ['review failed'] });
@@ -331,7 +331,7 @@ describe('phaseReview', () => {
       assertEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.REVIEW_FAILED);
     });
 
-    it('[Normal] T-03-03-02: validity=error → cache.delete は呼ばれない', async () => {
+    it('[Normal] T-SF-PRV-03-03-02: validity=error → cache.delete は呼ばれない', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       // pre-populate cache
@@ -392,7 +392,7 @@ describe('phaseReview', () => {
    * 先頭ファイルが RateLimit を throw したとき、残りのファイルのレビューが中断されるケース。
    */
   describe('When: reviewProvider が RateLimit を throw する', () => {
-    it('[Error] T-04-05-01: 先頭が RateLimit → 2 番目以降の reviewProvider が呼ばれず ChatlogError を再 throw', async () => {
+    it('[Error] T-SF-PRV-04-05-01: 先頭が RateLimit → 2 番目以降の reviewProvider が呼ばれず ChatlogError を再 throw', async () => {
       const cache = await _makeCache();
       let _count = 0;
       const _rateLimitStub: _ReviewProvider = (_entry, _dics, _prompts) => {
@@ -420,7 +420,7 @@ describe('phaseReview', () => {
   describe('needsReviewAi', () => {
     /** status=reviewed で AI 不要な正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-04-06-01: status=reviewed → false', async () => {
+      it('[Normal] T-SF-PRV-04-06-01: status=reviewed → false', async () => {
         const filePath = '/path/to/a.md';
         const cache = await _makeCache();
         await cache.write(filePath, { status: SETFM_CACHE_STATUSES.REVIEWED });
@@ -430,7 +430,7 @@ describe('phaseReview', () => {
 
     /** status!=reviewed で AI 必要なエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-04-06-02: status=frontmatter → true', async () => {
+      it('[Edge] T-SF-PRV-04-06-02: status=frontmatter → true', async () => {
         const filePath = '/path/to/b.md';
         const cache = await _makeCache();
         await cache.write(filePath, { status: SETFM_CACHE_STATUSES.FRONTMATTER });
