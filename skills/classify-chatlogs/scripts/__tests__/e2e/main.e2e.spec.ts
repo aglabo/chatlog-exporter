@@ -649,14 +649,14 @@ describe('main - 期間フィルタ', () => {
  */
 describe('main - 存在しない period ディレクトリ → InputNotFound', () => {
   /**
-   * agent ディレクトリは存在するが、period ディレクトリ（2026-99）が存在しない前提。
+   * agent ディレクトリは存在するが、period ディレクトリ（2026-09）が存在しない前提。
    *
    * period 込みで存在確認を行い、存在しない場合は InputNotFound エラーと
    * Deno.exit(1) が発生することを確認する。
    */
   describe('Given: agent ディレクトリは存在するが period ディレクトリが存在しない', () => {
-    /** `main(["claude", "2026-99", "--config", configFile])` を呼び出すとき（GlobalConfig の chatlogsDir 経由で解決）。 */
-    describe('When: main(["claude", "2026-99", "--config", configFile]) を呼び出す', () => {
+    /** `main(["claude", "2026-09", "--config", configFile])` を呼び出すとき（GlobalConfig の chatlogsDir 経由で解決）。 */
+    describe('When: main(["claude", "2026-09", "--config", configFile]) を呼び出す', () => {
       /** InputNotFound エラーが発生し ChatlogError で reject されること。 */
       describe('Then: T-CL-E2E-11 - InputNotFound → ChatlogError で reject される', () => {
         let inputDir: string;
@@ -664,7 +664,7 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
         let configFile: string;
 
         beforeEach(async () => {
-          // 2026-03 ディレクトリは作成されるが、2026-99 は存在しない
+          // 2026-03 ディレクトリは作成されるが、2026-09 は存在しない
           ({ inputDir, configsDir, configFile } = await _makeTestDirs('claude', '2026-03'));
           // chatlogsDir を GlobalConfig 経由で inputDir に設定し、resolveChatlogsDir の通常解決経路を通す
           await Deno.writeTextFile(
@@ -682,14 +682,14 @@ describe('main - 存在しない period ディレクトリ → InputNotFound', (
 
         it('T-CL-E2E-11-01: ChatlogError で main() が reject される', async () => {
           await assertRejects(
-            () => main(['claude', '2026-99', '--config', configFile]),
+            () => main(['claude', '2026-09', '--config', configFile]),
             ChatlogError,
           );
         });
 
         it('T-CL-E2E-11-02: エラーメッセージに "入力ディレクトリが見つかりません" が含まれる', async () => {
           const rejected = await assertRejects(
-            () => main(['claude', '2026-99', '--config', configFile]),
+            () => main(['claude', '2026-09', '--config', configFile]),
             ChatlogError,
           );
 
