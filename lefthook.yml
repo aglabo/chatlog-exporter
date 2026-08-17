@@ -23,7 +23,38 @@ pre-commit:
       skip:
         - empty
 
+    # regenerate the distributable skill assets and stage them alongside the
+    # sources they came from, so the sync cannot be forgotten. the glob limits
+    # this to commits that touch a sync source (see SYNC_ENTRIES in the script);
+    # every other commit skips it.
+    #
+    # the explicit git add is required: the regenerated files are not among the
+    # staged files handed to the command, so stage_fixed would not pick them up.
+    # adding the destination as a whole also stages deletions, which is what
+    # makes a file removed from a source disappear from the distribution.
+    #
+    # --check-staged runs first, and the order is the point: the sync reads the
+    # working tree, not the index, and lefthook does not stash unstaged changes.
+    # so a commit that stages one source while another source has unstaged edits
+    # would bake the unstaged edits into the distribution while leaving the source
+    # change out, and only pre-push would notice. running the check after the sync
+    # would reject the commit with the distribution already rewritten.
+    #
+    # the glob stays as it is: a commit that stages no source never syncs, so it
+    # has nothing to check either.
+    skill-assets-sync:
+      glob:
+        - ".config/chatlog-exporter/**"
+        - "deno.json"
+        - "skills/_cle-libs/**"
+      run: bash ./scripts/sync-skill-assets.sh --check-staged && bash ./scripts/sync-skill-assets.sh && git add -- skills/setup-chatlogs/assets
+
 # verify the distributable skill assets are regenerated from their sources.
+# kept as the final gate even though pre-commit now syncs automatically: that
+# hook does not fire on a rebase replay or under --no-verify, and a pathspec
+# commit builds its tree from the pathspec rather than the index, so the staged
+# distribution is left out. a stale distribution can still reach a commit
+# without passing through the sync.
 # reads the committed tree, not the working tree: regenerating the assets without
 # committing them would otherwise pass here and let the drift reach the remote.
 pre-push:
