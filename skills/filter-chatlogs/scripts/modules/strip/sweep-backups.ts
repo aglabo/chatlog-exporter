@@ -12,6 +12,7 @@
 import { findFilesFlat } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 import { removeFile } from '../../../../_cle-libs/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
+import { runConcurrent } from '../../../../_cle-libs/libs/parallel/concurrency.ts';
 // classes
 import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // constants
@@ -53,7 +54,9 @@ const _BAK_GLOB_EXT = '.md.bak';
  * こうした当該実行に由来しない退避も削除対象に含む（DR-08 決定 2）。削除の前に件数とパスを
  * 警告として報告する（DR-34）。報告は削除範囲・戻り値・終了コードのいずれも変えない。
  *
- * DD-03 に従い throw せず `ChatlogError` を返す。終了コードは呼び出し側（main）の責務であり、
+ * DD-03 に従い throw せず `ChatlogError` を返す。削除の例外捕捉は 1 件ごとに閉じる必要がある。
+ * 削除全体を一括で捕捉すると、DD-03 の no-throw は満たしても残りの退避が中断され R-012 が破れる。
+ * 終了コードは呼び出し側（main）の責務であり、
  * R-012 と R-013 の区別は `subindex` が担う。削除失敗は分類（stripped/done/passthrough/error）に
  * 加えないため `stats` を受け取らない。dry-run 時は呼び出し側がこの関数を呼ばない設計のため
  * `dryRun` 引数を持たない。
@@ -64,6 +67,7 @@ const _BAK_GLOB_EXT = '.md.bak';
  *   期待退避パスの構成は `` `${path}${BAK_SUFFIX}` `` で行うため、
  *   `findFilesFlat` が返す正規化済みパスと基準がずれると包含検査全体が成立しない。
  * @param errorCount - 当該実行で error として計上された件数
+ * @param concurrency - 同時実行する退避削除処理の最大並列数。
  * @param options - `glob`（退避一覧の取得）、`removeProvider`（削除）のテスト用注入
  * @returns 不足退避または削除失敗があれば `ChatlogError`、それ以外は `undefined`
  */
@@ -71,6 +75,7 @@ export const sweepBackups = async (
   targetDir: string,
   strippedPaths: string[],
   errorCount: number,
+  concurrency: number,
   options?: { glob?: GlobProvider; removeProvider?: RemoveProvider },
 ): Promise<ChatlogError | undefined> => {
   // R-011: error があれば復旧手段を残すため退避を全保持する
@@ -107,12 +112,21 @@ export const sweepBackups = async (
   }
 
   // R-010: 1 件の失敗で中断せず全件の削除を試行する
-  const _results = await Promise.all(
-    _backups.map(async (bakPath) => ({
-      bakPath,
-      removed: await removeFile(bakPath, { removeProvider: options?.removeProvider, throwFileIoError: false }),
-    })),
-  );
+  const _results = await runConcurrent(_backups, async (bakPath) => {
+    // DD-03: `removeFile` は file-I/O でないエラーを `throwFileIoError: false` でも再 throw する
+    // （remove-utils.ts:63-64）。ここで捕捉しないと例外が関数外へ漏れ、no-throw 契約が破れる。
+    // 捕捉は 1 件ごとに閉じる。`runConcurrent` 全体を包むと reject が `AbortController` で
+    // 残タスクを止めてしまい、全件試行を求める R-012 が破れる
+    try {
+      return {
+        bakPath,
+        removed: await removeFile(bakPath, { removeProvider: options?.removeProvider, throwFileIoError: false }),
+      };
+    } catch (e) {
+      logger.error(`${LOGGER_TEXT.INDENT}削除失敗 (${(e as Error).message}): ${bakPath}`);
+      return { bakPath, removed: false };
+    }
+  }, concurrency);
   const _failed = _results.filter(({ removed }) => !removed).map(({ bakPath }) => bakPath);
 
   // R-012: 削除に失敗した退避があれば件数とパスを報告する
