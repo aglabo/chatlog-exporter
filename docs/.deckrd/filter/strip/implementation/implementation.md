@@ -2,7 +2,7 @@
 title: "Implementation Plan: filter strip"
 based-on: specifications.md v5.4.0
 status: Draft
-version: 3.2.0
+version: 3.3.0
 created: "2026-08-13"
 ---
 
@@ -53,15 +53,15 @@ dry-run では `stripped` が 0 となり、両者は排他。
   Open Question 1 として記録されている。
 - 定型部テンプレートの正本: `.config/chatlog-exporter/prompts/meta.yaml` の 26 行目に
   `## TOPICS ASSIGNMENT RULES` が存在する
-- Working Note: `implementation/phase-design-note.md` v3.1.0。
+- Working Note: `implementation/phase-design-note.md` v3.2.0。
   Phase 0〜7 の分解・規則網羅性検証・型/定数配置の根拠を確定済み。
   本ドキュメントはこのノートを Phase 分解として採用する。ノートは削除・改変せず併存させる。
   ただし DR-28 / DR-29 により「フェーズ境界を判定と副作用で切る」「dry-run は main が Phase 3〜6 を
   呼ばない形で実現する」「分類は 4 値」「dry-run 明細に除去範囲・除去バイト数を出力する」の 4 点は
   破棄済みであり、同ノートの冒頭 Superseded 注記に記載がある。
-- Specifications: `specifications/specifications.md` v5.1.0(based-on: requirements.md v8.1.0)、
-  `decision-records.md`(DR-01〜DR-31)、codex risk レビュー / codex second opinion (impl) /
-  codex review (PR #409) / 実装レビュー(DR-27〜DR-31)
+- Specifications: `specifications/specifications.md` v5.4.0(based-on: requirements.md v8.5.0)、
+  `decision-records.md`(DR-01〜DR-34)、codex risk レビュー / codex second opinion (impl) /
+  codex review (PR #409) / 実装レビュー(DR-27〜DR-34)
 
 ---
 
@@ -237,6 +237,16 @@ dry-run では `stripped` が 0 となり、両者は排他。
 
 - 実行フェーズの Phase 0(受理ゲート)/ Phase 1(列挙・キャッシュ)/ Phase 7(報告)を実装する
 - 受理ゲートは対象ファイルの列挙より前に評価する(R-001)
+- 受理ゲート(`_assertAcceptedRange`)は出力ディレクトリの指定を拒否する(DR-32 決定 1)。
+  `config.outputDir` が真値のとき `ChatlogError('InvalidArgs', 'OutputDirNotAllowed', ...)` を送出する。
+  検査位置は `inputDir` の直後・`period` の必須検査の前とし、`inputDir` / `outputDir` はいずれも
+  「対象ディレクトリの override」であるため隣接させる(DR-32 決定 2)。既存の
+  「`inputDir` 拒否 → `period` 必須」の相対順序は保つ。メッセージは `inputDir` の拒否と同じ語調に揃える
+  (DR-32 決定 3)。`--output-dir` フラグと第 3 位置引数の双方が同一フィールドへ格納されるため、
+  検査は解析後の `config.outputDir` に対して行い、どちらの経路の値も同じゲートで拒否される
+  (DR-32 決定 4)。通常モード / 復帰専用モードの双方で評価する(DR-32 決定 5、DR-23 決定 5 を継承)。
+  `outputDir` は `resolveChatlogsDir` へ渡らず対象ディレクトリの解決に用いられないため、黙って受理すると
+  出力先を変えたつもりの実行が `originalLogs/` を in-place で破壊的に書き換える
 - Phase 1 で孤立した退避を検出する(DR-23 決定 1)。対象ディレクトリ配下に `<name>.md` を伴わない
   `<name>.md.bak` または `<name>.md.tmp` が存在する場合、当該 `<name>` を error として計上し、
   パスを報告に含める(`--recover-orphans` 無指定時)。列挙は `findFilesFlat` が `*.md` を glob する
@@ -328,6 +338,17 @@ dry-run では `stripped` が 0 となり、両者は排他。
   その実行で実際に何が起きたかが読めなくなるため)。書き込み失敗は `logger.error` で出力する
   復帰専用モードの報告は復帰件数・復帰したパス・復帰しなかった孤立退避(`.tmp` 単独)のパスとし、
   REQ-F-006 の分類件数は出力しない(分類を行わないため)
+- 復帰専用モードで `RecoverStats.error` が 1 件以上のとき、`_reportRecovery` による報告の **後** に
+  `ChatlogError` を throw し終了コードを 1 とする(DR-33)。対象は復帰リネームの失敗とキャッシュ
+  エントリ削除の失敗(再試行の扱いは DR-27)の 2 経路で、種別を区別しない(DR-33 決定 1)。
+  報告は終了コードの生成に先行する(DR-33 決定 2、DR-20 決定 3)。通常モードの退避一括削除の失敗が
+  「サマリー行 → throw」の順であるのと同じ形である。終了コードは 0 / 1 の二値とし error の種別ごとに
+  値を分けない(DR-33 決定 3、DR-20 決定 1)。dry-run 用のガードは置かない。dry-run はリネームと
+  キャッシュ削除をせず全件が `skipped` に分類されるため `RecoverStats.error` は構造上 0 のままであり、
+  ガードは到達しない条件になる(DR-33 決定 4)。
+  DR-20 決定 4(`error` の件数は終了コードに影響しない)は破棄しない。同決定の適用範囲は
+  `StripStats` と R-011 / R-012 を根拠とする通常モード(R-014)に限られ、本規定は復帰専用モード
+  (R-015)の `RecoverStats` を条件とする別の統計である
 
 #### Commit 11: `docs(filter): add strip subcommand to SKILL.md`
 
@@ -371,23 +392,23 @@ dry-run では `stripped` が 0 となり、両者は排他。
 対応は「規則 → 分類」の一方向です。DR-15 の「分類は判定規則と 1 対 1 で対応する」は DR-29 決定 3 に
 より破棄された。R-008 が `dryRun` により `stripped` / `skipped` の 2 分類へ分岐するためです。
 
-| Rule  | 実行フェーズ | 分類 / 結果                   | Commit |
-| ----- | ------------ | ----------------------------- | ------ |
-| R-001 | 0            | 実行拒否                      | 10     |
-| R-002 | 2            | error                         | 7      |
-| R-003 | 2            | done                          | 7      |
-| R-004 | 2            | done                          | 7      |
-| R-005 | 2            | passthrough (+ 記録。DR-31)   | 7 / 10 |
-| R-006 | 2            | passthrough (+ 記録。DR-31)   | 7 / 10 |
-| R-007 | 2            | error                         | 7      |
-| R-008 | 2            | stripped / skipped (dry-run)  | 7      |
-| R-009 | 3 / 4 / 5    | (副作用) REQ-NF-005 の 3 段階 | 8      |
-| R-010 | 6            | (副作用)                      | 9      |
-| R-011 | 6            | (副作用なし・保持)            | 9      |
-| R-012 | 6            | (報告・終了コード)            | 9      |
-| R-013 | 6            | (報告・終了コード)            | 9      |
-| R-014 | 1            | (通常モード・error 計上)      | 10     |
-| R-015 | 0 / 1 / 7    | (復帰専用モード)              | 10     |
+| Rule  | 実行フェーズ | 分類 / 結果                                    | Commit |
+| ----- | ------------ | ---------------------------------------------- | ------ |
+| R-001 | 0            | 実行拒否 (出力ディレクトリの指定を含む。DR-32) | 10     |
+| R-002 | 2            | error                                          | 7      |
+| R-003 | 2            | done                                           | 7      |
+| R-004 | 2            | done                                           | 7      |
+| R-005 | 2            | passthrough (+ 記録。DR-31)                    | 7 / 10 |
+| R-006 | 2            | passthrough (+ 記録。DR-31)                    | 7 / 10 |
+| R-007 | 2            | error                                          | 7      |
+| R-008 | 2            | stripped / skipped (dry-run)                   | 7      |
+| R-009 | 3 / 4 / 5    | (副作用) REQ-NF-005 の 3 段階                  | 8      |
+| R-010 | 6            | (副作用)                                       | 9      |
+| R-011 | 6            | (副作用なし・保持)                             | 9      |
+| R-012 | 6            | (報告・終了コード)                             | 9      |
+| R-013 | 6            | (報告・終了コード)                             | 9      |
+| R-014 | 1            | (通常モード・error 計上)                       | 10     |
+| R-015 | 0 / 1 / 7    | (復帰専用モード・終了コード。DR-33)            | 10     |
 
 R-005 / R-006 が 2 commit にまたがるのは、判定(Commit 7 の `classifyStrip`)と、判定確定後の
 キャッシュ記録(Commit 10 の `_classifyFile` / `_recordPassthrough`)が別の関数に属するためである
@@ -400,7 +421,7 @@ R-009 が 3 フェーズにまたがるのは規則の重複ではない。R-009
 R-015 が 3 フェーズにまたがるのも重複ではない。復帰専用モードの実行経路そのもの(Phase 0 の受理
 ゲート → Phase 1 の復帰 → Phase 7 の報告)を 1 つの規則が定めるためであり、Phase 2〜6 は実行しない。
 
-> **注記**: `phase-design-note.md` v2.0.0 の Section 4「規則の網羅性検証」の表は R-001〜R-012 の
+> **注記**: `phase-design-note.md` v3.2.0 の Section 4「規則の網羅性検証」の表は R-001〜R-012 の
 > 12 行しか持たず、DR-16 で追加された R-013 が漏れている(同ノートの本文と Change History はいずれも
 > 「13 規則」と述べており、表側の記載漏れ)。加えて DR-23 で追加された R-014 / R-015 も同ノートには
 > 存在しない。本表がこれらを補正する。
@@ -456,3 +477,4 @@ impl フェーズで確定させる項目。振る舞い規則ではなく実装
 | 2026-08-16 | 3.0.0   | DR-30 を反映し DR-29 決定 3 のうち「件数は `StripStats.stripped` へ加算する」部分を破棄 (MAJOR: decided approach discarded)。Section 1.1 の「`StripStats` に `skipped` フィールドは無く統計サマリーは 4 分類」を破棄し、分類 5 値と統計 5 件数の 1 対 1 対応・`stripped` と `skipped` の排他へ改める。Commit 5 の `StripStats` のフィールドへ `skipped` を追加。Commit 10 の全件処理の判定式を `stripped + skipped + done + passthrough == total` へ、機械可読出力の項目を 5 分類 (`stripped` の直後に `skipped`) へ改訂。based-on を spec v5.0.0、Working Note 参照を v3.0.0、DR 範囲を DR-01〜DR-30 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 2026-08-16 | 3.1.0   | DR-31 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 7 に R-003 の処理済み status を `stripped` / `passthrough` の 2 値とし `_PROCESSED_STATUSES` + `includes` で判定する旨を追加。Commit 8 に「`writeStripped` が記録するのは `stripped` (`rule` は `R-008`) のみ」を追加。Commit 10 に `_recordPassthrough` の規定 (`status: passthrough` と成立規則 R-005 / R-006 を `rule` に記録・dry-run では `!dryRun` ガードにより非記録・記録失敗は `CacheWriteFailed` として error に計上し throw しない) と `_classifyFile` の責務へのキャッシュ記録を追加。Commit 5 の `STRIP_CACHE_STATUSES` に `PASSTHROUGH` が実書き込み値となる旨を追記。Rule Coverage 表の R-005 / R-006 を Commit 7 / 10 とし理由を注記。based-on を spec v5.1.0、Working Note 参照を v3.1.0、DR 範囲を DR-01〜DR-31 へ更新                                                                                                                                                                                                                                                                              |
 | 2026-08-16 | 3.2.0   | DR-34 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 9 に、削除の前に期待退避パスの集合に含まれない退避を件数とパスで警告報告する判断基準を追加。期待退避パスは R-013 の包含検査と同じ構成方法を用い、報告は判定・戻り値・終了コードを変えず、前回中断の残骸と外部由来を区別しない。`based-on` を specifications.md v5.4.0 へ更新 (v5.1.0 からの遅れを併せて解消)。削除範囲は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-08-17 | 3.3.0   | 未反映だった DR-32 / DR-33 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 10 の受理ゲートに `_assertAcceptedRange` による `outputDir` の拒否 (`ChatlogError('InvalidArgs', 'OutputDirNotAllowed')`、検査位置は `inputDir` の直後・`period` の必須検査の前、`--output-dir` と第 3 位置引数の双方、通常モード / 復帰専用モードの双方で評価) を追加 (DR-32)。同 Commit の復帰専用モードに、`RecoverStats.error` が 1 件以上のとき報告の後に `ChatlogError` を throw し終了コードを 1 とする規定を追加 (DR-33)。DR-20 決定 4 は破棄せず適用範囲を通常モード (R-014) に限ると明記。Rule Coverage 表の R-001 / R-015 に両 DR を注記。あわせて 3.1.0 / 3.2.0 で更新漏れとなっていた Section 1.2 の内部参照を実体へ揃える (specifications.md v5.1.0 → v5.4.0、requirements.md v8.1.0 → v8.5.0、DR-01〜DR-31 → DR-01〜DR-34、Working Note v3.1.0 → v3.2.0、Section 3 注記の v2.0.0 → v3.2.0)。規則そのものと評価順序は不変                                                                                                                                                          |
