@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 8.5.1
+version: 8.5.2
 created: "2026-08-12"
 ---
 
@@ -535,7 +535,10 @@ dry-run では、ファイルへの書き込みと `.bak` 作成に加え、キ�
 
 集計構造を通常実行と一致させる理由は、モードによって分類が異なると
 dry-run の結果から通常実行の結果を予測できず、事前検証としての用途が失われるためです。
-`skipped` の件数は `stripped` へ加算するため、集計構造は 5 分類化の後も通常実行と一致します (DR-29) 。
+集計は分類と 1 対 1 に対応する 5 つの件数フィールドで行い、`skipped` を `stripped` へ加算しません (DR-30) 。
+通常実行では `skipped` が 0、dry-run では `stripped` が 0 となり、両者は排他です。
+dry-run の `skipped` は同一入力に対する通常実行の `stripped` と一致するため、
+件数の予測可能性は 5 分類化の後も保たれます。
 
 **Acceptance Criteria**:
 
@@ -1277,5 +1280,6 @@ Scenario Outline: 出力ディレクトリ指定時に実行を拒否する
 | 2026-08-16 | 8.4.0   | DR-33 を反映 (MINOR: 振る舞いを追加)。REQ-F-009 の `--recover-orphans` の記述に、復帰またはキャッシュエントリ削除に失敗したファイルが 1 件以上ある場合は失敗件数を報告のうえ終了コードを成功以外とする規定を追加。乖離を残したまま成功終了すると次回実行が判定順序の手順 1 で永久に done と判定すること、2 回目の `--recover-orphans` では回収できないこと（DR-27）、報告が終了コードの生成に先行すること（DR-20 決定 3）を根拠として併記。REQ-F-006 / REQ-F-010 の通常モードの終了コード規定は不変                                                                                                                                                                                      |
 | 2026-08-16 | 8.5.0   | DR-34 を反映 (MINOR: AC を追加)。REQ-F-010 に stripped 由来でない `.bak` の削除前警告 (件数とパスの報告・終了コードに影響しない旨) を規定し AC-028 を追加。前回実行の中断により残った `.bak` と strip 以外の経路で置かれた `.bak` を区別しない理由を併記                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 2026-08-17 | 8.5.1   | AC 採番の衝突を解消 (PATCH: 要求と AC の実体は不変)。DR-34 由来の AC を AC-025 から AC-028 へ改番し (AC-025 / AC-026 は v8.1.0 で DR-31 へ割り当て済みのため保持)、Traceability の REQ-F-009 に AC-024 / AC-025 / AC-026 を追加、REQ-F-010 を AC-028 へ追随。AC-025 / AC-026 の Gherkin を新設                                                                                                                                                                                                                                                                                                                                                                                           |
+| 2026-08-17 | 8.5.2   | DR-30 で破棄済みの記述を一掃 (PATCH: 要求と AC の実体は不変)。REQ-F-005 の Rationale に残っていた「`skipped` の件数は `stripped` へ加算する」(DR-29 決定 3 の破棄部分) を、分類と 1 対 1 に対応する 5 件数フィールド・通常実行と dry-run で `stripped` / `skipped` が排他・dry-run の `skipped` が通常実行の `stripped` と一致する旨へ改める                                                                                                                                                                                                                                                                                                                                             |
 
 <!-- markdownlint-enable line-length -->
