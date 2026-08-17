@@ -453,7 +453,7 @@ const _applyFileBytes = (outcome: StripOutcome, decision: StripDecision, stats: 
  * @param cache - 処理済み記録を参照・書き込むキャッシュ
  * @param deps - `main` に注入された依存
  * @param dryRun - 真なら書き込みも退避の一括削除も行わず、明細出力と計上のみ行う
- * @param concurrency - 同時実行する判定・書き込み処理の最大並列数（1 以上）
+ * @param concurrency - 同時実行する判定・書き込み処理および退避の一括削除の最大並列数（1 以上）
  * @returns ファイルパスと判定結果のペアの一覧（入力と同順・同数）と、
  *   退避不足または削除失敗があれば `ChatlogError`
  */
@@ -494,6 +494,7 @@ const _processFiles = async (
     // `_result.outcome` へ「単純化」しても全テストが通ってしまう。
     _decisions.filter(({ decision }) => decision.outcome === 'stripped').map(({ filePath }) => filePath),
     stats.error,
+    concurrency,
     { glob: deps.glob, removeProvider: deps.removeProvider },
   );
   return { decisions: _decisions, sweepError: _sweepError };
