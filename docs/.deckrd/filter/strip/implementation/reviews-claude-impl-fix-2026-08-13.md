@@ -42,7 +42,7 @@ Open Items 表は空になった。**未対応の指摘は残っていない**�
 | DR-03「決定 4 のコード例」              | OK — 決定は 4 点構成、戻り値は `Promise<string \| null>`       |
 | DR-15「Option D として却下」            | OK — Option D = 独立分類の名前を `skip` とする、却下理由も記載 |
 | DD-04                                   | OK — `specifications.md:143`                                   |
-| F-04                                    | OK — `claude-spec-explore-2026-08-12.md:137`                   |
+| F-04                                    | OK — `reviews-claude-spec-explore-2026-08-12.md:137`           |
 | AC-024 / REQ-NF-005 / REQ-C-001/004/008 | OK — spec・requirements の双方に存在                           |
 | R-001〜R-013 の分類/結果                | OK — spec の規則表と 13 行すべて一致                           |
 | `meta.yaml` 26 行目                     | OK — `## TOPICS ASSIGNMENT RULES` が実在                       |
