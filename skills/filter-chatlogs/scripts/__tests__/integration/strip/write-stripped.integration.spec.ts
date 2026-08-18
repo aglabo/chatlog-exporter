@@ -57,6 +57,36 @@ More real content.
 /** `_STRIPPED_SOURCE` の改行を CRLF にした原文。`writeTextFile` の LF 正規化検証に使用する。 */
 const _CRLF_SOURCE = _STRIPPED_SOURCE.replace(/\n/g, '\r\n');
 
+/**
+ * `_STRIPPED_SOURCE` の定型部へ 1 行挿入し、境界見出し `## Summary` を index 11 → 12 へずらした原文。
+ *
+ * frontmatter は不変（`frontmatterLines` は `5` のまま）であるため、除去範囲の第 1 条件では
+ * 捕まらず、境界見出しの照合でのみ不整合が検出される。
+ */
+const _SHIFTED_SOURCE = _STRIPPED_SOURCE.replace(
+  'Some boilerplate line B.\n',
+  'Some boilerplate line B.\nSome boilerplate line C.\n',
+);
+
+/** `_STRIPPED_SOURCE` の frontmatter へ 1 キー追加した原文。`frontmatterLines` が `5` → `6` になる。 */
+const _EXTRA_KEY_SOURCE = _STRIPPED_SOURCE.replace('title: Sample\n', 'title: Sample\ntags: sample\n');
+
+/** 開き `---` を持つが閉じ `---` を持たない、壊れた frontmatter の原文。`divideEntry` は throw する。 */
+const _BROKEN_FRONTMATTER_SOURCE = `---
+type: chatlog
+category: dev
+
+## Summary
+
+Real content here.
+`;
+
+/** frontmatter を持たず 1 行目が境界見出しである原文。 */
+const _NO_FRONTMATTER_SOURCE = `## Summary
+
+Real content here.
+`;
+
 // types
 
 /** `_setup` が返すテスト対象ファイル一式。 */
@@ -168,6 +198,23 @@ const _stubBackupRenameFailure = (bakPath: string, onAttempt: () => Promise<void
  */
 const _stubCacheWriteFailure = () => stub(cache, 'write', () => Promise.reject(new Error('cache write failed')));
 
+/**
+ * 判定済みの `StripDecision` の除去範囲だけを差し替えた複製を返す。
+ *
+ * 判定確定後にファイル内容が差し替わった状況、および除去範囲を持たない分類の
+ * センチネル（`-1` / `-1`）が書き込み経路へ渡された状況を再現する。
+ *
+ * @param decision - 元となる判定結果
+ * @param removalStartLine - 差し替える除去開始行
+ * @param removalEndLine - 差し替える除去終了行
+ * @returns 除去範囲のみを差し替えた新しい判定結果
+ */
+const _withRemovalRange = (
+  decision: StripDecision,
+  removalStartLine: number,
+  removalEndLine: number,
+): StripDecision => ({ ...decision, removalStartLine, removalEndLine });
+
 // ─── 共通セットアップ
 
 let tempDir: string;
@@ -191,7 +238,7 @@ afterEach(async () => {
  * R-009 の書き込み順序（1) tmp へ書き出す → 2) 元を `.bak` へ退避 → 3) tmp を本体名へ移動）を
  * 分割不能な 1 単位として検証する。実 tmp ディレクトリ上で実際の FS 操作を行う。
  *
- * テスト ID 範囲: T-FL-STW-01-01 〜 T-FL-STW-04-03
+ * テスト ID 範囲: T-FL-STW-01-01 〜 T-FL-STW-05-07
  *
  * @see writeStripped
  */
@@ -501,6 +548,115 @@ describe('writeStripped', () => {
         // 本文は LF へ正規化される（バイト単位一致では判定しない）
         assertFalse(_afterText.includes('\r\n'));
         assert(_frontmatterOf(_afterText).equals(_frontmatterOf(_CRLF_SOURCE)));
+      });
+    });
+  });
+
+  /**
+   * 除去範囲の事前検証（splice 直前ガード）の検証。
+   *
+   * 判定の確定後に対象ファイルの内容が差し替わった場合（Edge 17 / DR-35）、および
+   * 除去範囲を持たない分類のセンチネル `-1` / `-1` が渡された場合に、書き込みを行わず
+   * `ChatlogError('FailFast', 'StaleDecision')` を返すことを確認する。
+   *
+   * いずれのケースも throw せず戻り値で失敗を伝える（DD-03 / REQ-F-008）。
+   */
+  describe('除去範囲の事前検証', () => {
+    /** 判定時の除去範囲が現在の内容と整合しないケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-FL-STW-05-01: 境界行がずれた内容へ差し替わると StaleDecision を返し本体を書き換えない', async () => {
+        const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        // 判定の確定後に内容が差し替わる状況（Edge 17）を再現する
+        await Deno.writeTextFile(filePath, _SHIFTED_SOURCE);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        // 書き込み経路へ入らないため、差し替え後の内容がそのまま残り退避も作られない
+        assertEquals(await Deno.readTextFile(filePath), _SHIFTED_SOURCE);
+        assertFalse(await fileExists(bakPath));
+      });
+
+      it('[Error] T-FL-STW-05-02: frontmatter の行数が変わると StaleDecision を返し frontmatter を保つ', async () => {
+        const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        await Deno.writeTextFile(filePath, _EXTRA_KEY_SOURCE);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(
+          divideEntry(await Deno.readTextFile(filePath)).frontmatter,
+          divideEntry(_EXTRA_KEY_SOURCE).frontmatter,
+        );
+      });
+
+      it('[Error] T-FL-STW-05-03: 除去範囲 -1 / -1 の判定では StaleDecision を返し末尾行を失わない', async () => {
+        const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = _withRemovalRange(await _classifyFresh(filePath), -1, -1);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        // ガードが無い場合 `splice(-1, 1)` は末尾要素を除去するため、原文の完全一致まで検証する
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _STRIPPED_SOURCE);
+      });
+
+      it('[Error] T-FL-STW-05-04: 壊れた frontmatter へ差し替わっても throw せず StaleDecision を返す', async () => {
+        const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        await Deno.writeTextFile(filePath, _BROKEN_FRONTMATTER_SOURCE);
+
+        // `divideEntry` は閉じ `---` の無い内容で throw するが、`hasFrontmatter` の先行評価で到達しない
+        const error = await writeStripped(filePath, decision, cache);
+
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _BROKEN_FRONTMATTER_SOURCE);
+      });
+
+      it('[Error] T-FL-STW-05-07: frontmatter を持たないファイルへ -1 / -1 の判定が渡ると StaleDecision を返す', async () => {
+        const { filePath } = await _setup('sample.md', _NO_FRONTMATTER_SOURCE);
+        const decision = _withRemovalRange(await _classifyFresh(filePath), -1, -1);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+      });
+    });
+
+    /** 除去範囲がファイル末尾を超えるケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-FL-STW-05-05: 除去範囲がファイル末尾を超えても throw せず StaleDecision を返す', async () => {
+        const { filePath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        // 総行数 16（有効 index 0〜15）に対し `removalEndLine + 1` = 21 は範囲外となる
+        const decision = _withRemovalRange(await _classifyFresh(filePath), 5, 20);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _STRIPPED_SOURCE);
+      });
+    });
+
+    /** 内容が判定時から変化していない通常経路（ガード追加によるデグレ検出）。 */
+    describe('When: 正常系', () => {
+      // 回帰テストのため Red ゲートは免除される（ガード追加前から PASS するのが正しい）
+      it('[Normal] T-FL-STW-05-06: 整合する判定ではガードを通過し従来どおり strip して退避を作る', async () => {
+        const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        assertEquals(error, undefined);
+        assert(divideEntry(await Deno.readTextFile(filePath)).content.startsWith(STRIP_BOUNDARY_HEADING));
+        assert(await fileExists(bakPath));
       });
     });
   });

@@ -13,6 +13,7 @@ import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 import { writeTextFile } from '../../../../_cle-libs/libs/file-io/write-utils.ts';
 import { backupToBak } from '../../../../_cle-libs/libs/file-ops/backup-to-bak.ts';
 import { fileExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { divideEntry, frontmatterLines, hasFrontmatter } from '../../../../_cle-libs/libs/text/frontmatter-utils.ts';
 // classes
 import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
@@ -21,6 +22,7 @@ import type { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.cl
 // ─── internal ───
 // constants
 import { BAK_SUFFIX } from '../../constants/common.constants.ts';
+import { STRIP_BOUNDARY_HEADING } from '../../constants/strip.constants.ts';
 import { STRIP_CACHE_STATUSES } from '../../types/strip-cache-status.const.types.ts';
 // types
 import type { StripCache } from '../../types/cache.types.ts';
@@ -42,6 +44,12 @@ import type { StripDecision } from '../../types/strip.types.ts';
  *
  * 除去範囲は `removalStartLine` 〜 `removalEndLine` を inclusive な行番号として駆動する。
  * `removedBytes` は本文基準かつ最終行の行末終端子を含まないため、行番号との突き合わせは行わない。
+ *
+ * splice の直前に、除去範囲と**現在の**内容の整合を再検証する（REQ-F-008 / Edge 17 / DR-35）。
+ * 判定の確定後にファイルが差し替わっていると除去範囲が現在の内容と対応しないため、
+ * frontmatter の有無・frontmatter 行数との一致・除去終了行の直後が境界見出しであることを確認する。
+ * 不整合の場合は書き込みを行わず `ChatlogError('FailFast', 'StaleDecision')` を返す。
+ * `divideEntry` は壊れた frontmatter で throw するため、`hasFrontmatter` を先に評価する。
  *
  * DD-03 に従い throw せず `ChatlogError` を返す（1 件の error が全件を止めない）。
  * キャッシュ記録の失敗も同様に返す。本体の置換は完了しているが記録が残らないため、
@@ -75,7 +83,24 @@ export const writeStripped = async (
   // 行番号はファイル全体基準・0 起点のため、frontmatter を含む行配列にそのまま適用する
   // （`readTextFile` が LF 正規化済みのテキストを返すため、ここでの再正規化は不要）
   const _lines = _read.split('\n');
-  _lines.splice(decision.removalStartLine, decision.removalEndLine - decision.removalStartLine + 1);
+
+  // frontmatter 欠落は独立した早期 return とする。`_fmLines = -1` に潰すと、除去範囲を持たない
+  // 分類のセンチネル `removalStartLine = -1` と一致してしまい、`splice(-1, 1)` が末尾行を
+  // 削る経路を素通しさせる。
+  // `divideEntry` は壊れた frontmatter で throw するため、throw しない `hasFrontmatter` を
+  // 必ず先に評価する（この順序が throw を到達不能にしている）。
+  if (!hasFrontmatter(_read)) {
+    return new ChatlogError('FailFast', 'StaleDecision', `frontmatter missing: ${filePath}`);
+  }
+  const { removalStartLine: _start, removalEndLine: _end } = decision;
+  const _fmLines = frontmatterLines(divideEntry(_read).frontmatter);
+  // `_end + 1` が範囲外のとき `_lines[_end + 1]` は `undefined` となり、境界見出しと一致しない。
+  // 範囲外を不整合として扱うため、この `undefined` 比較は意図的である。
+  if (_start !== _fmLines || _end < _start || _lines[_end + 1] !== STRIP_BOUNDARY_HEADING) {
+    return new ChatlogError('FailFast', 'StaleDecision', `removal range does not match content: ${filePath}`);
+  }
+
+  _lines.splice(_start, _end - _start + 1);
 
   try {
     await writeTextFile(filePath, _lines.join('\n'), (path) => backupToBak(path));

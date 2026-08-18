@@ -14,6 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import {
   divideEntry,
   extractYaml,
+  frontmatterLines,
   hasFrontmatter,
   hasFrontmatterFields,
   parseFrontmatter,
@@ -26,6 +27,26 @@ import {
 // ─── Helpers
 // error class
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
+
+// ─── Internal Helpers
+
+// constants
+
+/** `frontmatterLines` の正常系ケース。frontmatter ブロック文字列とその行数の対応表。 */
+const _frontmatterLinesCases = [
+  {
+    id: 'T-LIB-FML-01-01',
+    label: '単一フィールドの frontmatter',
+    input: '---\nkey: v\n---\n',
+    expected: 3,
+  },
+  {
+    id: 'T-LIB-FML-01-02',
+    label: '複数フィールドの frontmatter',
+    input: '---\ntype: chatlog\ncategory: dev\ntitle: Sample\n---\n',
+    expected: 5,
+  },
+] as const;
 
 // ─────────────────────────────────────────────
 // parseFrontmatter
@@ -948,6 +969,37 @@ describe('stripTagHashes', () => {
       const _entries = { tags: ['foo', 'bar'] };
       const _result = stripTagHashes(_entries);
       assertEquals(_result['tags'], ['foo', 'bar']);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// frontmatterLines
+// ─────────────────────────────────────────────
+
+/**
+ * `frontmatterLines` のユニットテストスイート。
+ *
+ * frontmatter ブロック文字列から行数（＝本文先頭のファイル全体基準の行番号）を求める動作を検証する。
+ *
+ * テスト ID 範囲: T-LIB-FML-01-01 〜 T-LIB-FML-02-01
+ *
+ * @see frontmatterLines
+ */
+describe('frontmatterLines', () => {
+  /** `divideEntry(...).frontmatter` 相当のブロック文字列に対し、その行数を返すことを確認する。 */
+  describe('When: 正常系', () => {
+    for (const { id, label, input, expected } of _frontmatterLinesCases) {
+      it(`[Normal] ${id}: ${label} → ${expected}`, () => {
+        assertEquals(frontmatterLines(input), expected);
+      });
+    }
+  });
+
+  /** frontmatter を持たないテキストで `divideEntry` が返す空文字列のケースを確認する。 */
+  describe('When: エッジケース', () => {
+    it("[Edge] T-LIB-FML-02-01: '' → 0", () => {
+      assertEquals(frontmatterLines(''), 0);
     });
   });
 });
