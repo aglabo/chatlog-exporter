@@ -2,7 +2,7 @@
 title: "Decision Records: filter strip"
 module: "filter/strip"
 status: Active
-version: 3.21.1
+version: 3.22.1
 created: "2026-08-12"
 ---
 
@@ -12,7 +12,8 @@ created: "2026-08-12"
 <!-- cspell:words setfm APFS CIFS strippable -->
 <!-- textlint-disable
   ja-technical-writing/sentence-length,
-  ja-technical-writing/max-comma -->
+  ja-technical-writing/max-comma,
+  -->
 <!-- markdownlint-disable no-duplicate-heading line-length -->
 
 ---
@@ -3423,10 +3424,112 @@ R-007 が判定ロジックの破綻に対する安全弁を置いているの�
     新しい内容は失われます
     → 窓を閉じるには検証を退避・差し替えの操作に結びつける必要があり、`BackupProvider` の契約
     (DR-03 決定 3) または `writeTextFile` の契約の変更を伴います。本 DR の射程外とし、別 DR で扱います
+    → **DR-36 で裁定済み。`chatlogs/` 配下の単一書き手前提のもとで残余として受容し、
+    退避後の照合は導入しません。**
   - 判定と書き込みの間に正当な理由でファイルが変わった場合も error となります
     → strip の実行中に対象を書き換える運用は想定しません。error は次回実行で再判定されます
   - `requirements.md` の REQ-F-008 と `specifications.md` Section 4.2 の R-009 の改訂を要します
     → 本 DR が上位の決定として改訂します
+
+---
+
+## DR-36: 読み取りから書き込みまでの競合は単一書き手前提のもとで残余として受容する - 2026-08-18
+
+**Phase**: impl-fix
+**Status**: Accepted
+
+### Context
+
+DR-35 v3.21.1 は、除去範囲の検証がスワップ地点ではなく `splice` の直前にあるため
+競合の窓が閉じないことを残余として記録し、その裁定を別 DR へ委ねました (issue cle-vyt) 。
+
+窓の実体は `writeTextFile` (`_cle-libs/libs/file-io/write-utils.ts`) の操作順序です。
+
+```text
+[L48] await Deno.writeTextFile(tmpPath, ...)   ← 実 I/O。この間が窓
+[L50] await backup(outputPath)                 ← backupToBak が本体を .bak へ rename (実スワップ地点)
+[L52] await Deno.rename(tmpPath, outputPath)
+```
+
+窓の中で対象が差し替わると、新しい内容が `.bak` へ退避され、古い内容から作った strip 済み
+テキストが本体として設置され、成功として報告されます。
+その後、R-010 の一括削除で新しい内容が失われます。
+
+本 DR は、この窓を閉じるか、前提のもとで受容するかを裁定します。
+
+### Decision
+
+以下の 3 点を決定します。
+
+1. **`chatlogs/` 配下へ書き込むのは本ツール群のみである** ことを前提として明文化します
+   (`requirements.md` Section 2 Assumptions) 。strip の実行中に外部プロセスが同一ファイルを
+   書き換える運用は想定しません
+2. この前提のもとで、**読み取りから書き込みまでの競合は残余として受容します**。
+   退避後の内容照合、ファイルロックを導入しません
+3. DR-35 の `splice` 直前のガード (`write-stripped.ts` の frontmatter 有無・除去範囲の整合検証) は
+   **維持します**。これは競合検出としてではなく、判定と書き込みの不整合一般に対する安全弁として
+   価値を持つためです (in-memory で追加 I/O を持たず、失敗しても本体は無傷)
+
+### Alternatives Considered
+
+| Option | 内容                                                          | 判定                                |
+| ------ | ------------------------------------------------------------- | ----------------------------------- |
+| A      | 現状維持 (窓を残し、前提も明文化しない)                       | 却下。残余が未裁定のまま滞留する    |
+| B      | 退避直後に `.bak` を読み直し、読み取り内容と照合する          | 却下。下記 Rationale                |
+| C      | 読み取り時に mtime / サイズを記録し、退避の直前に再 stat する | 却下。粒度が不十分で B の欠点も残る |
+| D      | ファイルロック (`Deno.FsFile.lock()`) を取得する              | 却下。下記 Rationale                |
+| **E**  | **前提を明文化し、残余として受容する**                        | **採用**                            |
+
+### Rationale
+
+**Option B (退避後の照合) を却下する理由**:
+
+技術的には成立します。`rename` は原子的であるため `.bak` に捕捉された内容は一貫した
+スナップショットであり、それを読み直して照合すれば差し替えを mtime 粒度の問題なく検出できます。
+`writeTextFile` の契約変更も不要です (退避コールバックが既に必要な位置で実行されるため) 。
+
+却下するのは、前提のもとでコストが便益を上回るためです。
+
+- strip する全ファイルで `.bak` の全文再読込が発生します (純粋な追加 I/O)
+- **新しい失敗モードが増えます。** 照合が不一致になった時点で本体は既に `.bak` へ rename 済みであり、
+  ロールバックは同じ競合を再生産する (第三者が本体パスを作っていると `AlreadyExists` →
+  remove-then-retry でその内容を破壊する) ため実施できません。結果として **本体パスが不在のまま
+  `.bak` だけが残り、復旧は手動 rename になります**。これは守ろうとした競合より運用上明確に不利です
+- 誤検出の経路が実在します。`readTextFile` は LF 正規化して返すため、照合の期待値には必ず
+  正規化済みの値を渡す必要があります。将来 `writeStripped` の読み取り経路が変わると、
+  無競合のファイルに対して静かに誤検出へ倒れ、上記の「本体不在」を引き起こします
+
+**Option D (ロック) を却下する理由**:
+
+`Deno.FsFile.lock()` は Deno 2.9.3 で unstable フラグなしに動作します (実測確認) 。
+それでも本問題には効きません。
+
+- ロックは advisory であり、想定する競合相手 (エディタ、Obsidian、他ツール) はこれを尊重しません
+- 同一プロセス内では `runConcurrent` がファイル単位で処理を分配するため、そもそも競合しません
+- より本質的に、ロックは開いた **ファイルオブジェクト** に対する排他であるのに対し、
+  危険な操作は in-place write ではなく `rename` (パスの付け替え) です。
+  ロックしたオブジェクトはスワップ対象そのものではなく、自らの critical section を守れません
+
+**前提を明文化する必要があった理由**: 単一書き手前提は実運用では成立していましたが、
+`requirements.md` / `specifications.md` のいずれにも記述がありませんでした。
+`REQ-C-008` は対象範囲 (単一 agent・単一年月) を縛るだけで書き手について何も述べていません。
+明文化されていない前提は残余リスクを「受容済み」ではなく「未検出の欠陥」に見せるため、
+レビューのたびに同じ指摘を再生産します。DR-35 が残余を抱え込んだのもこの経路です。
+
+### Consequences
+
+- Positive:
+  - 単一書き手前提が明文化され、以後この競合は受容済みの残余として扱えます
+  - 追加 I/O が発生せず、「本体パスが不在のまま `.bak` だけ残る」失敗モードを持ち込みません
+  - DR-35 のガードは維持されるため、競合以外の不整合 (壊れた frontmatter、除去範囲を持たない
+    判定を担いだ呼び出し) に対する保護は変わりません
+- Negative:
+  - **前提が破れた場合、新しい内容は黙って失われます。** 検出、報告がされず、R-010 が `.bak` を
+    削除します。復旧手段は re-export のみです (DR-06)
+    → 前提を破る運用 (strip 実行中の対象ディレクトリの編集) を行わないことで回避します
+  - `write-utils.ts` の `AlreadyExists` 復旧経路 (既存を削除してから rename を再試行する。
+    失敗すると原文と新内容が残らない) は本 DR の射程外であり、引き続き残ります
+    → `write-utils.ts` の JSDoc が既に自認しており、strip 固有の問題ではありません
 
 ---
 
@@ -3473,5 +3576,7 @@ R-007 が判定ロジックの破綻に対する安全弁を置いているの�
 | 2026-08-16 | 3.20.0  | コードレビューの指摘（`sweepBackups` が当該実行由来でない `.bak` も削除し、`important.md.bak` があると対応する本体が R-004 で `done` となったうえで唯一の退避を失う経路が `error=0` / exit 0 / ログ行なしで完了する）に対応し DR-34（当該実行に由来しない退避も削除する方針を維持し、削除の前に警告として報告する）を追加。削除範囲は DR-08 決定 2 / DD-02 のまま維持し、R-010 の削除直前に「当該実行の `stripped` に由来しない退避」を件数とパスで警告報告する。報告は前回中断の残骸と外部由来を区別せず、終了コードと R-010 〜 R-013 の判定は不変。由来限定 sweep は残存退避が R-004 を成立させ続け対象を恒久的に `done` へ固定するため採らない。REQ-F-010 と spec Section 4.3 の R-010 の改訂を要する                                                                                                                                                                                               |
 | 2026-08-18 | 3.21.0  | コードレビューの指摘（`classifyStrip` と `writeStripped` が同一ファイルを別々に読み、2 回の読み取りの間に内容が差し替わると行番号が古い内容基準のまま `splice` へ渡り、`splice` のクランプにより frontmatter や本文が削られても検出されない。除去範囲を持たない判定を担いだ呼び出しでは `splice(-1, 1)` となり最終行が失われる）に対応し DR-35（除去範囲は splice の直前に書き込み対象の実内容と照合する）を追加。frontmatter の存在・開始辺（`removalStartLine` = frontmatter 行数）・終了辺（`removalEndLine + 1` 行目が `## Summary`）・範囲の順序を検証し、不整合なら書き込まず `ChatlogError` を返して error に計上する。frontmatter 行数の算出は `classifyStrip` と同一関数を共有する。読み取りの一本化（Option B）は競合を解消せず `StripDecision` / DR-30 に波及するため採らない。判定時の frontmatter との同一性検証は含まない。REQ-F-008 と spec Section 4.2 の R-009 の改訂を要する         |
 | 2026-08-18 | 3.21.1  | PR #419 のコードレビュー指摘 (Codex) を記録 (PATCH: 決定は不変)。DR-35 の Consequences (Negative) に「検証は `splice` の直前であってスワップ地点ではないため競合の窓は狭まるが閉じない」を追加。`writeTextFile` がガードと `backupToBak` のリネームの間に一時ファイル書き出しの I/O を挟むこと、この窓で差し替えが起きると新しい内容が `.bak` へ退避され R-010 の削除で失われること、窓を閉じるには `BackupProvider` (DR-03 決定 3) または `writeTextFile` の契約変更を要し本 DR の射程外であることを併記。Rationale の Option B 却下理由から「書き込み直前の検証を要します」という窓が閉じると読める記述を除去                                                                                                                                                                                                                                                                                        |
+| 2026-08-18 | 3.22.0  | DR-36 を追加 (MINOR: DR 追加)。DR-35 が残余として委ねた「検証がスワップ地点ではないため競合の窓が閉じない」件を裁定し、`chatlogs/` 配下の単一書き手前提のもとで残余として受容することを決定。退避後の内容照合 (Option B) はファイル全文の追加読み込みと「本体パスが不在のまま `.bak` だけ残る」新規の失敗モードを持ち込むため却下し、ファイルロック (Option D) は advisory であり危険な操作が `rename` である以上 critical section を守れないため却下。DR-35 の `splice` 直前のガードは競合以外の不整合に対する安全弁として維持する。DR-35 の Consequences (Negative) の残余記述から本 DR を参照させる。`requirements.md` Section 2 Assumptions への前提追記を要する                                                                                                                                                                                                                                   |
+| 2026-08-18 | 3.22.1  | DR-36 の下流反映が完了したことを記録 (PATCH: 決定は不変)。`requirements.md` v8.7.0 が Section 2 Assumptions に単一書き手前提を追加、`specifications.md` v5.6.0 が Section 2.2 Design Assumptions への前提追加・Section 2.6 への DR-36 追加・Section 4.2 の再検証 (DR-35) への窓の受容の追記、`implementation.md` v3.4.1 が Commit 8 の事前検証への同旨の追記を完了。DR-36 の決定 3 点と Alternatives / Rationale は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 <!-- markdownlint-enable line-length -->
