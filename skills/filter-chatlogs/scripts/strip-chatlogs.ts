@@ -64,25 +64,7 @@ const _makeRecoverStats = (): RecoverStats => ({ recovered: 0, skipped: 0, error
 /**
  * 5 分類の件数と除去前後の合計バイト数を 1 行のサマリーとして出力する（REQ-F-006 / DR-30）。
  *
- * `stripped` は「書き換えた実績」、`skipped` は「dry-run のため見送った件数」であり、
- * 両者は排他になる（通常実行は `skipped=0`、dry-run は `stripped=0`）。
- *
- * ## バイト数の定義
- *
- * `bytesBefore` / `bytesAfter` は**除去対象と分類されたファイル**（通常実行は `stripped`、
- * dry-run は `skipped`）の**本文**（frontmatter を除く）UTF-8 バイト数の合計であり、
- * 対象ディレクトリ全体のサイズではない。除去を伴わない分類は本文バイト数を持たない
- * （`StripDecision.contentBytes` の JSDoc に算出不能である理由を記す）。
- * 除去対象が 1 件も無い実行では両者とも 0 になる。
- *
- * dry-run でも同じ値を出す。1 件ごとの明細は除去バイト数を出さないため（REQ-F-005）、
- * 「実行したらどれだけ縮むか」を事前に知る手段はこのサマリーだけである。
- *
- * `bytesBefore - bytesAfter` は `removedBytes` の合計であり、`removedBytes` は除去範囲
- * 最終行の行末終端子を含まないため、実ファイルの縮小量とは除去 1 件あたり 1 バイト異なる。
- *
- * SKILL.md 層が `::info::` 形式を解析する既存パターンに合わせ、`filter` / `noise-filter` と
- * 同じ `key=value` の羅列で出力する。桁区切り・単位は付けない（解析側が数値として読む）。
+ * 値の定義は REQ-F-006、書式は implementation/implementation.md 「`_reportSummary` — サマリー行の書式」節に記す。
  *
  * @param stats - 集計済みの統計カウンター
  * @param dryRun - dry-run 実行であれば接尾辞を付ける
@@ -99,9 +81,8 @@ const _reportSummary = (stats: StripStats, dryRun: boolean): void => {
 /**
  * 復帰専用モードを実行する（R-015 / DR-24 / DR-26）。
  *
- * 実行と報告を分離し、`_reportRecovery` が結果の出力だけを担えるようにする。
- * dry-run も同じ経路に通す。件数の算出（特に `skipped`）を `recoverOrphans` の
- * 1 箇所へ集約するためであり、検出のみを別経路で呼ぶと「復帰しなかった件数」を導出できない。
+ * 検出と復帰を同じ経路に通す理由は implementation/implementation.md
+ * 「`_processRecovery` — 検出と復帰を同じ経路に通す理由」節に記す。
  *
  * @param targetDir - 復帰対象ディレクトリ
  * @param cache - 復帰したファイルのエントリを削除するキャッシュ
@@ -122,14 +103,8 @@ const _processRecovery = (
 /**
  * 復帰専用モードの実行結果を報告する（R-015 / DR-24 / DR-26）。
  *
- * 報告項目は復帰・スキップ・エラーの件数と、キャッシュ削除に失敗したパスであり、
- * REQ-F-006 の分類件数は出力しない。分類を行っていない以上、0 件のサマリーを出すと
- * 「全件が done だった」実行と区別がつかなくなるため。
- *
- * dry-run では `完了` を含む行を出さない。SKILL.md 層は `完了（復帰専用）:` の行から
- * 件数を拾うため、dry-run でも同じ語を出すと実行済みと誤読される。
- *
- * 復帰したパスの列挙は `recoverOrphans` が復帰の直後に行うため、ここでは再出力しない。
+ * 報告項目と dry-run での差は implementation/implementation.md
+ * 「`_reportRecovery` — 復帰専用モードで dry-run に `完了` を出さない」節に記す。
  *
  * @param result - `recoverOrphans` の実行結果
  * @param stats - `recoverOrphans` が加算した件数の統計
@@ -146,24 +121,10 @@ const _reportRecovery = ({ errors }: RecoverOrphansResult, stats: RecoverStats, 
 };
 
 /**
- * dry-run の判定内訳を 1 ファイル分だけ出力する（REQ-F-005）。
+ * dry-run の判定内訳を 1 ファイル分だけ出力する（REQ-F-005 / DR-29 決定 5）。
  *
- * 6000 件規模の事前レビューでは「どのファイルがどう扱われるか」が読み取れれば足りるため、
- * 出力はパスと判定結果に絞る。除去範囲・除去見込みバイト数は出力しない。
- * 6000 行が並ぶ明細では 1 行あたりの情報量よりも一覧性が優先され、行が長いほど読めなくなる。
- * 判定結果の `removalStartLine` / `removalEndLine` / `removedBytes` は
- * `writeStripped` が除去範囲として使う必須データであり、出力しないだけで保持は続く。
- *
- * dry-run で除去対象と判定されたファイル（`skipped`）は `stripped (skip)` と表示する。
- * 「本来 strip されるが dry-run のため見送った」ことを 1 語で表すためである。
- * `done` / `passthrough` / `error` には `(skip)` を付けない。これらは dry-run でも通常実行でも
- * 書き込みが起きず結果が変わらないため、付けると「見送られた」と誤読される。
- *
- * 判定理由（`rule=`）は `error` のときだけ添える。error は原因の特定を要する唯一の分類であり、
- * 他の分類では判定結果から規則が一意に定まるため、並べても行を伸ばすだけになる。
- *
- * 呼び出しは `_logFileOutcome` がファイル 1 件ごとに行う（`recoverOrphans` の `_logOutcome`
- * と同じ形）。dry-run か否かの判定は行わないため、dry-run 以外では呼ばれてはならない。
+ * 出力書式は specifications/specifications.md 「3.2 Output Semantics」節に記す。
+ * dry-run か否かの判定は行わないため、dry-run 以外では呼ばれてはならない。
  *
  * @param filePath - 対象ファイルの絶対パス
  * @param decision - 当該ファイルの判定結果
@@ -178,11 +139,8 @@ const _logDecisionDetail = (filePath: string, decision: StripDecision): void => 
 /**
  * Phase 1: 孤立退避を検出し error として計上する（R-014 / DR-23 決定 1）。
  *
- * 孤立退避は `.md` を持たないため列挙されず R-002〜R-008 に到達しない。検出しないと
- * error 0 件のまま Phase 6 に到達し、一括削除で復旧材料の `.bak` が失われる。
- *
- * 検出結果を返さず `stats` へ加算するのは、後続フェーズが必要とするのが件数のみ
- * （R-011 の保持ゲートを駆動する error 件数）であり、パスは報告以外に使い道がないため。
+ * 検出結果を返さない理由は implementation/implementation.md
+ * 「`_processOrphanErrors` — 検出結果を返さない理由」節に記す。
  *
  * @param targetDir - 走査対象ディレクトリ
  * @param stats - 孤立件数を加算する統計カウンター
@@ -202,34 +160,14 @@ const _processOrphanErrors = async (
 
 /**
  * 1 ファイルの処理結果。判定は `sweepBackups` へ渡すパス集合の導出に用いる。
- *
- * 分類の値域は判定と同じ `StripOutcome`（5 値）である。かつては同一内容の `_FileOutcome` を
- * 別途定義していたが、`classifyStrip` が dry-run を受け取り `skipped` まで判定するようになり
- * 両者が完全に一致したため、重複定義を解消した。
  */
 interface _FileResult {
   /** 当該ファイルの判定結果（R-002〜R-008）。書き込みの成否では書き換えない。 */
   decision: StripDecision;
   /**
-   * 判定と書き込みを合わせた最終的な分類。
-   *
-   * 判定（R-002〜R-008）が返す `done` / `error` / `skipped` はそのまま分類となる。
-   * `stripped` と判定されたファイルは書き込みの成否で `stripped` / `error` に分かれ、
-   * `passthrough` と判定されたファイルは（通常実行では）キャッシュ記録の成否で
-   * `passthrough` / `error` に分かれる（DR-31 決定 3）。
-   *
-   * - `stripped` — 除去対象と判定され、書き込みも成功した
-   * - `done` — 処理済み（R-003 / R-004）
-   * - `passthrough` — 除去対象ではない（R-005 / R-006）
-   * - `skipped` — 除去対象だが dry-run のため書き込みを見送った
-   * - `error` — 判定が error（R-002 / R-007）、または書き込み・キャッシュ記録に失敗した
-   *
-   * `skipped` は「対象外」を意味しない。dry-run で「実行すれば何件 strip されるか」を
-   * 示すのはこの分類であり、`StripStats.skipped` へ 1 対 1 で計上される（DR-30）。
-   *
-   * 判定の `stripped` と本分類の `stripped` は一致しない点に注意する。書き込みに失敗した
-   * ファイルは判定が `stripped` のまま分類が `error` になる。`sweepBackups` へ渡すパス集合は
-   * **判定** を基準とするため、本分類で絞り込んではならない（R-013 / DR-28 決定 5）。
+   * 判定と書き込みを合わせた最終的な分類（5 値の意味と規則との対応は
+   * specifications/specifications.md 「3.2 Output Semantics」節、件数フィールドとの対応は DR-30。
+   * 判定の `stripped` と本分類の `stripped` は一致しない — R-013 / DR-28 決定 5）。
    */
   outcome: StripOutcome;
   /** `error` 分類のうち、書き込み失敗の内容（判定 error では `undefined`）。 */
@@ -238,17 +176,6 @@ interface _FileResult {
 
 /**
  * `passthrough` と判定したファイルをキャッシュへ記録する（DR-31 決定 1・3・4）。
- *
- * 記録は `writeStripped` ではなくここで行う。`writeStripped` は退避・スワップ・記録を
- * 一連の手順として持ち、記録は最終スワップの成功後という順序制約を負うが、`passthrough` には
- * スワップが存在せずこの手順に乗らない。「除去して書き込む」責務の射程外である。
- *
- * 記録に失敗した場合は `error` へ倒す（決定 3）。`passthrough` は本体を変更しないため記録に
- * 失敗しても原文は無傷だが、`stripped` と扱いを変えると「記録に失敗したが成功として
- * 報告される」経路が生まれる。`error` に計上すれば R-011 により退避も保持され安全側に倒れる。
- *
- * `rule` は成立した規則（R-005 または R-006）をそのまま記録する。`R-003` で上書きしてはならない。
- * 元が `stripped` だったか `passthrough` だったかの区別が失われる。
  *
  * @param filePath - 対象ファイルの絶対パス
  * @param decision - `outcome: 'passthrough'` の判定結果
@@ -274,20 +201,10 @@ const _recordPassthrough = async (
 
 /**
  * 1 ファイルを判定し、副作用（本体の書き込み・キャッシュ記録）まで行って結果を分類する
- * （R-002〜R-009 / REQ-F-005 / DR-31）。
+ * （R-002〜R-009 / DR-31）。ログ出力と件数加算は行わない。
  *
- * 副作用の実行と分類のみを行い、ログ出力も件数加算も行わない。ログは `_logFileOutcome`、
- * 加算は `_applyFileOutcome` が担う。`recoverOrphans` の `_classifyRecovery` と同じ形である。
- *
- * 通常実行で副作用を伴う判定は 2 つある。`stripped` は本体を書き換えて記録し、
- * `passthrough` は本体を変更せず記録のみを行う（DR-31 決定 1・4）。それ以外
- * （`done` / `error` / dry-run の `skipped`）は判定の時点で確定しており副作用を持たない。
- * この早期 return が無いと、dry-run で判定 error のファイルまで `skipped` となり
- * `stats.skipped` を不当に押し上げる。
- *
- * dry-run の分岐をここに置くことで、「書き込んだか・見送ったか」の判断を 1 箇所へ集約する。
- * 呼び出し側は返された分類をログ関数と加算関数へ渡すだけでよく、
- * 分類規則・出力規則・加算規則が互いに混ざらない。
+ * 書き込み経路へ入れる条件は implementation/implementation.md
+ * 「`_classifyFile` — 書き込み経路へ入れるのは判定 `stripped` のみ」節に記す。
  *
  * @param filePath - 対象ファイルの絶対パス
  * @param cache - R-003 の処理済み記録を参照し、`stripped` の書き込み成功時および
@@ -319,31 +236,12 @@ const _classifyFile = async (
 };
 
 /**
- * 1 ファイル分のログを出力する（REQ-F-005）。
+ * 1 ファイル分のログを出力する（REQ-F-005 / REQ-F-006 / DR-29 決定 5・6 / DR-37）。
  *
- * dry-run では判定結果の明細をちょうど 1 行出す。分類ではなく判定を基準とするため、
- * `stripped` 以外（`done` / `passthrough` / `error`）も等しく明細の対象となる
- * （`stripped` のみへ縮小すると 6000 件規模の事前レビューが成立しない）。
- * 分類ごとに追加の `logger.dryrun` を足してはならない。同一ファイルの明細行が二重に出る。
- *
- * 通常実行では書き込み失敗を error へ、`stripped` / `passthrough` のパスを info へ
- * 1 行ずつ出す。件数だけでは「どのファイルが書き換わったか」を事後に追えないため、
- * 今回の実行が触れた（あるいは対象外と判断した）ファイルを逐一報告する。
- *
- * error 行にも対象パスを出す。書き込み失敗の内容（`CacheWriteFailed` の detail 等）は
- * キャッシュ層の生メッセージであり chatlog のパスを含まないため、失敗内容だけでは
- * どのファイルが失敗したか特定できず、R-011 の退避保持ゲートを解除できない。
- *
- * `done` は出力しない。処理済み（R-003 / R-004）は今回の実行が何もしていない件であり、
- * 6000 件規模では大半を占めうるため、報告するとログが埋まって他の分類が読めなくなる。
- * 判定 error（R-002 / R-007）も出力せず、いずれも件数のみを Phase 7 のサマリーへ計上する。
- *
- * 分岐は **分類**（`outcome`）で行う。判定（`decision.outcome`）ではない。書き込みに失敗した
- * ファイルは判定が `stripped` のまま分類が `error` となるため、判定を見ると
- * 書き込めなかったファイルを `stripped` として報告してしまう。
- *
- * ラベルには分類の値をそのまま用いる。サマリー（`_reportSummary`）が出す `stripped=` /
- * `passthrough=` と同じ語になり、明細と件数を同じ語彙で読める。
+ * 出力対象と書式は specifications/specifications.md 「3.2 Output Semantics」節、
+ * error 行にパスを出す理由と分岐を分類で行う理由は implementation/implementation.md の
+ * 「`_logFileOutcome` — error 行に対象パスを出す理由」「`_logFileOutcome` — 分岐を分類で行う理由」
+ * の 2 節に記す。
  *
  * @param filePath - 対象ファイルの絶対パス
  * @param result - 当該ファイルの判定結果・分類・書き込み失敗の内容
@@ -354,8 +252,9 @@ const _logFileOutcome = (filePath: string, { decision, outcome, error }: _FileRe
     _logDecisionDetail(filePath, decision);
     return;
   }
-  if (error) {
-    logger.error(`${LOGGER_TEXT.INDENT}${outcome}: ${filePath} (${error.message})`);
+  if (outcome === 'error') {
+    const _detail = error?.message ?? `rule=${decision.reason.rule}`;
+    logger.error(`${LOGGER_TEXT.INDENT}${outcome}: ${filePath} (${_detail})`);
     return;
   }
   // `skipped` は dry-run 専用の分類であり、この経路には到達しない
@@ -365,14 +264,10 @@ const _logFileOutcome = (filePath: string, { decision, outcome, error }: _FileRe
 };
 
 /**
- * 分類結果を `StripStats` へ加算する。
+ * 分類結果を `StripStats` へ加算する（DR-30 決定 2）。
  *
- * 分類（`StripOutcome` の 5 値）と件数フィールドは 1 対 1 に対応するため、
- * 同名のフィールドを加算するだけでよい（DR-30）。結果として
- * `total == stripped + skipped + done + passthrough + error` が成立する。
- *
- * `error` は `stripped` を加算しない。書き込みが成立していない以上 strip 済みではなく、
- * ここで加算すると R-013 の包含検査が「strip したのに退避が無い」と誤検出する。
+ * 加算規則と実行終了時の不変条件は implementation/implementation.md
+ * 「`_applyFileOutcome` — 加算は 1 ファイルにつき 1 フィールド」節に記す。
  *
  * @param outcome - 加算対象の分類
  * @param stats - 更新する統計カウンター
@@ -400,15 +295,8 @@ const _applyFileOutcome = (outcome: StripOutcome, stats: StripStats): void => {
 /**
  * 除去前後のバイト数を `StripStats` へ加算する（REQ-F-006）。
  *
- * 加算対象は**分類**が `stripped` / `skipped` のファイルのみである。判定ではない。
- * 書き込みに失敗したファイルは判定が `stripped` のまま分類が `error` となるが、本体は
- * 置換されておらず 1 バイトも除去されていないため、計上すると「実際には縮んでいない量」を
- * 除去実績として報告することになる。`sweepBackups` へ渡すパス集合が**判定**基準である
- * （R-013 / DR-28 決定 5）のとは基準が逆である点に注意する。
- *
- * 件数の加算（`_applyFileOutcome`）とは分けて持つ。件数は分類と 1 対 1 に対応するのに対し、
- * バイト数は 5 分類のうち 2 分類だけが値を持つ非対称な集計であり、同じ関数に混ぜると
- * 「分類名と同名のフィールドを加算するだけ」という件数側の単純さが失われる。
+ * 加算対象と、件数の加算（`_applyFileOutcome`）と分けて持つ理由は implementation/implementation.md
+ * 「`_applyFileOutcome` と `_applyFileBytes` を分けて持つ理由」節に記す。
  *
  * @param outcome - 当該ファイルの分類
  * @param decision - 当該ファイルの判定結果（本文バイト数と除去バイト数を担う）
@@ -422,29 +310,11 @@ const _applyFileBytes = (outcome: StripOutcome, decision: StripDecision, stats: 
 
 /**
  * Phase 2〜6: 1 ファイル単位のパイプラインで判定・書き込みを行い、退避を一括削除する
- * （R-002〜R-013 / REQ-F-005 / DR-28）。
+ * （R-002〜R-013 / DR-28）。
  *
- * 1 ファイル単位へ統合した経緯と dry-run を内部で分岐させる理由は DR-28 と
- * `implementation/phase-design-note.md` Section 3.3 に記す。
- *
- * ## 観測される順序
- *
- * 1 件ごとに `_classifyFile`（分類）→ `_logFileOutcome`（ログ）→ `_applyFileOutcome`（加算）を
- * この順で呼ぶため、ログと `stats` 加算の順序は入力順ではなく**処理の完了順**になる。
- * 一方 `runConcurrent` は結果を入力位置へ書き戻すため、戻り値の `decisions` は
- * **入力と同順・同数**である。
- *
- * ## 守るべき不変条件
- *
- * - `sweepBackups` へ渡す `stats.error` は、孤立退避（Phase 1）・判定 error・書き込み失敗の
- *   3 者を含んだ**確定値**でなければならない。部分的な値を渡すと R-011 の保持ゲートが誤動作し、
- *   error があるにもかかわらず `.bak` を削除して復旧材料を失う。
- * - `sweepBackups` へ渡すパス集合は**判定**が `stripped` としたものであり、書き込みの成否で
- *   絞り込んではならない（理由は DR-28 決定 5）。
- * - dry-run の宣言行はループの外で 1 度だけ出す。内側に置くとファイル件数分重複し、
- *   かつ対象 0 件で消える。
- * - `sweepBackups` の error は throw せず返す。報告順序と終了コードの決定は `main` の責務
- *   （DD-03）。dry-run では常に `undefined` を返す。
+ * 1 ファイル単位へ統合した経緯は DR-28 と `implementation/phase-design-note.md` Section 3.3、
+ * 観測される順序と守るべき不変条件は implementation/implementation.md の
+ * 「`_processFiles` — 観測される順序」「`_processFiles` — 守るべき不変条件」の 2 節に記す。
  *
  * @param targetDir - 退避を探索する対象ディレクトリ
  * @param files - 判定・書き込み対象ファイルパスの一覧
@@ -501,22 +371,10 @@ const _processFiles = async (
 };
 
 /**
- * Phase 0 受理ゲート（R-001）。受理範囲外の起動を列挙より前に拒否する。
+ * Phase 0 受理ゲート（R-001 / DR-32 / DR-23 決定 5）。受理範囲外の起動を列挙より前に拒否する。
  *
- * 未検証のデータセットへ 6000 件規模の破壊的書き換えが及ぶことを防ぐ安全弁であり、
- * 対象を `<agent> <YYYY-MM>` で明示した実行のみを受理する。閉じる経路は 3 つ。
- *
- * 1. `period` の省略 — `agentPath` が agent のみを返し、配下の全年月が対象になる
- * 2. `inputDir` の指定 — `resolveChatlogsDir` が agent / period を無視する。
- *    フラグ（`--input-dir`）だけでなく `/` を含む第 1 位置引数も同フィールドへ入るため、
- *    検査は解析後の `config.inputDir` に対して行う（AC-022）
- * 3. `outputDir` の指定 — strip は対象を in-place で書き換えるため出力先を持たない。
- *    共通 `parseArgs` は `--output-dir` と第 3 位置引数を同フィールドへ入れるが、
- *    `main` は値を一切使わない。黙って受理すると利用者は出力先を変えたつもりで
- *    `originalLogs/` を破壊的に書き換えることになるため、`inputDir` と同じく拒否する（AC-027）
- *
- * `period` の不正形式は共通 `parseArgs` が `InvalidPeriodPosition` で既に拒否済みのため、
- * ここでは扱わない。両モード（R-014 / R-015）で共通に評価する（DR-23 決定 5）。
+ * 拒否する 3 条件と評価順序は specifications/specifications.md 「4.1 実行単位の規則」節、
+ * 受理範囲は AC-021 / AC-022 / AC-027 に記す。
  *
  * @param config - 解析済みの設定
  * @throws {ChatlogError} 受理範囲外の場合
