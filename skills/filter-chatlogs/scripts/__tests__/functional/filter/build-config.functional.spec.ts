@@ -74,7 +74,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
  *   `_SCHEMA` に CLI オプション定義が無いため、GlobalConfig > defaults の優先順位のみ検証する。
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-40
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-43
  *
  * @see buildConfig
  */
@@ -623,11 +623,11 @@ describe('buildConfig', () => {
   describe('Given: CLI 引数で --single-file が指定されている', () => {
     describe('When: buildConfig を呼び出す', () => {
       /** `result.singleFile === true` になることを検証する。 */
-      describe('Then: T-FL-BC-39 - result.singleFile === true', () => {
+      describe('Then: T-FL-BC-42 - result.singleFile === true', () => {
         beforeEach(async () => {
           await GlobalConfig.getInstance({ yaml: '' });
         });
-        it('T-FL-BC-39: args=[--single-file] → result.singleFile === true', () => {
+        it('T-FL-BC-42: args=[--single-file] → result.singleFile === true', () => {
           const result = buildConfig(['--single-file']);
           assertEquals(result.singleFile, true);
         });
@@ -641,11 +641,11 @@ describe('buildConfig', () => {
   describe('Given: CLI 引数で --single-file が未指定', () => {
     describe('When: buildConfig を呼び出す', () => {
       /** デフォルト値 false が使われることを検証する。 */
-      describe('Then: T-FL-BC-40 - result.singleFile === false', () => {
+      describe('Then: T-FL-BC-43 - result.singleFile === false', () => {
         beforeEach(async () => {
           await GlobalConfig.getInstance({ yaml: '' });
         });
-        it('T-FL-BC-40: singleFile 未指定 → result.singleFile === false', () => {
+        it('T-FL-BC-43: singleFile 未指定 → result.singleFile === false', () => {
           const result = buildConfig([]);
           assertEquals(result.singleFile, false);
         });
