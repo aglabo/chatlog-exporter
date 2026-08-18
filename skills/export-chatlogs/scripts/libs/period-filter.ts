@@ -20,7 +20,12 @@ import type { PeriodRange } from '../types/filter.types.ts';
 // Functions
 // ----------
 
-/** CLI の期間文字列（"YYYY-MM" / undefined）を PeriodRange に変換する。 */
+/**
+ * CLI の期間文字列（"YYYY-MM" / undefined）を PeriodRange に変換する。
+ *
+ * 形式検証に加えて月レンジ（01〜12）も検証し、範囲外の月は
+ * `Date` のロールオーバー（例: "2026-13" → 2027年1月）に頼らず Error とする。
+ */
 export const parsePeriod = (period: string | undefined): PeriodRange => {
   if (!period) {
     return { startMs: 0, endMs: Infinity };
@@ -29,6 +34,13 @@ export const parsePeriod = (period: string | undefined): PeriodRange => {
   if (ymMatch) {
     const year = parseInt(ymMatch[1]);
     const month = parseInt(ymMatch[2]);
+    if (month < 1 || month > 12) {
+      throw new ChatlogError(
+        'InvalidPeriod',
+        'InvalidPeriodRange',
+        `期間の月が範囲外です（01〜12）: ${period}`,
+      );
+    }
     const start = new Date(year, month - 1, 1).getTime();
     const end = new Date(year, month, 1).getTime();
     return { startMs: start, endMs: end };
