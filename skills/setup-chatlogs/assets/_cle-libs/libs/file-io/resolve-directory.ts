@@ -18,13 +18,7 @@ import { isAbsolutePath, joinPath, normalizePath } from '../path-utils/path-util
  *
  * CLI は `YYYY-MM` 形式のみを受理するため、`YYYY` 単体は入力されない。
  */
-export const periodToPath = (period: string): string => {
-  // TODO(cle-6tz): YYYY 非対応確定により到達不能。コード削除は後続作業。
-  if (period.length === 4) {
-    return period;
-  }
-  return `${period.slice(0, 4)}/${period}`;
-};
+export const periodToPath = (period: string): string => `${period.slice(0, 4)}/${period}`;
 
 /**
  * エージェントのチャットログサブパスを構築する。

@@ -9,7 +9,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertFalse, assertThrows } from '@std/assert';
-import { beforeEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { buildConfig } from '../../../configs/strip-config.ts';
@@ -55,6 +55,10 @@ describe('buildConfig (strip)', () => {
     GlobalConfig.resetInstance();
     // 実在する config.yaml を読み込ませず DEFAULT_CONFIG_VALUES を基準にする
     GlobalConfig.getInstance({ yaml: '' });
+  });
+
+  afterEach(() => {
+    GlobalConfig.resetInstance();
   });
 
   /**
