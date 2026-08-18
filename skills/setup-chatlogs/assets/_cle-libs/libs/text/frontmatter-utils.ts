@@ -85,6 +85,15 @@ export const divideEntry = (text: string): { frontmatter: string; content: strin
   };
 };
 
+/**
+ * frontmatter ブロックの行数を返す。本文先頭のファイル全体基準の行番号と一致する。
+ *
+ * 引数は `divideEntry` が返す `frontmatter`（閉じ区切りの後に改行を含む形式）を前提とする。
+ * 末尾の改行を欠く文字列を渡すと 1 行少なく数える。
+ */
+export const frontmatterLines = (frontmatter: string): number =>
+  frontmatter === '' ? 0 : frontmatter.split('\n').length - 1;
+
 /** Markdown テキストから frontmatter を抽出してパースする。 */
 export const parseFrontmatter = (text: string): FrontmatterResult => {
   const _normalized = normalizeLine(text);

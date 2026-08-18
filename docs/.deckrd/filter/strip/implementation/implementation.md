@@ -1,8 +1,8 @@
 ---
 title: "Implementation Plan: filter strip"
-based-on: specifications.md v5.4.0
+based-on: specifications.md v5.5.0
 status: Draft
-version: 3.3.0
+version: 3.4.0
 created: "2026-08-13"
 ---
 
@@ -189,6 +189,15 @@ dry-run では `stripped` が 0 となり、両者は排他。
   実際には観測されない想定だが、観測されても処理を継続する
 - キャッシュへの記録は差し替えの成立後に行う(差し替え失敗を処理済みと記録すると、次回 R-003 で
   done となり strip されないまま残るため)
+- 除去範囲を適用する直前に、読み込んだ内容との整合を検証する(DR-35)。frontmatter の有無 →
+  除去開始行と frontmatter 行数の一致 → 除去終了行の直後が `STRIP_BOUNDARY_HEADING` であること →
+  範囲の順序、の 4 点を見る。frontmatter の有無は独立した早期 return とする
+  (frontmatter 行数を `-1` に潰すと除去範囲を持たない分類の `removalStartLine` と一致し、
+  センチネルを担いだ呼び出しが素通りする)。`divideEntry` は壊れた frontmatter で throw するため
+  throw しない `hasFrontmatter` を先に評価し、throw を到達不能にする。不整合は書き込みを行わず
+  `ChatlogError('FailFast', 'StaleDecision')` を戻り値として返す
+- frontmatter 行数の算出は `_cle-libs` の `frontmatterLines` を `classifyStrip` と共有する
+  (REQ-C-001)。開始辺の照合は両者が同一定義に立つことを前提とするため、実装を複製しない
 - `writeStripped` が記録するのは `status: 'stripped'`(成立規則の `R-008` を `rule` に持つ)のみとする
   (DR-31 決定 4)。`passthrough` の記録は退避・差し替えを伴わずこの手順に乗らないため、
   Commit 10 の `_classifyFile` 側(`_recordPassthrough`)が担う
@@ -478,3 +487,4 @@ impl フェーズで確定させる項目。振る舞い規則ではなく実装
 | 2026-08-16 | 3.1.0   | DR-31 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 7 に R-003 の処理済み status を `stripped` / `passthrough` の 2 値とし `_PROCESSED_STATUSES` + `includes` で判定する旨を追加。Commit 8 に「`writeStripped` が記録するのは `stripped` (`rule` は `R-008`) のみ」を追加。Commit 10 に `_recordPassthrough` の規定 (`status: passthrough` と成立規則 R-005 / R-006 を `rule` に記録・dry-run では `!dryRun` ガードにより非記録・記録失敗は `CacheWriteFailed` として error に計上し throw しない) と `_classifyFile` の責務へのキャッシュ記録を追加。Commit 5 の `STRIP_CACHE_STATUSES` に `PASSTHROUGH` が実書き込み値となる旨を追記。Rule Coverage 表の R-005 / R-006 を Commit 7 / 10 とし理由を注記。based-on を spec v5.1.0、Working Note 参照を v3.1.0、DR 範囲を DR-01〜DR-31 へ更新                                                                                                                                                                                                                                                                              |
 | 2026-08-16 | 3.2.0   | DR-34 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 9 に、削除の前に期待退避パスの集合に含まれない退避を件数とパスで警告報告する判断基準を追加。期待退避パスは R-013 の包含検査と同じ構成方法を用い、報告は判定・戻り値・終了コードを変えず、前回中断の残骸と外部由来を区別しない。`based-on` を specifications.md v5.4.0 へ更新 (v5.1.0 からの遅れを併せて解消)。削除範囲は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 2026-08-17 | 3.3.0   | 未反映だった DR-32 / DR-33 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 10 の受理ゲートに `_assertAcceptedRange` による `outputDir` の拒否 (`ChatlogError('InvalidArgs', 'OutputDirNotAllowed')`、検査位置は `inputDir` の直後・`period` の必須検査の前、`--output-dir` と第 3 位置引数の双方、通常モード / 復帰専用モードの双方で評価) を追加 (DR-32)。同 Commit の復帰専用モードに、`RecoverStats.error` が 1 件以上のとき報告の後に `ChatlogError` を throw し終了コードを 1 とする規定を追加 (DR-33)。DR-20 決定 4 は破棄せず適用範囲を通常モード (R-014) に限ると明記。Rule Coverage 表の R-001 / R-015 に両 DR を注記。あわせて 3.1.0 / 3.2.0 で更新漏れとなっていた Section 1.2 の内部参照を実体へ揃える (specifications.md v5.1.0 → v5.4.0、requirements.md v8.1.0 → v8.5.0、DR-01〜DR-31 → DR-01〜DR-34、Working Note v3.1.0 → v3.2.0、Section 3 注記の v2.0.0 → v3.2.0)。規則そのものと評価順序は不変                                                                                                                                                          |
+| 2026-08-18 | 3.4.0   | DR-35 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 8 に `writeStripped` の除去範囲の事前検証 (frontmatter の有無・開始辺・終了辺・範囲の順序の 4 点、frontmatter の有無を独立した早期 return とする理由、`hasFrontmatter` を先に評価して `divideEntry` の throw を到達不能にすること、不整合時は `ChatlogError('FailFast', 'StaleDecision')` を戻り値で返すこと) と、frontmatter 行数の算出を `_cle-libs` の `frontmatterLines` として `classifyStrip` と共有する旨 (REQ-C-001) を追加。based-on を spec v5.5.0 へ更新。R-009 の 3 段の操作順序と Commit 分割は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |

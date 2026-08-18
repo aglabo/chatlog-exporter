@@ -11,7 +11,7 @@
 // functions
 import { isFileIoError, readTextFile } from '../../../_cle-libs/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../_cle-libs/libs/file-ops/exists-utils.ts';
-import { divideEntry, hasFrontmatter } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
+import { divideEntry, frontmatterLines, hasFrontmatter } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
 // classes
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
@@ -99,9 +99,6 @@ const _ioReason = (error: Error, rule: 'R-002' | 'R-004', path: string): StripRe
 
 /** UTF-8 バイト数を返す。`String.length`（UTF-16 コード単位）とは異なる点に注意。 */
 const _utf8Length = (text: string): number => new TextEncoder().encode(text).length;
-
-/** frontmatter ブロックの行数を返す。本文先頭のファイル全体基準の行番号と一致する。 */
-const _frontmatterLines = (frontmatter: string): number => frontmatter === '' ? 0 : frontmatter.split('\n').length - 1;
 
 /**
  * strip 判定カスケード（R-002 〜 R-008）を評価し、単一ファイルの判定結果を返す。
@@ -206,7 +203,7 @@ export const classifyStrip = async (
 
   // R-008: 上記すべてに該当しない → 除去する（行番号はファイル全体基準、バイト数は本文基準）。
   // dry-run は書き込みを見送るため分類のみ `skipped` へ振り替え、除去範囲は同値のまま担ぐ
-  const _fmLines = _frontmatterLines(frontmatter);
+  const _fmLines = frontmatterLines(frontmatter);
   return {
     outcome: dryRun ? 'skipped' : 'stripped',
     reason: { rule: 'R-008' },
