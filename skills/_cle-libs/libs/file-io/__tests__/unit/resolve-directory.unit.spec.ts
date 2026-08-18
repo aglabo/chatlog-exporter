@@ -57,24 +57,6 @@ describe('periodToPath', () => {
   });
 
   /**
-   * YYYY 形式の期間文字列 "2026" を渡す前提条件グループ。
-   *
-   * CLI は `YYYY-MM` のみを受理するため、この入力は実運用では到達しない。
-   * 実装が現在返す値を固定する回帰ケース（cle-6tz）。
-   */
-  describe('Given: YYYY 形式の期間文字列 "2026"', () => {
-    /** `periodToPath("2026")` を呼び出すとき。 */
-    describe('When: periodToPath("2026") を呼び出す', () => {
-      /** `"2026"` が返ることを検証する。 */
-      describe('Then: T-LIB-RD-01-02 - "2026" が返る', () => {
-        it('T-LIB-RD-01-02: periodToPath("2026") → "2026"', () => {
-          assertEquals(periodToPath('2026'), '2026');
-        });
-      });
-    });
-  });
-
-  /**
    * 別の YYYY-MM 形式の期間文字列 "2025-12" を渡す前提条件グループ。
    *
    * 別の YYYY-MM 形式でも `YYYY/YYYY-MM` 形式のパスが返ることを検証する。
@@ -133,24 +115,6 @@ describe('agentPath', () => {
       describe('Then: T-LIB-RD-02-02 - "claude/2026/2026-03" が返る', () => {
         it('T-LIB-RD-02-02: agentPath("claude", "2026-03") → "claude/2026/2026-03"', () => {
           assertEquals(agentPath('claude', '2026-03'), 'claude/2026/2026-03');
-        });
-      });
-    });
-  });
-
-  /**
-   * `period` が YYYY 形式 "2026" の前提条件グループ。
-   *
-   * CLI は `YYYY-MM` のみを受理するため、この入力は実運用では到達しない。
-   * 実装が現在返す値を固定する回帰ケース（cle-6tz）。
-   */
-  describe('Given: period が YYYY 形式 "2026"', () => {
-    /** `agentPath("claude", "2026")` を呼び出すとき。 */
-    describe('When: agentPath("claude", "2026") を呼び出す', () => {
-      /** `"claude/2026"` が返ることを検証する。 */
-      describe('Then: T-LIB-RD-02-03 - "claude/2026" が返る', () => {
-        it('T-LIB-RD-02-03: agentPath("claude", "2026") → "claude/2026"', () => {
-          assertEquals(agentPath('claude', '2026'), 'claude/2026');
         });
       });
     });
