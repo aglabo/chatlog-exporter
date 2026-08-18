@@ -1009,6 +1009,8 @@ source: specifications.md
 > **判定** が `stripped` としたパスとする (書き込みの成否で絞り込まない — DR-28 決定 5)。
 > 通常実行では `stripped` / `passthrough` を `logger.info` で `<分類>: <path>` の形で
 > 1 件ごとに出力する。`done` は出力しない (DR-29 決定 6)。
+> 判定 error (R-002 / R-007) と書き込み失敗は `logger.error` で
+> `<分類>: <path> (<詳細>)` の形で出力する。判定 error の詳細は `rule=<規則 ID>` とする (DR-37)。
 
 ### [正常] Normal Cases
 
