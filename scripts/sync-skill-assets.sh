@@ -348,6 +348,18 @@ run_check_head() {
 # so one run lists everything that has to be dealt with -- the same reason
 # run_check accumulates drift.
 #
+# EXCLUDE_NAME directories are left out of the pathspec: the sync never copies
+# them, so an edit there cannot make the distribution disagree with the commit,
+# and reporting it stops a commit for a reason that does not exist. The name
+# stays defined in one place, but the exclusion is now carried out by two
+# mechanisms -- find -prune for the copy, a git pathspec here -- and both have to
+# be kept in step.
+#
+# The pathspec must be written ":(exclude)*/<name>/*" and not
+# ":(exclude)<src>/**/<name>/**": git's ** does not match zero directories, so
+# the second form lets a <name> directory sitting directly under a source (e.g.
+# skills/_cle-libs/__tests__/) slip past the exclusion.
+#
 # @arg $1 string Repository root directory
 # @stdout A "no unstaged changes" report line when every source is staged
 # @return 0 If no sync source has unstaged changes
@@ -360,7 +372,7 @@ run_check_staged() {
     src="${entry%%|*}"
 
     # git 自体の失敗を成功として通さない。読めなかったことは検査できなかったことである。
-    if ! status_out="$(git -C "$base" status --porcelain -- "$src")"; then
+    if ! status_out="$(git -C "$base" status --porcelain -- "$src" ":(exclude)*/${EXCLUDE_NAME}/*")"; then
       echo "Error: cannot read the git status of: ${src}" >&2
       return 1
     fi

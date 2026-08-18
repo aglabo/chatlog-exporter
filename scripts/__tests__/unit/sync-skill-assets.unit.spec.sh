@@ -628,6 +628,37 @@ Describe 'sync-skill-assets.sh'
         The status should be success
         The output should include 'no unstaged changes'
       End
+
+      It '[Normal] T-SSA-RCS-12: ソース直下の __tests__ 配下だけが未ステージなら成功する'
+        # __tests__ は同期対象外なので、この編集は配布物を一切変化させない。それでも
+        # 止めていたのが本件の不具合であり、コミットできない理由にならない編集で
+        # コミットが止まる。
+        #
+        # 同時に、除外 pathspec の書式を固定する回帰テストでもある。
+        # ':(exclude)<src>/**/__tests__/**' 形式では `**/` が 0 階層にマッチせず、
+        # ソース直下にあるこの skills/_cle-libs/__tests__/ が除外から漏れる（実測）。
+        # 全階層で効くのは ':(exclude)*/__tests__/*' 形式のみ。深い階層だけを見る
+        # T-SSA-RCS-13 は両形式で通ってしまうため、両者を分けられるのはこのケースだけ。
+        #
+        # トレードオフ: pathspec は EXCLUDE_NAME を再利用するので名前の定義は 1 箇所の
+        # ままだが、除外の機構は find -prune と git pathspec の 2 系統になる。
+        # 一方だけを変えると同期と検査が食い違うため、両者は揃えて直す必要がある。
+        BeforeCall 'commit_fixture_repo "$repo"; echo "export const edited = 1;" >"${repo}/skills/_cle-libs/__tests__/unit/noop.unit.spec.ts"'
+        When call run_check_staged "$repo"
+        The status should be success
+        The output should include 'no unstaged changes'
+        The stderr should not include 'noop.unit.spec.ts'
+      End
+
+      It '[Normal] T-SSA-RCS-13: 深い階層の __tests__ 配下だけが未ステージなら成功する'
+        # 除外は find -prune と同じく全階層に効かなければならない。ソース直下だけを
+        # 除く実装（先頭を固定した pathspec 等）をここで排除する。
+        BeforeCall 'commit_fixture_repo "$repo"; echo "export const edited = 1;" >"${repo}/skills/_cle-libs/libs/__tests__/helpers/__tests__/deep.ts"'
+        When call run_check_staged "$repo"
+        The status should be success
+        The output should include 'no unstaged changes'
+        The stderr should not include 'deep.ts'
+      End
     End
 
     Describe 'When: 異常系'
@@ -695,6 +726,18 @@ Describe 'sync-skill-assets.sh'
         The stderr should include '.config/chatlog-exporter/config.yaml'
         The stderr should include 'deno.json'
       End
+
+      It '[Error] T-SSA-RCS-14: __tests__ の内と外が両方未ステージなら外の分だけ報告して失敗する'
+        # 除外は「未ステージ変更が __tests__ 以外にもあるか」の判定を曇らせてはならない。
+        # 1 件でも __tests__ 外にあれば従来どおり止める一方、同じ実行に混ざった
+        # __tests__ 側は報告に出してはならない。除外を「全て __tests__ なら成功」と
+        # 実装すると前半で、除外を捨てると後半で落ちる。
+        BeforeCall 'commit_fixture_repo "$repo"; echo "export const edited = 1;" >"${repo}/skills/_cle-libs/__tests__/unit/noop.unit.spec.ts"; echo "export const noop = 1;" >"${repo}/skills/_cle-libs/libs/file-io/path-utils.ts"'
+        When call run_check_staged "$repo"
+        The status should be failure
+        The stderr should include 'path-utils.ts'
+        The stderr should not include 'noop.unit.spec.ts'
+      End
     End
 
     Describe 'When: エッジケース'
@@ -738,18 +781,6 @@ Describe 'sync-skill-assets.sh'
         When call run_check_staged "$repo"
         The status should be success
         The output should include 'no unstaged changes'
-      End
-
-      It '[Edge] T-SSA-RCS-12: __tests__ 配下の未ステージ編集でも失敗する'
-        # 意図的な過剰検出。__tests__ は配布物に入らないのでこの編集は配布物を
-        # 変化させないが、それでも失敗させる。除外規則を git のパスに対して
-        # 再実装すると EXCLUDE_NAME / find -prune と二重定義になり、同ファイルの
-        # コメントが繰り返し禁じている事態そのものになる。過剰検出は安全側にしか
-        # 外れず、対処方法は検査が既に出しているメッセージそのものである。
-        BeforeCall 'commit_fixture_repo "$repo"; echo "export const edited = 1;" >"${repo}/skills/_cle-libs/__tests__/unit/noop.unit.spec.ts"'
-        When call run_check_staged "$repo"
-        The status should be failure
-        The stderr should include 'noop.unit.spec.ts'
       End
     End
   End
