@@ -2,7 +2,7 @@
 title: "Requirements: filter strip"
 module: "filter/strip"
 status: Draft
-version: 8.6.0
+version: 8.7.0
 created: "2026-08-12"
 ---
 
@@ -64,6 +64,9 @@ created: "2026-08-12"
   - サブコマンド分岐は `skills/filter-chatlogs/SKILL.md` 層が担う。
     TypeScript スクリプトは `strip` トークンを除いた引数を受け取る。
     `parseArgs` は `strip` を位置引数として解釈できず `UnknownPositional` を throw する
+  - `chatlogs/` 配下へ書き込むのは本ツール群のみであり、strip の実行中に外部プロセス
+    (エディタ、Obsidian、他スキルの同時実行) が同一ファイルを書き換えることは想定しない。
+    したがって読み取りから書き込みまでの間に対象が差し替わる競合は、検出も排他制御も行わない (DR-36)
 
 ### System Context Diagram
 
@@ -608,7 +611,8 @@ frontmatter が無いファイルには付与先が存在しません。
 いずれかが成立しない場合、当該ファイルを書き換えてはなりません。
 これにより REQ-F-002 の frontmatter 保持が実行時にも強制されます。
 なお本検証は除去範囲の **形** を固定するものであり、判定時の frontmatter との同一性は検証しません
-(DR-35 Consequences) 。
+(DR-35 Consequences) 。検証の位置がスワップ地点ではないため競合の窓も閉じませんが、
+`chatlogs/` 配下の単一書き手前提 (Section 2 Assumptions) のもとで残余として受容します (DR-36) 。
 
 **Acceptance Criteria**:
 
@@ -1312,5 +1316,6 @@ Scenario Outline: 出力ディレクトリ指定時に実行を拒否する
 | 2026-08-17 | 8.5.1   | AC 採番の衝突を解消 (PATCH: 要求と AC の実体は不変)。DR-34 由来の AC を AC-025 から AC-028 へ改番し (AC-025 / AC-026 は v8.1.0 で DR-31 へ割り当て済みのため保持)、Traceability の REQ-F-009 に AC-024 / AC-025 / AC-026 を追加、REQ-F-010 を AC-028 へ追随。AC-025 / AC-026 の Gherkin を新設                                                                                                                                                                                                                                                                                                                                                                                           |
 | 2026-08-17 | 8.5.2   | DR-30 で破棄済みの記述を一掃 (PATCH: 要求と AC の実体は不変)。REQ-F-005 の Rationale に残っていた「`skipped` の件数は `stripped` へ加算する」(DR-29 決定 3 の破棄部分) を、分類と 1 対 1 に対応する 5 件数フィールド・通常実行と dry-run で `stripped` / `skipped` が排他・dry-run の `skipped` が通常実行の `stripped` と一致する旨へ改める                                                                                                                                                                                                                                                                                                                                             |
 | 2026-08-18 | 8.6.0   | DR-35 を反映 (MINOR: AC を追加)。REQ-F-008 の安全弁を書き込み直前にも置くことを規定し AC-029 を追加。除去範囲の確定と書き込みが同一ファイルを別々に読むため、その間の差し替えで行番号が陳腐化し、行番号による除去がクランプにより例外にならないことを根拠として併記。検証項目は frontmatter の存在・除去開始行と frontmatter 行数の一致・除去終了行の次の行が `## Summary` であること・範囲の順序の 4 点とし、不成立なら書き換えない。判定時の frontmatter との同一性は検証しない旨を明記。Traceability の REQ-F-008 を AC-029 へ追随                                                                                                                                                    |
+| 2026-08-18 | 8.7.0   | DR-36 を反映 (MINOR: 前提を追加)。Section 2 Assumptions に「`chatlogs/` 配下へ書き込むのは本ツール群のみであり、strip の実行中に外部プロセスが同一ファイルを書き換えることは想定しない。読み取りから書き込みまでの間に対象が差し替わる競合は検出も排他制御も行わない」を追加。REQ-F-008 / AC の実体は不変                                                                                                                                                                                                                                                                                                                                                                                |
 
 <!-- markdownlint-enable line-length -->
