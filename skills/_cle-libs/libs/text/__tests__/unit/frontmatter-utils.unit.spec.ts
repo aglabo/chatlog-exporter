@@ -335,16 +335,16 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: フロントマターのないテキスト "# タイトル\\n本文"', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-01 - meta={}、body=元テキスト', () => {
+      describe('Then: T-LIB-FU-01 - meta={}、body=元テキスト', () => {
         const text = '# タイトル\n本文';
 
-        it('T-SF-PF-01-01: meta が空オブジェクトになる', () => {
+        it('T-LIB-FU-01-01: meta が空オブジェクトになる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta, {});
         });
 
-        it('T-SF-PF-01-02: body が元テキスト全体になる', () => {
+        it('T-LIB-FU-01-02: body が元テキスト全体になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.content, text);
@@ -355,16 +355,16 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: "---\\nkey: val\\n---\\n本文" というテキスト', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-02 - key=val, body=本文', () => {
+      describe('Then: T-LIB-FU-02 - key=val, body=本文', () => {
         const text = '---\nkey: val\n---\n本文';
 
-        it('T-SF-PF-02-01: meta.key が "val" になる', () => {
+        it('T-LIB-FU-02-01: meta.key が "val" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['key'], 'val');
         });
 
-        it('T-SF-PF-02-02: body が "本文" になる', () => {
+        it('T-LIB-FU-02-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.content, '本文\n');
@@ -375,7 +375,7 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: 複数フィールドを持つフロントマター', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-03 - 全フィールドが正しく抽出される', () => {
+      describe('Then: T-LIB-FU-03 - 全フィールドが正しく抽出される', () => {
         const text = [
           '---',
           'session_id: sess-001',
@@ -388,25 +388,25 @@ describe('parseFrontmatterEntries', () => {
           '本文',
         ].join('\n');
 
-        it('T-SF-PF-03-01: session_id が "sess-001" になる', () => {
+        it('T-LIB-FU-03-01: session_id が "sess-001" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['session_id'], 'sess-001');
         });
 
-        it('T-SF-PF-03-02: date が "2026-03-15" になる', () => {
+        it('T-LIB-FU-03-02: date が "2026-03-15" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['date'], '2026-03-15');
         });
 
-        it('T-SF-PF-03-03: project が "my-project" になる', () => {
+        it('T-LIB-FU-03-03: project が "my-project" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['project'], 'my-project');
         });
 
-        it('T-SF-PF-03-04: slug が "test-slug" になる', () => {
+        it('T-LIB-FU-03-04: slug が "test-slug" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['slug'], 'test-slug');
@@ -417,16 +417,16 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: CRLF 改行 ("\\r\\n") を含むテキスト', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-04 - LF に正規化されて解析される', () => {
+      describe('Then: T-LIB-FU-04 - LF に正規化されて解析される', () => {
         const text = '---\r\nkey: val\r\n---\r\n本文';
 
-        it('T-SF-PF-04-01: meta.key が "val" になる', () => {
+        it('T-LIB-FU-04-01: meta.key が "val" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['key'], 'val');
         });
 
-        it('T-SF-PF-04-02: body が "本文" になる', () => {
+        it('T-LIB-FU-04-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.content, '本文\n');
@@ -437,16 +437,16 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: 空のフロントマター "---\\n---\\n本文"', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-05 - meta={}、body=本文', () => {
+      describe('Then: T-LIB-FU-05 - meta={}、body=本文', () => {
         const text = '---\n---\n本文';
 
-        it('T-SF-PF-05-01: meta が空オブジェクトになる', () => {
+        it('T-LIB-FU-05-01: meta が空オブジェクトになる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta, {});
         });
 
-        it('T-SF-PF-05-02: body が "本文" になる', () => {
+        it('T-LIB-FU-05-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.content, '本文\n');
@@ -457,7 +457,7 @@ describe('parseFrontmatterEntries', () => {
 
   describe('Given: YAML block scalar (|) を含むフロントマター', () => {
     describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-SF-PF-06 - summary が複数行文字列として取得できる', () => {
+      describe('Then: T-LIB-FU-06 - summary が複数行文字列として取得できる', () => {
         const text = [
           '---',
           'summary: |',
@@ -467,13 +467,13 @@ describe('parseFrontmatterEntries', () => {
           '本文',
         ].join('\n');
 
-        it('T-SF-PF-06-01: summary が "line1\\nline2\\n" になる', () => {
+        it('T-LIB-FU-06-01: summary が "line1\\nline2\\n" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.meta['summary'], 'line1\nline2\n');
         });
 
-        it('T-SF-PF-06-02: body が "本文" になる', () => {
+        it('T-LIB-FU-06-02: body が "本文" になる', () => {
           const result = parseFrontmatterEntries(text);
 
           assertEquals(result.content, '本文\n');
@@ -711,7 +711,7 @@ describe('renderFrontmatter', () => {
  *
  * テキストにフロントマターが存在し1つ以上のフィールドが設定されているか判定する動作を検証する。
  *
- * テスト ID 範囲: T-01-01-01 〜 T-01-03-03
+ * テスト ID 範囲: T-LIB-FMU-01-01 〜 T-LIB-FMU-03-03
  *
  * @see hasFrontmatter
  */
@@ -720,12 +720,12 @@ describe('hasFrontmatter', () => {
    * 正常系: フロントマターありのテキスト。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-01-01-01: title フィールドがある .md テキスト → true', () => {
+    it('[Normal] T-LIB-FMU-01-01: title フィールドがある .md テキスト → true', () => {
       const _result = hasFrontmatter('---\ntitle: Test\n---\nContent\n');
       assertEquals(_result, true);
     });
 
-    it('[Normal] T-01-02-01: プレーンテキスト → false', () => {
+    it('[Normal] T-LIB-FMU-02-01: プレーンテキスト → false', () => {
       const _result = hasFrontmatter('No frontmatter here.\n');
       assertEquals(_result, false);
     });
@@ -735,17 +735,17 @@ describe('hasFrontmatter', () => {
    * エッジケース: 空フロントマター・空文字列・不正 YAML。
    */
   describe('When: エッジケース', () => {
-    it('[Edge] T-01-03-01: 空フロントマター (---\\n---\\n) → false', () => {
+    it('[Edge] T-LIB-FMU-03-01: 空フロントマター (---\\n---\\n) → false', () => {
       const _result = hasFrontmatter('---\n---\n');
       assertEquals(_result, false);
     });
 
-    it('[Edge] T-01-03-02: 空文字列 → false', () => {
+    it('[Edge] T-LIB-FMU-03-02: 空文字列 → false', () => {
       const _result = hasFrontmatter('');
       assertEquals(_result, false);
     });
 
-    it('[Edge] T-01-03-03: 不正 YAML フロントマター → false', () => {
+    it('[Edge] T-LIB-FMU-03-03: 不正 YAML フロントマター → false', () => {
       const _result = hasFrontmatter('---\n: invalid: yaml: {\n---\nbody');
       assertEquals(_result, false);
     });

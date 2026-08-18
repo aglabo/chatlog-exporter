@@ -686,28 +686,28 @@ source: specifications.md
 
 - [x] **T-06-01-01**: `.bak` に元の内容が保存される
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-01-01`
+  - Test ID: `T-FL-STW-01-01`
   - Rule: R-009 / AC-005
   - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
   - Expected: Then `<name>.md.bak` の内容が strip 前の原文と一致すること
 
 - [x] **T-06-01-02**: 本体が除去後の内容に置き換わる
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-01-02`
+  - Test ID: `T-FL-STW-01-02`
   - Rule: R-009 / AC-001 / AC-002
   - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
   - Expected: Then `<name>.md` が `## Summary` から始まり、以降の内容が strip 前と一致すること
 
 - [x] **T-06-01-03**: frontmatter が strip 前と同一である
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-01-03`
+  - Test ID: `T-FL-STW-01-03`
   - Rule: AC-024 / AC-003 / DR-14
   - Scenario: Given stripped と判定されたファイル, When 書き込みを実行する
   - Expected: Then `ChatlogFrontmatter` の同一性比較で strip 前と同一と判定されること
 
 - [x] **T-06-01-04**: 一時ファイルが残らない
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-01-04`
+  - Test ID: `T-FL-STW-01-04`
   - Rule: R-009 / REQ-NF-004
   - Scenario: Given 書き込みが正常完了する, When 完了後のディレクトリを走査する
   - Expected: Then `<name>.md.tmp` が存在しないこと
@@ -716,14 +716,14 @@ source: specifications.md
 
 - [x] **T-06-02-01**: スワップ成功後にキャッシュへ記録する
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-02-01`
+  - Test ID: `T-FL-STW-02-01`
   - Rule: R-009 / AC-013 / REQ-F-009
   - Scenario: Given 書き込みが正常完了する, When 記録処理を確認する
   - Expected: Then キャッシュへの記録が最終リネームの後に行われること
 
 - [x] **T-06-02-02**: スワップ失敗時にキャッシュへ記録しない
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-02-02`
+  - Test ID: `T-FL-STW-02-02`
   - Rule: R-009 / R-003
   - Scenario: Given 手順 3 のリネームが失敗する, When 書き込みを実行する
   - Expected: Then キャッシュに記録されないこと (次回実行が誤って done でスキップしない)
@@ -734,7 +734,7 @@ source: specifications.md
 
 - [x] **T-06-03-01**: 手順 1 の中断で元ファイルが完全なまま残る
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-03-01`
+  - Test ID: `T-FL-STW-03-01`
   - Rule: AC-020 / REQ-NF-005
   - Scenario: Given tmp への書き出しが失敗する, When 書き込みを実行する
   - Expected: Then `WriteFailed` を返し、`<name>.md` に元の完全な内容が残り、
@@ -742,7 +742,7 @@ source: specifications.md
 
 - [x] **T-06-03-02**: 手順 2 の中断で元ファイルが完全なまま残る
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-03-02`
+  - Test ID: `T-FL-STW-03-02`
   - Rule: AC-020 / REQ-NF-005
   - Scenario: Given 退避のリネームが失敗する, When 書き込みを実行する
   - Expected: Then 退避リネーム時点で置換内容が `<name>.md.tmp` へ退避済みであり、
@@ -750,14 +750,14 @@ source: specifications.md
 
 - [x] **T-06-03-03**: 手順 3 の中断で退避に元の内容が残る
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-03-03`
+  - Test ID: `T-FL-STW-03-03`
   - Rule: AC-020 / REQ-NF-005 / R-014
   - Scenario: Given 手順 2 と 3 の間で中断する, When 状態を確認する
   - Expected: Then `<name>.md` が存在せず、`<name>.md.bak` に完全な元の内容が残ること (孤立退避)
 
 - [x] **T-06-03-04**: 退避未作成の戻り値を error として計上し書き込みを見送る
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-03-04`
+  - Test ID: `T-FL-STW-03-04`
   - Rule: Commit 8 (防御的分岐) / REQ-NF-005
   - Scenario: Given `writeTextFile` が `null` を返す経路に到達する, When 書き込みを実行する
   - Expected: Then error として計上し、本体を書き換えないこと
@@ -770,7 +770,7 @@ source: specifications.md
 
 - [x] **T-06-04-01**: 手順 2 と 3 の間の中断が孤立退避を生成する
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-04-01`
+  - Test ID: `T-FL-STW-04-01`
   - Rule: R-014 / REQ-NF-005 / DR-23
   - Scenario: Given 手順 2 の直後に中断する, When ディレクトリの状態を確認する
   - Expected: Then `<name>.md` が存在せず `<name>.md.bak` のみが残り、
@@ -778,14 +778,14 @@ source: specifications.md
 
 - [x] **T-06-04-02**: 既存 `.bak` があるファイルは書き込み経路に到達しない
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-04-02`
+  - Test ID: `T-FL-STW-04-02`
   - Rule: R-004 / AC-009
   - Scenario: Given `<name>.md.bak` が既に存在する, When 一連の処理を実行する
   - Expected: Then R-004 により done と判定され、`.bak` の内容が上書きされないこと
 
 - [x] **T-06-04-03**: CRLF 入力でも frontmatter の同一性が保たれる
   - Target: 書き込みパイプライン
-  - Test ID: `T-FL-SWP-04-03`
+  - Test ID: `T-FL-STW-04-03`
   - Rule: AC-024 / Edge 11 / REQ-NF-003
   - Scenario: Given 改行コードが CRLF の除去対象, When 書き込みを実行する
   - Expected: Then 本文が LF へ正規化される一方、frontmatter が同一性比較で
@@ -1709,7 +1709,14 @@ Task ID Format: T-<TestTarget>-<Scenario>-<Case>
 - Scenario: 2-digit (01, 02, ...)
 - Case: 2-digit (01, 02, ...)
 
-Test ID Format (.claude/rules/testing-conventions.md):
-- T-LIB-BTB / T-LIB-B / T-LIB-WTF / T-CLS-CF  → _cle-libs
-- T-FL-SBD / T-FL-SCC / T-FL-SWP / T-FL-SBS / T-FL-SEP → filter-chatlogs strip
+Test ID Format: .claude/rules/testing-conventions.md 4 節を参照。
+prefix の一覧は台帳として持たず、同節 4-3 のコマンドで実体から導出・検査する。
+
+このモジュールで使う prefix:
+- T-FL-SBD / T-FL-SCC / T-FL-STW / T-FL-SBS / T-FL-SEP → filter-chatlogs strip
+- T-LIB-BTB / T-LIB-B / T-LIB-WTF / T-CLS-CF → _cle-libs
+
+T-FL-SWP は filter-chatlogs filter / sweep-discards (SWeeP discards) が使用中のため
+strip では使わない。書き込みパイプラインは当初この prefix を使い ID が衝突したため
+T-FL-STW へ改名した（cle-qb0）。
 -->

@@ -47,17 +47,17 @@ describe('segmentChatlogs', () => {
   describe('Given: runAI が有効な JSON セグメント配列を返す', () => {
     describe('When: segmentChatlogs([{filePath, content}]) を呼び出す', () => {
       /**
-       * Task T-09-01: 正常なセグメント配列の返却。
+       * Task T-NC-SGC-09-01: 正常なセグメント配列の返却。
        * セグメントが正しく配列として返され、runAI がちょうど1回呼ばれることを確認する。
        */
-      describe('Then: Task T-09-01 - 正常なセグメント配列の返却', () => {
+      describe('Then: Task T-NC-SGC-09-01 - 正常なセグメント配列の返却', () => {
         let mockHandle: CommandMockHandle;
 
         afterEach(() => {
           mockHandle.restore();
         });
 
-        it('T-09-01-01: {title, summary, body}[] の2件以上の配列を返す', async () => {
+        it('T-NC-SGC-09-01-01: {title, summary, body}[] の2件以上の配列を返す', async () => {
           const filePath = 'path/to/file.md';
           const aiSegments = [
             {
@@ -79,7 +79,7 @@ describe('segmentChatlogs', () => {
           assertEquals((result as SegmentPlan[])[0].summary, 'Summary A');
         });
 
-        it('T-09-01-02: 1呼び出しにつき runAI をちょうど1回だけ呼び出す', async () => {
+        it('T-NC-SGC-09-01-02: 1呼び出しにつき runAI をちょうど1回だけ呼び出す', async () => {
           const filePath = 'path/to/file.md';
           const counter = { calls: 0 };
           const aiSegments = [
@@ -105,17 +105,17 @@ describe('segmentChatlogs', () => {
   describe('Given: runAI がエラーをスローする', () => {
     describe('When: segmentChatlogs([{filePath, content}]) を呼び出す', () => {
       /**
-       * Task T-09-02: エラー時の null 返却。
+       * Task T-NC-SGC-09-02: エラー時の null 返却。
        * runAI がエラーをスロー、または非 JSON を返した場合に null が返ることを確認する。
        */
-      describe('Then: Task T-09-02 - エラー時の null 返却', () => {
+      describe('Then: Task T-NC-SGC-09-02 - エラー時の null 返却', () => {
         let mockHandle: CommandMockHandle;
 
         afterEach(() => {
           mockHandle.restore();
         });
 
-        it('T-09-02-01: null を返す', async () => {
+        it('T-NC-SGC-09-02-01: null を返す', async () => {
           const filePath = 'path/to/file.md';
           mockHandle = installCommandMock(makeFailMock(1));
 
@@ -124,7 +124,7 @@ describe('segmentChatlogs', () => {
           assertNull(resultMap.get(filePath));
         });
 
-        it('T-09-02-02: runAI が "not json" を返す場合に null を返す', async () => {
+        it('T-NC-SGC-09-02-02: runAI が "not json" を返す場合に null を返す', async () => {
           const filePath = 'path/to/file.md';
           mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(wrapClaudeJson('not json'))));
 
@@ -140,17 +140,17 @@ describe('segmentChatlogs', () => {
   describe('Given: runAI が 8件のセグメントを返す', () => {
     describe('When: segmentChatlogs([{filePath, content}]) を呼び出す', () => {
       /**
-       * Task T-09-03: セグメント数の上限適用。
+       * Task T-NC-SGC-09-03: セグメント数の上限適用。
        * runAI が5件を超えるセグメントを返した場合、最初の5件のみに絞られることを確認する。
        */
-      describe('Then: Task T-09-03 - セグメント数の上限適用', () => {
+      describe('Then: Task T-NC-SGC-09-03 - セグメント数の上限適用', () => {
         let mockHandle: CommandMockHandle;
 
         afterEach(() => {
           mockHandle.restore();
         });
 
-        it('T-09-03-01: ちょうど5件のみ返される', async () => {
+        it('T-NC-SGC-09-03-01: ちょうど5件のみ返される', async () => {
           const filePath = 'path/to/file.md';
           const content = Array.from({ length: 8 }, (_, i) => `Body ${i + 1}`).join('\n');
           const aiSegments = [

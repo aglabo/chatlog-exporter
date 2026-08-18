@@ -162,7 +162,7 @@ const _cacheYaml = (status: string, withFrontmatter: boolean): string => {
  * generateProvider と cache.write の呼び出し回数、および
  * キャッシュヒット判定（`_isGenerated`）による生成スキップ・frontmatter 復元を検証する。
  *
- * テスト ID 範囲: T-02-01 〜 T-02-06
+ * テスト ID 範囲: T-SF-PFM-02-01 〜 T-SF-PFM-02-06
  *
  * @see phaseFrontmatter
  */
@@ -172,7 +172,7 @@ describe('_phaseFrontmatter', () => {
    */
   describe('When: dryRun=false', () => {
     /** 正常系: generateProvider が呼ばれる。 */
-    it('[Normal] T-02-01-01: dryRun=false → generateProvider 1回呼ばれる', async () => {
+    it('[Normal] T-SF-PFM-02-01-01: dryRun=false → generateProvider 1回呼ばれる', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
@@ -183,7 +183,7 @@ describe('_phaseFrontmatter', () => {
     });
 
     /** 正常系: cache.write が呼ばれる。 */
-    it('[Normal] T-02-01-02: dryRun=false → cache.write 1回以上呼ばれる', async () => {
+    it('[Normal] T-SF-PFM-02-01-02: dryRun=false → cache.write 1回以上呼ばれる', async () => {
       const cache = await _makeCache();
       const cacheSpy = spy(cache, 'write');
       const { stub } = _makeGenerateStub(true);
@@ -201,7 +201,7 @@ describe('_phaseFrontmatter', () => {
    */
   describe('When: dryRun=true', () => {
     /** 正常系: generateProvider が呼ばれない。 */
-    it('[Normal] T-02-02-01: dryRun=true → generateProvider 0回', async () => {
+    it('[Normal] T-SF-PFM-02-02-01: dryRun=true → generateProvider 0回', async () => {
       const cache = await _makeCache();
       const { stub, getCount } = _makeGenerateStub(true);
       const entries = [_makeEntry('/path/to/a.md')];
@@ -212,7 +212,7 @@ describe('_phaseFrontmatter', () => {
     });
 
     /** 正常系: cache.write が呼ばれない。 */
-    it('[Normal] T-02-02-02: dryRun=true → cache.write 0回', async () => {
+    it('[Normal] T-SF-PFM-02-02-02: dryRun=true → cache.write 0回', async () => {
       const cache = await _makeCache();
       const cacheSpy = spy(cache, 'write');
       const { stub } = _makeGenerateStub(true);
@@ -230,7 +230,7 @@ describe('_phaseFrontmatter', () => {
    */
   describe('When: エッジケース', () => {
     /** エッジケース: entries=[] → cache.write が呼ばれない。 */
-    it('[Edge] T-02-03-01: entries=[] / dryRun=true → cache.write 0回', async () => {
+    it('[Edge] T-SF-PFM-02-03-01: entries=[] / dryRun=true → cache.write 0回', async () => {
       const cache = await _makeCache();
       const cacheSpy = spy(cache, 'write');
       const { stub: generateStub } = _makeGenerateStub(true);
@@ -254,11 +254,11 @@ describe('_phaseFrontmatter', () => {
    * generateProvider が RateLimit 以外のエラー（非 AiError / AiError/ExitFailure）を throw したとき
    * phase が abort せず継続し `logger.error` にログを出すケース。
    *
-   * RateLimit のみバッチを abort する（別ケース T-02-05-01 で検証）。
+   * RateLimit のみバッチを abort する（別ケース T-SF-PFM-02-05-01 で検証）。
    * 非 RateLimit のエラーは握りつぶして他エントリの処理を継続する。
    */
   describe('When: generateProvider が非 RateLimit エラーを throw する', () => {
-    it('[Normal] T-02-04-01: generateProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
+    it('[Normal] T-SF-PFM-02-04-01: generateProvider が非 AiError を throw → abort せず他エントリ継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
         throw new Error('simulated non-fatal failure');
@@ -286,7 +286,7 @@ describe('_phaseFrontmatter', () => {
       }
     });
 
-    it('[Error] T-02-04-02: generateProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
+    it('[Error] T-SF-PFM-02-04-02: generateProvider が AiError/ExitFailure を throw → 再 throw せず継続・error ログが出る', async () => {
       const cache = await _makeCache();
       const _throwingStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
         throw new ChatlogError('AiError', 'ExitFailure', 'simulated exit failure');
@@ -315,7 +315,7 @@ describe('_phaseFrontmatter', () => {
    * 先頭ファイルが RateLimit を throw したとき、残りのファイルの生成が中断されるケース。
    */
   describe('When: generateProvider が RateLimit を throw する', () => {
-    it('[Error] T-02-05-01: 先頭が RateLimit → 2 番目以降の generateProvider が呼ばれず ChatlogError を再 throw', async () => {
+    it('[Error] T-SF-PFM-02-05-01: 先頭が RateLimit → 2 番目以降の generateProvider が呼ばれず ChatlogError を再 throw', async () => {
       const cache = await _makeCache();
       let _count = 0;
       const _rateLimitStub: _GenerateProvider = (_entry, _maxLen, _dics, _prompts) => {
@@ -352,7 +352,7 @@ describe('_phaseFrontmatter', () => {
   describe('キャッシュヒット判定（_isGenerated）', () => {
     /** frontmatter を保持したキャッシュがヒット扱いされ、生成がスキップされる正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-02-06-01: status=frontmatter + frontmatter あり → generateProvider 0回・frontmatter 復元', async () => {
+      it('[Normal] T-SF-PFM-02-06-01: status=frontmatter + frontmatter あり → generateProvider 0回・frontmatter 復元', async () => {
         const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, true));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
@@ -372,7 +372,7 @@ describe('_phaseFrontmatter', () => {
         assertEquals(entry.frontmatter.get('title'), _FULL_FRONTMATTER.title);
       });
 
-      it('[Normal] T-02-06-03: status=type-category + frontmatter あり → generateProvider 0回', async () => {
+      it('[Normal] T-SF-PFM-02-06-03: status=type-category + frontmatter あり → generateProvider 0回', async () => {
         const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.TYPE_CATEGORY, true));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
@@ -394,7 +394,7 @@ describe('_phaseFrontmatter', () => {
 
     /** frontmatter が保存されていない frontmatter はヒット扱いされず生成経路へ入る境界ケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-02-06-02: status=frontmatter + frontmatter なし → generateProvider が呼ばれる', async () => {
+      it('[Edge] T-SF-PFM-02-06-02: status=frontmatter + frontmatter なし → generateProvider が呼ばれる', async () => {
         const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, false));
         const { stub, getCount } = _makeGenerateStub(true);
         const entry = _makeEntry('/path/to/a.md');
@@ -423,12 +423,12 @@ describe('_phaseFrontmatter', () => {
   describe('needsFrontmatterAi', () => {
     /** キャッシュ生成済み・entry 既記入で AI 不要な正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-02-07-01: status=frontmatter + frontmatter あり（生成済み）→ false', async () => {
+      it('[Normal] T-SF-PFM-02-07-01: status=frontmatter + frontmatter あり（生成済み）→ false', async () => {
         const cache = await _makeCache(_cacheYaml(SETFM_CACHE_STATUSES.FRONTMATTER, true));
         assertEquals(needsFrontmatterAi(_makeEntry('/path/to/a.md'), cache), false);
       });
 
-      it('[Normal] T-02-07-02: cache miss + entry に必須フィールド既記入 → false', async () => {
+      it('[Normal] T-SF-PFM-02-07-02: cache miss + entry に必須フィールド既記入 → false', async () => {
         const cache = await _makeCache();
         assertEquals(needsFrontmatterAi(_makeFilledEntry('/path/to/a.md'), cache), false);
       });
@@ -436,7 +436,7 @@ describe('_phaseFrontmatter', () => {
 
     /** キャッシュ未生成かつ entry 未記入で AI 必要なエッジケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-02-07-03: cache miss + entry フィールドなし → true', async () => {
+      it('[Edge] T-SF-PFM-02-07-03: cache miss + entry フィールドなし → true', async () => {
         const cache = await _makeCache();
         assertEquals(needsFrontmatterAi(_makeEntry('/path/to/a.md'), cache), true);
       });

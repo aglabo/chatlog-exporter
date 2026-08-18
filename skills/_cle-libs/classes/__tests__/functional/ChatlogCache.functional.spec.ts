@@ -34,7 +34,7 @@ interface _NumData {
  *
  * 実ファイル IO を使って constructor・write・read・loadAll の動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-37 〜 T-CLS-CC-41
+ * テスト ID 範囲: T-CLS-CCF-37 〜 T-CLS-CCF-41
  *
  * @see ChatlogCache
  */
@@ -57,7 +57,7 @@ describe('ChatlogCache', () => {
   describe('constructor', () => {
     /** 有効な cacheRoot を渡してインスタンスを生成するケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-37: cacheRoot=tempDir・subDir="clecache" → <tempDir>/clecache ディレクトリが作成される', async () => {
+      it('[Normal] T-CLS-CCF-37: cacheRoot=tempDir・subDir="clecache" → <tempDir>/clecache ディレクトリが作成される', async () => {
         const cache = new ChatlogCache<_CacheData>('clecache', tempDir);
         await cache.ready;
 
@@ -75,7 +75,7 @@ describe('ChatlogCache', () => {
   describe('write', () => {
     /** 有効なキーとデータを渡してファイルを書き込むケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-38: write("foo", {value:"bar"}) → foo.json に {"value":"bar"} が書き込まれる', async () => {
+      it('[Normal] T-CLS-CCF-38: write("foo", {value:"bar"}) → foo.json に {"value":"bar"} が書き込まれる', async () => {
         const cache = new ChatlogCache<_CacheData>('clecache', tempDir);
         await cache.ready;
         await cache.write('foo', { value: 'bar' });
@@ -95,7 +95,7 @@ describe('ChatlogCache', () => {
   describe('read', () => {
     /** 新インスタンスを生成してディスクから読み込むケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-39: write 後に新インスタンス生成・loadAll() 後に read → { value:"bar" } が返る', async () => {
+      it('[Normal] T-CLS-CCF-39: write 後に新インスタンス生成・loadAll() 後に read → { value:"bar" } が返る', async () => {
         const cache1 = new ChatlogCache<_CacheData>('clecache', tempDir);
         await cache1.ready;
         await cache1.write('foo', { value: 'bar' });
@@ -111,7 +111,7 @@ describe('ChatlogCache', () => {
 
     /** ファイルが存在しないキーで read を呼ぶケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-CLS-CC-41: ファイル未作成のキー "nonexistent" を read → {} が返る', async () => {
+      it('[Edge] T-CLS-CCF-41: ファイル未作成のキー "nonexistent" を read → {} が返る', async () => {
         const cache = new ChatlogCache<_CacheData>('clecache', tempDir);
         await cache.ready;
 
@@ -129,7 +129,7 @@ describe('ChatlogCache', () => {
   describe('loadAll', () => {
     /** 複数ファイルを write 後に loadAll を呼ぶケース。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-CLS-CC-40: 3ファイル write 後に loadAll → 各キーの read がすべてヒットする', async () => {
+      it('[Normal] T-CLS-CCF-40: 3ファイル write 後に loadAll → 各キーの read がすべてヒットする', async () => {
         const cache = new ChatlogCache<_NumData>('clecache', tempDir);
         await cache.ready;
         await cache.write('alpha', { n: 1 });

@@ -204,7 +204,7 @@ const _makeSignalCaptureMock = (
  * 正常系・異常系・エッジケースを検証する。
  *
  * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
- * T-SIO-LR-14, T-SIO-LR-19 〜 T-SIO-LR-25, T-SIO-LOG-01 〜 T-SIO-LOG-02
+ * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-25, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-02
  *
  * @see segmentChatlogs
  */
@@ -455,7 +455,7 @@ describe('segmentChatlogs', () => {
 
   /** userPrompt に行番号付きコンテンツが含まれることを検証するケース。 */
   describe('When: userPrompt 行番号付きコンテンツ', () => {
-    it('[Normal] T-SIO-LR-14: userPrompt に行番号付きコンテンツが含まれる', async () => {
+    it('[Normal] T-NC-SIO-LR-14: userPrompt に行番号付きコンテンツが含まれる', async () => {
       // arrange
       const aiResult = [
         { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 2 }] },
@@ -478,7 +478,7 @@ describe('segmentChatlogs', () => {
     });
 
     for (const { lineIndex, expectedPrefix } of _lineNumberPaddingCases) {
-      it(`[Normal] T-SIO-LR-26: 行番号 ${lineIndex} は "${expectedPrefix}" というプレフィックスで出力される`, async () => {
+      it(`[Normal] T-NC-SIO-LR-26: 行番号 ${lineIndex} は "${expectedPrefix}" というプレフィックスで出力される`, async () => {
         // arrange
         const aiResult = [
           { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
@@ -502,7 +502,7 @@ describe('segmentChatlogs', () => {
 
   /** 行番号範囲方式（_AiSegmentRange）: startLine/endLine でバッチ処理するケース。 */
   describe('When: 行番号範囲方式（_AiSegmentRange）', () => {
-    it('[Normal] T-SIO-LR-19: 2ファイル入力でAIが {startLine,endLine} 返すとき各ファイルの Segment[] を Map で返す', async () => {
+    it('[Normal] T-NC-SIO-LR-19: 2ファイル入力でAIが {startLine,endLine} 返すとき各ファイルの Segment[] を Map で返す', async () => {
       // arrange
       const inputs = [
         _makeEntry('a.md', 'a1\na2\na3'),
@@ -523,7 +523,7 @@ describe('segmentChatlogs', () => {
       assertEquals(result.get('b.md'), [{ title: 'BT', summary: 'BS', startLine: 1, endLine: 2 }]);
     });
 
-    it('[Normal] T-SIO-LR-20: 各ファイルの行番号は独立（ファイルごとにリセット）', async () => {
+    it('[Normal] T-NC-SIO-LR-20: 各ファイルの行番号は独立（ファイルごとにリセット）', async () => {
       // arrange
       const inputs = [
         _makeEntry('a.md', 'lineA1\nlineA2'),
@@ -544,7 +544,7 @@ describe('segmentChatlogs', () => {
       assertEquals(result.get('b.md'), [{ title: 'BT', summary: 'BS', startLine: 2, endLine: 3 }]);
     });
 
-    it('[Error] T-SIO-LR-21: AIが非ゼロ exit のとき全ファイルが null の Map を返す', async () => {
+    it('[Error] T-NC-SIO-LR-21: AIが非ゼロ exit のとき全ファイルが null の Map を返す', async () => {
       // arrange
       const inputs = [
         _makeEntry('a.md', 'content a'),
@@ -560,7 +560,7 @@ describe('segmentChatlogs', () => {
       assertNull(result.get('b.md'));
     });
 
-    it('[Error] T-SIO-LR-22: AIが不正 JSON を返すとき全ファイルが null の Map を返す', async () => {
+    it('[Error] T-NC-SIO-LR-22: AIが不正 JSON を返すとき全ファイルが null の Map を返す', async () => {
       // arrange
       const inputs = [_makeEntry('a.md', 'content a')];
       const stdout = new TextEncoder().encode(wrapClaudeJson('not valid json'));
@@ -573,7 +573,7 @@ describe('segmentChatlogs', () => {
       assertNull(result.get('a.md'));
     });
 
-    it('[Edge] T-SIO-LR-23: AIが返す filePath が inputs にない場合無視され inputs 側は null になる', async () => {
+    it('[Edge] T-NC-SIO-LR-23: AIが返す filePath が inputs にない場合無視され inputs 側は null になる', async () => {
       // arrange
       const inputs = [_makeEntry('known.md', 'c')];
       const aiResult = [
@@ -590,7 +590,7 @@ describe('segmentChatlogs', () => {
       assertFalse(result.has('unknown.md'));
     });
 
-    it('[Edge] T-SIO-LR-24: 1ファイルで6件のセグメントを返すとき先頭5件に制限される（MAX_SEGMENTS=5）', async () => {
+    it('[Edge] T-NC-SIO-LR-24: 1ファイルで6件のセグメントを返すとき先頭5件に制限される（MAX_SEGMENTS=5）', async () => {
       // arrange
       const inputs = [_makeEntry('big.md', 'l1\nl2\nl3\nl4\nl5\nl6')];
       const aiSegments = Array.from({ length: 6 }, (_, i) => ({
@@ -610,7 +610,7 @@ describe('segmentChatlogs', () => {
       assertEquals(result.get('big.md')?.length, 5);
     });
 
-    it('[Edge] T-SIO-LR-25: timeoutMs:1 を渡すとタイムアウトして全ファイルが null の Map を返す', async () => {
+    it('[Edge] T-NC-SIO-LR-25: timeoutMs:1 を渡すとタイムアウトして全ファイルが null の Map を返す', async () => {
       // arrange — AI が 50ms 後に応答するモック
       const inputs = [_makeEntry('a.md', 'content a')];
       const aiResult = [{ filePath: 'a.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] }];
@@ -700,7 +700,7 @@ describe('segmentChatlogs', () => {
 
   /** AI がエントリを返さなかった・空セグメントを返したときの warn ログ検証ケース。 */
   describe('When: エッジケース — ログ出力', () => {
-    it('[Edge] T-SIO-LOG-01: AI が当該ファイルのエントリを返さなかったとき "no entry returned for" を含む warn が出る', async () => {
+    it('[Edge] T-NC-SIO-LOG-01: AI が当該ファイルのエントリを返さなかったとき "no entry returned for" を含む warn が出る', async () => {
       // arrange — input は known.md だが AI は unknown.md のエントリのみ返す
       const inputs = [_makeEntry('known.md', 'content')];
       const aiResult = [
@@ -724,7 +724,7 @@ describe('segmentChatlogs', () => {
       }
     });
 
-    it('[Edge] T-SIO-LOG-02: AI が segments:[] を返したとき "empty segments returned for" を含む warn が出る', async () => {
+    it('[Edge] T-NC-SIO-LOG-02: AI が segments:[] を返したとき "empty segments returned for" を含む warn が出る', async () => {
       // arrange — AI は known.md のエントリを返すが segments は空配列
       const inputs = [_makeEntry('known.md', 'content')];
       const aiResult = [

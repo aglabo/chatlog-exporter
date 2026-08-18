@@ -551,17 +551,6 @@ describe('checkAssistantContent', () => {
       assertNull(result);
     });
 
-    it('[Edge] T-PF-AC-08-02: User=2ターン + assistant="ok" → null（isSingleUserTurnゲート外のためスキップ）', () => {
-      const turns = _makeTurns([
-        { role: 'user', content: '質問1' },
-        { role: 'assistant', content: 'ok' },
-        { role: 'user', content: '質問2' },
-      ]);
-      const result = checkAssistantContent(turns);
-
-      assertNull(result);
-    });
-
     it('[Edge] T-PF-AC-04-01: User=2, Assistant 短い → null', () => {
       const turns = _makeTurns([
         { role: 'user', content: '質問1' },

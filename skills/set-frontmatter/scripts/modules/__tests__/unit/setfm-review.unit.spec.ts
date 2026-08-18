@@ -356,7 +356,7 @@ describe('reviewFrontmatter', () => {
    * corrected_frontmatter → r.corrected フィールドに反映される正常系。
    */
   describe('When: corrected_frontmatter → corrected フィールドへ', () => {
-    it('[Normal] T-02-01-01: corrected_frontmatter に type/category/title → r.corrected に全フィールド', async () => {
+    it('[Normal] T-SF-RV-15-01: corrected_frontmatter に type/category/title → r.corrected に全フィールド', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n  category: ai\n  title: New Title\n',
@@ -370,7 +370,7 @@ describe('reviewFrontmatter', () => {
       assertEquals((result.corrected as Record<string, unknown>)?.['title'], 'New Title');
     });
 
-    it('[Normal] T-02-01-02: corrected_frontmatter に topics/tags → r.corrected に配列フィールド', async () => {
+    it('[Normal] T-SF-RV-15-02: corrected_frontmatter に topics/tags → r.corrected に配列フィールド', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n  tags:\n    - lang:typescript\n',
@@ -383,7 +383,7 @@ describe('reviewFrontmatter', () => {
       assertEquals((result.corrected as Record<string, unknown>)?.['tags'], ['lang:typescript']);
     });
 
-    it('[Normal] T-02-01-03: corrected_frontmatter 存在時 entry.frontmatter は変更されない', async () => {
+    it('[Normal] T-SF-RV-15-03: corrected_frontmatter 存在時 entry.frontmatter は変更されない', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n',
@@ -399,7 +399,7 @@ describe('reviewFrontmatter', () => {
    * fail without corrected_frontmatter → validity='error'。
    */
   describe('When: fail + corrected_frontmatter なし → error', () => {
-    it('[Error] T-02-03-01: validity: fail + corrected_frontmatter なし → { validity: error, errors: [...] }', async () => {
+    it('[Error] T-SF-RV-16-01: validity: fail + corrected_frontmatter なし → { validity: error, errors: [...] }', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong type\n'),
       );
@@ -415,7 +415,7 @@ describe('reviewFrontmatter', () => {
    * InvalidYaml リトライ枯渇時のみ `{ validity: 'error' }` を返す（別テストで検証）。
    */
   describe('When: AiError → throw', () => {
-    it('[Error] T-02-04-01: maxRetry=0, AI が AiError → 握りつぶさず ChatlogError(AiError) を throw', async () => {
+    it('[Error] T-SF-RV-17-01: maxRetry=0, AI が AiError → 握りつぶさず ChatlogError(AiError) を throw', async () => {
       commandHandle = installCommandMock(makeFailMock(1));
       const _entry = _makeChatlogEntry();
       const _err = await assertRejects(
@@ -430,7 +430,7 @@ describe('reviewFrontmatter', () => {
    * corrected フィールドの trim/filter エッジケース。
    */
   describe('When: corrected フィールドの trim/filter', () => {
-    it('[Edge] T-02-05-01: corrected_frontmatter.title が空白のみ → r.corrected に title 含まれない', async () => {
+    it('[Edge] T-SF-RV-18-01: corrected_frontmatter.title が空白のみ → r.corrected に title 含まれない', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  title: "   "\n  type: tech\n',
@@ -442,7 +442,7 @@ describe('reviewFrontmatter', () => {
       assertEquals('title' in (result.corrected ?? {}), false);
     });
 
-    it('[Edge] T-02-05-02: corrected_frontmatter.topics に空文字列混在 → r.corrected.topics から除外', async () => {
+    it('[Edge] T-SF-RV-18-02: corrected_frontmatter.topics に空文字列混在 → r.corrected.topics から除外', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock(
           'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - software-engineering\n    - ""\n    - behavior\n',
@@ -454,7 +454,7 @@ describe('reviewFrontmatter', () => {
       assertEquals(result.corrected?.['topics'], ['software-engineering', 'behavior']);
     });
 
-    it('[Edge] T-02-06-01: corrected オブジェクトのみ (corrected_frontmatter なし) → entry.frontmatter 変化なし + validity=error', async () => {
+    it('[Edge] T-SF-RV-19-01: corrected オブジェクトのみ (corrected_frontmatter なし) → entry.frontmatter 変化なし + validity=error', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong\ncorrected:\n  type: tech\n'),
       );

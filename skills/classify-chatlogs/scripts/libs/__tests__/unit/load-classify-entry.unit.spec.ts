@@ -28,7 +28,7 @@ import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.clas
  * ファイル読み込みと `ChatlogEntry | LoadClassifyEntryFailure` 返却のロジックを検証する。
  * 正常系では戻り値が `ChatlogEntry` インスタンス、エラー系では `{ filePath, error }` の失敗結果を検証する。
  *
- * テスト ID 範囲: T-03-01-01 〜 T-03-02-04
+ * テスト ID 範囲: T-CL-LCLE-03-01-01 〜 T-CL-LCLE-03-02-04
  *
  * @see loadClassifyEntry
  */
@@ -47,7 +47,7 @@ describe('loadClassifyEntry', () => {
    * 正常系: 有効な .md ファイルを読み込んだときの戻り値検証。
    */
   describe('When: 正常系', () => {
-    it('[Normal] T-03-01-01: 戻り値が ChatlogEntry のインスタンスである', async () => {
+    it('[Normal] T-CL-LCLE-03-01-01: 戻り値が ChatlogEntry のインスタンスである', async () => {
       const filePath = `${tempDir}/valid.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: テスト\n---\n本文');
 
@@ -61,14 +61,14 @@ describe('loadClassifyEntry', () => {
    * 異常系: ファイル不在とフロントマターエラーのケース。
    */
   describe('When: 異常系', () => {
-    it('[Error] T-03-02-01: 存在しないパスで ChatlogError がスローされる', async () => {
+    it('[Error] T-CL-LCLE-03-02-01: 存在しないパスで ChatlogError がスローされる', async () => {
       await assertRejects(
         () => loadClassifyEntry('/nonexistent/path/file.md'),
         ChatlogError,
       );
     });
 
-    it('[Error] T-03-02-03: エラー時の戻り値が { filePath, error } 形式である', async () => {
+    it('[Error] T-CL-LCLE-03-02-03: エラー時の戻り値が { filePath, error } 形式である', async () => {
       const filePath = `${tempDir}/bad-yaml.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 
@@ -78,7 +78,7 @@ describe('loadClassifyEntry', () => {
       assertEquals((_result as { filePath: string }).filePath, filePath);
     });
 
-    it('[Error] T-03-02-04: エラー時の error が空でないメッセージを持つ', async () => {
+    it('[Error] T-CL-LCLE-03-02-04: エラー時の error が空でないメッセージを持つ', async () => {
       const filePath = `${tempDir}/bad-yaml.md`;
       await Deno.writeTextFile(filePath, '---\ntitle: [unclosed\n---\n本文');
 

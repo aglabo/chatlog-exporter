@@ -23,7 +23,7 @@ import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
  * エッジケースを検証する。
  */
 describe('findFiles', () => {
-  // ─── T-16-01: 再帰的 MD 収集（正常系） ──────────────────────────────────
+  // ─── T-NC-FFI-16-01: 再帰的 MD 収集（正常系） ──────────────────────────────────
 
   /** 正常系: ネストしたディレクトリから .md ファイルを再帰収集する */
   describe('Given: 複数階層に .md ファイルを持つディレクトリツリー', () => {
@@ -38,9 +38,9 @@ describe('findFiles', () => {
     });
 
     describe('When: findFiles(dir) を呼び出す', () => {
-      describe('Then: Task T-16-01 - 再帰的 MD 収集', () => {
+      describe('Then: Task T-NC-FFI-16-01 - 再帰的 MD 収集', () => {
         /** 正常系: 3階層ネストの .md ファイルが全件収集される */
-        it('T-16-01-01: ネストしたディレクトリ配下の全 .md ファイルが返される', async () => {
+        it('T-NC-FFI-16-01-01: ネストしたディレクトリ配下の全 .md ファイルが返される', async () => {
           await Deno.mkdir(`${dir}/sub1`);
           await Deno.mkdir(`${dir}/sub1/sub2`);
           await Deno.writeTextFile(`${dir}/a.md`, '');
@@ -53,7 +53,7 @@ describe('findFiles', () => {
         });
 
         /** 正常系: ソート順が辞書順になっている */
-        it('T-16-01-02: 返却配列が辞書順にソートされている', async () => {
+        it('T-NC-FFI-16-01-02: 返却配列が辞書順にソートされている', async () => {
           await Deno.writeTextFile(`${dir}/c.md`, '');
           await Deno.writeTextFile(`${dir}/a.md`, '');
           await Deno.writeTextFile(`${dir}/b.md`, '');
@@ -65,7 +65,7 @@ describe('findFiles', () => {
         });
 
         /** 正常系: サブディレクトリより深い階層のパスも絶対パスに含む */
-        it('T-16-01-03: 返却パスにサブディレクトリ名が含まれる', async () => {
+        it('T-NC-FFI-16-01-03: 返却パスにサブディレクトリ名が含まれる', async () => {
           await Deno.mkdir(`${dir}/sub1`);
           await Deno.writeTextFile(`${dir}/sub1/b.md`, '');
 
@@ -78,7 +78,7 @@ describe('findFiles', () => {
     });
   });
 
-  // ─── T-16-02: 非 MD ファイルのフィルタリング（正常系） ──────────────────
+  // ─── T-NC-FFI-16-02: 非 MD ファイルのフィルタリング（正常系） ──────────────────
 
   /** 正常系: .md 以外の拡張子と空ディレクトリはスキップし .md のみを返す */
   describe('Given: .md、.txt、.yaml ファイルを含むディレクトリ', () => {
@@ -93,9 +93,9 @@ describe('findFiles', () => {
     });
 
     describe('When: findFiles(dir) を呼び出す', () => {
-      describe('Then: Task T-16-02 - 非 MD ファイルのフィルタリング', () => {
+      describe('Then: Task T-NC-FFI-16-02 - 非 MD ファイルのフィルタリング', () => {
         /** 正常系: .md のみが結果に含まれる */
-        it('T-16-02-01: .md ファイルのみが結果に含まれる', async () => {
+        it('T-NC-FFI-16-02-01: .md ファイルのみが結果に含まれる', async () => {
           await Deno.writeTextFile(`${dir}/a.md`, '');
           await Deno.writeTextFile(`${dir}/b.txt`, '');
           await Deno.writeTextFile(`${dir}/c.yaml`, '');
@@ -107,7 +107,7 @@ describe('findFiles', () => {
         });
 
         /** 正常系: .md ゼロ件のディレクトリでは空配列 */
-        it('T-16-02-02: .md ファイルが 0 件のディレクトリで空配列を返す', async () => {
+        it('T-NC-FFI-16-02-02: .md ファイルが 0 件のディレクトリで空配列を返す', async () => {
           await Deno.writeTextFile(`${dir}/b.txt`, '');
           await Deno.writeTextFile(`${dir}/c.yaml`, '');
 
@@ -117,7 +117,7 @@ describe('findFiles', () => {
         });
 
         /** 正常系: 大文字拡張子 .MD はフィルタリングされる */
-        it('T-16-02-03: 大文字拡張子 .MD のファイルは結果に含まれない', async () => {
+        it('T-NC-FFI-16-02-03: 大文字拡張子 .MD のファイルは結果に含まれない', async () => {
           await Deno.writeTextFile(`${dir}/a.md`, '');
           await Deno.writeTextFile(`${dir}/b.MD`, '');
 
@@ -129,7 +129,7 @@ describe('findFiles', () => {
         });
 
         /** 正常系: .md 拡張子を含まない名前（例: readme.mdx）は除外される */
-        it('T-16-02-04: .mdx や .markdown 拡張子のファイルは結果に含まれない', async () => {
+        it('T-NC-FFI-16-02-04: .mdx や .markdown 拡張子のファイルは結果に含まれない', async () => {
           await Deno.writeTextFile(`${dir}/a.md`, '');
           await Deno.writeTextFile(`${dir}/b.mdx`, '');
           await Deno.writeTextFile(`${dir}/c.markdown`, '');
@@ -142,7 +142,7 @@ describe('findFiles', () => {
     });
   });
 
-  // ─── T-16-03: 空ディレクトリのエッジケース ───────────────────────────────
+  // ─── T-NC-FFI-16-03: 空ディレクトリのエッジケース ───────────────────────────────
 
   /** エッジケース: 空ディレクトリで空配列を返す */
   describe('Given: .md ファイルが存在しない空ディレクトリ', () => {
@@ -157,16 +157,16 @@ describe('findFiles', () => {
     });
 
     describe('When: findFiles(dir) を呼び出す', () => {
-      describe('Then: Task T-16-03 - 空ディレクトリのエッジケース', () => {
+      describe('Then: Task T-NC-FFI-16-03 - 空ディレクトリのエッジケース', () => {
         /** エッジケース: 完全に空のディレクトリ */
-        it('T-16-03-01: 空ディレクトリで空配列が返される', async () => {
+        it('T-NC-FFI-16-03-01: 空ディレクトリで空配列が返される', async () => {
           const _result = await findFiles(dir);
 
           assertEquals(_result, []);
         });
 
         /** エッジケース: 空のサブディレクトリのみ存在する場合 */
-        it('T-16-03-02: 空のサブディレクトリのみの場合も空配列が返される', async () => {
+        it('T-NC-FFI-16-03-02: 空のサブディレクトリのみの場合も空配列が返される', async () => {
           await Deno.mkdir(`${dir}/empty_sub`);
 
           const _result = await findFiles(dir);
@@ -175,7 +175,7 @@ describe('findFiles', () => {
         });
 
         /** エッジケース: 存在しないパスを渡した場合も空配列が返される */
-        it('T-16-03-03: 存在しないパスを渡した場合も空配列が返される', async () => {
+        it('T-NC-FFI-16-03-03: 存在しないパスを渡した場合も空配列が返される', async () => {
           const _nonExistentDir = `${dir}/does_not_exist`;
 
           const _result = await findFiles(_nonExistentDir);
@@ -186,7 +186,7 @@ describe('findFiles', () => {
     });
   });
 
-  // ─── T-16-06: ドットファイルと特殊名称のエッジケース ────────────────────
+  // ─── T-NC-FFI-16-06: ドットファイルと特殊名称のエッジケース ────────────────────
 
   /** エッジケース: ドット始まりの .md ファイルや特殊ファイル名の扱い */
   describe('Given: ドット始まりの .md ファイルを含むディレクトリ', () => {
@@ -201,9 +201,9 @@ describe('findFiles', () => {
     });
 
     describe('When: findFiles(dir) を呼び出す', () => {
-      describe('Then: Task T-16-06 - ドットファイルのエッジケース', () => {
+      describe('Then: Task T-NC-FFI-16-06 - ドットファイルのエッジケース', () => {
         /** エッジケース: .hidden.md のような隠しファイル（ドット始まり）も収集される */
-        it('T-16-06-01: ドット始まりの .md ファイル（隠しファイル）も収集される', async () => {
+        it('T-NC-FFI-16-06-01: ドット始まりの .md ファイル（隠しファイル）も収集される', async () => {
           await Deno.writeTextFile(`${dir}/normal.md`, '');
           await Deno.writeTextFile(`${dir}/.hidden.md`, '');
 
@@ -215,7 +215,7 @@ describe('findFiles', () => {
         });
 
         /** エッジケース: ファイル名が .md だけのファイルも収集される */
-        it('T-16-06-02: ファイル名が ".md" だけのファイルも収集される', async () => {
+        it('T-NC-FFI-16-06-02: ファイル名が ".md" だけのファイルも収集される', async () => {
           await Deno.writeTextFile(`${dir}/.md`, '');
 
           const _result = await findFiles(dir);

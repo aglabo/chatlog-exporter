@@ -122,6 +122,79 @@ describe('parsePeriod', () => {
       });
     });
   });
+
+  /**
+   * 形式は YYYY-MM だが月が上限を超えるシナリオ。
+   * Date のロールオーバー（2026-13 → 2027-01）で黙って通さず、Error をスローすることを確認する。
+   */
+  describe('Given: "2026-13"（月が上限外）', () => {
+    /** parsePeriod("2026-13") を呼び出す */
+    describe('When: parsePeriod("2026-13") を呼び出す', () => {
+      /** T-EC-PF-01: Error をスローする */
+      describe('Then: T-EC-PF-01 - Error をスローする', () => {
+        it('T-EC-PF-01-09: ChatlogError がスローされる', () => {
+          assertThrows(() => parsePeriod('2026-13'), ChatlogError);
+        });
+      });
+    });
+  });
+
+  /**
+   * 形式は YYYY-MM だが月が下限を下回るシナリオ。
+   * Date のロールオーバー（2026-00 → 2025-12）で黙って通さず、
+   * 形式エラー（InvalidFormat）と区別できる subindex でスローすることを確認する。
+   */
+  describe('Given: "2026-00"（月が下限外）', () => {
+    /** parsePeriod("2026-00") を呼び出す */
+    describe('When: parsePeriod("2026-00") を呼び出す', () => {
+      /** T-EC-PF-01: Error をスローする */
+      describe('Then: T-EC-PF-01 - Error をスローする', () => {
+        it('T-EC-PF-01-10: throw された ChatlogError の kind が InvalidPeriod である', () => {
+          let err: unknown;
+          try {
+            parsePeriod('2026-00');
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).kind, 'InvalidPeriod');
+        });
+
+        it('T-EC-PF-01-11: throw された ChatlogError の subindex が "InvalidPeriodRange" になる', () => {
+          let err: unknown;
+          try {
+            parsePeriod('2026-00');
+          } catch (e) {
+            err = e;
+          }
+          assertEquals((err as ChatlogError).subindex, 'InvalidPeriodRange');
+        });
+      });
+    });
+  });
+
+  /**
+   * 月レンジ検証の境界値（有効な下限 01・上限 12）シナリオ。
+   * 月レンジ検証が off-by-one で有効月を弾かないことを確認する回帰テスト。
+   */
+  describe('Given: "2026-01" / "2026-12"（月レンジの境界、有効）', () => {
+    /** 境界の月を指定して parsePeriod を呼び出す */
+    describe('When: 境界の月で parsePeriod を呼び出す', () => {
+      /** T-EC-PF-01: 該当月の範囲を返す */
+      describe('Then: T-EC-PF-01 - 該当月の範囲を返す', () => {
+        it('T-EC-PF-01-12: "2026-01" は 2026年1月の範囲を返す', () => {
+          const range = parsePeriod('2026-01');
+          assertEquals(range.startMs, new Date(2026, 0, 1).getTime());
+          assertEquals(range.endMs, new Date(2026, 1, 1).getTime());
+        });
+
+        it('T-EC-PF-01-13: "2026-12" は 2026年12月の範囲を返す（endMs は翌年1月）', () => {
+          const range = parsePeriod('2026-12');
+          assertEquals(range.startMs, new Date(2026, 11, 1).getTime());
+          assertEquals(range.endMs, new Date(2027, 0, 1).getTime());
+        });
+      });
+    });
+  });
 });
 
 // ─── inPeriod ─────────────────────────────────────────────────────────────────
