@@ -3,7 +3,7 @@ title: "Working Note: filter strip の主処理フェーズ構成"
 module: "filter/strip"
 based-on: specifications.md v5.4.0
 status: Working Note
-version: 3.2.0
+version: 3.3.0
 created: "2026-08-13"
 ---
 
@@ -439,7 +439,8 @@ dry-run では加えて、ファイルごとに 1 行の明細を出力します
 通常実行では、処理したファイルを 1 件ごとに `logger.info` で `<分類>: <path>` の形で
 報告します (DR-29 決定 6) 。対象は `stripped` と `passthrough` のみで、`done` は出力しません。
 再実行時は大半が `done` となり、全件を出力すると実際に何が起きたかが読めなくなるためです。
-書き込み失敗は従来どおり `logger.error` で出力します。
+判定 error (R-002 / R-007) と書き込み失敗は、いずれも `logger.error` で
+`<分類>: <path> (<詳細>)` の形で出力します (DR-37) 。
 
 > **改訂 (DR-29 決定 5)**: 当初は「ファイルごとのパス・判定結果・判定理由・除去範囲 (開始行・
 > 終了行) ・除去バイト数を出力します」と記していました。6000 件規模の事前レビューで参照される
@@ -794,3 +795,4 @@ error が 1 件でもあれば退避を全保持します (R-011) 。
 | 2026-08-16 | 3.0.0   | DR-30 を反映し DR-29 決定 3 のうち「件数は `stats.stripped` へ加算する」部分を破棄 (MAJOR: decided approach discarded)。Section 2 の Phase 2 改訂注記から「`StripStats` に `skipped` フィールドは無く統計は 4 分類」を削除し、`stats.skipped` への加算・分類 5 値と統計 5 件数の 1 対 1 対応・`stripped` と `skipped` の排他へ改める。構成図の Phase 7 を「集計 5 分類」へ、Phase 7 の報告を 5 分類へ改め、サマリーの書式 (`stripped` の直後に `skipped`) を追記。全件処理の判定式を `stripped + skipped + done + passthrough == total` へ改訂。Section 5.2 の `StripStats` 定義へ `skipped` を追加。based-on を spec v5.0.0 へ更新。判定規則 R-001〜R-015 とその評価順序は不変                                                                                                                                                                                                                                                              |
 | 2026-08-16 | 3.1.0   | DR-31 を反映 (MINOR: 振る舞いを追加)。冒頭 Superseded 注記に第 4 項「キャッシュ書き込みが `writeStripped` の内部にのみ存在する」の破棄を追加し、Section 1.3 の存続範囲を `stripped` の記録に限定。Section 2 の Phase 2 に `passthrough` のキャッシュ記録 (記録者は `_classifyFile` / `_recordPassthrough`、`rule` は成立規則、記録失敗は error、dry-run では非記録) を追記し、Phase 5 の記録対象を `stripped` のみと明記。統合後の構成図の下に記録箇所の説明を追加。Section 3.4 に DR-31 の改訂注記を追加し、dry-run 非記録の根拠を配置から `!dryRun` ガード + テスト (T-FL-SEP-06-27) へ改める。based-on を spec v5.1.0 へ更新                                                                                                                                                                                                                                                                                                              |
 | 2026-08-16 | 3.2.0   | DR-34 を反映。Phase 6 に、削除の前に期待退避パスの集合に含まれない退避を件数とパスで警告報告する旨を追記。報告は判定・戻り値・終了コードを変えない。`based-on` を specifications.md v5.4.0 へ更新 (v5.1.0 からの遅れを併せて解消)。削除範囲は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-08-19 | 3.3.0   | DR-37 を反映 (MINOR: 報告対象を追加)。Phase 2〜5 の通常実行の per-file 報告に判定 error (R-002 / R-007) を加え、書き込み失敗とあわせて `logger.error` で `<分類>: <path> (<詳細>)` の形で出力する旨へ改めた。`based-on` は Working Note のため据え置く                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |

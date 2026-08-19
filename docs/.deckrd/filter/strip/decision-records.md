@@ -2,7 +2,7 @@
 title: "Decision Records: filter strip"
 module: "filter/strip"
 status: Active
-version: 3.22.1
+version: 3.23.0
 created: "2026-08-12"
 ---
 
@@ -3533,6 +3533,95 @@ DR-35 v3.21.1 は、除去範囲の検証がスワップ地点ではなく `spli
 
 ---
 
+## DR-37: 判定 error は件数ではなく 1 件ごとにパスと規則 ID で報告する - 2026-08-19
+
+**Phase**: impl-fix
+**Status**: Accepted
+
+### Context
+
+通常実行の per-file 報告 (DR-29 決定 6) は `stripped` / `passthrough` の 2 分類と
+退避付き書き込みの失敗に限られており、判定が error となったファイル (R-002 / R-007) は
+1 行も出力されません。件数のみが Phase 7 のサマリー (`error=N`) へ計上されます。
+
+この非出力は `_logFileOutcome` の JSDoc に意図として明記されていましたが、
+6398 件規模の実行でどのファイルが error になったかを追う手段がありません。
+R-011 の退避保持ゲートは error 件数で駆動されるため、error を解消しない限り
+`.bak` が残り続けますが、解消すべき対象を特定できません。
+
+情報自体は判定結果が保持しています。`StripDecision.reason.rule` は R-002 / R-007 を担いでおり、
+dry-run では `_logDecisionDetail` が `<path>: outcome=error rule=R-002` として出力しています。
+通常実行で出していないだけです。
+
+本 DR は、判定 error を per-file 報告の対象へ加えるかを裁定します
+(出典: `/code-review max` 2026-08-16、issue cle-0kn) 。
+
+### Decision
+
+以下の 3 点を決定します。
+
+1. **通常実行で判定 error となったファイルを 1 件ごとに `logger.error` で報告します。**
+   書式は既存の書き込み失敗行と同じ `<INDENT><分類>: <path> (<詳細>)` とし、
+   詳細に `rule=R-002` / `rule=R-007` を置きます
+2. **R-002 の I/O エラー変種が担ぐ `kind` / `subindex` は出力しません。**
+   dry-run 明細と同じ粒度に揃えます
+3. **`done` の非出力は維持します。** dry-run の出力も変更しません
+
+### Alternatives Considered
+
+| Option | 内容                                    | 判定                                         |
+| ------ | --------------------------------------- | -------------------------------------------- |
+| A      | 現状維持 (件数のみ)                     | 却下。error の解消に着手できない             |
+| B      | パスのみ出力し規則 ID を添えない        | 却下。R-002 と R-007 で対処が異なる          |
+| **C**  | **パスと規則 ID を出力する**            | **採用**                                     |
+| D      | C に加え `kind` / `subindex` も出力する | 却下。dry-run 明細と粒度が食い違う           |
+| E      | `done` も含め全分類を出力する           | 却下。再実行時に `done` が大半を占め埋もれる |
+
+### Rationale
+
+**規則 ID を添える理由 (Option B の却下)**:
+
+R-002 は前提の破れ (frontmatter 欠落・読み取り失敗) 、R-007 は安全弁 (除去後が空・除去率超過) であり、
+それぞれの原因、対処は全く異なります。R-002 は set-frontmatter の再適用、R-007 は境界見出しの調査が必要です。
+パスだけでは、どちらの対処へ進むかを判断するために結局ファイルを開き直すことになります。
+この区別の必要性は既に requirements.md が「`error` は R-002 と R-007 で原因が全く異なるため」
+として記録しており (DR-29) 、dry-run 明細が `rule=` を error のときだけ添えるのと同じ根拠です。
+
+**`kind` / `subindex` を出さない理由 (Option D の却下)**:
+
+R-002 の I/O エラー変種のみが担ぐ付随情報であり、出力すると同じ `rule=R-002` の行が
+2 種類の書式を持つことになります。原因の切り分けは規則 ID で足り、I/O エラーの詳細が要る場面では
+ファイルを直接確認できます。dry-run 明細も `rule=` までしか出しておらず、粒度を揃えます。
+
+**`done` を出さない方針を維持する理由 (Option E の却下)**:
+
+`done` は今回の実行が何もしていない件であり、再実行時は大半を占めます。
+error は解消を要する件であり、報告の要否が異なります。両者を同列に扱うと、
+error を可視化するという本 DR の目的そのものが失われます。
+
+**分岐を分類 (`outcome`) で行う理由**:
+
+書き込みに失敗したファイルは判定が `stripped` のまま分類が `error` になります。
+判定 (`decision.outcome`) で分岐すると、書き込めなかったファイルを `stripped` として
+報告してしまいます。既存の JSDoc が明記している制約であり、本変更でも維持します。
+その結果、判定 error と書き込み失敗は同じ `error:` 行で報告され、詳細部分だけが
+`rule=...` と `<error.message>` に分かれます。両者は「解消を要する件」として等価であり、
+利用者が分けて読む必要はありません。
+
+### Consequences
+
+- Positive:
+  - 判定 error のファイルを実行ログから直接特定でき、R-011 の退避保持を解除できます
+  - 判定 error と書き込み失敗が同じ書式で並び、error 行を 1 つの grep で拾えます
+  - dry-run 明細と通常実行で `rule=` の語彙が一致します
+- Negative:
+  - 判定 error が多数のディレクトリでは出力行が増えます
+    → error は解消を前提とする件であり、恒常的に多数となる状態は想定しません
+  - `_logFileOutcome` の JSDoc が記録していた非出力の意図が失効します
+    → 当該記述を本 DR の参照へ書き換えます
+
+---
+
 ## Change History
 
 <!-- markdownlint-disable line-length -->
@@ -3578,5 +3667,6 @@ DR-35 v3.21.1 は、除去範囲の検証がスワップ地点ではなく `spli
 | 2026-08-18 | 3.21.1  | PR #419 のコードレビュー指摘 (Codex) を記録 (PATCH: 決定は不変)。DR-35 の Consequences (Negative) に「検証は `splice` の直前であってスワップ地点ではないため競合の窓は狭まるが閉じない」を追加。`writeTextFile` がガードと `backupToBak` のリネームの間に一時ファイル書き出しの I/O を挟むこと、この窓で差し替えが起きると新しい内容が `.bak` へ退避され R-010 の削除で失われること、窓を閉じるには `BackupProvider` (DR-03 決定 3) または `writeTextFile` の契約変更を要し本 DR の射程外であることを併記。Rationale の Option B 却下理由から「書き込み直前の検証を要します」という窓が閉じると読める記述を除去                                                                                                                                                                                                                                                                                        |
 | 2026-08-18 | 3.22.0  | DR-36 を追加 (MINOR: DR 追加)。DR-35 が残余として委ねた「検証がスワップ地点ではないため競合の窓が閉じない」件を裁定し、`chatlogs/` 配下の単一書き手前提のもとで残余として受容することを決定。退避後の内容照合 (Option B) はファイル全文の追加読み込みと「本体パスが不在のまま `.bak` だけ残る」新規の失敗モードを持ち込むため却下し、ファイルロック (Option D) は advisory であり危険な操作が `rename` である以上 critical section を守れないため却下。DR-35 の `splice` 直前のガードは競合以外の不整合に対する安全弁として維持する。DR-35 の Consequences (Negative) の残余記述から本 DR を参照させる。`requirements.md` Section 2 Assumptions への前提追記を要する                                                                                                                                                                                                                                   |
 | 2026-08-18 | 3.22.1  | DR-36 の下流反映が完了したことを記録 (PATCH: 決定は不変)。`requirements.md` v8.7.0 が Section 2 Assumptions に単一書き手前提を追加、`specifications.md` v5.6.0 が Section 2.2 Design Assumptions への前提追加・Section 2.6 への DR-36 追加・Section 4.2 の再検証 (DR-35) への窓の受容の追記、`implementation.md` v3.4.1 が Commit 8 の事前検証への同旨の追記を完了。DR-36 の決定 3 点と Alternatives / Rationale は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 2026-08-19 | 3.23.0  | DR-37 を追加 (MINOR: 決定を追加)。通常実行の per-file 報告に判定 error (R-002 / R-007) を加え、対象パスと規則 ID を `<INDENT>error: <path> (rule=R-NNN)` の形で 1 件ごとに出力することを決定。件数のみでは 6398 件規模の実行で対象を特定できず R-011 の退避保持を解除できないことを Context として記録。R-002 の I/O エラー変種が担ぐ `kind` / `subindex` は dry-run 明細と粒度を揃えるため出力しない。`done` の非出力と dry-run 出力は不変。分岐は分類 (`outcome`) で行う制約も維持                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 <!-- markdownlint-enable line-length -->

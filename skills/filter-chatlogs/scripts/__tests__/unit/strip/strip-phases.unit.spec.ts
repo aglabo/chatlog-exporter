@@ -98,6 +98,19 @@ Real content only.
 /** frontmatter を持たない原文。R-002 により error となる。 */
 const _NO_FRONTMATTER = `Just a plain text file with no frontmatter at all.\n`;
 
+/** 定型部マーカーと境界見出しを持つが境界より後ろが空の原文。R-007 の安全弁により error となる。 */
+const _EMPTY_AFTER_BOUNDARY = `---
+type: chatlog
+title: EmptyAfter
+---
+
+## TOPICS ASSIGNMENT RULES
+
+Some boilerplate line A.
+
+## Summary
+`;
+
 /**
  * dry-run の宣言行。
  *
@@ -308,7 +321,7 @@ const _makeDecision = (
  * 一括削除・1 ファイル分のログ出力を `_processFiles（書き込み）`
  * （T-FL-SEP-06-10〜17 / -21〜22）に置く。
  *
- * テスト ID 範囲: T-FL-SEP-06-01 〜 T-FL-SEP-06-28（`-08` は `-08-01` 〜 `-08-04` の 4 ケース）。
+ * テスト ID 範囲: T-FL-SEP-06-01 〜 T-FL-SEP-06-31（`-08` は `-08-01` 〜 `-08-04` の 4 ケース）。
  * `-24` 〜 `-27` は `passthrough` のキャッシュ記録（DR-31）。
  *
  * @see main
@@ -875,6 +888,57 @@ describe('strip フェーズ関数', () => {
         await Deno.remove(_dir, { recursive: true });
       });
 
+      it('[Error] T-FL-SEP-06-29: R-002 判定のファイルが rule 付き error 行 1 本で報告される', async () => {
+        // 判定 error（R-002 / R-007）は件数だけがサマリーへ計上され、どのファイルかを追えなかった。
+        // 6398 件規模では error の中身を特定できず、R-011 の退避保持ゲートを解除できない（AC-030 / DR-37）
+        const _dir = await _setupDir({ 'broken.md': _NO_FRONTMATTER });
+        const _filePath = `${_dir}/broken.md`;
+        const { cache } = await _makeCache();
+        const { removeProvider } = _makeRemoveSpy();
+        const _stats = _makeStats();
+
+        await _processFiles(
+          _dir,
+          [_filePath],
+          _stats,
+          cache,
+          { glob: _makeGlobSpy({ bak: [] }).glob, removeProvider },
+          false,
+          _CONCURRENCY,
+        );
+
+        assertEquals(_stats.error, 1);
+        // 明細は 1 行ちょうど。書き込み失敗経路との二重出力も同時に検出する
+        assertEquals(loggerStub.errorLogs, [`${LOGGER_TEXT.INDENT}error: ${_filePath} (rule=R-002)`]);
+
+        await Deno.remove(_dir, { recursive: true });
+      });
+
+      it('[Error] T-FL-SEP-06-30: R-007 判定のファイルが rule 付き error 行 1 本で報告される', async () => {
+        // R-002 だけでは `rule` を `R-002` に固定した実装でも通る。安全弁（R-007）でも
+        // 成立した規則がそのまま出ることを示す
+        const _dir = await _setupDir({ 'empty-after.md': _EMPTY_AFTER_BOUNDARY });
+        const _filePath = `${_dir}/empty-after.md`;
+        const { cache } = await _makeCache();
+        const { removeProvider } = _makeRemoveSpy();
+        const _stats = _makeStats();
+
+        await _processFiles(
+          _dir,
+          [_filePath],
+          _stats,
+          cache,
+          { glob: _makeGlobSpy({ bak: [] }).glob, removeProvider },
+          false,
+          _CONCURRENCY,
+        );
+
+        assertEquals(_stats.error, 1);
+        assertEquals(loggerStub.errorLogs, [`${LOGGER_TEXT.INDENT}error: ${_filePath} (rule=R-007)`]);
+
+        await Deno.remove(_dir, { recursive: true });
+      });
+
       it('[Error] T-FL-SEP-06-26: passthrough のキャッシュ記録失敗が error に計上される', async () => {
         // DR-31 決定 3: 記録に失敗しても本体は無傷だが、`stripped` と扱いを変えると
         // 「記録に失敗したが成功として報告される」経路が生まれる。error に倒して
@@ -976,6 +1040,35 @@ describe('strip フェーズ関数', () => {
      * 保証の担い手がここへ移っているため、これらのケースを削除・骨抜きにしてはならない。
      */
     describe('When: エッジケース', () => {
+      it('[Edge] T-FL-SEP-06-31: 書き込み失敗の error 行は rule ではなく失敗内容を担ぐ', async () => {
+        // 判定 error へ `rule=` を足した際に、書き込み失敗まで `rule=R-008` として報告すると
+        // 「規則で弾かれた」と誤読され、失敗内容（`CacheWriteFailed` の detail）が失われる
+        const _dir = await _setupDir({ 'strip.md': _STRIPPABLE });
+        const _filePath = `${_dir}/strip.md`;
+        const { cache } = await _makeFailingCache();
+        const { removeProvider } = _makeRemoveSpy();
+        const _stats = _makeStats();
+
+        await _processFiles(
+          _dir,
+          [_filePath],
+          _stats,
+          cache,
+          { glob: _makeGlobSpy({ bak: [`${_filePath}${BAK_SUFFIX}`] }).glob, removeProvider },
+          false,
+          _CONCURRENCY,
+        );
+
+        assertEquals(loggerStub.errorLogs.length, 1);
+        assertStringIncludes(loggerStub.errorLogs[0], _CACHE_WRITE_FAILURE);
+        assertFalse(
+          loggerStub.errorLogs[0].includes('rule='),
+          `書き込み失敗の error 行に rule= が混ざっている: ${loggerStub.errorLogs[0]}`,
+        );
+
+        await Deno.remove(_dir, { recursive: true });
+      });
+
       it('[Edge] T-FL-SEP-06-14: dry-run では本体が書き換わらず .bak / .tmp も作られない', async () => {
         const _dir = await _setupDir({ 'strip.md': _STRIPPABLE });
         const _filePath = `${_dir}/strip.md`;

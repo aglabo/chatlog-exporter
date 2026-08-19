@@ -1,8 +1,8 @@
 ---
 title: "Design Specification: filter strip"
-based-on: requirements.md v8.7.0
+based-on: requirements.md v8.8.0
 status: Draft
-version: 5.6.0
+version: 5.7.0
 created: "2026-08-12"
 ---
 
@@ -216,6 +216,7 @@ DR-06 の決定 1 (`_status` 基準) は DR-08 により破棄されました。
 | DR-34 | 当該実行に由来しない退避も削除し、削除の前に警告として報告する           | impl  | R-010 の削除範囲の維持と、当該実行の `stripped` に由来しない退避の報告を決定します                                  |
 | DR-35 | 除去範囲は splice の直前に書き込み対象の実内容と照合する                 | impl  | R-009 の書き込み前に置く再検証と、不成立時の error 計上を決定します                                                 |
 | DR-36 | 読み取りから書き込みまでの競合は単一書き手前提のもとで残余として受容する | impl  | Section 4.2 の再検証 (DR-35) を競合の検出ではなく安全弁として位置づけ、競合の窓を残余として受容することを決定します |
+| DR-37 | 判定 error は件数ではなく 1 件ごとにパスと規則 ID で報告する             | impl  | Section 3 の通常実行の per-file 報告の対象へ判定 error を加え、その書式を決定します                                 |
 
 ### 2.7 DD to DR Promotion Criteria
 
@@ -334,6 +335,23 @@ dry-run の `skipped` は、同一入力に対する通常実行の `stripped` �
 再実行時は大半が `done` となるため、全件を出力すると
 その実行で実際に何が起きたかが読めなくなります。
 退避付き書き込みに失敗した場合は、当該ファイルをエラーとして別途報告します。
+
+判定が error となったファイル (R-002 / R-007) も、次の書式で 1 件ごとに報告しなければなりません (DR-37) 。
+
+```text
+error: <path> (rule=R-002)
+error: <path> (rule=R-007)
+error: <path> (<書き込み失敗の内容>)
+```
+
+- 判定 error と書き込み失敗はいずれも `error` としてエラー出力へ送ります。詳細部分のみが
+  `rule=` と失敗内容に分かれます
+- R-002 の I/O エラー変種が担ぐ `kind` / `subindex` は出力しません。dry-run 明細と粒度を揃えます
+- `done` は引き続き出力しません
+
+報告の分岐は **分類** (`outcome`) で行い、判定 (`decision.outcome`) では行いません。
+書き込みに失敗したファイルは判定が `stripped` のまま分類が `error` となるため、
+判定で分岐すると書き込めなかったファイルを `stripped` として報告してしまいます。
 
 ---
 
@@ -843,7 +861,7 @@ claude / codex / chatgpt の 3 エクスポータはいずれもこの経路を�
 | REQ-F-003      | R-005, Edge 2                                        | `## Summary` 不在時は無変更で通します                                                                                                                             |
 | REQ-F-004      | R-009, R-014, R-015                                  | 退避は書き込みと不可分の順序で作成されます。孤立退避の検出と復帰は R-014 / R-015 が定めます                                                                       |
 | REQ-F-005      | Section 3.2 dry-run Semantics                        | dry-run は同一のカスケードで分類のみを行い副作用を生じません。R-008 到達分は `skipped` として明細に出力します (DR-29)                                             |
-| REQ-F-006      | Section 3.2, R-010, R-012                            | 統計 5 分類の件数・退避削除の結果と失敗に加え、通常実行では `stripped` / `passthrough` を 1 件ごとに報告します (DR-29 / DR-30)                                    |
+| REQ-F-006      | Section 3.2, R-010, R-012                            | 統計 5 分類の件数・退避削除の結果と失敗に加え、通常実行では `stripped` / `passthrough` と判定 error を 1 件ごとに報告します (DR-29 / DR-30 / DR-37)               |
 | REQ-F-007      | R-004, Edge 3                                        | 既存退避の存在を処理済みの根拠とします                                                                                                                            |
 | REQ-F-008      | R-002, R-007, R-009, Edge 5/6/15/17                  | 安全弁は個別ファイル単位で作用します。R-009 の書き込み直前の再検証も安全弁に含みます                                                                              |
 | REQ-F-009      | R-003, R-005, R-006, R-008, Edge 4/14                | 判定順序の上位に置き、退避削除後の冪等性を担保します。`passthrough` の記録は R-005 / R-006 の成立直後に行います (DR-31)                                           |
@@ -913,3 +931,4 @@ claude / codex / chatgpt の 3 エクスポータはいずれもこの経路を�
 | 2026-08-16 | 5.4.0   | DR-34 を反映 (MINOR: 振る舞いを追加)。Section 4.3 に「当該実行に由来しない退避の報告 (R-010)」を新設し、削除の前に期待退避パスの集合に含まれない退避を件数とパスで警告報告することを規定。報告が前回中断の残骸と外部由来を区別しないこと、R-010 〜 R-013 の判定と終了コードに影響しないことを明記。DD-02 の Rationale と Traceability の REQ-F-010 に当該報告を追記し、Section 2.6 に DR-34 を追加。based-on を requirements.md v8.5.0 へ更新。削除範囲と R-001〜R-015 の振る舞い規則は不変                                                                                                                                                                                                                                                                                                                     |
 | 2026-08-18 | 5.5.0   | DR-35 を反映 (MINOR: 振る舞いを追加)。Section 4.2 に「除去範囲の書き込み直前の再検証」を新設し、R-009 の手順 1 の前に frontmatter の存在・開始辺 (`removalStartLine` = frontmatter 行数)・終了辺 (`removalEndLine + 1` 行目が `## Summary`)・範囲の順序の 4 点を検証すること、不成立なら書き換えず error に計上し例外を送出しないこと、frontmatter の存在を独立した検証とする理由 (`-1` が除去範囲を持たない分類の `removalStartLine` と衝突する)、frontmatter 行数の算出を R-008 と共有すべきこと (REQ-C-001) を規定。Edge 17 を追加し Section 2.6 に DR-35、Traceability の REQ-F-008 を更新。based-on を requirements.md v8.6.0 へ更新。R-001〜R-015 の規則 ID と評価順序は不変                                                                                                                              |
 | 2026-08-18 | 5.6.0   | DR-36 を反映 (MINOR: 前提を追加)。Section 2.2 Design Assumptions に「`chatlogs/` 配下へ書き込むのは本ツール群のみである」を追加し、Section 2.6 に DR-36 を追加。Section 4.2 の再検証 (DR-35) に、検証が R-009 の手順 1 の直前でありスワップ地点ではないため競合の窓が閉じないこと、その窓を単一書き手前提のもとで残余として受容すること、本検証は競合の検出ではなく安全弁として維持することを追記。based-on を requirements.md v8.7.0 へ更新。R-001〜R-015 の規則と検証 4 点は不変                                                                                                                                                                                                                                                                                                                              |
+| 2026-08-19 | 5.7.0   | DR-37 を反映 (MINOR: 報告対象を追加)。Section 2.6 に DR-37 を追加。Section 3 の通常実行の per-file 報告に判定 error (R-002 / R-007) を加え、書式を `error: <path> (rule=R-NNN)` と規定。判定 error と書き込み失敗を同じ `error` 行で報告すること、`kind` / `subindex` を出力しないこと、`done` の非出力を維持すること、分岐を分類 (`outcome`) で行うことを明記。based-on を requirements.md v8.8.0 へ更新。R-001〜R-015 の規則と dry-run 明細の書式は不変                                                                                                                                                                                                                                                                                                                                                       |
