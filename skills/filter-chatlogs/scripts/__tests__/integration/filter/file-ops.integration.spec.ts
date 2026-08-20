@@ -18,6 +18,7 @@ import { buildBatchPrompt } from '../../../libs/batch-prompt.ts';
 import { loadFilterEntries } from '../../../libs/load-filter-entry.ts';
 import { prefilterFiles } from '../../../modules/prefilter.ts';
 // constants
+import { CHATLOG_BLOCK_OPEN_TEMPLATE } from '../../../constants/common.constants.ts';
 import { FILTER_DECISIONS } from '../../../types/filter-decision.const.types.ts';
 // types
 import type { CLEResult } from '../../../types/cache.types.ts';
@@ -93,8 +94,8 @@ describe('findMdFiles → prefilterFiles パイプライン', () => {
 describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
   describe('Given: prefilterFiles を通過したファイルリスト', () => {
     describe('When: buildBatchPrompt でプロンプトを構築する', () => {
-      describe('Then: T-FL-IO-02 - 各ファイルが === <filename> === 形式で含まれる', () => {
-        it('T-FL-IO-02-01: buildBatchPrompt の結果に各ファイルのヘッダーが含まれる', async () => {
+      describe('Then: T-FL-IO-02 - 各ファイルが開始デリミタ付きで含まれる', () => {
+        it('T-FL-IO-02-01: buildBatchPrompt の結果に各ファイルの開始デリミタが含まれる', async () => {
           const file1 = `${tempDir}/chat-1.md`;
           const file2 = `${tempDir}/chat-2.md`;
           await Deno.writeTextFile(file1, _makeValidContent('Chat 1'));
@@ -107,8 +108,8 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
 
           const prompt = buildBatchPrompt(passed);
 
-          assertStringIncludes(prompt, '=== chat-1.md ===');
-          assertStringIncludes(prompt, '=== chat-2.md ===');
+          assertStringIncludes(prompt, CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', 'chat-1.md'));
+          assertStringIncludes(prompt, CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', 'chat-2.md'));
         });
       });
     });

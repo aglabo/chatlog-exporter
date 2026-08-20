@@ -19,7 +19,22 @@ import { makeFrontmatter, makePlainContent, makeValidContent } from '../../_help
 // classes
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
+import { CHATLOG_BLOCK_CLOSE, CHATLOG_BLOCK_OPEN_TEMPLATE } from '../../../constants/common.constants.ts';
 import { CHUNK_SIZE, MAX_PROMPT_LENGTH, OVER_MAX_CHARS_LENGTH } from '../../_helpers/constants.ts';
+
+// ─── Internal Helpers
+
+// constants
+/** 開始デリミタ行の末尾。本文の開始位置を求めるために使う。 */
+const _DELIMITER_TAIL = '">>>';
+
+// functions
+/** ファイル名から開始デリミタ行を組み立てる。 */
+const _openTag = (filename: string): string => CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', filename);
+
+/** 開始デリミタ行と終了デリミタに挟まれた本文を取り出す。 */
+const _bodyOf = (prompt: string): string =>
+  prompt.slice(prompt.indexOf(_DELIMITER_TAIL) + _DELIMITER_TAIL.length, prompt.indexOf(CHATLOG_BLOCK_CLOSE));
 
 // ─── Tests
 
@@ -27,7 +42,7 @@ import { CHUNK_SIZE, MAX_PROMPT_LENGTH, OVER_MAX_CHARS_LENGTH } from '../../_hel
  * `buildBatchPrompt` 関数の機能テストスイート。
  *
  * `buildBatchPrompt(entries)` は読み込み済み `ChatlogEntry[]` を受け取り、
- * `=== filename ===` 形式のヘッダ付きバッチプロンプト文字列を同期的に生成する。
+ * 各ログを `<<<CHATLOG file="NAME">>>` 〜 `<<<END_CHATLOG>>>` で囲んだバッチプロンプト文字列を同期的に生成する。
  * 本文が `MAX_BODY_CHARS`（8000）を超える場合は切り詰める。
  *
  * テスト ID 範囲: T-FL-BP-01 〜 T-FL-BP-09
@@ -60,12 +75,20 @@ describe('buildBatchPrompt', () => {
           assertStringIncludes(result, '質問');
         });
 
-        it('T-FL-BP-01-04: [Normal] ヘッダーが "=== <filename> ===" の形式で出力される', () => {
+        it('T-FL-BP-01-04: [Normal] 開始デリミタが "<<<CHATLOG file="<filename>">>>" の形式で出力される', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
 
           const result = buildBatchPrompt([entry]);
 
-          assertStringIncludes(result, '=== chat.md ===');
+          assertStringIncludes(result, _openTag('chat.md'));
+        });
+
+        it('T-FL-BP-01-05: [Normal] ブロックが終了デリミタで閉じられる', () => {
+          const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
+
+          const result = buildBatchPrompt([entry]);
+
+          assertStringIncludes(result, CHATLOG_BLOCK_CLOSE);
         });
 
         it('T-FL-BP-01-03: [Normal] サブディレクトリ内ファイルでもファイル名のみが抽出される', () => {
@@ -82,20 +105,20 @@ describe('buildBatchPrompt', () => {
     describe('When: エッジケース - フロントマターのみ・ターンマーカーなし・長大本文で本文が空または切り詰められる', () => {
       /** フロントマターのみのエントリでヘッダーは出力され本文が空になることを検証する。 */
       describe('Then: [Edgecase] T-FL-BP-02 - フロントマターのみのエントリは本文が空になる', () => {
-        it('T-FL-BP-02-01: [Edgecase] "=== " ヘッダーは出力される', () => {
+        it('T-FL-BP-02-01: [Edgecase] 開始デリミタは出力される', () => {
           const entry = new ChatlogEntry(makeFrontmatter('空'), { filePath: '/chatlogs/empty.md' });
 
           const result = buildBatchPrompt([entry]);
 
-          assertStringIncludes(result, '=== ');
+          assertStringIncludes(result, _openTag('empty.md'));
         });
 
-        it('T-FL-BP-02-02: [Edgecase] ヘッダーに続く本文が空になる', () => {
+        it('T-FL-BP-02-02: [Edgecase] デリミタに挟まれた本文が空になる', () => {
           const entry = new ChatlogEntry(makeFrontmatter('空'), { filePath: '/chatlogs/empty.md' });
 
           const result = buildBatchPrompt([entry]);
 
-          assertEquals(result.split('===\n')[1].trim(), '');
+          assertEquals(_bodyOf(result).trim(), '');
         });
       });
 
@@ -111,17 +134,17 @@ describe('buildBatchPrompt', () => {
 
           const result = buildBatchPrompt([entry]);
 
-          assertStringIncludes(result, '=== ');
+          assertStringIncludes(result, _openTag('plain.md'));
         });
 
-        it('T-FL-BP-03-02: [Edgecase] ヘッダーに続く本文が空になる', () => {
+        it('T-FL-BP-03-02: [Edgecase] デリミタに挟まれた本文が空になる', () => {
           const entry = new ChatlogEntry(makePlainContent('生テキスト', 'これは会話形式でない生テキストです。'), {
             filePath: '/chatlogs/plain.md',
           });
 
           const result = buildBatchPrompt([entry]);
 
-          assertEquals(result.split('===\n')[1].trim(), '');
+          assertEquals(_bodyOf(result).trim(), '');
         });
       });
 
@@ -155,17 +178,17 @@ describe('buildBatchPrompt', () => {
 
           const result = buildBatchPrompt([entry1, entry2]);
 
-          assertStringIncludes(result, '=== chat-a.md ===');
-          assertStringIncludes(result, '=== chat-b.md ===');
+          assertStringIncludes(result, _openTag('chat-a.md'));
+          assertStringIncludes(result, _openTag('chat-b.md'));
         });
 
-        it('T-FL-BP-05-02: [Normal] 2 つ目のヘッダーの直前に \\n が含まれる', () => {
+        it('T-FL-BP-05-02: [Normal] 2 つ目の開始デリミタの直前に改行が含まれる', () => {
           const entry1 = new ChatlogEntry(makeValidContent('A', '質問A', '回答A'), { filePath: '/chatlogs/chat-a.md' });
           const entry2 = new ChatlogEntry(makeValidContent('B', '質問B', '回答B'), { filePath: '/chatlogs/chat-b.md' });
 
           const result = buildBatchPrompt([entry1, entry2]);
 
-          assertStringIncludes(result, '\n=== chat-b.md ===');
+          assertStringIncludes(result, '\n' + _openTag('chat-b.md'));
         });
       });
     });
@@ -180,7 +203,7 @@ describe('buildBatchPrompt', () => {
     describe(`When: 正常系 - ${CHUNK_SIZE} エントリのヘッダーがすべて出力される`, () => {
       /** すべてのファイル名がヘッダーとして出力されることを検証する。 */
       describe(`Then: [Normal] T-FL-BP-06 - ${CHUNK_SIZE} エントリのヘッダーが出力される`, () => {
-        it(`T-FL-BP-06-01: [Normal] "=== chat-${CHUNK_SIZE}.md ===" が含まれる`, () => {
+        it(`T-FL-BP-06-01: [Normal] chat-${CHUNK_SIZE}.md の開始デリミタが含まれる`, () => {
           const entries: ChatlogEntry[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
             entries.push(
@@ -192,10 +215,10 @@ describe('buildBatchPrompt', () => {
 
           const result = buildBatchPrompt(entries);
 
-          assertStringIncludes(result, `=== chat-${CHUNK_SIZE}.md ===`);
+          assertStringIncludes(result, _openTag(`chat-${CHUNK_SIZE}.md`));
         });
 
-        it('T-FL-BP-06-02: [Normal] すべてのエントリのヘッダーが含まれる', () => {
+        it('T-FL-BP-06-02: [Normal] すべてのエントリの開始デリミタが含まれる', () => {
           const entries: ChatlogEntry[] = [];
           for (let i = 1; i <= CHUNK_SIZE; i++) {
             entries.push(
@@ -208,7 +231,7 @@ describe('buildBatchPrompt', () => {
           const result = buildBatchPrompt(entries);
 
           for (let i = 1; i <= CHUNK_SIZE; i++) {
-            assertStringIncludes(result, `=== chat-${i}.md ===`);
+            assertStringIncludes(result, _openTag(`chat-${i}.md`));
           }
         });
       });

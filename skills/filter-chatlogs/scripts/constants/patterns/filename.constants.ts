@@ -47,6 +47,27 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
   // 例: 2026-07-30-recommended-plugins-cfa0110de248.md → 一致
   //     2026-08-11-which-recommended-plugins-should-i-install-abc123.md → 不一致
   /^\d{4}-\d{2}-\d{2}-recommended-plugins-[0-9a-f]+\.md$/,
+
+  // chatlog-exporter 自身が claude CLI を起動したときのセッションログ。
+  // set-frontmatter / normalize のプロンプト冒頭がそのままスラッグ化するため、
+  // 日付直後にプロンプト固有の語句が来る場合のみ一致させる。
+  // 例: 2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md → 一致
+  //     2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md → 一致
+  //     2026-07-12-set-frontmatter-ts-026d927a8a78.md → 不一致（通常の開発会話）
+  /^\d{4}-\d{2}-\d{2}-(generate-metadata-for-the-following-eng|review-the-following-frontmatter-against)/,
+
+  // 要約プロンプト由来ログ。スラッグ全体が `summary` の場合のみ一致させる。
+  // 例: 2026-07-25-summary-e2d4fc475cd1.md → 一致
+  //     2026-07-25-summarize-the-following-log-in-50-words-abc123def456.md → 不一致
+  /^\d{4}-\d{2}-\d{2}-summary-[0-9a-f]{12}\.md$/,
+
+  // 二重日付形式（エクスポート日 + 元セッション日）を持つ exporter 内部セッションログ。
+  // classify / filter がログ本文を貼り付けて起動するため、2 つめの日付直後に
+  // プロンプト固有の語句が来る場合のみ一致させる。
+  // 例: 2026-07-15-2026-06-26-file-1-c-users-atsushifx-workspaces-dev-0437ec223eed.md → 一致
+  //     2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
+  //     2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md → 不一致
+  /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-(generate-metadata-for-the-following-eng|summary|review-the-following-frontmatter|classify-(the|each)-log-file|when-evaluating-an?-|file-\d+-c-users-)/,
 ];
 
 /** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */

@@ -214,6 +214,18 @@ describe('_buildCommand', () => {
       assertEquals(result.args.includes('--output-format'), true);
       assertEquals(result.args[result.args.indexOf('--output-format') + 1], 'json');
     });
+
+    it('[Normal] T-LIB-AI-RA-48: model=sonnet → claude args に --safe-mode が含まれる', () => {
+      const result = _buildCommand('sonnet', 'sys');
+      assertEquals(result.command, 'claude');
+      assertEquals(result.args.includes('--safe-mode'), true);
+    });
+
+    it('[Normal] T-LIB-AI-RA-49: model=sonnet → claude args に --tools= が含まれる', () => {
+      const result = _buildCommand('sonnet', 'sys');
+      assertEquals(result.command, 'claude');
+      assertEquals(result.args.includes('--tools='), true);
+    });
   });
 });
 
