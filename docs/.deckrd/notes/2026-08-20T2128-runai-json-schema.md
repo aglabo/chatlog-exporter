@@ -93,8 +93,11 @@ AI CLI 側がネイティブの構造化出力（JSON Schema 強制）を提供�
 2. **最も脆いパーサを廃止できる。** set-frontmatter の 3 パーサはフォーマット揺れに極端に弱い。
    `type:` / `category:` は `split` + `startsWith` で拾い、
    `extractYaml` はコードフェンス行を全削除して指定フィールドより前を捨てる
-3. **リトライループの存在理由が消える。** `setfm-frontmatter.ts` / `setfm-review.ts` の
-   `maxRetry` ループは **YAML パース失敗のみ** を対象にしている
+3. **リトライループがスキルから消える。** `setfm-frontmatter.ts` / `setfm-review.ts` の
+   `maxRetry` ループは **YAML パース失敗のみ** を対象にしている。
+   スキーマ対応バックエンドでは不要になり、非対応バックエンドでは
+   `runAIStructuredObject` の fallback 分岐（4.1）へ移設される。
+   現在 2 ファイルに重複しているリトライ実装が 1 箇所に集約される
 4. **enum 制約をモデル側に効かせられる**（2.3 の注意点を守る前提で）
 5. **プロンプトが短くなる。** 各 system prompt の
    「Output ONLY a JSON array. No markdown, no code fence...」相当が不要になる
@@ -126,6 +129,7 @@ export const runAIStructuredObject = async <T>(
   systemPrompt: string,
   userPrompt: string,
   schema: JsonSchema, // ルート object のスキーマ
+  fallbackParse: (raw: string) => T | null, // スキーマ非対応バックエンド用
   options?: RunAIOptions,
 ): Promise<T>;
 
@@ -137,7 +141,27 @@ export const runAIStructured = async <T>(
 ): Promise<T[]>; // 内部で Object 版を呼ぶだけ
 ```
 
-### 4.1 内部動作（array 版）
+### 4.1 内部動作（primitive = object 版）
+
+バックエンド差の吸収は **primitive 側に置く**。ラッパ側に置くと、object 形を直接使う
+呼び出し側（set-frontmatter）がフォールバックを持てなくなる。
+
+1. スキーマ対応バックエンド（claude / codex / antigravity）では `schema` を CLI に渡し、
+   `structured_output` をそのまま `T` として返す。`fallbackParse` は使わない
+2. スキーマ非対応バックエンド（copilot / opencode）では `schema` をプロンプトに埋め込んで
+   `runAI()` を呼び、その文字列を `fallbackParse` に通して `T` を得る
+3. `fallbackParse` が `null` を返した場合は `maxRetry` 回まで再試行する。
+   尽きたら 4.2 に従って throw する
+
+`fallbackParse` は呼び出し側が渡す。出力形式がスキルごとに違うため、共通化できない。
+
+| 呼び出し側                      | `fallbackParse`           |
+| ------------------------------- | ------------------------- |
+| `runAIStructured`（配列ラッパ） | `parseAiJsonArray` ベース |
+| set-frontmatter meta / review   | `extractYaml` ベース      |
+| set-frontmatter type/category   | 既存の 2 行パーサ         |
+
+### 4.1.1 内部動作（array 版ラッパ）
 
 1. `itemSchema` を次の形にラップして `runAIStructuredObject` に渡す
 
@@ -150,9 +174,8 @@ export const runAIStructured = async <T>(
    }
    ```
 
-2. 戻ってきた `structured_output.results` をアンラップして `T[]` を返す
-3. スキーマ非対応バックエンド（copilot / opencode）では、`itemSchema` をプロンプトに埋め込んで
-   `runAI()` を呼び、`parseAiJsonArray<T>()` に通して **同じ `T[]` を返す**
+2. `fallbackParse` には `parseAiJsonArray` を `{ results }` 形に包む関数を渡す
+3. 戻ってきた `results` をアンラップして `T[]` を返す
 
 ### 4.2 失敗時は throw する（fail-first）
 
@@ -172,7 +195,7 @@ export const runAIStructured = async <T>(
 
 ### 4.3 この設計が解消する Cons
 
-- **Cons 1（二重実装の恒久化）が緩和される。** 分岐は `runAIStructured` 内部の 1 箇所に閉じ、
+- **Cons 1（二重実装の恒久化）が緩和される。** 分岐は `runAIStructuredObject` 内部の 1 箇所に閉じ、
   呼び出し側からはバックエンド差が見えない
 - **既存の配列契約が壊れない。** `{"results":[...]}` はプロトコル都合であり、
   スキル側は今と同じ「要素の配列」を受け取る。下流ロジックは無変更
@@ -202,9 +225,16 @@ meta / review / type-category は配列ではなく単一オブジェクトを�
 配列に包むと「要素数 1」という強制できない不変条件を抱えるだけで、得るものがない。
 
 したがって `runAIStructuredObject<T>()` をそのまま使う。
+copilot / opencode 向けには、現行の `extractYaml` をそのまま `fallbackParse` として渡す。
 
 ```typescript
-const _meta = await runAIStructuredObject<FrontmatterMeta>(_sys, _user, META_SCHEMA, opts);
+const _meta = await runAIStructuredObject<FrontmatterMeta>(
+  _sys,
+  _user,
+  META_SCHEMA,
+  (raw) => extractYaml<FrontmatterMeta>(raw, 'title'),
+  opts,
+);
 ```
 
 ### 4.5 実装上の注意
