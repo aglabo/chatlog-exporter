@@ -18,12 +18,20 @@ import type { EnvProvider } from '../../types/providers.types.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 
 // ─────────────────────────────────────────────
+// 内部ヘルパー
+// ─────────────────────────────────────────────
+
+/** パスが root 配下（セグメント境界）に含まれるか検証する内部ヘルパー。 */
+const _isUnder = (path: string, root: string): boolean => path === root || path.startsWith(root + '/');
+
+// ─────────────────────────────────────────────
 // パス解決
 // ─────────────────────────────────────────────
 
 /**
  * configPath が絶対パスなら正規化して返す。
  * 相対パスなら baseDir と結合して正規化して返す。
+ * ただし相対パスが既に baseDir 配下（セグメント境界一致）なら baseDir を前置しない。
  * configPath が未指定のときは defaultPath を使用する。
  */
 export const resolveConfigPath = ({
@@ -36,16 +44,17 @@ export const resolveConfigPath = ({
     return normalizePath(_path);
   }
   const _globalConfig = config ?? GlobalConfig.getInstance();
-  const baseDir = _globalConfig.configDir ?? DEFAULT_CONFIG_DIR;
-  return normalizePath(`${baseDir}/${_path}`);
+  const _baseDir = normalizePath(_globalConfig.configDir ?? DEFAULT_CONFIG_DIR);
+  const _normalized = normalizePath(_path);
+  if (_isUnder(_normalized, _baseDir)) {
+    return _normalized;
+  }
+  return normalizePath(`${_baseDir}/${_normalized}`);
 };
 
 // ─────────────────────────────────────────────
 // セーフパス解決
 // ─────────────────────────────────────────────
-
-/** パスが root 配下（セグメント境界）に含まれるか検証する内部ヘルパー。 */
-const _isUnder = (path: string, root: string): boolean => path === root || path.startsWith(root + '/');
 
 /**
  * パスが安全なディレクトリ配下にあるかどうかを返す。

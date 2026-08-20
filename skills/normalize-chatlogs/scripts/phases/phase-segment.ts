@@ -30,9 +30,11 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
  * boundaries to the cache.
  *
  * On success, segment data (`title`/`summary`/`startLine`/`endLine`) are written to the cache
- * with `status: 'set'`, so a subsequent run does not re-invoke the AI. Cache writes are
- * skipped when the AI returned no segments, or when any segment is missing
- * `startLine`/`endLine`. Only called for non-`dryRun` runs — see `phaseSegment`.
+ * with `status: 'set'`, so a subsequent run does not re-invoke the AI. When the AI returned
+ * no entry for a file, returned an empty segment array, or returned a segment missing
+ * `startLine`/`endLine`, `status: 'retry'` is written instead (no `segments`) so the file is
+ * re-decided on the next run, and the entry is excluded from the result. The failure cause is
+ * not distinguished. Only called for non-`dryRun` runs — see `phaseSegment`.
  *
  * @param chunk  - Entries to segment together in a single AI call
  * @param config - Model/timeout options forwarded to `segmentChatlogs`
@@ -56,7 +58,14 @@ const _processChunk = async (
     chunk.map(async (entry) => {
       const filePath = entry.filePath!;
       const segments = _aiResultMap.get(filePath);
-      if (!segments || segments.some((s) => s.startLine === undefined || s.endLine === undefined)) {
+      if (
+        !segments || segments.length === 0
+        || segments.some((s) => s.startLine === undefined || s.endLine === undefined)
+      ) {
+        // Record the file as pending re-decision instead of leaving it silently unaccounted for.
+        // An empty `segments` array must NOT be written as `status: 'set'` — that would make
+        // `hasSegments` true forever and the file would never be segmented again.
+        await cache.write(toCacheKey(filePath), { status: NORMALIZE_CACHE_STATUSES.RETRY });
         return null;
       }
       const _cacheEntry: Partial<NormalizeCache> = {
@@ -68,8 +77,9 @@ const _processChunk = async (
           endLine: s.endLine!,
         })),
       };
-      // write() (overwrite, not merge) is safe here: files reaching phaseSegment always have
-      // status === undefined (done/set entries are filtered out by _classifyEntries in process-files.ts).
+      // write() (overwrite, not merge) is safe here: files reaching phaseSegment have
+      // status === undefined or 'retry' (done/set entries are filtered out by _classifyEntries in
+      // process-files.ts), and neither carries `segments` worth preserving.
       await cache.write(toCacheKey(filePath), _cacheEntry);
       return entry;
     }),
@@ -90,8 +100,9 @@ const _processChunk = async (
  * into groups of at most `BATCH_SIZE` (or 1 when `config.singleFile` is true) and each chunk
  * is processed via {@link _processChunk} with parallelism `concurrency` to bound prompt size
  * and timeout risk. On success, segment data (`title`/`summary`/`startLine`/`endLine`) are written
- * to the cache. Entries whose AI call failed, or whose segments are missing
- * `startLine`/`endLine`, are excluded from the result and not written to the cache.
+ * to the cache. Entries whose AI call failed, whose segments came back empty, or whose segments
+ * are missing `startLine`/`endLine`, are excluded from the result and written with
+ * `status: 'retry'` so the next run re-decides them.
  *
  * Segment boundaries are line numbers within `ChatlogEntry.content` (frontmatter excluded),
  * not the raw file.

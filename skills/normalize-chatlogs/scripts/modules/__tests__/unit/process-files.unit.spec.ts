@@ -34,12 +34,14 @@ import {
 import type { CommandMockHandle } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { toCacheKey } from '../../../libs/cache-utils.ts';
 import { initStats } from '../../../libs/stats-utils.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
 // constants
 import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
+import { NORMALIZE_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 
 // ─── Internal Helpers
 
@@ -54,6 +56,36 @@ const _CONFIG: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
 /** テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。他テストの残留キャッシュの影響を防ぐ。 */
 const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
   GlobalConfig.getInstance({ yaml: `cacheDir: '${tempDir}/cache'` });
+
+/**
+ * `normalize-cache` を開き、`filePath` に対応するキーへ `entry` を直接書き込む。
+ *
+ * 前回実行の途中状態（`status: 'retry'` / `'done'` など）を再現するために使う。
+ * キーは実装と同じ {@link toCacheKey} で導出するため、キー規則の変更に追従する。
+ *
+ * @param filePath - 対象チャットログファイルのパス
+ * @param entry    - キャッシュに書き込む `NormalizeCache` の内容
+ */
+const _seedCache = async (filePath: string, entry: NormalizeCache): Promise<void> => {
+  const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
+  await cache.ready;
+  await cache.write(toCacheKey(filePath), entry);
+};
+
+/**
+ * `normalize-cache` から `filePath` に対応するキャッシュエントリを読み出す。
+ *
+ * @param filePath - 対象チャットログファイルのパス
+ * @returns 保存されている `NormalizeCache`（未登録の場合は空オブジェクト）
+ */
+const _readCache = async (filePath: string): Promise<Partial<NormalizeCache>> => {
+  const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
+  await cache.ready;
+  return cache.read(toCacheKey(filePath));
+};
+
+/** `Stats` の全カウンタ（success/fail/done/error/skip）の合計。入力ファイル数との不変条件検証に使う。 */
+const _totalStats = (stats: Stats): number => stats.done + stats.error + stats.fail + stats.skip + stats.success;
 
 // ─── Tests
 
@@ -734,6 +766,80 @@ describe('processFiles', () => {
       assertEquals(counter.calls, 0);
       assertEquals(stats.skip, 0);
       assertEquals(stats.success, 1);
+    });
+  });
+
+  /**
+   * retry status: 前回セグメント取得に失敗し `status: 'retry'`（`segments` なし）で
+   * 記録されたファイルの再判定動作。
+   *
+   * `'retry'` は `'done'` でも `'set'` でもない第 4 の status であり、
+   * 再判定対象（AI 呼び出し対象）として扱われ、どの stats カウンタにも
+   * 計上されないまま消えてはならない。
+   */
+  describe('When: retry status', () => {
+    it("[Normal] T-PF-RETRY-01: status:'retry' のファイルは AI 呼び出し対象になり成功後 status が 'done' へ遷移する", async () => {
+      // arrange — 前回セグメント取得に失敗した状態（segments なし）を再現する
+      const filePath = normalizePath(`${tmpDir}/dummy.md`);
+      await Deno.writeTextFile(filePath, '# Test\n\nContent');
+      await _seedCache(filePath, { status: NORMALIZE_CACHE_STATUSES.RETRY });
+
+      const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
+      const counter = { calls: 0 };
+      mockHandle = installCommandMock(
+        makeCountingMock(wrapClaudeJson(JSON.stringify([{ filePath, segments }])), counter),
+      );
+
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — AI が呼ばれ、書き出しに成功し、retry 状態が解消されている
+      assert(counter.calls > 0);
+      assertEquals(stats.success, 1);
+      assertEquals(stats.fail, 0);
+      assertEquals((await _readCache(filePath)).status, NORMALIZE_CACHE_STATUSES.DONE);
+    });
+
+    it("[Error] T-PF-RETRY-02: status:'retry' のファイルで AI が当該 filePath を返さないとき stats.fail が 1増加する", async () => {
+      // arrange — AI 応答には対象外の filePath だけが含まれ、対象ファイルは取りこぼされる
+      const filePath = normalizePath(`${tmpDir}/dummy.md`);
+      await Deno.writeTextFile(filePath, '# Test\n\nContent');
+      await _seedCache(filePath, { status: NORMALIZE_CACHE_STATUSES.RETRY });
+
+      const otherPath = normalizePath(`${tmpDir}/other.md`);
+      const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
+      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath: otherPath, segments }])));
+      mockHandle = installCommandMock(makeSuccessMock(stdout));
+
+      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — 黙って消えず、失敗として計上される
+      assertEquals(stats.fail, 1);
+      assertEquals(stats.success, 0);
+    });
+
+    it("[Edge] T-PF-RETRY-03: status:'retry' と status:'done' が混在するとき stats 合計が入力ファイル数と一致する", async () => {
+      // arrange — 再判定待ち 1件 + 処理済み 1件
+      const retryPath = normalizePath(`${tmpDir}/retry-target.md`);
+      const donePath = normalizePath(`${tmpDir}/done-target.md`);
+      await Deno.writeTextFile(retryPath, '# Retry\n\nContent');
+      await Deno.writeTextFile(donePath, '# Done\n\nContent');
+      await _seedCache(retryPath, { status: NORMALIZE_CACHE_STATUSES.RETRY });
+      await _seedCache(donePath, { status: NORMALIZE_CACHE_STATUSES.DONE });
+
+      mockHandle = installCommandMock(makeFailMock(1));
+
+      // act
+      await processFiles(tmpDir, outputDir, _CONFIG, stats);
+
+      // assert — どのバケットにも入らず消えるファイルがないこと
+      assertEquals(_totalStats(stats), 2);
+      assertEquals(stats.done, 1);
     });
   });
 });

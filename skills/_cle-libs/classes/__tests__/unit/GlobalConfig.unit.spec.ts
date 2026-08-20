@@ -63,7 +63,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-152
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-154
  *
  * @see GlobalConfig
  */
@@ -206,6 +206,20 @@ describe('GlobalConfig', () => {
         assertEquals(_calledPath, `.config/my-app/${DEFAULT_CONFIG_FILE}`);
       });
 
+      it('[Normal] T-CLS-GC-153: configFile が configDir 込みの相対パスのとき configDir の前置はちょうど 1 回', () => {
+        let _calledPath = '';
+        const _trackingRead: ReadTextFileSyncProvider = (path: string) => {
+          _calledPath = path;
+          return 'agent: chatgpt\n';
+        };
+        const _configFile = `.config/${DEFAULT_APP_NAME}/${DEFAULT_CONFIG_FILE}`;
+        GlobalConfig.getInstance({
+          configFile: _configFile,
+          readTextFileProvider: _trackingRead,
+        });
+        assertEquals(_calledPath, _configFile);
+      });
+
       it('[Normal] T-CLS-GC-143: defaultConfigFile 指定 → そのファイルの値が DEFAULT_CONFIG_VALUES を上書きする', () => {
         const _config = GlobalConfig.getInstance({
           defaultConfigFile: '/mock/default-config.yaml',
@@ -268,7 +282,7 @@ describe('GlobalConfig', () => {
       });
     });
 
-    /** 不正な YAML でエラーがスローされるケース。 */
+    /** 不正な YAML・明示指定した設定ファイルの未存在でエラーがスローされるケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-CLS-GC-43: configFile 指定+不正 YAML → ChatlogError(InvalidYaml) がスローされる', () => {
         const _err = assertThrows(
@@ -307,18 +321,24 @@ describe('GlobalConfig', () => {
         assertEquals(_err.kind, 'InvalidYaml');
         assertEquals(_err.subindex, 'NotObject');
       });
+
+      it('[Error] T-CLS-GC-42: configFile 明示指定+ファイル未存在 → ChatlogError(FileDirNotFound/ConfigNotFound) がスローされる', () => {
+        const _err = assertThrows(
+          () =>
+            GlobalConfig.getInstance({
+              configFile: '/mock/missing.yaml',
+              readTextFileProvider: _notFoundRead,
+            }),
+          ChatlogError,
+        );
+        assertEquals(_err.kind, 'FileDirNotFound');
+        assertEquals(_err.subindex, 'ConfigNotFound');
+        assert(_err.message.includes('/mock/missing.yaml'));
+      });
     });
 
     /** 境界値・副作用・優先度など特殊なケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-CLS-GC-42: configFile 指定+存在しない → エラーなし、get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
-        const _config = GlobalConfig.getInstance({
-          configFile: '/mock/missing.yaml',
-          readTextFileProvider: _notFoundRead,
-        });
-        assertEquals(_config.get('agent'), 'claude');
-      });
-
       it('[Edge] T-CLS-GC-44: getInstance() の戻り値と再取得が同一参照', () => {
         const _created = GlobalConfig.getInstance();
         const _got = GlobalConfig.getInstance();
@@ -393,6 +413,23 @@ describe('GlobalConfig', () => {
         assertStrictEquals(_first, _second);
         assertEquals(_second.get('agent'), 'claude');
         assertFalse(_called.flag);
+      });
+
+      it('[Edge] T-CLS-GC-154: configFile 未存在で ConfigNotFound を throw した後、正しい configFile で再取得すると新しい設定が読まれる', () => {
+        assertThrows(
+          () =>
+            GlobalConfig.getInstance({
+              configFile: '/mock/missing.yaml',
+              readTextFileProvider: _notFoundRead,
+            }),
+          ChatlogError,
+        );
+        // resetInstance() を呼ばずに再取得する
+        const _config = GlobalConfig.getInstance({
+          configFile: '/mock/config.yaml',
+          readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
       });
     });
   });

@@ -109,13 +109,31 @@ deno run --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変�
 | `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)  |
 | `--config FILE`    | GlobalConfig ファイルのパス                        |
 | `--fail-fast`      | 失敗時に即座に中断する                             |
-| `--single-file`    | 分割せず1ファイルとして処理する                    |
+| `--single-file`    | AI へ1ファイルずつ渡す (バッチ相乗りを避ける)      |
 | `--dry-run`        | ファイルを書き出さない (AI 分割もスキップされる)   |
 
 上記以外の `--` オプションを渡すと `UnknownOption` エラーで異常終了する。
 
 > 注意: `--output` / `--chatlogs-dir` というオプションは存在しない。
 > それぞれ `--output-dir` / `--input-dir` を使う。
+
+## セグメント取得に失敗したファイルの再判定
+
+通常実行では複数ファイルをまとめて AI に渡す。内容がほぼ同一のファイルが同一バッチに
+含まれると、AI が片方を省略してセグメントを取得できないことがある。
+
+その場合、対象ファイルは `WARNING: failed (no segments returned): <name>` を出力して
+`fail` に計上され、キャッシュに `status: retry` が記録される（出力は行われない）。
+`retry` のファイルは次回実行で再判定される。
+
+**ただし同じ入力集合では同じバッチが再構成されるため、通常実行を繰り返しても解消しない。**
+`--single-file` を付けて再実行すると AI へ 1 ファイルずつ渡すためバッチ相乗りが起きず、
+正しくセグメントが取得できる。
+
+```bash
+# 通常実行で fail が出たら
+deno run ... --single-file
+```
 
 ## dry-run の挙動に関する注意
 
