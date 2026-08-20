@@ -64,29 +64,45 @@ const _validateDirs = async (inputDir: string, outputBase: string): Promise<void
   }
 };
 
-/** Result of partitioning loaded `ChatlogEntry` objects by cache status. */
+/**
+ * Result of partitioning loaded `ChatlogEntry` objects by cache status: already-normalized
+ * (`done`), already segment-planned (`set`), and awaiting segment planning (`pending`).
+ *
+ * The groups cover all four status values currently defined (`'done'` / `'set'` / `'retry'` /
+ * unset), so every loaded entry reaches exactly one bucket and is accounted for in `stats`.
+ * This is not enforced by the type system: each group is an independent equality filter, so a
+ * newly added `NormalizeCacheStatus` must be routed here explicitly — otherwise entries
+ * carrying it fall into no bucket and disappear from the `stats` accounting entirely.
+ */
 type _ClassifiedEntries = {
   doneEntries: ChatlogEntry[];
   setEntries: ChatlogEntry[];
-  unclassifiedEntries: ChatlogEntry[];
+  pendingEntries: ChatlogEntry[];
 };
 
 /**
  * Partitions loaded `entries` by cache status: already-normalized (done), already
- * segment-planned (set), and unclassified (needs AI segmentation).
+ * segment-planned (set), and pending segment planning (needs AI segmentation).
+ *
+ * Pending covers both never-seen files (no cache entry, status `undefined`) and files whose
+ * previous segment planning failed (status `'retry'`); both are re-planned by `phaseSegment`.
  *
  * @param entries - Entries loaded via {@link phaseLoad}
  * @param cache   - Cache used to detect already-normalized/planned files across runs
- * @returns The three cache-status groups
+ * @returns The three cache-status groups (done / set / pending)
  */
 const _classifyEntries = (entries: ChatlogEntry[], cache: ChatlogCache<NormalizeCache>): _ClassifiedEntries => {
   const _statusOf = (entry: ChatlogEntry) => cache.read(toCacheKey(entry.filePath!)).status;
+  const _isPending = (entry: ChatlogEntry) => {
+    const status = _statusOf(entry);
+    return status === undefined || status === NORMALIZE_CACHE_STATUSES.RETRY;
+  };
 
   const doneEntries = entries.filter((entry) => _statusOf(entry) === NORMALIZE_CACHE_STATUSES.DONE);
   const setEntries = entries.filter((entry) => _statusOf(entry) === NORMALIZE_CACHE_STATUSES.SET);
-  const unclassifiedEntries = entries.filter((entry) => _statusOf(entry) === undefined);
+  const pendingEntries = entries.filter(_isPending);
 
-  return { doneEntries, setEntries, unclassifiedEntries };
+  return { doneEntries, setEntries, pendingEntries };
 };
 
 /**
@@ -137,8 +153,9 @@ const _accountSegmentFailures = (
  *
  * Flow: {@link _validateDirs} (validate, before cache init) → `findFiles` (discover) →
  * {@link phaseLoad} (load all files into `ChatlogEntry`, partition load errors) →
- * {@link _classifyEntries} (classify loaded entries by cache status: done/set/unclassified) →
- * {@link phaseSegment} (AI call for unclassified entries; writes planned segments to the cache;
+ * {@link _classifyEntries} (classify loaded entries by cache status: done/set/pending, where
+ * pending covers status `undefined` and `'retry'`) →
+ * {@link phaseSegment} (AI call for pending entries; writes planned segments to the cache;
  * skips the AI call entirely when `dryRun`, returning only already-planned entries)
  * → {@link _accountSegmentFailures} (fail/failFast/warn accounting for entries still without
  * planned segments after phaseSegment; dryRun accounts as skip instead and never throws)
@@ -179,15 +196,15 @@ export const processFiles = async (
     logger.error(`${LOGGER_TEXT.INDENT}can't read files: ${_errors.length}`);
   }
 
-  const { doneEntries, setEntries, unclassifiedEntries } = _classifyEntries(allEntries, cache);
+  const { doneEntries, setEntries, pendingEntries } = _classifyEntries(allEntries, cache);
 
   for (const entry of doneEntries) {
     logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(entry.filePath!)}`);
   }
   stats.done += doneEntries.length;
 
-  const _plannedEntries = await phaseSegment(unclassifiedEntries, cache, config, config.concurrency);
-  _accountSegmentFailures(unclassifiedEntries, cache, config, stats);
+  const _plannedEntries = await phaseSegment(pendingEntries, cache, config, config.concurrency);
+  _accountSegmentFailures(pendingEntries, cache, config, stats);
 
   await phaseWrite([...setEntries, ..._plannedEntries], _outputBase, config, stats, cache, config.concurrency, hashFn);
 };

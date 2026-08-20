@@ -38,6 +38,7 @@ import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.clas
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
+import { NORMALIZE_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 
@@ -123,9 +124,9 @@ const _makeRateLimitVsSignalCaptureMock = (
  * `phaseSegment` のユニットテストスイート。
  *
  * キャッシュ済みエントリのスキップ、未キャッシュエントリのチャンク分割・AI呼び出し・
- * キャッシュ書き込み、AI失敗時の除外挙動を検証する。
+ * キャッシュ書き込み、セグメント取得失敗時の `status: 'retry'` 記録と戻り値からの除外を検証する。
  *
- * テスト ID 範囲: T-PP-01-01 〜 T-PP-08-01
+ * テスト ID 範囲: T-PP-01-01 〜 T-PP-13-01
  *
  * @see phaseSegment
  */
@@ -212,10 +213,30 @@ describe('phaseSegment', () => {
       // assert — 1エントリ1チャンクなので呼び出し回数はエントリ数と同じ
       assertEquals(counter.calls, entries.length);
     });
+
+    it("[Normal] T-PP-13-01: 同一チャンクに失敗ファイルが混在しても成功ファイルは status:'set' になる", async () => {
+      // arrange — BATCH_SIZE(4) 以内の2件を同一チャンクに載せ、応答には ok.md だけを含める
+      const okEntry = _makeEntry('ok.md', 'content ok');
+      const lostEntry = _makeEntry('lost.md', 'content lost');
+      const aiResponse = _makeAiResponse([
+        { filePath: 'ok.md', segments: [{ title: 'TOK', startLine: 1, endLine: 1 }] },
+      ]);
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+      // act
+      const result = await phaseSegment([okEntry, lostEntry], cache, _baseConfig, 1);
+
+      // assert — 成功ファイルは set + segments、失敗ファイルは retry で戻り値から除外される
+      assertEquals(result, [okEntry]);
+      const okCached = cache.read(toCacheKey('ok.md'));
+      assertEquals(okCached.status, NORMALIZE_CACHE_STATUSES.SET);
+      assertEquals(okCached.segments?.length, 1);
+      assertEquals(cache.read(toCacheKey('lost.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+    });
   });
 
   describe('When: 異常系', () => {
-    it('[Error] T-PP-04-01: AI失敗（非ゼロexit）時、該当エントリは戻り値から除外されキャッシュに書き込まれない', async () => {
+    it("[Error] T-PP-04-01: AI失敗（非ゼロexit）時、該当エントリは戻り値から除外され status:'retry' が書かれる", async () => {
       // arrange
       const entry = _makeEntry('fail.md', 'content');
       mockHandle = installCommandMock(makeFailMock(1));
@@ -225,10 +246,10 @@ describe('phaseSegment', () => {
 
       // assert
       assertEquals(result, []);
-      assertEquals(cache.read(toCacheKey('fail.md')), {});
+      assertEquals(cache.read(toCacheKey('fail.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
     });
 
-    it('[Error] T-PP-05-01: セグメントに startLine/endLine が欠けている場合も除外・未書き込み', async () => {
+    it("[Error] T-PP-05-01: セグメントに startLine/endLine が両方欠けている場合は除外され status:'retry' が書かれる", async () => {
       // arrange — startLine/endLine を省略した応答
       const entry = _makeEntry('incomplete.md', 'content');
       const aiResponse = _makeAiResponse([
@@ -241,7 +262,39 @@ describe('phaseSegment', () => {
 
       // assert
       assertEquals(result, []);
-      assertEquals(cache.read(toCacheKey('incomplete.md')), {});
+      assertEquals(cache.read(toCacheKey('incomplete.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+    });
+
+    it("[Error] T-PP-09-01: AI 応答に当該 filePath が含まれないとき status:'retry' が書かれ戻り値から除外される", async () => {
+      // arrange — 応答には入力に含まれない filePath だけがあり、対象ファイルは取りこぼされる
+      const entry = _makeEntry('missing.md', 'content');
+      const aiResponse = _makeAiResponse([
+        { filePath: 'ghost.md', segments: [{ title: 'T', startLine: 1, endLine: 1 }] },
+      ]);
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+      // act
+      const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+      // assert
+      assertEquals(result, []);
+      assertEquals(cache.read(toCacheKey('missing.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+    });
+
+    it("[Error] T-PP-11-01: セグメントの endLine だけが欠けている場合も除外され status:'retry' が書かれる", async () => {
+      // arrange — startLine のみ与え endLine を省略した応答
+      const entry = _makeEntry('partial.md', 'content');
+      const aiResponse = _makeAiResponse([
+        { filePath: 'partial.md', segments: [{ title: 'T', startLine: 1 }] },
+      ]);
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+      // act
+      const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+      // assert
+      assertEquals(result, []);
+      assertEquals(cache.read(toCacheKey('partial.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
     });
 
     it('[Error] T-PP-08-01: 並列実行中に一方のチャンクが RateLimit で失敗したとき他方のチャンクの signal が abort される', async () => {
@@ -311,6 +364,37 @@ describe('phaseSegment', () => {
       // assert
       assertEquals(counter.calls, 0);
       assertEquals(result.length, 2);
+    });
+
+    it("[Edge] T-PP-10-01: AI が空セグメントを返したとき status:'set' ではなく 'retry' が書かれ segments が残らない", async () => {
+      // arrange — segments が空配列の応答（現行実装では status:'set' + segments:[] が書かれてしまう）
+      const entry = _makeEntry('empty.md', 'content');
+      const aiResponse = _makeAiResponse([
+        { filePath: 'empty.md', segments: [] },
+      ]);
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+      // act
+      const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+      // assert — 空セグメントを確定扱いせず再判定対象として残す
+      assertEquals(result, []);
+      const cached = cache.read(toCacheKey('empty.md'));
+      assertEquals(cached.status, NORMALIZE_CACHE_STATUSES.RETRY);
+      assertEquals(cached.segments, undefined);
+    });
+
+    it('[Edge] T-PP-12-01: dryRun:true のとき AI が失敗してもキャッシュには一切書き込まれない', async () => {
+      // arrange — AI を失敗させても dryRun では _processChunk に到達しない
+      const entry = _makeEntry('dryrun-fail.md', 'content');
+      mockHandle = installCommandMock(makeFailMock(1));
+
+      // act
+      const result = await phaseSegment([entry], cache, { ..._baseConfig, dryRun: true }, 1);
+
+      // assert
+      assertEquals(result, []);
+      assertEquals(cache.read(toCacheKey('dryrun-fail.md')), {});
     });
   });
 });
