@@ -63,7 +63,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-153
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-154
  *
  * @see GlobalConfig
  */
@@ -413,6 +413,23 @@ describe('GlobalConfig', () => {
         assertStrictEquals(_first, _second);
         assertEquals(_second.get('agent'), 'claude');
         assertFalse(_called.flag);
+      });
+
+      it('[Edge] T-CLS-GC-154: configFile 未存在で ConfigNotFound を throw した後、正しい configFile で再取得すると新しい設定が読まれる', () => {
+        assertThrows(
+          () =>
+            GlobalConfig.getInstance({
+              configFile: '/mock/missing.yaml',
+              readTextFileProvider: _notFoundRead,
+            }),
+          ChatlogError,
+        );
+        // resetInstance() を呼ばずに再取得する
+        const _config = GlobalConfig.getInstance({
+          configFile: '/mock/config.yaml',
+          readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
+        });
+        assertEquals(_config.get('agent'), 'chatgpt');
       });
     });
   });

@@ -59,6 +59,8 @@ export class GlobalConfig {
    *   それ以外（`defaultConfigFile` 指定時・既定パス使用時）はエラーを無視して `DEFAULT_CONFIG_VALUES` のまま返す。
    * - `appName` はオプションとして受け付け、`configDir`（設定ファイル・辞書・プロンプトの基準ディレクトリ）の組み立てに使用する。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
+   * - 設定ロードに失敗した場合はシングルトンを保持しない。インスタンスはロード成功後にだけ確定するため、
+   *   スローされた後に正しい `options` で再度呼び出せば新しい設定が読み込まれる。
    */
   static getInstance(options?: {
     schema?: ConfigSchema;
@@ -72,20 +74,22 @@ export class GlobalConfig {
       return GlobalConfig._instance;
     }
 
-    GlobalConfig._instance = new GlobalConfig(options?.schema, options?.appName);
+    // ロード完了までローカル変数で組み立て、成功後にだけシングルトンへ代入する（失敗時に壊れたインスタンスを残さない）
+    const _config = new GlobalConfig(options?.schema, options?.appName);
     // 設定ソースの優先順位: yaml > configFile > defaultConfigFile > DEFAULT_CONFIG_VALUES
     if (options?.yaml !== undefined) {
-      const _loaded = GlobalConfig._instance.parseYaml(options.yaml);
-      GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
+      const _loaded = _config.parseYaml(options.yaml);
+      _config._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
     } else {
-      const _loaded = GlobalConfig._instance.loadConfigFile({
+      const _loaded = _config.loadConfigFile({
         configPath: options?.configFile ?? options?.defaultConfigFile,
         readTextFileProvider: options?.readTextFileProvider,
         throwFileNotFound: options?.configFile !== undefined,
       });
-      GlobalConfig._instance._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
+      _config._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
     }
-    return GlobalConfig._instance;
+    GlobalConfig._instance = _config;
+    return _config;
   }
 
   /** テスト専用: シングルトンインスタンスをリセットする。プロダクションコードからは呼び出さないこと。 */
