@@ -769,6 +769,90 @@ describe('resolveConfigPath', () => {
       });
     });
   });
+
+  describe('Given: configPath が config.configDir と完全一致する', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=.config/chatlog-exporter）', () => {
+      describe('Then: T-LIB-U-14-18 - config.configDir が二重前置されずそのまま返る', () => {
+        it('[Normal] T-LIB-U-14-18: configPath=".config/chatlog-exporter" は前置されずそのまま返る', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: 'config.yaml',
+              configPath: '.config/chatlog-exporter',
+              config: _makeConfigStub('.config/chatlog-exporter'),
+            }),
+            '.config/chatlog-exporter',
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: configPath が既に config.configDir 配下の相対パスである', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=.config/chatlog-exporter）', () => {
+      describe('Then: T-LIB-U-14-19 - config.configDir が二重前置されずそのまま返る', () => {
+        it('[Normal] T-LIB-U-14-19: configPath=".config/chatlog-exporter/config.yaml" は前置されずそのまま返る', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: 'config.yaml',
+              configPath: '.config/chatlog-exporter/config.yaml',
+              config: _makeConfigStub('.config/chatlog-exporter'),
+            }),
+            '.config/chatlog-exporter/config.yaml',
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: configPath が未指定で defaultPath が config.configDir 配下である', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=.config/chatlog-exporter）', () => {
+      describe('Then: T-LIB-U-14-20 - defaultPath に config.configDir が二重前置されない', () => {
+        it('[Normal] T-LIB-U-14-20: configPath 省略のとき defaultPath=".config/chatlog-exporter/config.yaml" は前置されずそのまま返る', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: '.config/chatlog-exporter/config.yaml',
+              config: _makeConfigStub('.config/chatlog-exporter'),
+            }),
+            '.config/chatlog-exporter/config.yaml',
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: configPath が config.configDir 配下をバックスラッシュ区切りで表記する', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=.config/chatlog-exporter）', () => {
+      describe('Then: T-LIB-U-14-21 - 正規化後に配下判定され二重前置されない', () => {
+        it('[Edge] T-LIB-U-14-21: configPath=".config\\\\chatlog-exporter\\\\config.yaml" は前置されずスラッシュ正規化されて返る', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: 'config.yaml',
+              configPath: '.config\\chatlog-exporter\\config.yaml',
+              config: _makeConfigStub('.config/chatlog-exporter'),
+            }),
+            '.config/chatlog-exporter/config.yaml',
+          );
+        });
+      });
+    });
+  });
+
+  describe('Given: configPath が config.configDir と前方一致するが別ディレクトリである', () => {
+    describe('When: resolveConfigPath を実行する（config.configDir=.config/chatlog-exporter）', () => {
+      describe('Then: T-LIB-U-14-22 - セグメント境界不一致のため従来どおり前置される', () => {
+        it('[Edge] T-LIB-U-14-22: configPath=".config/chatlog-exporter-x/config.yaml" は config.configDir と結合されて返る', () => {
+          assertEquals(
+            resolveConfigPath({
+              defaultPath: 'config.yaml',
+              configPath: '.config/chatlog-exporter-x/config.yaml',
+              config: _makeConfigStub('.config/chatlog-exporter'),
+            }),
+            '.config/chatlog-exporter/.config/chatlog-exporter-x/config.yaml',
+          );
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
