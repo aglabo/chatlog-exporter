@@ -208,13 +208,13 @@ export const reorderFrontmatterEntries = (
 };
 
 /**
- * `Record<string, unknown>` を YAML frontmatter ブロック文字列に変換する。
+ * `FrontmatterFields` を YAML frontmatter ブロック文字列に変換する。
  *
  * - `fields` が空のとき → `""` を返す（frontmatter ブロックを生成しない）
  * - すべての文字列値はダブルクォートで囲まれる
  * - 戻り値は `"---\n{yaml_body}---\n"` の形式（`---` セパレータと末尾改行を含む）
  *
- * @param fields - frontmatter フィールドの Record
+ * @param fields - frontmatter フィールド（`FrontmatterFields` = `Record<string, string | string[]>`）
  * @returns frontmatter ブロック文字列（空オブジェクトのとき `""`）
  */
 export const renderFrontmatter = (fields: FrontmatterFields): string => {

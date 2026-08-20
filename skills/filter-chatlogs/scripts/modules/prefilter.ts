@@ -131,7 +131,7 @@ export const _phase1PartitionByFilename = (
     entry,
     filePath: entry.filePath as string,
     filename: entry.filename as string,
-    reason: checkFilename(entry.filename as string),
+    reason: checkFilename(entry.filename as string, entry.content),
   }));
 
   const fileList = classified

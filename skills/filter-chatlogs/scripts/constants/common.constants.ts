@@ -25,6 +25,27 @@ import type { StripConfig } from '../types/strip-config.types.ts';
 export const MAX_BODY_CHARS = 8000;
 
 /**
+ * バッチプロンプトのブロック境界に用いるデリミタ接頭辞。
+ *
+ * 判定対象のログはそれ自体が AI セッションの記録であり、この接頭辞を本文に含みうる。
+ * 本文に現れた場合は `CHATLOG_DELIMITER_ESCAPED` へ置換して境界の偽装を防ぐ。
+ *
+ * 無害化するのは **接頭辞側だけ**でよい。開始・終了デリミタはいずれもこの接頭辞で始まり、
+ * モデルには行全体の一致で境界を判定させるため、接頭辞が崩れた時点でどちらの境界にも一致しなくなる。
+ * 末尾の `>>>` 側を対称に無害化する必要はない。
+ */
+export const CHATLOG_DELIMITER_MARK = '<<<';
+
+/** 本文中の `CHATLOG_DELIMITER_MARK` を無害化した表記。行として境界に一致しなくなる。 */
+export const CHATLOG_DELIMITER_ESCAPED = '<< <';
+
+/** ログブロックの開始デリミタのテンプレート。`{file}` をファイル名に置換して 1 行として出力する。 */
+export const CHATLOG_BLOCK_OPEN_TEMPLATE = `${CHATLOG_DELIMITER_MARK}CHATLOG file="{file}">>>`;
+
+/** ログブロックの終了デリミタ。1 行として出力する。 */
+export const CHATLOG_BLOCK_CLOSE = `${CHATLOG_DELIMITER_MARK}END_CHATLOG>>>`;
+
+/**
  * strip の退避先に付加する拡張子。`backupToBak` が生成する `<path>.bak` と対応する。
  *
  * 退避パスの構成（`` `${path}${BAK_SUFFIX}` ``）と、退避パスから本体パスへの復元

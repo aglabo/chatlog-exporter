@@ -52,6 +52,8 @@ export const _buildCommand = (model: string, systemPrompt: string): _CommandSpec
           '--print',
           '--output-format',
           'json',
+          '--safe-mode',
+          '--tools=',
           '--disable-slash-commands',
           '--permission-mode',
           'acceptEdits',
