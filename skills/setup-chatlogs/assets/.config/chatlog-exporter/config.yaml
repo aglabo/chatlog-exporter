@@ -10,7 +10,7 @@ agent: claude
 
 # AI execution
 model: "haiku"
-timeoutMs: 120_000 # 2 min (ms)
+timeoutMs: 300_000 # 5 min (ms)
 maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Hash generation
