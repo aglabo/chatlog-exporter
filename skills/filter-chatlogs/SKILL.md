@@ -6,7 +6,7 @@ description: >
   strip サブコマンドでは、AIを使わず本文先頭の定型部（TOPICS ASSIGNMENT RULES 等）を除去する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] / strip <agent> <YYYY-MM> [--dry-run] [--recover-orphans]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
 allowed-tools: Bash, Glob
 ---
 
@@ -52,11 +52,14 @@ allowed-tools: Bash, Glob
 - `agent` (例: `chatgpt`) → 指定 agent の全体
 - `agent YYYY-MM` (例: `chatgpt 2026-03`) → 指定 agent・指定月
 - `path` (例: `chatlogs/originalLogs/claude/2026/2026-04`) → 指定パスをそのまま渡す (agent/period の代わり)
-- `--dry-run` → 削除せず、ノイズ候補のパスと判定理由をログ出力
+- `--dry-run` → 削除せず、ノイズ候補のパスと判定理由をログ出力。
+  **ノイズ候補は `remove` ではなく `skip` に計上される**（後述の注意を参照）
 
 **strip モードの引数解析** (`strip` トークンを除いた残りの引数に適用):
 
-- `agent YYYY-MM`（例: `claude 2026-03`）→ **この形式のみ受理する**
+- `agent YYYY-MM`（例: `claude 2026-03`）→ 指定 agent・指定月
+- `path`（例: `chatlogs/normalizeLogs/claude/2026/2026-07`）→ 指定パスを対象にする
+  （agent/period の代わり。`--input-dir <path>` でも同じ）
 - `--dry-run` → 書き込み・退避・キャッシュ記録をせず、全件の判定内訳を出力
 - `--recover-orphans` → 復帰専用モード（後述）
 - `--single-file` は存在しない
@@ -72,19 +75,19 @@ allowed-tools: Bash, Glob
 > また、プロジェクト名を3つ目の位置引数として渡すこともできない
 > （`InvalidDirectoryFormat` エラーになる）。プロジェクト単位の指定はサポートしていない。
 
-strip モードは上記より **狭い受理範囲** を持ち、パターン A・エージェント単独形・
-出力ディレクトリの指定（3つ目の位置引数を含む）を拒否する。
-6000 件規模の破壊的書き換えが未検証のデータセットに及ぶことを防ぐ安全弁であり、
-対象を `<agent> <YYYY-MM>` で明示した実行のみを受理する。
+strip モードは入力ディレクトリの指定（パターン A・`--input-dir`）を **受理する** が、
+出力ディレクトリの指定は拒否する。strip は対象を直接書き換えるため出力先が意味を持たない。
 
-| 入力                                                                    | 結果                                                                                                 |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 入力ディレクトリ指定（`--input-dir` またはスラッシュを含む1つ目の引数） | `strip は入力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: <path>` |
-| 出力ディレクトリ指定（`--output-dir` または3つ目の位置引数）            | `strip は出力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: <path>` |
-| 年月省略（例: `strip claude`）                                          | `strip は年月の指定を必須とします（例: claude 2026-03）`                                             |
+| 入力                                                         | 結果                                                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| 出力ディレクトリ指定（`--output-dir` または3つ目の位置引数） | `strip は出力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: <path>` |
+| 入力ディレクトリなしで年月省略（例: `strip claude`）         | `strip は年月の指定を必須とします（例: claude 2026-03）`                                             |
 
 いずれも終了コード 1 で異常終了する。この検査は列挙・キャッシュ初期化を含む **一切の I/O より前** に
 行われるため、拒否された実行は 1 件もファイルを変更しない。
+
+入力ディレクトリを指定した場合、agent / period は対象の解決に使われない
+（他スキルと同じく `override` として働く）。したがって年月の省略も受理される。
 
 ## ステップ1: スクリプトパスの解決
 
@@ -164,8 +167,11 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
    - user ターンなし / システムタグのみの user メッセージ
    - user ターンが 1つのとき assistant 応答が `minAssistantChars` (既定 300) 文字未満
 2. AI 判定 — 残りを claude CLI でチャンク単位にバッチ判定する
-   - KEEP: 設計判断・アーキテクチャ議論・再利用可能なパターン・新概念を含む
-   - DISCARD: 実行ステータスのみ・再利用不可・文脈依存で汎用性なし
+   - 判定軸は「技術的か」ではなく「判断の理由 (WHY) が残っているか」
+   - KEEP: 決定、およびその根拠 / 却下された案、およびその理由 / 発見された制約・前提 /
+     ハマりどころと解法 / ユーザーの確定回答
+   - DISCARD: 実行ステータスのみ / 些末な Q&A / 結論が現在のコードから自明 /
+     そのセッション内でしか意味を持たない文脈依存の記述
    - DISCARD かつ confidence >= `discardThreshold` (既定 0.7、`config.yaml` で変更可) → 削除対象として記録
    - DISCARD だが confidence が閾値未満 → 判定を保留し、次回実行時に再判定する
 3. sweep (削除) — 記録済みの DISCARD ファイルを実際に削除する
@@ -186,16 +192,22 @@ deno run --allow-read --allow-write --allow-env "$STRIP_PATH" $STRIP_ARGS
 引数からオプションを組み立てるルール:
 
 - `agent YYYY-MM` → `deno run --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03`
+- `path` → `deno run --allow-read --allow-write --allow-env "$STRIP_PATH" chatlogs/normalizeLogs/claude/2026/2026-07`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--recover-orphans` を含む → 末尾に `--recover-orphans` を追加
 
-対象は `<chatlogsDir>/originalLogs/<agent>/<年>/<YYYY-MM>/` の **直下のみ**（非再帰）。
+対象は入力ディレクトリを指定した場合はそのパス、指定しない場合は
+`<chatlogsDir>/originalLogs/<agent>/<年>/<YYYY-MM>/`。いずれも **サブディレクトリを含めて再帰的に**走査する。
 
 スクリプトは次の順で処理する。
 
 1. 受理ゲート — 前述の受理範囲外なら、列挙より前に異常終了する
-2. 列挙と孤立退避の検出 — 対象ディレクトリ直下の `.md` を列挙する。
+2. 列挙と孤立退避の検出 — 対象ディレクトリ配下の `.md` を再帰的に列挙する。
    本体 `.md` が存在しないのに `.bak` だけが残っている「孤立退避」を検出し、`error` に計上する
+
+   列挙結果にベース名（拡張子なし）が重複するファイルがあると、キャッシュのキーが衝突して
+   一方が誤って `done` と判定される。そのため重複を検出した時点で異常終了する
+   （`DuplicateBasename`。1 件もファイルを変更しない）
 3. 判定 — 各ファイルを以下の順序で判定する（上から順に評価し、最初に該当した分類で確定する）
 
    | 順序 | 条件                                                         | 分類          |
@@ -219,11 +231,16 @@ deno run --allow-read --allow-write --allow-env "$STRIP_PATH" $STRIP_ARGS
 4. 書き込み — `stripped` のファイルを「`.tmp` へ書き出す → 元を `.bak` へ退避する → `.tmp` を本体名へ移動する」
    の順で置き換える。`status=stripped` のキャッシュ記録は最終移動の成功後に行う
 5. 退避の一括削除 — `error` が 0 件かつ非 dry-run かつ、strip したパスがすべて退避として存在する場合にのみ、
-   対象ディレクトリ直下の `.bak` を一括削除する。
+   対象ディレクトリ **配下（サブディレクトリを含む）** の `.bak` を一括削除する。
 
-   対象ディレクトリ直下の `.bak` はすべて strip の作業対象とみなすため、
+   対象サブツリー内の `.bak` はすべて strip の作業対象とみなすため、
    strip 以外の経路で置かれた `.bak` も削除される。削除の前に、当該実行で strip したファイルに
    由来しない `.bak` の件数とパスを警告として報告する（`::warn::` 行の `foreign:`）
+
+   **`stripped` が 0 件でもこの削除は走る**。除去対象が 1 件も無い実行では
+   当該実行に由来する退避も存在しないため、サブツリー内のすべての `.bak` が
+   `foreign` として削除される。除去対象の有無にかかわらず、対象ツリーに残しておきたい `.bak` を
+   置いたまま非 dry-run で実行しないこと
 
 #### 再 export したときの注意
 
@@ -256,6 +273,25 @@ filter モードの `--dry-run` は、**claude CLI を呼び出さず対象フ�
 
 判定結果を事前に確認する用途には使えない点に注意する。
 
+noise-filter モードの `--dry-run` は判定を **通常実行と同一の規則で行う**（事前レビューに使える）が、
+**カウンタの載り先が通常実行と異なる**。
+
+- ノイズ確定ファイルは `remove` ではなく **`skip`** に計上される
+- したがって **dry-run の `remove` は常に 0** である。
+  「実行すれば何件消えるか」は `skip` を見る
+- 明細行も dry-run では `skipped (<理由>): <name>`、通常実行では `removed (<理由>): <name>` と
+  語が入れ替わる。理由と件数は両者で一致する
+
+```bash
+# dry-run — skip=70 が削除見込み件数。remove=0 は「消えない」という意味ではない
+完了 (dry-run): keep=862 skip=70 remove=0 error=0
+
+# 同じ対象の通常実行 — skip がそのまま remove に移る
+完了: keep=862 skip=0 remove=70 error=0
+```
+
+**`remove=0` を「削除対象なし」と読んではならない。** dry-run では必ず 0 になる。
+
 strip モードの `--dry-run` は **挙動が逆** であり、filter の注意点をそのまま持ち越してはならない。
 
 - 全ファイルを通常実行と **同一の規則で判定する**（件数・分類とも通常実行と一致する）
@@ -287,8 +323,11 @@ strip モードの `--dry-run` は **挙動が逆** であり、filter の注意
 ```
 
 - 上記 4つのカウンタ (keep / skip / remove / error) を報告する (`total` は出力されない)
-- dry-run モードの場合はその旨を明示する
-- ノイズ判定されたファイルのパスと判定理由を簡潔にまとめる
+- dry-run モードの場合は `完了 (dry-run): ...` となり、その旨を明示する。
+  **dry-run では `remove=0` になり、削除見込み件数は `skip` に載る**。
+  この 2 つを取り違えて「削除対象なし」と報告しないこと（前掲の注意を参照）
+- ノイズ判定されたファイルのパスと判定理由を簡潔にまとめる。
+  件数が多い場合は理由別に集計して示し、全パスの羅列は避ける
 
 **strip モードの通知形式**:
 
@@ -364,7 +403,7 @@ strip モードの `--dry-run` は **挙動が逆** であり、filter の注意
   したがって成立するのは `stripped + skipped + done + passthrough + (.md 由来の error) == total` であり、
   `total=50 stripped=10 skipped=0 done=39 passthrough=0 error=4` のような行（`.md` 由来 1 件・孤立退避 3 件）は
   矛盾ではない。合計が `total` に満たないことをもって集計ミスと判断しない
-- **`originalLogs/` 配下に strip 由来でない `.bak` を置かない**。手動で置いた `important.md.bak` があると、
+- **strip の対象ツリー配下に strip 由来でない `.bak` を置かない**。手動で置いた `important.md.bak` があると、
   対応する `important.md` は判定順序 3 で `done` となる。strip されないまま、当該 `.bak` が一括削除で失われる。
   この実行は `error=0` / 終了コード 0 で完了するため、`::warn::` の `foreign:` 行が唯一の手がかりになる
 - 退避の一括削除に失敗した場合は、サマリー行を出力した **後** に終了コード 1 で異常終了する

@@ -75,6 +75,8 @@ interface _CacheSpy {
  * パターンを無視して固定配列を返すと、実装が `.bak` と `.tmp` を取り違えていても
  * 全ケースが通ってしまうため、必ず拡張子で分岐させる。
  *
+ * このスパイは単一ディレクトリしか表現しないため、サブディレクトリの列挙には空配列を返す。
+ *
  * @param files - 拡張子ごとに返すファイルパス一覧
  * @returns fake `GlobProvider` と、渡された glob パターンの記録
  */
@@ -82,6 +84,10 @@ const _makeGlobSpy = (files: _GlobFiles): { glob: GlobProvider; patterns: string
   const patterns: string[] = [];
   const glob: GlobProvider = (pattern: string) => {
     patterns.push(pattern);
+    // `findOrphans` が使う `findFiles` は `findDirectoriesFlat` 経由で同じ glob へ
+    // サブディレクトリ列挙用のパターン（末尾が `/`）を渡す（find-entries.ts）。
+    // ここで空を返さないとファイルをディレクトリとして扱い、探索キューが発散する
+    if (pattern.endsWith('/')) { return Promise.resolve([]); }
     const _ext = pattern.slice(pattern.lastIndexOf('.'));
     const _table: Record<string, string[]> = {
       '.md': files.md ?? [],
@@ -104,10 +110,14 @@ const _makeGlob = (files: _GlobFiles): GlobProvider => _makeGlobSpy(files).glob;
  * こちらはディレクトリの全エントリを 1 つの配列で受け取り、`expandGlob` と同じく
  * パターンの `*` 以降の接尾辞で実際に絞り込む。
  *
+ * サブディレクトリ列挙用のパターン（末尾が `/`）には空配列を返す。この helper は
+ * 単一ディレクトリしか表現せず、`findFiles` の再帰探索へサブディレクトリを渡さない。
+ *
  * @param entries - 対象ディレクトリ直下に実在するファイルパスの一覧
  * @returns 接尾辞一致で絞り込む fake `GlobProvider`
  */
 const _makeDirGlob = (entries: string[]): GlobProvider => (pattern: string) => {
+  if (pattern.endsWith('/')) { return Promise.resolve([]); }
   const _suffix = pattern.slice(pattern.lastIndexOf('*') + 1);
   return Promise.resolve(entries.filter((path) => path.endsWith(_suffix)).map((path) => normalizePath(path)));
 };
@@ -287,8 +297,13 @@ describe('recoverOrphans', () => {
         assertEquals(result.errors, []);
         // 通常実行では skipped は常に 0（復帰を実際に行うため）
         assertEquals(_stats, { recovered: 1, skipped: 0, error: 0 });
-        // 本体・退避の 2 系統のみを列挙すること（`.md.tmp` は DR-26 により対象外）
-        assertEquals(patterns.toSorted(), [`${_DIR}/*.md`, `${_DIR}/*.md.bak`].toSorted());
+        // 本体・退避の 2 系統のみを列挙すること（`.md.tmp` は DR-26 により対象外）。
+        // サブディレクトリ列挙用のパターン（末尾が `/`）は `findFiles` の再帰探索に伴う
+        // ものであり、この検査の対象ではないため除外する
+        assertEquals(
+          patterns.filter((pattern) => !pattern.endsWith('/')).toSorted(),
+          [`${_DIR}/*.md`, `${_DIR}/*.md.bak`].toSorted(),
+        );
       });
 
       it('[Edge] T-FL-SEP-04-03: .tmp のみの孤立は検出されず復帰も行われない', async () => {

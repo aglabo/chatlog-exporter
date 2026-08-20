@@ -58,7 +58,7 @@ interface _LatchedRemoveSpy extends _RemoveSpy {
 /**
  * 退避一覧を返す fake `GlobProvider` と、受け取った glob パターンの記録配列を生成する。
  *
- * `findFilesFlat` は `_defaultGlob` のときだけ `normalizePath` を適用するため（find-files.ts:34）、
+ * `findFiles` は `_defaultGlob` のときだけ `normalizePath` を適用するため（find-files.ts:34）、
  * 注入側で正規化済みのパスを返す責務を負う。ここでは `normalizePath` を明示的に通し、
  * 期待退避パスの構成規則（`` `${strippedPath}.bak` ``）と同じ正規化基準に揃える。
  * `map((path) => normalizePath(path))` の形を保つこと（`map(normalizePath)` は
@@ -67,6 +67,8 @@ interface _LatchedRemoveSpy extends _RemoveSpy {
  * `patterns` は探索対象ディレクトリと拡張子の受け渡しを検証するために記録する。
  * これを見ないと、実装が `.bak` ではなく `.md` を列挙していても全ケースが通ってしまう。
  *
+ * このスパイは単一ディレクトリしか表現しないため、サブディレクトリの列挙には空配列を返す。
+ *
  * @param backups - この glob が返す退避パス一覧
  * @returns 正規化済みの `backups` を返す `GlobProvider` と、渡された glob パターンの記録
  */
@@ -74,6 +76,10 @@ const _makeGlobSpy = (backups: string[]): { glob: GlobProvider; patterns: string
   const patterns: string[] = [];
   const glob: GlobProvider = (pattern: string) => {
     patterns.push(pattern);
+    // `findFiles` は `findDirectoriesFlat` 経由で同じ glob へサブディレクトリ列挙用の
+    // パターン（末尾が `/`）を渡す（find-entries.ts）。ここで空を返さないと退避ファイルを
+    // ディレクトリとして扱い、探索キューが発散してテストが停止する
+    if (pattern.endsWith('/')) { return Promise.resolve([]); }
     return Promise.resolve(backups.map((path) => normalizePath(path)));
   };
   return { glob, patterns };
@@ -83,19 +89,55 @@ const _makeGlobSpy = (backups: string[]): { glob: GlobProvider; patterns: string
 const _makeGlob = (backups: string[]): GlobProvider => _makeGlobSpy(backups).glob;
 
 /**
- * 1 つのディレクトリ実体からパターン末尾の一致でファイルを絞り込む fake `GlobProvider` を生成する。
+ * `dir` 直下（サブディレクトリを含まない）のファイルパスを返す。
+ *
+ * @param files - サブツリーに実在する正規化済みファイルパスの一覧
+ * @param dir - 直下を取り出す対象ディレクトリ
+ * @returns `dir` 直下のファイルパス一覧
+ */
+const _childFiles = (files: string[], dir: string): string[] =>
+  files.filter((path) => path.startsWith(`${dir}/`) && !path.slice(dir.length + 1).includes('/'));
+
+/**
+ * ファイルパス一覧から `dir` 直下のサブディレクトリパスを導く。
+ *
+ * @param files - サブツリーに実在する正規化済みファイルパスの一覧
+ * @param dir - 直下を取り出す対象ディレクトリ
+ * @returns `dir` 直下のサブディレクトリパス一覧（重複を含む）
+ */
+const _childDirs = (files: string[], dir: string): string[] =>
+  files
+    .filter((path) => path.startsWith(`${dir}/`))
+    .map((path) => path.slice(dir.length + 1))
+    .filter((rest) => rest.includes('/'))
+    .map((rest) => `${dir}/${rest.slice(0, rest.indexOf('/'))}`);
+
+/**
+ * ディレクトリツリー実体を模した fake `GlobProvider` を生成する。
  *
  * `_makeGlobSpy` はパターンを無視して固定配列を返すため、渡さなかったファイルは
  * 絞り込みの有無にかかわらず結果に現れず「無関係な `.bak` を削除しないこと」を検証できない。
- * こちらはディレクトリの全エントリを 1 つの配列で受け取り、`expandGlob` と同じく
- * パターンの `*` 以降の接尾辞で実際に絞り込む。
+ * こちらはサブツリーの全エントリを 1 つの配列で受け取り、`expandGlob` と同じく
+ * パターンの `*` 以降の接尾辞と、パターンが指すディレクトリの直下かどうかで絞り込む。
  *
- * @param entries - 対象ディレクトリ直下に実在するファイルパスの一覧
- * @returns 接尾辞一致で絞り込む fake `GlobProvider`
+ * `findFiles` は `findDirectoriesFlat` 経由で同じ glob へサブディレクトリ列挙用のパターン
+ * （末尾が `/` のもの）を渡す（find-entries.ts）。その形のパターンには、
+ * エントリのパスから導いたサブディレクトリ一覧を返す。
+ *
+ * @param entries - 対象サブツリーに実在するファイルパスの一覧
+ * @returns ディレクトリ階層と接尾辞で絞り込む fake `GlobProvider`
  */
-const _makeDirGlob = (entries: string[]): GlobProvider => (pattern: string) => {
-  const _suffix = pattern.slice(pattern.lastIndexOf('*') + 1);
-  return Promise.resolve(entries.filter((path) => path.endsWith(_suffix)).map((path) => normalizePath(path)));
+const _makeDirGlob = (entries: string[]): GlobProvider => {
+  const _files = entries.map((path) => normalizePath(path));
+  return (pattern: string) => {
+    if (pattern.endsWith('/*/')) {
+      const _dir = pattern.slice(0, -3);
+      return Promise.resolve([...new Set(_childDirs(_files, _dir))]);
+    }
+    const _dir = pattern.slice(0, pattern.lastIndexOf('/*'));
+    const _suffix = pattern.slice(pattern.lastIndexOf('*') + 1);
+    return Promise.resolve(_childFiles(_files, _dir).filter((path) => path.endsWith(_suffix)));
+  };
 };
 
 /**
@@ -197,7 +239,7 @@ const _parameterNames = (): string[] => {
  * の順序でゲートが働くことを、`glob` / `removeProvider` の注入により実 I/O なしで確認する。
  *
  * テスト ID 範囲: T-FL-SBS-01-01 〜 T-FL-SBS-04-05 / T-FL-SBS-05-01 / T-FL-SBS-06-01 〜 T-FL-SBS-06-03 /
- * T-FL-SBS-07-01 〜 T-FL-SBS-07-04 / T-FL-SBS-08-01 〜 T-FL-SBS-08-03
+ * T-FL-SBS-07-01 〜 T-FL-SBS-07-04 / T-FL-SBS-08-01 〜 T-FL-SBS-08-03 / T-FL-SBS-09-01
  *
  * @see sweepBackups
  */
@@ -221,8 +263,10 @@ describe('sweepBackups', () => {
 
         assertEquals(error, undefined);
         assertEquals(calls.sort(), _backups.toSorted());
-        // 対象ディレクトリ直下の `.bak` のみを列挙すること（`.md` を列挙すると本体を削除してしまう）
-        assertEquals(patterns, [`${_DIR}/*.md.bak`]);
+        // 対象サブツリーの `.bak` のみを列挙すること（`.md` を列挙すると本体を削除してしまう）。
+        // サブディレクトリ列挙用のパターン（末尾が `/`）は `findFiles` の再帰探索に伴う
+        // ものであり、この検査の対象ではないため除外する
+        assertEquals(patterns.filter((pattern) => !pattern.endsWith('/')), [`${_DIR}/*.md.bak`]);
       });
 
       it('[Normal] T-FL-SBS-01-02: 当該実行が作らなかった退避（前回中断の残骸）も削除される', async () => {
@@ -428,7 +472,7 @@ describe('sweepBackups', () => {
       });
 
       it('[Edge] T-FL-SBS-04-05: normalizePath がドライブレターのみ大文字化しファイル名の case を保持する', () => {
-        // DR-25 の前提: 期待退避パスの構成規則と findFilesFlat の正規化基準が一致すること
+        // DR-25 の前提: 期待退避パスの構成規則と findFiles の正規化基準が一致すること
         assertEquals(normalizePath(String.raw`c:\Dir\File.md`), 'C:/Dir/File.md');
         // 構成した `${path}.bak` が、正規化済みの退避一覧と完全一致で照合できる
         const _stripped = normalizePath(String.raw`c:\Dir\File.md`);
@@ -697,6 +741,32 @@ describe('sweepBackups', () => {
 
         assertEquals(error, undefined);
         assertEquals(calls, []);
+      });
+    });
+  });
+
+  /**
+   * サブディレクトリ配下の退避に対する包含検査（R-013）と一括削除（R-010）の検証。
+   *
+   * classify-chatlogs がログをプロジェクト別サブディレクトリへ移動するため、退避の探索が
+   * 直下だけで止まるとサブディレクトリの stripped に対応する退避を見つけられず、
+   * 全件 `missing` として `BackupMissing` で sweep が恒久的に中止される。
+   */
+  describe('サブディレクトリの再帰走査', () => {
+    /** stripped と退避がともにサブディレクトリ配下にあるケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-FL-SBS-09-01: サブディレクトリ配下（深さ 2 を含む）の退避が包含検査を通り削除される', async () => {
+        // 直下には退避が 1 件も無い。非再帰の実装では退避 0 件となり
+        // 包含検査が全件 missing で破れる（削除も 1 件も行われない）
+        const _stripped = [`${_DIR}/projA/a.md`, `${_DIR}/projA/nested/b.md`];
+        const _backups = [`${_DIR}/projA/a.md.bak`, `${_DIR}/projA/nested/b.md.bak`];
+        const { provider, calls } = _makeRemoveProvider();
+        const glob = _makeDirGlob([..._stripped, ..._backups]);
+
+        const error = await sweepBackups(_DIR, _stripped, 0, _CONCURRENCY, { glob, removeProvider: provider });
+
+        assertEquals(error, undefined);
+        assertEquals(calls.toSorted(), _backups.toSorted());
       });
     });
   });

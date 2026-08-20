@@ -60,12 +60,21 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
   /^\d{4}-\d{2}-\d{2}-summary-[0-9a-f]{12}\.md$/,
 
   // 二重日付形式（エクスポート日 + 元セッション日）を持つ exporter 内部セッションログ。
-  // classify / filter がログ本文を貼り付けて起動するため、2 つめの日付直後に
-  // プロンプト固有の語句が来る場合のみ一致させる。
-  // 例: 2026-07-15-2026-06-26-file-1-c-users-atsushifx-workspaces-dev-0437ec223eed.md → 一致
-  //     2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
-  //     2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md → 不一致
-  /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-(generate-metadata-for-the-following-eng|summary|review-the-following-frontmatter|classify-(the|each)-log-file|when-evaluating-an?-|file-\d+-c-users-)/,
+  // exporter が過去ログ本文を貼り付けて起動したセッションは、元ログのファイル名を
+  // タイトルとして引き継ぐため日付が二重に並ぶ。この形はユーザー起点のログでは発生しない。
+  //
+  // 実測（chatlogs/outputLogs/claude/2026/2026-07、677 件）:
+  //   - 二重日付: 417 件 / うち本文に貼り付けマーカー `=== <name>.md ===` を持つ: 405 件
+  //   - 二重日付でないファイルでマーカーを持つもの: 0 件
+  //   - 残り 12 件はマーカーを持つセッションの後続セグメント（-02 〜 -04）
+  // よってファイル名の二重日付だけで判定して差し支えない。
+  //
+  // 例: 2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
+  //     2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md → 一致
+  //     2026-07-25-2026-06-27-2026-04-20-c-chatlog-exporter-deno-task-f95421d4b0b1.md → 一致（三重日付）
+  //     2026-07-15-2026-06-14.md → 不一致（2 つめの日付の後にスラッグがない）
+  //     2026-07-12-session-f832dfcc2267.md → 不一致（単一日付）
+  /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-/,
 ];
 
 /**

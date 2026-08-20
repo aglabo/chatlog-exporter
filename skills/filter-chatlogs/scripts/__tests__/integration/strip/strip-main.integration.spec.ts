@@ -17,10 +17,11 @@ import { main } from '../../../strip-chatlogs.ts';
 // ─── Helpers
 import { agentPath } from '../../../../../_cle-libs/libs/file-io/resolve-directory.ts';
 import { fileExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
-import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { getDirectory, normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { LOGGER_TEXT } from '../../../../../_cle-libs/constants/logger.constants.ts';
+import { BAK_SUFFIX } from '../../../constants/common.constants.ts';
 // classes
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
@@ -46,6 +47,34 @@ const _PERIOD = '2026-03';
  * 実在する必要はなく、共通 `parseArgs` が directory 形式として受理する形だけを満たす。
  */
 const _OUTPUT_DIR = './safe-copy';
+
+/**
+ * `--input-dir` の対象として使うディレクトリ名（`<tempDir>` 直下）。
+ * 既定解決パスの `originalLogs/` 枝の外側に置き、override の有無で処理対象が変わることを観測する。
+ */
+const _INPUT_DIR_NAME = 'external';
+
+/**
+ * 対象ディレクトリを明示する引数の与え方。いずれも同じ対象へ解決されなければならない。
+ * `argv` は `_setupInputDir` が返すパスから `main` へ渡す引数列を組み立てる。
+ */
+const _inputDirCases = [
+  {
+    id: 'T-FL-SEP-02-02',
+    label: '--input-dir を指定すると対象がそのディレクトリになる',
+    argv: (inputDir: string): string[] => [_AGENT, _PERIOD, '--input-dir', inputDir],
+  },
+  {
+    id: 'T-FL-SEP-02-08',
+    label: '--input-dir 指定時は年月を省略しても受理される',
+    argv: (inputDir: string): string[] => [_AGENT, '--input-dir', inputDir],
+  },
+  {
+    id: 'T-FL-SEP-02-09',
+    label: '位置引数のパスも --input-dir と同じ対象へ解決される',
+    argv: (inputDir: string): string[] => [inputDir],
+  },
+] as const;
 
 /**
  * `_setup` が作成しない期間。形式は妥当なため受理ゲート（R-001）を通過し、
@@ -114,7 +143,10 @@ interface _Fixture {
  * `originalLogs` 段は `main` が `addOnDir: DEFAULT_ORIGINAL_LOGS_DIR` を渡すことに対応する
  * （`export-chatlogs` が生成する実運用のレイアウトと同じ）。
  *
- * @param files - ファイル名 → 内容の対応表
+ * キーに `projA/log.md` のような相対パスを与えるとサブディレクトリごと作成する。
+ * classify-chatlogs がログをプロジェクト別サブディレクトリへ移動した後のレイアウトを再現する。
+ *
+ * @param files - ファイル名（対象ディレクトリからの相対パス）→ 内容の対応表
  * @returns 作成した一時ディレクトリと対象ディレクトリ
  */
 const _setup = async (files: Record<string, string>): Promise<_Fixture> => {
@@ -122,15 +154,39 @@ const _setup = async (files: Record<string, string>): Promise<_Fixture> => {
   const targetDir = `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/${agentPath(_AGENT, _PERIOD)}`;
   await Deno.mkdir(targetDir, { recursive: true });
   await Promise.all(
-    Object.entries(files).map(([name, body]) => Deno.writeTextFile(`${targetDir}/${name}`, body)),
+    Object.entries(files).map(async ([name, body]) => {
+      const _path = `${targetDir}/${name}`;
+      await Deno.mkdir(getDirectory(_path), { recursive: true });
+      await Deno.writeTextFile(_path, body);
+    }),
   );
 
-  // `main` は `config.chatlogsDir` を基準に対象を解決する。`--input-dir` は R-001 が拒否するため、
-  // 一時ディレクトリを指す唯一の経路が GlobalConfig 経由となる
+  // `main` は override 未指定時に `config.chatlogsDir` を基準に対象を解決する。
+  // 実運用の設定ファイルを読ませずに一時ディレクトリを基準にするため GlobalConfig 経由で与える
   GlobalConfig.resetInstance();
   GlobalConfig.getInstance({ yaml: `chatlogsDir: ${tempDir}` });
 
   return { tempDir, targetDir };
+};
+
+/**
+ * `--input-dir` の対象となるディレクトリを、既定解決パスの外側に作成する。
+ *
+ * `_setup` が作る `<tempDir>/originalLogs/<agent>/<YYYY>/<YYYY-MM>/` とは別の枝に置くため、
+ * override が結線されていなければ `main` はここへ到達しない。既定側にも同じ性質のファイルを
+ * 置いておくことで、「override が効いた」ことと「たまたま両方処理された」ことを区別できる。
+ *
+ * @param tempDir - `_setup` が返した一時ディレクトリ（`chatlogsDir` の基準）
+ * @param files - ファイル名 → 内容の対応表
+ * @returns 作成した `--input-dir` 用ディレクトリのパス
+ */
+const _setupInputDir = async (tempDir: string, files: Record<string, string>): Promise<string> => {
+  const _inputDir = `${tempDir}/${_INPUT_DIR_NAME}`;
+  await Deno.mkdir(_inputDir, { recursive: true });
+  await Promise.all(
+    Object.entries(files).map(([name, body]) => Deno.writeTextFile(`${_inputDir}/${name}`, body)),
+  );
+  return _inputDir;
 };
 
 /**
@@ -314,6 +370,42 @@ const _summaryOf = (loggerStub: LoggerStub): string => loggerStub.infoLogs.find(
 /** `<agent> <YYYY-MM>` を与えた受理される引数列を組み立てる。 */
 const _acceptedArgs = (...extra: string[]): string[] => [_AGENT, _PERIOD, ...extra];
 
+/**
+ * 対象ディレクトリのサブディレクトリに、同じファイル名のファイルを 2 件作成する。
+ *
+ * `ChatlogCache` のキーは拡張子なしベース名であるため、別ディレクトリの同名ファイルは
+ * 同一キャッシュエントリを共有してしまう。実ファイルとして作ることで、中断時に
+ * 「本体が書き換わっていない」「`.bak` が作られていない」ことを実際に観測できる。
+ *
+ * @param targetDir - `_setup` が返した対象ディレクトリ
+ * @param dirs - 作成するサブディレクトリ名の並び
+ * @param filename - 各サブディレクトリに作るファイル名（拡張子込み）
+ * @returns 作成したファイルの絶対パス配列（`dirs` と同じ順）
+ */
+const _setupCollidingFiles = async (
+  targetDir: string,
+  dirs: readonly string[],
+  filename: string,
+): Promise<string[]> => {
+  const _paths = dirs.map((dir) => `${targetDir}/${dir}/${filename}`);
+  await Promise.all(dirs.map((dir) => Deno.mkdir(`${targetDir}/${dir}`, { recursive: true })));
+  await Promise.all(_paths.map((path) => Deno.writeTextFile(path, _STRIPPABLE)));
+  return _paths;
+};
+
+/**
+ * 列挙 glob だけが指定パス一覧を返すスタブを生成する。
+ *
+ * 列挙結果そのものを注入することで、検査対象を衝突する 2 パスだけに限定する。
+ * 退避走査（`findOrphans`）とサブディレクトリ列挙（末尾が `/` のパターン）には空配列を返し、
+ * 実 FS の内容がゲートの検証へ混入しないようにする。
+ *
+ * @param files - 列挙結果として返すファイルパス配列
+ * @returns glob プロバイダ
+ */
+const _makeFixedGlob = (files: readonly string[]): GlobProvider => (pattern: string) =>
+  Promise.resolve(pattern.endsWith('/*.md') ? [...files] : []);
+
 // ─── 共通セットアップ
 
 let loggerStub: LoggerStub;
@@ -327,7 +419,7 @@ let loggerStub: LoggerStub;
  * サマリー（REQ-F-006）を実 FS 上で検証する。
  *
  * テスト ID 範囲: T-FL-SEP-01-01 〜 T-FL-SEP-04-09、T-FL-SEP-07-01 〜 T-FL-SEP-07-02、
- * T-FL-SBS-*-B（T-07 繰り越し）
+ * T-FL-SEP-08-01 〜 T-FL-SEP-08-03、T-FL-SEP-09-01 〜 T-FL-SEP-09-05、T-FL-SBS-*-B（T-07 繰り越し）
  *
  * @see main
  */
@@ -347,32 +439,63 @@ describe('main (strip-chatlogs)', () => {
   /**
    * R-001 受理ゲート。
    *
-   * 年月の省略と入力ディレクトリの override を、**対象の列挙より前に**拒否する。
+   * 出力先の指定と、`--input-dir` 未指定時の年月の省略を、**対象の列挙より前に**拒否する。
    * 列挙後に拒否すると未検証範囲のファイル一覧が出力に現れ、拒否の意味が失われる。
+   *
+   * 入力ディレクトリは他スキルと同じく `--input-dir`（および位置引数のパス）で指定でき、
+   * その場合は agent / period ではなく指定されたディレクトリが対象になる。
    */
   describe('受理ゲート (R-001)', () => {
+    /** `--input-dir` で対象ディレクトリを指定する受理されるケース。 */
+    describe('When: 正常系', () => {
+      for (const { id, label, argv } of _inputDirCases) {
+        it(`[Normal] ${id}: ${label}`, async () => {
+          const { tempDir, targetDir } = await _setup({ 'default.md': _STRIPPABLE });
+          const _inputDir = await _setupInputDir(tempDir, { 'external.md': _STRIPPABLE });
+
+          await main(argv(_inputDir), _makeCacheDeps().deps);
+
+          // 指定した対象が strip される
+          assertFalse(
+            (await Deno.readTextFile(`${_inputDir}/external.md`)).includes('## TOPICS ASSIGNMENT RULES'),
+          );
+          // agent / period から解決される既定の対象は処理されない
+          assertEquals(await Deno.readTextFile(`${targetDir}/default.md`), _STRIPPABLE);
+
+          await Deno.remove(tempDir, { recursive: true });
+        });
+      }
+
+      it('[Normal] T-FL-SEP-02-10: --recover-orphans でも --input-dir の対象が復帰される', async () => {
+        // 既定の対象にも孤立退避を置く。置かないと rename spy の検査が override の結線に
+        // よらず成立し、対象ディレクトリの取り違えを検出できない
+        const { tempDir, targetDir } = await _setup({ 'default-orphan.md.bak': _PASSTHROUGH });
+        const _inputDir = await _setupInputDir(tempDir, { 'external-orphan.md.bak': _PASSTHROUGH });
+        const { rename, renamedPairs } = _makeRenameSpy();
+
+        await main([_AGENT, '--input-dir', _inputDir, '--recover-orphans'], {
+          ..._makeCacheDeps().deps,
+          rename,
+        });
+
+        assertEquals(renamedPairs, [[
+          `${_inputDir}/external-orphan.md.bak`,
+          `${_inputDir}/external-orphan.md`,
+        ]]);
+        assert(await fileExists(`${targetDir}/default-orphan.md.bak`), '既定の対象は復帰されない');
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+
     /** 受理範囲外の起動で実行が拒否されるケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-FL-SEP-02-01: 年月を省略すると ChatlogError で拒否され 1 件も変更されない', async () => {
+      it('[Error] T-FL-SEP-02-01: --input-dir 未指定で年月を省略すると ChatlogError で拒否され 1 件も変更されない', async () => {
         const { tempDir, targetDir } = await _setup({ 'a.md': _STRIPPABLE });
         const _before = await Deno.readTextFile(`${targetDir}/a.md`);
 
         await assertRejects(
           () => main([_AGENT], _makeCacheDeps().deps),
-          ChatlogError,
-        );
-
-        assertEquals(await Deno.readTextFile(`${targetDir}/a.md`), _before);
-        assertFalse(await fileExists(`${targetDir}/a.md.bak`));
-        await Deno.remove(tempDir, { recursive: true });
-      });
-
-      it('[Error] T-FL-SEP-02-02: --input-dir を指定すると ChatlogError で拒否され 1 件も変更されない', async () => {
-        const { tempDir, targetDir } = await _setup({ 'a.md': _STRIPPABLE });
-        const _before = await Deno.readTextFile(`${targetDir}/a.md`);
-
-        await assertRejects(
-          () => main([_AGENT, _PERIOD, '--input-dir', targetDir], _makeCacheDeps().deps),
           ChatlogError,
         );
 
@@ -411,7 +534,7 @@ describe('main (strip-chatlogs)', () => {
         await Deno.remove(tempDir, { recursive: true });
       });
 
-      it('[Error] T-FL-SEP-02-03: 年月省略時に列挙 glob が 1 度も呼ばれない（列挙より前に評価される）', async () => {
+      it('[Error] T-FL-SEP-02-03: --input-dir 未指定の年月省略時に列挙 glob が 1 度も呼ばれない（列挙より前に評価される）', async () => {
         const { tempDir } = await _setup({ 'a.md': _STRIPPABLE });
         const { glob, patterns } = _makeGlobSpy();
 
@@ -469,6 +592,80 @@ describe('main (strip-chatlogs)', () => {
         assertEquals(renamedPairs, []);
         assertEquals(patterns, []);
         assertEquals(mkdirPaths, []);
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+  });
+
+  /**
+   * ベース名衝突ゲート。
+   *
+   * `ChatlogCache` のキーは拡張子なしベース名であるため、列挙結果に同名ファイルが複数あると
+   * 同一エントリを共有し、先に `passthrough` を書いた側の判定によってもう一方が `done` として
+   * 一切検査されなくなる。`runConcurrent` 下では実行順に依存し警告も出ないため、列挙直後に
+   * fail-fast で中断する。
+   */
+  describe('ベース名衝突ゲート', () => {
+    /** 列挙結果に拡張子なしベース名が重複するファイルが含まれるケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-FL-SEP-08-01: ベース名が重複すると ChatlogError で中断し衝突名と全パスが報告される', async () => {
+        const { tempDir, targetDir } = await _setup({});
+        const [_pathA, _pathB] = await _setupCollidingFiles(targetDir, ['projA', 'projB'], 'foo.md');
+
+        const _error = await assertRejects(
+          () => main(_acceptedArgs(), { ..._makeCacheDeps().deps, glob: _makeFixedGlob([_pathA, _pathB]) }),
+          ChatlogError,
+          // 衝突を放置した結果として起きる退避一括削除の失敗（`BackupSweepFailed`）も
+          // ChatlogError かつ衝突パスを含むため、ゲート由来であることまで確認する
+          'ベース名が重複しています',
+        );
+
+        // 衝突したベース名と、衝突しているファイルの全パスが揃って提示される
+        assertStringIncludes(_error.message, 'foo');
+        assertStringIncludes(_error.message, _pathA);
+        assertStringIncludes(_error.message, _pathB);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+
+      it('[Error] T-FL-SEP-08-02: ベース名が重複すると本体も退避もキャッシュも書き換わらない', async () => {
+        const { tempDir, targetDir } = await _setup({});
+        const [_pathA, _pathB] = await _setupCollidingFiles(targetDir, ['projA', 'projB'], 'foo.md');
+        const { deps, written } = _makeCacheDeps();
+
+        await assertRejects(
+          () => main(_acceptedArgs(), { ...deps, glob: _makeFixedGlob([_pathA, _pathB]) }),
+          ChatlogError,
+        );
+
+        // 判定にも書き込みにも進んでいない（本体そのまま・`.bak` なし・キャッシュ記録なし）
+        assertEquals(await Deno.readTextFile(_pathA), _STRIPPABLE);
+        assertEquals(await Deno.readTextFile(_pathB), _STRIPPABLE);
+        assertFalse(await fileExists(`${_pathA}${BAK_SUFFIX}`));
+        assertFalse(await fileExists(`${_pathB}${BAK_SUFFIX}`));
+        assertEquals(written, []);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+
+      it('[Error] T-FL-SEP-08-03: --dry-run でも中断し件数・判定明細・サマリーを 1 行も出力しない', async () => {
+        const { tempDir, targetDir } = await _setup({});
+        const [_pathA, _pathB] = await _setupCollidingFiles(targetDir, ['projA', 'projB'], 'foo.md');
+
+        await assertRejects(
+          () =>
+            main(_acceptedArgs('--dry-run'), {
+              ..._makeCacheDeps().deps,
+              glob: _makeFixedGlob([_pathA, _pathB]),
+            }),
+          ChatlogError,
+        );
+
+        // 列挙直後に中断するため、件数報告より後の出力は一切現れない
+        assertFalse(loggerStub.infoLogs.some((msg) => msg.includes('対象ファイル数')));
+        assertEquals(loggerStub.dryrunLogs, []);
+        assertEquals(_summaryOf(loggerStub), '');
+
         await Deno.remove(tempDir, { recursive: true });
       });
     });
@@ -864,10 +1061,11 @@ describe('main (strip-chatlogs)', () => {
       });
 
       it('[Edge] T-FL-SEP-04-05: 年月を省略すると受理ゲートで拒否され復帰も行われない', async () => {
-        // 年月省略時に解決されるのは `<tempDir>/originalLogs/<agent>` であり、`findFilesFlat` は
-        // 非再帰のため `_setup` が作る `<YYYY>/<YYYY-MM>/` 配下は走査されない。agent 直下にも
+        // 年月省略時に解決されるのは `<tempDir>/originalLogs/<agent>` である。この agent 直下に
         // 孤立退避を置くことで、ゲートを飛ばした場合に確実に復帰が走る状態を作る
-        // （置かないと rename spy の assert がゲートの有無によらず成立し無意味になる）
+        // （置かないと rename spy の assert がゲートの有無によらず成立し無意味になる）。
+        // 列挙は `findFiles` により再帰的であり、`_setup` が作る `<YYYY>/<YYYY-MM>/` 配下も
+        // 走査対象に入る。ゲートの検証はそこに依存しない
         const { tempDir } = await _setup({ 'a.md': _STRIPPABLE });
         const _agentDir = `${tempDir}/${DEFAULT_ORIGINAL_LOGS_DIR}/${_AGENT}`;
         await Deno.writeTextFile(`${_agentDir}/orphan.md.bak`, _PASSTHROUGH);
@@ -1008,6 +1206,117 @@ describe('main (strip-chatlogs)', () => {
         assertEquals(renamedPairs, [[`${targetDir}/orphan.md.bak`, `${targetDir}/orphan.md`]]);
         const _counts = _countsOf(_summaryOf(loggerStub));
         assertEquals(_counts.recovered, 1);
+        assertEquals(_counts.error, 0);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+  });
+
+  /**
+   * サブツリーの再帰走査。
+   *
+   * classify-chatlogs がログをプロジェクト別サブディレクトリへ移動するため、対象ディレクトリ
+   * 直下の `.md` は実データでは 0 件になる。列挙・孤立退避の検出・退避の一括削除の 3 者が
+   * 揃って再帰的でなければ、到達しないか復旧材料を失うかのいずれかになる。
+   */
+  describe('サブディレクトリの再帰走査', () => {
+    /** 対象がサブディレクトリ配下にのみ存在するケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-FL-SEP-09-01: サブディレクトリ配下（深さ 2 を含む）の .md が列挙され除去される', async () => {
+        const { tempDir, targetDir } = await _setup({
+          'projA/strip.md': _STRIPPABLE,
+          'projB/nested/deep.md': _STRIPPABLE,
+          'projB/nested/pass.md': _PASSTHROUGH,
+        });
+
+        await main(_acceptedArgs(), _makeCacheDeps().deps);
+
+        const _stripped = await Deno.readTextFile(`${targetDir}/projA/strip.md`);
+        assertFalse(_stripped.includes('## TOPICS ASSIGNMENT RULES'));
+        const _deep = await Deno.readTextFile(`${targetDir}/projB/nested/deep.md`);
+        assertFalse(_deep.includes('## TOPICS ASSIGNMENT RULES'));
+        assertEquals(await Deno.readTextFile(`${targetDir}/projB/nested/pass.md`), _PASSTHROUGH);
+
+        const _counts = _countsOf(_summaryOf(loggerStub));
+        assertEquals(_counts.total, 3);
+        assertEquals(_counts.stripped, 2);
+        assertEquals(_counts.passthrough, 1);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+
+      it('[Normal] T-FL-SEP-09-02: サブディレクトリの stripped でも R-013 の包含検査が成立し退避が削除される', async () => {
+        // 列挙だけを再帰化して退避の探索を直下に残すと、ここで全件 missing となり
+        // `BackupMissing` で sweep が中止される（退避が残り続ける）
+        const { tempDir, targetDir } = await _setup({ 'projA/strip.md': _STRIPPABLE });
+
+        await main(_acceptedArgs(), _makeCacheDeps().deps);
+
+        // 退避が作られた（= 判定 stripped が成立した）ことを件数で押さえないと、
+        // 列挙 0 件で `.bak` が存在しないだけの実行と区別できない
+        const _counts = _countsOf(_summaryOf(loggerStub));
+        assertEquals(_counts.stripped, 1);
+        assertEquals(_counts.error, 0);
+        assertFalse(
+          await fileExists(`${targetDir}/projA/strip.md${BAK_SUFFIX}`),
+          'サブディレクトリの退避も一括削除の対象になること',
+        );
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+
+    /** サブディレクトリ配下に孤立退避が残っているケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-FL-SEP-09-03: サブディレクトリ配下の孤立退避が error に計上され退避が保持される', async () => {
+        // 孤立退避の検出だけを直下に残すと error が 0 件となり、R-011 の保持ゲートを
+        // 通過した R-010 が復旧材料である `.bak` を削除してしまう
+        const { tempDir, targetDir } = await _setup({
+          'projA/strip.md': _STRIPPABLE,
+          'projB/orphan.md.bak': _PASSTHROUGH,
+        });
+
+        await main(_acceptedArgs(), _makeCacheDeps().deps);
+
+        const _counts = _countsOf(_summaryOf(loggerStub));
+        assertEquals(_counts.error, 1);
+        assert(await fileExists(`${targetDir}/projB/orphan.md.bak`), '孤立退避は保持される');
+        assert(
+          await fileExists(`${targetDir}/projA/strip.md${BAK_SUFFIX}`),
+          'error があるため当該実行の退避も保持される',
+        );
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+
+      it('[Error] T-FL-SEP-09-04: --recover-orphans がサブディレクトリ配下の孤立退避を復帰する', async () => {
+        const { tempDir, targetDir } = await _setup({ 'projA/nested/orphan.md.bak': _PASSTHROUGH });
+        const { rename, renamedPairs } = _makeRenameSpy();
+
+        await main(_acceptedArgs('--recover-orphans'), { ..._makeCacheDeps().deps, rename });
+
+        assertEquals(renamedPairs, [[
+          `${targetDir}/projA/nested/orphan.md.bak`,
+          `${targetDir}/projA/nested/orphan.md`,
+        ]]);
+        assertEquals(_countsOf(_summaryOf(loggerStub)).recovered, 1);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+
+    /** 走査対象に空のサブディレクトリが含まれるケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-FL-SEP-09-05: 空のサブディレクトリがあっても完走する', async () => {
+        const { tempDir, targetDir } = await _setup({ 'projA/strip.md': _STRIPPABLE });
+        await Deno.mkdir(`${targetDir}/empty/nested`, { recursive: true });
+
+        await main(_acceptedArgs(), _makeCacheDeps().deps);
+
+        const _counts = _countsOf(_summaryOf(loggerStub));
+        assertEquals(_counts.total, 1);
+        assertEquals(_counts.stripped, 1);
         assertEquals(_counts.error, 0);
 
         await Deno.remove(tempDir, { recursive: true });

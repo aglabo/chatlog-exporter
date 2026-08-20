@@ -225,6 +225,8 @@ const _makeFailingCache = async (): Promise<{ cache: ChatlogCache<StripCache> }>
  * `.md.bak` パターンには退避一覧を、それ以外には本体一覧を返す。パターンを無視して
  * 同じ配列を返すと、実装が本体と退避を取り違えていても通ってしまうため必ず分岐させる。
  *
+ * このスパイは単一ディレクトリしか表現しないため、サブディレクトリの列挙には空配列を返す。
+ *
  * @param files - `md`（本体）・`bak`（退避）それぞれの一覧
  * @returns fake `GlobProvider` と、渡された glob パターンの記録
  */
@@ -234,6 +236,10 @@ const _makeGlobSpy = (
   const patterns: string[] = [];
   const glob: GlobProvider = (pattern: string) => {
     patterns.push(pattern);
+    // `findFiles` は `findDirectoriesFlat` 経由で同じ glob へサブディレクトリ列挙用の
+    // パターン（末尾が `/`）を渡す（find-entries.ts）。ここで空を返さないと本体一覧を
+    // ディレクトリとして扱い、探索キューが発散してテストが停止する
+    if (pattern.endsWith('/')) { return Promise.resolve([]); }
     const _list = pattern.endsWith('.md.bak') ? files.bak ?? [] : files.md ?? [];
     return Promise.resolve(_list.map((path) => normalizePath(path)));
   };

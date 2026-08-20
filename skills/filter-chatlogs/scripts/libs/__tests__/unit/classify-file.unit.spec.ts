@@ -90,7 +90,7 @@ const _REVIEW_LIKE_USER_BODY = [
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-10
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-11
  *
  * @see checkFilename
  */
@@ -216,6 +216,19 @@ describe('checkFilename', () => {
 
       assertNotNull(result);
     });
+
+    it('[Normal] T-PF-CF-11-01: 三重日付ログ → null でない / reason に `ファイル名パターン:` を含む', () => {
+      const result = checkFilename('2026-07-25-2026-06-27-2026-04-20-c-chatlog-exporter-deno-task-f95421d4b0b1.md');
+
+      assertNotNull(result);
+      assert(result!.includes('ファイル名パターン:'));
+    });
+
+    it('[Normal] T-PF-CF-11-02: 二重日付 + セグメント番号付きスラッグ → null でない', () => {
+      const result = checkFilename('2026-07-15-2026-06-18-yes-d3a3a274-md-b13a398527c1-04-da28cc9.md');
+
+      assertNotNull(result);
+    });
   });
 
   /** 大文字小文字を区別しない検証ケース。 */
@@ -268,8 +281,14 @@ describe('checkFilename', () => {
       assertNull(result);
     });
 
-    it('[Edge] T-PF-CF-09-02: 二重日付だがプロンプト由来でないスラッグ → null（誤除外しない）', () => {
+    it('[Edge] T-PF-CF-09-02: 二重日付ならプロンプト由来でないスラッグでも → null でない', () => {
       const result = checkFilename('2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md');
+
+      assertNotNull(result);
+    });
+
+    it('[Edge] T-PF-CF-11-03: 2 つめの日付の後にスラッグがない → null（誤除外しない）', () => {
+      const result = checkFilename('2026-07-15-2026-06-14.md');
 
       assertNull(result);
     });

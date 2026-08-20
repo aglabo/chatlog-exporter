@@ -47,8 +47,10 @@ interface _GlobFiles {
  * 全ケースが通ってしまう。ここではパターン末尾の拡張子で分岐し、渡されたパターンを
  * 記録して呼び出し側が照合できるようにする。
  *
- * `findFilesFlat` は `_defaultGlob` のときだけ `normalizePath` を適用するため
+ * `findFiles` は `_defaultGlob` のときだけ `normalizePath` を適用するため
  * （find-files.ts:34）、注入側が正規化済みパスを返す責務を負う。
+ *
+ * このスパイは単一ディレクトリしか表現しないため、サブディレクトリの列挙には空配列を返す。
  *
  * @param files - 拡張子ごとに返すファイルパス一覧
  * @returns fake `GlobProvider` と、渡された glob パターンの記録
@@ -57,6 +59,10 @@ const _makeGlobSpy = (files: _GlobFiles): { glob: GlobProvider; patterns: string
   const patterns: string[] = [];
   const glob: GlobProvider = (pattern: string) => {
     patterns.push(pattern);
+    // `findFiles` は `findDirectoriesFlat` 経由で同じ glob へ `${dir}/*/` を渡す
+    // （find-entries.ts）。ここで空を返さないとファイルをディレクトリとして扱い、
+    // 探索キューが発散してテストが停止する
+    if (pattern.endsWith('/')) { return Promise.resolve([]); }
     const _ext = pattern.slice(pattern.lastIndexOf('.'));
     const _table: Record<string, string[]> = {
       '.md': files.md ?? [],
@@ -69,19 +75,55 @@ const _makeGlobSpy = (files: _GlobFiles): { glob: GlobProvider; patterns: string
 };
 
 /**
- * 1 つのディレクトリ実体からパターン末尾の一致でファイルを絞り込む fake `GlobProvider` を生成する。
+ * `dir` 直下（サブディレクトリを含まない）のファイルパスを返す。
+ *
+ * @param files - サブツリーに実在する正規化済みファイルパスの一覧
+ * @param dir - 直下を取り出す対象ディレクトリ
+ * @returns `dir` 直下のファイルパス一覧
+ */
+const _childFiles = (files: string[], dir: string): string[] =>
+  files.filter((path) => path.startsWith(`${dir}/`) && !path.slice(dir.length + 1).includes('/'));
+
+/**
+ * ファイルパス一覧から `dir` 直下のサブディレクトリパスを導く。
+ *
+ * @param files - サブツリーに実在する正規化済みファイルパスの一覧
+ * @param dir - 直下を取り出す対象ディレクトリ
+ * @returns `dir` 直下のサブディレクトリパス一覧（重複を含む）
+ */
+const _childDirs = (files: string[], dir: string): string[] =>
+  files
+    .filter((path) => path.startsWith(`${dir}/`))
+    .map((path) => path.slice(dir.length + 1))
+    .filter((rest) => rest.includes('/'))
+    .map((rest) => `${dir}/${rest.slice(0, rest.indexOf('/'))}`);
+
+/**
+ * ディレクトリツリー実体を模した fake `GlobProvider` を生成する。
  *
  * `_makeGlobSpy` は拡張子ごとに別々の一覧を受け取るため、`notes.bak` を渡さなければ
  * 絞り込みの有無にかかわらず同じ結果になり「無関係な `.bak` を拾わないこと」を検証できない。
- * こちらはディレクトリの全エントリを 1 つの配列で受け取り、`expandGlob` と同じく
- * パターンの `*` 以降の接尾辞で実際に絞り込む。
+ * こちらはサブツリーの全エントリを 1 つの配列で受け取り、`expandGlob` と同じく
+ * パターンの `*` 以降の接尾辞と、パターンが指すディレクトリの直下かどうかで絞り込む。
  *
- * @param entries - 対象ディレクトリ直下に実在するファイルパスの一覧
- * @returns 接尾辞一致で絞り込む fake `GlobProvider`
+ * `findFiles` は `findDirectoriesFlat` 経由で同じ glob へサブディレクトリ列挙用のパターン
+ * （末尾が `/` のもの）を渡す（find-entries.ts）。その形のパターンには、
+ * エントリのパスから導いたサブディレクトリ一覧を返す。
+ *
+ * @param entries - 対象サブツリーに実在するファイルパスの一覧
+ * @returns ディレクトリ階層と接尾辞で絞り込む fake `GlobProvider`
  */
-const _makeDirGlob = (entries: string[]): GlobProvider => (pattern: string) => {
-  const _suffix = pattern.slice(pattern.lastIndexOf('*') + 1);
-  return Promise.resolve(entries.filter((path) => path.endsWith(_suffix)).map((path) => normalizePath(path)));
+const _makeDirGlob = (entries: string[]): GlobProvider => {
+  const _files = entries.map((path) => normalizePath(path));
+  return (pattern: string) => {
+    if (pattern.endsWith('/*/')) {
+      const _dir = pattern.slice(0, -3);
+      return Promise.resolve([...new Set(_childDirs(_files, _dir))]);
+    }
+    const _dir = pattern.slice(0, pattern.lastIndexOf('/*'));
+    const _suffix = pattern.slice(pattern.lastIndexOf('*') + 1);
+    return Promise.resolve(_childFiles(_files, _dir).filter((path) => path.endsWith(_suffix)));
+  };
 };
 
 // ─── Tests
@@ -93,7 +135,7 @@ const _makeDirGlob = (entries: string[]): GlobProvider => (pattern: string) => {
  * （`<name>.md` を伴わない `<name>.md.bak`）の検出を検証する。
  * `.md.tmp` は検出対象に含めない（DR-26）。
  *
- * テスト ID 範囲: T-FL-SEP-03-01 / T-FL-SEP-05-01 / T-FL-SEP-05-03
+ * テスト ID 範囲: T-FL-SEP-03-01 / T-FL-SEP-03-08 / T-FL-SEP-05-01 / T-FL-SEP-05-03
  *
  * @see findOrphans
  */
@@ -117,8 +159,13 @@ describe('findOrphans', () => {
         const orphans = await findOrphans(_DIR, { glob });
 
         assertEquals(orphans, [`${_DIR}/orphan.md`]);
-        // 本体・退避の 2 系統のみを列挙すること（`.md.tmp` は DR-26 により対象外）
-        assertEquals(patterns.toSorted(), [`${_DIR}/*.md`, `${_DIR}/*.md.bak`].toSorted());
+        // 本体・退避の 2 系統のみを列挙すること（`.md.tmp` は DR-26 により対象外）。
+        // サブディレクトリ列挙用のパターン（末尾が `/`）は `findFiles` の再帰探索に伴う
+        // ものであり、この検査の対象ではないため除外する
+        assertEquals(
+          patterns.filter((pattern) => !pattern.endsWith('/')).toSorted(),
+          [`${_DIR}/*.md`, `${_DIR}/*.md.bak`].toSorted(),
+        );
       });
     });
   });
@@ -161,6 +208,35 @@ describe('findOrphans', () => {
         assertEquals(orphans, [`${_DIR}/both.md`]);
         // `.md.tmp` を glob しないこと（列挙してしまうと tmponly が孤立に混入する）
         assertEquals(patterns.includes(`${_DIR}/*.md.tmp`), false);
+      });
+    });
+  });
+
+  /**
+   * サブディレクトリ配下の孤立退避の検出。
+   *
+   * classify-chatlogs がログをプロジェクト別サブディレクトリへ移動するため、対象ディレクトリ
+   * 直下だけを走査すると孤立退避を取りこぼす。取りこぼすと `stats.error` が 0 のまま
+   * R-011 の保持ゲートを通過し、R-010 が復旧材料である `.bak` を削除してしまう。
+   */
+  describe('サブディレクトリの再帰走査', () => {
+    /** 孤立退避がサブディレクトリ配下にのみ存在するケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-FL-SEP-03-08: サブディレクトリ配下（深さ 2 を含む）の孤立退避が検出される', async () => {
+        // 直下は本体と退避が揃っており孤立が無い。非再帰の実装ではここで打ち切られ 0 件になる。
+        // nested/kept は本体を伴う退避であり、深い階層でも突き合わせが働くことを示す
+        const glob = _makeDirGlob([
+          `${_DIR}/a.md`,
+          `${_DIR}/a.md.bak`,
+          `${_DIR}/projA/orphan.md.bak`,
+          `${_DIR}/projA/nested/deep.md.bak`,
+          `${_DIR}/projA/nested/kept.md`,
+          `${_DIR}/projA/nested/kept.md.bak`,
+        ]);
+
+        const orphans = await findOrphans(_DIR, { glob });
+
+        assertEquals(orphans, [`${_DIR}/projA/nested/deep.md`, `${_DIR}/projA/orphan.md`]);
       });
     });
   });

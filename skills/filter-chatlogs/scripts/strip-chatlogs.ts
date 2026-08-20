@@ -10,9 +10,10 @@
 // ─── shared ───
 // functions
 import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
-import { findFilesFlat } from '../../_cle-libs/libs/file-ops/find-files.ts';
+import { findFiles } from '../../_cle-libs/libs/file-ops/find-files.ts';
 import { logger } from '../../_cle-libs/libs/io/logger.ts';
 import { runConcurrent } from '../../_cle-libs/libs/parallel/concurrency.ts';
+import { getBasename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // classes
 import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
@@ -134,6 +135,40 @@ const _logDecisionDetail = (filePath: string, decision: StripDecision): void => 
   const _label = outcome === 'skipped' ? 'stripped (skip)' : outcome;
   const _rule = outcome === 'error' ? ` rule=${reason.rule}` : '';
   logger.dryrun(`${filePath}: outcome=${_label}${_rule}`);
+};
+
+/**
+ * Phase 1: 列挙結果に拡張子なしベース名の重複がないことを検査する（キャッシュキー衝突の防止）。
+ *
+ * `ChatlogCache` のキーは `getBasename` で得る拡張子なしベース名であり、別ディレクトリの
+ * 同名ファイルは同一エントリを共有する。片方が `passthrough` を記録すると、もう片方は
+ * 判定順序（R-003）で `done` と分類され一切検査されない。`runConcurrent` 下では実行順に
+ * 依存し警告も出ないため、判定・書き込みへ進む前に fail-fast で中断する。
+ *
+ * @param files - 列挙されたファイルパス一覧
+ * @throws ChatlogError ベース名が重複するファイルが 2 件以上ある場合
+ */
+const _assertUniqueBasenames = (files: string[]): void => {
+  const _groups = files.reduce(
+    (acc, filePath) => {
+      const _basename = getBasename(filePath);
+      return acc.set(_basename, [...(acc.get(_basename) ?? []), filePath]);
+    },
+    new Map<string, string[]>(),
+  );
+  const _collisions = [..._groups].filter(([, paths]) => paths.length > 1);
+  if (_collisions.length === 0) { return; }
+
+  // 衝突しているファイルは全パスを提示する。1 件でも欠けると利用者はどちらを
+  // 改名すればよいか判断できない
+  const _detail = _collisions
+    .map(([basename, paths]) => `${basename} (${paths.join(', ')})`)
+    .join('; ');
+  throw new ChatlogError(
+    'FailFast',
+    'DuplicateBasename',
+    `キャッシュキーとなるベース名が重複しています（${_collisions.length} 件）: ${_detail}`,
+  );
 };
 
 /**
@@ -373,20 +408,17 @@ const _processFiles = async (
 /**
  * Phase 0 受理ゲート（R-001 / DR-32 / DR-23 決定 5）。受理範囲外の起動を列挙より前に拒否する。
  *
- * 拒否する 3 条件と評価順序は specifications/specifications.md 「4.1 実行単位の規則」節、
+ * 拒否する 2 条件と評価順序は specifications/specifications.md 「4.1 実行単位の規則」節、
  * 受理範囲は AC-021 / AC-022 / AC-027 に記す。
+ *
+ * - 出力先の指定（`--output-dir` / 第 3 位置引数）は受理しない。strip は対象を直接書き換えるため
+ * - 年月の省略は受理しない。ただし `--input-dir` で対象ディレクトリが明示されている場合は、
+ *   agent / period を対象の解決に使わないため年月を要求しない
  *
  * @param config - 解析済みの設定
  * @throws {ChatlogError} 受理範囲外の場合
  */
 const _assertAcceptedRange = (config: StripConfig): void => {
-  if (config.inputDir) {
-    throw new ChatlogError(
-      'InvalidArgs',
-      'InputDirNotAllowed',
-      `strip は入力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: ${config.inputDir}`,
-    );
-  }
   if (config.outputDir) {
     throw new ChatlogError(
       'InvalidArgs',
@@ -394,7 +426,7 @@ const _assertAcceptedRange = (config: StripConfig): void => {
       `strip は出力ディレクトリの指定を受理しません（<agent> <YYYY-MM> で対象を明示してください）: ${config.outputDir}`,
     );
   }
-  if (!config.period) {
+  if (!config.inputDir && !config.period) {
     throw new ChatlogError(
       'InvalidArgs',
       'PeriodRequired',
@@ -416,13 +448,15 @@ export const main = async (
   // Phase 0: 受理ゲート。列挙・キャッシュ初期化を含む一切の I/O より前に評価する（R-001）
   _assertAcceptedRange(_config);
 
-  // 対象は `export-chatlogs` が生成する `originalLogs/` 配下（specifications.md Section 5 Edge 15）。
-  // `override` は R-001 が既に拒否済みのため常に未指定となる
+  // 既定の対象は `export-chatlogs` が生成する `originalLogs/` 配下（specifications.md Section 5 Edge 15）。
+  // `--input-dir`（および位置引数のパス）が与えられた場合は他スキルと同じくそれを対象とし、
+  // agent / period による解決を行わない
   const _targetDir = resolveChatlogsDir({
     chatlogsDir: _config.chatlogsDir,
     agent: _config.agent,
     period: _config.period,
     addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: _config.inputDir,
   });
 
   // Phase 0: 対象ディレクトリの存在確認。存在しない対象を走査すると件数 0 のサマリーと
@@ -464,8 +498,12 @@ export const main = async (
     return;
   }
 
-  // Phase 1: 列挙。strip は非再帰のため `findFilesFlat` を使う
-  const _files = await findFilesFlat(_targetDir, { glob: deps.glob });
+  // Phase 1: 列挙。classify-chatlogs がログをプロジェクト別サブディレクトリへ移動するため、
+  // 直下だけでは対象に到達できない。`findFiles` でサブツリー全体を再帰的に列挙する
+  const _files = await findFiles(_targetDir, { glob: deps.glob });
+
+  // Phase 1: キャッシュキー衝突の検査。判定・書き込み・キャッシュ記録のいずれよりも前に評価する
+  _assertUniqueBasenames(_files);
 
   const _stats = _makeStats();
   _stats.total = _files.length;
