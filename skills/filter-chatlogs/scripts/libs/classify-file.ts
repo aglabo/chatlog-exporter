@@ -27,6 +27,7 @@ import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // constants
 import { MIN_ASSISTANT_CHARS } from '../constants/common.constants.ts';
 import {
+  CONDITIONAL_FILENAME_PATTERNS,
   NOISE_ASSISTANT_PATTERNS,
   NOISE_CONVERSATION_PATTERNS,
   NOISE_FILENAME_PATTERNS,
@@ -145,12 +146,26 @@ export const stripPreamble = (conversation: Conversation): Conversation => {
   return _firstReal === -1 ? [] : conversation.slice(_firstReal);
 };
 
-export const checkFilename = (filename: string): string | null => {
+/**
+ * ファイル名（および必要に応じて本文）にノイズパターンが一致するかを判定する。
+ *
+ * `NOISE_FILENAME_PATTERNS` はファイル名だけで判定する。
+ * `CONDITIONAL_FILENAME_PATTERNS` はファイル名と本文シグナルの AND で判定する。
+ * ファイル名だけでは正当なログと区別できない冒頭句を、削除側に倒さないための条件付き判定である。
+ *
+ * @param filename - 判定対象のファイル名
+ * @param content - 判定対象の本文。省略時は条件付きパターンには一致しない（fail-safe）
+ * @returns 一致した場合は判定理由の文字列、一致しない場合は `null`
+ */
+export const checkFilename = (filename: string, content = ''): string | null => {
   const lower = filename.toLowerCase();
-  for (const pat of NOISE_FILENAME_PATTERNS) {
-    if (pat.test(lower)) { return `ファイル名パターン: ${pat}`; }
-  }
-  return null;
+  const _pattern = NOISE_FILENAME_PATTERNS.find((pat) => pat.test(lower));
+  if (_pattern) { return `ファイル名パターン: ${_pattern}`; }
+
+  const _conditional = CONDITIONAL_FILENAME_PATTERNS.find(
+    (pat) => pat.filename.test(lower) && pat.body.test(content),
+  );
+  return _conditional ? `ファイル名+本文パターン: ${_conditional.filename}` : null;
 };
 
 export const checkUserContent = (conversation: Conversation): string | null => {
@@ -250,18 +265,20 @@ export const classifyConversation = (conversation: Conversation): string | null 
 };
 
 /**
- * ファイル名パターンのみでノイズ判定を行い、一致した場合は `NoiseDiscardFile` を返す。
+ * ファイル名パターン（および条件付きパターンの本文シグナル）でノイズ判定を行い、
+ * 一致した場合は `NoiseDiscardFile` を返す。
  *
  * 会話内容の判定は行わない。呼び出し元が別途 `classifyConversation` を呼び出す想定。
  * 複数ファイルに対するループ処理は呼び出し元が行う。
  *
- * @param file - ファイルパスとファイル名
+ * @param file - ファイルパスとファイル名、および本文（`content` は省略可。
+ *   省略時は条件付きパターンには一致しない）
  * @returns ファイル名パターンに一致した場合は `NoiseDiscardFile`、一致しない場合は `null`
  */
 export const classifyFile = (
-  file: { filePath: string; filename: string },
+  file: { filePath: string; filename: string; content?: string },
 ): NoiseDiscardFile | null => {
-  const reason = checkFilename(file.filename);
+  const reason = checkFilename(file.filename, file.content);
   return reason === null
     ? null
     : { filePath: file.filePath, filename: file.filename, reason, decision: FILTER_DECISIONS.DISCARD };

@@ -6,6 +6,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// ─── internal ───
+// constants
+import { STRIP_TEMPLATE_MARKER } from '../strip.constants.ts';
+// types
+import type { ConditionalFilenamePattern } from '../../types/patterns.types.ts';
+
 /**
  * システム/コマンドタグとして認識するプレフィックス一覧（`startsWith` 判定用）。
  *
@@ -48,14 +54,6 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
   //     2026-08-11-which-recommended-plugins-should-i-install-abc123.md → 不一致
   /^\d{4}-\d{2}-\d{2}-recommended-plugins-[0-9a-f]+\.md$/,
 
-  // chatlog-exporter 自身が claude CLI を起動したときのセッションログ。
-  // set-frontmatter / normalize のプロンプト冒頭がそのままスラッグ化するため、
-  // 日付直後にプロンプト固有の語句が来る場合のみ一致させる。
-  // 例: 2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md → 一致
-  //     2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md → 一致
-  //     2026-07-12-set-frontmatter-ts-026d927a8a78.md → 不一致（通常の開発会話）
-  /^\d{4}-\d{2}-\d{2}-(generate-metadata-for-the-following-eng|review-the-following-frontmatter-against)/,
-
   // 要約プロンプト由来ログ。スラッグ全体が `summary` の場合のみ一致させる。
   // 例: 2026-07-25-summary-e2d4fc475cd1.md → 一致
   //     2026-07-25-summarize-the-following-log-in-50-words-abc123def456.md → 不一致
@@ -68,6 +66,33 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
   //     2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
   //     2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md → 不一致
   /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-(generate-metadata-for-the-following-eng|summary|review-the-following-frontmatter|classify-(the|each)-log-file|when-evaluating-an?-|file-\d+-c-users-)/,
+];
+
+/**
+ * ファイル名だけでは正当なログと区別できないため、本文シグナルとの AND で判定するパターン一覧。
+ *
+ * これらのプロンプト冒頭句はユーザーが自分で入力しうる文言であり、ファイル名一致だけで
+ * 削除確定すると正当なログを恒久削除する（`prefilter` は本文判定も AI 判定も通さない）。
+ * exporter 内部セッションだけが本文に持つ構造的マーカーとの一致を追加条件とする。
+ *
+ * 既知の検出漏れ: meta プロンプト由来ログに `## Summary` があり `strip-chatlogs` 実行済みの場合、
+ * 本文先頭〜`## Summary` 直前が除去済みでマーカーが残らないため一致しない。
+ * 削除側ではなく保持側に倒れるため許容し、filter を strip より先に実行する運用で解く。
+ */
+export const CONDITIONAL_FILENAME_PATTERNS: ConditionalFilenamePattern[] = [
+  // set-frontmatter のメタデータ生成プロンプト由来ログ。
+  // 本文に meta.yaml の定型部見出しが行として存在することを追加条件とする。
+  {
+    filename: /^\d{4}-\d{2}-\d{2}-generate-metadata-for-the-following-eng/,
+    body: new RegExp(`^${STRIP_TEMPLATE_MARKER}$`, 'm'),
+  },
+
+  // frontmatter レビュープロンプト由来ログ。
+  // 本文に review.yaml の RULE 見出しが行として存在することを追加条件とする。
+  {
+    filename: /^\d{4}-\d{2}-\d{2}-review-the-following-frontmatter-against/,
+    body: /^## RULE 0\b/m,
+  },
 ];
 
 /** 除外対象ファイル名パターン（文字列部分一致、`includes` 判定用）。 */

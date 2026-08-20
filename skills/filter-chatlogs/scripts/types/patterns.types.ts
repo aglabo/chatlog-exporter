@@ -31,6 +31,12 @@ export type ConversationEntry = {
   control?: EntryControl;
 };
 
+/** ファイル名一致に加えて本文シグナルの一致も要求する条件付きノイズパターンを定義する型。 */
+export type ConditionalFilenamePattern = {
+  filename: RegExp;
+  body: RegExp;
+};
+
 /** ノイズ会話パターンを定義する型（entries の全エントリが一致した場合にノイズと判定）。 */
 export type NoiseConversationPattern = {
   label: string;

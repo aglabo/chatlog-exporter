@@ -31,6 +31,54 @@ import { MIN_ASSISTANT_CHARS } from '../../../constants/common.constants.ts';
 // types
 import type { Turn } from '../../../../../_cle-libs/types/conversation.types.ts';
 
+// ─── Internal Helpers
+
+// constants
+
+/** set-frontmatter のメタデータ生成プロンプト由来ログの本文。定型部マーカー行を含む。 */
+const _METADATA_PROMPT_BODY = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log.',
+  '',
+  '## TOPICS ASSIGNMENT RULES',
+  '',
+  'Topics follow a 2-layer structure.',
+].join('\n');
+
+/** ユーザーが同じ文言で始めた正当な会話ログの本文。定型部マーカー行を含まない。 */
+const _METADATA_LIKE_USER_BODY = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log を自作したいので設計を相談したい。',
+  '',
+  '## Assistant',
+  '',
+  'まず入力と出力の形式を決めましょう。',
+].join('\n');
+
+/** frontmatter レビュープロンプト由来ログの本文。RULE 見出し行を含む。 */
+const _REVIEW_PROMPT_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against these rules.',
+  '',
+  '## RULE 0 — type',
+  '',
+  'type は log または note のいずれかである。',
+].join('\n');
+
+/** ユーザーが同じ文言で始めた正当な会話ログの本文。RULE 見出し行を含まない。 */
+const _REVIEW_LIKE_USER_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against these rules というプロンプトの改善案が欲しい。',
+  '',
+  '## Assistant',
+  '',
+  'ルールの優先順位を明示すると精度が上がります。',
+].join('\n');
+
 // ─── Tests
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,7 +90,7 @@ import type { Turn } from '../../../../../_cle-libs/types/conversation.types.ts'
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-09
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-10
  *
  * @see checkFilename
  */
@@ -110,15 +158,39 @@ describe('checkFilename', () => {
     });
 
     it('[Normal] T-PF-CF-08-01: set-frontmatter のメタデータ生成プロンプト由来ログ → null でない', () => {
-      const result = checkFilename('2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md');
+      const result = checkFilename(
+        '2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md',
+        _METADATA_PROMPT_BODY,
+      );
 
       assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-08-02: frontmatter レビュープロンプト由来ログ → null でない', () => {
-      const result = checkFilename('2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md');
+      const result = checkFilename(
+        '2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md',
+        _REVIEW_PROMPT_BODY,
+      );
 
       assertNotNull(result);
+    });
+
+    it('[Normal] T-PF-CF-10-04: メタ生成ファイル名 + 定型部マーカー行あり → reason に `本文パターン:` を含む', () => {
+      const result = checkFilename(
+        '2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md',
+        _METADATA_PROMPT_BODY,
+      );
+
+      assert(result!.includes('本文パターン:'));
+    });
+
+    it('[Normal] T-PF-CF-10-05: レビューファイル名 + RULE 見出し行あり → reason に `本文パターン:` を含む', () => {
+      const result = checkFilename(
+        '2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md',
+        _REVIEW_PROMPT_BODY,
+      );
+
+      assert(result!.includes('本文パターン:'));
     });
 
     it('[Normal] T-PF-CF-08-03: 要約プロンプト由来ログ "summary-<hash>" → null でない', () => {
@@ -210,6 +282,30 @@ describe('checkFilename', () => {
 
     it('[Edge] T-PF-CF-09-04: スキル名を話題にした開発会話ログ → null（誤除外しない）', () => {
       const result = checkFilename('2026-07-12-set-frontmatter-ts-026d927a8a78.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-10-01: メタ生成ファイル名だが本文に定型部マーカーなし → null（誤除外しない）', () => {
+      const result = checkFilename(
+        '2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md',
+        _METADATA_LIKE_USER_BODY,
+      );
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-10-02: レビューファイル名だが本文に RULE 見出しなし → null（誤除外しない）', () => {
+      const result = checkFilename(
+        '2026-07-25-review-the-following-frontmatter-against-these-rul-00306a46e6ef.md',
+        _REVIEW_LIKE_USER_BODY,
+      );
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-10-03: メタ生成ファイル名 + content 引数省略 → null（削除側に倒さない）', () => {
+      const result = checkFilename('2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md');
 
       assertNull(result);
     });

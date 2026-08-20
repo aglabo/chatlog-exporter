@@ -43,7 +43,11 @@ export const _phase0ClassifyByFilename = (
 ): { discardFiles: NoiseDiscardFile[]; passEntries: ChatlogEntry[] } => {
   const classified = entries.map((entry) => ({
     entry,
-    discard: classifyFile({ filePath: entry.filePath as string, filename: entry.filename as string }),
+    discard: classifyFile({
+      filePath: entry.filePath as string,
+      filename: entry.filename as string,
+      content: entry.content,
+    }),
   }));
 
   const discardFiles = classified
