@@ -46,6 +46,14 @@ export const CHATLOG_BLOCK_OPEN_TEMPLATE = `${CHATLOG_DELIMITER_MARK}CHATLOG fil
 export const CHATLOG_BLOCK_CLOSE = `${CHATLOG_DELIMITER_MARK}END_CHATLOG>>>`;
 
 /**
+ * exporter が過去ログ本文を貼り付けたときに残す区切り行の正規表現（行頭完全一致、複数行）。
+ *
+ * `=== <元ログのファイル名>.md ===` が行全体として現れる形を判定する。
+ * ユーザーが自分で入力しうる文言ではないため、exporter 内部セッションを示す構造的マーカーとして使う。
+ */
+export const EXPORTER_PASTE_MARKER_REGEX = /^=== .*\.md ===$/m;
+
+/**
  * strip の退避先に付加する拡張子。`backupToBak` が生成する `<path>.bak` と対応する。
  *
  * 退避パスの構成（`` `${path}${BAK_SUFFIX}` ``）と、退避パスから本体パスへの復元

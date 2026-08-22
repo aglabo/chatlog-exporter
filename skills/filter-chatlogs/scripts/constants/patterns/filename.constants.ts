@@ -8,6 +8,7 @@
 
 // ─── internal ───
 // constants
+import { EXPORTER_PASTE_MARKER_REGEX } from '../common.constants.ts';
 import { STRIP_TEMPLATE_MARKER } from '../strip.constants.ts';
 // types
 import type { ConditionalFilenamePattern } from '../../types/patterns.types.ts';
@@ -58,35 +59,20 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
   // 例: 2026-07-25-summary-e2d4fc475cd1.md → 一致
   //     2026-07-25-summarize-the-following-log-in-50-words-abc123def456.md → 不一致
   /^\d{4}-\d{2}-\d{2}-summary-[0-9a-f]{12}\.md$/,
-
-  // 二重日付形式（エクスポート日 + 元セッション日）を持つ exporter 内部セッションログ。
-  // exporter が過去ログ本文を貼り付けて起動したセッションは、元ログのファイル名を
-  // タイトルとして引き継ぐため日付が二重に並ぶ。この形はユーザー起点のログでは発生しない。
-  //
-  // 実測（chatlogs/outputLogs/claude/2026/2026-07、677 件）:
-  //   - 二重日付: 417 件 / うち本文に貼り付けマーカー `=== <name>.md ===` を持つ: 405 件
-  //   - 二重日付でないファイルでマーカーを持つもの: 0 件
-  //   - 残り 12 件はマーカーを持つセッションの後続セグメント（-02 〜 -04）
-  // よってファイル名の二重日付だけで判定して差し支えない。
-  //
-  // 例: 2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
-  //     2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md → 一致
-  //     2026-07-25-2026-06-27-2026-04-20-c-chatlog-exporter-deno-task-f95421d4b0b1.md → 一致（三重日付）
-  //     2026-07-15-2026-06-14.md → 不一致（2 つめの日付の後にスラッグがない）
-  //     2026-07-12-session-f832dfcc2267.md → 不一致（単一日付）
-  /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-/,
 ];
 
 /**
  * ファイル名だけでは正当なログと区別できないため、本文シグナルとの AND で判定するパターン一覧。
  *
- * これらのプロンプト冒頭句はユーザーが自分で入力しうる文言であり、ファイル名一致だけで
+ * これらのプロンプト冒頭句や日付構造はユーザーが自分で入力しうる形であり、ファイル名一致だけで
  * 削除確定すると正当なログを恒久削除する（`prefilter` は本文判定も AI 判定も通さない）。
  * exporter 内部セッションだけが本文に持つ構造的マーカーとの一致を追加条件とする。
  *
  * 既知の検出漏れ: meta プロンプト由来ログに `## Summary` があり `strip-chatlogs` 実行済みの場合、
  * 本文先頭〜`## Summary` 直前が除去済みでマーカーが残らないため一致しない。
  * 削除側ではなく保持側に倒れるため許容し、filter を strip より先に実行する運用で解く。
+ * なお二重日付ログは `## Summary` を持たない export 直後の形であり strip の作用対象外のため、
+ * この検出漏れは該当しない。
  */
 export const CONDITIONAL_FILENAME_PATTERNS: ConditionalFilenamePattern[] = [
   // set-frontmatter のメタデータ生成プロンプト由来ログ。
@@ -101,6 +87,32 @@ export const CONDITIONAL_FILENAME_PATTERNS: ConditionalFilenamePattern[] = [
   {
     filename: /^\d{4}-\d{2}-\d{2}-review-the-following-frontmatter-against/,
     body: /^## RULE 0\b/m,
+  },
+
+  // 二重日付形式（エクスポート日 + 元セッション日）を持つ exporter 内部セッションログ。
+  // exporter が過去ログ本文を貼り付けて起動したセッションは、元ログのファイル名を
+  // タイトルとして引き継ぐため日付が二重に並ぶ。
+  //
+  // ただしファイル名だけで削除確定にはできない。ユーザーが日付で始まる文をプロンプト冒頭に
+  // 打てば同じ形のファイル名になりうるため、貼り付けマーカーとの AND を条件とする。
+  //
+  // 実測（chatlogs/originalLogs、368 件）:
+  //   - 二重日付: 152 件 / うち全件が本文に貼り付けマーカーを持つ
+  //   - 二重日付だがマーカーを持たないもの: 0 件
+  //   - マーカーを持つが二重日付でないもの: 3 件（このパターンの対象外）
+  // filter が対象とする originalLogs では AND 条件にしても検出漏れは発生しない。
+  //
+  // 既知の検出漏れ: 分割済みログ（normalizeLogs、二重日付 417 件）では 11 件が一致しない。
+  // いずれも `-02` 〜 `-04` の後続セグメントで、マーカーは先頭セグメントにしか残らないため。
+  // 削除側ではなく保持側に倒れるため許容する。
+  //
+  // 例: 2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md → 一致
+  //     2026-07-25-2026-06-27-2026-04-20-c-chatlog-exporter-deno-task-f95421d4b0b1.md → 一致（三重日付）
+  //     2026-07-15-2026-06-14.md → 不一致（2 つめの日付の後にスラッグがない）
+  //     2026-07-12-session-f832dfcc2267.md → 不一致（単一日付）
+  {
+    filename: /^\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}-/,
+    body: EXPORTER_PASTE_MARKER_REGEX,
   },
 ];
 

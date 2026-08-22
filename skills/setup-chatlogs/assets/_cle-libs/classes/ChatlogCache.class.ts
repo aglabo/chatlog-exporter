@@ -116,6 +116,13 @@ export interface ChatlogCacheInitializer {
  * `_hash` をインメモリキャッシュとして持ち、同一キーへの重複ファイル読み込みを防ぐ。
  * ファイルは `<cacheDir>/<basename>.json` として読み書きする。
  *
+ * **キーは拡張子なしのベース名のみで、ディレクトリ・agent・period のスコープを持たない。**
+ * そのため異なるツリーに同名のファイルがあると、同じ `subDir` を使うかぎり記録が共有される。
+ * 「処理済みなら再処理しない」形で本クラスを使う利用側（`classify-cache` / `filter-cache` /
+ * `strip-cache`）は、対象ツリーを切り替えるときにキャッシュを破棄する運用が前提となる。
+ *
+ * 内容ハッシュや mtime による自動無効化は行わない。
+ *
  * キャッシュディレクトリは `normalizePath(cacheRoot, providers?.env)/${subDir}` として解決する。
  * `cacheRoot` が falsy の場合は `GlobalConfig` の `cacheDir` を使用する。
  * `read`/`write` 前に `await cache.ready` を呼ぶこと。
