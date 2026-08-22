@@ -9,7 +9,7 @@
 
 // ─── shared ───
 // functions
-import { findFilesFlat } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
+import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 import { removeFile } from '../../../../_cle-libs/libs/file-ops/remove-utils.ts';
 import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
 import { runConcurrent } from '../../../../_cle-libs/libs/parallel/concurrency.ts';
@@ -40,6 +40,11 @@ const _BAK_GLOB_EXT = '.md.bak';
 /**
  * 全ファイルの評価を終えた後、対象ディレクトリ配下の退避（`.bak`）を一括削除する（Phase 6）。
  *
+ * 探索は `findFiles` によりサブツリー全体を再帰的にたどる。したがって一括削除の範囲と
+ * foreign 警告の対象は「対象ディレクトリ直下」ではなく「対象サブツリー全体」である。
+ * 直下で止めると、サブディレクトリの stripped に対応する退避を見つけられず
+ * R-013 の包含検査が全件 `missing` となり、sweep が恒久的に中止される。
+ *
  * この機能の安全性は退避に依存するため、削除の前に 2 つのゲートを通す。
  *
  * - R-011: `errorCount` が 1 件以上なら削除を行わず退避を全保持する（正常終了）。
@@ -65,7 +70,7 @@ const _BAK_GLOB_EXT = '.md.bak';
  * @param strippedPaths - `stripped` と判定されたファイルのパス一覧。
  *   **`normalizePath` 適用済みであることを前提とする**（正規化は呼び出し側の責務）。
  *   期待退避パスの構成は `` `${path}${BAK_SUFFIX}` `` で行うため、
- *   `findFilesFlat` が返す正規化済みパスと基準がずれると包含検査全体が成立しない。
+ *   `findFiles` が返す正規化済みパスと基準がずれると包含検査全体が成立しない。
  * @param errorCount - 当該実行で error として計上された件数
  * @param concurrency - 同時実行する退避削除処理の最大並列数。
  * @param options - `glob`（退避一覧の取得）、`removeProvider`（削除）のテスト用注入
@@ -84,7 +89,7 @@ export const sweepBackups = async (
     return undefined;
   }
 
-  const _backups = await findFilesFlat(targetDir, { ext: _BAK_GLOB_EXT, glob: options?.glob });
+  const _backups = await findFiles(targetDir, { ext: _BAK_GLOB_EXT, glob: options?.glob });
 
   // R-013: 期待退避パスを原形のまま構成し、退避一覧との完全一致で包含を検査する
   const _backupSet = new Set(_backups);

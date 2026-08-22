@@ -1,8 +1,8 @@
 ---
 title: "Implementation Plan: filter strip"
-based-on: specifications.md v5.7.0
+based-on: specifications.md v6.0.0
 status: Draft
-version: 3.5.1
+version: 3.6.0
 created: "2026-08-13"
 ---
 
@@ -228,7 +228,7 @@ dry-run では `stripped` が 0 となり、両者は排他。
   削除のために取得する退避一覧との **完全一致** を確認する。比較キーは生成せず、
   大小文字の変換を一切行わない
 - 期待退避パスの構成は `normalizePath` 適用後のパスに対して行い、退避一覧も同じ走査
-  (`findFilesFlat` 経由で `normalizePath` 適用済み) から得る。両者の正規化を一致させることが
+  (`findFiles` 経由で `normalizePath` 適用済み) から得る。両者の正規化を一致させることが
   本検査の前提であり、構成規則がずれると検査全体が成立しない
 - 小文字化キーによる比較は採らない(DR-22 を DR-25 により破棄)。大小文字を区別するファイルシステム
   では `Foo.md.bak` が不在でも無関係な `foo.md.bak` を一致とみなし、包含検査が誤って成立する。
@@ -250,17 +250,23 @@ dry-run では `stripped` が 0 となり、両者は排他。
 - 受理ゲートは対象ファイルの列挙より前に評価する(R-001)
 - 受理ゲート(`_assertAcceptedRange`)は出力ディレクトリの指定を拒否する(DR-32 決定 1)。
   `config.outputDir` が真値のとき `ChatlogError('InvalidArgs', 'OutputDirNotAllowed', ...)` を送出する。
-  検査位置は `inputDir` の直後・`period` の必須検査の前とし、`inputDir` / `outputDir` はいずれも
-  「対象ディレクトリの override」であるため隣接させる(DR-32 決定 2)。既存の
-  「`inputDir` 拒否 → `period` 必須」の相対順序は保つ。メッセージは `inputDir` の拒否と同じ語調に揃える
-  (DR-32 決定 3)。`--output-dir` フラグと第 3 位置引数の双方が同一フィールドへ格納されるため、
-  検査は解析後の `config.outputDir` に対して行い、どちらの経路の値も同じゲートで拒否される
+  検査位置は `period` の必須検査の前とする。`--output-dir` フラグと第 3 位置引数の双方が同一フィールドへ
+  格納されるため、検査は解析後の `config.outputDir` に対して行い、どちらの経路の値も同じゲートで拒否される
   (DR-32 決定 4)。通常モード / 復帰専用モードの双方で評価する(DR-32 決定 5、DR-23 決定 5 を継承)。
   `outputDir` は `resolveChatlogsDir` へ渡らず対象ディレクトリの解決に用いられないため、黙って受理すると
-  出力先を変えたつもりの実行が `originalLogs/` を in-place で破壊的に書き換える
+  出力先を変えたつもりの実行が対象ディレクトリを in-place で破壊的に書き換える
+- 受理ゲートは `inputDir` を **拒否しない**(DR-38 決定 1)。`config.inputDir` は
+  `resolveChatlogsDir` の `override` へ渡す。他スキル(`filter-chatlogs.ts` / `noise-filter-chatlogs.ts`)
+  と同形にすること
+- `period` の必須検査は `if (!config.inputDir && !config.period)` とする(DR-38 決定 2)。
+  `override` 指定時は agent / period が対象の解決に使われないため、年月を必須とする根拠が成立しない
+- 列挙の直後・`_stats.total` の設定より前に、拡張子を除くベース名の重複を検査する(R-016 / DR-40)。
+  ベース名は `ChatlogCache._toHashKey` と同じ `getBasename` で求める。重複があれば
+  `ChatlogError('FailFast', 'DuplicateBasename', ...)` を送出し、衝突したベース名と該当パスを
+  すべてメッセージに含める。集計は `for` ではなく `reduce` で書く
 - Phase 1 で孤立した退避を検出する(DR-23 決定 1)。対象ディレクトリ配下に `<name>.md` を伴わない
   `<name>.md.bak` または `<name>.md.tmp` が存在する場合、当該 `<name>` を error として計上し、
-  パスを報告に含める(`--recover-orphans` 無指定時)。列挙は `findFilesFlat` が `*.md` を glob する
+  パスを報告に含める(`--recover-orphans` 無指定時)。列挙は `findFiles` が `*.md` を glob する
   ため中断したファイルは列挙されず、R-002〜R-008 のいずれにも到達しない。検出しないと error 0 件の
   まま Phase 6 に到達し、DR-08 の一括削除で復旧材料の `.bak` が失われる。本検出はカスケードの
   外側に置き、R-002〜R-008 とその評価順序は変更しない
@@ -399,7 +405,7 @@ dry-run では `stripped` が 0 となり、両者は排他。
 ### `strip-chatlogs.ts` の内部関数の設計判断
 
 `strip-chatlogs.ts` の内部関数 (`_` プレフィックス) が担う判断のうち、
-規則 (R-NNN) にも要件 (REQ-*) にも現れないものをここに記録する。
+規則 (R-NNN)・(REQ-*) に現れないものをここに記録する。
 コード側の JSDoc は要約と引数の説明のみを持ち、理由は本節を参照する。
 
 #### `_reportSummary` — サマリー行の書式
@@ -414,14 +420,14 @@ SKILL.md 層は `完了（復帰専用）:` の行から件数を拾う。
 dry-run でも同じ語を出すと復帰が実行済みであると誤読されるため、
 dry-run は `復帰対象:` の行にとどめる。
 
-あわせて REQ-F-006 の 5 分類件数も出力しない。分類を行っていない以上、
+あわせて REQ-F-006 の 5 分類件数も出力しない。分類していない以上、
 0 件のサマリーを出すと「全件が done だった」実行と区別がつかなくなるため。
 
 #### `_processOrphanErrors` — 検出結果を返さない理由
 
 孤立退避の検出 (R-014 / DR-23 決定 1) はパスの一覧を返さず、`stats.error` への加算と
 error ログの出力だけを行う。後続フェーズが必要とするのは R-011 の保持ゲートを駆動する
-**件数**のみであり、パスは報告以外に使い道がないため。
+**件数** のみであり、パスは報告以外に使い道がないため。
 
 #### `_processRecovery` — 検出と復帰を同じ経路に通す理由
 
@@ -430,7 +436,7 @@ error ログの出力だけを行う。後続フェーズが必要とするの�
 
 #### `_classifyFile` — 書き込み経路へ入れるのは判定 `stripped` のみ
 
-`if (_decision.outcome !== 'stripped') { return ... }` の早期 return は必須である。
+`if (_decision.outcome !== 'stripped') { return ... }` の早期 return は必須です。
 外すと `done` / `error` / dry-run の `skipped` まで `writeStripped` へ流れ込む。
 
 #### `_logFileOutcome` — error 行に対象パスを出す理由
@@ -460,21 +466,21 @@ R-011 の退避保持ゲートを解除できない。
 
 件数の加算は分類 5 値と件数フィールドが 1 対 1 に対応するため、
 分類名と同名のフィールドを加算するだけでよい (DR-30) 。
-一方バイト数は 5 分類のうち `stripped` / `skipped` の 2 分類だけが値を持つ非対称な集計である。
+一方バイト数は 5 分類のうち `stripped` / `skipped` の 2 分類だけが値を持つ非対称な集計です。
 同じ関数へ混ぜると件数側の単純さが失われるため、関数を分ける。
 
 バイト数の加算対象は **分類** が `stripped` / `skipped` のファイルに限る。判定ではない。
 書き込みに失敗したファイルは判定が `stripped` のまま分類が `error` となるが、
 本体は置換されておらず 1 バイトも除去されていない。
 計上すると実際には縮んでいない量を除去実績として報告することになる。
-`sweepBackups` へ渡すパス集合が **判定** 基準である (R-013 / DR-28 決定 5) のとは基準が逆である。
+`sweepBackups` へ渡すパス集合が **判定** 基準である (R-013 / DR-28 決定 5) のとは基準が逆になっています。
 
 #### `_processFiles` — 観測される順序
 
 1 件ごとに `_classifyFile` → `_logFileOutcome` → `_applyFileOutcome` をこの順で呼ぶため、
 ログと統計加算の順序は入力順ではなく **処理の完了順** になる。
 一方 `runConcurrent` は結果を入力位置へ書き戻すため、
-戻り値の `decisions` は **入力と同順・同数** である。
+戻り値の `decisions` は **入力と同順・同数** です。
 
 #### `_processFiles` — 守るべき不変条件
 
@@ -490,10 +496,23 @@ R-011 の退避保持ゲートを解除できない。
 - `sweepBackups` の error は throw せず返す。報告順序と終了コードの決定は `main` の責務 (DD-03) 。
   dry-run では常に `undefined` を返す
 
-#### Phase 1 の列挙が非再帰である理由
+#### Phase 1 の列挙が再帰である理由
 
-strip の対象は `originalLogs/<agent>/<YYYY-MM>/` 直下に限られるため、
-再帰列挙の `findFiles` ではなく `findFilesFlat` を使う。
+`classify-chatlogs` は対象ディレクトリのログをプロジェクト別サブディレクトリへ移動する。
+非再帰の `findFilesFlat` では classify 済みの対象で列挙件数が 0 件になるため、
+再帰列挙の `findFiles` を使う(R-017 / DR-39)。
+
+置き換えは本体の列挙・孤立退避の検出(`findOrphans`)・退避の一括削除(`sweepBackups`)の
+3 箇所に **同時に** 適用する。部分適用は破壊的な中間状態を作る。
+
+- 本体だけ再帰化すると、R-013 の包含検査がサブディレクトリの `stripped` に対応する退避を
+  見つけられず全件不足と判定し、一括削除が恒久的に中止される
+- 一括削除だけ再帰化すると、サブディレクトリの孤立退避が未検出のまま `error = 0` となり
+  R-011 の保持ゲートを通過し、復旧材料である退避が削除される
+
+注入 glob を用いるテストは、`findFiles` が内部で発行するディレクトリ列挙パターン
+(`` `${dir}/*/` ``、`findDirectoriesFlat` 由来)にも応答しなければならない。
+パターンを見ずに固定配列を返すモックはファイルをディレクトリとして扱い、探索が発散する。
 
 ---
 
@@ -597,3 +616,4 @@ impl フェーズで確定させる項目。振る舞い規則ではなく実装
 | 2026-08-18 | 3.4.1   | DR-36 を反映 (PATCH: 位置づけの明確化)。Commit 8 の `writeStripped` の除去範囲の事前検証 (DR-35) に、検証が書き込みの直前でありスワップ地点ではないため競合の窓が閉じないことと、その窓を単一書き手前提のもとで残余として受容することを追記。based-on を spec v5.6.0 へ更新。実装対象・Commit 分割・検証 4 点は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 2026-08-19 | 3.5.0   | DR-37 を反映 (MINOR: 実装対象が確定した振る舞いの追加)。Commit 10 の通常実行の per-file 報告に判定 error (R-002 / R-007) を追加し、`logger.error` で `<分類>: <path> (rule=<規則 ID>)` の形で 1 件ごとに出力することと、書き込み失敗と同じ分岐へ統合すること、`kind` / `subindex` を出力しないこと、分岐を分類 (`outcome`) で行うことを明記。based-on を spec v5.7.0 へ更新。Commit 分割と dry-run 明細の書式は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 2026-08-19 | 3.5.1   | `strip-chatlogs.ts` の内部関数の設計判断を Section 2 へ集約 (PATCH: 記述の移設のみ)。サマリー行に桁区切り・単位を付けない理由、復帰専用モードの dry-run に `完了` を出さない理由、`_applyFileOutcome` と `_applyFileBytes` を分ける理由とバイト数の加算が分類基準である理由、`_processFiles` の観測順序と不変条件、列挙が非再帰である理由、`_processOrphanErrors` が検出結果を返さない理由、`sweepBackups` へ渡すパス集合が判定基準である不変条件、復帰専用モードで分類件数を出さない理由、`_processRecovery` が検出と復帰を同じ経路に通す理由、`_classifyFile` の早期 return、`_logFileOutcome` の error 行にパスを出す理由と分岐を分類で行う理由、`_applyFileOutcome` の加算規則と不変条件を、コード側 JSDoc から移設して記録。実装対象・Commit 分割・決定内容はいずれも不変                                                                                                                                                                                                                                                                                                       |
+| 2026-08-21 | 3.6.0   | DR-38 / DR-39 / DR-40 を反映 (MINOR: 実装対象を追加)。Commit 10 の受理ゲートから `inputDir` の拒否を外し、`config.inputDir` を `resolveChatlogsDir` の `override` へ渡すこと・`period` の必須検査を `!inputDir && !period` とすること・列挙直後にベース名の重複を `getBasename` で検査して `DuplicateBasename` を送出することを追記。「Phase 1 の列挙が非再帰である理由」を「再帰である理由」へ差し替え、本体列挙・孤立退避の検出・退避の一括削除の 3 箇所への同時適用が必須である理由と、注入 glob が `${dir}/*/` に応答する必要があることを記録。`findFilesFlat` への言及を `findFiles` へ追随。based-on を specifications.md v6.0.0 へ更新                                                                                                                                                                                                                                                                                                                                                                                                                                        |

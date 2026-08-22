@@ -1,0 +1,4 @@
+# filter-chatlogs fixtures テスト期待値
+# 却下案 (a)(b) とその理由・確定した決定・前提が残っている → KEEP が期待される
+expected_decision: KEEP
+confidence_min: 0.5

@@ -1,5 +1,5 @@
-// src: scripts/__tests__/fixtures/filter/fixtures.spec.ts
-// @(#): filter-chatlogs fixturesテスト（実 AI 呼び出し使用）
+// src: scripts/__tests__/system/filter/keep-discard-criteria.system.spec.ts
+// @(#): KEEP/DISCARD 判定基準の実 AI 検証（判断理由の有無で判定されること）
 //       対象: _SYSTEM_PROMPT
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -32,16 +32,16 @@ import type { ClaudeResult } from '../../../types/filter.types.ts';
 // ─── Internal Helpers
 
 // constants
-/** fixtures-data/fixtures/real の絶対パス。 */
-const REAL_FIXTURES_DIR = normalizePath(new URL('./fixtures-data/fixtures/real', import.meta.url).pathname);
+/** 判定基準テスト用 fixture ルートディレクトリの絶対パス。 */
+const FIXTURES_DIR = normalizePath(new URL('./fixtures', import.meta.url).pathname);
 
 /** `RUN_AI=1` が設定されている場合に `true`。実 AI 呼び出しを伴うテストの実行制御に使用する。 */
 const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
-/** fixture 名 → テスト ID の対応表。ID を収集順や fixture 名から導出せず固定し、fixture 追加・改名時の ID ずれを防ぐ。 */
+/** fixture 名 → テスト ID の対応表。ID を収集順から導出せず固定し、fixture 追加時の ID ずれを防ぐ。 */
 const _TEST_IDS: Record<string, string> = {
-  'normal-01-design-rationale-keep': 'T-FL-FC-01',
-  'normal-02-basic-discard': 'T-FL-FC-02',
+  'normal-01-rationale-keep': 'T-FL-KDC-01',
+  'normal-02-technical-execution-discard': 'T-FL-KDC-02',
 };
 
 // types
@@ -55,7 +55,7 @@ interface FixtureOutput {
 
 /** fixture ディレクトリ 1 件分の情報を束ねる型。 */
 interface FixtureInfo {
-  /** `REAL_FIXTURES_DIR` からの相対パス（fixture 名）。 */
+  /** `FIXTURES_DIR` からの相対パス（fixture 名）。 */
   relPath: string;
   /** `input.md` の絶対パス。 */
   inputPath: string;
@@ -99,8 +99,6 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
  * 1 件の fixture を実運用と同じ経路（`buildBatchPrompt` → `runAI` → `parseAiJsonArray`）で判定する。
  *
  * システムプロンプトは本体の `_SYSTEM_PROMPT` をそのまま使い、テスト側で再定義しない。
- * frontmatter 除去と本文長制限（`MAX_BODY_CHARS`）は `buildBatchPrompt` 内の
- * `extractConversation` が担うため、テスト側では前処理しない。
  *
  * @param inputPath - 判定対象 `input.md` の絶対パス
  * @returns 判定結果 1 件分の `ClaudeResult`
@@ -119,26 +117,22 @@ const _judgeFixture = async (inputPath: string): Promise<ClaudeResult> => {
 
 // ─── Tests
 
-const _realFixtures = await _loadFixtureInfos(REAL_FIXTURES_DIR);
-
-// NOTE: 「Mock判定」ブロック（mock_response を parseAiJsonArray に通し同じ fixture の期待値と比較するだけの自己参照テスト）は削除済み。
-// runAI 等の実装ロジックを経由しないため再追加しないこと。
+const _fixtures = await _loadFixtureInfos(FIXTURES_DIR);
 
 /**
- * 実 claude CLI を使った fixture ドリブンテストスイート（`RUN_AI=1` のみ実行）。
+ * `_SYSTEM_PROMPT` の KEEP/DISCARD 判定基準の実 AI システムテストスイート（`RUN_AI=1` のみ実行）。
  *
- * fixtures-data/fixtures/real/ の各 fixture を、本体と同じ
- * `_SYSTEM_PROMPT` + `buildBatchPrompt` 経路で判定し、`output.yaml` の期待値と突き合わせる。
+ * 判定軸が「技術的か」ではなく「判断の理由（WHY）が残っているか」であることを、
+ * 技術用語の濃さと理由の有無を逆転させた 2 件の fixture で検証する。
  *
- * テスト ID 範囲: T-FL-FC-01 〜 T-FL-FC-02
+ * テスト ID 範囲: T-FL-KDC-01 〜 T-FL-KDC-02
  *
  * @see _SYSTEM_PROMPT
- * @see buildBatchPrompt
  */
-describe('[AI] filter-chatlogs fixtures - 実 AI 判定', { ignore: !_shouldRunAI }, () => {
+describe('[AI] _SYSTEM_PROMPT - KEEP/DISCARD 判定基準', { ignore: !_shouldRunAI }, () => {
   /** fixture ごとに期待判定と信頼度下限を検証する正常系ケース。 */
   describe('When: 正常系', () => {
-    _realFixtures.forEach((fixture) => {
+    _fixtures.forEach((fixture) => {
       const _testId = _TEST_IDS[fixture.relPath];
       if (_testId === undefined) {
         throw new Error(`fixture "${fixture.relPath}" に対応するテスト ID が _TEST_IDS に未登録`);
@@ -152,7 +146,7 @@ describe('[AI] filter-chatlogs fixtures - 実 AI 判定', { ignore: !_shouldRunA
             _result.decision,
             fixture.expectedOutput.expected_decision,
             `decision "${_result.decision}" が期待値 "${fixture.expectedOutput.expected_decision}" と不一致`
-              + ` (confidence: ${_result.confidence}, reason: ${_result.reason})`,
+              + ` (reason: ${_result.reason})`,
           );
           assertEquals(
             _result.confidence >= fixture.expectedOutput.confidence_min,

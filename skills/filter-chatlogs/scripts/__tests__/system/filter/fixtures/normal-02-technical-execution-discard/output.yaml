@@ -1,0 +1,4 @@
+# filter-chatlogs 判定基準システムテスト期待値
+# アーキテクチャ用語は濃いが実行ログのみで理由が残らない → 新基準では DISCARD
+expected_decision: DISCARD
+confidence_min: 0.5

@@ -11,7 +11,7 @@
 
 // ─── shared ───
 // functions
-import { findFilesFlat } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
+import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 // types
 import type { GlobProvider } from '../../../../_cle-libs/types/providers.types.ts';
 
@@ -33,7 +33,7 @@ const _BAK_GLOB_EXT = '.md.bak';
 // ─── functions ───
 
 /**
- * 対象ディレクトリ直下を走査し、本体を伴わない退避（孤立退避）を検出する（R-014 / DR-23 / DR-26）。
+ * 対象ディレクトリ配下を再帰的に走査し、本体を伴わない退避（孤立退避）を検出する（R-014 / DR-23 / DR-26）。
  *
  * 孤立退避とは `<name>.md` が存在せず `<name>.md.bak` が存在する状態であり、
  * REQ-NF-005 の手順 2（退避）と手順 3（スワップ）の間で中断すると生じる。
@@ -43,8 +43,11 @@ const _BAK_GLOB_EXT = '.md.bak';
  * 生じない。また `.tmp` は書き込み途中の産物であり復帰元にもできない。
  *
  * `*.md` は `<name>.md.bak` に一致しないため、本体一覧と退避一覧は互いに素になる。
- * 照合は大小文字を変換せず完全一致で行う（DR-25。`findFilesFlat` の正規化基準と揃える）。
- * 探索は `sweepBackups` と同じく 1 段のみで、サブディレクトリは対象外とする。
+ * 照合は大小文字を変換せず完全一致で行う（DR-25。`findFiles` の正規化基準と揃える）。
+ * 探索は `sweepBackups` と同じくサブツリー全体を再帰的にたどる。classify-chatlogs が
+ * ログをプロジェクト別サブディレクトリへ移動するため、直下だけでは孤立退避を取りこぼす。
+ * 取りこぼすと `stats.error` が 0 のまま R-011 の保持ゲートを通過し、
+ * R-010 が復旧材料である `.bak` を削除する。
  *
  * 復帰元の退避パスは `` `${filePath}${BAK_SUFFIX}` `` で構成できるため戻り値に含めない
  * （`sweepBackups` が期待退避パスを構成するのと同じ方法）。
@@ -62,8 +65,8 @@ export const findOrphans = async (
 ): Promise<string[]> => {
   const _glob = options?.glob;
   const [_bodies, _baks] = await Promise.all([
-    findFilesFlat(targetDir, { glob: _glob }),
-    findFilesFlat(targetDir, { ext: _BAK_GLOB_EXT, glob: _glob }),
+    findFiles(targetDir, { glob: _glob }),
+    findFiles(targetDir, { ext: _BAK_GLOB_EXT, glob: _glob }),
   ]);
 
   const _bodySet = new Set(_bodies);

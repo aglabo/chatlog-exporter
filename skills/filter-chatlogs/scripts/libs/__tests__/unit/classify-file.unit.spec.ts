@@ -57,6 +57,30 @@ const _METADATA_LIKE_USER_BODY = [
   'まず入力と出力の形式を決めましょう。',
 ].join('\n');
 
+/** exporter が過去ログを貼り付けて起動したセッションの本文。貼り付けマーカー行を含む。 */
+const _EXPORTER_PASTE_BODY = [
+  '## User',
+  '',
+  '以下のログを分類してください。',
+  '',
+  '=== 2026-04-01-chatgpt20263-69ccd011.md ===',
+  '',
+  '## Assistant',
+  '',
+  '分類しました。',
+].join('\n');
+
+/** ユーザーが日付始まりの文を打った正当な会話ログの本文。貼り付けマーカー行を含まない。 */
+const _DATE_LEADING_USER_BODY = [
+  '## User',
+  '',
+  '2026-06-14 の longterm メモを 2026-07-15 時点の内容に更新したい。',
+  '',
+  '## Assistant',
+  '',
+  '差分になっている項目から整理しましょう。',
+].join('\n');
+
 /** frontmatter レビュープロンプト由来ログの本文。RULE 見出し行を含む。 */
 const _REVIEW_PROMPT_BODY = [
   '## User',
@@ -90,7 +114,7 @@ const _REVIEW_LIKE_USER_BODY = [
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-10
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-12
  *
  * @see checkFilename
  */
@@ -200,19 +224,47 @@ describe('checkFilename', () => {
     });
 
     it('[Normal] T-PF-CF-08-04: 二重日付 + ファイルパス列挙プロンプト由来ログ → null でない', () => {
-      const result = checkFilename('2026-07-15-2026-06-26-file-1-c-users-atsushifx-workspaces-dev-0437ec223eed.md');
+      const result = checkFilename(
+        '2026-07-15-2026-06-26-file-1-c-users-atsushifx-workspaces-dev-0437ec223eed.md',
+        _EXPORTER_PASTE_BODY,
+      );
 
       assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-08-05: 二重日付 + 実行ログ評価プロンプト由来ログ → null でない', () => {
-      const result = checkFilename('2026-07-15-2026-06-27-when-evaluating-an-execution-log-look-at-3e328f58829e.md');
+      const result = checkFilename(
+        '2026-07-15-2026-06-27-when-evaluating-an-execution-log-look-at-3e328f58829e.md',
+        _EXPORTER_PASTE_BODY,
+      );
 
       assertNotNull(result);
     });
 
     it('[Normal] T-PF-CF-08-06: 二重日付 + ログ分類プロンプト由来ログ → null でない', () => {
-      const result = checkFilename('2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md');
+      const result = checkFilename(
+        '2026-07-15-2026-06-27-classify-the-log-file-below-050f9cb9-md-d885a1869ba7.md',
+        _EXPORTER_PASTE_BODY,
+      );
+
+      assertNotNull(result);
+    });
+
+    it('[Normal] T-PF-CF-11-01: 三重日付ログ → null でない / reason に `ファイル名+本文パターン:` を含む', () => {
+      const result = checkFilename(
+        '2026-07-25-2026-06-27-2026-04-20-c-chatlog-exporter-deno-task-f95421d4b0b1.md',
+        _EXPORTER_PASTE_BODY,
+      );
+
+      assertNotNull(result);
+      assert(result!.includes('ファイル名+本文パターン:'));
+    });
+
+    it('[Normal] T-PF-CF-11-02: 二重日付 + セグメント番号付きスラッグ → null でない', () => {
+      const result = checkFilename(
+        '2026-07-15-2026-06-18-yes-d3a3a274-md-b13a398527c1-04-da28cc9.md',
+        _EXPORTER_PASTE_BODY,
+      );
 
       assertNotNull(result);
     });
@@ -268,8 +320,17 @@ describe('checkFilename', () => {
       assertNull(result);
     });
 
-    it('[Edge] T-PF-CF-09-02: 二重日付だがプロンプト由来でないスラッグ → null（誤除外しない）', () => {
-      const result = checkFilename('2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md');
+    it('[Edge] T-PF-CF-09-02: 二重日付ならプロンプト由来でないスラッグでも → null でない', () => {
+      const result = checkFilename(
+        '2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md',
+        _EXPORTER_PASTE_BODY,
+      );
+
+      assertNotNull(result);
+    });
+
+    it('[Edge] T-PF-CF-11-03: 2 つめの日付の後にスラッグがない → null（誤除外しない）', () => {
+      const result = checkFilename('2026-07-15-2026-06-14.md');
 
       assertNull(result);
     });
@@ -306,6 +367,30 @@ describe('checkFilename', () => {
 
     it('[Edge] T-PF-CF-10-03: メタ生成ファイル名 + content 引数省略 → null（削除側に倒さない）', () => {
       const result = checkFilename('2026-07-25-generate-metadata-for-the-following-engineering-lo-b226a321077f.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-12-01: 二重日付ファイル名だが本文に貼り付けマーカーなし → null（誤除外しない）', () => {
+      const result = checkFilename(
+        '2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md',
+        _DATE_LEADING_USER_BODY,
+      );
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-12-02: 二重日付ファイル名 + content 引数省略 → null（削除側に倒さない）', () => {
+      const result = checkFilename('2026-07-15-2026-06-14-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-12-03: 単一日付ファイル名 + 貼り付けマーカーあり → null（ファイル名側で外れる）', () => {
+      const result = checkFilename(
+        '2026-07-15-longterm-c-users-atsushifx-workspaces-d-11357bb78d91.md',
+        _EXPORTER_PASTE_BODY,
+      );
 
       assertNull(result);
     });
