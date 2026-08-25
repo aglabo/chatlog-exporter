@@ -8,8 +8,8 @@
 
 // ─── local modules
 // std
-import { expandGlob } from '@std/fs';
-import { parse as parseYaml } from '@std/yaml';
+import { expandGlob } from 'jsr:@std/fs@^1.0.23';
+import { parse as parseYaml } from 'jsr:@std/yaml@^1.0.12';
 // libs
 import { findFilesFlat } from '../libs/file-ops/find-files.ts';
 import { logger } from '../libs/io/logger.ts';

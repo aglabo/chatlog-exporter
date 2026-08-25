@@ -8,7 +8,7 @@
 
 // --- external modules
 // yaml
-import { parse } from '@std/yaml';
+import { parse } from 'jsr:@std/yaml@^1.0.12';
 
 // --- local modules
 // libs

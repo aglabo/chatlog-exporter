@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT
 
 // utils
-import { join, relative } from '@std/path';
-import { normalize as posixNormalize } from '@std/path/posix';
+import { join, relative } from 'jsr:@std/path@^1.0.0';
+import { normalize as posixNormalize } from 'jsr:@std/path@^1.0.0/posix';
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import type { EnvProvider } from '../../types/providers.types.ts';
 import { expandEnvVars } from './path-env.ts';

@@ -8,6 +8,9 @@
   },
   "lint": {
     "rules": {
+      // スキル実装ファイルは import map の効かない User スコープ配置でも解決できるよう
+      // inline 'jsr:' specifier を使う（#427）。このルールとは両立しない。
+      "exclude": ["no-import-prefix"]
     },
     "exclude": [".worktrees", "aglabo.github.io"]
   },

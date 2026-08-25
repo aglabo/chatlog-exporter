@@ -8,7 +8,7 @@
 
 // --─ Imports
 // external
-import { parse as parseYaml } from '@std/yaml';
+import { parse as parseYaml } from 'jsr:@std/yaml@^1.0.12';
 
 // --- shared
 import {
