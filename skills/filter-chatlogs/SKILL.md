@@ -109,17 +109,21 @@ STRIP_PATH        = $SKILL_DIR/scripts/strip-chatlogs.ts
 先頭トークンが `noise-filter` であれば、残りの引数 `$REST_ARGS` をそのまま渡す。
 
 ```bash
-deno run --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
+deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
 ```
+
+> `--config ./deno.json` は **Deno の設定ファイル指定**（Deno 自身の設定ファイル）。カレント
+> ディレクトリの `deno.json` は、その配下にないモジュールの bare specifier には適用されない。
+> User スコープに導入したスキルがこれに当たる。
 
 引数からオプションを組み立てるルール (`--input` は **追加しない**):
 
 <!-- textlint-disable ja-technical-writing/sentence-length -->
 
-- 引数なし → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH"`
-- `agent` のみ → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt`
-- `agent YYYY-MM` → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt 2026-03`
-- `path` (パス区切り含む) → `deno run --allow-read --allow-write "$NOISE_FILTER_PATH" chatlogs/originalLogs/claude/2026/2026-04`
+- 引数なし → `deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH"`
+- `agent` のみ → `deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt`
+- `agent YYYY-MM` → `deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH" chatgpt 2026-03`
+- `path` (パス区切り含む) → `deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH" chatlogs/originalLogs/claude/2026/2026-04`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 
 <!-- textlint-enable ja-technical-writing/sentence-length -->
@@ -145,16 +149,16 @@ deno run --allow-read --allow-write "$NOISE_FILTER_PATH" $REST_ARGS
 `ChatlogCache` の初期化で `TEMP` 環境変数を参照するため `--allow-env` が必須:
 
 ```bash
-deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
+deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
 ```
 
 引数からオプションを組み立てるルール:
 
 <!-- textlint-disable ja-technical-writing/sentence-length -->
 
-- 引数なし → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH"`
-- `agent` のみ → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt`
-- `agent YYYY-MM` → `deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" chatgpt 2026-03`
+- 引数なし → `deno run ... "$SCRIPT_PATH"`
+- `agent` のみ → `deno run ... "$SCRIPT_PATH" chatgpt`
+- `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" chatgpt 2026-03`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--single-file` を含む → 末尾に `--single-file` を追加
 
@@ -186,13 +190,13 @@ deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
 AI を呼び出さないため `--allow-run` は不要 (noise-filter と同じ):
 
 ```bash
-deno run --allow-read --allow-write --allow-env "$STRIP_PATH" $STRIP_ARGS
+deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" $STRIP_ARGS
 ```
 
 引数からオプションを組み立てるルール:
 
-- `agent YYYY-MM` → `deno run --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03`
-- `path` → `deno run --allow-read --allow-write --allow-env "$STRIP_PATH" chatlogs/normalizeLogs/claude/2026/2026-07`
+- `agent YYYY-MM` → `deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03`
+- `path` → `deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" chatlogs/normalizeLogs/claude/2026/2026-07`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--recover-orphans` を含む → 末尾に `--recover-orphans` を追加
 
