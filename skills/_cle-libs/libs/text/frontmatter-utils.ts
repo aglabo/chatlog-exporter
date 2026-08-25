@@ -8,7 +8,7 @@
 
 // --- external
 // YAML パース (@std/yaml)
-import { parse as parseYaml } from '@std/yaml';
+import { parse as parseYaml } from 'jsr:@std/yaml@^1.0.12';
 
 // --- libs
 import { normalizeLine } from './line-utils.ts';

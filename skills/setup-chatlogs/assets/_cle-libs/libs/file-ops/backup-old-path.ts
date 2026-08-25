@@ -15,7 +15,7 @@
 
 // --- shared modules
 // functions
-import { expandGlob } from '@std/fs';
+import { expandGlob } from 'jsr:@std/fs@^1.0.23';
 // types
 import type { GlobProvider } from '../../types/providers.types.ts';
 // classes

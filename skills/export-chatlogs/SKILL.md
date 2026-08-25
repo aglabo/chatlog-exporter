@@ -57,8 +57,12 @@ SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlogs.ts
 解決した `SCRIPT_PATH` を使い、Bash で次のように実行する。
 
 ```bash
-deno run --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
+deno run --config ./deno.json --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 ```
+
+> `--config ./deno.json` は **Deno の設定ファイル指定**であり、下記オプション表の `--config FILE`
+> (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.json` は、その配下にない
+> モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
 `--export-dir` は明示指定しない。未指定時は `buildConfig()` が
 `<chatlogsDir ?? ./chatlogs>/originalLogs` を出力先として解決する。

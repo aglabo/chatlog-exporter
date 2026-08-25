@@ -62,8 +62,12 @@ SCRIPT_PATH = $SKILL_DIR/scripts/classify-chatlogs.ts
 解決した `SCRIPT_PATH` を使い、Bash で次のように実行する。
 
 ```bash
-deno run --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]
+deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]
 ```
+
+> `--config ./deno.json` は **Deno の設定ファイル指定**であり、下記オプション表の `--config FILE`
+> (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.json` は、その配下にない
+> モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
 ### 引数からオプションを組み立てるルール
 

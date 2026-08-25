@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── External modules
-import { parse as parseYaml } from '@std/yaml';
+import { parse as parseYaml } from 'jsr:@std/yaml@^1.0.12';
 
 // ─── Shared scripts
 import { readTextFile } from '../../../_cle-libs/libs/file-io/read-utils.ts';

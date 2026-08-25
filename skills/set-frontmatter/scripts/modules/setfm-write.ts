@@ -10,7 +10,7 @@
 // cspell:words setfm
 
 // ─── Shared scripts
-import { join, relative } from '@std/path';
+import { join, relative } from 'jsr:@std/path@^1.0.0';
 import { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { extractChatlogBaseDir } from '../../../_cle-libs/libs/file-io/resolve-directory.ts';

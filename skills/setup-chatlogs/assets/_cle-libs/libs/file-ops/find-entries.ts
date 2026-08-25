@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- external --
-import { expandGlob } from '@std/fs';
+import { expandGlob } from 'jsr:@std/fs@^1.0.23';
 
 // -- internal --
 import type { DirProvider, GlobProvider } from '../../types/providers.types.ts';

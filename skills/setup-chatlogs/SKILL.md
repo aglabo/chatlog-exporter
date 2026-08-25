@@ -129,7 +129,8 @@ bash "$SCRIPT_PATH" [--force]
 | `_cle-libs/`                       | スキルの隣 (skills 直下) | `_cle-libs/`                |
 
 - `.config/chatlog-exporter/` — グローバル設定 `config.yaml`、分類辞書 `dics/`、AI プロンプト `prompts/`
-- `deno.json` — JSR の bare specifier (`@std/yaml` 等) を解決するために必要
+- `deno.json` — 各スキルが `deno run --config ./deno.json` で参照する Deno 設定ファイル。
+  compilerOptions と、`@std/yaml` 等の bare specifier を使う import map の解決に必要
 - `_cle-libs/` — 各スキルが共有する型・定数・ライブラリ。各スキルの `../../_cle-libs/` import が
   そのまま解決するよう、スキルと同じ skills ディレクトリ直下に置く。
   インストールスコープに応じて `~/.claude/skills/_cle-libs/` (User スコープ) または
