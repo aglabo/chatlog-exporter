@@ -6,6 +6,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
+
 # Shell dialect: bash (#!/usr/bin/env bash, bash 4.0+ features used)
 shell=bash
 
@@ -14,5 +15,4 @@ severity=style
 
 # SC2317 - unreachable code after return/exit
 #   shellspec test framework patterns; also present in .tools/shellspec/.shellcheckrc
-disable=SC2317,SC1091
-
+disable=SC2317

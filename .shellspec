@@ -37,6 +37,9 @@
 # Set formatter (default: progress, options: documentation, tap, junit)
 --format documentation
 
+# Fail if no examples found (prevent silent failures)
+--fail-no-examples
+
 # Coverage settings (requires kcov)
 # --kcov
 # --kcov-options "--exclude-pattern=/usr"

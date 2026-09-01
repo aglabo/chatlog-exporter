@@ -30,20 +30,30 @@ $~*
 *.tmp
 *.swp
 *.lock
+# lock files are tracked
+!deno.lock
+!pnpm-lock.yaml
 
 # session files
-*session.json
-*session
-**/*session.json
-**/*session
+*.session.json
+**/session.json
+**/*.session.json
 
 # .env files
 .env*
 .env.*
+# example environment file
+!.env.example
+
+# build
+dist/
 
 # release
 releases/*
 !releases/.keep
+
+#
+.local/*
 
 
 ## Development tools (installed locally)
@@ -73,12 +83,15 @@ coverage*/
 !.claude/agents/**
 !.claude/rules/
 !.claude/rules/**
+!.claude/commands/
+!.claude/commands/**
 
 # MCP server dependency files
 .cocoindex_code/
 .serena/
 .lsmcp/
-.codegraph/*
+.codegraph/
+.cocoindex_code/
 
 ## Temporary directories are never tracked
 temp/

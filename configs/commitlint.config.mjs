@@ -1,4 +1,4 @@
-// src: configs/commitlint.config.js
+// src: configs/commitlint.config.mjs
 // @(#) : commitlint basic configuration
 //
 // Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
@@ -9,9 +9,11 @@
 // commit lint common configs
 export default {
   extends: ['@commitlint/config-conventional'],
+
+
   parserPreset: {
     parserOpts: {
-      headerPattern: /^(?:(merge)\s+\(#(\d+)\):\s+)?(\w*)(?:\(([^)]*)\))?!?: (.+)$/,
+      headerPattern: /^(?:(merge)\s+\(#(\d+)\):\s+)?(\w+)(?:\(([^)]+)\))?!?: (.+)$/,
       headerCorrespondence: [
         'merge',
         'pr',
@@ -21,6 +23,7 @@ export default {
       ],
     },
   },
+
   rules: {
     'type-enum': [2, 'always', [
       // === Default conventional types ===
