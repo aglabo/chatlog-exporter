@@ -1,0 +1,13 @@
+# src: .gitattributes
+# @(#) : line ending settings
+#
+# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+## Test fixtures
+# フィクスチャは改行コードもテスト対象。core.autocrlf=input による正規化を止める。
+# （dprint も excludes で除外済み。markdownlint / textlint も対象外）
+**/fixtures-data/** -text
+**/__tests__/**/fixtures/** -text

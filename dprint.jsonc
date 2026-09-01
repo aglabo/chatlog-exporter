@@ -26,8 +26,10 @@
     // Other Configurations
     "**/*.dic",
     // Documents
+    // NOTE: *.mdx は dprint 対象外。markdown プラグインは MDX 非対応で、
+    //       JSX の式属性 (cols={2}) を文字列 ("{2}") に書き換えて壊す。
+    //       lint は remark (pnpm run docs:lint) が担当する。
     "**/*.md",
-    "**/*.mdx",
   ],
   "excludes": [
     // node, etc
@@ -41,19 +43,28 @@
     "aglabo.github.io/node_modules/**",
     "aglabo.github.io/dist/**",
     // package managers lock files
-    "**/*lock",
-    "**lock.*",
+    "**/deno.lock",
+    "**/pnpm-lock.yaml",
+    // test fixtures
+    // dprint がバイト列を正規化すると、空行・末尾改行・改行コードを検証する
+    // エッジケースのフィクスチャが骨抜きになる（markdownlint は **/__tests__/**、
+    // textlint は **/fixtures/** を既に除外済み）。.ts の spec / helper は対象に残す。
+    "**/fixtures-data/**",
+    "**/fixtures/**/*.md",
+    "**/fixtures/**/*.yaml",
+    "**/fixtures/**/*.json",
+    "**/fixtures/**/*.dic",
     // Documents
     "CONTRIBUTING**.md",
     "CODE_OF_CONDUCT**.md",
   ],
   // Plugins
   "plugins": [
-    "https://plugins.dprint.dev/typescript-0.96.1.wasm",
-    "https://plugins.dprint.dev/json-0.23.0.wasm",
-    "https://plugins.dprint.dev/markdown-0.22.1.wasm",
-    "https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
-    "https://plugins.dprint.dev/toml-0.7.0.wasm",
+    "npm:@dprint/typescript@0.96.1",
+    "npm:@dprint/json@0.23.0",
+    "npm:@dprint/markdown@0.23.2",
+    "npm:dprint-plugin-yaml@0.6.0",
+    "npm:@dprint/toml@0.8.0",
   ],
   // Language-specific settings
   "typescript": {
@@ -67,9 +78,6 @@
   },
   "json": {},
   "markdown": {
-    "associations": [
-      "**/*.mdx"
-    ],
     "emphasisKind": "asterisks",
   },
   "yaml": {
