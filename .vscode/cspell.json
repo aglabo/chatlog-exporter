@@ -18,7 +18,7 @@
   "dictionaryDefinitions": [
     {
       "name": "project-dic",
-      "description": "user dictionary for this project",
+      "description": "project-specific dictionary",
       "path": "./cspell/dicts/project.dic",
       "addWords": true,
       "scope": "workspace"
