@@ -1617,7 +1617,7 @@ source: specifications.md
   - Test ID: `T-FL-SEP-09-01`
   - Rule: R-017 / DR-39 決定 1
   - AC: AC-033
-- [x] **T-10-02-02**: サブディレクトリの `stripped` で R-013 の包含検査が成立し退避が削除される
+- [x] **T-10-02-02**: サブディレクトリの `stripped` で R-013 の包含検査が成立し、退避を削除する
   - Test ID: `T-FL-SEP-09-02`, `T-FL-SBS-09-01`
   - Rule: R-010 / R-013 / R-017
   - AC: AC-035
@@ -1660,7 +1660,7 @@ source: specifications.md
   - Test ID: `T-FL-SEP-09-05`
   - Rule: R-017
   - Edge: Edge 18
-- [x] **T-10-05-02**: サブディレクトリの孤立退避が error 計上され R-011 で退避が保持される
+- [x] **T-10-05-02**: サブディレクトリの孤立退避を error に計上し、R-011 で退避を保持する
   - Test ID: `T-FL-SEP-09-03`
   - Rule: R-011 / R-014 / R-017
   - AC: AC-034
