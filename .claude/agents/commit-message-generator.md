@@ -165,7 +165,7 @@ Do not output the message unless all gates pass.
 
 ## Output Format
 
-'''text
+```text
 === commit header ===
 type(scope): summary
 
@@ -174,12 +174,12 @@ type(scope): summary
   another change description
 - path/to/fileB.ext:
   change description
-  === commit footer ===
-  '''
+=== commit footer ===
+```
 
 When no scope can be determined:
 
-'''text
+```text
 === commit header ===
 type: summary
 
@@ -187,8 +187,8 @@ type: summary
   change description
 - path/to/fileB.ext:
   change description
-  === commit footer ===
-  '''
+=== commit footer ===
+```
 
 Do not add explanations before or after this format.
 
@@ -253,40 +253,40 @@ Select a scope only when one logical component clearly contains the dominant cha
 
 ### Examples
 
-'''text
+```text
 src/config/loader.ts
 src/config/paths.ts
 tests/config/loader.test.ts
-'''
+```
 
 -> `config`
 
-'''text
+```text
 src/logger/index.ts
 src/logger/valueClassifier.ts
-**tests**/logger/valueClassifier.spec.ts
-'''
+__tests__/logger/valueClassifier.spec.ts
+```
 
 -> `logger`
 
-'''text
+```text
 docs/README.md
 docs/configuration.md
-'''
+```
 
 -> `docs`
 
-'''text
+```text
 configs/commitlint.config.mjs
 configs/secretlint.config.yaml
-'''
+```
 
 -> `config`
 
-'''text
+```text
 src/config/loader.ts
 src/backend/openai.ts
-'''
+```
 
 -> omit scope unless the diff establishes a single shared logical component
 
@@ -312,20 +312,19 @@ The body provides file-level traceability.
 
 Example:
 
-'''text
-
+```text
 - src/config/loader.ts:
   YAML設定ファイルの読み込み処理を追加
   読み込み結果を設定スキーマで検証する処理を追加
 - src/config/paths.ts:
   XDG_CONFIG_HOMEからグローバル設定パスを解決する処理を追加
-  '''
+```
 
 ---
 
 ## Good Example
 
-'''text
+```text
 === commit header ===
 refactor(logger): separate value classification logic
 
@@ -333,10 +332,10 @@ refactor(logger): separate value classification logic
   値種別の判定をdetectValueKindとdetectValueCategoryに分離
 - src/logger/index.ts:
   既存の値判定処理を新しい分類関数の呼び出しへ置換
-- **tests**/logger/valueClassifier.spec.ts:
+- __tests__/logger/valueClassifier.spec.ts:
   新しい分類関数に対する単体テストを追加
-  === commit footer ===
-  '''
+=== commit footer ===
+```
 
 Why:
 
@@ -347,14 +346,14 @@ Why:
 
 ## Bad Example
 
-'''text
+```text
 === commit header ===
 refactor(logger): improve value handling
 
 - src/logger:
   ロジックを改善
-  === commit footer ===
-  '''
+=== commit footer ===
+```
 
 Why:
 
