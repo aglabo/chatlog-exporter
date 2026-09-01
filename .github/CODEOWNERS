@@ -1,0 +1,9 @@
+# src: .github/CODEOWNERS
+# @(#) : project code ownership settings
+#
+# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+* @atsushifx
