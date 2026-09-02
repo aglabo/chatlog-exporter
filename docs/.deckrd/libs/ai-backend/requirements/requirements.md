@@ -2,7 +2,7 @@
 title: "Requirements: LAN llama サーバの AI バックエンド化"
 module: "libs/ai-backend"
 status: Draft
-version: 1.5.0
+version: 1.6.0
 created: "2026-09-02"
 ---
 
@@ -29,7 +29,7 @@ Anthropic API のコストとレートリミットから解放され、`classify
 | 通信         | 応答に複数の `choices` が含まれる場合の採用規則を定める                                | REQ-F-017             |
 | 構造化出力   | llama 経路に限り `response_format`（json_schema）で出力形式を強制する                  | REQ-F-003, 004, 018   |
 | 構造化出力   | 実装着手前に実機で `response_format` の挙動を実測する                                  | REQ-F-016             |
-| エラー       | 過負荷系ステータスと恒久的失敗を subindex で区別し、いずれも即座に throw する          | REQ-F-005, 006        |
+| エラー       | バックエンド可用性を軸に中断・続行を subindex で区別し、いずれも即座に throw する      | REQ-F-005, 006        |
 | エラー       | 不正モデル名の案内文言を実装の受理範囲に追随させる                                     | REQ-F-014             |
 | 設定・配布   | `config.yaml` に `llamaEndpoint` を追加し、`model` の provider prefix で経路を選択する | REQ-F-008, 009        |
 | 設定・配布   | AI を呼ぶ実行経路にのみ `--allow-net` を付与し、配布ミラーへ同期する                   | REQ-F-010, 011        |
@@ -91,19 +91,25 @@ Anthropic API のコストとレートリミットから解放され、`classify
 
 Decision Records の本文は `../decision-records.md` にある。
 
-| ID    | Decision                                                                    |
-| ----- | --------------------------------------------------------------------------- |
-| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く |
-| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                 |
-| DR-03 | 失敗時は即座に throw する（fail-first。リトライ・フォールバック無し）       |
-| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める          |
-| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する   |
-| DR-06 | 既知の周辺不具合（空配列パース・モデル名案内）を本スコープで併せて直す      |
-| DR-09 | 「OpenAI 互換」を実測ゲート（REQ-F-016）で裏付ける                          |
-| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                   |
-| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める        |
-| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする  |
-| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                              |
+| ID    | Decision                                                                                         |
+| ----- | ------------------------------------------------------------------------------------------------ |
+| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く                      |
+| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                                      |
+| DR-03 | 失敗時は即座に throw する（fail-first。リトライ・フォールバック無し）                            |
+| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める                               |
+| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する                        |
+| DR-06 | 既知の周辺不具合（空配列パース・モデル名案内）を本スコープで併せて直す                           |
+| DR-09 | 「OpenAI 互換」を実測ゲート（REQ-F-016）で裏付ける                                               |
+| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                                        |
+| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める                             |
+| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする（DR-18 が supersede） |
+| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                                                   |
+| DR-14 | llama 経路の識別子解決規則（URL 正規化・スキーム・prefix 照合）を確定する                        |
+| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する                               |
+| DR-16 | 失敗系分類の一覧を error-handling が単独で所有する（決定 3 は DR-18 が撤回）                     |
+| DR-17 | llama 経路は既存の `timeoutMs` を共有し、経路別の設定キーを設けない                              |
+| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける                             |
+| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する                               |
 
 ## 4. Functional Requirements
 
@@ -138,14 +144,19 @@ EARS Type: WHEN / **AC**: AC-006
 
 ```text
 GIVEN llama バックエンドが選択されている
-  WHERE 呼び出し元が構造化出力（JSON 配列 / オブジェクト / YAML 契約）を要求する
+  WHEN runAI がリクエストボディを構築する
 THEN the system SHALL OpenAI 互換の `response_format`（json_schema）を用いて出力形式を強制する。
+     スキーマは呼び出し元が指定した出力契約（REQ-F-018）から構築する。
 ```
 
-EARS Type: WHERE / **AC**: AC-002
+EARS Type: WHEN / **AC**: AC-002
 
 **Rationale**: ローカルモデルは指示追従能力が低く、スキーマ強制なしでは実用にならない（設計ノート §6.1）。
-YAML 契約の呼び出し元を対象に含める根拠は REQ-F-018 / DR-11 に置く。
+適用条件を「呼び出し元が構造化出力を要求する場合」という条件付きにしない理由は、REQ-F-018 により
+llama 経路の `runAI` 呼び出し 6 箇所すべてが出力契約を持つと確定したことによる。
+条件付きの記述を残すと、`specifications-structured-output.md` R-001（無条件）と
+`specifications-transport.md` R-009（構造化出力時のみ）との三重化が解消しない（DR-15 / DR-19）。
+出力契約を指定しない llama 経路の呼び出しは想定しない。
 
 ### REQ-F-004: json_schema に数量制約を含めない
 
@@ -181,17 +192,37 @@ GIVEN llama サーバへの接続が失敗する、HTTP エラーが返る、ま
       利用できない応答（`choices` が空、本文がテキストでない等）が返る
   WHEN runAI が llama 経由でリクエストを送信している
   NOT DO リトライまたは他バックエンドへのフォールバックを行う
-THEN the system SHALL 即座に ChatlogError を throw する。
-     過負荷系ステータス（429 / 503 / 504）は subindex を RateLimit とし（REQ-F-005）、
-     それ以外の HTTP エラーおよび接続失敗は subindex を ExitFailure とする。
+THEN the system SHALL 即座に ChatlogError(kind: AiError) を throw し、subindex を下表のとおり割り当てる。
 ```
+
+subindex の割当は「再試行可能か」ではなく **「バックエンドが使えるか」** を軸とする（DR-18）。
+バックエンドが使えない失敗は、後続のすべての呼び出しも同じ結果になるため一括処理を中断する。
+入力・応答に起因する単発の失敗は、当該ファイルのみを失敗として記録し、処理を続行する。
+
+| 事象                                                       | subindex                  | 呼び出し元の扱い |
+| ---------------------------------------------------------- | ------------------------- | ---------------- |
+| 429 / 503 / 504（過負荷。REQ-F-005）                       | `RateLimit`               | 中断             |
+| `llamaEndpoint` 未設定・不正（REQ-F-019）                  | `InvalidEndpoint`         | 中断             |
+| 接続失敗（サーバ未起動・到達不能・DNS 解決失敗）           | `BackendUnavailable`      | 中断             |
+| 404 / 501（エンドポイントを実装していない）                | `BackendUnavailable`      | 中断             |
+| 401 / 403（認証を要求する構成。§2 Assumptions の前提崩れ） | `BackendUnavailable`      | 中断             |
+| `response_format` の拒否（400 かつ当該フィールドが原因）   | `ResponseFormatRejected`  | 中断             |
+| 上記以外の 4xx / 5xx（入力起因の 400 を含む）              | `ExitFailure`             | 続行             |
+| 応答本文が使えない（`choices` 空・非テキスト・切り詰め）   | `ExitFailure`             | 続行             |
+| 応答が出力契約に適合しない                                 | `ResponseSchemaViolation` | 続行             |
 
 EARS Type: NOT DO / **AC**: AC-004
 
-**Rationale**: ヒアリング #3（fail-first 原則）。subindex を分けるのは、既存の `isRateLimitError` が
-恒久的な設定ミス（404、不正な `llamaEndpoint` 等）をリトライ可能と誤認しないようにするため。
+**Rationale**: ヒアリング #3（fail-first 原則）。
+`kind` を一律 `AiError` とするのは、既存の呼び出し元 6 箇所の catch が
+`isRateLimitError` → `isFatalAiError` → **非 AiError はフォールバック値** の順で分岐しており、
+`AiError` 以外の kind で throw すると失敗が既定値の書き込みとして現れるためである
+（`setfm-type-category.ts` で確認済み）。
+中断させるべき subindex は `isRateLimitError` だけでは拾えないため、DR-18 は llama 経路専用の
+判定関数を新設する。既存 CLI バックエンドは `RateLimit` / `ExitFailure` しか throw しないため、
+新 subindex の追加は既存経路の挙動を変えない（REQ-C-002）。
 成功ステータスかつ利用できない応答を GIVEN に含めるのは、`specifications-error-handling.md` §5 が
-当該ケースを `ExitFailure` として本要件に紐付けているため。
+当該ケースを本要件に紐付けているため。
 
 ### REQ-F-007: タイムアウト / AbortSignal セマンティクスの維持
 
@@ -250,6 +281,20 @@ THEN the system SHALL 下表の「AI 経路」に該当する行にのみ `--all
 | `skills/normalize-chatlogs/SKILL.md` | `$SCRIPT_PATH` の実行行                              |
 | `skills/set-frontmatter/SKILL.md`    | `$SCRIPT_PATH` の実行行 2 箇所                       |
 | `deno.json`                          | `test:module` タスク（llama 経路のテストを実行する） |
+
+**エントリスクリプト冒頭の shebang 行も判定対象に含める。**
+AI を呼ぶスクリプトのうち `#!/usr/bin/env -S deno run ...` 形式でフラグ列を持つのは次の 3 本であり、
+直接実行された場合はこの行が権限を決めるため、SKILL.md の実行行と同じ付与規則を適用する
+（`specifications-config-packaging.md` R-003 / §5 が規範として持つ）。
+
+| ファイル                                                | 付与 |
+| ------------------------------------------------------- | ---- |
+| `skills/classify-chatlogs/scripts/classify-chatlogs.ts` | する |
+| `skills/filter-chatlogs/scripts/filter-chatlogs.ts`     | する |
+| `skills/set-frontmatter/scripts/set-frontmatter.ts`     | する |
+
+`skills/normalize-chatlogs` のスクリプトは shebang 行を持たないため、対象は SKILL.md の実行行のみとなる。
+`export-chatlogs.ts` / `noise-filter-chatlogs.ts` / `strip-chatlogs.ts` は AI を呼ばないため付与しない。
 
 `runAI` を呼ばない経路（付与対象外）は次のとおり。
 
@@ -370,20 +415,41 @@ EARS Type: WHEN / **AC**: AC-017
 **Rationale**: OpenAI 互換サーバは `n` 未指定でも複数 choices を返しうるが、`runAI` の戻り値は
 単一のテキストに限られる。`choices` が空の場合と本文がテキストでない場合は REQ-F-006 の GIVEN が扱う。
 
-### REQ-F-018: YAML 契約の呼び出し元への構造化出力の適用
+### REQ-F-018: 呼び出し単位の出力契約とその復元
 
 ```text
 GIVEN llama バックエンドが選択されている
-  WHERE 呼び出し元が YAML 契約（`extractYaml` が返す形）の出力を期待する
-THEN the system SHALL 当該呼び出し元に対しても `response_format`（json_schema）を適用し、
-     受信した JSON を既存の YAML 契約へ変換して返す。
+  WHEN runAI が呼び出される
+THEN the system SHALL 呼び出し元が指定した出力契約から json_schema を構築して `response_format` に載せ、
+     受信した JSON を当該呼び出し元が既存の CLI 経路で受け取るのと同じ文字列表現へ復元して返す。
 ```
 
-EARS Type: WHERE / **AC**: AC-018
+対象の単位はスキルではなく `runAI` 呼び出しとする。現行の呼び出しは 6 箇所・3 契約であり、
+そのすべてを対象に含める。
 
-**Rationale**: DR-11。§1.1 Purpose は set-frontmatter を対象 4 スキルに数えるが、REQ-F-003 の適用範囲を
-JSON 出力に限ると set-frontmatter だけがスキーマ強制なしで動き、DR-04 の前提が崩れる。
-REQ-C-002 により、CLI バックエンド経由時の set-frontmatter の挙動は変えない。
+| # | 呼び出し元                                    | 出力契約       | 復元後の文字列表現                              |
+| - | --------------------------------------------- | -------------- | ----------------------------------------------- |
+| 1 | `classify-chatlogs/.../phase-classify-ai.ts`  | JSON 配列      | `parseAiJsonArray` が解釈する JSON 配列         |
+| 2 | `filter-chatlogs/.../filter/process-chunk.ts` | JSON 配列      | 同上                                            |
+| 3 | `normalize-chatlogs/.../segment-ai.ts`        | JSON 配列      | 同上                                            |
+| 4 | `set-frontmatter/.../setfm-frontmatter.ts`    | YAML 契約      | `extractYaml(_raw, 'title')` が解釈する YAML    |
+| 5 | `set-frontmatter/.../setfm-review.ts`         | YAML 契約      | `extractYaml(_raw, 'validity')` が解釈する YAML |
+| 6 | `set-frontmatter/.../setfm-type-category.ts`  | 行前置テキスト | `type: <値>` / `category: <値>` の 2 行         |
+
+EARS Type: WHEN / **AC**: AC-018
+
+**Rationale**: DR-11 / DR-19。DR-11 は対象を「set-frontmatter というスキル」と記述していたが、
+set-frontmatter は 1 スキルで 3 契約（YAML 契約 2・行前置テキスト 1）を持つため、
+スキル単位では適用範囲が一意に定まらない。
+
+**#6 を対象から外さない理由**: この呼び出しは応答を行頭 `type:` / `category:` の前方一致で読む。
+外すと llama 経路でだけスキーマ強制が効かず、指示追従の弱いローカルモデルが別形式を返した場合に
+`_parsedType` / `_parsedCategory` が空文字となり、検証を通らないまま例外も出ず
+`DEFAULT_FALLBACK_TYPE` / `DEFAULT_FALLBACK_CATEGORY` が全ファイルへ書き込まれる。
+含めたうえで、受信 JSON を行前置テキストへ復元して返す（DR-19 の契約アダプタ）。
+これにより呼び出し元のコードは変更せずに済み、REQ-C-005（`runAI` 公開シグネチャの維持）を守れる。
+
+REQ-C-002 により、CLI バックエンド経由時の 6 呼び出しの挙動は変えない。
 
 ### REQ-F-019: `llamaEndpoint` 未設定時の設定エラー
 
@@ -391,14 +457,22 @@ REQ-C-002 により、CLI バックエンド経由時の set-frontmatter の挙�
 GIVEN model が `llama/<model>` 形式で指定されている
   WHEN llama 経路が選択され、リクエスト URL を組み立てる前に llamaEndpoint を解決する
 THEN the system SHALL llamaEndpoint が未設定（キー省略または空文字列）・絶対 URL でないいずれかの場合に、
-     ネットワークアクセスを行う前に ChatlogError(kind: InvalidFormat, subindex: InvalidEndpoint) を throw する。
+     ネットワークアクセスを行う前に ChatlogError(kind: AiError, subindex: InvalidEndpoint) を throw する。
 ```
 
 EARS Type: WHEN / **AC**: AC-019
 
-**Rationale**: DR-12。設定の読み込み自体は成功させる（`specifications-config-packaging.md` §5）ため、
-検証は llama 経路が選択された時点で行う。本要件における「未設定」は、config.yaml でキーが省略され
-既定値の空文字列が解決された場合と、空文字列が明示的に指定された場合の双方を指す（REQ-F-008）。
+**Rationale**: DR-12（DR-18 により supersede）。設定の読み込み自体は成功させる
+（`specifications-config-packaging.md` §5）ため、検証は llama 経路が選択された時点で行う。
+本要件における「未設定」は、config.yaml でキーが省略され既定値の空文字列が解決された場合と、
+空文字列が明示的に指定された場合の双方を指す（REQ-F-008）。
+
+`kind` を DR-12 が選んだ `InvalidFormat` から `AiError` へ変更する理由は次のとおり。
+呼び出し元 6 箇所の catch は、`isRateLimitError` → `isFatalAiError` → 非 AiError はフォールバック値、
+という順で分岐する。`InvalidFormat` はどちらの判定関数も偽にするため最後の分岐へ落ちる。
+その結果、接続先の設定漏れが全ファイルへの既定値の一括書き込みとして現れてしまう。
+これは REQ-F-006 の fail-first と両立しない。`AiError` + 中断側 subindex とすることで、
+設定漏れは処理開始直後の中断として現れる（DR-18）。
 
 ## 5. Non-Functional Requirements
 
@@ -485,9 +559,9 @@ Scenario: llama バックエンド選択時のリクエスト送信
 
 # AC-002 / REQ-F-003
 Scenario: 構造化出力の強制
-  Given llama バックエンドが選択されており、呼び出し元が構造化出力を要求する
+  Given llama バックエンドが選択されている
   When  runAI が llama サーバへリクエストを送信する
-  Then  リクエストボディに response_format（json_schema）が含まれる
+  Then  呼び出し元の出力契約に関わらず、リクエストボディに response_format（json_schema）が含まれる
 
 # AC-003 / REQ-F-013
 Scenario: AI が空配列を返した場合の正常処理
@@ -499,7 +573,16 @@ Scenario: AI が空配列を返した場合の正常処理
 Scenario: llama サーバ接続失敗
   Given llama サーバが起動していない、または到達不能である
   When  runAI が llama 経由でリクエストを送信する
-  Then  リトライやフォールバックを行わずに ChatlogError が即座に throw される
+  Then  リトライやフォールバックを行わずに
+        ChatlogError(kind: AiError, subindex: BackendUnavailable) が即座に throw され、
+        呼び出し元の一括処理が中断される
+
+# AC-023 / REQ-F-006
+Scenario: 続行側の失敗が一括処理を止めない
+  Given llama サーバが単一のリクエストに対して使えない応答本文を返す
+  When  runAI が llama 経由でリクエストを送信する
+  Then  ChatlogError(kind: AiError, subindex: ExitFailure) が throw され、
+        呼び出し元は当該ファイルのみを失敗として記録し、残りのファイルの処理を続行する
 
 # AC-005 / REQ-F-005
 Scenario: llama サーバの過負荷系応答
@@ -540,7 +623,8 @@ Scenario: agent と backend の分離
 
 # AC-011 / REQ-F-010
 Scenario: ネットワーク権限の付与範囲
-  Given REQ-F-010 が AI 経路／非 AI 経路として列挙した deno run 行
+  Given REQ-F-010 が AI 経路／非 AI 経路として列挙した deno run 行、および
+        AI を呼ぶエントリスクリプト 3 本の shebang 行
   When  それぞれのフラグ列を検査する
   Then  AI 経路の行にのみ --allow-net が含まれ、非 AI 経路の行には含まれない
 
@@ -586,16 +670,26 @@ Scenario: 複数 choices の採用規則
   Then  choices[0] の内容のみが採用され、2 番目以降は無視される
 
 # AC-018 / REQ-F-018
-Scenario: YAML 契約への構造化出力の適用
-  Given set-frontmatter のように YAML 契約の出力を期待する呼び出し元が llama 経由で runAI を呼ぶ
+Scenario: 呼び出し単位の出力契約と復元
+  Given REQ-F-018 が列挙した 6 つの runAI 呼び出しのいずれかが llama 経由で実行される
   When  リクエストボディが構築され、応答が解釈される
-  Then  リクエストに response_format（json_schema）が含まれ、受信 JSON が既存の YAML 契約の形に変換されて返る
+  Then  リクエストに当該契約から構築した response_format（json_schema）が含まれ、
+        受信 JSON が当該呼び出し元の既存パーサ（parseAiJsonArray / extractYaml / 行前置一致）が
+        解釈できる文字列表現へ復元されて返る
+
+# AC-024 / REQ-F-018
+Scenario: 行前置テキスト契約の呼び出し元がフォールバック値へ落ちない
+  Given setfm-type-category が llama 経由で runAI を呼び、サーバが契約どおりの JSON を返す
+  When  応答が復元されて呼び出し元へ返る
+  Then  type / category が辞書の値として解決され、DEFAULT_FALLBACK_TYPE /
+        DEFAULT_FALLBACK_CATEGORY は書き込まれない
 
 # AC-019 / REQ-F-019
 Scenario: 接続先未設定の検出
   Given model が llama/qwen3-14b であり、llamaEndpoint が未設定（キー省略または空文字列）である
   When  runAI が呼び出される
-  Then  fetch が一度も呼ばれずに ChatlogError(kind: InvalidFormat, subindex: InvalidEndpoint) が throw される
+  Then  fetch が一度も呼ばれずに ChatlogError(kind: AiError, subindex: InvalidEndpoint) が throw され、
+        呼び出し元の一括処理が中断される（フォールバック値は書き込まれない）
 
 # AC-020 / REQ-NF-001
 Scenario: 内部境界の分離
@@ -621,61 +715,72 @@ Scenario: 既存バックエンドの非破壊
 
 ### 解決済み
 
-| Question                                                                   | 解決                                                                                                                             |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `llamaEndpoint` の URL 形式検証を行うか（ConfigFieldType に `url` 型なし） | URL 専用型は新設せず既存の型語彙（`text`）で表現する。検証は llama 経路選択時にネットワークアクセス前で行う（REQ-F-019 / DR-12） |
-| `response_format` スキーマの渡し方（新オプション引数か別関数か）           | 既存の呼び出しオプションへの任意フィールド追加で確定。フィールド名称のみ実装時に決める                                           |
-| HTTP 429 / 接続失敗を `AiError` 再利用にするか新規 kind を追加するか       | 既存種別を再利用し `RateLimit` / `ExitFailure` の subindex で区別する（REQ-F-005 / REQ-F-006 / REQ-C-003）                       |
-| `--allow-net` の付与範囲                                                   | 宛先を限定せず無制限に付与する（DR-13）                                                                                          |
-| REQ-NF-003（UTF-8）が HTTP 経路で何を意味するか                            | リクエスト／レスポンスの charset を規定し AC-021 を付与                                                                          |
-| AC-016 の「実測・記録された」の合否基準                                    | 実測するスキーマを 3 種に特定し、各 1 回以上の実測を要求（AC-016）                                                               |
-| REQ-F-016 の THEN が 2 規範文を含むことの是非                              | 実測ゲート 1 つの表裏であり常に同時に評価されるため分割しない（REQ-F-016 注記）                                                  |
-| REQ-C-002 に AC がない                                                     | AC-022 を付与                                                                                                                    |
+| Question                                                                   | 解決                                                                                                                               |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `llamaEndpoint` の URL 形式検証を行うか（ConfigFieldType に `url` 型なし） | URL 専用型は新設せず既存の型語彙（`text`）で表現する。検証は llama 経路選択時にネットワークアクセス前で行う（REQ-F-019 / DR-12）   |
+| `response_format` スキーマの渡し方（新オプション引数か別関数か）           | 呼び出しオプションに出力契約を指定するフィールドを追加する。名称ではなく公開契約境界の問題として扱う（DR-19 / REQ-F-018）          |
+| `response_format` の適用条件（要求時のみか無条件か）                       | llama バックエンド選択時は無条件に適用する。6 呼び出しすべてが出力契約を持つため条件付きにする必要がない（REQ-F-003 / DR-19）      |
+| REQ-F-018 の対象単位（スキル単位か呼び出し単位か）                         | `runAI` 呼び出し単位。set-frontmatter は 1 スキルで 3 契約を持つためスキル単位では一意に定まらない（REQ-F-018 / DR-19）            |
+| REQ-F-019 の kind 選定（`InvalidFormat` か `AiError` か）                  | `AiError` + 中断側 subindex。`InvalidFormat` は呼び出し元の判定関数をすり抜けフォールバック値の書き込みになる（REQ-F-019 / DR-18） |
+| 失敗分類の軸（再試行可能性かバックエンド可用性か）                         | バックエンド可用性を軸とし、中断と続行を subindex で分ける（REQ-F-006 / DR-18）                                                    |
+| REQ-F-010 の対象に shebang 行を含めるか                                    | 含める。AI を呼ぶエントリスクリプト 3 本が直接実行される場合、権限を決めるのは shebang 行である（REQ-F-010）                       |
+| HTTP 429 / 接続失敗を `AiError` 再利用にするか新規 kind を追加するか       | 既存種別を再利用し `RateLimit` / `ExitFailure` の subindex で区別する（REQ-F-005 / REQ-F-006 / REQ-C-003）                         |
+| `--allow-net` の付与範囲                                                   | 宛先を限定せず無制限に付与する（DR-13）                                                                                            |
+| REQ-NF-003（UTF-8）が HTTP 経路で何を意味するか                            | リクエスト／レスポンスの charset を規定し AC-021 を付与                                                                            |
+| AC-016 の「実測・記録された」の合否基準                                    | 実測するスキーマを 3 種に特定し、各 1 回以上の実測を要求（AC-016）                                                                 |
+| REQ-F-016 の THEN が 2 規範文を含むことの是非                              | 実測ゲート 1 つの表裏であり常に同時に評価されるため分割しない（REQ-F-016 注記）                                                    |
+| REQ-C-002 に AC がない                                                     | AC-022 を付与                                                                                                                      |
 
 ### 未解決
 
 要件レベルの規範に関わる未解決事項は残っていない。
 実装着手の前提となる作業として、REQ-F-016 の実機実測が未実施のまま残る。
 
+実測に依存するため要件では確定させず、`../decision-records.md` に再検討トリガーとして記録した論点が 3 件ある
+（DR-03: 429 / 503 / 504 の一括 `RateLimit`、DR-15: `max_tokens` を送らない、DR-17: `timeoutMs` の共有）。
+いずれも実測結果によっては要件の改訂を要する。
+
 ## 10. Traceability
 
-| REQ ID     | AC IDs | Type           |
-| ---------- | ------ | -------------- |
-| REQ-F-001  | AC-001 | Functional     |
-| REQ-F-002  | AC-006 | Functional     |
-| REQ-F-003  | AC-002 | Functional     |
-| REQ-F-004  | AC-007 | Functional     |
-| REQ-F-005  | AC-005 | Functional     |
-| REQ-F-006  | AC-004 | Functional     |
-| REQ-F-007  | AC-008 | Functional     |
-| REQ-F-008  | AC-009 | Functional     |
-| REQ-F-009  | AC-010 | Functional     |
-| REQ-F-010  | AC-011 | Functional     |
-| REQ-F-011  | AC-012 | Functional     |
-| REQ-F-012  | AC-013 | Functional     |
-| REQ-F-013  | AC-003 | Functional     |
-| REQ-F-014  | AC-014 | Functional     |
-| REQ-F-015  | AC-015 | Functional     |
-| REQ-F-016  | AC-016 | Functional     |
-| REQ-F-017  | AC-017 | Functional     |
-| REQ-F-018  | AC-018 | Functional     |
-| REQ-F-019  | AC-019 | Functional     |
-| REQ-NF-001 | AC-020 | Non-Functional |
-| REQ-NF-002 | AC-013 | Non-Functional |
-| REQ-NF-003 | AC-021 | Non-Functional |
-| REQ-C-001  | N/A    | Constraint     |
-| REQ-C-002  | AC-022 | Constraint     |
-| REQ-C-003  | N/A    | Constraint     |
-| REQ-C-004  | N/A    | Constraint     |
-| REQ-C-005  | N/A    | Constraint     |
+| REQ ID     | AC IDs         | Type           |
+| ---------- | -------------- | -------------- |
+| REQ-F-001  | AC-001         | Functional     |
+| REQ-F-002  | AC-006         | Functional     |
+| REQ-F-003  | AC-002         | Functional     |
+| REQ-F-004  | AC-007         | Functional     |
+| REQ-F-005  | AC-005         | Functional     |
+| REQ-F-006  | AC-004, AC-023 | Functional     |
+| REQ-F-007  | AC-008         | Functional     |
+| REQ-F-008  | AC-009         | Functional     |
+| REQ-F-009  | AC-010         | Functional     |
+| REQ-F-010  | AC-011         | Functional     |
+| REQ-F-011  | AC-012         | Functional     |
+| REQ-F-012  | AC-013         | Functional     |
+| REQ-F-013  | AC-003         | Functional     |
+| REQ-F-014  | AC-014         | Functional     |
+| REQ-F-015  | AC-015         | Functional     |
+| REQ-F-016  | AC-016         | Functional     |
+| REQ-F-017  | AC-017         | Functional     |
+| REQ-F-018  | AC-018, AC-024 | Functional     |
+| REQ-F-019  | AC-019         | Functional     |
+| REQ-NF-001 | AC-020         | Non-Functional |
+| REQ-NF-002 | AC-013         | Non-Functional |
+| REQ-NF-003 | AC-021         | Non-Functional |
+| REQ-C-001  | N/A            | Constraint     |
+| REQ-C-002  | AC-022         | Constraint     |
+| REQ-C-003  | N/A            | Constraint     |
+| REQ-C-004  | N/A            | Constraint     |
+| REQ-C-005  | N/A            | Constraint     |
+| REQ-C-006  | AC-020         | Constraint     |
 
 ## 11. Change History
 
-| Date       | Version | Description                                                                                                                                                                                                                                                                         |
-| ---------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-02 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                     |
-| 2026-09-02 | 1.1.0   | codex セカンドオピニオン(risk)を反映: REQ-F-015/016 追加、REQ-F-005 に 503/504 を追加、REQ-F-010 の対象を AI 経路に限定、認証を Out of Scope 化                                                                                                                                     |
-| 2026-09-02 | 1.2.0   | codex セカンドオピニオン(balanced)を反映: REQ-F-017・REQ-C-006 追加、REQ-F-016 に合格基準と未実測実装の対象外化を追記、対応対象サーバを実測済み実装に限定                                                                                                                           |
-| 2026-09-02 | 1.3.0   | harden / fix レビュー所見を反映: REQ-F-018・REQ-F-019 追加、REQ-NF-001 を SHALL 化し AC-020 を付与、AC 二重記載 8 件の不一致を解消、REQ-F-015 を番号順へ移動                                                                                                                        |
-| 2026-09-02 | 1.4.0   | consistency レビュー所見を反映: `llamaEndpoint` の既定値を空文字列に確定し「未設定 = キー省略または空文字列」と定義、§9 の検証タイミングを確定済みへ訂正                                                                                                                            |
-| 2026-09-02 | 1.5.0   | 全面整理: AC の二重記載を §8 へ一元化、§1.2 Scope を領域別の表に再編、fix / harden レビューの据え置き 5 件を解決（AC-021・AC-022 追加、AC-016 の合格基準を具体化、REQ-F-016 の分割不要を判断、REQ-F-010 の対象キーを行番号から識別子へ）、DR-06 の統合と DR-07 / DR-08 の削除を反映 |
+| Date       | Version | Description                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-02 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                                                                    |
+| 2026-09-02 | 1.1.0   | codex セカンドオピニオン(risk)を反映: REQ-F-015/016 追加、REQ-F-005 に 503/504 を追加、REQ-F-010 の対象を AI 経路に限定、認証を Out of Scope 化                                                                                                                                                                                    |
+| 2026-09-02 | 1.2.0   | codex セカンドオピニオン(balanced)を反映: REQ-F-017・REQ-C-006 追加、REQ-F-016 に合格基準と未実測実装の対象外化を追記、対応対象サーバを実測済み実装に限定                                                                                                                                                                          |
+| 2026-09-02 | 1.3.0   | harden / fix レビュー所見を反映: REQ-F-018・REQ-F-019 追加、REQ-NF-001 を SHALL 化し AC-020 を付与、AC 二重記載 8 件の不一致を解消、REQ-F-015 を番号順へ移動                                                                                                                                                                       |
+| 2026-09-02 | 1.4.0   | consistency レビュー所見を反映: `llamaEndpoint` の既定値を空文字列に確定し「未設定 = キー省略または空文字列」と定義、§9 の検証タイミングを確定済みへ訂正                                                                                                                                                                           |
+| 2026-09-02 | 1.5.0   | 全面整理: AC の二重記載を §8 へ一元化、§1.2 Scope を領域別の表に再編、fix / harden レビューの据え置き 5 件を解決（AC-021・AC-022 追加、AC-016 の合格基準を具体化、REQ-F-016 の分割不要を判断、REQ-F-010 の対象キーを行番号から識別子へ）、DR-06 の統合と DR-07 / DR-08 の削除を反映                                                |
+| 2026-09-02 | 1.6.0   | codex risk / balanced / consistency レビュー所見を反映: REQ-F-006 に中断・続行の subindex 割当を追加、REQ-F-018 を呼び出し単位（6 呼び出し / 3 契約）へ再定義、REQ-F-003 の適用条件を無条件へ統一、REQ-F-019 の kind を `AiError` へ、REQ-F-010 の対象に shebang 行を追加、§3 の DR 表を DR-19 まで補完、§10 に REQ-C-006 行を追加 |
