@@ -9,3 +9,8 @@ nodeLinker: hoisted
 # esbuild は blume（内部の Astro/Vite）が使うネイティブバイナリ。ビルドスクリプトを許可する。
 onlyBuiltDependencies:
   - esbuild
+
+# fast-uri < 3.1.6 に high 深刻度の脆弱性 4 件（GHSA-jqff-g426-hqxp ほか）。
+# ajv@8 が ^3.0.1 で引くため、3 系の修正版に固定する。
+overrides:
+  fast-uri@<3.1.6: ^3.1.7
