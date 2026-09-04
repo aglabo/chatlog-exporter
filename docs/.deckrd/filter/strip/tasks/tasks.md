@@ -20,7 +20,7 @@ source: specifications.md
 
 - `Rule` は `specifications.md` の R-NNN / AC-NNN / Edge NN を指します。
   `SPEC-NNN` および `IMPL-NNN` は本プロジェクトに存在しません。
-- 実装単位は Commit 1〜11 で識別します。Commit 11 (SKILL.md) は BDD 免除のため対象外です。
+- 実装単位は Commit 1〜13 で識別します。Commit 13 (SKILL.md) は BDD 免除のため対象外です。
 - **Stage 1 (C1〜C4) の変更は `skills/setup-chatlogs/assets/_cle-libs/` にも同期が必要です。**
   片側のみの更新は `setup-chatlogs` を無言で破壊します。
 
@@ -798,7 +798,7 @@ source: specifications.md
 <!-- status: done -->
 
 > **実装メモ (Commit 9 完了時)**: 実装は `modules/strip/sweep-backups.ts` の `sweepBackups`。
-> 次の 3 ケースは設計上 Phase 6 の外側 (Commit 10 / main) に属するため、C9 の射程で
+> 次の 3 ケースは設計上 Phase 6 の外側 (Commit 11 / 12 の main) に属するため、C9 の射程で
 > 表現できる形に読み替えて検証した。**T-08 で main を実装する際に構造レベルで回収すること。**
 >
 > | ケース     | 読み替えた検証                                                                                                      |
@@ -810,7 +810,7 @@ source: specifications.md
 > R-012 と R-013 の区別は `subindex` (`BackupSweepFailed` / `BackupMissing`) が担う。
 > 終了コードは 0/1 の二値で両者を区別できないため (DR-20 決定 1)。
 >
-> **回収済み (Commit 10 完了時)**: 上記 3 ケースは T-08 で構造レベルの検証として回収した。
+> **回収済み (Commit 11 / 12 完了時)**: 上記 3 ケースは T-08 で構造レベルの検証として回収した。
 > T-07-04-04 は `T-FL-SEP-04-07` / `04-08` (dry-run 時に Phase 3〜6 の副作用が 1 つも観測されない)、
 > T-07-02-03 / T-07-03-03 は `T-FL-SEP-02-04` (system テストで実プロセスの終了コードを検証) が担う。
 > Commit 9。Phase 6 (R-010 〜 R-013)。削除は **実行の最後に一括で** 行う。
@@ -983,7 +983,7 @@ source: specifications.md
 
 <!-- status: done -->
 
-> **実装メモ (Commit 10 完了時)**: 実装は `scripts/strip-chatlogs.ts` の `main`。
+> **実装メモ (Commit 11 / 12 完了時)**: 実装は `scripts/strip-chatlogs.ts` の `main`。
 > テストは `__tests__/integration/strip/strip-main.integration.spec.ts` (通常モード・
 > 受理ゲート・復帰専用モード・dry-run)、`__tests__/system/strip/strip-main.system.spec.ts`
 > (終了コード。`Deno.Command` で実プロセス起動)、`configs/__tests__/unit/strip-config.unit.spec.ts`
@@ -996,7 +996,7 @@ source: specifications.md
 > | 未 import    | `strip-chatlogs.ts` が `DEFAULT_ORIGINAL_LOGS_DIR` を import せずに使用しており型検査が通らなかった                                                |
 > | R-015 未結線 | `recoverOrphans` に production の呼び出し元が無く、`--recover-orphans` 指定時に復帰されず **通常の strip が走ってファイルが書き換わる** 状態だった |
 >
-> Commit 10。Phase 0/1/7。R-001 の受理ゲート、実行モード分岐 (R-014 / R-015)、サマリー出力。
+> Commit 11 / 12。Phase 0/1/7。R-001 の受理ゲート、実行モード分岐 (R-014 / R-015)、サマリー出力。
 > 引数スキーマは `skills/filter-chatlogs/scripts/configs/strip-config.ts` に
 > `ArgSchema<StripParsedConfig>` として定義する (共通の `parseArgs` は変更しない — DD-04)。
 > 終了コードは `ChatlogError` を捕捉して `Deno.exit(1)` (DR-20)。
@@ -1294,7 +1294,7 @@ source: specifications.md
 
 <!-- status: done -->
 
-> Commit 10 の `main` から切り出したフェーズ関数のユニットテスト。実装は
+> Commit 11 / 12 の `main` から切り出したフェーズ関数のユニットテスト。実装は
 > `scripts/strip-chatlogs.ts` の `_processOrphanErrors` (Phase 1 の孤立退避計上) /
 > `_processFiles` (Phase 2 〜 6 を 1 ファイル単位のパイプラインへ統合したもの) /
 > `_logDecisionDetail` (dry-run 明細 1 行の書式) の 3 関数。
