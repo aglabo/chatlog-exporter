@@ -2,7 +2,7 @@
 title: "Decision Records: filter strip"
 module: "filter/strip"
 status: Active
-version: 3.24.0
+version: 3.24.1
 created: "2026-08-12"
 ---
 
@@ -15,6 +15,17 @@ created: "2026-08-12"
   ja-technical-writing/max-comma,
   -->
 <!-- markdownlint-disable no-duplicate-heading line-length -->
+
+<!--
+IDs MUST be sequential: DR-01, DR-02, ...
+
+Versioning (SemVer, see deckrd-rule-document-versioning.md):
+  MINOR — a new DR is added
+  PATCH — an existing DR's wording or rationale is clarified
+  MAJOR — an accepted DR is superseded or reversed
+
+Keep frontmatter `version` equal to the newest Change History row below.
+-->
 
 ---
 
@@ -109,7 +120,7 @@ Option A は退避ファイルが復旧手段を担保するため、git 管理�
 ## DR-03: 退避方式を BackupProvider として抽象化し、既存 writeTextFile を拡張する - 2026-08-12
 
 **Phase**: req
-**Status**: Accepted
+**Status**: Accepted (一部改訂: Provider 名は DR-17、戻り値の根拠は DR-08)
 
 > **注記 (DR-17)**: 本 DR が `backupPath` と呼ぶ Provider は、DR-17 により
 > **`backupToBak`** (`libs/file-ops/backup-to-bak.ts`) へ改名されました。
@@ -518,7 +529,7 @@ REQ-C-005 / REQ-C-007 は呼び出し方の問題であり静的検出が難し�
 ## DR-06: `.bak` 削除条件を `_status` 基準とし、最終的な復旧手段は re-export とする - 2026-08-12
 
 **Phase**: req
-**Status**: Accepted
+**Status**: Accepted (決定 1 は DR-08 により破棄。決定 2 は有効)
 
 ### Context
 
@@ -619,7 +630,7 @@ Option D（現状維持）を採らない理由は、`error 0` という条件�
 ## DR-07: 未検証データセットへの適用は受理範囲の限定によって強制する - 2026-08-12
 
 **Phase**: req
-**Status**: Accepted
+**Status**: 一部 Superseded by DR-38 (入力ディレクトリ拒否の部分)
 
 ### Context
 
@@ -700,21 +711,10 @@ Option D は `filter` / `noise-filter` の既存挙動まで変更し、
 
 ---
 
-<!--
-IDs MUST be sequential: DR-01, DR-02, ...
-
-Versioning (SemVer, see deckrd-rule-document-versioning.md):
-  MINOR — a new DR is added
-  PATCH — an existing DR's wording or rationale is clarified
-  MAJOR — an accepted DR is superseded or reversed
-
-Keep frontmatter `version` equal to the newest Change History row below.
--->
-
 ## DR-08: `.bak` 削除を対象ディレクトリ単位の一括削除とする - 2026-08-12
 
 **Phase**: spec
-**Status**: Accepted
+**Status**: Accepted (決定 2 の削除範囲は DR-39 決定 3 が再帰サブツリーへ拡大)
 
 ### Context
 
@@ -1298,7 +1298,7 @@ Option B を採らない理由には、上記の制約群に加えて次の点�
 ## DR-15: 処理済みスキップを `done` として独立した分類に戻す - 2026-08-13
 
 **Phase**: review-harden
-**Status**: Accepted
+**Status**: Accepted (「分類は判定規則と 1 対 1」は DR-29 決定 3 により破棄)
 
 ### Context
 
@@ -1392,10 +1392,7 @@ strip の処理済みは通常実行でも発生する恒久的な分類であ�
 同名を用いると、他スキルを読んだ実装者が dry-run 固有のカウンタと誤読します。
 `normalize.types.ts` が `done` と `skip` を使い分ける先例に倣います。
 
-判定規則を変更しない理由は DR-13 と同じです。
-R-003 は退避削除後の再実行において唯一の判定材料であり (REQ-F-009) 、
-削除すると、定型部マーカーが 2 個目以降の `## Summary` 以降に位置するファイルが
-再処理され本文を失います (実測 0 件だが構造上は起こりえます) 。
+判定規則を変更しない理由は DR-13 の Rationale (Option D) と同じです。
 
 ### Consequences
 
@@ -1811,7 +1808,7 @@ DR-15 が確認した「判定規則 R-002 〜 R-008 とその評価順序は変
 ## DR-20: 非成功終了は `ChatlogError` の伝播により生成し、終了コードは 0 / 1 の二値とする - 2026-08-13
 
 **Phase**: review-harden
-**Status**: Accepted
+**Status**: Accepted (決定 4 は破棄ではなく、適用範囲を通常モード (R-014) に限定 — DR-33)
 
 ### Context
 
@@ -2074,7 +2071,7 @@ Option D を採らない理由は、誤判定の向きが危険側だからで�
 ## DR-23: 中断により孤立した退避を Phase 1 で検出し、復帰は専用モードとして分離する - 2026-08-13
 
 **Phase**: review-harden
-**Status**: Accepted
+**Status**: Accepted (決定 1 の `.tmp` 部分と決定 4 は DR-26 により破棄)
 
 ### Context
 
@@ -2720,7 +2717,7 @@ reject に至るのは想定外の例外のみであり、その場合に未着�
 ## DR-29: 判定関数を分類の単一責務とし、`skipped` を分類へ加えて報告書式を簡素化する - 2026-08-16
 
 **Phase**: impl-fix
-**Status**: Accepted
+**Status**: Accepted (決定 3 の一部は DR-30 決定 5 により破棄)
 
 ### Context
 
@@ -3622,8 +3619,6 @@ error を可視化するという本 DR の目的そのものが失われます�
 
 ---
 
----
-
 ## DR-38: 入力ディレクトリの指定を受理する - 2026-08-21
 
 **Phase**: impl-fix
@@ -3774,6 +3769,8 @@ DR-39 の再帰化により、`projA/foo.md` と `projB/foo.md` が同一エン�
 
 - 重複が 1 件でもあると対象全体が処理されない。回避には対象の分割かリネームを要する
 
+---
+
 ## Change History
 
 <!-- markdownlint-disable line-length -->
@@ -3821,5 +3818,6 @@ DR-39 の再帰化により、`projA/foo.md` と `projB/foo.md` が同一エン�
 | 2026-08-18 | 3.22.1  | DR-36 の下流反映が完了したことを記録 (PATCH: 決定は不変)。`requirements.md` v8.7.0 が Section 2 Assumptions に単一書き手前提を追加、`specifications.md` v5.6.0 が Section 2.2 Design Assumptions への前提追加・Section 2.6 への DR-36 追加・Section 4.2 の再検証 (DR-35) への窓の受容の追記、`implementation.md` v3.4.1 が Commit 8 の事前検証への同旨の追記を完了。DR-36 の決定 3 点と Alternatives / Rationale は不変                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 2026-08-19 | 3.23.0  | DR-37 を追加 (MINOR: 決定を追加)。通常実行の per-file 報告に判定 error (R-002 / R-007) を加え、対象パスと規則 ID を `<INDENT>error: <path> (rule=R-NNN)` の形で 1 件ごとに出力することを決定。件数のみでは 6398 件規模の実行で対象を特定できず R-011 の退避保持を解除できないことを Context として記録。R-002 の I/O エラー変種が担ぐ `kind` / `subindex` は dry-run 明細と粒度を揃えるため出力しない。`done` の非出力と dry-run 出力は不変。分岐は分類 (`outcome`) で行う制約も維持                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 2026-08-21 | 3.24.0  | DR-38 / DR-39 / DR-40 を追加 (MINOR: 決定を追加)。DR-38 は DR-07 の入力ディレクトリ拒否を上書きし、`--input-dir` と第 1 位置引数のパスを受理して `resolveChatlogsDir()` の override へ渡すこと、指定時は年月を要求しないこと、出力ディレクトリの拒否 (DR-32) は維持することを決定。未検証データセットへの適用可否は利用者の判断に委ね、安全側の担保は退避と R-011 の保持ゲートが担う。DR-39 は走査の再帰化を決定し、本体列挙・孤立退避の検出・退避の一括削除の 3 経路への同時適用が必須であること、`stripped` が 0 件でも一括削除が走りサブツリー内の全退避が foreign として削除されることを Consequences に記録。DR-40 はキャッシュキー (ベース名) の衝突を列挙直後に fail-fast することを決定し、`ChatlogCache` へのキー生成注入口の追加は `_cle-libs` への波及を理由に保留                                                                                                                          |
+| 2026-09-04 | 3.24.1  | 編集上の整理 (PATCH: 決定内容は 1 件も変更していない)。破棄・改訂を受けた DR の `**Status**` 行に後継 DR を明記し、表記を「破棄された側の DR 冒頭にマーカーを置く」方式へ統一 (DR-03 / DR-06 / DR-07 / DR-08 / DR-15 / DR-20 / DR-23 / DR-29 の 8 件。DR-07 はこれまで back-link を持たず、DR-38 側からしか破棄が辿れなかった)。DR-15 が DR-13 の R-003 の論拠を「DR-13 と同じです」と述べた直後に逐語で再掲していた 3 行を参照へ置き換え。構造上の破損 3 点を修正 (DR-37 と DR-38 の間の `---` の重複、ID 採番と SemVer の HTML コメントが DR-07 と DR-08 の間に埋まっていたのを冒頭へ移動、`## Change History` の直前の `---` の欠落)。DR エントリ・決定文・Alternatives・Rationale・Consequences はいずれも削除していない                                                                                                                                                                           |
 
 <!-- markdownlint-enable line-length -->
