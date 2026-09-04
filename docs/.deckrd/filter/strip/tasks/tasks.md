@@ -6,8 +6,11 @@ created: "2026-08-13 00:00:00"
 source: specifications.md
 ---
 
-<!-- textlint-disable ja-technical-writing/sentence-length -->
-<!-- textlint-disable ja-technical-writing/max-comma -->
+<!-- textlint-disable
+  ja-technical-writing/sentence-length,
+  ja-technical-writing/max-comma,
+  ja-technical-writing/no-doubled-joshi,
+  -->
 <!-- markdownlint-disable no-duplicate-heading line-length -->
 
 > This document contains implementation tasks derived from specifications.
@@ -16,7 +19,7 @@ source: specifications.md
 ## Conventions
 
 タスク ID は deckrd 標準の `T-XX-YY-ZZ`、`Test ID` は
-`.claude/rules/testing-conventions.md` 準拠の実テスト ID を併記します。
+`docs/rules/testing-conventions.md` 準拠の実テスト ID を併記します。
 
 - `Rule` は `specifications.md` の R-NNN / AC-NNN / Edge NN を指します。
   `SPEC-NNN` および `IMPL-NNN` は本プロジェクトに存在しません。
@@ -1804,7 +1807,7 @@ Task ID Format: T-<TestTarget>-<Scenario>-<Case>
 - Scenario: 2-digit (01, 02, ...)
 - Case: 2-digit (01, 02, ...)
 
-Test ID Format: .claude/rules/testing-conventions.md 4 節を参照。
+Test ID Format: docs/rules/testing-conventions.md 4 節を参照。
 prefix の一覧は台帳として持たず、同節 4-3 のコマンドで実体から導出・検査する。
 
 このモジュールで使う prefix:
