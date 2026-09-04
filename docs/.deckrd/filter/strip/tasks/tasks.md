@@ -38,18 +38,18 @@ source: specifications.md
 
 ## Task Summary
 
-| Test Target                            | Commit | Scenarios | Cases   | Status |
-| -------------------------------------- | ------ | --------- | ------- | ------ |
-| T-01: `backupToBak` / `backupOldPath`  | C1, C4 | 5         | 11      | done   |
-| T-02: `writeTextFile` (BackupProvider) | C2     | 4         | 8       | done   |
-| T-03: frontmatter 同一性比較           | C3     | 3         | 9       | done   |
-| T-04: 境界検出                         | C6     | 3         | 9       | done   |
-| T-05: 判定カスケード                   | C7, C5 | 5         | 32      | done   |
-| T-06: 書き込みパイプライン             | C8     | 4         | 13      | done   |
-| T-07: バックアップ一括削除             | C9     | 6         | 19      | done   |
-| T-08: エントリポイント                 | C10    | 5         | 33      | done   |
-| T-09: フェーズ関数                     | C10    | 9         | 27      | done   |
-| **合計**                               | —      | **44**    | **161** | —      |
+| Test Target                            | Commit        | Scenarios | Cases   | Status |
+| -------------------------------------- | ------------- | --------- | ------- | ------ |
+| T-01: `backupToBak` / `backupOldPath`  | C1, C4        | 5         | 11      | done   |
+| T-02: `writeTextFile` (BackupProvider) | C2            | 4         | 8       | done   |
+| T-03: frontmatter 同一性比較           | C3            | 3         | 9       | done   |
+| T-04: 境界検出                         | C6            | 3         | 9       | done   |
+| T-05: 判定カスケード                   | C7, C5        | 5         | 32      | done   |
+| T-06: 書き込みパイプライン             | C8            | 4         | 13      | done   |
+| T-07: バックアップ一括削除             | C9            | 6         | 19      | done   |
+| T-08: エントリポイント                 | C10, C11, C12 | 5         | 33      | done   |
+| T-09: フェーズ関数                     | C10, C11, C12 | 9         | 27      | done   |
+| **合計**                               | —             | **44**    | **161** | —      |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -983,7 +983,7 @@ source: specifications.md
 
 <!-- status: done -->
 
-> **実装メモ (Commit 11 / 12 完了時)**: 実装は `scripts/strip-chatlogs.ts` の `main`。
+> **実装メモ (Commit 10 〜 12 完了時)**: 実装は `scripts/strip-chatlogs.ts` の `main`。
 > テストは `__tests__/integration/strip/strip-main.integration.spec.ts` (通常モード・
 > 受理ゲート・復帰専用モード・dry-run)、`__tests__/system/strip/strip-main.system.spec.ts`
 > (終了コード。`Deno.Command` で実プロセス起動)、`configs/__tests__/unit/strip-config.unit.spec.ts`
@@ -996,7 +996,8 @@ source: specifications.md
 > | 未 import    | `strip-chatlogs.ts` が `DEFAULT_ORIGINAL_LOGS_DIR` を import せずに使用しており型検査が通らなかった                                                |
 > | R-015 未結線 | `recoverOrphans` に production の呼び出し元が無く、`--recover-orphans` 指定時に復帰されず **通常の strip が走ってファイルが書き換わる** 状態だった |
 >
-> Commit 11 / 12。Phase 0/1/7。R-001 の受理ゲート、実行モード分岐 (R-014 / R-015)、サマリー出力。
+> Commit 10 / 11 / 12。Phase 0/1/7。孤立退避の検出と復帰専用モード (R-014 / R-015) は Commit 10、
+> R-001 の受理ゲートは Commit 11、サマリー出力は Commit 12。
 > 引数スキーマは `skills/filter-chatlogs/scripts/configs/strip-config.ts` に
 > `ArgSchema<StripParsedConfig>` として定義する (共通の `parseArgs` は変更しない — DD-04)。
 > 終了コードは `ChatlogError` を捕捉して `Deno.exit(1)` (DR-20)。
@@ -1294,10 +1295,10 @@ source: specifications.md
 
 <!-- status: done -->
 
-> Commit 11 / 12 の `main` から切り出したフェーズ関数のユニットテスト。実装は
-> `scripts/strip-chatlogs.ts` の `_processOrphanErrors` (Phase 1 の孤立退避計上) /
-> `_processFiles` (Phase 2 〜 6 を 1 ファイル単位のパイプラインへ統合したもの) /
-> `_logDecisionDetail` (dry-run 明細 1 行の書式) の 3 関数。
+> Commit 10 〜 12 の `main` から切り出したフェーズ関数のユニットテスト。実装は
+> `scripts/strip-chatlogs.ts` の `_processOrphanErrors` (Phase 1 の孤立退避計上 — Commit 10) /
+> `_processFiles` (Phase 2 〜 6 を 1 ファイル単位のパイプラインへ統合したもの — Commit 11) /
+> `_logDecisionDetail` (dry-run 明細 1 行の書式 — Commit 12) の 3 関数。
 > いずれも `main` の内部関数だがテストから直接呼ぶために export している
 > (テスト用 export であり production の呼び出し元は `main` のみ)。
 > テストは `__tests__/unit/strip/strip-phases.unit.spec.ts`。
