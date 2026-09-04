@@ -6,6 +6,40 @@
 
 ---
 
+## 基本原則
+
+### ループは `describe` 内・`it` の外に置く
+
+`describe` は機能・シナリオのグループ化、`it` は単一ケース（1 つの振る舞いのみ検証）。
+テーブル駆動のループを `it` の中に書くと、どのケースが失敗したか分からなくなる。
+
+```typescript
+// Good — ループは describe 内、it の外
+describe('functionName', () => {
+  for (const { input, expected } of _cases) {
+    it(`[Normal] T-XX-YY-01: ${input} → ${expected}`, () => {
+      assertEquals(fn(input), expected);
+    });
+  }
+});
+
+// Bad — it の中でループしている（どのケースが失敗したか不明）
+it('all cases pass', () => {
+  for (const { input, expected } of _cases) {
+    assertEquals(fn(input), expected);
+  }
+});
+```
+
+ループで生成される `it` にも、テスト ID と入出力値をラベルに埋め込む（4 章参照）。
+
+### fixtures は Internal Helpers に定義する
+
+テストケース配列を `it` の中やファイルトップレベルに直書きしない。
+`_cases` / `_fixtures` / `_errorCases` として Internal Helpers（2 章グループ 4）に置く。
+
+---
+
 ## 1. ファイルヘッダ
 
 各テストファイルの先頭には以下のヘッダを記載する。
@@ -356,6 +390,6 @@ grep -rn "<報告された ID>" --include=*.spec.ts .
 
 ## 6. 内部シンボルの命名（テストファイル固有の補足）
 
-- Internal Helpers の関数・クラス・定数はすべて `_` プレフィックスを付ける（命名規則 参照）
+- Internal Helpers の関数・クラス・定数はすべて `_` プレフィックスを付ける（[naming-conventions.md](naming-conventions.md) 参照）
 - テーブル駆動ケース配列も `_cases` / `_errorCases` のように `_` プレフィックスを付ける
 - `beforeEach`/`afterEach` スコープの変数（`tempDir`, `globalConfig` 等）は `_` なし（ループ変数相当）
