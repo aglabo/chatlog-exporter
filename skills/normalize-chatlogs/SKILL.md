@@ -75,7 +75,7 @@ SCRIPT_PATH = $SKILL_DIR/scripts/normalize-chatlogs.ts
 deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変換後の引数}
 ```
 
-> `--config ./deno.json` は **Deno の設定ファイル指定**であり、下記オプション表の `--config FILE`
+> `--config ./deno.json` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`
 > (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.json` は、その配下にない
 > モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
@@ -126,11 +126,12 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run
 通常実行では複数ファイルをまとめて AI に渡す。内容がほぼ同一のファイルが同一バッチに
 含まれると、AI が片方を省略してセグメントを取得できないことがある。
 
-その場合、対象ファイルは `WARNING: failed (no segments returned): <name>` を出力して
+その場合、対象ファイルは `WARNING: failed (no segments returned): <name>` を出力する。
 `fail` に計上され、キャッシュに `status: retry` が記録される（出力は行われない）。
 `retry` のファイルは次回実行で再判定される。
 
 **ただし同じ入力集合では同じバッチが再構成されるため、通常実行を繰り返しても解消しない。**
+
 `--single-file` を付けて再実行すると AI へ 1 ファイルずつ渡すためバッチ相乗りが起きず、
 正しくセグメントが取得できる。
 

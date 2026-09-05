@@ -59,7 +59,7 @@ allowed-tools: Bash, Glob
 
 - `agent YYYY-MM`（例: `claude 2026-03`）→ 指定 agent・指定月
 - `path`（例: `chatlogs/normalizeLogs/claude/2026/2026-07`）→ 指定パスを対象にする
-  （agent/period の代わり。`--input-dir <path>` でも同じ）
+  - agent/period の代わり。`--input-dir <path>` でも同じ
 - `--dry-run` → 書き込み・退避・キャッシュ記録をせず、全件の判定内訳を出力
 - `--recover-orphans` → 復帰専用モード（後述）
 - `--single-file` は存在しない
@@ -195,13 +195,23 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PAT
 
 引数からオプションを組み立てるルール:
 
-- `agent YYYY-MM` → `deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03`
-- `path` → `deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" chatlogs/normalizeLogs/claude/2026/2026-07`
+- `agent YYYY-MM` →
+
+  ```bash
+  deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" claude 2026-03
+  ```
+
+- `path` →
+
+  ```bash
+  deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PATH" chatlogs/normalizeLogs/claude/2026/2026-07
+  ```
+
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--recover-orphans` を含む → 末尾に `--recover-orphans` を追加
 
 対象は入力ディレクトリを指定した場合はそのパス、指定しない場合は
-`<chatlogsDir>/originalLogs/<agent>/<年>/<YYYY-MM>/`。いずれも **サブディレクトリを含めて再帰的に**走査する。
+`<chatlogsDir>/originalLogs/<agent>/<年>/<YYYY-MM>/`。いずれも **サブディレクトリを含めて再帰的に** 走査する。
 
 スクリプトは次の順で処理する。
 
@@ -209,8 +219,8 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PAT
 2. 列挙と孤立退避の検出 — 対象ディレクトリ配下の `.md` を再帰的に列挙する。
    本体 `.md` が存在しないのに `.bak` だけが残っている「孤立退避」を検出し、`error` に計上する
 
-   列挙結果にベース名（拡張子なし）が重複するファイルがあると、キャッシュのキーが衝突して
-   一方が誤って `done` と判定される。そのため重複を検出した時点で異常終了する
+   列挙結果にベース名（拡張子なし）の重複があると、キャッシュのキーが衝突する。
+   一方が誤って `done` と判定されるため、重複の検出時点で異常終了する
    （`DuplicateBasename`。1 件もファイルを変更しない）
 3. 判定 — 各ファイルを以下の順序で判定する（上から順に評価し、最初に該当した分類で確定する）
 
@@ -234,8 +244,8 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env "$STRIP_PAT
 
 4. 書き込み — `stripped` のファイルを「`.tmp` へ書き出す → 元を `.bak` へ退避する → `.tmp` を本体名へ移動する」
    の順で置き換える。`status=stripped` のキャッシュ記録は最終移動の成功後に行う
-5. 退避の一括削除 — `error` が 0 件かつ非 dry-run かつ、strip したパスがすべて退避として存在する場合にのみ、
-   対象ディレクトリ **配下（サブディレクトリを含む）** の `.bak` を一括削除する。
+5. 退避の一括削除 — 対象ディレクトリ **配下（サブディレクトリを含む）** の `.bak` を一括削除する。
+   実行条件は、`error` 0 件、非 dry-run、かつ strip したパスがすべて退避として存在すること。
 
    対象サブツリー内の `.bak` はすべて strip の作業対象とみなすため、
    strip 以外の経路で置かれた `.bak` も削除される。削除の前に、当該実行で strip したファイルに
@@ -259,8 +269,9 @@ strip を再実行する。再 export はログを作り直す操作であり、
 #### 別ツリーを `--input-dir` で処理するときの注意
 
 キャッシュのキーはファイル名（拡張子なしのベース名）であり、対象ツリーのパスを含まない。
-`strip-cache` は agent / period ごとにも分かれていないため、**異なるツリーに同名のファイルがあると、
-前のツリーで記録した `stripped` / `passthrough` が引かれて判定順序 2 で `done` になる**。
+`strip-cache` は agent / period ごとにも分かれていない。
+**異なるツリーに同名のファイルが存在すると、前のツリーで記録した `stripped` / `passthrough` を引いてしまい、
+判定順序 2 で `done` になる**。
 `--input-dir` で任意のツリーを指定できるようになったため、コピーやエクスポートで作った
 別ツリーを処理する場合にこれが起こりうる。
 
@@ -273,7 +284,7 @@ strip を再実行する。再 export はログを作り直す操作であり、
 
 **運用フロー**: 直前の実行と異なるツリーを `--input-dir` で指定するときは、
 strip キャッシュを削除してから実行する。内容ハッシュや mtime による自動無効化は採らない。
-判定を省くためのキャッシュに全件の再ハッシュ・stat を課すことになり、6000 件規模で目的と逆行するためである。
+判定を省くためのキャッシュに全件の再ハッシュ・stat を課すことになり、6000 件規模で目的と逆行する。
 
 #### 復帰専用モード（`--recover-orphans`）
 

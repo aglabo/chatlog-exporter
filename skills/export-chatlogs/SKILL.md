@@ -60,7 +60,7 @@ SCRIPT_PATH = $SKILL_DIR/scripts/export-chatlogs.ts
 deno run --config ./deno.json --allow-read --allow-write --allow-env "$SCRIPT_PATH" [agent] [period]
 ```
 
-> `--config ./deno.json` は **Deno の設定ファイル指定**であり、下記オプション表の `--config FILE`
+> `--config ./deno.json` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`
 > (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.json` は、その配下にない
 > モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
