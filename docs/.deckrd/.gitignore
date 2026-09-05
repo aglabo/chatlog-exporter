@@ -11,9 +11,14 @@
 # track README
 !README*
 
+# rules
+rules/
+
 # temp directory
 **/temp/
 **/tmp/
+
+
 
 # session filles
 *kv

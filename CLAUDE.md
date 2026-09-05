@@ -29,6 +29,13 @@ dprint fmt                  # 自動修正
 bash scripts/setup-dev-env.sh
 ```
 
+### deckrd ルール本体の展開
+
+`docs/.deckrd/rules/deckrd-rule-*.md`（共通規約の本体）は git 管理外で、
+deckrd プラグインが生成する。クローン直後は存在しないため、Claude Code で
+`/deckrd init` を実行して展開する（Phase 0 が既存ファイルを上書きせずコピーする）。
+deckrd プラグイン未導入の場合は、まずプラグインを導入する。
+
 ## プロジェクト構造
 
 ```bash
