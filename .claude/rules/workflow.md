@@ -1,43 +1,16 @@
-# 開発ワークフロー
+# 開発ワークフロー（chatlog-exporter 固有）
 
-## BDD/RGR ファースト原則
+コマンド順序ゲート・ブランチ戦略・Conventional Commits・設計 ID の参照・
+`git` 操作ルール（`add` / `commit` / `push` はユーザーが行う）は
+deckrd の `deckrd-rule-workflow.md` が正とする
+（`.claude/rules/deckrd-rules/deckrd-rules-index.md` 参照）。
+本ファイルは chatlog-exporter 固有の差分のみを定める。
 
-**すべてのコード変更作業は BDD/RGR サイクルに従う。**
-
-- コードを書く前に必ず `bdd-cycle.md` を確認し、作業が BDD サイクルの適用トリガーに該当するか判断する
-- 適用トリガーに該当する場合は `bdd-coder` エージェントを呼び出し、Red → Green → Refactor の各フェーズを確実に回す
-- 各フェーズの終わりに必ずテストを実行し、FAIL / PASS を確認してから次フェーズに進む
-- テストを実行せずに複数フェーズをまたいで実装を進めることは禁止する
-
-### フェーズごとの確認ゲート
-
-| フェーズ | 実施内容         | 次フェーズへの条件                     |
-| -------- | ---------------- | -------------------------------------- |
-| Red      | テストを書く     | テストが FAIL であることを確認         |
-| Green    | 最小実装をする   | テストが PASS になることを確認         |
-| Refactor | コードを整理する | テストが引き続き PASS であることを確認 |
-
-## ブランチ戦略
-
-- ブランチ名: `<type>-<issue-number>/<scope>/<description>`
-  - 例: `feat-42/auth/add-oauth`, `fix-55/api/fix-encoding`
-- `main` への直接 push 禁止
-
-## コミットメッセージ
-
-- Conventional Commits 準拠: `type(scope): description`
-- 使用可能な type: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
-- 例: `feat(export): add noise filter for system logs`
-
-## Git 操作ルール
-
-- `git add` / `git commit` / `git push` はユーザーが行う
-- Claude はコードの編集・テスト・フォーマット確認までを担当する
-- コミットが必要な状態になったら、その旨をユーザーに伝えて止まる
+コード変更時の RGR サイクルと `bdd-coder` への委譲は [bdd-cycle.md](bdd-cycle.md) を参照する。
 
 ## タスク完了時チェックリスト
 
-0. BDD RGRサイクルを完了している（`bdd-cycle.md` 参照）
-1. フォーマット確認（プロジェクトのフォーマッタでチェック）
-2. ユニットテスト実行（全テストがパスすることを確認）
-3. ユーザーに完了を伝え、コミットはユーザーに委ねる
+1. BDD RGR サイクルを完了している（[bdd-cycle.md](bdd-cycle.md)）
+2. `dprint check` が通る
+3. `deno task test` が全件パスする
+4. ユーザーに完了を伝え、コミットはユーザーに委ねる
