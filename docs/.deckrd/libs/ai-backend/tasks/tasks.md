@@ -98,7 +98,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 | Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status  |
 | ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ------- |
-| T-01: `parseAiJsonArray` / `_tryParseNonEmptyArray`                 | 1      | 1     | —       | 3         | 5       | pending |
+| T-01: `parseAiJsonArray` / `_tryParseNonEmptyArray`                 | 1      | 1     | —       | 3         | 6       | done    |
 | T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | pending |
 | T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | pending |
 | T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 8       | pending |
@@ -113,7 +113,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 | T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | pending |
 | T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 8       | pending |
 | T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 9         | 16      | pending |
-| **合計**                                                            | —      | —     | —       | **113**   | **184** | —       |
+| **合計**                                                            | —      | —     | —       | **113**   | **185** | —       |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -127,14 +127,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-01-01: 直接パース段での空配列受理
 
-- [ ] **T-01-01-01**: 構文的に有効な空配列 `"[]"` を成功結果として返す
+- [x] **T-01-01-01**: 構文的に有効な空配列 `"[]"` を成功結果として返す
   - Target: `_tryParseNonEmptyArray`
   - Test ID: `T-LIB-J-20-01`
   - Rule: structured-output R-004 / REQ-F-013 / AC-003
   - Scenario: Given 対象テキストが `"[]"` である, When `parseAiJsonArray` を直接パース段で呼ぶ
   - Expected: Then 例外を投げず、空配列 `[]` を成功結果として返すこと
 
-- [ ] **T-01-01-02**: 非空配列は従来どおり成功として返す（回帰）
+- [x] **T-01-01-02**: 非空配列は従来どおり成功として返す（回帰）
   - Target: `parseAiJsonArray`
   - Test ID: `T-LIB-J-20-02`
   - Rule: structured-output R-004 / REQ-C-002
@@ -145,7 +145,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-01-02: JSON 解釈不能な入力の失敗
 
-- [ ] **T-01-02-01**: JSON として解釈不能なテキストはパース失敗のままである
+- [x] **T-01-02-01**: JSON として解釈不能なテキストはパース失敗のままである
   - Target: `parseAiJsonArray`
   - Test ID: `T-LIB-J-21-01`
   - Rule: structured-output R-005 / REQ-F-013
@@ -156,19 +156,26 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-01-03: 空配列と無関係な括弧対の区別
 
-- [ ] **T-01-03-01**: 括弧対を含む単なる散文は空配列と誤認しない
+- [x] **T-01-03-01**: 括弧対を含む単なる散文は空配列と誤認しない
   - Target: `parseAiJsonArray`
   - Test ID: `T-LIB-J-22-01`
   - Rule: structured-output Edge-empty-array-vs-prose
   - Scenario: Given 対象テキストが `"見解は () に依存する"` のように無関係な括弧対を含む散文である, When `parseAiJsonArray` を呼ぶ
   - Expected: Then 空配列として成功させず、パース失敗として扱うこと
 
-- [ ] **T-01-03-02**: 括弧マッチ段（間接抽出段）は空配列を依然として失敗とする
+- [x] **T-01-03-02**: 括弧マッチ段（間接抽出段）は空配列を依然として失敗とする
   - Target: `_tryParseNonEmptyArray`（括弧マッチ段からの呼び出し経路）
   - Test ID: `T-LIB-J-22-02`
   - Rule: structured-output R-004（直接パース段限定） / DR-06
   - Scenario: Given 括弧マッチによって抽出された対象テキストが空配列相当である, When 括弧マッチ段経由で `_tryParseNonEmptyArray` を呼ぶ
   - Expected: Then 直接パース段とは異なり、空配列はパース失敗のまま返ること（段全体を緩めていないことの確認）
+
+- [x] **T-01-03-03**: コードフェンス内が空配列の場合、直接パース段が短絡する
+  - Target: `_parseDirectArray`（コードフェンス除去経路）
+  - Test ID: `T-LIB-J-22-03`
+  - Rule: structured-output R-004（直接パース段限定） / DR-06
+  - Scenario: Given コードフェンス内が `"[]"` で、フェンス外に実配列 `[{"a":1}]` が続くテキストである, When `parseAiJsonArray` を呼ぶ
+  - Expected: Then 段 2 の救済へ進まず、直接パース段が空配列を成功として返すこと（フェンス経路にも空配列受理を適用した決定の固定。実装時に追加、cle-6l5 で DR 化予定）
 
 ---
 
@@ -2043,7 +2050,7 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 
 | Test Target | Normal | Error  | Edge   | Cases   | 判定  |
 | ----------- | ------ | ------ | ------ | ------- | ----- |
-| T-01        | 2      | 1      | 2      | 5       | [OK]  |
+| T-01        | 2      | 1      | 3      | 6       | [OK]  |
 | T-02        | 5      | [N/A]  | 2      | 7       | [N/A] |
 | T-03        | 5      | 4      | 2      | 11      | [OK]  |
 | T-04        | 3      | 1      | 4      | 8       | [OK]  |
@@ -2058,7 +2065,7 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 | T-13        | 6      | 3      | 1      | 10      | [OK]  |
 | T-14        | 3      | 2      | 3      | 8       | [OK]  |
 | T-15        | 8      | 1      | 7      | 16      | [OK]  |
-| **合計**    | **71** | **61** | **52** | **184** | —     |
+| **合計**    | **71** | **61** | **53** | **185** | —     |
 
 > **[N/A] T-02** — 定数 (`AI_PROVIDERS` / `AI_MODEL_TO_PROVIDER_MAP`) から案内文言を
 > 組み立てる純粋な関数であり、throw する経路を持たない。
