@@ -6,11 +6,16 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-/** JSON テキストをパースして非空配列を返す。パース失敗または空配列の場合は null を返す。 */
-const _tryParseNonEmptyArray = <T>(text: string): T[] | null => {
+/**
+ * JSON テキストをパースして配列を返す。パース失敗または配列でない場合は null を返す。
+ *
+ * @param text - パース対象のテキスト
+ * @param allowEmpty - true の場合、空配列も成功として返す。false の場合、空配列は null を返す
+ */
+const _tryParseArray = <T>(text: string, allowEmpty = false): T[] | null => {
   try {
     const data = JSON.parse(text);
-    if (Array.isArray(data) && data.length > 0) { return data as T[]; }
+    if (Array.isArray(data) && (allowEmpty || data.length > 0)) { return data as T[]; }
   } catch { /* fall through */ }
   return null;
 };
@@ -21,31 +26,35 @@ const _stripCodeFence = (raw: string): string => {
   return matched ? matched[1] : raw;
 };
 
-/** 段階1: 文字列が `[` で始まる場合に直接パースを試みる。`[` で始まらない場合のみコードフェンスを除去して再試行する。 */
+/**
+ * 段階1: 文字列が `[` で始まる場合に直接パースを試みる。`[` で始まらない場合のみコードフェンスを除去して再試行する。
+ *
+ * 構文的に有効な配列であれば空配列も成功として返す。
+ */
 const _parseDirectArray = <T>(raw: string): T[] | null => {
   const trimmed = raw.trim();
   if (trimmed.startsWith('[')) {
-    return _tryParseNonEmptyArray<T>(trimmed);
+    return _tryParseArray<T>(trimmed, true);
   }
 
   const stripped = _stripCodeFence(raw).trim();
   if (!stripped.startsWith('[')) { return null; }
-  return _tryParseNonEmptyArray<T>(stripped);
+  return _tryParseArray<T>(stripped, true);
 };
 
-/** 段階2: non-greedy マッチで最初にパースできた非空配列を返す。 */
+/** 段階2: non-greedy マッチで最初にパースできた非空配列を返す。散文中の `[]` を誤検出しないため空配列は受理しない。 */
 const _parseFirstBracketMatch = <T>(raw: string): T[] | null => {
   for (const m of raw.matchAll(/\[[\s\S]*?\]/g)) {
-    const result = _tryParseNonEmptyArray<T>(m[0]);
+    const result = _tryParseArray<T>(m[0]);
     if (result !== null) { return result; }
   }
   return null;
 };
 
-/** 段階3: greedy マッチで最長区間をパースして非空配列を返す。 */
+/** 段階3: greedy マッチで最長区間をパースして非空配列を返す。段階2 と同じく空配列は受理しない。 */
 const _parseGreedyBracketMatch = <T>(raw: string): T[] | null => {
   const greedy = raw.match(/\[[\s\S]*\]/);
-  return greedy ? _tryParseNonEmptyArray<T>(greedy[0]) : null;
+  return greedy ? _tryParseArray<T>(greedy[0]) : null;
 };
 
 /** AI 出力から JSON 配列を 3 段階フォールバックで抽出する。 */

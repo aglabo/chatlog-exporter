@@ -24,7 +24,7 @@ import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.
  *
  * 3段階フォールバック（直接パース / non-greedy / greedy）の各パスを網羅する。
  *
- * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-19
+ * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-22
  *
  * @see parseAiJsonArray
  */
@@ -44,6 +44,13 @@ describe('parseAiJsonArray', () => {
         label: '前後テキストがある場合も greedy マッチで配列を返す',
         input: 'テキスト [{"a":3}] 後置テキスト',
         expected: [{ a: 3 }],
+      },
+      { id: 'T-LIB-J-20-01', label: '空配列は空配列として成功を返す', input: '[]', expected: [] },
+      {
+        id: 'T-LIB-J-20-02',
+        label: '非空配列は従来どおりそのまま返す',
+        input: '["a","b"]',
+        expected: ['a', 'b'],
       },
       {
         id: 'T-LIB-J-12',
@@ -130,6 +137,7 @@ describe('parseAiJsonArray', () => {
       { id: 'T-LIB-J-04', label: '空文字列は null を返す', input: '' },
       { id: 'T-LIB-J-05', label: '配列を含まない文字列は null を返す', input: 'no array here' },
       { id: 'T-LIB-J-13', label: '[ で始まるが JSON.parse 失敗する場合は null を返す', input: '[invalid json' },
+      { id: 'T-LIB-J-21-01', label: '閉じられていない JSON は null を返す', input: '[{"a":1' },
       {
         id: 'T-LIB-J-14',
         label: '段階2・3 ともにパース失敗する場合は null を返す',
@@ -144,10 +152,6 @@ describe('parseAiJsonArray', () => {
 
   /** 境界値・特殊ケース。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-LIB-J-07: 空配列は null を返す（length > 0 条件）', () => {
-      assertNull(parseAiJsonArray('[]'));
-    });
-
     [
       {
         id: 'T-LIB-J-15',
@@ -155,10 +159,33 @@ describe('parseAiJsonArray', () => {
         input: '[] [{"a":1}]',
         expected: [{ a: 1 }],
       },
+      {
+        id: 'T-LIB-J-22-01',
+        label: '散文の丸括弧を空配列と誤認しない',
+        input: '見解は () に依存する',
+        expected: null,
+      },
+      {
+        id: 'T-LIB-J-22-02',
+        label: '括弧マッチ段は空配列を失敗のまま維持する',
+        input: '結果は [] です',
+        expected: null,
+      },
     ].forEach(({ id, label, input, expected }) => {
       it(`[Edge] ${id}: ${label}`, () => {
         assertEquals(parseAiJsonArray(input), expected);
       });
+    });
+
+    it('[Edge] T-LIB-J-22-03: コードフェンス内の空配列で直接パース段が短絡する', () => {
+      const _raw = [
+        'Here is an example:',
+        '```json',
+        '[]',
+        '```',
+        'Actual: [{"a":1}]',
+      ].join('\n');
+      assertEquals(parseAiJsonArray(_raw), []);
     });
 
     it('[Edge] T-LIB-J-08: JSON 値内に "[...]" が含まれていても外側の配列がパースできる', () => {

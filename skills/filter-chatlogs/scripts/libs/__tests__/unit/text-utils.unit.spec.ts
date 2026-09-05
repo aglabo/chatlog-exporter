@@ -203,11 +203,19 @@ describe('parseAiJsonArray', () => {
 
           assertNull(result);
         });
+      });
+    });
+  });
 
-        it('T-FL-PJ-04-03: 空の配列 → null（length=0 の場合は null 扱い）', () => {
+  // ─── T-FL-PJ-04-03: 構文的に有効な空配列 → 空配列 ──────────────────────────
+
+  describe('Given: 構文的に有効な空の JSON 配列', () => {
+    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
+      describe('Then: T-FL-PJ-04 - 空配列が成功として返される', () => {
+        it('T-FL-PJ-04-03: 空の配列 → 空配列（成功として返る）', () => {
           const result = parseAiJsonArray('[]');
 
-          assertNull(result);
+          assertEquals(result, []);
         });
       });
     });
