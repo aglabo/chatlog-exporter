@@ -1,8 +1,10 @@
+<!-- cspell:words LPDI -->
+
 # テストコード規約
 
 ## 適用範囲
 
-`**/*.spec.ts` のすべてのテストファイル（unit / functional / integration / e2e / system）に適用する。
+`**/*.spec.ts` のすべてのテストファイル (unit / functional / integration / e2e / system) に適用する。
 
 ---
 
@@ -10,7 +12,7 @@
 
 ### ループは `describe` 内・`it` の外に置く
 
-`describe` は機能・シナリオのグループ化、`it` は単一ケース（1 つの振る舞いのみ検証）。
+`describe` は機能・シナリオのグループ化、`it` は単一ケース (1 つの振る舞いのみ検証) 。
 テーブル駆動のループを `it` の中に書くと、どのケースが失敗したか分からなくなる。
 
 ```typescript
@@ -23,7 +25,7 @@ describe('functionName', () => {
   }
 });
 
-// Bad — it の中でループしている（どのケースが失敗したか不明）
+// Bad — it の中でループしている (どのケースが失敗したか不明)
 it('all cases pass', () => {
   for (const { input, expected } of _cases) {
     assertEquals(fn(input), expected);
@@ -31,12 +33,12 @@ it('all cases pass', () => {
 });
 ```
 
-ループで生成される `it` にも、テスト ID と入出力値をラベルに埋め込む（4 章参照）。
+ループで生成される `it` にも、テスト ID と入出力値をラベルに埋め込む (4 章参照) 。
 
 ### fixtures は Internal Helpers に定義する
 
 テストケース配列を `it` の中やファイルトップレベルに直書きしない。
-`_cases` / `_fixtures` / `_errorCases` として Internal Helpers（2 章グループ 4）に置く。
+`_cases` / `_fixtures` / `_errorCases` として Internal Helpers (2 章グループ 4) に置く。
 
 ---
 
@@ -60,7 +62,7 @@ it('all cases pass', () => {
 ## 2. import 文の構成
 
 import はコメントで区切られた **5グループ** を決まった順序で並べる。
-グループ間は **空行 1行** で区切る。グループヘッダは `// ─── <名前>` 形式（U+2500 × 3 + 半角スペース）を使う。
+グループ間は **空行 1行** で区切る。グループヘッダは `// ─── <名前>` 形式 (U+2500 × 3 + 半角スペース) を使う。
 
 ```typescript
 // ─── BDD modules
@@ -74,7 +76,7 @@ import はコメントで区切られた **5グループ** を決まった順序
 
 `@std/assert` の assertion 関数、`@std/testing/bdd` の BDD 関数、モック系の順に並べる。
 型 import (`import type`) が混在する場合はその直後に配置する。
-型、stubはサブブロックに配置し、その上に1行コメントを付加する
+型、stub はサブブロックに配置し、その上に 1行コメントを付加する。
 
 ```typescript
 // ─── BDD modules
@@ -90,7 +92,7 @@ import type { Stub } from '@std/testing/mock'; // 型が必要な場合のみ
 
 テスト対象の関数・クラス・定数を import する。
 複数ある場合はテスト対象関数を先頭に、依存クラスをその後に並べる。
-依存する関数、定数はサブブロックに配置し、1行コメントを付加する
+依存する関数、定数はサブブロックに配置し、1行コメントを付加する。
 
 ```typescript
 // ─── Test target
@@ -102,7 +104,7 @@ import { buildConfig } from '../../export-chatlog.ts';
 ### グループ 3: Helpers
 
 テスト対象の動作確認に必要な補助関数・ライブラリを import する。
-型、クラス、定数はサブブロックに配置し、1行コメントを付加する
+型、クラス、定数はサブブロックに配置し、1行コメントを付加する。
 
 ```typescript
 // ─── Helpers
@@ -154,14 +156,14 @@ describe('FunctionName', () => { ... });
 
 ### 3-1. Internal Helpers の各シンボル
 
-**定数**（1行 JSDoc）
+**定数** (1行 JSDoc)
 
 ```typescript
-/** 期間フィルタを設定しない（全期間対象）`PeriodRange`。テスト内で期間外除外を行わない場合に使用する。 */
+/** 期間フィルタを設定しない (全期間対象) `PeriodRange`。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 ```
 
-**クラス**（クラス本体・constructor・各メソッドの 3箇所）
+**クラス** (クラス本体・constructor・各メソッドの 3 箇所)
 
 ```typescript
 /**
@@ -171,7 +173,7 @@ const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
  * 実際の git rev-parse を発行せずに成功レスポンスを返す。
  */
 class _NoopCommandProvider {
-  /** コマンドと引数を受け取るが何も実行しない（インターフェース互換用）。 */
+  /** コマンドと引数を受け取るが何も実行しない (インターフェース互換用) 。 */
   constructor(_cmd: string, _opts: { args: string[] }) {}
 
   /** 常に `{ success: true, code: 0, stdout: 空バイト列 }` を返す。 */
@@ -179,7 +181,7 @@ class _NoopCommandProvider {
 }
 ```
 
-**関数**（`@param` / `@returns` を含む複数行 JSDoc）
+**関数** (`@param` / `@returns` を含む複数行 JSDoc)
 
 ```typescript
 /**
@@ -188,13 +190,13 @@ class _NoopCommandProvider {
  * 毎回 `GlobalConfig.resetInstance()` でシングルトンをリセットしてから
  * `_NoopCommandProvider` と `_existsStat` を注入して初期化する。
  *
- * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'agent: chatgpt'`）
+ * @param yaml - GlobalConfig に読み込ませる YAML テキスト (例: `'agent: chatgpt'`)
  * @returns 初期化済みの `GlobalConfig` インスタンス
  */
 async function _makeGlobalConfig(yaml: string): Promise<GlobalConfig> { ... }
 ```
 
-**スタブ定数**（戻り値の意味を1行で説明）
+**スタブ定数** (戻り値の意味を 1行で説明)
 
 ```typescript
 /** ファイル存在チェックを常に `true` で返すスタブ。テスト環境で `statProvider` として使用する。 */
@@ -205,12 +207,12 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
 
 テストは **4階層** を基本とする。Given は省略し、機能種別 → 分類 → ケースの順で整理する。
 
-| 階層                 | ラベル形式                                                   | JSDoc 種別 | 記載内容                                                    |
-| -------------------- | ------------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
-| TOP（クラス/関数名） | `'ClassName'` / `'functionName'`                             | 複数行     | 対象の責務・テスト ID 範囲・`@see`                          |
-| 機能種別             | `'methodName'` / `'featureName'`                             | 複数行     | 機能の責務・検証するシナリオの概要                          |
-| 分類                 | `'When: 正常系'` / `'When: 異常系'` / `'When: エッジケース'` | 1行        | 分類の意味（省略可）                                        |
-| ケース               | `it(...)`                                                    | —          | `[Normal]` / `[Error]` / `[Edge]` prefix + テスト ID + 説明 |
+| 階層                | ラベル形式                                                   | JSDoc 種別 | 記載内容                                                    |
+| ------------------- | ------------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
+| TOP (クラス/関数名) | `'ClassName'` / `'functionName'`                             | 複数行     | 対象の責務・テスト ID 範囲・`@see`                          |
+| 機能種別            | `'methodName'` / `'featureName'`                             | 複数行     | 機能の責務・検証するシナリオの概要                          |
+| 分類                | `'When: 正常系'` / `'When: 異常系'` / `'When: エッジケース'` | 1行        | 分類の意味 (省略可)                                         |
+| ケース              | `it(...)`                                                    | —          | `[Normal]` / `[Error]` / `[Edge]` prefix + テスト ID + 説明 |
 
 #### 分類ラベル一覧
 
@@ -286,19 +288,19 @@ it('T-EC-BC-01-01: parsed.agent=codex → result.agent === codex', () => { ... }
 
 ### 4-1. ID はリポジトリ全体で一意
 
-**同一のテスト ID を 2 つ以上の `it` に割り当ててはならない。** テスト種別が違っても同様である。
-ID だけでテストを一意に特定できることが、この規則の目的である。
+**同一のテスト ID を 2 つ以上の `it` に割り当ててはならない。**、これはテスト種別が違っても同様です。
+ID だけでテストを一意に特定できることが、この規則の目的です。
 
 同一対象を複数レイヤで検証する場合は、後発レイヤの prefix に種別サフィックスを付ける。
 
-| レイヤ      | prefix                   | 例                |
-| ----------- | ------------------------ | ----------------- |
-| unit        | 基準（サフィックスなし） | `T-CL-LPD-03-01`  |
-| integration | `I`                      | `T-CL-LPDI-03-01` |
-| functional  | `F`                      | `T-CLS-CCF-40`    |
+| レイヤ      | prefix                  | 例                |
+| ----------- | ----------------------- | ----------------- |
+| unit        | 基準 (サフィックスなし) | `T-CL-LPD-03-01`  |
+| integration | `I`                     | `T-CL-LPDI-03-01` |
+| functional  | `F`                     | `T-CLS-CCF-40`    |
 
-JSDoc から他ファイルのテスト ID を参照するのは構わない（例: 「基本構造は functional
-テスト（`T-EC-WS-03`）でカバー済み」）。**割り当て**は `it` ラベルの ID だけを指す。
+JSDoc から他ファイルのテスト ID を参照するのは構わない (例: 「基本構造は functional
+テスト (`T-EC-WS-03`) でカバー済み」) 。**割り当て** は `it` ラベルの ID だけを指す。
 
 ### 4-2. prefix の名前空間
 
@@ -315,11 +317,11 @@ prefix の第 1 セグメントはスキル、第 2 セグメント以降はテ�
 | `T-NC-*`  | `normalize-chatlogs`             |
 | `T-SF-*`  | `set-frontmatter`                |
 
-対象を表すセグメントは**テスト対象の関数・クラス単位**で決める。ファイル単位ではない
-（1 ファイルが複数の関数を検証する場合、関数ごとに prefix を分ける）。
+対象を表すセグメントは **テスト対象の関数・クラス単位** で決める。ファイル単位ではない
+(1 ファイルが複数の関数を検証する場合、関数ごとに prefix を分ける) 。
 
-複数ファイルが同じ prefix を共有すること自体は禁止しない。**禁止するのは完全 ID の重複だけ**
-である。共有する場合は連番帯を互いに重ねないこと。
+複数ファイルが同じ prefix を共有すること自体は禁止しない。**禁止するのは完全 ID の重複だけ**。
+共有する場合は連番帯を互いに重ねないこと。
 
 prefix を新設する前に、下記コマンドで未使用であることを確認する。
 
@@ -338,7 +340,7 @@ grep -rhoE 'it[(].*' --include=*.spec.ts . \
   | grep -xE 'T-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]{2}(-[0-9]{2})?' \
   | sort > /tmp/test-ids.txt
 
-# 抽出件数を確認する（0 件ならパイプラインが壊れている。現状の想定は約 2600 件）
+# 抽出件数を確認する (0 件ならパイプラインが壊れている。現状の想定は約 2600 件)
 wc -l < /tmp/test-ids.txt
 
 # 2) 2 回以上割り当てられている ID を報告する
@@ -349,9 +351,9 @@ uniq -d < /tmp/test-ids.txt
 この件数は単なる目安ではなく、次の 2 つを検知するためのものなので必ず確認する。
 
 - 0 件 → パイプラインが途中で壊れている
-- 想定より極端に少ない → `grep` の結果が途中で打ち切られている
-  （`rtk` 等のプロキシは大量ヒット時に出力を切り詰める。切り詰めを知らせる行は
-  後段の `grep -xE` で捨てられるため、件数を見ないと気づけない）
+- 想定より極端に少ない → `grep` の結果が途中で打ち切られている。
+  (`rtk` 等のプロキシは大量ヒット時に出力を切り詰める。切り詰めを知らせる行は
+  後段の `grep -xE` で捨てられるため、件数を見ないと気づけない)
 
 エラーを `2>/dev/null` で握り潰すと「重複なし」と区別が付かなくなるため、
 標準エラー出力は捨てないこと。
@@ -365,10 +367,10 @@ grep -rn "<報告された ID>" --include=*.spec.ts .
 
 - `it(` を含む行に限定しないと、JSDoc の相互参照を割り当てと誤認する。
   なお同一行に `it(` とコメント等で参照された別 ID が並ぶ場合は誤検出になり得る
-- トークン単位（`tr -c` で分割し `grep -x`）で照合しないと、`T-EC-C` **`T-01-01`** のような
+- トークン単位 (`tr -c` で分割し `grep -x`) で照合しないと、`T-EC-C` **`T-01-01`** のような
   prefix 付き ID の内部一致を prefix-less ID と誤認する
 - ファイル単位で `sort -u` してから集計すると、同一ファイル内で同じ ID を 2 回割り当てた
-  重複を取りこぼす。割り当ての**出現回数**を全ファイル横断で数えること
+  重複を取りこぼす。割り当ての **出現回数** を全ファイル横断で数えること
 
 ---
 
@@ -388,8 +390,8 @@ grep -rn "<報告された ID>" --include=*.spec.ts .
 
 ---
 
-## 6. 内部シンボルの命名（テストファイル固有の補足）
+## 6. 内部シンボルの命名 (テストファイル固有の補足)
 
-- Internal Helpers の関数・クラス・定数はすべて `_` プレフィックスを付ける（[naming-conventions.md](naming-conventions.md) 参照）
+- Internal Helpers の関数・クラス・定数はすべて `_` プレフィックスを付ける ([naming-conventions.md](naming-conventions.md) 参照)
 - テーブル駆動ケース配列も `_cases` / `_errorCases` のように `_` プレフィックスを付ける
-- `beforeEach`/`afterEach` スコープの変数（`tempDir`, `globalConfig` 等）は `_` なし（ループ変数相当）
+- `beforeEach`/`afterEach` スコープの変数 (`tempDir`, `globalConfig` 等) は `_` なし (ループ変数相当)
