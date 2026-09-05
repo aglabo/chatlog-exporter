@@ -98,7 +98,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 | Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status  |
 | ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ------- |
-| T-01: `parseAiJsonArray` / `_tryParseNonEmptyArray`                 | 1      | 1     | —       | 3         | 6       | done    |
+| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done    |
 | T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | pending |
 | T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | pending |
 | T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 8       | pending |
@@ -119,7 +119,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 ---
 
-## T-01: `parseAiJsonArray` / `_tryParseNonEmptyArray`（空配列受理）
+## T-01: `parseAiJsonArray` / `_tryParseArray`（空配列受理）
 
 > Commit: 1 / 配置ファイル: `skills/_cle-libs/libs/text/json-utils.ts` / Phase: 1（着手条件: なし）/ Test ID prefix: `T-LIB-J`（scenario 番号は 20 から）
 
@@ -128,7 +128,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 #### T-01-01: 直接パース段での空配列受理
 
 - [x] **T-01-01-01**: 構文的に有効な空配列 `"[]"` を成功結果として返す
-  - Target: `_tryParseNonEmptyArray`
+  - Target: `_tryParseArray`
   - Test ID: `T-LIB-J-20-01`
   - Rule: structured-output R-004 / REQ-F-013 / AC-003
   - Scenario: Given 対象テキストが `"[]"` である, When `parseAiJsonArray` を直接パース段で呼ぶ
@@ -164,18 +164,18 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Expected: Then 空配列として成功させず、パース失敗として扱うこと
 
 - [x] **T-01-03-02**: 括弧マッチ段（間接抽出段）は空配列を依然として失敗とする
-  - Target: `_tryParseNonEmptyArray`（括弧マッチ段からの呼び出し経路）
+  - Target: `_tryParseArray`（括弧マッチ段からの呼び出し経路）
   - Test ID: `T-LIB-J-22-02`
   - Rule: structured-output R-004（直接パース段限定） / DR-06
-  - Scenario: Given 括弧マッチによって抽出された対象テキストが空配列相当である, When 括弧マッチ段経由で `_tryParseNonEmptyArray` を呼ぶ
+  - Scenario: Given 括弧マッチによって抽出された対象テキストが空配列相当である, When 括弧マッチ段経由で `_tryParseArray` を呼ぶ
   - Expected: Then 直接パース段とは異なり、空配列はパース失敗のまま返ること（段全体を緩めていないことの確認）
 
 - [x] **T-01-03-03**: コードフェンス内が空配列の場合、直接パース段が短絡する
   - Target: `_parseDirectArray`（コードフェンス除去経路）
   - Test ID: `T-LIB-J-22-03`
-  - Rule: structured-output R-004（直接パース段限定） / DR-06
+  - Rule: structured-output R-004（直接パース段限定） / DR-06 / DR-28
   - Scenario: Given コードフェンス内が `"[]"` で、フェンス外に実配列 `[{"a":1}]` が続くテキストである, When `parseAiJsonArray` を呼ぶ
-  - Expected: Then 段 2 の救済へ進まず、直接パース段が空配列を成功として返すこと（フェンス経路にも空配列受理を適用した決定の固定。実装時に追加、cle-6l5 で DR 化予定）
+  - Expected: Then 段 2 の救済へ進まず、直接パース段が空配列を成功として返すこと（フェンス経路にも空配列受理を適用した決定の固定。根拠は DR-28）
 
 ---
 
