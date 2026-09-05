@@ -5,6 +5,9 @@
 deckrd の共通規約は `rules/deckrd-rules/deckrd-rules-index.md`（常時ロード）の目次から
 必要時に Read する。以下の import は chatlog-exporter 固有の差分のみを定める。
 
+ルール本体 `docs/.deckrd/rules/*.md` は git 管理外のため、クローン直後は存在しない。
+見つからない場合は `/deckrd init` を実行して展開する。
+
 @rules/coding-guidelines.md
 @rules/naming-conventions.md
 @rules/bdd-cycle.md
