@@ -2,7 +2,7 @@
 title: "Implementation Plan: LAN llama サーバの AI バックエンド化"
 based-on: specifications-index.md v1.2.0
 status: Draft
-version: 1.3.2
+version: 1.4.0
 created: "2026-09-03"
 ---
 
@@ -47,7 +47,7 @@ classify-chatlogs / filter-chatlogs / normalize-chatlogs / set-frontmatter の 4
   §6.6 (モデル名エラーメッセージ修正) は DR-06 が採用。§4 の `runAIStructured` 系による全面刷新は
   REQ-C-005 に反するため Out of Scope
 - Specifications: `specifications/specifications-index.md` v1.2.0 (索引) および分割 4 ファイル
-  (transport v2.0.1 / structured-output v2.0.0 / error-handling v2.0.1 / config-packaging v1.2.0)
+  (transport v2.0.1 / structured-output v2.1.0 / error-handling v2.0.1 / config-packaging v1.2.0)
 - Reviews: `reviews-claude-impl-explore-2026-09-04.md` /
   `reviews-claude-impl-harden-2026-09-04.md` (DR-20〜DR-23 を採択) /
   `reviews-claude-impl-fix-2026-09-04.md`。本版はこの 3 本の所見を反映したものにあたる
@@ -210,6 +210,7 @@ DR-02・DR-14 決定 3・DR-23
 - 空モデル名の拒否 (DR-23): llama 経路に限り、provider prefix を除いたモデル識別子が
   空文字列または空白のみで構成される場合を不正モデル名として拒否する。分類は既存の受理判定と
   同じ `ChatlogError('UnknownModel', 'InvalidModel')` とし、transport §4.1 Step 2 で評価する。
+  本 commit が置くのは llama 限定の判定述語までであり、`ChatlogError` への写像は Commit 10 の前段が行う。
   判定対象を llama provider に限定し、既存 provider に対する空モデル名の受理範囲は変えない。
   `llama/org/model` のような多段スラッシュは従来どおり受理する (error-handling §5)
 - `_buildCommand` の `switch` の既定分岐は変更しない
@@ -220,7 +221,14 @@ DR-02・DR-14 決定 3・DR-23
 **Green**:
 
 - `llama/qwen3-14b` が llama バックエンドへ解決されること
-- `llama/` と `llama/ ` が `UnknownModel/InvalidModel` で拒否されること
+- `llama/` と `llama/ ` に対し `parseModel` が `{ provider: 'llama', model: '' }` を返すこと。
+  `parseModel` は provider prefix の照合しかせず、空識別子をここで弾かない (弾くと `openai/` の
+  受理まで壊れる)
+- llama provider に限定した空識別子判定述語が `llama/` / `llama/ ` に真、`openai/` に偽を
+  返すこと。`model-utils` の関数はいずれも例外を投げない (現行シグネチャ:
+  `parseModel(input): AiModelSpec | null` / `isValidModel(model): boolean`) 。
+  述語の真を `ChatlogError('UnknownModel', 'InvalidModel')` へ写すのは transport §4.1 Step 2 を
+  担う `runAI` 前段であり (DR-23) 、その Green は Commit 10 が所有する
 - `openai/` 等の既存 provider の空モデル名が従来どおり受理されること
 - `llama/org/model` が受理されること
 - Commit 2 の案内文言に llama provider が自動で現れること (AC-014)
@@ -393,6 +401,9 @@ DR-02・DR-14 決定 3・DR-23
   が成立しないこと
 - 同 (2) 「中段の実装単位をモジュール外へ公開している」が成立しないこと
 - 既存の Abort / Timeout メッセージ文言が変わらないこと
+- 前段のモデル値検証が、`parseModel` の `null` および llama 限定の空識別子述語の真を
+  `ChatlogError('UnknownModel', 'InvalidModel')` へ写すこと。`llama/` / `llama/ ` を含む
+  (transport §4.1 Step 2 / DR-23。Commit 3 は戻り値と述語までを所有する)
 - AC-008 の既存挙動が保たれること
 - AC-012 を満たすこと
 
@@ -403,7 +414,7 @@ DR-02・DR-14 決定 3・DR-23
 
 #### Commit 11: `feat(cle-libs): add output contract and json_schema builder`
 
-**参照**: REQ-F-003・REQ-F-004・REQ-C-004・REQ-C-005 / structured-output R-001〜R-003・§4.3 / DR-19
+**参照**: REQ-F-003・REQ-F-004・REQ-C-004・REQ-C-005 / structured-output R-001〜R-003・§4.3・§4.3.1 / DR-19
 
 **変更**:
 
@@ -419,31 +430,41 @@ DR-02・DR-14 決定 3・DR-23
   プロパティを作らない／`additionalProperties` を常に `false` とする／`type` に `"null"` を併記しない／
   `minItems` / `maxItems` 等の数量制約をどの深さにも置かない／enum を含む場合は「該当なし」を
   意味するフォールバック値を必ず 1 つ含める
-- `yaml` 契約のキー集合は呼び出し元の `extractYaml` が要求するキーと完全一致させ、
-  `line-prefixed` のキー集合は呼び出し元が行頭前方一致で探すキーと完全一致させる
+- 契約タグ (`json-array` / `yaml` / `line-prefixed`) は復元先の文字列表現を選ぶだけで
+  スキーマを一意に決めない。required keys・値の型・enum の値域・フォールバック値は
+  structured-output §4.3.1 の契約定義表を唯一の入力とする。とくに `yaml` タグの 2 呼び出しは
+  必須キーが異なるため、`extractYaml` の第 2 引数 (起点キー) を根拠にしてはならない
+- 辞書由来の enum 値域 (`projects.dic` / `types.dic` / `category.dic` / `topics.dic` /
+  `tags.dic`) は実行時に読み込まれる。スキーマ構築関数は値域を引数で受け取り、モジュール
+  スコープの定数を参照しない
+- 単一値 enum のフォールバック値は値域の内側に置く。配列要素の enum では「該当なし」を
+  空配列で表し、要素側に専用値を足さない (§4.3.1)
 
 **テスト**: unit (スキーマ構築関数)
 
 **Green**:
 
 - 3 契約それぞれについて、生成スキーマの root が object であり、数量制約をどの深さにも
-  含まず、enum を含む場合にフォールバック値が含まれること (AC-002 / AC-007)
+  含まず、単一値 enum にフォールバック値が値域の一部として含まれること (AC-002 / AC-007)
+- §4.3.1 の 6 行それぞれについて、生成スキーマの required keys が同表と一致すること。
+  `yaml` タグの 2 呼び出しで異なるキー集合が生成されること
 - `additionalProperties` が常に `false` であり、定義プロパティがすべて `required` であること
 - CLI バックエンド選択時にスキーマを構築しないこと (REQ-C-004)
 - AC-012 を満たすこと
 
 #### Commit 12: `feat(cle-libs): add on-wire contract validation and restorers`
 
-**参照**: REQ-F-018 / structured-output R-007・R-008・§4.1・§4.3 / DR-18・DR-19 決定 3・4
+**参照**: REQ-F-018 / structured-output R-007・R-008・§4.1・§4.3・§4.3.1 / DR-18・DR-19 決定 3・4
 
 **変更**:
 
 - 2xx 応答の本文に対し契約ごとの最小構造検証をする。共通条件は「応答本文が JSON として
   parse できる」こと。契約別の条件は次のとおり。
   - `json-array`: root が object であり、envelope フィールドを持ち、その値が配列である
-  - `yaml`: root が object であり、契約の要求する必須キーをすべて備え、各値が許容型である
-  - `line-prefixed`: root が object であり、契約の要求する必須キーをすべて備え、各値が文字列である
-  - enum を含む場合: 当該フィールド値が enum の許容値またはフォールバック値のいずれかである
+  - `yaml`: root が object であり、§4.3.1 が当該呼び出し元に定める required keys をすべて備え、
+    各値が同表の型である
+  - `line-prefixed`: root が object であり、§4.3.1 が定める required keys をすべて備え、各値が文字列である
+  - enum を含む場合: 当該フィールド値が §4.3.1 の値域の許容値またはフォールバック値のいずれかである
 - 不適合は `ChatlogError('AiError', 'ResponseSchemaViolation')` を throw する。これは続行側の
   分類であり、単一応答の不適合はバックエンドが使えないことを意味しないため一括処理は中断しない
 - 分類名を `ResponseFormatIgnored` としてはならない (理由は DR-16「決定 3 の撤回」節が所有する)
@@ -458,8 +479,8 @@ DR-02・DR-14 決定 3・DR-23
   (DR-26 決定 2) 。JSON として parse できない 2xx 応答は Commit 15 の Step 6.5 が
   `BackendUnavailable` (中断) として先に捕らえる。連続発生に対する閾値中断は設けない
   (DR-26 決定 4)
-- `yaml` 契約の「許容型」は structured-output R-008 が所有する。本 commit の着手までに
-  仕様側で確定させる (§3.2)
+- `yaml` 契約の「許容型」は structured-output §4.3.1 が確定させた (v2.1.0) 。本 commit は
+  同表を参照するのみで、独自に型を決めない
 
 **テスト**: unit (検証関数と復元関数)
 
@@ -775,11 +796,11 @@ AC-012 (`bash scripts/sync-skill-assets.sh --check-staged` が差分なしで終
 
 ### 3.2 Phase 0 の実測に依存して残る未決
 
-| 未決                                                                                                 | 依存先              | 扱い                                                                                         |
-| ---------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------- |
-| `response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段 | Commit 15 の Step 5 | 判別できない 400 は続行側の `ExitFailure` に落とす。判別ロジックは差し替え可能な形に分離する |
-| `finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認                                      | error-handling §4.1 | `finish_reason !== 'stop'` をすべて失敗とする。受理すべき値が判明したら §4.1 の表を改訂する  |
-| `yaml` 契約の「許容型」の定義                                                                        | Commit 12           | structured-output R-008 が所有する論点。Commit 12 の着手までに仕様側で確定させる             |
+| 未決                                                                                                 | 依存先              | 扱い                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段 | Commit 15 の Step 5 | 判別できない 400 は続行側の `ExitFailure` に落とす。判別ロジックは差し替え可能な形に分離する                                              |
+| `finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認                                      | error-handling §4.1 | `finish_reason !== 'stop'` をすべて失敗とする。受理すべき値が判明したら §4.1 の表を改訂する                                               |
+| ~~`yaml` 契約の「許容型」の定義~~ (解決済み)                                                         | —                   | structured-output v2.1.0 §4.3.1 が呼び出し元ごとの required keys・値の型・enum 値域・フォールバック値を確定させた。Phase 0 には依存しない |
 
 ---
 
@@ -901,11 +922,12 @@ R-004 は特定の commit に閉じない。§3.1 が対象 commit を列挙す�
      `based-on` must cite a three-part version that exists in specifications.md.
      See deckrd-rule-document-versioning.md -->
 
-| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-03 | 1.0.0   | Initial implementation plan                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 2026-09-04 | 1.1.0   | impl レビュー 3 本 (explore / harden / fix) の所見を反映: DR-20 により Phase 6 を 2 巡へ分割し結線を単一 commit へ (18 → 22 commit) 、DR-21 により §5 AC Coverage と各 commit のテスト方針を新設、DR-22 により Phase 0 の成果物と不合格時の帰結を確定、DR-23 を Commit 3 へ、fix 所見により用語・構造・完了条件・文体を整理。旧番号の読み替えは 6→10 / 7→11 / 8→12 / 9→13 / 10→14 / 11→15 / 12→21 / 13→6・16 / 14→7・17 / 15→8・18 / 16→9・19 / 17→20 / 18→22 |
-| 2026-09-04 | 1.2.0   | codex balanced セカンドオピニオンの所見を反映: DR-24 により `--allow-net` を結線の前 (Commit 20) へ移し Commit 21 の着手条件を 2 つに、実測不合格時の着地範囲を Phase 1 のみへ限定、DR-25 により Phase 0 の合格線を全 12 組 10/10 とし `finish_reason` を測定項目へ、DR-26 により runtime 由来の失敗と非 JSON 応答を中断側へ                                                                                                                                  |
-| 2026-09-04 | 1.3.0   | codex completeness セカンドオピニオンの所見を反映: DR-27 により Commit 21 の Green 条件へ `RequestInit.signal` の受け渡しと abort 遷移の検証を追加し分類のみでの合格を排除、production の `runAI` 呼び出しが全件出力契約を持つことの静的検査を system テストとして追加                                                                                                                                                                                        |
-| 2026-09-04 | 1.3.1   | codex consistency セカンドオピニオンの所見を反映 (訂正のみ): Commit 20/21 入れ替えに未追随の参照 2 件を訂正 (Commit 10 の注記・Phase 7 の着手条件) 、§3.1 のミラー同期対象へ Commit 21 を追加、§4.2 R-001 の割り当てへ Commit 14 を追加し Commit 14 の参照行と双方向にした                                                                                                                                                                                    |
-| 2026-09-04 | 1.3.2   | 構成の整理 (決定内容の変更なし): 着手条件を §1.4 の依存表へ集約、全 22 commit を参照／変更／テスト／Green の固定書式へ統一、重複記述を単一の所有箇所へ集約 (AC-020 の不適合条件・AC-008 の signal 検証・Phase 0 依存の未決) 、陳腐化した §6 Commit 番号対応表を削除し 1.1.0 行へ圧縮、旧 Open Items 表を各 commit 本文へ吸収、Commit 15 Step 5 の記述を実測後の恒久規則へ書き換え                                                                             |
+| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-03 | 1.0.0   | Initial implementation plan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-09-04 | 1.1.0   | impl レビュー 3 本 (explore / harden / fix) の所見を反映: DR-20 により Phase 6 を 2 巡へ分割し結線を単一 commit へ (18 → 22 commit) 、DR-21 により §5 AC Coverage と各 commit のテスト方針を新設、DR-22 により Phase 0 の成果物と不合格時の帰結を確定、DR-23 を Commit 3 へ、fix 所見により用語・構造・完了条件・文体を整理。旧番号の読み替えは 6→10 / 7→11 / 8→12 / 9→13 / 10→14 / 11→15 / 12→21 / 13→6・16 / 14→7・17 / 15→8・18 / 16→9・19 / 17→20 / 18→22                                                                                                                                                                                                                      |
+| 2026-09-04 | 1.2.0   | codex balanced セカンドオピニオンの所見を反映: DR-24 により `--allow-net` を結線の前 (Commit 20) へ移し Commit 21 の着手条件を 2 つに、実測不合格時の着地範囲を Phase 1 のみへ限定、DR-25 により Phase 0 の合格線を全 12 組 10/10 とし `finish_reason` を測定項目へ、DR-26 により runtime 由来の失敗と非 JSON 応答を中断側へ                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-09-04 | 1.3.0   | codex completeness セカンドオピニオンの所見を反映: DR-27 により Commit 21 の Green 条件へ `RequestInit.signal` の受け渡しと abort 遷移の検証を追加し分類のみでの合格を排除、production の `runAI` 呼び出しが全件出力契約を持つことの静的検査を system テストとして追加                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-09-04 | 1.3.1   | codex consistency セカンドオピニオンの所見を反映 (訂正のみ): Commit 20/21 入れ替えに未追随の参照 2 件を訂正 (Commit 10 の注記・Phase 7 の着手条件) 、§3.1 のミラー同期対象へ Commit 21 を追加、§4.2 R-001 の割り当てへ Commit 14 を追加し Commit 14 の参照行と双方向にした                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-09-04 | 1.3.2   | 構成の整理 (決定内容の変更なし): 着手条件を §1.4 の依存表へ集約、全 22 commit を参照／変更／テスト／Green の固定書式へ統一、重複記述を単一の所有箇所へ集約 (AC-020 の不適合条件・AC-008 の signal 検証・Phase 0 依存の未決) 、陳腐化した §6 Commit 番号対応表を削除し 1.1.0 行へ圧縮、旧 Open Items 表を各 commit 本文へ吸収、Commit 15 Step 5 の記述を実測後の恒久規則へ書き換え                                                                                                                                                                                                                                                                                                  |
+| 2026-09-05 | 1.4.0   | codex feasibility セカンドオピニオンの所見を反映: Commit 3 の Green を層ごとに分離し実 API と矛盾しない形へ訂正 (`parseModel` は provider prefix の照合のみで `llama/` を `{provider:'llama', model:''}` として解決する。空識別子の拒否は llama 限定の判定述語が担い、`ChatlogError` への写像は transport §4.1 Step 2 を担う Commit 10 前段が所有する)、対応する Green を Commit 10 へ追加。structured-output v2.1.0 §4.3.1 (呼び出し元ごとの契約定義) の新設を受けて Commit 11 / 12 の参照と本文を同表参照へ改め、辞書由来 enum の引数注入・単一値 enum のフォールバックの値域内包・配列要素 enum の空配列表現を Green へ追加、§3.2 の未決「`yaml` 契約の許容型」を解決済みとした |
