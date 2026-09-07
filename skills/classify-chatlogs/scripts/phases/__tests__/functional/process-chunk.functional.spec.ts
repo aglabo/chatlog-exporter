@@ -152,7 +152,7 @@ describe('processChunk', () => {
   });
 
   /**
-   * 異常系: Claude CLI 失敗・JSON パース失敗の場合に action: ERROR エントリが返される。
+   * 異常系: AI 実行失敗・JSON パース失敗の場合に action: ERROR エントリが返される。
    */
   describe('When: 異常系', () => {
     let mockHandle: CommandMockHandle;
@@ -188,7 +188,7 @@ describe('processChunk', () => {
       await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(
-        loggerStub.warnLogs.some((l) => l.includes('claude CLI 実行失敗')),
+        loggerStub.warnLogs.some((l) => l.includes('AI 実行失敗')),
         true,
         '警告ログが warnLogs に記録されていない',
       );
