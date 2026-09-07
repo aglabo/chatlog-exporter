@@ -148,7 +148,7 @@ export const main = async (args: string[]): Promise<void> => {
   if (!_config.review) { logger.info('--no-review モード: Phase 3.1 をスキップします'); }
 
   const maxContentLength = _globalConfig.get('maxContentLength') as number;
-  const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, written: 0 };
+  const stats: Stats = { total: 0, success: 0, fail: 0, skip: 0, cached: 0 };
 
   // Phase 1.1: メタ読み込み
   const entries = await loadAllEntries(_inputDir, stats, _config.concurrency);
@@ -160,7 +160,7 @@ export const main = async (args: string[]): Promise<void> => {
 
   // Phase 1.2: エントリ3分割（written / reviewed / generate）
   const { writtenEntries, reviewedEntries, generateEntries } = _splitEntries(entries, _cache);
-  stats.written = writtenEntries.length;
+  stats.cached = writtenEntries.length;
   logger.info(
     `分割: written=${writtenEntries.length}件 reviewed=${reviewedEntries.length}件 generate=${generateEntries.length}件`,
   );
@@ -222,7 +222,7 @@ export const main = async (args: string[]): Promise<void> => {
   await phaseWrite(_writeEntries, _cache, { ..._config, inputDir: _inputDir }, stats);
 
   logger.info(
-    `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} written=${stats.written} target=${_candidateEntries.length}`,
+    `\n完了: total=${stats.total} success=${stats.success} fail=${stats.fail} skip=${stats.skip} cached=${stats.cached} target=${_candidateEntries.length}`,
   );
 
   if (_config.dryRun) {

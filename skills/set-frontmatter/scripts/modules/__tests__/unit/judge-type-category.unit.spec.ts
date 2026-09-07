@@ -479,7 +479,7 @@ describe('judgeTypeAndCategory', () => {
    *
    * 続行側の AI エラー（ExitFailure）は throw せず、type/category を書き込まずに skip し
    * `logger.error` へ判定失敗ログを出す。中断側 subindex のみ再 throw で中断する（別ケース TC-21/23）。
-   * 非 AiError はいずれの分岐にも該当せずフォールバック値の書き込みへ落ちる（TC-24 / DR-29 決定 2）。
+   * 非 AiError はいずれの分岐にも該当せずフォールバック値の書き込みへ落ちる（T-SF-LAB-03-02 / DR-29 決定 2）。
    */
   describe('When: 異常系', () => {
     it(
@@ -518,7 +518,7 @@ describe('judgeTypeAndCategory', () => {
     );
 
     it(
-      '[Edge] T-SF-TC-24: 非 AiError の例外 → throw せずフォールバック値が書き込まれる',
+      '[Edge] T-SF-LAB-03-02: 非 AiError の例外 → throw せずフォールバック値が書き込まれる',
       async () => {
         const _entry = _makeChatlogEntry('# テスト\n本文');
         // 非 AiError は中断側でも続行側 AI エラーでもないため catch 第 3 分岐へ落ちる（DR-29 決定 2）

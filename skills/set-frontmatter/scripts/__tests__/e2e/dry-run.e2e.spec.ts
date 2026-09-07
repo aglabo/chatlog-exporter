@@ -193,15 +193,16 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
    * `dry-run` 時の完了ログと `[dry-run]` ループ対象の検証。
    *
    * Fix 1: dry-run ループを `targetEntries` に限定。
-   * Fix 2: 完了ログに `written=N target=N` を追加。
+   * Fix 2: 完了ログに `cached=N target=N` を追加。
+   *        `cached` は実行開始時点で cache の status が `written` だった件数（今回はスキップ）。
    *
    * テスト ID 範囲: T-SF-DR-01 〜 T-SF-DR-05
    */
 
-  // ─── T-SF-DR-01: written=1/target=1 混在 ─────────────────────────────────
+  // ─── T-SF-DR-01: cached=1/target=1 混在 ─────────────────────────────────
   describe('Given: 2件の .md と cache に 1件 written', () => {
     describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
-      describe('Then: T-SF-DR-01 - 完了ログに written=1 target=1 が含まれる', () => {
+      describe('Then: T-SF-DR-01 - 完了ログに cached=1 target=1 が含まれる', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -227,7 +228,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('T-SF-DR-01-01: 完了ログに "written=1 target=1" が含まれる', async () => {
+        it('T-SF-DR-01-01: 完了ログに "cached=1 target=1" が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -241,16 +242,16 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=1 target=1')), true);
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('cached=1 target=1')), true);
         });
       });
     });
   });
 
-  // ─── T-SF-DR-02: すべて written → target=0 ──────────────────────────────
+  // ─── T-SF-DR-02: すべて written → cached=1 target=0 ──────────────────────────────
   describe('Given: 1件の .md と cache に 1件 written（全件 written）', () => {
     describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
-      describe('Then: T-SF-DR-02 - 完了ログに written=1 target=0 が含まれる', () => {
+      describe('Then: T-SF-DR-02 - 完了ログに cached=1 target=0 が含まれる', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -276,7 +277,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('T-SF-DR-02-01: 完了ログに "written=1 target=0" が含まれる', async () => {
+        it('T-SF-DR-02-01: 完了ログに "cached=1 target=0" が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -290,16 +291,16 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=1 target=0')), true);
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('cached=1 target=0')), true);
         });
       });
     });
   });
 
-  // ─── T-SF-DR-03: すべて target → written=0 ──────────────────────────────
+  // ─── T-SF-DR-03: すべて target → cached=0 ──────────────────────────────
   describe('Given: 1件の .md と cache エントリなし（全件 target）', () => {
     describe('When: main([--dry-run, --cache-dir, ...]) を呼び出す', () => {
-      describe('Then: T-SF-DR-03 - 完了ログに written=0 target=1 が含まれる', () => {
+      describe('Then: T-SF-DR-03 - 完了ログに cached=0 target=1 が含まれる', () => {
         let inputDir: string;
         let outputDir: string;
         let cacheDir: string;
@@ -325,7 +326,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
-        it('T-SF-DR-03-01: 完了ログに "written=0 target=1" が含まれる', async () => {
+        it('T-SF-DR-03-01: 完了ログに "cached=0 target=1" が含まれる', async () => {
           await main([
             '--input-dir',
             inputDir,
@@ -339,7 +340,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
             dicsDir,
           ]);
 
-          assertEquals(loggerStub.infoLogs.some((l) => l.includes('written=0 target=1')), true);
+          assertEquals(loggerStub.infoLogs.some((l) => l.includes('cached=0 target=1')), true);
         });
       });
     });
