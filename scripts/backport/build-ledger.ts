@@ -263,6 +263,31 @@ export const titleSimilarity = (a: string, b: string): number => {
 /** 参照の抽出で `title` と `body` を連結するときの区切り。単語文字が隣接して参照が潰れるのを防ぐ。 */
 const _REFERENCE_JOINER = '\n';
 
+/** beads の `external_ref` が指す GitHub issue 番号の形式。 */
+const _EXTERNAL_REF_PATTERN = /^gh-(\d+)$/;
+
+/**
+ * beads の `external_ref` から実在する GitHub issue 番号を取り出す。
+ *
+ * 実在チェックを課すのは本文参照の扱い（`_existing`）と揃えるためで、
+ * 別リポジトリの番号や削除済みの番号を採用しない。
+ *
+ * @param externalRef - beads の `external_ref`（例 `gh-185`）
+ * @param issues - 突合先の GitHub issue 一覧
+ * @returns 採用できる issue 番号、できなければ `null`
+ */
+const _externalRefNumber = (
+  externalRef: string | null | undefined,
+  issues: readonly GitHubIssue[],
+): number | null => {
+  const _matched = _EXTERNAL_REF_PATTERN.exec(externalRef ?? '');
+  if (_matched === null) {
+    return null;
+  }
+  const _number = Number(_matched[1]);
+  return issues.some((issue) => issue.number === _number) ? _number : null;
+};
+
 /**
  * beads issue を GitHub issue に突き合わせる。
  *
@@ -270,16 +295,27 @@ const _REFERENCE_JOINER = '\n';
  * タイトル `Fix #400 cause 2: ...` にしか参照がない issue があるため）。
  * 「タイトルに参照が書かれうる」のは突合の性質なので、連結はここで行う。
  *
+ * 優先順位は引数の並び順と一致しない。最後の `externalRef` が最優先で、
+ * 採用できたときは `body` / `title` を見ない。`external_ref` は beads 側で確定済みの
+ * 対応付けであり、推定でしかない本文参照・タイトル類似度より確かなため。
+ * 採用できない場合のみ、本文参照 → タイトル類似度の順にフォールバックする。
+ *
  * @param body - beads の description / close_reason / notes を連結した文字列
  * @param title - beads issue のタイトル
  * @param issues - 突合先の GitHub issue 一覧
+ * @param externalRef - beads の `external_ref`（最優先で使う。省略時はフォールバックする）
  * @returns 突合できた issue 番号と確度
  */
 export const matchGitHubIssue = (
   body: string,
   title: string,
   issues: readonly GitHubIssue[],
+  externalRef?: string | null,
 ): GitHubMatch => {
+  const _external = _externalRefNumber(externalRef, issues);
+  if (_external !== null) {
+    return { ghNumber: _external, confidence: 'exact' };
+  }
   const _references = _referencedNumbers(`${title}${_REFERENCE_JOINER}${body}`);
   const _existing = _references.filter((number) => issues.some((issue) => issue.number === number));
   if (_existing.length > 0) {
@@ -329,6 +365,8 @@ export interface BeadsIssue {
   notes?: string | null;
   /** 設計メモ。 */
   design?: string | null;
+  /** 対応する GitHub issue への確定済み参照（例 `gh-185`）。 */
+  external_ref?: string | null;
   /** 種別（`bug` / `task` / `feature` / `epic` / `chore` / `decision`）。 */
   issue_type: string;
   /** 優先度。 */
@@ -433,14 +471,15 @@ const _decideAction = (parent: string, confidence: MatchConfidence): LedgerActio
 const _toLedgerRow = (issue: BeadsIssue, issues: readonly GitHubIssue[]): LedgerRow => {
   const _classification = classifyIssueModule(issue.title, _text(issue.description));
   const _match = matchGitHubIssue(
-    `${_text(issue.description)}${_text(issue.close_reason)}${_text(issue.notes)}`,
+    [issue.description, issue.close_reason, issue.notes].map(_text).join(_REFERENCE_JOINER),
     issue.title,
     issues,
+    issue.external_ref,
   );
   const _parent = _parentId(issue.id);
   const _isDr = isDrCandidate(
     issue.issue_type,
-    `${_text(issue.close_reason)}${_text(issue.notes)}${_text(issue.design)}`,
+    [issue.close_reason, issue.notes, issue.design].map(_text).join(_REFERENCE_JOINER),
   );
   return {
     beadsId: issue.id,

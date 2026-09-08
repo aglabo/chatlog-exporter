@@ -507,6 +507,9 @@ const _MULTI_BEADS: readonly BeadsIssue[] = [
   _makeBeads({ id: 'cle-50r' }),
 ];
 
+/** `_ISSUES` に実在する `#427` を指す `external_ref`。台帳行の引き渡し確認に使う。 */
+const _LEDGER_EXTERNAL_REF = 'gh-427';
+
 /** top-level かつ確度が高く、`action` が `comment` に決まるケース群。 */
 const _commentCases: ActionCase[] = [
   { id: 'T-BPL-LR-04-01', overrides: { description: _EXACT_BODY }, expected: 'comment' },
@@ -1043,6 +1046,160 @@ describe('buildLedgerRows: タイトル優先のモジュール判定', () => {
     it('[Normal] T-BPL-LR-20: 本文が別モジュールに言及してもタイトル側の module になる', () => {
       const _row = _buildRow({ title: _CACHE_TITLE, description: 'set-frontmatter.ts を直す' });
       assertEquals(_row.module, 'libs/cache');
+    });
+  });
+});
+
+// ─── Internal Helpers（本文フィールドの連結）
+
+// types
+/** 連結境界をまたぐ issue 参照が拾えることを検証するテーブル駆動ケース。 */
+interface JoinCase {
+  /** テスト ID。 */
+  id: string;
+  /** 既定の beads issue に上書きするフィールド。 */
+  overrides: Partial<BeadsIssue>;
+  /** 参照が落ちうる連結境界の説明。 */
+  boundary: string;
+}
+
+// constants
+/** 単語文字（`s`）で終わる本文。次のフィールドと直結すると `#` の直前が単語文字になる。 */
+const _WORD_TAIL_TEXT = 'modules/file-io.ts';
+
+/** `#400` 参照で始まる本文。直前に単語文字が来ると参照とみなされなくなる。 */
+const _REF_HEAD_TEXT = '#400 で実質完了済み';
+
+/** 参照が連結境界で潰れうるフィールドの組み合わせ。 */
+const _joinCases: JoinCase[] = [
+  {
+    id: 'T-BPL-LR-21',
+    overrides: { description: _WORD_TAIL_TEXT, close_reason: _REF_HEAD_TEXT },
+    boundary: 'description → close_reason',
+  },
+  {
+    id: 'T-BPL-LR-22',
+    overrides: { close_reason: _WORD_TAIL_TEXT, notes: _REF_HEAD_TEXT },
+    boundary: 'close_reason → notes',
+  },
+];
+
+// ─── Tests
+
+/**
+ * `_toLedgerRow` が beads の本文フィールドを区切り付きで連結することを検証する。
+ *
+ * 区切りなしで連結すると、前のフィールド末尾の単語文字が次のフィールド先頭の `#NNN` に
+ * 隣接し、`_referencedNumbers` の否定後読みに弾かれて参照が落ちる。
+ *
+ * テスト ID 範囲: T-BPL-LR-21 〜 T-BPL-LR-22
+ *
+ * @see buildLedgerRows
+ */
+describe('buildLedgerRows: 本文フィールドの連結区切り', () => {
+  /** 連結境界に参照が来るケース。 */
+  describe('When: エッジケース', () => {
+    for (const tc of _joinCases) {
+      it(`[Edge] ${tc.id}: ${tc.boundary} の境界にある #400 参照が exact 突合になる`, () => {
+        const _row = _buildRow(tc.overrides);
+        assertEquals(_row.confidence, 'exact');
+        assertEquals(_row.ghNumber, '400');
+      });
+    }
+  });
+});
+
+// ─── Internal Helpers（external_ref による突合）
+
+// types
+/** `externalRef` を採用せずフォールバックすることを検証するテーブル駆動ケース。 */
+interface ExternalRefFallbackCase {
+  /** テスト ID。 */
+  id: string;
+  /** `matchGitHubIssue` に渡す `externalRef`。 */
+  externalRef?: string | null;
+  /** 採用されない理由。 */
+  reason: string;
+}
+
+// constants
+/** `_REF_ISSUES` に実在する `#400` を参照する本文。フォールバック時はこの番号が採用される。 */
+const _EXTERNAL_REF_FALLBACK_BODY = '対応は #400 で行った';
+
+/** `_REF_ISSUES` に実在する issue を指す `external_ref`。 */
+const _EXTERNAL_REF = 'gh-427';
+
+/** `externalRef` を採用できず本文参照へフォールバックするケース群。 */
+const _externalRefFallbackCases: ExternalRefFallbackCase[] = [
+  { id: 'T-BPL-MT-28', externalRef: 'gh-999', reason: 'issues 一覧に実在しない番号' },
+  { id: 'T-BPL-MT-29-01', externalRef: null, reason: 'null' },
+  { id: 'T-BPL-MT-29-02', externalRef: '', reason: '空文字列' },
+  { id: 'T-BPL-MT-29-03', externalRef: 'GH185', reason: 'gh- 形式でない文字列' },
+  { id: 'T-BPL-MT-29-04', externalRef: '185', reason: '接頭辞のない番号だけの文字列' },
+  { id: 'T-BPL-MT-29-05', externalRef: undefined, reason: '未設定' },
+];
+
+// ─── Tests
+
+/**
+ * `matchGitHubIssue` の `externalRef` による突合。
+ *
+ * beads の `external_ref` は確定済みの対応付けなので、実在する番号を指す限り
+ * 本文参照・タイトル類似度より優先する。集約 issue はタイトルが個々の beads と
+ * 似ないため、これが無いと再実行のたびに突合先がぶれる。
+ *
+ * テスト ID 範囲: T-BPL-MT-26 〜 T-BPL-MT-29-05
+ *
+ * @see matchGitHubIssue
+ */
+describe('matchGitHubIssue: external_ref による突合', () => {
+  /** `externalRef` が実在番号を指し、採用されるケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-BPL-MT-26: 本文にもタイトルにも一致がなくても external_ref の番号で exact になる', () => {
+      assertEquals(matchGitHubIssue('', _UNRELATED_TITLE, _REF_ISSUES, _EXTERNAL_REF), {
+        ghNumber: 427,
+        confidence: 'exact',
+      });
+    });
+
+    it('[Normal] T-BPL-MT-27: 本文の #400 参照と食い違っても external_ref 側が勝つ', () => {
+      assertEquals(
+        matchGitHubIssue(_EXTERNAL_REF_FALLBACK_BODY, _UNRELATED_TITLE, _REF_ISSUES, _EXTERNAL_REF),
+        { ghNumber: 427, confidence: 'exact' },
+      );
+    });
+  });
+
+  /** `externalRef` を採用できず、現行の突合順にフォールバックするケース。 */
+  describe('When: エッジケース', () => {
+    for (const tc of _externalRefFallbackCases) {
+      it(`[Edge] ${tc.id}: external_ref が${tc.reason}なら無視され本文参照にフォールバックする`, () => {
+        assertEquals(
+          matchGitHubIssue(_EXTERNAL_REF_FALLBACK_BODY, _UNRELATED_TITLE, _REF_ISSUES, tc.externalRef),
+          { ghNumber: 400, confidence: 'exact' },
+        );
+      });
+    }
+  });
+});
+
+/**
+ * `_toLedgerRow` が beads の `external_ref` を突合へ引き渡すことを検証する。
+ *
+ * インターフェースにフィールドがあっても渡し忘れれば台帳は再現しないため、
+ * `matchGitHubIssue` 単体の検証とは別に行の値で確認する。
+ *
+ * テスト ID 範囲: T-BPL-LR-23
+ *
+ * @see buildLedgerRows
+ */
+describe('buildLedgerRows: external_ref の引き渡し', () => {
+  /** タイトルがどの issue とも似ない issue に `external_ref` が設定されているケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-BPL-LR-23: external_ref を持つ issue はその番号で exact 突合になる', () => {
+      const _row = _buildRow({ external_ref: _LEDGER_EXTERNAL_REF });
+      assertEquals(_row.ghNumber, '427');
+      assertEquals(_row.confidence, 'exact');
     });
   });
 });
