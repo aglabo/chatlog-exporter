@@ -929,6 +929,20 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
       assertEquals(ctl.signal.aborted, true);
     });
 
+    it('[Error] T-FL-LAB-02-02: AiError/BackendUnavailable → ctl.abort() が呼ばれる', async () => {
+      await processChunk(
+        entries,
+        stats,
+        DEFAULT_CONFIG_VALUES.discardThreshold as number,
+        cache,
+        ctl,
+        undefined,
+        _throwingRunner(new ChatlogError('AiError', 'BackendUnavailable')),
+      );
+
+      assertEquals(ctl.signal.aborted, true);
+    });
+
     it('[Edge] T-FL-LAB-03-01: AiError/RateLimit → 差し替え前と同じく abort され stats.error も加算される', async () => {
       await processChunk(
         entries,

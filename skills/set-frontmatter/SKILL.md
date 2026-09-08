@@ -147,18 +147,36 @@ INPUT_DIR 配下の Markdown はスクリプトが再帰的に走査するため
 サマリーは **stderr** に `::info::` プレフィックス付きで、次のように出力する。
 
 ```bash
-::info:: 完了: total=10 success=8 fail=0 skip=2 written=8 target=10
+::info:: 完了: total=10 success=2 fail=0 skip=0 cached=8 target=2
 ```
+
+### 各カウンタの意味
+
+| カウンタ  | 意味                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| `total`   | INPUT_DIR 配下で見つかった `.md` の総数                                    |
+| `success` | **今回の実行で** outputDir へ書き込みに成功した件数                        |
+| `fail`    | 今回の実行で失敗した件数 (AI エラー・書き込みエラー・yaml 空)              |
+| `skip`    | 今回の実行でスキップした件数 (主に `--dry-run`)                            |
+| `cached`  | **実行開始時点で既に書き込み済み**だったため、今回処理対象から外された件数 |
+| `target`  | 今回の書き込み候補件数 (おおむね `total - cached`)                         |
+
+> **注意**: `cached` は「今回書き込んだ件数」ではない。今回書き込んだのは `success` 。
+> 初回実行で全件を書き込んだ場合は `success=677 cached=0` となり、
+> 2 回目以降の再実行で全件スキップされれば `success=0 cached=677 target=0` となる。
 
 通知形式:
 
-- 上記 6つのカウンタ (total / success / fail / skip / written / target) を報告する
+- 上記 6つのカウンタ (total / success / fail / skip / cached / target) を報告する
 - dry-run モードの場合はその旨を明示する
 
 dry-run 時は追加でステータス別のファイル一覧 (`[<status>] <filename>`) を出力する。
 あわせて次の集計行を出力する。
 
 `dry-run 集計: empty=… type-category=… frontmatter=… reviewed=… written=… review-failed=… (total=…)`
+
+この集計行の `written=` はキャッシュの **status 名** (処理の到達段階) であり、
+サマリー行の `cached` と同じ値を指すがカウンタ名としては別物。
 
 ## dry-run の挙動に関する注意
 

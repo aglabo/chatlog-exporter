@@ -39,6 +39,11 @@ export interface Stats {
   fail: number;
   /** スキップされたファイル数（dryRun 等）。 */
   skip: number;
-  /** `status === 'written'` でフィルタされたファイル数（outputDir 書き込み済み）。 */
-  written: number;
+  /**
+   * 実行開始時点で cache の `status === 'written'` だったファイル数。
+   *
+   * 前回までの実行で outputDir へ書き込み済みのため、今回のランでは処理対象から外される。
+   * 「今回書き込んだ件数」ではない（それは `success`）。
+   */
+  cached: number;
 }

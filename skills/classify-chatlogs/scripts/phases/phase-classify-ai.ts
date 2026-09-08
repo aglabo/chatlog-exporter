@@ -127,7 +127,7 @@ export const processChunk = async (
     if (isAbortingAiError(e) || ctl.signal.aborted) {
       throw e;
     }
-    const _reason = `claude CLI 実行失敗: ${e}`;
+    const _reason = `AI 実行失敗: ${e}`;
     logger.warn(`${LOGGER_TEXT.INDENT}${_reason}`);
     return _writeChunkError(chunkMetas, cache, _reason);
   }

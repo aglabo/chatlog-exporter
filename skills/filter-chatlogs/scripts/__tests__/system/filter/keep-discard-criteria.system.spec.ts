@@ -40,8 +40,12 @@ const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
 /** fixture 名 → テスト ID の対応表。ID を収集順から導出せず固定し、fixture 追加時の ID ずれを防ぐ。 */
 const _TEST_IDS: Record<string, string> = {
+  // 交絡を逆転させた対照ペア（判定軸が「技術的か」ではないことを証明する）
   'normal-01-rationale-keep': 'T-FL-KDC-01',
   'normal-02-technical-execution-discard': 'T-FL-KDC-02',
+  // 交絡のない素直なペア（基本動作の回帰検知）
+  'normal-03-design-rationale-keep': 'T-FL-KDC-03',
+  'normal-04-basic-discard': 'T-FL-KDC-04',
 };
 
 // types
@@ -122,12 +126,24 @@ const _fixtures = await _loadFixtureInfos(FIXTURES_DIR);
 /**
  * `_SYSTEM_PROMPT` の KEEP/DISCARD 判定基準の実 AI システムテストスイート（`RUN_AI=1` のみ実行）。
  *
- * 判定軸が「技術的か」ではなく「判断の理由（WHY）が残っているか」であることを、
- * 技術用語の濃さと理由の有無を逆転させた 2 件の fixture で検証する。
+ * fixture は 2 系統を含む。
  *
- * テスト ID 範囲: T-FL-KDC-01 〜 T-FL-KDC-02
+ * - `normal-01` / `normal-02`: 技術用語の濃さと理由の有無を逆転させた対照ペア。
+ *   判定軸が「技術的か」ではなく「判断の理由（WHY）が残っているか」であることを証明する。
+ * - `normal-03` / `normal-04`: 交絡のない素直なペア。基本動作の回帰を検知する。
+ *
+ * 後者は元々 `__tests__/fixtures/filter/fixtures.spec.ts` にあったが、同じ `_SYSTEM_PROMPT` を
+ * 同じ経路（`buildBatchPrompt` → `runAI` → `parseAiJsonArray`）で検証する重複スイートだったため、
+ * fixture を本スイートへ集約した（cle-er9）。実 AI を呼ぶテストは system tier に一本化する。
+ *
+ * NOTE: 「Mock 判定」ブロック（`mock_response` を `parseAiJsonArray` に通して同じ fixture の
+ * 期待値と比べるだけの自己参照テスト）は削除済み。`runAI` 等の実装ロジックを経由しないため
+ * 再追加しないこと。
+ *
+ * テスト ID 範囲: T-FL-KDC-01 〜 T-FL-KDC-04
  *
  * @see _SYSTEM_PROMPT
+ * @see buildBatchPrompt
  */
 describe('[AI] _SYSTEM_PROMPT - KEEP/DISCARD 判定基準', { ignore: !_shouldRunAI }, () => {
   /** fixture ごとに期待判定と信頼度下限を検証する正常系ケース。 */

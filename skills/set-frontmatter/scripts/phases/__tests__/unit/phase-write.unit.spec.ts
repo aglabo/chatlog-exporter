@@ -120,7 +120,7 @@ const _makeWriteStubWithFails = (failCount: number): { stub: _WriteProvider } =>
 };
 
 /** テスト用デフォルト Stats オブジェクト。 */
-const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0, written: 0 });
+const _makeStats = (): Stats => ({ total: 0, success: 0, fail: 0, skip: 0, cached: 0 });
 
 /**
  * 6フィールドを持つキャッシュエントリを書き込んだキャッシュを返す。
