@@ -17,6 +17,8 @@
 !commands/
 !commands/**
 commands/_libs/*
+!hooks/
+!hooks/**
 
 
 ## claude add-ons
