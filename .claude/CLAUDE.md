@@ -14,6 +14,8 @@ deckrd の共通規約は `rules/deckrd-rules/deckrd-rules-index.md`（常時ロ
 @rules/workflow.md
 @rules/directory-structure.md
 @rules/command-execute.rules.md
+@rules/beads-workflow.md
+@rules/beads-issue.md
 
 ## 必要時に読むルール
 
