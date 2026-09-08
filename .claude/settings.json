@@ -11,6 +11,28 @@
         "matcher": ""
       }
     ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "_hook=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-beads-parent.sh\"; [ -f \"$_hook\" ] || exit 0; bash \"$_hook\"",
+            "statusMessage": "beads 起票規約を確認中",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "_hook=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-beads-write.sh\"; [ -f \"$_hook\" ] || exit 0; bash \"$_hook\"",
+            "statusMessage": ".beads 書き込み規約を確認中",
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit"
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
