@@ -38,6 +38,26 @@ GitHub Issue タイトルの Dice 係数で行うしかなく、Phase 0（台帳
 Claude Code の Bash ツール経由しか見ないため、素の端末や他エージェントからの起票は
 このフックを通らない。ルール本体が正であり、フックは補助。
 
+コマンド文字列はシェルの引用規則どおりにトークン化してから判定する。入力が読めない
+とき（`jq` の失敗、`command` キー無し、32KB 超）は作業を止めないよう素通しする。
+挙動は `.claude/hooks/__tests__/check-beads-parent.spec.sh` が固定している。
+
+### 既知の誤検知: heredoc 本文（`cle-znk.4`）
+
+改行を無条件にコマンド区切りとして扱うため、**heredoc の本文に `bd create --title x` の
+ような行が含まれると、その行を実コマンドと誤認してブロックする。**
+
+```bash
+# ブロックされる。note.md を書きたいだけで、起票はしていない
+cat > note.md <<'EOF'
+bd create --title x
+EOF
+```
+
+`BEADS_NO_PARENT=1` の前置では回避できない（免除判定は違反した segment 自身の先頭を
+見るが、その segment は heredoc 本文の 1 行であり、前置が届かない）。
+**回避策は Write ツールでファイルを書くこと。**
+
 ## Common Rationalizations
 
 | 言い訳                                   | 反論                                                           |
