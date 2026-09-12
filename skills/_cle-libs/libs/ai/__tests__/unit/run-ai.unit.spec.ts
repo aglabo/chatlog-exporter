@@ -37,6 +37,7 @@ import {
 } from '../../../../__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../__tests__/helpers/logger-stub.ts';
 import type { AiModelToProvider } from '../../../../types/ai.const.types.ts';
+import type { OutputContract } from '../../../../types/json-schema.types.ts';
 import type { FetchProvider } from '../../../../types/providers.types.ts';
 // constants
 import { AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '../../../../types/ai.const.types.ts';
@@ -348,6 +349,36 @@ const _listedModels = (message: string): string[] =>
  */
 const _listedProviders = (message: string): string[] =>
   message.split(' (or <provider>/<model> with provider: ')[1].replace(/\)$/, '').split(', ');
+
+/**
+ * `RunAIOptions.outputContract` の型受け入れケース。
+ *
+ * 契約タグは復元先の文字列表現を選ぶだけなので、同じタグでも契約定義は呼び出し元ごとに異なる
+ * （structured-output §4.3.1）。3 タグそれぞれに別の契約定義を与えて代入可能性を固定する。
+ */
+const _outputContractCases: { id: string; contract: OutputContract }[] = [
+  {
+    id: 'T-LIB-AI-LAP-08-02',
+    contract: {
+      contract: 'json-array',
+      properties: { project: { type: 'string', values: ['a', 'b'], fallback: 'b' } },
+    },
+  },
+  {
+    id: 'T-LIB-AI-LAP-08-03',
+    contract: {
+      contract: 'yaml',
+      properties: { tags: { type: 'array', items: { type: 'string', values: ['x'] } } },
+    },
+  },
+  {
+    id: 'T-LIB-AI-LAP-08-04',
+    contract: {
+      contract: 'line-prefixed',
+      properties: { decision: { type: 'string', values: ['keep'], fallback: 'keep' } },
+    },
+  },
+];
 
 // ─── Tests
 
@@ -1715,4 +1746,32 @@ describe('RunAIOptions.fetchProvider', () => {
 
     assertEquals(_options.fetchProvider, _fakeFetch);
   });
+});
+
+/**
+ * `RunAIOptions.outputContract` の型受け入れを固定するテストスイート。
+ *
+ * 出力契約は呼び出し単位で変わるため任意フィールドとして受け付ける。省略した既存の
+ * 呼び出し元が無改修で通ること（REQ-C-005）と、3 契約タグいずれの契約定義も渡せることを
+ * 検証する（値の利用は後続タスク）。
+ *
+ * テスト ID 範囲: T-LIB-AI-LAP-08-01〜08-04
+ *
+ * @see RunAIOptions
+ */
+describe('RunAIOptions.outputContract', () => {
+  it('[Normal] T-LIB-AI-LAP-08-01: 出力契約を省略した RunAIOptions が型として成立する', () => {
+    // 任意フィールド追加後も既存呼び出し元が無改修で通ること自体が検証対象（REQ-C-005）
+    const _options: RunAIOptions = { model: 'gpt-5-mini', timeoutMs: 1000 };
+
+    assertEquals(_options.model, 'gpt-5-mini');
+  });
+
+  for (const tc of _outputContractCases) {
+    it(`[Normal] ${tc.id}: ${tc.contract.contract} の出力契約を任意フィールドへ代入できる`, () => {
+      const _options: RunAIOptions = { outputContract: tc.contract };
+
+      assertEquals(_options.outputContract, tc.contract);
+    });
+  }
 });
