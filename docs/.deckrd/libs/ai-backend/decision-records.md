@@ -2,14 +2,14 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.6.1
+version: 3.7.0
 created: "2026-09-02"
 ---
 
 > This document records architectural and design decisions.
 > It is non-normative and exists to preserve rationale.
 
-<!-- cspell:words lmstudio ollama vLLM subindex -->
+<!-- cspell:words lmstudio ollama vLLM subindex GGUF kwargs -->
 <!-- textlint-disable
   ja-technical-writing/sentence-length,
   @textlint-ja/ai-writing/no-ai-list-formatting,
@@ -17,36 +17,37 @@ created: "2026-09-02"
 
 ## Index
 
-| ID    | Decision                                                                    | 主な影響先                                                    |
-| ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く | REQ-F-001 / transport                                         |
-| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                 | REQ-C-002 / transport                                         |
-| DR-03 | 失敗時は即座に throw する（fail-first）                                     | REQ-F-005, 006 / error-handling                               |
-| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める          | REQ-F-003, 004 / structured                                   |
-| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する   | REQ-F-008 / config-packaging                                  |
-| DR-06 | 既知の周辺不具合を本スコープで併せて直す                                    | REQ-F-013, 014（DR-28 が適用段を確定）                        |
-| DR-09 | 「OpenAI 互換」を実測ゲートで裏付ける                                       | REQ-F-016 / structured                                        |
-| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                   | REQ-C-006, REQ-NF-001                                         |
-| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める        | REQ-F-018 / structured                                        |
-| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする  | REQ-F-019 / transport（DR-18 が supersede）                   |
-| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                              | REQ-F-010 / config-packaging                                  |
-| DR-14 | llama 経路の識別子解決規則（URL 正規化・スキーム・prefix 照合）を確定する   | REQ-F-015, 019 / transport                                    |
-| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する          | REQ-F-006 / transport, error                                  |
-| DR-16 | 失敗系分類の一覧を error-handling が単独で所有する                          | REQ-F-006 / error-handling（決定 3 は撤回）                   |
-| DR-17 | llama 経路は既存の `timeoutMs` を共有し、経路別の設定キーを設けない         | REQ-F-007 / transport                                         |
-| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける        | REQ-F-006, 019 / error-handling                               |
-| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する          | REQ-F-003, 018 / structured                                   |
-| DR-20 | llama 経路の可到達性を単一の commit に閉じ、Phase 6 を 2 巡に割る           | impl Phase 4〜6 / REQ-F-018                                   |
-| DR-21 | 検証範囲を AC 単位で割り当て、commit ごとのテスト方針を impl が持つ         | impl 全 commit / AC-012, 020                                  |
-| DR-22 | Phase 0 の実測を独立レポートに記録し、完了時に下流を再基準化する            | REQ-F-016 / structured, impl Phase 0                          |
-| DR-23 | `llama/` の空モデル名をネットワークアクセス前に拒否する                     | REQ-F-014 / transport §4.1 Step 2                             |
-| DR-24 | 可到達性の境界にネットワーク権限を含め、実測不合格時の着地範囲を確定する    | impl Phase 8〜9（DR-22 決定 4 を supersede）                  |
-| DR-25 | 実測ゲートの合格線を全条件 100% とし、finish_reason を測定項目に加える      | REQ-F-016 / structured §4.2                                   |
-| DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える             | REQ-F-006 / error-handling §4.1, structured R-008             |
-| DR-27 | llama 経路の検証にキャンセルシグナルの受け渡しと契約指定の静的検査を加える  | REQ-F-007, 018 / AC-008, 013（DR-26 Non-Goal を一部引き取り） |
-| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する                | REQ-F-013 / structured-output R-004（DR-06 の適用段を確定）   |
-| DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）    |
-| DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）          |
+| ID    | Decision                                                                    | 主な影響先                                                                |
+| ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く | REQ-F-001 / transport                                                     |
+| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                 | REQ-C-002 / transport                                                     |
+| DR-03 | 失敗時は即座に throw する（fail-first）                                     | REQ-F-005, 006 / error-handling                                           |
+| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める          | REQ-F-003, 004 / structured                                               |
+| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する   | REQ-F-008 / config-packaging                                              |
+| DR-06 | 既知の周辺不具合を本スコープで併せて直す                                    | REQ-F-013, 014（DR-28 が適用段を確定）                                    |
+| DR-09 | 「OpenAI 互換」を実測ゲートで裏付ける                                       | REQ-F-016 / structured                                                    |
+| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                   | REQ-C-006, REQ-NF-001                                                     |
+| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める        | REQ-F-018 / structured                                                    |
+| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする  | REQ-F-019 / transport（DR-18 が supersede）                               |
+| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                              | REQ-F-010 / config-packaging                                              |
+| DR-14 | llama 経路の識別子解決規則（URL 正規化・スキーム・prefix 照合）を確定する   | REQ-F-015, 019 / transport                                                |
+| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する          | REQ-F-006 / transport, error                                              |
+| DR-16 | 失敗系分類の一覧を error-handling が単独で所有する                          | REQ-F-006 / error-handling（決定 3 は撤回）                               |
+| DR-17 | llama 経路は既存の `timeoutMs` を共有し、経路別の設定キーを設けない         | REQ-F-007 / transport                                                     |
+| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける        | REQ-F-006, 019 / error-handling                                           |
+| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する          | REQ-F-003, 018 / structured                                               |
+| DR-20 | llama 経路の可到達性を単一の commit に閉じ、Phase 6 を 2 巡に割る           | impl Phase 4〜6 / REQ-F-018                                               |
+| DR-21 | 検証範囲を AC 単位で割り当て、commit ごとのテスト方針を impl が持つ         | impl 全 commit / AC-012, 020                                              |
+| DR-22 | Phase 0 の実測を独立レポートに記録し、完了時に下流を再基準化する            | REQ-F-016 / structured, impl Phase 0                                      |
+| DR-23 | `llama/` の空モデル名をネットワークアクセス前に拒否する                     | REQ-F-014 / transport §4.1 Step 2                                         |
+| DR-24 | 可到達性の境界にネットワーク権限を含め、実測不合格時の着地範囲を確定する    | impl Phase 8〜9（DR-22 決定 4 を supersede）                              |
+| DR-25 | 実測ゲートの合格線を全条件 100% とし、finish_reason を測定項目に加える      | REQ-F-016 / structured §4.2                                               |
+| DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える             | REQ-F-006 / error-handling §4.1, structured R-008                         |
+| DR-27 | llama 経路の検証にキャンセルシグナルの受け渡しと契約指定の静的検査を加える  | REQ-F-007, 018 / AC-008, 013（DR-26 Non-Goal を一部引き取り）             |
+| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する                | REQ-F-013 / structured-output R-004（DR-06 の適用段を確定）               |
+| DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）                |
+| DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）                      |
+| DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede） |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -918,7 +919,7 @@ DR-22 決定 4 は本 DR の決定 3・4 に置き換わります。
 
 ## DR-25: 実測ゲートの合格線を全条件 100% とし、finish_reason を測定項目に加える
 
-**Status**: Accepted
+**Status**: Accepted（決定 1・2 の条件集合は DR-31 が一部 supersede しました）
 
 **Context**: `specifications-structured-output.md` §4.2 は実測で
 「各条件で『スキーマどおりの JSON が返った割合』を記録する。1 回でも準拠したことをもって
@@ -1290,6 +1291,43 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
 
 ---
 
+## DR-31: 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する
+
+**Status**: Accepted（DR-25 決定 1・2 の条件集合を一部 supersede します）
+
+**Context**: Phase 0 の実測（`measurements-response-format-2026-09-12.md`）で、3 スキーマ × 3 条件の
+9 組がすべて 10/10 で準拠しました。残る 1 条件「モデル差（量子化レベルの違いを含む 2 種以上）」は、
+対象サーバに量子化レベルの異なる 2 種目のモデルがロードされていないため測れません。2 種目を用意するには
+モデルの追加取得とサーバ再起動が必要であり、運用者は現行の 1 種
+（`lmstudio-community/Qwen3.5-35B-A3B-GGUF:Q4_K_M`）のみを使います。
+
+**Decision**:
+
+1. モデル差条件の 3 組は測定しない。実測ゲートは **9 組すべてで 10/10** をもって合格とする
+2. 対応対象は測定レポート §1 の構成に限定する。量子化レベルの異なるモデル・他のモデル・
+   他のサーバ実装は、測定していないため REQ-F-016 により対応対象外とする
+3. thinking を無効化する起動オプション
+   （`--chat-template-kwargs '{"enable_thinking":false}'`）を対象構成の前提条件に含める。
+   欠けた構成は対応対象外とする
+4. 対応対象を広げるときは、当該構成について 3 スキーマ × 10 試行を測り、測定レポートへ追記する
+
+**Alternatives Considered**:
+
+- 2 種目の量子化を用意して 12 組を測る（DR-25 の本来の形） — 運用者が 1 種しか使わないため、
+  測定コストに見合う情報が得られない。不採用
+- モデル差条件を落としたまま「どのモデルでも準拠する」と読む — 測っていない構成への一般化であり、
+  REQ-F-016 が禁じる「未実測実装を対象とする」状態そのもの。不採用
+- DR-25 の合格線 100% を緩める — 緩めません。測定した 9 組はすべて 10/10 です。
+  変えたのは測定範囲だけであり、線の高さは変えていません。不採用
+
+**Consequences**: Phase 5 以降へ着手できます。対応対象は 1 構成に固定され、モデルや量子化レベルを
+変えた時点で対応対象外になります。REQ-F-016 の「未実測実装を対応対象外とする」規定はそのまま効くため、
+モデル変更は再実測を要求します。DR-25 決定 2 の「1 組でも 10/10 に満たない場合は対応対象外」は、
+測定した 9 組に対して引き続き適用されます。thinking の無効化が前提条件に入ったことで、
+サーバ構成そのものが対応対象の一部になります。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1326,3 +1364,4 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
 | 2026-09-06 | 3.5.2   | DR-29 の Consequences を更新（`REVIEW_FAILED` + 既存値の経路を `cle-cso` で解消。`judgeTypeAndCategory` を `Promise<boolean>` へ改め、失敗時は `REVIEW_FAILED` を据え置く。`cache.delete` で代替できない理由と固定テストを明記）                                                                                                                                                                                     |
 | 2026-09-08 | 3.6.0   | DR-30 を追加 (MINOR: 決定を追加)。sandbox バナーを RateLimit として分類しない方針を記録。`_SANDBOX_DISABLED_PATTERN` (commit 1fa0df52) を導入した一度目の方針を commit 35f29b3c で撤回し、`_RATE_LIMIT_PATTERN` を元に戻したこと、これにより classify / normalize / filter の sandbox バナー re-throw 検証タスクが検証対象ごと消滅したことを Consequences に記録。closed 済み beads issue `cle-uv0.1` のバックポート |
 | 2026-09-08 | 3.6.1   | Index に DR-29 の行を追加 (PATCH: 記載漏れの修正)。本文 DR-29 は v3.5.0 から存在するが、Index テーブルへの行追加が漏れていた。決定内容の変更はない。                                                                                                                                                                                                                                                                 |
+| 2026-09-12 | 3.7.0   | DR-31 を追加 (MINOR: 決定を追加)。Phase 0 実測で 3 スキーマ x 3 条件の 9 組が 10/10 となり準拠を確定。モデル差条件の 3 組は測定せず、対応対象を測定レポート §1 の 1 構成 (Qwen3.5-35B-A3B Q4_K_M + thinking 無効化フラグ) に限定する決定を記録。DR-25 決定 1・2 の条件集合を一部 supersede                                                                                                                           |
