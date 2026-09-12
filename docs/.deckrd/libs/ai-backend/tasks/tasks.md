@@ -4,7 +4,7 @@ module: libs/ai-backend
 status: Active
 created: "2026-09-04 00:00:00"
 source: specifications-index.md
-based-on: implementation.md v1.5.0
+based-on: implementation.md v1.6.0
 ---
 
 <!-- cspell:words qwen llamacpp -->
@@ -96,24 +96,24 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 ## Task Summary
 
-| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status  |
-| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ------- |
-| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done    |
-| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done    |
-| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done    |
-| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done    |
-| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 5         | 13      | done    |
-| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done    |
-| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 16      | done    |
-| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 14      | pending |
-| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 13        | 15      | pending |
-| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 3         | 13      | pending |
-| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 7       | pending |
-| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 12        | 31      | pending |
-| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | pending |
-| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 8       | pending |
-| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 9         | 16      | pending |
-| **合計**                                                            | —      | —     | —       | **113**   | **194** | —       |
+| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status      |
+| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ----------- |
+| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done        |
+| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done        |
+| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done        |
+| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done        |
+| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 8         | 19      | done        |
+| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done        |
+| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 17      | done        |
+| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 16      | done        |
+| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 23        | 31      | done        |
+| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 5         | 27      | done        |
+| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done        |
+| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 12        | 34      | in progress |
+| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done        |
+| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 16      | done        |
+| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 29      | done        |
+| **合計**                                                            | —      | —     | —       | **129**   | **260** | —           |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -523,6 +523,34 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given 既存 Provider 型と同じ関数型エイリアスとして定義された `FetchProvider`, When `RunAIOptions` の任意フィールドへ代入する
   - Expected: Then 型チェックが通ること（AC-013 の土台）
 
+#### T-05-06: 中断側 `AiError` から中断理由のラベルを返す
+
+> 中断時のユーザー向け文言をバックエンド中立に保つために追加した `describeAbortReason` のケース。
+> 呼び出し元は `build-abort-skip-message.ts`（filter-chatlogs）。
+
+- [x] **T-05-06-01**: 中断側 subindex ごとに対応する理由ラベルを返す
+  - Target: 中断理由ラベル関数（`describeAbortReason`）
+  - Test ID: `T-LIB-AI-LAP-06-01` 〜 `T-LIB-AI-LAP-06-04`（`RateLimit` / `InvalidEndpoint` / `BackendUnavailable` / `ResponseFormatRejected` の 4 件）
+  - Rule: transport R-005 / error-handling §3.2 / DR-18 決定 2
+  - Scenario: Given 中断側 subindex を持つ `ChatlogError('AiError', <subindex>)`, When 理由ラベル関数へ渡す
+  - Expected: Then それぞれ「レートリミット」「エンドポイント設定の不備」「AI バックエンドへの接続失敗」「レスポンス形式の拒否」が返ること
+
+#### T-05-08: 出力契約を `RunAIOptions` の任意フィールドとして代入できる
+
+- [x] **T-05-08-01**: 出力契約を省略した `RunAIOptions` が型として成立する
+  - Target: `RunAIOptions`
+  - Test ID: `T-LIB-AI-LAP-08-01`
+  - Rule: structured-output R-001 / REQ-C-005
+  - Scenario: Given `outputContract` を持たない既存形の `RunAIOptions`, When 型として代入する
+  - Expected: Then 型チェックが通ること（既存呼び出し元が無改修で通る）
+
+- [x] **T-05-08-02**: 3 契約タグいずれの出力契約も `RunAIOptions` の任意フィールドへ代入できる
+  - Target: `RunAIOptions`
+  - Test ID: `T-LIB-AI-LAP-08-02` 〜 `T-LIB-AI-LAP-08-04`（`json-array` / `yaml` / `line-prefixed` の 3 件）
+  - Rule: structured-output R-001 / §4.3.1 / REQ-C-005
+  - Scenario: Given 契約タグごとに異なる契約定義, When `RunAIOptions.outputContract` へ代入する
+  - Expected: Then 型チェックが通り、代入した契約定義がそのまま保持されること
+
 ### [異常] Error Cases
 
 > [N/A] Commit 5 の判定関数は真偽を返す述語であり throw する経路を持たない。偽ケースはエッジケースに分類する
@@ -592,6 +620,29 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Rule: transport R-005 / DR-18 決定 2 / REQ-C-002
   - Scenario: Given `kind` も `subindex` も持たない任意のオブジェクト, When 判定関数へ渡す
   - Expected: Then 例外を投げずに偽を返すこと
+
+#### T-05-07: 中断側でない値には理由ラベルを返さない
+
+- [x] **T-05-07-01**: 続行側 `ExitFailure` には `undefined` を返す
+  - Target: 中断理由ラベル関数（`describeAbortReason`）
+  - Test ID: `T-LIB-AI-LAP-07-01`
+  - Rule: transport R-005 / DR-18 決定 2
+  - Scenario: Given `ChatlogError('AiError', 'ExitFailure')`, When 理由ラベル関数へ渡す
+  - Expected: Then `undefined` が返ること（呼び出し元が中立な既定文言へフォールバックできる）
+
+- [x] **T-05-07-02**: 続行側 `ResponseSchemaViolation` には `undefined` を返す
+  - Target: 中断理由ラベル関数（`describeAbortReason`）
+  - Test ID: `T-LIB-AI-LAP-07-02`
+  - Rule: transport R-005 / DR-18 決定 2
+  - Scenario: Given `ChatlogError('AiError', 'ResponseSchemaViolation')`, When 理由ラベル関数へ渡す
+  - Expected: Then `undefined` が返ること
+
+- [x] **T-05-07-03**: `ChatlogError` 以外・`null` / `undefined` には throw せず `undefined` を返す
+  - Target: 中断理由ラベル関数（`describeAbortReason`）
+  - Test ID: `T-LIB-AI-LAP-07-03`
+  - Rule: transport R-005 / DR-18 決定 2 / REQ-C-002
+  - Scenario: Given plain `Error` / `null` / `undefined`, When 理由ラベル関数へ渡す
+  - Expected: Then 例外を投げずに `undefined` が返ること
 
 ---
 
@@ -781,6 +832,13 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given `timeoutMs` と外部 `AbortSignal` を指定, When `runAI` を実行する
   - Expected: Then 中段が呼び出し時に合成済み `AbortSignal` を受け取ること
 
+- [x] **T-07-02-02**: `AbortSignal` の合成が前段の 1 箇所に限られ、中段が再合成しない
+  - Target: `runAI（前段）`
+  - Test ID: `T-LIB-AI-RA-51-02`
+  - Rule: transport §4.1.1（中段への signal 引き渡し） / DR-10
+  - Scenario: Given `run-ai.ts` のソース, When `_runViaCli(` の呼び出しと `AbortSignal.any` の出現を静的に数える
+  - Expected: Then 前段が `_runViaCli` を `signal` を含む引数で呼び、`AbortSignal.any` の出現が 1 箇所であること
+
 ### [異常] Error Cases
 
 #### T-07-03: error-handling §4.3 の非破壊条件がいずれも成立しない（AC-022）
@@ -912,23 +970,37 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-01: json-array 契約からスキーマを構築する
 
-- [ ] **T-08-01-01**: json-array 契約の root が object であり envelope フィールド `items` を持つ
+- [x] **T-08-01-01**: json-array 契約の root が object であり envelope フィールド `items` を持つ
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-01-01`
   - Rule: structured-output R-001 / §4.3 / DR-19
   - Scenario: Given 出力契約 `json-array` を指定した呼び出しオプション, When json_schema 構築関数を呼ぶ
   - Expected: Then root が object であり、`items` フィールドを持つ配列型スキーマが生成されること
 
+- [x] **T-08-01-02**: #2（process-chunk）の要素キー集合が `ClaudeResult` と一致し、`decision` の enum がフォールバック値 `ERROR` を含む
+  - Target: `json_schema 構築関数`
+  - Test ID: `T-LIB-AI-JSB-01-02`
+  - Rule: structured-output R-001 / R-003 / §4.3.1 #2
+  - Scenario: Given 出力契約 #2（json-array）, When json_schema 構築関数を呼ぶ
+  - Expected: Then 要素 object のキーと `required` が `confidence` / `decision` / `file` / `reason` に一致し、`decision` が `{ type: 'string', enum: <値域> }` で `ERROR` を含むこと
+
+- [x] **T-08-01-03**: #1（classify）の `project` の enum が渡した値域と一致し、フォールバック値 `misc` を含む
+  - Target: `json_schema 構築関数`
+  - Test ID: `T-LIB-AI-JSB-01-03`
+  - Rule: structured-output R-001 / R-003 / §4.3.1 #1
+  - Scenario: Given 値域を渡した出力契約 #1（json-array）, When json_schema 構築関数を呼ぶ
+  - Expected: Then 要素の `project` が `{ type: 'string', enum: <渡した値域> }` と完全一致して `misc` を含み、要素側 `required` が変わらないこと
+
 #### T-08-02: yaml 契約からスキーマを構築する
 
-- [ ] **T-08-02-01**: yaml 契約のキー集合が §4.3.1 の契約定義と完全一致する
+- [x] **T-08-02-01**: yaml 契約のキー集合が §4.3.1 の契約定義と完全一致する
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-02-01`
   - Rule: structured-output §4.3.1 / §4.3 / DR-19 / DR-11
   - Scenario: Given 出力契約 `yaml` と §4.3.1 の #4（`setfm-frontmatter.ts`）の契約定義を指定した呼び出しオプション, When json_schema 構築関数を呼ぶ
   - Expected: Then 生成されたスキーマのプロパティキー集合が `title` / `topics` / `tags` と過不足なく一致し、`title` が string、`topics` / `tags` が string 配列であること（`extractYaml` の第 2 引数は起点キーであり必須キーの一覧ではないため根拠にしない）
 
-- [ ] **T-08-02-02**: 同じ `yaml` タグでも契約定義が異なればキー集合が異なる
+- [x] **T-08-02-02**: 同じ `yaml` タグでも契約定義が異なればキー集合が異なる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-02-02`
   - Rule: structured-output §4.3.1 / DR-19 決定 1
@@ -937,7 +1009,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-03: line-prefixed 契約からスキーマを構築する
 
-- [ ] **T-08-03-01**: line-prefixed 契約のキー集合が呼び出し元の行頭前方一致キーと完全一致する
+- [x] **T-08-03-01**: line-prefixed 契約のキー集合が呼び出し元の行頭前方一致キーと完全一致する
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-03-01`
   - Rule: structured-output §4.3 / DR-19
@@ -946,28 +1018,28 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-04: enum フィールドにフォールバック値を含める
 
-- [ ] **T-08-04-01**: enum を含むプロパティに「該当なし」を表すフォールバック値が含まれる
+- [x] **T-08-04-01**: enum を含むプロパティに「該当なし」を表すフォールバック値が含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-01`
   - Rule: structured-output R-003 / §4.3.1 / AC-007
   - Scenario: Given §4.3.1 の #6（`setfm-type-category.ts`）の契約定義（`type` の値域は `types.dic` のキー、フォールバックは `DEFAULT_FALLBACK_TYPE`）, When json_schema 構築関数を呼ぶ
   - Expected: Then `type` の enum 配列がフォールバック値 `research` を **値域の一部として** 含むこと。`category` も同様に `development` を含むこと（フォールバックを値域の外に置くと R-008 の enum 検証で不適合になる）
 
-- [ ] **T-08-04-02**: 配列要素の enum にはフォールバック専用値を足さない
+- [x] **T-08-04-02**: 配列要素の enum にはフォールバック専用値を足さない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-02`
   - Rule: structured-output §4.3.1「配列値の enum」 / R-002 / R-003
   - Scenario: Given §4.3.1 の #4 の契約定義（`topics` / `tags` は配列要素が語彙制約を持つ）, When json_schema 構築関数を呼ぶ
   - Expected: Then 要素の enum が辞書のキーのみで構成され「なし」を意味する専用値を含まないこと。かつ `minItems` が置かれず空配列が許容されること
 
-- [ ] **T-08-04-03**: enum の値域を引数で受け取り、モジュールスコープの定数を参照しない
+- [x] **T-08-04-03**: enum の値域を引数で受け取り、モジュールスコープの定数を参照しない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-03`
   - Rule: structured-output §4.3.1「辞書由来 enum の扱い」
   - Scenario: Given 辞書由来の値域として実辞書と異なる値集合を引数で渡す, When json_schema 構築関数を呼ぶ
   - Expected: Then 生成された enum が渡した値集合と一致すること（辞書の実内容に依存しない。ES module の定数はテスト中に差し替えられないため、値域は引数で受け取る設計とする）
 
-- [ ] **T-08-04-04**: フォールバック値が値域に存在しない場合は設定エラーとする
+- [x] **T-08-04-04**: フォールバック値が値域に存在しない場合は設定エラーとする
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-04`
   - Rule: structured-output §4.3.1「フォールバック値が値域に含まれること」
@@ -976,14 +1048,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-05: 定義プロパティをすべて required に含める
 
-- [ ] **T-08-05-01**: スキーマが定義する全プロパティが `required` に含まれる
+- [x] **T-08-05-01**: スキーマが定義する全プロパティが `required` に含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-05-01`
   - Rule: structured-output §4.3
   - Scenario: Given 複数プロパティを持つ出力契約, When json_schema 構築関数を呼ぶ
   - Expected: Then `required` 配列が定義済みプロパティ全件を含み、省略可能なプロパティが存在しないこと
 
-- [ ] **T-08-05-02**: ネストした object の内部キーも定義され required に含まれる
+- [x] **T-08-05-02**: ネストした object の内部キーも定義され required に含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-05-02`
   - Rule: structured-output §4.3 / §4.3.1（#3 / 「ネストした object の必須キー」）
@@ -992,7 +1064,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-06: additionalProperties を false に固定する
 
-- [ ] **T-08-06-01**: 生成スキーマの `additionalProperties` が常に false である
+- [x] **T-08-06-01**: 生成スキーマの `additionalProperties` が常に false である
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-06-01`
   - Rule: structured-output §4.3
@@ -1003,7 +1075,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-07: CLI バックエンド選択時は json_schema を構築しない
 
-- [ ] **T-08-07-01**: CLI バックエンド選択時は json_schema を構築しない
+- [x] **T-08-07-01**: CLI バックエンド選択時は json_schema を構築しない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-07-01`
   - Rule: structured-output R-001 / REQ-C-004
@@ -1014,7 +1086,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-08: どの深さにも数量制約を含めない
 
-- [ ] **T-08-08-01**: どの深さにも数量制約を含めない
+- [x] **T-08-08-01**: どの深さにも数量制約を含めない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-08-01`
   - Rule: structured-output R-002 / DD-01 / DR-04
@@ -1023,7 +1095,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-09: nullable の表現に `type: "null"` を使わない
 
-- [ ] **T-08-09-01**: nullable の表現に `type: "null"` を使わない
+- [x] **T-08-09-01**: nullable の表現に `type: "null"` を使わない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-09-01`
   - Rule: structured-output §4.3 / §4.3.1 / R-003
@@ -1042,7 +1114,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-01: json-array 契約の応答を復元する
 
-- [ ] **T-09-01-01**: 適合する json-array 応答が `parseAiJsonArray` で解釈可能な文字列へ復元される
+- [x] **T-09-01-01**: 適合する json-array 応答が `parseAiJsonArray` で解釈可能な文字列へ復元される
   - Target: `on-wire contract validation 関数` / `契約別復元関数`
   - Test ID: `T-LIB-AI-OCV-01-01`
   - Rule: structured-output R-007 / §4.3 / AC-018
@@ -1051,7 +1123,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-02: yaml 契約の応答を復元する
 
-- [ ] **T-09-02-01**: 適合する yaml 契約応答が `extractYaml` で解釈可能な YAML テキストへ復元される
+- [x] **T-09-02-01**: 適合する yaml 契約応答が `extractYaml` で解釈可能な YAML テキストへ復元される
   - Target: `on-wire contract validation 関数` / `契約別復元関数`
   - Test ID: `T-LIB-AI-OCV-02-01`
   - Rule: structured-output R-007 / §4.3.1 / §4.3 / AC-018 / DR-11
@@ -1060,7 +1132,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-03: line-prefixed 契約の応答を復元する
 
-- [ ] **T-09-03-01**: 適合する line-prefixed 契約応答が `<キー>: <値>` 行テキストへ復元される
+- [x] **T-09-03-01**: 適合する line-prefixed 契約応答が `<キー>: <値>` 行テキストへ復元される
   - Target: `on-wire contract validation 関数` / `契約別復元関数`
   - Test ID: `T-LIB-AI-OCV-03-01`
   - Rule: structured-output R-007 / §4.3 / AC-018
@@ -1069,7 +1141,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-04: line-prefixed 復元結果から type/category が解決できる
 
-- [ ] **T-09-04-01**: line-prefixed 復元結果の `type:` / `category:` 行が辞書値として解決される
+- [x] **T-09-04-01**: line-prefixed 復元結果の `type:` / `category:` 行が辞書値として解決される
   - Target: `契約別復元関数`
   - Test ID: `T-LIB-AI-OCV-04-01`
   - Rule: structured-output §4.3 / AC-024（前半）
@@ -1078,7 +1150,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-05: enum フィールドが許容値のとき検証を通過する
 
-- [ ] **T-09-05-01**: enum フィールド値が許容値であれば検証を通過する
+- [x] **T-09-05-01**: enum フィールド値が許容値であれば検証を通過する
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-05-01`
   - Rule: structured-output §4.1（enum を含む場合の行） / §4.3.1 / R-003
@@ -1089,14 +1161,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-06: json-array 契約で envelope フィールドが欠落または配列でない場合は違反とする
 
-- [ ] **T-09-06-01**: json-array 契約で envelope フィールドが欠落または配列でない場合は違反とする
+- [x] **T-09-06-01**: json-array 契約で envelope フィールドが欠落または配列でない場合は違反とする
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-06-01`
   - Rule: structured-output R-008 / §4.1（`json-array` 行） / DR-18
   - Scenario: Given root が object だが `items` フィールドが存在しない、または値が配列でない JSON 応答, When on-wire contract validation を呼ぶ
   - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（続行側）
 
-- [ ] **T-09-06-02**: json-array 契約で配列要素のネストしたキーが欠落・型不一致の場合は違反とする
+- [x] **T-09-06-02**: json-array 契約で配列要素のネストしたキーが欠落・型不一致の場合は違反とする
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-06-02`
   - Rule: structured-output R-008 / §4.3.1（#3 / 「ネストした object の必須キー」） / DR-18
@@ -1105,7 +1177,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-07: yaml 契約で必須キーが欠落している場合は違反とする
 
-- [ ] **T-09-07-01**: yaml 契約で必須キーが欠落している場合は違反とする
+- [x] **T-09-07-01**: yaml 契約で必須キーが欠落している場合は違反とする
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-07-01`
   - Rule: structured-output R-008 / §4.1（`yaml` 行） / DR-18
@@ -1114,7 +1186,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-08: line-prefixed 契約で必須キーが欠落している場合は違反とする
 
-- [ ] **T-09-08-01**: line-prefixed 契約で必須キーが欠落している場合は違反とする
+- [x] **T-09-08-01**: line-prefixed 契約で必須キーが欠落している場合は違反とする
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-08-01`
   - Rule: structured-output R-008 / §4.1（`line-prefixed` 行） / DR-18
@@ -1123,18 +1195,95 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-09: enum フィールドの値が許容値・フォールバック値のいずれでもない場合は違反とする
 
-- [ ] **T-09-09-01**: enum フィールドの値が許容値・フォールバック値のいずれでもない場合は違反とする
+- [x] **T-09-09-01**: enum フィールドの値が許容値・フォールバック値のいずれでもない場合は違反とする
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-09-01`
   - Rule: structured-output R-008 / §4.1（enum を含む場合の行） / R-003 / DR-16
   - Scenario: Given enum フィールドの値が §4.3.1 の値域にもフォールバック値にも一致しない JSON 応答, When on-wire contract validation を呼ぶ
   - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（続行側。分類名は `ResponseFormatIgnored` としない）
 
+#### T-09-14: enum フィールドの値が非文字列でも値域検査を素通りさせない
+
+- [x] **T-09-14-01**: 単一値 enum フィールドの値が文字列でない場合は違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-14-01`
+  - Rule: structured-output R-008 / §4.1（enum を含む場合の行） / DR-16 / DR-19
+  - Scenario: Given line-prefixed 契約（#6）で `type` が object または `null` の応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（復元結果が `type: [object Object]` になり既定値が書き込まれる経路を作らない）
+
+#### T-09-15: 直下キーのスカラー値の型を §4.1 の型表に従って検査する
+
+- [x] **T-09-15-01**: 契約直下キーのスカラー値の型が契約定義と異なる場合は違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-15-01`
+  - Rule: structured-output R-008 / §4.1（`yaml` 行・`line-prefixed` 行） / DR-16
+  - Scenario: Given required key はそろっているが #4 の `title` または #6 の `type` が number の応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+#### T-09-16: 配列要素 enum の値域外を違反とする
+
+- [x] **T-09-16-01**: 配列要素 enum（`topics`）が値域外の要素を含む場合は違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-16-01`
+  - Rule: structured-output R-008 / §4.1（enum を含む場合の行） / §4.3.1 #4 / DR-16
+  - Scenario: Given #4 の `topics` が値域外の要素 `bogus` を含む応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（enum 検査を深さで限定しない）
+
+#### T-09-17: 入れ子 object の単一値 enum も値域検査の対象とする
+
+- [x] **T-09-17-01**: 入れ子 object 内の単一値 enum（`corrected_frontmatter.type`）が値域外の場合は違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-17-01`
+  - Rule: structured-output R-008 / §4.3.1 #5 / DR-16
+  - Scenario: Given #5 の入れ子キーは全件そろい `corrected_frontmatter.type` だけが値域外の応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+#### T-09-20: 復元関数も続行側の分類で違反を投げる
+
+- [x] **T-09-20-01**: object でない応答ペイロードを復元関数へ直接渡すと違反とする
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-20-01`
+  - Rule: structured-output R-008 / §4.3 / DR-16 / DR-18 決定 1
+  - Scenario: Given `null` / 文字列 / 数値 / 配列のペイロード（yaml・json-array・line-prefixed の各契約）, When 復元関数を呼ぶ
+  - Expected: Then 素の `TypeError` や `title: undefined` のような壊れたテキストではなく `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+#### T-09-21: 起点キーと契約定義のキーの不一致を違反とする
+
+- [x] **T-09-21-01**: 起点キーが契約定義の `properties` に含まれない場合は検証で違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-21-01`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-008 / DR-18 決定 1
+  - Scenario: Given `firstField` が綴り誤り（`ttile`）または存在しないキー（`summary`）の yaml 契約定義と、それ自体は適合する応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（`InvalidArgs` にしない）
+
+- [x] **T-09-21-02**: line-prefixed 契約で契約定義のキーが応答に無い場合は復元関数が違反とする
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-21-02`
+  - Rule: structured-output R-008 / §4.3 / DR-16 / DR-19
+  - Scenario: Given #6 契約で後続キー欠落・先頭キー欠落・契約キーを 1 件も持たない応答, When 復元関数を直接呼ぶ
+  - Expected: Then `category: undefined` を含むテキストを返さず `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+- [x] **T-09-21-03**: 起点キーが `Object.prototype` 由来のキーの場合も検証で違反とする
+  - Target: `on-wire contract validation 関数`
+  - Test ID: `T-LIB-AI-OCV-21-03`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-008 / DR-18 決定 1
+  - Scenario: Given `firstField: 'toString'` の yaml 契約定義と適合する応答, When on-wire contract validation を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（所属判定を `in` 演算子で行わない）
+
+#### T-09-22: yaml の起点キーが誤っているとき復元関数が沈黙して返さない
+
+- [x] **T-09-22-01**: yaml 契約の起点キーが契約定義のキーに無い場合は復元関数が違反とする
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-22-01`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-008 / DR-16 / DR-18 決定 1
+  - Scenario: Given `firstField` が `ttile` / `summary` / `toString` の yaml 契約定義と適合する応答, When 検証を通さず復元関数を直接呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること（復元関数自身がガードを持つ）
+
 ### [エッジケース] Edge Cases
 
 #### T-09-10: フル JSON Schema validation は行わず最小構造検証に留める
 
-- [ ] **T-09-10-01**: フル JSON Schema validation は行わず最小構造検証に留める
+- [x] **T-09-10-01**: フル JSON Schema validation は行わず最小構造検証に留める
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-10-01`
   - Rule: structured-output §2.4 Non-Goal / DR-19 Non-Goal / DR-26 決定 2
@@ -1143,7 +1292,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-11: yaml 契約の値の許容型は現行既定挙動（文字列型）で判定する
 
-- [ ] **T-09-11-01**: yaml 契約の値の許容型は現行既定挙動（文字列型）で判定する
+- [x] **T-09-11-01**: yaml 契約の値の許容型は現行既定挙動（文字列型）で判定する
   - Target: `on-wire contract validation 関数`
   - Test ID: `T-LIB-AI-OCV-11-01`
   - Rule: structured-output R-008 / §4.1（`yaml` 行「各値が許容型である」） / implementation §3.2
@@ -1155,7 +1304,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-12: `response_format` が無視されスキーマ非準拠の自然文が返る
 
-- [ ] **T-09-12-01**: 既存パース経路へフォールバックせず違反として扱う
+- [x] **T-09-12-01**: 既存パース経路へフォールバックせず違反として扱う
   - Target: 契約検証関数
   - Test ID: `T-LIB-AI-OCV-12-01`
   - Rule: structured-output R-008 / Edge structured-output-1 / REQ-F-016 / DR-19 / DR-26 決定 2
@@ -1164,19 +1313,75 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-09-13: enum の正解がフォールバック値のみになる
 
-- [ ] **T-09-13-01**: フォールバック値が許容値として検証を通過し「該当なし」として復元される
+- [x] **T-09-13-01**: フォールバック値が許容値として検証を通過し「該当なし」として復元される
   - Target: 契約検証関数 / 復元関数
   - Test ID: `T-LIB-AI-OCV-13-01`
   - Rule: structured-output R-003 / R-008 / Edge structured-output-4 / REQ-F-004 / DR-04
   - Scenario: Given 単一値 enum が §4.3.1 のフォールバック値（`type` なら `research`、`category` なら `development`）だけを持つ応答, When 契約検証と復元を行う
   - Expected: Then 検証を通過し、復元結果でその値が「該当なし」を意味する値として呼び出し元へ渡ること
 
-- [ ] **T-09-13-02**: 配列要素の enum では空配列が「該当なし」として検証を通過する
+- [x] **T-09-13-02**: 配列要素の enum では空配列が「該当なし」として検証を通過する
   - Target: 契約検証関数 / 復元関数
   - Test ID: `T-LIB-AI-OCV-13-02`
   - Rule: structured-output §4.3.1「配列値の enum」 / R-002 / R-008
   - Scenario: Given `topics` / `tags` が空配列である適合応答, When 契約検証と復元を行う
   - Expected: Then 検証を通過し、空配列のまま復元されること（数量制約を置かないため空配列は常に許容される）
+
+#### T-09-18: 復元テキストは起点キーから読んでも required keys を落とさない
+
+- [x] **T-09-18-01**: #4 で `title` が応答の先頭でなくても `title` / `topics` / `tags` が復元される
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-18-01`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-007 / DR-09
+  - Scenario: Given `topics` → `title` → `tags` のキー順の適合応答, When 検証を通過させて復元し `extractYaml(text, 'title')` で読む
+  - Expected: Then 3 キーすべてが取り出せること
+
+- [x] **T-09-18-02**: #5 で `validity` が応答の先頭でなくても 3 キーすべてが復元される
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-18-02`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-007 / DR-09
+  - Scenario: Given `validity` を末尾に置いた #5 の適合応答, When 検証を通過させて復元し `extractYaml(text, 'validity')` で読む
+  - Expected: Then `validity` / `errors` / `corrected_frontmatter` がすべて取り出せること
+
+- [x] **T-09-18-03**: 契約定義の記述順で起点キーが先頭でなくても 3 キーすべてが復元される
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-18-03`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-007 / DR-09
+  - Scenario: Given `properties` を `topics` → `title` → `tags` の順で記述した #4 相当の契約定義と適合応答, When 検証を通過させて復元し `extractYaml(text, 'title')` で読む
+  - Expected: Then 3 キーすべてが取り出せること（依存先が応答のキー順から契約定義の記述順へ移っただけの実装を検出する）
+
+#### T-09-19: yaml 契約の復元は応答のキーを落とさない
+
+- [x] **T-09-19-01**: 契約定義に無いトップレベルキーが復元結果に残る
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-19-01`
+  - Rule: structured-output §4.3（`yaml` の復元先） / R-007
+  - Scenario: Given #4 の適合応答に契約定義に無い `note` を加えた応答, When 検証を通過させて復元する
+  - Expected: Then 復元結果に `note` が残ること（キー集合の完全一致を求めるのは `line-prefixed` のみ）
+
+- [x] **T-09-19-02**: 入れ子 object 内の契約定義に無いキーが復元結果に残る
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-19-02`
+  - Rule: structured-output §4.3（`yaml` の復元先） / R-007
+  - Scenario: Given #5 の `corrected_frontmatter` に契約定義に無い `note` を加えた応答, When 検証を通過させて復元する
+  - Expected: Then 復元結果の `corrected_frontmatter.note` が残ること（追加キーの扱いが全深度で同じ）
+  > 修正前でも通過しうる回帰ガード（RED 未確認）。
+
+#### T-09-23: 起点キーと空 envelope の復元境界
+
+- [x] **T-09-23-01**: json-array 契約の空 envelope が違反にならず空配列として復元される
+  - Target: `on-wire contract validation 関数` / `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-23-01`
+  - Rule: structured-output R-008 / §4.1（`json-array` 行） / REQ-F-004
+  - Scenario: Given envelope フィールドが空配列の json-array 契約応答, When 検証と復元を行う
+  - Expected: Then 検証を通過し、復元テキストがトップレベルの空 JSON 配列として `parseAiJsonArray` で空配列に解釈されること
+
+- [x] **T-09-23-02**: yaml 契約の起点キーが応答に無い場合は復元関数が違反とする
+  - Target: `契約別復元関数`
+  - Test ID: `T-LIB-AI-OCV-23-02`
+  - Rule: structured-output §4.3.1「復元の起点」 / R-008 / DR-16 / DR-18 決定 1
+  - Scenario: Given 契約定義は適合するが応答側が起点キーを欠く yaml 契約応答, When 復元関数を直接呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
 
 ---
 
@@ -1188,88 +1393,100 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-10-01: 受理条件を満たすサーバ位置値の正規化
 
-- [ ] **T-10-01-01**: 末尾スラッシュなし・`/v1` なしのサーバ位置値が基底 URL に `/v1/chat/completions` を連結した URL に正規化される
+- [x] **T-10-01-01**: 末尾スラッシュなし・`/v1` なしのサーバ位置値が基底 URL に `/v1/chat/completions` を連結した URL に正規化される
   - Target: `URL 正規化関数`
   - Test ID: `T-LIB-AI-LEP-01-01`
   - Rule: transport R-002 / DR-14 決定 1 / AC-015
   - Scenario: Given サーバ位置値 `http://host:8080`, When 正規化関数を呼ぶ
   - Expected: Then `http://host:8080/v1/chat/completions` が返ること
 
-- [ ] **T-10-01-02**: 末尾スラッシュありのサーバ位置値が同一の正規 URL に解決される
+- [x] **T-10-01-02**: 末尾スラッシュありのサーバ位置値が同一の正規 URL に解決される
   - Target: `URL 正規化関数`
   - Test ID: `T-LIB-AI-LEP-01-02`
   - Rule: transport R-002 / AC-015
   - Scenario: Given サーバ位置値 `http://host:8080/`, When 正規化関数を呼ぶ
   - Expected: Then `http://host:8080/v1/chat/completions` が返ること
 
-- [ ] **T-10-01-03**: 末尾が `/v1` のサーバ位置値が同一の正規 URL に解決される
+- [x] **T-10-01-03**: 末尾が `/v1` のサーバ位置値が同一の正規 URL に解決される
   - Target: `URL 正規化関数`
   - Test ID: `T-LIB-AI-LEP-01-03`
   - Rule: transport R-002 / AC-015
   - Scenario: Given サーバ位置値 `http://host:8080/v1`, When 正規化関数を呼ぶ
   - Expected: Then `http://host:8080/v1/chat/completions` が返ること
 
-- [ ] **T-10-01-04**: 末尾スラッシュと `/v1` の両方を持つサーバ位置値が同一の正規 URL に解決される
+- [x] **T-10-01-04**: 末尾スラッシュと `/v1` の両方を持つサーバ位置値が同一の正規 URL に解決される
   - Target: `URL 正規化関数`
   - Test ID: `T-LIB-AI-LEP-01-04`
   - Rule: transport R-002 / AC-015
   - Scenario: Given サーバ位置値 `http://host:8080/v1/`, When 正規化関数を呼ぶ
   - Expected: Then `http://host:8080/v1/chat/completions` が返ること（T-10-01-01〜04 すべて同一 URL）
 
-- [ ] **T-10-01-05**: `https` スキームのサーバ位置値も同一規則で正規化される
+- [x] **T-10-01-05**: `https` スキームのサーバ位置値も同一規則で正規化される
   - Target: URL 正規化関数
   - Test ID: `T-LIB-AI-LEP-01-05`
   - Rule: transport R-002 / R-006 / §4.3 条件 3 / AC-015
   - Scenario: Given `https://host:8443/v1/` のように `https` スキームで末尾スラッシュと `/v1` を持つサーバ位置値, When 受理判定と正規化を行う
   - Expected: Then 受理され `https://host:8443/v1/chat/completions` に解決されること（`http` と同一の規則が適用される）
 
+#### T-10-05: 受理条件に該当しない値の受理
+
+> T-10 再レビュー（受理側の表明が `https` / `http` の 2 点しか無い）由来の追加ケース。
+> Scenario 番号は Test ID と揃えるため T-10-04 の後の 05 とし、カテゴリに合わせて正常系に置く。
+
+- [x] **T-10-05-01**: §4.3 条件 1〜6 のいずれにも該当しない値が受理され throw しない
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-05-01`
+  - Rule: transport R-006 / §4.3 条件 7
+  - Scenario: Given `http://host/a@b` / `http://[::1]:8080` / `HTTP://host:8080` / `http://host:8080/v1/v1` / `http://host:8080/v1/` / `http:///host:8080`, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも throw しないこと（条件 6 の検査強化が正常系を巻き込まない）
+
 ### [異常] Error Cases
 
 #### T-10-02: 受理条件（§4.3 条件1〜6）に違反するサーバ位置値の拒否
 
-- [ ] **T-10-02-01**: サーバ位置値が未設定（キー省略）の場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-01**: サーバ位置値が未設定（キー省略）の場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-01`
   - Rule: transport R-006 / §4.3 条件 1 / DR-18 / AC-019
   - Scenario: Given サーバ位置値キーが省略されている, When 受理判定関数を呼ぶ
   - Expected: Then `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-02**: サーバ位置値が空文字列の場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-02**: サーバ位置値が空文字列の場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-02`
   - Rule: transport R-006 / §4.3 条件 1 / AC-019
   - Scenario: Given サーバ位置値が `''`, When 受理判定関数を呼ぶ
   - Expected: Then `InvalidEndpoint` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-03**: サーバ位置値が絶対 URL でない（相対パス）場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-03**: サーバ位置値が絶対 URL でない（相対パス）場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-03`
   - Rule: transport R-006 / §4.3 条件 2 / AC-019
   - Scenario: Given サーバ位置値が `/v1/chat`, When 受理判定関数を呼ぶ
   - Expected: Then `InvalidEndpoint` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-04**: サーバ位置値のスキームが `http` / `https` 以外（`ws://`）の場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-04**: サーバ位置値のスキームが `http` / `https` 以外（`ws://`）の場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-04`
   - Rule: transport R-006 / §4.3 条件 3 / DR-14 決定 2 / AC-019
   - Scenario: Given サーバ位置値が `ws://host:8080`, When 受理判定関数を呼ぶ
   - Expected: Then `InvalidEndpoint` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-05**: サーバ位置値が query 文字列を含む場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-05**: サーバ位置値が query 文字列を含む場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-05`
   - Rule: transport R-006 / §4.3 条件 4 / AC-019
   - Scenario: Given サーバ位置値が `http://host:8080?x=1`, When 受理判定関数を呼ぶ
   - Expected: Then `InvalidEndpoint` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-06**: サーバ位置値がフラグメントを含む場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-06**: サーバ位置値がフラグメントを含む場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-06`
   - Rule: transport R-006 / §4.3 条件 5 / AC-019
   - Scenario: Given サーバ位置値が `http://host:8080#frag`, When 受理判定関数を呼ぶ
   - Expected: Then `InvalidEndpoint` が throw され、ネットワークアクセスが発生しないこと
 
-- [ ] **T-10-02-07**: サーバ位置値が userinfo を含む場合に `InvalidEndpoint` を throw する
+- [x] **T-10-02-07**: サーバ位置値が userinfo を含む場合に `InvalidEndpoint` を throw する
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-02-07`
   - Rule: transport R-006 / §4.3 条件 6 / AC-019
@@ -1280,12 +1497,110 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-10-03: 末尾セグメント除去の境界（二重 `/v1`）
 
-- [ ] **T-10-03-01**: サーバ位置値が `/v1/v1` で終わる場合、末尾 1 つのみが除去される
+- [x] **T-10-03-01**: サーバ位置値が `/v1/v1` で終わる場合、末尾 1 つのみが除去される
   - Target: `URL 正規化関数`
   - Test ID: `T-LIB-AI-LEP-03-01`
   - Rule: transport R-002 / DR-14 決定 1 / AC-015
   - Scenario: Given サーバ位置値 `http://host:8080/v1/v1`, When 正規化関数を呼ぶ
   - Expected: Then `http://host:8080/v1/v1/chat/completions` が返ること（`/v1/chat/completions` へは縮退しない）
+
+- [x] **T-10-03-02**: サーバ位置値が `/v1/v1/v1` で終わる場合も末尾 1 つのみが除去され、2 段が基底に残る
+  - Target: `URL 正規化関数`
+  - Test ID: `T-LIB-AI-LEP-03-02`
+  - Rule: transport R-002 / DR-14 決定 1 / AC-015
+  - Scenario: Given サーバ位置値 `http://host:8080/v1/v1/v1`, When 正規化関数を呼ぶ
+  - Expected: Then `http://host:8080/v1/v1/v1/chat/completions` が返ること（`/v1` の連なりを 1 つへ畳まない）
+  > T-10 レビュー対応で二重セグメント縮退の検出点を 1 → 3 へ広げた追加ケース。
+
+- [x] **T-10-03-03**: サーバ位置値が `/v1/v1/` で終わる場合、末尾スラッシュと `v1` が 1 つずつ除去される
+  - Target: `URL 正規化関数`
+  - Test ID: `T-LIB-AI-LEP-03-03`
+  - Rule: transport R-002 / DR-14 決定 1 / AC-015
+  - Scenario: Given サーバ位置値 `http://host:8080/v1/v1/`, When 正規化関数を呼ぶ
+  - Expected: Then T-10-03-01 と同じ `http://host:8080/v1/v1/chat/completions` が返ること（規則 1 → 規則 2 がそれぞれ 1 回だけ適用される）
+  > T-10 レビュー対応で二重セグメント縮退の検出点を 1 → 3 へ広げた追加ケース。
+
+#### T-10-04: 受理条件の字面判定とパーサの乖離
+
+> T-10 レビュー（BLOCKING: §4.3 条件 4〜6 を `URL` の値で判定すると空の `?` / `#`・前後空白・区切り形の違う userinfo を取りこぼす）由来の追加ケース群。
+> 受理判定と正規化が同一の表現を扱うことを固定する。
+
+- [x] **T-10-04-01**: 値を持たない `?` を含むサーバ位置値を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-01`
+  - Rule: transport R-006 / §4.3 条件 4
+  - Scenario: Given サーバ位置値 `http://host:8080?`, When 受理判定関数を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-02**: 値を持たない `#` を含むサーバ位置値を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-02`
+  - Rule: transport R-006 / §4.3 条件 5
+  - Scenario: Given サーバ位置値 `http://host:8080#`, When 受理判定関数を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること（連結したパスがフラグメントへ飲まれる URL を生成しない）
+
+- [x] **T-10-04-03**: 前後に空白を含むサーバ位置値を trim せず `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-03`
+  - Rule: transport R-006 / R-002
+  - Scenario: Given 先頭または末尾に空白を持つサーバ位置値（例: `http://host:8080/v1 `）, When 受理判定関数を呼ぶ
+  - Expected: Then `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-04**: userinfo の区切りのみを含むサーバ位置値を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-04`
+  - Rule: transport R-006 / §4.3 条件 6
+  - Scenario: Given サーバ位置値 `http://@host:8080` / `http://:@host:8080`, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-05**: `http` スキームのサーバ位置値が受理される
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-05`
+  - Rule: transport R-006 / §4.3 条件 3 / DR-14 決定 2
+  - Scenario: Given サーバ位置値 `http://host:8080`, When 受理判定関数を呼ぶ
+  - Expected: Then throw しないこと（許可スキーム集合から `http:` を落とす変更を検出する）
+
+- [x] **T-10-04-06**: §4.3 条件 1〜6 の拒否理由 (detail) が相異なり、入力値を含まない
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-06`
+  - Rule: transport R-006 / REQ-C-001
+  - Scenario: Given 条件 1〜6 それぞれに該当する代表入力, When 受理判定関数を呼ぶ
+  - Expected: Then 6 件の `message` が相異なり、いずれにも入力値そのもの（認証情報を含み得る）が現れないこと
+
+- [x] **T-10-04-07**: バックスラッシュ区切りのオーソリティに含まれる userinfo を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-07`
+  - Rule: transport R-006 / §4.3 条件 6 / REQ-C-001
+  - Scenario: Given サーバ位置値 `http:\\user:pass@host:8080` / `http:/\user:pass@host:8080`, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること（WHATWG URL が `\` を `/` と同一視しても fail-open にならない）
+
+- [x] **T-10-04-08**: スキーム区切りの後に区切りが 3 本以上並ぶ userinfo を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-08`
+  - Rule: transport R-006 / §4.3 条件 6 / REQ-C-001
+  - Scenario: Given `/` と `\` を 3〜6 本（混在を含む）並べた後に `user:pass@host:8080` を持つサーバ位置値, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-09**: スキーム区切りの後に区切りをほとんど持たない userinfo を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-09`
+  - Rule: transport R-006 / §4.3 条件 6 / REQ-C-001
+  - Scenario: Given サーバ位置値 `http:user:pass@host:8080` / `http:\user:pass@host:8080`, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-10**: パーサが除去する制御文字（tab / LF / CR）を挟んだ userinfo を `InvalidEndpoint` として拒否する
+  - Target: `エンドポイント受理判定関数`
+  - Test ID: `T-LIB-AI-LEP-04-10`
+  - Rule: transport R-006 / §4.3 条件 6 / REQ-C-001
+  - Scenario: Given `http://` と `/user:pass@host:8080` の間に tab / LF / CR（反復を含む）を挟んだサーバ位置値, When 受理判定関数を呼ぶ
+  - Expected: Then いずれも `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-10-04-11**: 区切りが 3 本以上でも userinfo を持たないサーバ位置値は受理され正規化される
+  - Target: `エンドポイント受理判定関数` / `URL 正規化関数`
+  - Test ID: `T-LIB-AI-LEP-04-11`
+  - Rule: transport R-002 / R-006 / §4.3 条件 7
+  - Scenario: Given サーバ位置値 `http:///host:8080`, When 受理判定と正規化を行う
+  - Expected: Then throw せず正規化へ進むこと（「区切りが 3 本以上なら拒否」という過剰な規則を入れない）
 
 ---
 
@@ -1299,46 +1614,70 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-11-01: 有効な入力からのリクエストボディ構築
 
-- [ ] **T-11-01-01**: `messages` が system 先・user 後の別ロール 2 要素として構成され、連結されない
+- [x] **T-11-01-01**: `messages` が system 先・user 後の別ロール 2 要素として構成され、連結されない
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-01-01`
   - Rule: transport R-003 / AC-006
   - Scenario: Given system テキストと user テキスト, When リクエストボディ構築関数を呼ぶ
   - Expected: Then `messages[0]` が `role: "system"`、`messages[1]` が `role: "user"` の別要素であること
 
-- [ ] **T-11-01-02**: ボディのキー集合が `model` / `messages` / `stream` / `response_format` の 4 つに限定され、生成パラメータを含まない
+- [x] **T-11-01-02**: ボディのキー集合が `model` / `messages` / `stream` / `response_format` の 4 つに限定され、生成パラメータを含まない
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-01-02`
   - Rule: transport R-009 / DR-15
   - Scenario: Given system/user テキストと出力契約, When リクエストボディ構築関数を呼ぶ
   - Expected: Then ボディのキーが上記 4 つに一致し `temperature` / `top_p` / `max_tokens` 等を含まないこと
 
-- [ ] **T-11-01-03**: `stream` フィールドが常に `false` として送信される
+- [x] **T-11-01-03**: `stream` フィールドが常に `false` として送信される
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-01-03`
   - Rule: transport R-009 / DR-15
   - Scenario: Given 任意の入力, When リクエストボディ構築関数を呼ぶ
   - Expected: Then ボディの `stream` が `false` であること
 
-- [ ] **T-11-01-04**: `Content-Type` ヘッダに `application/json; charset=utf-8` が送られる
+- [x] **T-11-01-04**: `Content-Type` ヘッダに `application/json; charset=utf-8` が送られる
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-01-04`
   - Rule: transport R-008（§4.2）
   - Scenario: Given 任意の入力, When `FetchProvider` へリクエストを送る
   - Expected: Then `Content-Type` ヘッダが `application/json; charset=utf-8` であること
 
-- [ ] **T-11-01-05**: `model` フィールドに provider prefix を除いたモデル識別子が載る
+- [x] **T-11-01-05**: `model` フィールドに provider prefix を除いたモデル識別子が載る
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-01-05`
   - Rule: transport R-009 / Commit 14 変更点
   - Scenario: Given モデル値 `llama/<model>`, When リクエストボディ構築関数を呼ぶ
   - Expected: Then ボディの `model` が `<model>`（prefix なし）であること
 
+- [x] **T-11-01-06**: `response_format` に出力契約から組み立てた `json_schema` が `strict: true` で載る
+  - Target: `llama リクエストボディ構築関数`
+  - Test ID: `T-LIB-AI-LRQ-01-06`
+  - Rule: structured-output R-001 / DR-19
+  - Scenario: Given system/user テキストと出力契約, When リクエストボディ構築関数を呼ぶ
+  - Expected: Then `response_format.type` が `json_schema`、`json_schema.schema` が json_schema 構築関数（T-08）の戻り値と一致し、`json_schema.strict` が `true` であること
+
+- [x] **T-11-01-07**: 構築結果の `method` が `POST` になる
+  - Target: `llama リクエストボディ構築関数`
+  - Test ID: `T-LIB-AI-LRQ-01-07`
+  - Rule: transport R-001 / DR-01
+  - Scenario: Given 有効な入力, When リクエストボディ構築関数を呼ぶ
+  - Expected: Then 構築結果の `method` が `POST` であること
+  > T-11 レビュー（WARN: `method: 'POST'` の削除変異が素通り）由来の追加ケース。
+
+- [x] **T-11-01-08**: `parseModel` が解決できないモデル値は指定値がそのまま `model` に載る
+  - Target: `llama リクエストボディ構築関数`
+  - Test ID: `T-LIB-AI-LRQ-01-08`
+  - Rule: transport R-009
+  - Scenario: Given `parseModel` が `null` を返すモデル値 `unknown/foo`, When リクエストボディ構築関数を呼ぶ
+  - Expected: Then ボディの `model` が `unknown/foo` であること
+  > 望ましい仕様ではなく現在の契約の記録。`getAiBackend(model) === 'llama'` の経路では到達しない見込み。
+  > T-11 レビュー（WARN: `parseModel` の `null` 分岐が未固定）由来の追加ケース。
+
 ### [異常] Error Cases
 
 #### T-11-02: 出力契約が指定されない呼び出し
 
-- [ ] **T-11-02-01**: 出力契約（schema）が未指定でリクエストボディ構築関数を呼ぶと例外が throw され、送信されない
+- [x] **T-11-02-01**: 出力契約（schema）が未指定でリクエストボディ構築関数を呼ぶと例外が throw され、送信されない
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-02-01`
   - Rule: structured-output R-001 / DR-19
@@ -1349,7 +1688,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-11-03: 非 ASCII プロンプトの UTF-8 往復
 
-- [ ] **T-11-03-01**: 日本語（非 ASCII）を含む system/user テキストが UTF-8 で符号化され、`FetchProvider` が受け取ったボディを復号した文字列が送信文字列と一致する
+- [x] **T-11-03-01**: 日本語（非 ASCII）を含む system/user テキストが UTF-8 で符号化され、`FetchProvider` が受け取ったボディを復号した文字列が送信文字列と一致する
   - Target: `llama リクエストボディ構築関数`
   - Test ID: `T-LIB-AI-LRQ-03-01`
   - Rule: transport R-008（§4.2）/ AC-021 / REQ-NF-003
@@ -1369,21 +1708,21 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-01: 成功応答からのアシスタントテキスト抽出
 
-- [ ] **T-12-01-01**: `choices` が 1 要素で正常な `content` と `finish_reason: "stop"` の場合、そのテキストが返る
+- [x] **T-12-01-01**: `choices` が 1 要素で正常な `content` と `finish_reason: "stop"` の場合、そのテキストが返る
   - Target: `llama 応答解釈関数`
   - Test ID: `T-LIB-AI-LRI-01-01`
   - Rule: transport R-007 / error-handling R-004
   - Scenario: Given 成功ステータスの応答（`choices[0].message.content` がテキスト、`finish_reason: "stop"`）, When 応答解釈関数を呼ぶ
   - Expected: Then 対応するアシスタントテキストが返ること
 
-- [ ] **T-12-01-02**: `choices` が 2 要素以上の応答から `choices[0]` のみが採用され、2 番目以降は無視される
+- [x] **T-12-01-02**: `choices` が 2 要素以上の応答から `choices[0]` のみが採用され、2 番目以降は無視される
   - Target: `llama 応答解釈関数`
   - Test ID: `T-LIB-AI-LRI-01-02`
   - Rule: transport R-007 / AC-017
   - Scenario: Given `choices` を 2 要素以上含む成功応答, When 応答解釈関数を呼ぶ
   - Expected: Then `choices[0]` のテキストのみが返ること
 
-- [ ] **T-12-01-03**: 非 ASCII を含む応答本文の復号結果が呼び出し元へ渡る文字列と一致する
+- [x] **T-12-01-03**: 非 ASCII を含む応答本文の復号結果が呼び出し元へ渡る文字列と一致する
   - Target: `llama 応答解釈関数`
   - Test ID: `T-LIB-AI-LRI-01-03`
   - Rule: transport R-008（§4.2）/ AC-021
@@ -1394,21 +1733,21 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-02: 応答が得られない失敗（Step 1）
 
-- [ ] **T-12-02-01**: 接続失敗（到達不能・DNS 解決失敗）を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-02-01**: 接続失敗（到達不能・DNS 解決失敗）を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-02-01`
   - Rule: error-handling R-001 / DR-18 / AC-004
   - Scenario: Given `FetchProvider` が接続失敗（到達不能）で reject する, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `ChatlogError(kind: AiError, subindex: BackendUnavailable)` が throw されること
 
-- [ ] **T-12-02-02**: `Deno.errors.NotCapable`（権限不足）を runtime 由来の `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-02-02**: `Deno.errors.NotCapable`（権限不足）を runtime 由来の `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-02-02`
   - Rule: error-handling R-001 / DR-26 決定 1
   - Scenario: Given `FetchProvider` が `Deno.errors.NotCapable` で reject する, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw され、その `error.message` に runtime 由来である旨が含まれ、ネットワーク到達不能と読み分けられること
 
-- [ ] **T-12-02-03**: TLS 検証失敗を runtime 由来の `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-02-03**: TLS 検証失敗を runtime 由来の `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-02-03`
   - Rule: error-handling R-001 / DR-26 決定 1
@@ -1417,21 +1756,21 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-03: 過負荷系ステータス（Step 2）
 
-- [ ] **T-12-03-01**: HTTP 429 を `RateLimit`（中断側）として分類する
+- [x] **T-12-03-01**: HTTP 429 を `RateLimit`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-03-01`
   - Rule: error-handling R-002 / DR-18 / AC-005
   - Scenario: Given `FetchProvider` が status 429 を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: RateLimit` が throw されること
 
-- [ ] **T-12-03-02**: HTTP 503 を `RateLimit`（中断側）として分類する
+- [x] **T-12-03-02**: HTTP 503 を `RateLimit`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-03-02`
   - Rule: error-handling R-002 / AC-005
   - Scenario: Given `FetchProvider` が status 503 を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: RateLimit` が throw されること
 
-- [ ] **T-12-03-03**: HTTP 504 を `RateLimit`（中断側）として分類する
+- [x] **T-12-03-03**: HTTP 504 を `RateLimit`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-03-03`
   - Rule: error-handling R-002 / AC-005
@@ -1440,14 +1779,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-04: エンドポイント未実装（Step 3）
 
-- [ ] **T-12-04-01**: HTTP 404 を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-04-01**: HTTP 404 を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-04-01`
   - Rule: error-handling R-006 / DR-18
   - Scenario: Given `FetchProvider` が status 404 を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw されること
 
-- [ ] **T-12-04-02**: HTTP 501 を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-04-02**: HTTP 501 を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-04-02`
   - Rule: error-handling R-006 / DR-18
@@ -1456,21 +1795,21 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-05: 認証エラー（Step 4）
 
-- [ ] **T-12-05-01**: HTTP 401 を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-05-01**: HTTP 401 を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-05-01`
   - Rule: error-handling R-007 / DR-18
   - Scenario: Given `FetchProvider` が status 401 を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw されること
 
-- [ ] **T-12-05-02**: HTTP 403 を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-05-02**: HTTP 403 を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-05-02`
   - Rule: error-handling R-007 / DR-18
   - Scenario: Given `FetchProvider` が status 403 を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw されること
 
-- [ ] **T-12-05-03**: 401 / 403 の `message` に前提崩れが記録される
+- [x] **T-12-05-03**: 401 / 403 の `message` に前提崩れが記録される
   - Target: llama 応答解釈
   - Test ID: `T-LIB-AI-LRI-05-03`
   - Rule: error-handling R-007 / Edge error-handling-9 / DR-18
@@ -1479,7 +1818,13 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-06: `response_format` 拒否と判別できる 400（Step 5）
 
-> **Phase 0 まで着手不可**。「`response_format` 拒否と判別できる」の判別条件が未確定である。
+> **保留（`cle-eft.2.1` で追跡）**。Phase 0 実測（2026-09-12、90 回）で HTTP 400 が 1 件も発生せず、
+> 判別条件を決める材料が得られなかった（`measurements-response-format-2026-09-12.md` §3.2 /
+> implementation §3.2）。`_isResponseFormatRejection` は常に `false` を返し、判別できない 400 は
+> 続行側の `ExitFailure` に落とす既定を維持している（T-12-07 が検証済み）。
+> 実際に 400 を返すサーバ実装が観測されるまで、以下の着手条件は満たされない。
+>
+> 「`response_format` 拒否と判別できる」の判別条件が未確定である。
 > 本文 JSON のどのフィールドを見るのか、文字列パターンで照合するのか、サーバ実装差をどう
 > 吸収するのかがいずれも決まっていないため、実装者ごとに別の heuristic が生まれる
 > （implementation §3.2 の未決 1）。
@@ -1498,7 +1843,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-07: 判別できない非成功ステータス（Step 6）
 
-- [ ] **T-12-07-01**: HTTP 400 だが `response_format` 拒否と判別できない場合を `ExitFailure`（続行側）として分類する
+- [x] **T-12-07-01**: HTTP 400 だが `response_format` 拒否と判別できない場合を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-07-01`
   - Rule: error-handling R-003 / DR-18
@@ -1507,7 +1852,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   > 現行の既定挙動（判別できない 400 は続行側の `ExitFailure` に落とす）でタスク化してある。
   > 着手条件は T-12-06 と同じく Phase 0 の実測完了とする。
 
-- [ ] **T-12-07-02**: R-002・R-006〜R-008 のいずれにも該当しないその他の非成功ステータスを `ExitFailure`（続行側）として分類する
+- [x] **T-12-07-02**: R-002・R-006〜R-008 のいずれにも該当しないその他の非成功ステータスを `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-07-02`
   - Rule: error-handling R-003
@@ -1516,76 +1861,100 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-08: 非 JSON 応答・Content-Type 不一致（Step 6.5）
 
-- [ ] **T-12-08-01**: 成功ステータスだが本文が JSON として parse できない場合を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-08-01**: 成功ステータスだが本文が JSON として parse できない場合を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-08-01`
   - Rule: DR-26 決定 2
   - Scenario: Given `FetchProvider` が成功ステータスかつ JSON として parse できない本文を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw されること
 
-- [ ] **T-12-08-02**: 成功ステータスだが `Content-Type` が `application/json` 系でない場合を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-08-02**: 成功ステータスだが `Content-Type` が `application/json` 系でない場合を `BackendUnavailable`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-08-02`
   - Rule: DR-26 決定 2
   - Scenario: Given `FetchProvider` が成功ステータスかつ `Content-Type: text/event-stream` を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: BackendUnavailable` が throw されること
 
-- [ ] **T-12-08-03**: `Content-Type` ヘッダが欠落した成功応答を `BackendUnavailable`（中断側）として分類する
+- [x] **T-12-08-03**: `Content-Type` ヘッダが欠落した成功応答を `BackendUnavailable`（中断側）として分類する
   - Target: llama 応答解釈
   - Test ID: `T-LIB-AI-LRI-08-03`
   - Rule: DR-26 決定 2
   - Scenario: Given 成功ステータスだが `Content-Type` ヘッダを持たない応答, When llama 経路で応答を解釈する
   - Expected: Then `ChatlogError(kind: AiError, subindex: BackendUnavailable)` が throw され、Step 7 の本文解釈へ進まないこと
 
-- [ ] **T-12-08-04**: `application/json; charset=utf-8` は JSON 系として受理される
+- [x] **T-12-08-04**: `application/json; charset=utf-8` は JSON 系として受理される
   - Target: llama 応答解釈
   - Test ID: `T-LIB-AI-LRI-08-04`
   - Rule: DR-26 決定 2 / transport R-008（§4.2）
   - Scenario: Given 成功ステータスで `Content-Type: application/json; charset=utf-8` を持ち本文が JSON として parse できる応答, When llama 経路で応答を解釈する
   - Expected: Then Step 6.5 で中断されず Step 7 の本文解釈へ進むこと（パラメータ付きの `application/json` を JSON 系から除外しない）
 
+- [x] **T-12-08-05**: 成功ステータスだが本文ストリームが error する場合を `BackendUnavailable`（中断側）として分類する
+  - Target: llama 応答解釈
+  - Test ID: `T-LIB-AI-LRI-08-05`
+  - Rule: DR-26 決定 2 / DR-18 決定 1
+  - Scenario: Given 成功ステータスで本文の読み出し中にストリームが error する応答, When llama 経路で応答を解釈する
+  - Expected: Then 素の `TypeError` ではなく `ChatlogError(kind: AiError, subindex: BackendUnavailable)` が throw されること
+  > T-12 レビュー（CRITICAL: `response.text()` の無防備な呼び出し）由来の追加ケース。
+
+- [x] **T-12-08-06**: media type の大文字小文字が異なる `Content-Type` も JSON 系として受理される
+  - Target: llama 応答解釈
+  - Test ID: `T-LIB-AI-LRI-08-06`
+  - Rule: DR-26 決定 2 / RFC 9110 §8.3.1
+  - Scenario: Given 成功ステータスで `Content-Type: Application/JSON; charset=utf-8` を持ち本文が JSON として parse できる応答, When llama 経路で応答を解釈する
+  - Expected: Then Step 6.5 で中断されず Step 7 の本文解釈へ進むこと（media type は case-insensitive）
+  > T-12 レビュー由来の追加ケース。
+
 #### T-12-09: アシスタントテキストを取り出せない成功応答（Step 7）
 
-- [ ] **T-12-09-01**: `choices` が存在しない成功応答を `ExitFailure`（続行側）として分類する
+- [x] **T-12-09-01**: `choices` が存在しない成功応答を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-09-01`
   - Rule: error-handling R-004 条件 a
   - Scenario: Given 成功ステータスの応答本文に `choices` フィールドがない, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ExitFailure` が throw されること
 
-- [ ] **T-12-09-02**: `choices` が空配列の成功応答を `ExitFailure`（続行側）として分類する
+- [x] **T-12-09-02**: `choices` が空配列の成功応答を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-09-02`
   - Rule: error-handling R-004 条件 a
   - Scenario: Given 成功ステータスの応答で `choices: []`, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ExitFailure` が throw されること
 
-- [ ] **T-12-09-03**: `choices[0].message.content` が `null` の成功応答を `ExitFailure`（続行側）として分類する
+- [x] **T-12-09-03**: `choices[0].message.content` が `null` の成功応答を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-09-03`
   - Rule: error-handling R-004 条件 b
   - Scenario: Given `choices[0].message.content` が `null`, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ExitFailure` が throw されること
 
-- [ ] **T-12-09-04**: `choices[0].message.content` が文字列でない（配列・`tool_calls` 中心）成功応答を `ExitFailure`（続行側）として分類する
+- [x] **T-12-09-04**: `choices[0].message.content` が文字列でない（配列・`tool_calls` 中心）成功応答を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-09-04`
   - Rule: error-handling R-004 条件 c
   - Scenario: Given `choices[0].message.content` が配列、または `tool_calls` 中心の応答, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ExitFailure` が throw されること
 
-- [ ] **T-12-09-05**: `choices[0].finish_reason` が `"length"` の成功応答を `ExitFailure`（続行側）として分類する
+- [x] **T-12-09-05**: `choices[0].finish_reason` が `"length"` の成功応答を `ExitFailure`（続行側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-09-05`
   - Rule: error-handling R-004 条件 d / DR-15
   - Scenario: Given `choices[0].finish_reason` が `"length"`, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ExitFailure` が throw されること
 
+- [x] **T-12-09-06**: `choices[0]` が `null` の成功応答を `ExitFailure`（続行側）として分類する
+  - Target: `llama 応答解釈とエラー写像`
+  - Test ID: `T-LIB-AI-LRI-09-06`
+  - Rule: error-handling R-004 条件 a / DR-18 決定 1
+  - Scenario: Given 成功ステータスの応答で `choices: [null]`, When llama 経路で応答解釈関数を呼ぶ
+  - Expected: Then 素の `TypeError` ではなく `subindex: ExitFailure` が throw されること
+  > T-12 レビュー（CRITICAL: `choices[0] === null` で素の `TypeError`）由来の追加ケース。
+
 ### [エッジケース] Edge Cases
 
 #### T-12-10: `finish_reason` の境界値
 
-- [ ] **T-12-10-01**: `finish_reason` が実装固有値（`eos`）の場合も `stop` 以外としてすべて `ExitFailure`（続行側）に分類する
+- [x] **T-12-10-01**: `finish_reason` が実装固有値（`eos`）の場合も `stop` 以外としてすべて `ExitFailure`（続行側）に分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-10-01`
   - Rule: error-handling R-004 条件 d / §7 未決 #2
@@ -1593,34 +1962,34 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Expected: Then `subindex: ExitFailure` が throw されること
   > Phase 0 実測後に error-handling §4.1 が改訂されたら本タスクも改訂する。
 
-- [ ] **T-12-10-02**: `finish_reason` が欠落または `null` の場合も「`stop` 以外」に含めて `ExitFailure`（続行側）と判定する
+- [x] **T-12-10-02**: `finish_reason` が欠落または `null` の場合も「`stop` 以外」に含めて `ExitFailure`（続行側）と判定する
   - Target: `llama 応答解釈とエラー写像`
-  - Test ID: `T-LIB-AI-LRI-10-02`
+  - Test ID: `T-LIB-AI-LRI-10-02-01` 〜 `T-LIB-AI-LRI-10-02-02`（欠落 / `null` の 2 件）
   - Rule: error-handling R-004 条件 d / DR-26 決定 3
   - Scenario: Given `choices[0].finish_reason` が欠落、または `null`, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `finish_reason !== 'stop'` として判定され `subindex: ExitFailure` が throw されること
 
 #### T-12-11: `kind` の一律性
 
-- [ ] **T-12-11-01**: llama 経路が投げるいずれの失敗も `kind: AiError` に統一され、呼び出し元の非 `AiError` フォールバック分岐へ落ちない
+- [x] **T-12-11-01**: llama 経路が投げるいずれの失敗も `kind: AiError` に統一され、呼び出し元の非 `AiError` フォールバック分岐へ落ちない
   - Target: `llama 応答解釈とエラー写像`
-  - Test ID: `T-LIB-AI-LRI-11-01`
+  - Test ID: `T-LIB-AI-LRI-11-01-01` 〜 `T-LIB-AI-LRI-11-01-14`（Step 別のテーブル駆動 14 件）
   - Rule: DR-03 / DR-18 決定 1 / REQ-C-003
   - Scenario: Given Step 1〜7・6.5 の各失敗条件を網羅的に発生させる, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then すべてのケースで `kind` が `AiError` であること
 
 #### T-12-12: 失敗時にリトライも他バックエンドへのフォールバックも行わない
 
-- [ ] **T-12-12-01**: 中断側・続行側のいずれの失敗でも `FetchProvider` の呼び出しは 1 回に留まる
+- [x] **T-12-12-01**: 中断側・続行側のいずれの失敗でも `FetchProvider` の呼び出しは 1 回に留まる
   - Target: llama 応答解釈 / llama 経路の失敗処理
-  - Test ID: `T-LIB-AI-LRI-12-01`
+  - Test ID: `T-LIB-AI-LRI-12-01-01` 〜 `T-LIB-AI-LRI-12-01-04`（404 / 429 / 500 の 3 件 + リトライ付きランナーを検出できることの対照確認 1 件）
   - Rule: DR-03 / REQ-C-003 / REQ-F-006
   - Scenario: Given `BackendUnavailable` / `RateLimit` / `ExitFailure` / `ResponseFormatRejected` のそれぞれを引き起こす応答, When llama 経路で `runAI` を呼ぶ
   - Expected: Then いずれの場合も `FetchProvider` の呼び出し回数が 1 回であり、内側でのリトライが行われないこと
 
-- [ ] **T-12-12-02**: llama 経路の失敗が既存 CLI バックエンドへフォールバックしない
+- [x] **T-12-12-02**: llama 経路の失敗が既存 CLI バックエンドへフォールバックしない
   - Target: llama 経路の失敗処理
-  - Test ID: `T-LIB-AI-LRI-12-02`
+  - Test ID: `T-LIB-AI-LRI-12-02-01` 〜 `T-LIB-AI-LRI-12-02-04`（404 / 500 / `FetchProvider` の reject の 3 件 + フォールバック付きランナーを検出できることの対照確認 1 件）
   - Rule: DR-03 / REQ-C-003 / DR-02
   - Scenario: Given llama 経路が任意の失敗分類を throw する状況, When llama 経路で `runAI` を呼ぶ
   - Expected: Then CLI バックエンドのコマンド構築・起動が一度も行われず、例外がそのまま呼び出し元へ伝播すること
@@ -1635,7 +2004,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-01: classify の runAI 呼び出しに json-array 契約を渡す
 
-- [ ] **T-13-01-01**: `phase-classify-ai.ts` の呼び出しオプションに `json-array` が渡る
+- [x] **T-13-01-01**: `phase-classify-ai.ts` の呼び出しオプションに `json-array` が渡る
   - Target: `phase-classify-ai.ts` の `runAI` 呼び出し
   - Test ID: `T-CL-OCT-01-01`
   - Rule: REQ-F-018 / DR-19
@@ -1644,7 +2013,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-02: filter の runAI 呼び出しに json-array 契約を渡す
 
-- [ ] **T-13-02-01**: `process-chunk.ts` の呼び出しオプションに `json-array` が渡る
+- [x] **T-13-02-01**: `process-chunk.ts` の呼び出しオプションに `json-array` が渡る
   - Target: `process-chunk.ts` の `runAI` 呼び出し
   - Test ID: `T-FL-OCT-01-01`
   - Rule: REQ-F-018 / DR-19
@@ -1653,7 +2022,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-03: normalize の runAI 呼び出しに json-array 契約を渡す
 
-- [ ] **T-13-03-01**: `segment-ai.ts` の呼び出しオプションに `json-array` が渡る
+- [x] **T-13-03-01**: `segment-ai.ts` の呼び出しオプションに `json-array` が渡る
   - Target: `segment-ai.ts` の `runAI` 呼び出し
   - Test ID: `T-NC-OCT-01-01`
   - Rule: REQ-F-018 / DR-19
@@ -1662,7 +2031,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-04: set-frontmatter の frontmatter 生成呼び出しに yaml 契約を渡す
 
-- [ ] **T-13-04-01**: `setfm-frontmatter.ts` の呼び出しオプションに `yaml` が渡る
+- [x] **T-13-04-01**: `setfm-frontmatter.ts` の呼び出しオプションに `yaml` が渡る
   - Target: `setfm-frontmatter.ts` の `runAI` 呼び出し
   - Test ID: `T-SF-OCT-01-01`
   - Rule: REQ-F-018 / DR-19 / DR-11
@@ -1671,7 +2040,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-05: set-frontmatter の review 呼び出しに yaml 契約を渡す
 
-- [ ] **T-13-05-01**: `setfm-review.ts` の呼び出しオプションに `yaml` が渡る
+- [x] **T-13-05-01**: `setfm-review.ts` の呼び出しオプションに `yaml` が渡る
   - Target: `setfm-review.ts` の `runAI` 呼び出し
   - Test ID: `T-SF-OCT-02-01`
   - Rule: REQ-F-018 / DR-19 / DR-11
@@ -1680,7 +2049,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-06: set-frontmatter の type/category 判定呼び出しに line-prefixed 契約を渡す
 
-- [ ] **T-13-06-01**: `setfm-type-category.ts` の呼び出しオプションに `line-prefixed` が渡る
+- [x] **T-13-06-01**: `setfm-type-category.ts` の呼び出しオプションに `line-prefixed` が渡る
   - Target: `setfm-type-category.ts` の `runAI` 呼び出し
   - Test ID: `T-SF-OCT-03-01`
   - Rule: REQ-F-018 / DR-19
@@ -1691,7 +2060,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-07: setfm-frontmatter.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
 
-- [ ] **T-13-07-01**: setfm-frontmatter.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
+- [x] **T-13-07-01**: setfm-frontmatter.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
   - Target: `setfm-frontmatter.ts` の `runAI` 呼び出し
   - Test ID: `T-SF-OCT-04-01`
   - Rule: REQ-F-018 / DR-18 / structured-output R-008 / implementation Commit 19
@@ -1700,7 +2069,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-08: setfm-review.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
 
-- [ ] **T-13-08-01**: setfm-review.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
+- [x] **T-13-08-01**: setfm-review.ts で `ResponseSchemaViolation` が `maxRetry` ループの外へ抜ける
   - Target: `setfm-review.ts` の `runAI` 呼び出し
   - Test ID: `T-SF-OCT-05-01`
   - Rule: REQ-F-018 / DR-18 / structured-output R-008 / implementation Commit 19
@@ -1709,7 +2078,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-09: classify の json-array 呼び出しで `ResponseSchemaViolation` が続行側として扱われる
 
-- [ ] **T-13-09-01**: classify の json-array 呼び出しで `ResponseSchemaViolation` が続行側として扱われる
+- [x] **T-13-09-01**: classify の json-array 呼び出しで `ResponseSchemaViolation` が続行側として扱われる
   - Target: `phase-classify-ai.ts` の `runAI` 呼び出し
   - Test ID: `T-CL-OCT-02-01`
   - Rule: REQ-F-018 / DR-18 / structured-output R-008
@@ -1720,7 +2089,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-13-10: setfm-type-category.ts の line-prefixed 契約が AC-024 を満たす
 
-- [ ] **T-13-10-01**: setfm-type-category.ts の line-prefixed 契約が AC-024 を満たす
+- [x] **T-13-10-01**: setfm-type-category.ts の line-prefixed 契約が AC-024 を満たす
   - Target: `setfm-type-category.ts` の `runAI` 呼び出し / 契約別復元関数
   - Test ID: `T-SF-OCT-06-01`
   - Rule: REQ-F-018 / §4.3.1 の #6 / DR-19 Alternatives / AC-024
@@ -1743,7 +2112,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-14-01: AI を呼ぶ経路の SKILL.md 実行行に `--allow-net` が付与されている
 
-- [ ] **T-14-01-01**: 対象 4 スキルの実行行がすべて `--allow-net` を含む
+- [x] **T-14-01-01**: 対象 4 スキルの実行行がすべて `--allow-net` を含む
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-01-01`
   - Rule: config-packaging R-003 / DD-03 / DR-13 / DR-24 決定 1 / AC-011
@@ -1752,7 +2121,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-14-02: `deno.json` の `test:module` タスクに `--allow-net` が付与されている
 
-- [ ] **T-14-02-01**: `test:module` タスク定義が `--allow-net` を含む
+- [x] **T-14-02-01**: `test:module` タスク定義が `--allow-net` を含む
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-02-01`
   - Rule: config-packaging R-003 / DD-03 / AC-011
@@ -1761,7 +2130,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-14-03: AI を呼ぶエントリスクリプトの shebang 行に `--allow-net` が付与されている
 
-- [ ] **T-14-03-01**: 対象 3 本の shebang 行がすべて `--allow-net` を含む
+- [x] **T-14-03-01**: 対象 3 本の shebang 行がすべて `--allow-net` を含む
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-03-01`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-6 / AC-011
@@ -1772,36 +2141,92 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-14-04: AI を呼ばない経路に誤って `--allow-net` が付与されている
 
-- [ ] **T-14-04-01**: 非 AI 経路の行に `--allow-net` が含まれていれば不適合と判定する
+- [x] **T-14-04-01**: `export-chatlogs` の `$SCRIPT_PATH` 実行行に `--allow-net` が含まれていれば不適合と判定する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-04-01`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
-  - Scenario: Given `export-chatlogs` の `$SCRIPT_PATH` 実行行、または `filter-chatlogs` の `$NOISE_FILTER_PATH` / `$STRIP_PATH` 実行行に `--allow-net` を混ぜた fixture 文字列を検査純関数へ渡す, When 静的検査を行う
+  - Scenario: Given `export-chatlogs` の `$SCRIPT_PATH` 実行行に `--allow-net` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-02**: `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行に `--allow-net` が含まれていれば不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-02`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行に `--allow-net` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-03**: `filter-chatlogs` の `$STRIP_PATH` 実行行に `--allow-net` が含まれていれば不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-03`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行に `--allow-net` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-04**: `--allow-net` を含まない非 AI 経路の行は適合と判定する（対照）
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-04`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given `--allow-net` を含まない `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 適合と判定されること（常に不適合を返す実装を検出する）
 
 #### T-14-05: AI を呼ぶ経路の対象行に `--allow-net` が欠落している
 
-- [ ] **T-14-05-01**: 対象行のいずれかに `--allow-net` が欠けていれば不適合と判定する
+- [x] **T-14-05-01**: SKILL.md 実行行に `--allow-net` が欠けていれば不適合と判定する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-05-01`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-6 / AC-011
-  - Scenario: Given T-14-01〜T-14-03 が列挙する対象行のうち 1 行から `--allow-net` を除いた fixture 文字列を検査純関数へ渡す, When 静的検査を行う
+  - Scenario: Given T-14-01 が列挙する SKILL.md 実行行から `--allow-net` を除いた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then その行が不適合と判定されること
+
+- [x] **T-14-05-02**: shebang 行に `--allow-net` が欠けていれば不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-02`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-6 / AC-011
+  - Scenario: Given T-14-03 が列挙する shebang 行から `--allow-net` を除いた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then その行が不適合と判定されること
+
+- [x] **T-14-05-03**: `test:module` タスク定義に `--allow-net` が欠けていれば不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-03`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-6 / AC-011
+  - Scenario: Given T-14-02 の `test:module` タスク定義から `--allow-net` を除いた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then その行が不適合と判定されること
+
+- [x] **T-14-05-04**: `--allow-net` を含む AI 経路の行は適合と判定する（対照）
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-04`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given `--allow-net` を含む shebang 行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 適合と判定されること（常に不適合を返す実装を検出する）
 
 ### [エッジケース] Edge Cases
 
 #### T-14-06: フラグ列を省略した SKILL.md 例示行
 
-- [ ] **T-14-06-01**: フラグ集合を記述していない例示行は判定対象外とする
+- [x] **T-14-06-01**: フラグ列を省略した例示行からはフラグ集合を抽出しない
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-06-01`
   - Rule: config-packaging R-003 / Edge config-packaging-7
-  - Scenario: Given `deno run ... "$SCRIPT_PATH"` のようにフラグ列そのものを記述していない例示行を fixture 文字列として検査純関数へ渡す, When 静的検査を行う
+  - Scenario: Given `deno run ... "$SCRIPT_PATH"` のようにフラグ列そのものを記述していない例示行を fixture 文字列としてフラグ抽出関数へ渡す, When フラグ集合を抽出する
+  - Expected: Then フラグ集合が得られない（`null`）こと
+
+- [x] **T-14-06-02**: 期待値 `required` でもフラグ列を省略した例示行は判定対象外とする
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-02`
+  - Rule: config-packaging R-003 / Edge config-packaging-7
+  - Scenario: Given `deno run ... "$SCRIPT_PATH" claude` の例示行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then その行は `--allow-net` の有無によって適合・不適合を判定されず、検査対象から除外されること
+
+- [x] **T-14-06-03**: 期待値 `forbidden` でもフラグ列を省略した例示行は判定対象外とする
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-03`
+  - Rule: config-packaging R-003 / Edge config-packaging-7
+  - Scenario: Given `deno run ... --single-file` の例示行を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then その行は `--allow-net` の有無によって適合・不適合を判定されず、検査対象から除外されること
 
 #### T-14-07: `normalize-chatlogs` は shebang 行を持たない
 
-- [ ] **T-14-07-01**: `normalize-chatlogs` の検査対象が SKILL.md 実行行のみである
+- [x] **T-14-07-01**: `normalize-chatlogs` の検査対象が SKILL.md 実行行のみである
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-07-01`
   - Rule: config-packaging R-003 / DD-03
@@ -1810,12 +2235,13 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-14-08: 配布ミラーの同期検査
 
-- [ ] **T-14-08-01**: `bash scripts/sync-skill-assets.sh --check-staged` が差分なしで終了する
+- [x] **T-14-08-01**: `bash scripts/sync-skill-assets.sh --check-staged` が差分なしで終了する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-08-01`
   - Rule: config-packaging R-004 / DD-04 / AC-012 / Edge config-packaging-8
   - Scenario: Given 本 commit で共有ライブラリ・設定・`deno.json` に触れる変更が commit/push フックにより配布ミラーへ同期されている, When `bash scripts/sync-skill-assets.sh --check-staged` を実行する
   - Expected: Then 差分なしで終了すること
+  > コマンド実行による検査であり `it()` を持たない。この Test ID はテストコードに現れない。
 
 ---
 
@@ -1827,7 +2253,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-01: llama モデル指定時に正規化 URL への POST が組み立てられる
 
-- [ ] **T-15-01-01**: `model: llama/<model>` かつ `llamaEndpoint` 設定済みで `/v1/chat/completions` への POST が組み立てられる
+- [x] **T-15-01-01**: `model: llama/<model>` かつ `llamaEndpoint` 設定済みで `/v1/chat/completions` への POST が組み立てられる
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-01-01`
   - Rule: transport §4.1 Step 1・Step 3・Step 5・Step 6 / R-001・R-002・R-003・R-009 / DR-01 / AC-001
@@ -1836,14 +2262,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-02: 注入ありの経路が注入なしと同一のリクエスト構築・応答解釈処理を通る
 
-- [ ] **T-15-02-01**: `FetchProvider` 注入あり・なしで同一のリクエスト構築処理を通る
+- [x] **T-15-02-01**: `FetchProvider` 注入あり・なしで同一のリクエスト構築処理を通る
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-02-01`
   - Rule: transport R-005 / §4.4 / AC-013
   - Scenario: Given 同一入力に対し、送信関数（`FetchProvider`）だけを差し替えた 2 経路, When リクエスト構築処理を比較する
   - Expected: Then 両経路が同一のリクエスト構築関数を通ること。判定は構築関数の **参照同一性**、または spy による呼び出し順と引数の一致で行う。既定 `fetch` を実際に呼ぶ経路を作らない（実ネットワークへ接続しない）
 
-- [ ] **T-15-02-02**: `FetchProvider` 注入あり・なしで同一の応答解釈処理を通る
+- [x] **T-15-02-02**: `FetchProvider` 注入あり・なしで同一の応答解釈処理を通る
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-02-02`
   - Rule: transport R-005 / §4.4 / AC-013
@@ -1852,22 +2278,69 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-03: 6 呼び出しが契約から構築した `response_format` を含み復元済み文字列を受け取る
 
-- [ ] **T-15-03-01**: production の 6 呼び出しそれぞれで `response_format` が契約から構築されリクエストに含まれる
+> **配置**: T-15-03-01〜06 は呼び出し箇所を持つ各スキルの `__tests__/integration/` に置く
+> （`_cle-libs` のテストからスキル側モジュールを import しない）。各呼び出し箇所の
+> `aiRunnerProvider` へ、実物の `runAI` に `model: llama/<model>` とスパイの `fetchProvider` を
+> 渡して包んだ関数を注入し、スパイが受け取ったリクエストボディを検証する。実ネットワークへ接続しない。
+
+- [x] **T-15-03-01**: `phase-classify-ai.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-03-01`
   - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
-  - Scenario: Given production の 6 呼び出し箇所それぞれの出力契約, When `runAI` を llama 経路で実行する
-  - Expected: Then 各呼び出しのリクエストボディに契約から構築された `response_format` が含まれること
+  - Scenario: Given `skills/classify-chatlogs/scripts/phases/phase-classify-ai.ts` の出力契約（`_buildClassifyOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
 
-- [ ] **T-15-03-02**: 2xx 応答から契約に基づき復元された文字列を呼び出し元が受け取る
+- [x] **T-15-03-02**: `filter/process-chunk.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-03-02`
+  - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
+  - Scenario: Given `skills/filter-chatlogs/scripts/modules/filter/process-chunk.ts` の出力契約（`_buildFilterOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
+
+- [x] **T-15-03-03**: `segment-ai.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-03-03`
+  - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
+  - Scenario: Given `skills/normalize-chatlogs/scripts/modules/segment-ai.ts` の出力契約（`_buildSegmentOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
+
+- [x] **T-15-03-04**: `setfm-frontmatter.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-03-04`
+  - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
+  - Scenario: Given `skills/set-frontmatter/scripts/modules/setfm-frontmatter.ts` の出力契約（`_buildFrontmatterOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
+
+- [x] **T-15-03-05**: `setfm-review.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-03-05`
+  - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
+  - Scenario: Given `skills/set-frontmatter/scripts/modules/setfm-review.ts` の出力契約（`_buildReviewOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
+
+- [x] **T-15-03-06**: `setfm-type-category.ts` の呼び出しで `response_format` が契約から構築されリクエストに含まれる
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-03-06`
+  - Rule: transport §4.1 Step 4 / structured-output R-001 / AC-002
+  - Scenario: Given `skills/set-frontmatter/scripts/modules/setfm-type-category.ts` の出力契約（`_buildTypeCategoryOutputContract`）, When llama 経路の `runAI` を注入して呼び出し箇所を実行する
+  - Expected: Then リクエストボディに契約から構築された `response_format` が含まれること
+
+- [x] **T-15-03-07**: 2xx 応答から契約に基づき復元された文字列を呼び出し元が受け取る
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-03-07`
   - Rule: transport §4.1 Step 7.5 / structured-output R-007 / AC-018
   - Scenario: Given 契約に適合する 2xx 応答本文, When `runAI` を llama 経路で実行する
   - Expected: Then 呼び出し元へ復元済み文字列が返ること
 
-#### T-15-04: production の `runAI(` 呼び出しが全件出力契約を指定していることの静的検査
+#### T-15-04: production で `runAI` を使うファイルが全件出力契約を指定していることの静的検査
 
+> **検査単位の再定義（2026-09-14）**: production コードに `runAI(` という呼び出し式は存在しない。
+> 6 箇所とも `runAI` を import して `aiRunnerProvider` の既定値（`segment-ai.ts` のみ
+> `options?.aiRunnerProvider ?? runAI`）に使い、実際の呼び出しは `aiRunnerProvider(...)` /
+> `_run(...)` 経由で行う。変数名に依存する呼び出し式の走査は避け、**`run-ai.ts` から `runAI` を
+> import する production ファイル** を検査単位とする。各ファイルの呼び出しオプションに
+> `outputContract:` が指定されていることを検査する。
+>
 > **除外規則**: 走査対象から次を除外する。列挙漏れではなく誤検出を防ぐための規則であり、
 > 3 つとも省略できない。
 >
@@ -1877,60 +2350,127 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 >   `scripts/sync-skill-assets.sh` が `skills/_cle-libs/**` から自動生成するため同じシンボルが
 >   重複して存在する。除外しないと同一呼び出しを二重に数える（implementation §3.1 / T-14-08）
 >
-> この規則の下で production の `runAI(` 呼び出しはちょうど 6 箇所であり、REQ-F-018 の表および
+> この規則の下で `runAI` を import する production ファイルはちょうど 6 本であり、REQ-F-018 の表および
 > T-13 の「6 呼び出し」と一致する。
 
-- [ ] **T-15-04-01**: production コードの `runAI(` 呼び出しを静的に列挙し全件が出力契約を指定している
-  - Target: `runAI( 呼び出し箇所の静的検査`
+- [x] **T-15-04-01**: `runAI` を import する production ファイルを静的に列挙し全件が出力契約を指定している
+  - Target: `runAI 利用ファイルの静的検査`
   - Test ID: `T-LIB-AI-LWR-04-01`
   - Rule: DR-27 決定 3・4 / DR-20 決定 1 / REQ-F-018
-  - Scenario: Given リポジトリ全体から上記除外規則を適用した production コード, When `runAI(` 呼び出しをソース走査で列挙する
-  - Expected: Then 列挙件数が 6 であり、`phase-classify-ai.ts` / `filter/process-chunk.ts` / `segment-ai.ts` / `setfm-frontmatter.ts` / `setfm-review.ts` / `setfm-type-category.ts` の 6 ファイルと一致し、全件が出力契約オプションを指定していること（以降の呼び出し追加に対する回帰）
+  - Scenario: Given リポジトリ全体から上記除外規則を適用した production コード, When `run-ai.ts` から `runAI` を import するファイルをソース走査で列挙する
+  - Expected: Then 列挙件数が 6 であり、`phase-classify-ai.ts` / `filter/process-chunk.ts` / `segment-ai.ts` / `setfm-frontmatter.ts` / `setfm-review.ts` / `setfm-type-category.ts` の 6 ファイルと一致し、全ファイルの呼び出しオプションが `outputContract:` を指定していること（以降の利用ファイル追加に対する回帰）
 
-- [ ] **T-15-04-02**: 出力契約を指定しない呼び出しを検査純関数が不適合と判定する
-  - Target: `runAI( 呼び出し箇所の静的検査`
+- [x] **T-15-04-02**: `runAI` を import しながら出力契約を指定しないファイルを検査純関数が不適合と判定する
+  - Target: `runAI 利用ファイルの静的検査`
   - Test ID: `T-LIB-AI-LWR-04-02`
   - Rule: DR-27 決定 3・4 / REQ-F-018
-  - Scenario: Given 出力契約オプションを持たない `runAI(` 呼び出しを含む fixture 文字列を検査純関数へ渡す, When 静的検査を行う
+  - Scenario: Given `runAI` を import し、呼び出しオプションに `outputContract:` を持たないソースの fixture 文字列を検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 不適合と判定されること（リポジトリ内に負例が存在しないため実ファイル走査では検証できない。T-14 と同じく検査ロジックを純関数として切り出す）
 
-- [ ] **T-15-04-03**: 除外対象のファイルが列挙されない
-  - Target: `runAI( 呼び出し箇所の静的検査`
+- [x] **T-15-04-03**: `__tests__/` 配下のファイルが列挙されない
+  - Target: `runAI 利用ファイルの静的検査`
   - Test ID: `T-LIB-AI-LWR-04-03`
   - Rule: DR-27 決定 3・4 / implementation §3.1
-  - Scenario: Given `__tests__/` 配下と `*.spec.ts` に `runAI(` を含むファイルが存在し、かつ `skills/setup-chatlogs/assets/` 配下に `skills/_cle-libs/**` の配布ミラーが存在する, When 静的検査の対象ファイルを列挙する
-  - Expected: Then いずれも列挙されないこと。ミラー側に `runAI(` を含むファイルが同期された場合でも二重計上されないこと（現時点でミラー配下の `runAI(` は `__tests__/` 由来のみだが、除外はミラーのパス自体に対して行う）
+  - Scenario: Given `__tests__/` 配下に `runAI` を import するファイルが存在する, When 静的検査の対象ファイルを列挙する
+  - Expected: Then そのファイルが列挙されないこと
+
+- [x] **T-15-04-04**: `__tests__/` 外に置かれた `*.spec.ts` が列挙されない
+  - Target: `runAI 利用ファイルの静的検査`
+  - Test ID: `T-LIB-AI-LWR-04-04`
+  - Rule: DR-27 決定 3・4 / implementation §3.1
+  - Scenario: Given `__tests__/` 外のパスにある `*.spec.ts` が `runAI` を import している, When 静的検査の対象ファイルを判定する
+  - Expected: Then そのファイルが列挙対象外と判定されること
+
+- [x] **T-15-04-05**: 配布ミラー配下のファイルが列挙されない
+  - Target: `runAI 利用ファイルの静的検査`
+  - Test ID: `T-LIB-AI-LWR-04-05`
+  - Rule: DR-27 決定 3・4 / implementation §3.1
+  - Scenario: Given `skills/setup-chatlogs/assets/` 配下のパスにあり `runAI` を import するファイル, When 静的検査の対象ファイルを判定する
+  - Expected: Then そのファイルが列挙対象外と判定され、ミラー側に同期された場合でも二重計上されないこと（除外はミラーのパス自体に対して行う）
 
 ### [異常] Error Cases
 
 #### T-15-05: `llamaEndpoint` 未設定時にネットワークアクセス前に設定エラーとなる
 
-- [ ] **T-15-05-01**: `llamaEndpoint` 未設定時に `FetchProvider` が一度も呼ばれず `InvalidEndpoint` が throw される
+- [x] **T-15-05-01**: `llamaEndpoint` 省略時に `FetchProvider` が一度も呼ばれず `InvalidEndpoint` が throw される
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-05-01`
   - Rule: transport R-006 / §4.3 / DR-12 / DR-18 / AC-019
-  - Scenario: Given `model: llama/<model>` かつ `llamaEndpoint` が未設定（省略または空文字列）, When `runAI` を実行する
+  - Scenario: Given `model: llama/<model>` かつ `llamaEndpoint` が設定に存在しない, When `runAI` を実行する
   - Expected: Then `FetchProvider` が呼ばれず `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+- [x] **T-15-05-02**: `llamaEndpoint` が空文字列のとき `FetchProvider` が一度も呼ばれず `InvalidEndpoint` が throw される
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-05-02`
+  - Rule: transport R-006 / §4.3 / DR-12 / DR-18 / AC-019
+  - Scenario: Given `model: llama/<model>` かつ `llamaEndpoint` が空文字列, When `runAI` を実行する
+  - Expected: Then `FetchProvider` が呼ばれず `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
+
+#### T-15-10: llama 経路の失敗が `runAI` から分類済みの `AiError` として届く
+
+> **追加（2026-09-14）**: T-15 のチェックリスト作成時に差し戻された結線の検証漏れ。部品単位は
+> T-09（契約検証・復元）/ T-12（fetch 失敗の写像）が検証済みだが、`_runViaHttp` がそれらを
+> 正しく結線していることを `runAI` 越しに確かめるケースが無かった。
+> DR-18 決定 1（llama 経路が throw する失敗はすべて `kind: AiError`）の結線側の担保。
+
+- [x] **T-15-10-01**: assistant 本文が JSON として parse できない 2xx 応答を `ResponseSchemaViolation` として分類する
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-10-01`
+  - Rule: transport §4.1 Step 7.5 / structured-output §4.1 / DR-18 決定 1
+  - Scenario: Given `choices[0].message.content` が JSON として parse できない文字列を返す 2xx 応答, When llama 経路で `runAI` を実行する
+  - Expected: Then `SyntaxError` が漏れず `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+- [x] **T-15-10-02**: 出力契約に適合しない 2xx 応答を `ResponseSchemaViolation` として分類する
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-10-02`
+  - Rule: transport §4.1 Step 7.5 / structured-output R-008 / DR-18 決定 1
+  - Scenario: Given JSON として parse でき required キーも持つが、その値が出力契約の型に適合しない assistant 本文（例: `string` 型のキーに数値）を返す 2xx 応答, When llama 経路で `runAI` を実行する
+  > required キーの欠落は復元関数（`restoreContractText`）も `ResponseSchemaViolation` で拒否するため、
+  > 契約検証（`validateOutputContract`）の結線を外しても同じ結果になり、結線の検証にならない。
+  > 復元では検出されない型不適合を入力にする（2026-09-14 実装時に判明）。
+  - Expected: Then `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
+
+- [x] **T-15-10-03**: `FetchProvider` の reject を `BackendUnavailable` として分類する
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-10-03`
+  - Rule: transport §4.1 Step 6 / error-handling R-001 / DR-18 決定 1
+  - Scenario: Given 接続失敗を表すエラーで reject する `FetchProvider`（外部 abort・タイムアウトは発火させない）, When llama 経路で `runAI` を実行する
+  - Expected: Then `ChatlogError(kind: AiError, subindex: BackendUnavailable)` が throw されること
+
+- [x] **T-15-10-04**: JSON として parse できる assistant 本文から parse 済みペイロードを返す
+  - Target: `契約ペイロード parse 関数`（`parseContractPayload`）
+  - Test ID: `T-LIB-AI-OCV-24-01`
+  - Rule: transport §4.1 Step 7.5 / structured-output §4.1
+  - Scenario: Given 有効な JSON 文字列の assistant 本文, When 契約ペイロード parse 関数を呼ぶ
+  - Expected: Then parse 済みのペイロードが返ること
+  > T-15-10-01 の結線を支える部品側のケース。Test ID は部品の配置（`output-contract.ts`）に合わせて OCV 系を用いる。
+
+- [x] **T-15-10-05**: JSON として parse できない assistant 本文を `ResponseSchemaViolation` として投げる
+  - Target: `契約ペイロード parse 関数`（`parseContractPayload`）
+  - Test ID: `T-LIB-AI-OCV-24-02`
+  - Rule: transport §4.1 Step 7.5 / DR-18 決定 1
+  - Scenario: Given JSON として parse できない assistant 本文（`type: research`）, When 契約ペイロード parse 関数を呼ぶ
+  - Expected: Then `SyntaxError` を漏らさず `ChatlogError(kind: AiError, subindex: ResponseSchemaViolation)` が throw されること
 
 ### [エッジケース] Edge Cases
 
 #### T-15-06: 合成済み `AbortSignal` が `FetchProvider` へ渡され、abort 状態へ遷移する
 
-- [ ] **T-15-06-01**: `FetchProvider` が受け取る `RequestInit.signal` が合成済みの `AbortSignal` である
+- [x] **T-15-06-01**: `FetchProvider` が受け取る `RequestInit.signal` が合成済みの `AbortSignal` である
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-06-01`
   - Rule: transport §4.1 Step 6 / DR-27 決定 1
   - Scenario: Given `timeoutMs` と外部 `AbortSignal` を指定した llama 経路の呼び出し, When `_runViaHttp` が `FetchProvider` を呼ぶ
   - Expected: Then 渡された `RequestInit.signal` が既存 CLI 経路と同じ合成規則で生成された `AbortSignal` であること
 
-- [ ] **T-15-06-02**: タイムアウト発火時に `FetchProvider` へ渡した signal が abort 状態へ遷移する
+- [x] **T-15-06-02**: タイムアウト発火時に `FetchProvider` へ渡した signal が abort 状態へ遷移する
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-06-02`
   - Rule: transport R-004 / DR-27 決定 2
   - Scenario: Given `timeoutMs` 経過後も応答が返らない `FetchProvider` スタブ, When タイムアウトが発火する
   - Expected: Then `FetchProvider` へ渡された `signal` が abort 状態へ遷移すること（分類の一致のみでは不合格）
 
-- [ ] **T-15-06-03**: 外部 abort 発火時に `FetchProvider` へ渡した signal が abort 状態へ遷移する
+- [x] **T-15-06-03**: 外部 abort 発火時に `FetchProvider` へ渡した signal が abort 状態へ遷移する
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-06-03`
   - Rule: transport R-004 / DR-27 決定 2
@@ -1939,14 +2479,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-07: `timeoutMs=0` と外部 abort 優先のセマンティクスが llama 経路でも保たれる
 
-- [ ] **T-15-07-01**: `timeoutMs=0` で llama 経路のタイマーが設定されない
+- [x] **T-15-07-01**: `timeoutMs=0` で llama 経路のタイマーが設定されない
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-07-01`
   - Rule: transport R-004 / AC-008
   - Scenario: Given `timeoutMs: 0` で llama 経路を呼ぶ, When `runAI` を実行する
   - Expected: Then タイマーが設定されないこと
 
-- [ ] **T-15-07-02**: 外部 abort が `Aborted/ExternalAbort` として扱われる
+- [x] **T-15-07-02**: 外部 abort が `Aborted/ExternalAbort` として扱われる
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-07-02`
   - Rule: transport R-004 / AC-008
@@ -1955,7 +2495,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-08: 経路の判定が `_buildCommand` の呼び出しより前に置かれている（不適合条件 3）
 
-- [ ] **T-15-08-01**: transport §4.1.1 不適合条件 (3) が成立しない
+- [x] **T-15-08-01**: transport §4.1.1 不適合条件 (3) が成立しない
   - Target: `runAI（前段）`
   - Test ID: `T-LIB-AI-LWR-08-01`
   - Rule: transport §4.1.1（不適合条件 3） / DR-10 / AC-020
@@ -1964,7 +2504,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-15-09: サーバ位置設定済みでもモデル値が llama prefix を持たない
 
-- [ ] **T-15-09-01**: HTTP 経路が選択されず既存 CLI 経路が使われる
+- [x] **T-15-09-01**: HTTP 経路が選択されず既存 CLI 経路が使われる
   - Target: `runAI` の経路選択（前段）
   - Test ID: `T-LIB-AI-LWR-09-01`
   - Rule: transport R-001 / Edge transport-1 / REQ-F-001 / REQ-C-002
@@ -1986,20 +2526,20 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 
 ### Edge Cases — specifications-transport.md §5
 
-| Edge | 内容                                                     | Task ID                            |
-| ---- | -------------------------------------------------------- | ---------------------------------- |
-| 1    | サーバ位置設定済みだがモデル値が llama prefix を持たない | T-15-09-01                         |
-| 2    | llama prefix ありだがサーバ位置未設定                    | T-10-02-01, T-10-02-02, T-15-05-01 |
-| 3    | http/https 以外のスキーム (http / https は受理)          | T-10-02-04, T-10-01-05             |
-| 4    | query / フラグメント / userinfo を含む URL               | T-10-02-05, T-10-02-06, T-10-02-07 |
-| 5    | 認証要求で 401 / 403                                     | T-12-05-01 〜 T-12-05-03           |
-| 6    | 末尾スラッシュ / `v1` の 4 通り表記                      | T-10-01-01 〜 T-10-01-05           |
-| 7    | 到達不能ホスト / 404 を返すホスト                        | T-12-02-01, T-12-04-01             |
-| 8    | 成功応答の `choices` が 2 要素以上                       | T-12-01-02                         |
-| 9    | タイムアウト 0 かつ外部キャンセル発火                    | T-07-07-01, T-15-07-01, T-15-07-02 |
-| 10   | 外部キャンセルとタイムアウトが同一タイミング             | T-07-07-02                         |
-| 11   | モデル値がスラッシュ 2 つ以上                            | T-03-03-01                         |
-| 12   | 日本語 (非 ASCII) プロンプトと応答                       | T-11-03-01, T-12-01-03             |
+| Edge | 内容                                                     | Task ID                                        |
+| ---- | -------------------------------------------------------- | ---------------------------------------------- |
+| 1    | サーバ位置設定済みだがモデル値が llama prefix を持たない | T-15-09-01                                     |
+| 2    | llama prefix ありだがサーバ位置未設定                    | T-10-02-01, T-10-02-02, T-15-05-01, T-15-05-02 |
+| 3    | http/https 以外のスキーム (http / https は受理)          | T-10-02-04, T-10-01-05                         |
+| 4    | query / フラグメント / userinfo を含む URL               | T-10-02-05, T-10-02-06, T-10-02-07             |
+| 5    | 認証要求で 401 / 403                                     | T-12-05-01 〜 T-12-05-03                       |
+| 6    | 末尾スラッシュ / `v1` の 4 通り表記                      | T-10-01-01 〜 T-10-01-05                       |
+| 7    | 到達不能ホスト / 404 を返すホスト                        | T-12-02-01, T-12-04-01                         |
+| 8    | 成功応答の `choices` が 2 要素以上                       | T-12-01-02                                     |
+| 9    | タイムアウト 0 かつ外部キャンセル発火                    | T-07-07-01, T-15-07-01, T-15-07-02             |
+| 10   | 外部キャンセルとタイムアウトが同一タイミング             | T-07-07-02                                     |
+| 11   | モデル値がスラッシュ 2 つ以上                            | T-03-03-01                                     |
+| 12   | 日本語 (非 ASCII) プロンプトと応答                       | T-11-03-01, T-12-01-03                         |
 
 ### Edge Cases — specifications-structured-output.md §5
 
@@ -2079,7 +2619,7 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 | DR-09 | 「OpenAI 互換」を実測ゲートで裏付ける                                | 対象外 — Phase 0 (commit なし) が担う測定作業                                        |
 | DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じる                | T-07-01-01 〜 T-07-06-01, T-15-08-01                                                 |
 | DR-11 | YAML 出力を期待する呼び出し元も強制対象に含める                      | T-08-02-01, T-08-02-02, T-09-02-01, T-13-04-01, T-13-05-01                           |
-| DR-12 | `llamaEndpoint` 未設定・空文字列はネットワーク前の設定エラー         | T-04-04-01, T-15-05-01                                                               |
+| DR-12 | `llamaEndpoint` 未設定・空文字列はネットワーク前の設定エラー         | T-04-04-01, T-15-05-01, T-15-05-02                                                   |
 | DR-13 | `--allow-net` は宛先を限定せず付与                                   | T-14-01-01                                                                           |
 | DR-14 | llama 経路の識別子解決規則                                           | T-03-05-01, T-03-06-01, T-10-01-01, T-10-02-04, T-10-03-01                           |
 | DR-15 | リクエストボディを閉じたフィールド集合とする                         | T-11-01-02, T-11-01-03, T-12-09-05                                                   |
@@ -2087,31 +2627,31 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 | DR-17 | 既存 `timeoutMs` を共有し経路別キーを設けない                        | T-04-05-01, T-15-07-01                                                               |
 | DR-18 | 失敗分類の軸をバックエンド可用性とし中断／続行を分ける               | T-05-01-01 〜 T-05-04-02, T-06-01-01 〜 T-06-08-01, T-12-02-01 〜 T-12-07-01         |
 | DR-19 | 出力契約を呼び出し単位で明示し契約アダプタで復元                     | T-08-01-01 〜 T-08-03-01, T-09-10-01, T-11-02-01, T-13-01-01 〜 T-13-10-01           |
-| DR-20 | llama 経路の可到達性を単一 commit に閉じる                           | T-15-04-01 〜 T-15-04-03                                                             |
+| DR-20 | llama 経路の可到達性を単一 commit に閉じる                           | T-15-04-01 〜 T-15-04-05                                                             |
 | DR-21 | 検証範囲を AC 単位で割り当てる                                       | 対象外 — 文書構成の決定であり、本文書の Task Summary と本節がその帰結                |
 | DR-22 | Phase 0 の実測を独立した測定レポートに記録する                       | 対象外 — Phase 0 の成果物に関する決定                                                |
 | DR-23 | `llama/` の空モデル名をネットワーク前に拒否                          | T-03-04-01 〜 T-03-04-03, T-03-03-01, T-07-08-01, T-07-08-02                         |
 | DR-24 | 権限付与を結線より先に置く                                           | T-14-01-01 (Commit 20 が Commit 21 の着手条件)                                       |
 | DR-25 | 実測ゲートの合格線を全条件 100% とする                               | 対象外 — Phase 0 の合否判定基準                                                      |
 | DR-26 | runtime 由来の失敗と非 JSON 応答を分類に加える                       | T-12-02-02, T-12-02-03, T-12-08-01 〜 T-12-08-04, T-12-10-02, T-09-10-01, T-09-12-01 |
-| DR-27 | キャンセルシグナルの受け渡しと契約指定の静的検査                     | T-15-04-01 〜 T-15-04-03, T-15-06-01 〜 T-15-06-03                                   |
+| DR-27 | キャンセルシグナルの受け渡しと契約指定の静的検査                     | T-15-04-01 〜 T-15-04-05, T-15-06-01 〜 T-15-06-03                                   |
 
 ### Acceptance Criteria
 
-| AC     | Task ID                                        | AC     | Task ID                                                                                         |
-| ------ | ---------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
-| AC-001 | T-15-01-01                                     | AC-013 | T-15-02-01, T-15-02-02                                                                          |
-| AC-002 | T-15-03-01, T-08-01-01, T-08-02-01, T-08-02-02 | AC-014 | T-02-01-03, T-03-04-01 〜 T-03-04-03, T-03-07-01, T-07-08-01 〜 T-07-08-03                      |
-| AC-003 | T-01-01-01                                     | AC-015 | T-10-01-01 〜 T-10-01-05                                                                        |
-| AC-004 | T-06-05-01 〜 T-06-08-01, T-12-02-01           | AC-016 | 対象外 — Phase 0 (commit なし) が担う。着手判定は Conventions の Phase 0 完了判定チェックリスト |
-| AC-005 | T-12-03-01 〜 T-12-03-03                       | AC-017 | T-12-01-02                                                                                      |
-| AC-006 | T-11-01-01                                     | AC-018 | T-09-01-01 〜 T-09-03-01, T-15-03-02                                                            |
-| AC-007 | T-08-04-01 〜 T-08-04-04                       | AC-019 | T-06-08-01, T-10-02-01 〜 T-10-02-07, T-15-05-01                                                |
-| AC-008 | T-07-07-01, T-07-07-02, T-15-07-01, T-15-07-02 | AC-020 | T-07-05-01, T-07-05-02, T-07-06-01, T-15-08-01                                                  |
-| AC-009 | T-04-01-01, T-04-03-01                         | AC-021 | T-11-03-01, T-12-01-03                                                                          |
-| AC-010 | T-04-02-01                                     | AC-022 | T-05-04-01, T-05-04-02, T-06-09-01 〜 T-06-12-02, T-07-01-01, T-07-03-01 〜 T-07-03-04          |
-| AC-011 | T-14-01-01 〜 T-14-05-01                       | AC-023 | T-06-01-01 〜 T-06-04-01                                                                        |
-| AC-012 | T-14-08-01                                     | AC-024 | T-09-04-01, T-13-10-01                                                                          |
+| AC     | Task ID                                                      | AC     | Task ID                                                                                         |
+| ------ | ------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------- |
+| AC-001 | T-15-01-01                                                   | AC-013 | T-15-02-01, T-15-02-02                                                                          |
+| AC-002 | T-15-03-01 〜 T-15-03-06, T-08-01-01, T-08-02-01, T-08-02-02 | AC-014 | T-02-01-03, T-03-04-01 〜 T-03-04-03, T-03-07-01, T-07-08-01 〜 T-07-08-03                      |
+| AC-003 | T-01-01-01                                                   | AC-015 | T-10-01-01 〜 T-10-01-05                                                                        |
+| AC-004 | T-06-05-01 〜 T-06-08-01, T-12-02-01                         | AC-016 | 対象外 — Phase 0 (commit なし) が担う。着手判定は Conventions の Phase 0 完了判定チェックリスト |
+| AC-005 | T-12-03-01 〜 T-12-03-03                                     | AC-017 | T-12-01-02                                                                                      |
+| AC-006 | T-11-01-01                                                   | AC-018 | T-09-01-01 〜 T-09-03-01, T-15-03-07                                                            |
+| AC-007 | T-08-04-01 〜 T-08-04-04                                     | AC-019 | T-06-08-01, T-10-02-01 〜 T-10-02-07, T-15-05-01 〜 T-15-05-02                                  |
+| AC-008 | T-07-07-01, T-07-07-02, T-15-07-01, T-15-07-02               | AC-020 | T-07-05-01, T-07-05-02, T-07-06-01, T-15-08-01                                                  |
+| AC-009 | T-04-01-01, T-04-03-01                                       | AC-021 | T-11-03-01, T-12-01-03                                                                          |
+| AC-010 | T-04-02-01                                                   | AC-022 | T-05-04-01, T-05-04-02, T-06-09-01 〜 T-06-12-02, T-07-01-01, T-07-03-01 〜 T-07-03-04          |
+| AC-011 | T-14-01-01 〜 T-14-05-01                                     | AC-023 | T-06-01-01 〜 T-06-04-01                                                                        |
+| AC-012 | T-14-08-01                                                   | AC-024 | T-09-04-01, T-13-10-01                                                                          |
 
 **`[UNCOVERED]`: なし**
 
@@ -2125,18 +2665,18 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 | T-02        | 5      | [N/A]  | 2      | 7       | [N/A] |
 | T-03        | 5      | 4      | 2      | 11      | [OK]  |
 | T-04        | 4      | 1      | 4      | 9       | [OK]  |
-| T-05        | 5      | [N/A]  | 8      | 13      | [N/A] |
+| T-05        | 8      | [N/A]  | 11     | 19      | [N/A] |
 | T-06        | 6      | 7      | 5      | 18      | [OK]  |
-| T-07        | 2      | 9      | 5      | 16      | [OK]  |
-| T-08        | 11     | 1      | 2      | 14      | [OK]  |
-| T-09        | 5      | 5      | 5      | 15      | [OK]  |
-| T-10        | 5      | 7      | 1      | 13      | [OK]  |
-| T-11        | 5      | 1      | 1      | 7       | [OK]  |
-| T-12        | 3      | 23     | 5      | 31      | [OK]  |
+| T-07        | 3      | 9      | 5      | 17      | [OK]  |
+| T-08        | 13     | 1      | 2      | 16      | [OK]  |
+| T-09        | 5      | 14     | 12     | 31      | [OK]  |
+| T-10        | 6      | 7      | 14     | 27      | [OK]  |
+| T-11        | 8      | 1      | 1      | 10      | [OK]  |
+| T-12        | 3      | 26     | 5      | 34      | [OK]  |
 | T-13        | 6      | 3      | 1      | 10      | [OK]  |
-| T-14        | 3      | 2      | 3      | 8       | [OK]  |
-| T-15        | 8      | 1      | 7      | 16      | [OK]  |
-| **合計**    | **75** | **65** | **54** | **194** | —     |
+| T-14        | 3      | 8      | 5      | 16      | [OK]  |
+| T-15        | 15     | 7      | 7      | 29      | [OK]  |
+| **合計**    | **92** | **89** | **79** | **260** | —     |
 
 > **[N/A] T-02** — 定数 (`AI_PROVIDERS` / `AI_MODEL_TO_PROVIDER_MAP`) から案内文言を
 > 組み立てる純粋な関数であり、throw する経路を持たない。
