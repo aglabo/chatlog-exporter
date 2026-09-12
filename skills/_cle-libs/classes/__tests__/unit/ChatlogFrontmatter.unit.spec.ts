@@ -403,7 +403,7 @@ describe('ChatlogFrontmatter', () => {
    * fieldOrder が空の場合に ChatlogError がスローされることを検証する。
    */
   describe('toFrontmatter() - 異常系', () => {
-    it('T-CLS-CF-41: [異常] fieldOrder が空配列のとき InvalidArgs(IsEmpty) をスローする', () => {
+    it('T-CLS-CF-61: [異常] fieldOrder が空配列のとき InvalidArgs(IsEmpty) をスローする', () => {
       const fm = new ChatlogFrontmatter('');
       const err = assertThrows(() => fm.toFrontmatter([]), ChatlogError);
       assertEquals(err.kind, 'InvalidArgs');

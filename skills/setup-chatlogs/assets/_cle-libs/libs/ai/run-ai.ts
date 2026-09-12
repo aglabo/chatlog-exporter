@@ -13,7 +13,7 @@
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 import { logger } from '../io/logger.ts';
-import { getAiBackend, isValidModel, parseModel } from './model-utils.ts';
+import { getAiBackend, isEmptyLlamaModelId, parseModel } from './model-utils.ts';
 
 // types
 import type { AiBackendCommand, AiModelToProvider } from '../../types/ai.const.types.ts';
@@ -212,6 +212,70 @@ export const buildValidModelsMessage = (
 };
 
 /**
+ * CLI 経路でサブプロセスを起動し、標準出力を解釈して結果文字列を返す。
+ *
+ * 経路依存の中段。コマンド構築・起動・stdout の解釈のみを担い、
+ * 中断シグナルの合成やタイマーの生成・解放は行わない（前段 / 後段の責務）。
+ *
+ * **export しない（module-private）**。同ファイルの `_buildCommand` などに付く
+ * `exported for testing` の export とは異なり、モジュール外へは公開しない。
+ *
+ * @param spec - `_buildCommand` が生成したコマンド仕様
+ * @param systemPrompt - システムプロンプト（args に載らない CLI では stdin へ前置する）
+ * @param userPrompt - ユーザープロンプト（stdin へ書き込む）
+ * @param signal - 前段で合成済みの中断シグナル
+ * @returns 成功時の結果文字列
+ */
+const _runViaCli = async (
+  spec: _CommandSpec,
+  systemPrompt: string,
+  userPrompt: string,
+  signal: AbortSignal,
+): Promise<string> => {
+  const _cmd = new Deno.Command(spec.command, {
+    args: spec.args,
+    stdin: 'piped',
+    stdout: 'piped',
+    stderr: 'piped',
+    signal,
+  });
+  const _process = _cmd.spawn();
+  const _writer = _process.stdin.getWriter();
+  const _input = spec.hasSystemPromptWithArgs ? userPrompt : `${systemPrompt}
+
+${userPrompt}`;
+  await _writer.write(new TextEncoder().encode(_input));
+  await _writer.close();
+  const _output = await _process.output();
+  const _stdout = new TextDecoder().decode(_output.stdout).trim();
+  const _stderr = new TextDecoder().decode(_output.stderr).trim();
+
+  // claude backend: JSON がパースできれば exit code は一切見ず、is_error で判別する。
+  if (spec.command === 'claude') {
+    const _parsed = _parseClaudeJson(_stdout);
+    if (_parsed !== null) {
+      return _interpretClaudeOutput(_parsed, _stdout);
+    }
+    if (_output.success) {
+      throw new ChatlogError('AiError', 'InvalidFormat', `claude output is not JSON: ${_stdout}`);
+    }
+    // _parsed === null かつ exit≠0 → 従来の exit-code + 正規表現フォールバックへ流す。
+  }
+
+  if (!_output.success) {
+    if (_stderr) { logger.error(`${spec.command} exited with code ${_output.code} (stderr): ${_stderr}`); }
+    if (_stdout) { logger.error(`${spec.command} exited with code ${_output.code} (stdout): ${_stdout}`); }
+    const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout);
+    throw new ChatlogError(
+      'AiError',
+      _isRateLimit ? 'RateLimit' : 'ExitFailure',
+      `${spec.command} exited with code ${_output.code}: ${_stderr}`,
+    );
+  }
+  return _stdout;
+};
+
+/**
  * Runs an AI CLI subprocess with the given system prompt and user prompt.
  * Returns the trimmed stdout text on success, or throws on failure.
  */
@@ -224,65 +288,29 @@ export const runAI = async (
   const _model = options?.model ?? (_globalConfig.get('model') as string);
   const _timeoutMs = options?.timeoutMs ?? (_globalConfig.get('timeoutMs') as number);
   const _options = { ...options, model: _model, timeoutMs: _timeoutMs };
-  if (!isValidModel(_options.model)) {
+  if (parseModel(_options.model) === null || isEmptyLlamaModelId(_options.model)) {
     throw new ChatlogError(
       'UnknownModel',
       'InvalidModel',
       `"${_options.model}" is not valid. ${buildValidModelsMessage()}`,
     );
   }
+  const _backend = getAiBackend(_options.model)!;
+  const _routeLabel = _backend === 'llama' ? 'llama' : AI_BACKEND_COMMAND_MAP[_backend];
   const _spec = _buildCommand(_options.model, systemPrompt);
   const _controller = new AbortController();
   const _timer = _options.timeoutMs !== 0
     ? setTimeout(() => _controller.abort(), _options.timeoutMs)
     : undefined;
   const _signals = _options.signal ? [_controller.signal, _options.signal] : [_controller.signal];
-  const _cmd = new Deno.Command(_spec.command, {
-    args: _spec.args,
-    stdin: 'piped',
-    stdout: 'piped',
-    stderr: 'piped',
-    signal: AbortSignal.any(_signals),
-  });
   try {
-    const _process = _cmd.spawn();
-    const _writer = _process.stdin.getWriter();
-    const _input = _spec.hasSystemPromptWithArgs ? userPrompt : `${systemPrompt}\n\n${userPrompt}`;
-    await _writer.write(new TextEncoder().encode(_input));
-    await _writer.close();
-    const _output = await _process.output();
-    const _stdout = new TextDecoder().decode(_output.stdout).trim();
-    const _stderr = new TextDecoder().decode(_output.stderr).trim();
-
-    // claude backend: JSON がパースできれば exit code は一切見ず、is_error で判別する。
-    if (_spec.command === 'claude') {
-      const _parsed = _parseClaudeJson(_stdout);
-      if (_parsed !== null) {
-        return _interpretClaudeOutput(_parsed, _stdout);
-      }
-      if (_output.success) {
-        throw new ChatlogError('AiError', 'InvalidFormat', `claude output is not JSON: ${_stdout}`);
-      }
-      // _parsed === null かつ exit≠0 → 従来の exit-code + 正規表現フォールバックへ流す。
-    }
-
-    if (!_output.success) {
-      if (_stderr) { logger.error(`${_spec.command} exited with code ${_output.code} (stderr): ${_stderr}`); }
-      if (_stdout) { logger.error(`${_spec.command} exited with code ${_output.code} (stdout): ${_stdout}`); }
-      const _isRateLimit = _RATE_LIMIT_PATTERN.test(_stderr) || _RATE_LIMIT_PATTERN.test(_stdout);
-      throw new ChatlogError(
-        'AiError',
-        _isRateLimit ? 'RateLimit' : 'ExitFailure',
-        `${_spec.command} exited with code ${_output.code}: ${_stderr}`,
-      );
-    }
-    return _stdout;
+    return await _runViaCli(_spec, systemPrompt, userPrompt, AbortSignal.any(_signals));
   } catch (e) {
     if (_options.signal?.aborted) {
-      throw new ChatlogError('Aborted', 'ExternalAbort', `${_spec.command} was aborted by an external signal`);
+      throw new ChatlogError('Aborted', 'ExternalAbort', `${_routeLabel} was aborted by an external signal`);
     }
     if (_controller.signal.aborted) {
-      throw new ChatlogError('TimedOut', 'Timeout', `${_spec.command} timed out after ${_options.timeoutMs}ms`);
+      throw new ChatlogError('TimedOut', 'Timeout', `${_routeLabel} timed out after ${_options.timeoutMs}ms`);
     }
     throw e;
   } finally {
