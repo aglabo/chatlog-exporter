@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.5.2
+version: 3.6.1
 created: "2026-09-02"
 ---
 
@@ -45,6 +45,8 @@ created: "2026-09-02"
 | DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える             | REQ-F-006 / error-handling §4.1, structured R-008             |
 | DR-27 | llama 経路の検証にキャンセルシグナルの受け渡しと契約指定の静的検査を加える  | REQ-F-007, 018 / AC-008, 013（DR-26 Non-Goal を一部引き取り） |
 | DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する                | REQ-F-013 / structured-output R-004（DR-06 の適用段を確定）   |
+| DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）    |
+| DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）          |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -1238,6 +1240,56 @@ DR-18 決定 1（llama 経路の `kind` を一律 `AiError` とする）は維�
 
 ---
 
+## DR-30: sandbox バナーを RateLimit として分類しない
+
+**Status**: Accepted（一度採用した方針を撤回した記録です）
+
+**Context**: claude CLI は sandbox に関する警告バナーを stdout の先頭に出力することがあります。
+このうち `⚠ Sandbox disabled: …` を含む非 0 終了を、一時的な実行不能として
+`ChatlogError(AiError/RateLimit)` に分類する方針を一度採用しました。
+
+具体的には `skills/_scripts/libs/ai/run-ai.ts` の `_RATE_LIMIT_PATTERN` を
+`/rate.?limit|429|usage limit/i` から `/rate.?limit|429|usage limit|sandbox disabled/i` へ広げ、
+既存の `sandbox is enabled but not active` 判定と衝突しないよう `sandbox disabled` で
+精密に照合する実装（`_SANDBOX_DISABLED_PATTERN`、commit `1fa0df52`）を入れています。
+
+この方針には下流の作業が連なっていました。RateLimit は中断として伝播するため、
+従来 `ExitFailure` として warn ログ出力・継続していた各スキルの挙動が変わります。
+classify の `processChunk`、normalize の `segmentChatlogs`、filter の `processChunk` について、
+sandbox バナーで re-throw されることを検証するタスクをそれぞれ起票していました。
+
+**Decision**: sandbox バナーを RateLimit として分類しない。commit `35f29b3c` で
+`_SANDBOX_DISABLED_PATTERN` を削除し、`_RATE_LIMIT_PATTERN` を元の
+`/rate.?limit|429|usage limit/i` に戻す。実装は現行の `run-ai.ts` に残らない。
+
+**Rationale**: sandbox が無効であることは、待てば解消する一時的な実行不能ではなく
+実行環境の構成の問題です。DR-18 は失敗分類の軸をバックエンド可用性に置き、
+中断と続行を subindex で分ける方針を採っています。sandbox バナーを RateLimit に寄せると、
+「時間をおいて再実行すれば解消する」という RateLimit の含意と、実際の原因が食い違います。
+
+**Alternatives Considered**:
+
+- `sandbox disabled` 専用の失敗分類を新設する — 分類を増やすと、DR-16 が
+  error-handling に単独所有させた失敗系分類の一覧が広がります。
+  現状 sandbox バナーは非 0 終了の理由として他の失敗と区別して扱う必要がないため、
+  分類を足すだけの利得がありません
+- バナーの検出自体は残し、分類は変えずに警告としてログに出す — バナーは
+  stdout 先頭に現れるため、出力のパース側で除去する処理（DR-19 の契約アダプタ）が
+  既に扱っています。失敗分類とは別の関心事であり、本 DR の対象外です
+
+**Consequences**: 本方針の撤回により、sandbox 由来の RateLimit 分類は発生しなくなりました。
+これに連なっていた検証タスク（classify / normalize / filter の各 `processChunk` ・
+`segmentChatlogs` が sandbox バナーで re-throw することの確認）は**検証対象そのものが消滅**し、
+いずれも実装なしで close しています。
+
+真正の rate limit による中断は既存テスト `T-CL-PC-08` / `T-FL-PCK-10` / `T-SCB-02-03` が
+引き続き固定しています。
+
+> 出典: beads `cle-uv0.1`（closed 2026-07-29） / GitHub #440。
+> 撤回により消滅した下流タスクは `cle-uv0.3` / `cle-uv0.4` / `cle-uv0.5`
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1249,26 +1301,28 @@ DR-18 決定 1（llama 経路の `kind` を一律 `AiError` とする）は維�
 
 ## Change History
 
-| Date       | Version | Description                                                                                                                                                                                                                                                                              |
-| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-02 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                          |
-| 2026-09-02 | 1.1.0   | DR-09 追加、DR-03 に過負荷系ステータスの subindex 分離を追記                                                                                                                                                                                                                             |
-| 2026-09-02 | 1.2.0   | DR-10 追加、DR-09 に実測ゲートの合格基準と未実測実装の対象外化を追記                                                                                                                                                                                                                     |
-| 2026-09-02 | 1.3.0   | DR-11〜DR-13 追加（harden レビュー所見の反映: YAML 契約への構造化出力強制、llamaEndpoint 未設定時の設定エラー、`--allow-net` の無制限付与）                                                                                                                                              |
-| 2026-09-02 | 2.0.0   | 整理: DR-07 を DR-01 へ、DR-08 を DR-06 へ統合し 2 件を削除、DR-06 を「既知の周辺不具合を併せて直す」に再定義、Index と削除記録を追加                                                                                                                                                    |
-| 2026-09-02 | 2.1.0   | DR-14 追加（spec harden レビュー: llama 経路の識別子解決規則を確定）                                                                                                                                                                                                                     |
-| 2026-09-02 | 2.2.0   | DR-15 追加（spec harden レビュー: リクエストボディの閉じた集合と切り詰め応答の分類）                                                                                                                                                                                                     |
-| 2026-09-02 | 2.3.0   | DR-16 追加（spec harden レビュー: 失敗系分類の一覧を error-handling が単独所有）                                                                                                                                                                                                         |
-| 2026-09-02 | 2.4.0   | DR-17 追加（spec harden レビュー: llama 経路は既存 `timeoutMs` を共有）                                                                                                                                                                                                                  |
-| 2026-09-02 | 2.5.0   | DR-18 / DR-19 追加（codex risk・balanced・consistency レビュー: 失敗分類をバックエンド可用性の軸へ、出力契約を呼び出し単位で明示）                                                                                                                                                       |
-| 2026-09-02 | 3.0.0   | DR-16 決定 3 を撤回し新 subindex 2 件の新設と `ExitFailure` の分割へ、DR-12 を DR-18 で supersede（`kind` を `AiError` へ）                                                                                                                                                              |
-| 2026-09-02 | 3.0.1   | DR-11 の Context を実態（6 呼び出し / 3 契約）へ訂正、DR-03 / DR-15 / DR-17 に据え置きの理由と再検討トリガーを記録                                                                                                                                                                       |
-| 2026-09-03 | 3.0.2   | 本文をですます体へ統一し textlint 指摘を解消（内容変更なし）                                                                                                                                                                                                                             |
-| 2026-09-04 | 3.1.0   | DR-20〜DR-23 追加（impl harden レビュー: 可到達性の commit 単一化と Phase 6 の 2 巡化、AC 単位の検証割り当て、実測レポートの独立と再基準化、空モデル名の拒否）                                                                                                                           |
-| 2026-09-04 | 3.2.0   | DR-24〜DR-26 追加（codex balanced セカンドオピニオン: 権限付与を結線の前へ移し不合格時の着地範囲を Phase 1 に限定、実測ゲートの合格線を全条件 100% に、runtime 由来の失敗と非 JSON 応答を中断側へ）。DR-22 決定 4 を DR-24 が supersede                                                  |
-| 2026-09-04 | 3.3.0   | DR-27 追加（codex completeness セカンドオピニオン: `RequestInit.signal` の受け渡し検証と、production の `runAI` 呼び出しが全件出力契約を持つことの静的検査を Commit 21 の Green 条件へ）                                                                                                 |
-| 2026-09-04 | 3.3.1   | textlint 指摘に伴う文言整理（内容変更なし）                                                                                                                                                                                                                                              |
-| 2026-09-06 | 3.4.0   | DR-28 追加（DR-06 の空配列受理を段 1 限定と確定し、直接パース段のコードフェンス除去経路にも適用する決定を記録）                                                                                                                                                                          |
-| 2026-09-06 | 3.5.0   | DR-29 追加（T-06 実装中に判明: `tasks.md` T-06-04-01 の Expected が AC-023 の誤導出であり、続行側 AI エラーはフォールバック値を書かず `logger.error` で記録して skip すると確定。`setfm-type-category.ts` の catch は 3 分岐を維持し、第 1 分岐の述語のみ `isAbortingAiError` へ拡げる） |
-| 2026-09-06 | 3.5.1   | DR-29 の Consequences を訂正（`cache.delete` 到達の不変条件は `type` / `category` 未設定のエントリに限定。`REVIEW_FAILED` + 既存値の形では成立しないことを明記）                                                                                                                         |
-| 2026-09-06 | 3.5.2   | DR-29 の Consequences を更新（`REVIEW_FAILED` + 既存値の経路を `cle-cso` で解消。`judgeTypeAndCategory` を `Promise<boolean>` へ改め、失敗時は `REVIEW_FAILED` を据え置く。`cache.delete` で代替できない理由と固定テストを明記）                                                         |
+| Date       | Version | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-02 | 1.0.0   | Initial release                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-09-02 | 1.1.0   | DR-09 追加、DR-03 に過負荷系ステータスの subindex 分離を追記                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-09-02 | 1.2.0   | DR-10 追加、DR-09 に実測ゲートの合格基準と未実測実装の対象外化を追記                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-09-02 | 1.3.0   | DR-11〜DR-13 追加（harden レビュー所見の反映: YAML 契約への構造化出力強制、llamaEndpoint 未設定時の設定エラー、`--allow-net` の無制限付与）                                                                                                                                                                                                                                                                          |
+| 2026-09-02 | 2.0.0   | 整理: DR-07 を DR-01 へ、DR-08 を DR-06 へ統合し 2 件を削除、DR-06 を「既知の周辺不具合を併せて直す」に再定義、Index と削除記録を追加                                                                                                                                                                                                                                                                                |
+| 2026-09-02 | 2.1.0   | DR-14 追加（spec harden レビュー: llama 経路の識別子解決規則を確定）                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-09-02 | 2.2.0   | DR-15 追加（spec harden レビュー: リクエストボディの閉じた集合と切り詰め応答の分類）                                                                                                                                                                                                                                                                                                                                 |
+| 2026-09-02 | 2.3.0   | DR-16 追加（spec harden レビュー: 失敗系分類の一覧を error-handling が単独所有）                                                                                                                                                                                                                                                                                                                                     |
+| 2026-09-02 | 2.4.0   | DR-17 追加（spec harden レビュー: llama 経路は既存 `timeoutMs` を共有）                                                                                                                                                                                                                                                                                                                                              |
+| 2026-09-02 | 2.5.0   | DR-18 / DR-19 追加（codex risk・balanced・consistency レビュー: 失敗分類をバックエンド可用性の軸へ、出力契約を呼び出し単位で明示）                                                                                                                                                                                                                                                                                   |
+| 2026-09-02 | 3.0.0   | DR-16 決定 3 を撤回し新 subindex 2 件の新設と `ExitFailure` の分割へ、DR-12 を DR-18 で supersede（`kind` を `AiError` へ）                                                                                                                                                                                                                                                                                          |
+| 2026-09-02 | 3.0.1   | DR-11 の Context を実態（6 呼び出し / 3 契約）へ訂正、DR-03 / DR-15 / DR-17 に据え置きの理由と再検討トリガーを記録                                                                                                                                                                                                                                                                                                   |
+| 2026-09-03 | 3.0.2   | 本文をですます体へ統一し textlint 指摘を解消（内容変更なし）                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-09-04 | 3.1.0   | DR-20〜DR-23 追加（impl harden レビュー: 可到達性の commit 単一化と Phase 6 の 2 巡化、AC 単位の検証割り当て、実測レポートの独立と再基準化、空モデル名の拒否）                                                                                                                                                                                                                                                       |
+| 2026-09-04 | 3.2.0   | DR-24〜DR-26 追加（codex balanced セカンドオピニオン: 権限付与を結線の前へ移し不合格時の着地範囲を Phase 1 に限定、実測ゲートの合格線を全条件 100% に、runtime 由来の失敗と非 JSON 応答を中断側へ）。DR-22 決定 4 を DR-24 が supersede                                                                                                                                                                              |
+| 2026-09-04 | 3.3.0   | DR-27 追加（codex completeness セカンドオピニオン: `RequestInit.signal` の受け渡し検証と、production の `runAI` 呼び出しが全件出力契約を持つことの静的検査を Commit 21 の Green 条件へ）                                                                                                                                                                                                                             |
+| 2026-09-04 | 3.3.1   | textlint 指摘に伴う文言整理（内容変更なし）                                                                                                                                                                                                                                                                                                                                                                          |
+| 2026-09-06 | 3.4.0   | DR-28 追加（DR-06 の空配列受理を段 1 限定と確定し、直接パース段のコードフェンス除去経路にも適用する決定を記録）                                                                                                                                                                                                                                                                                                      |
+| 2026-09-06 | 3.5.0   | DR-29 追加（T-06 実装中に判明: `tasks.md` T-06-04-01 の Expected が AC-023 の誤導出であり、続行側 AI エラーはフォールバック値を書かず `logger.error` で記録して skip すると確定。`setfm-type-category.ts` の catch は 3 分岐を維持し、第 1 分岐の述語のみ `isAbortingAiError` へ拡げる）                                                                                                                             |
+| 2026-09-06 | 3.5.1   | DR-29 の Consequences を訂正（`cache.delete` 到達の不変条件は `type` / `category` 未設定のエントリに限定。`REVIEW_FAILED` + 既存値の形では成立しないことを明記）                                                                                                                                                                                                                                                     |
+| 2026-09-06 | 3.5.2   | DR-29 の Consequences を更新（`REVIEW_FAILED` + 既存値の経路を `cle-cso` で解消。`judgeTypeAndCategory` を `Promise<boolean>` へ改め、失敗時は `REVIEW_FAILED` を据え置く。`cache.delete` で代替できない理由と固定テストを明記）                                                                                                                                                                                     |
+| 2026-09-08 | 3.6.0   | DR-30 を追加 (MINOR: 決定を追加)。sandbox バナーを RateLimit として分類しない方針を記録。`_SANDBOX_DISABLED_PATTERN` (commit 1fa0df52) を導入した一度目の方針を commit 35f29b3c で撤回し、`_RATE_LIMIT_PATTERN` を元に戻したこと、これにより classify / normalize / filter の sandbox バナー re-throw 検証タスクが検証対象ごと消滅したことを Consequences に記録。closed 済み beads issue `cle-uv0.1` のバックポート |
+| 2026-09-08 | 3.6.1   | Index に DR-29 の行を追加 (PATCH: 記載漏れの修正)。本文 DR-29 は v3.5.0 から存在するが、Index テーブルへの行追加が漏れていた。決定内容の変更はない。                                                                                                                                                                                                                                                                 |
