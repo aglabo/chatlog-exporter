@@ -9,13 +9,13 @@
 agent: claude
 
 # AI execution
-model: "haiku"
+model: "llama/avalon"
 timeoutMs: 300_000 # 5 min (ms)
 maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Llama backend
 # Endpoint URL of the llama server on the LAN. Empty string means unset.
-llamaEndpoint: ""
+llamaEndpoint: "http://avalont:8080/"
 
 # Hash generation
 hashLength: 8
