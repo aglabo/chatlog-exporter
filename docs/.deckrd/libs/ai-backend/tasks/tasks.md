@@ -105,7 +105,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 | T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 5         | 13      | done    |
 | T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done    |
 | T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 16      | done    |
-| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 14      | pending |
+| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 14      | done    |
 | T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 13        | 15      | pending |
 | T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 3         | 13      | pending |
 | T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 7       | pending |
@@ -912,7 +912,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-01: json-array 契約からスキーマを構築する
 
-- [ ] **T-08-01-01**: json-array 契約の root が object であり envelope フィールド `items` を持つ
+- [x] **T-08-01-01**: json-array 契約の root が object であり envelope フィールド `items` を持つ
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-01-01`
   - Rule: structured-output R-001 / §4.3 / DR-19
@@ -921,14 +921,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-02: yaml 契約からスキーマを構築する
 
-- [ ] **T-08-02-01**: yaml 契約のキー集合が §4.3.1 の契約定義と完全一致する
+- [x] **T-08-02-01**: yaml 契約のキー集合が §4.3.1 の契約定義と完全一致する
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-02-01`
   - Rule: structured-output §4.3.1 / §4.3 / DR-19 / DR-11
   - Scenario: Given 出力契約 `yaml` と §4.3.1 の #4（`setfm-frontmatter.ts`）の契約定義を指定した呼び出しオプション, When json_schema 構築関数を呼ぶ
   - Expected: Then 生成されたスキーマのプロパティキー集合が `title` / `topics` / `tags` と過不足なく一致し、`title` が string、`topics` / `tags` が string 配列であること（`extractYaml` の第 2 引数は起点キーであり必須キーの一覧ではないため根拠にしない）
 
-- [ ] **T-08-02-02**: 同じ `yaml` タグでも契約定義が異なればキー集合が異なる
+- [x] **T-08-02-02**: 同じ `yaml` タグでも契約定義が異なればキー集合が異なる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-02-02`
   - Rule: structured-output §4.3.1 / DR-19 決定 1
@@ -937,7 +937,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-03: line-prefixed 契約からスキーマを構築する
 
-- [ ] **T-08-03-01**: line-prefixed 契約のキー集合が呼び出し元の行頭前方一致キーと完全一致する
+- [x] **T-08-03-01**: line-prefixed 契約のキー集合が呼び出し元の行頭前方一致キーと完全一致する
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-03-01`
   - Rule: structured-output §4.3 / DR-19
@@ -946,28 +946,28 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-04: enum フィールドにフォールバック値を含める
 
-- [ ] **T-08-04-01**: enum を含むプロパティに「該当なし」を表すフォールバック値が含まれる
+- [x] **T-08-04-01**: enum を含むプロパティに「該当なし」を表すフォールバック値が含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-01`
   - Rule: structured-output R-003 / §4.3.1 / AC-007
   - Scenario: Given §4.3.1 の #6（`setfm-type-category.ts`）の契約定義（`type` の値域は `types.dic` のキー、フォールバックは `DEFAULT_FALLBACK_TYPE`）, When json_schema 構築関数を呼ぶ
   - Expected: Then `type` の enum 配列がフォールバック値 `research` を **値域の一部として** 含むこと。`category` も同様に `development` を含むこと（フォールバックを値域の外に置くと R-008 の enum 検証で不適合になる）
 
-- [ ] **T-08-04-02**: 配列要素の enum にはフォールバック専用値を足さない
+- [x] **T-08-04-02**: 配列要素の enum にはフォールバック専用値を足さない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-02`
   - Rule: structured-output §4.3.1「配列値の enum」 / R-002 / R-003
   - Scenario: Given §4.3.1 の #4 の契約定義（`topics` / `tags` は配列要素が語彙制約を持つ）, When json_schema 構築関数を呼ぶ
   - Expected: Then 要素の enum が辞書のキーのみで構成され「なし」を意味する専用値を含まないこと。かつ `minItems` が置かれず空配列が許容されること
 
-- [ ] **T-08-04-03**: enum の値域を引数で受け取り、モジュールスコープの定数を参照しない
+- [x] **T-08-04-03**: enum の値域を引数で受け取り、モジュールスコープの定数を参照しない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-03`
   - Rule: structured-output §4.3.1「辞書由来 enum の扱い」
   - Scenario: Given 辞書由来の値域として実辞書と異なる値集合を引数で渡す, When json_schema 構築関数を呼ぶ
   - Expected: Then 生成された enum が渡した値集合と一致すること（辞書の実内容に依存しない。ES module の定数はテスト中に差し替えられないため、値域は引数で受け取る設計とする）
 
-- [ ] **T-08-04-04**: フォールバック値が値域に存在しない場合は設定エラーとする
+- [x] **T-08-04-04**: フォールバック値が値域に存在しない場合は設定エラーとする
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-04-04`
   - Rule: structured-output §4.3.1「フォールバック値が値域に含まれること」
@@ -976,14 +976,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-05: 定義プロパティをすべて required に含める
 
-- [ ] **T-08-05-01**: スキーマが定義する全プロパティが `required` に含まれる
+- [x] **T-08-05-01**: スキーマが定義する全プロパティが `required` に含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-05-01`
   - Rule: structured-output §4.3
   - Scenario: Given 複数プロパティを持つ出力契約, When json_schema 構築関数を呼ぶ
   - Expected: Then `required` 配列が定義済みプロパティ全件を含み、省略可能なプロパティが存在しないこと
 
-- [ ] **T-08-05-02**: ネストした object の内部キーも定義され required に含まれる
+- [x] **T-08-05-02**: ネストした object の内部キーも定義され required に含まれる
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-05-02`
   - Rule: structured-output §4.3 / §4.3.1（#3 / 「ネストした object の必須キー」）
@@ -992,7 +992,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-06: additionalProperties を false に固定する
 
-- [ ] **T-08-06-01**: 生成スキーマの `additionalProperties` が常に false である
+- [x] **T-08-06-01**: 生成スキーマの `additionalProperties` が常に false である
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-06-01`
   - Rule: structured-output §4.3
@@ -1003,7 +1003,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-07: CLI バックエンド選択時は json_schema を構築しない
 
-- [ ] **T-08-07-01**: CLI バックエンド選択時は json_schema を構築しない
+- [x] **T-08-07-01**: CLI バックエンド選択時は json_schema を構築しない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-07-01`
   - Rule: structured-output R-001 / REQ-C-004
@@ -1014,7 +1014,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-08: どの深さにも数量制約を含めない
 
-- [ ] **T-08-08-01**: どの深さにも数量制約を含めない
+- [x] **T-08-08-01**: どの深さにも数量制約を含めない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-08-01`
   - Rule: structured-output R-002 / DD-01 / DR-04
@@ -1023,7 +1023,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-08-09: nullable の表現に `type: "null"` を使わない
 
-- [ ] **T-08-09-01**: nullable の表現に `type: "null"` を使わない
+- [x] **T-08-09-01**: nullable の表現に `type: "null"` を使わない
   - Target: `json_schema 構築関数`
   - Test ID: `T-LIB-AI-JSB-09-01`
   - Rule: structured-output §4.3 / §4.3.1 / R-003
