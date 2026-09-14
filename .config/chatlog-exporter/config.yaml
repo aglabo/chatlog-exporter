@@ -15,13 +15,7 @@ maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Llama backend
 # Endpoint URL of the llama server on the LAN. Empty string means unset.
-<<<<<<< HEAD
-llamaEndpoint: "" # "http://avalon:8080/" develop machines endpoint
-||||||| parent of 7348982b (feat(libs/ai): add llama backend and output contract support)
-llamaEndpoint: "http://avalont:8080/"
-=======
-llamaEndpoint: "http://avalon:8080/"
->>>>>>> 7348982b (feat(libs/ai): add llama backend and output contract support)
+llamaEndpoint: "" # "http://avalon:8080/" # develop machines endpoint
 
 # Hash generation
 hashLength: 8
