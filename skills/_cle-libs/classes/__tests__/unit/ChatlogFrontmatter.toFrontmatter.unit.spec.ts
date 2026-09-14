@@ -100,6 +100,14 @@ describe('ChatlogFrontmatter', () => {
         });
       }
 
+      it('T-CLS-CF-62: 出力を再パースすると空配列フィールドが [] として復元される', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('title', 'Hello');
+        fm.set('topics', []);
+        const reparsed = new ChatlogFrontmatter(fm.toFrontmatter(['title', 'topics']));
+        assertEquals(reparsed.get('topics'), []);
+      });
+
       it('T-CLS-CF-46: addTagHashes:true 指定時、tags の各要素に # が付与されて出力される', () => {
         const fm = new ChatlogFrontmatter('');
         fm.set('tags', ['foo', 'bar']);
@@ -135,6 +143,14 @@ describe('ChatlogFrontmatter', () => {
         const result = fm.toFrontmatter(['tags'], { addTagHashes: false });
         assertEquals(result, '---\ntags:\n  - "foo"\n  - "bar"\n---\n');
       });
+
+      it('T-CLS-CF-63: addTagHashes:true 指定時も空配列の tags は [] で出力される', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('title', 'Hello');
+        fm.set('tags', []);
+        const result = fm.toFrontmatter(['title', 'tags'], { addTagHashes: true });
+        assertEquals(result, '---\ntitle: "Hello"\ntags: []\n---\n');
+      });
     });
 
     describe('エッジケース', () => {
@@ -159,14 +175,14 @@ describe('ChatlogFrontmatter', () => {
         },
         {
           id: 'T-CLS-CF-39',
-          label: '空配列フィールドはスキップされる',
+          label: '空配列フィールドは [] で出力される',
           init: '',
           setup: (fm) => {
             fm.set('tags', []);
             fm.set('title', 'Hello');
           },
           fieldOrder: ['tags', 'title'],
-          expected: '---\ntitle: "Hello"\n---\n',
+          expected: '---\ntags: []\ntitle: "Hello"\n---\n',
         },
         {
           id: 'T-CLS-CF-41',
@@ -180,14 +196,14 @@ describe('ChatlogFrontmatter', () => {
         },
         {
           id: 'T-CLS-CF-44',
-          label: 'すべてのフィールドが空の場合は空の frontmatter を出力する',
+          label: '空文字列のみスキップされ空配列は残る',
           init: '',
           setup: (fm) => {
             fm.set('title', '');
             fm.set('tags', []);
           },
           fieldOrder: ['title', 'tags'],
-          expected: '---\n\n---\n',
+          expected: '---\ntags: []\n---\n',
         },
       ];
 

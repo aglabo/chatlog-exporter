@@ -6,7 +6,7 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
-// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-81
+// テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-86
 
 // ─── BDD modules
 import { assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
@@ -90,7 +90,7 @@ const _makePatternGlob = (mdList: string[], jsonList: string[] = []) => (pattern
  *
  * コンストラクタ・read・write・initFromOutputDir・delete・update メソッドの動作を検証する。
  *
- * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-81
+ * テスト ID 範囲: T-CLS-CC-01 〜 T-CLS-CC-86
  *
  * @see ChatlogCache
  */
@@ -1187,9 +1187,9 @@ describe('ChatlogCache', () => {
   /**
    * `initFromOutputDir()` の デフォルト述語による4方向分岐チェックのテスト。
    *
-   * デフォルト述語は全5フィールド揃いのみ written、基本3フィールドのみは ''、フィールド不足は delete。
+   * デフォルト述語は全5フィールド揃いのみ written（tags は空配列でも揃いとみなすが、topics は 1 要素以上が必要）、基本3フィールドのみは ''、フィールド不足は delete。
    *
-   * テスト ID 範囲: T-CLS-CC-66 〜 T-CLS-CC-68
+   * テスト ID 範囲: T-CLS-CC-66 〜 T-CLS-CC-68, T-CLS-CC-86
    */
   describe('initFromOutputDir default predicate required fields', () => {
     /** title/type/category が揃っているファイルが status:EMPTY で書き込まれるケース。 */
@@ -1252,6 +1252,35 @@ describe('ChatlogCache', () => {
         await _cache.ready;
         await _cache.initFromOutputDir('/out', 2);
         assertEquals(_cache.read('title-only.md'), {});
+      });
+
+      it("[Edge] T-CLS-CC-86: topics: [] / tags: [] の .md → isComplete false・_hasBaseFields true → meta+status:'' が書き込まれる", async () => {
+        const _buf = new Map<string, string>([
+          ['/out/empty-arrays.md', '---\ntitle: A\ntype: tech\ncategory: dev\ntopics: []\ntags: []\n---\n'],
+        ]);
+        const _cache = new ChatlogCache<{
+          title?: string;
+          type?: string;
+          category?: string;
+          topics?: string[];
+          tags?: string[];
+          status: string;
+        }>('sub', '/cache', undefined, {
+          cache: {
+            ..._makeBufferProviders(_buf),
+            glob: _makePatternGlob(['/out/empty-arrays.md']),
+          },
+        });
+        await _cache.ready;
+        await _cache.initFromOutputDir('/out', 2);
+        assertEquals(_cache.read('empty-arrays.md'), {
+          title: 'A',
+          type: 'tech',
+          category: 'dev',
+          topics: [],
+          tags: [],
+          status: '',
+        });
       });
     });
   });
