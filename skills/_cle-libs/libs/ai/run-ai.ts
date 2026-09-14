@@ -1,5 +1,5 @@
 // src: skills/_cle-libs/libs/ai/run-ai.ts
-// @(#): Claude CLI 呼び出しユーティリティ
+// @(#): AI 実行ユーティリティ（CLI / llama HTTP）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -13,7 +13,11 @@
 import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 import { logger } from '../io/logger.ts';
+import { assertEndpointAcceptable, normalizeEndpointUrl } from './endpoint-utils.ts';
+import { buildLlamaRequest } from './llama-request-builder.ts';
+import { interpretLlamaResponse, mapLlamaFetchFailure } from './llama-response.ts';
 import { getAiBackend, isEmptyLlamaModelId, parseModel } from './model-utils.ts';
+import { parseContractPayload, restoreContractText, validateOutputContract } from './output-contract.ts';
 
 // types
 import type { AiBackendCommand, AiModelToProvider } from '../../types/ai.const.types.ts';
@@ -223,7 +227,7 @@ export const buildValidModelsMessage = (
  * @param spec - `_buildCommand` が生成したコマンド仕様
  * @param systemPrompt - システムプロンプト（args に載らない CLI では stdin へ前置する）
  * @param userPrompt - ユーザープロンプト（stdin へ書き込む）
- * @param signal - 前段で合成済みの中断シグナル
+ * @param _signal - 前段で合成済みの中断シグナル
  * @returns 成功時の結果文字列
  */
 const _runViaCli = async (
@@ -276,8 +280,55 @@ ${userPrompt}`;
 };
 
 /**
- * Runs an AI CLI subprocess with the given system prompt and user prompt.
- * Returns the trimmed stdout text on success, or throws on failure.
+ * llama 経路で HTTP 送信を行い、結果文字列を返す。
+ *
+ * 経路依存の中段。transport §4.1 の Step 3〜7.5 を担う。エンドポイント検証 → URL 正規化 →
+ * リクエスト構成 → 送信 → 応答解釈 → JSON parse → 契約検証 → 契約に基づく復元の順に処理する。中断シグナルの合成やタイマーの生成・解放は
+ * 行わない（前段 / 後段の責務）。送信関数は `options.fetchProvider ?? fetch` を呼び出し時に解決する。
+ *
+ * **export しない（module-private）**。
+ *
+ * @param systemPrompt - システムプロンプト
+ * @param userPrompt - ユーザープロンプト
+ * @param options - 前段で解決済みの実行オプション（`model` は解決済み）
+ * @param signal - 前段で合成済みの中断シグナル（送信にそのまま渡す）
+ * @returns 契約に基づき復元した結果文字列
+ */
+const _runViaHttp = async (
+  systemPrompt: string,
+  userPrompt: string,
+  options: RunAIOptions,
+  signal: AbortSignal,
+): Promise<string> => {
+  // 送信より前にエンドポイントを検証する（transport R-006 / AC-019）
+  const _endpoint = GlobalConfig.getInstance().get('llamaEndpoint') as string;
+  assertEndpointAcceptable(_endpoint);
+  const _url = normalizeEndpointUrl(_endpoint);
+  const _contract = options.outputContract;
+  const _init = buildLlamaRequest({
+    model: options.model!,
+    system: systemPrompt,
+    user: userPrompt,
+    outputContract: _contract,
+  });
+  // reject（接続失敗等）は BackendUnavailable へ分類する。abort 起因の reject は runAI の catch が Aborted / TimedOut へ上書きする
+  const _response = await (options.fetchProvider ?? fetch)(_url, { ..._init, signal }).catch(mapLlamaFetchFailure);
+  const _text = await interpretLlamaResponse(_response);
+  const _payload = parseContractPayload(_text);
+  // buildLlamaRequest が契約なしで throw するため、ここでは契約が存在する
+  validateOutputContract(_contract!, _payload);
+  return restoreContractText(_contract!, _payload);
+};
+
+/**
+ * Runs an AI request with the given system prompt and user prompt, routed by the model.
+ *
+ * - `llama/<model>`: sends an HTTP request to the configured llama endpoint and returns
+ *   the response text restored from `options.outputContract`.
+ * - other models: spawns the backend CLI subprocess and returns its trimmed stdout.
+ *
+ * Both routes share one timeout timer and abort classification: an external abort throws
+ * `Aborted/ExternalAbort`, and an expired timeout throws `TimedOut/Timeout`.
  */
 export const runAI = async (
   systemPrompt: string,
@@ -297,14 +348,16 @@ export const runAI = async (
   }
   const _backend = getAiBackend(_options.model)!;
   const _routeLabel = _backend === 'llama' ? 'llama' : AI_BACKEND_COMMAND_MAP[_backend];
-  const _spec = _buildCommand(_options.model, systemPrompt);
   const _controller = new AbortController();
   const _timer = _options.timeoutMs !== 0
     ? setTimeout(() => _controller.abort(), _options.timeoutMs)
     : undefined;
   const _signals = _options.signal ? [_controller.signal, _options.signal] : [_controller.signal];
   try {
-    return await _runViaCli(_spec, systemPrompt, userPrompt, AbortSignal.any(_signals));
+    const _signal = AbortSignal.any(_signals);
+    return _backend === 'llama'
+      ? await _runViaHttp(systemPrompt, userPrompt, _options, _signal)
+      : await _runViaCli(_buildCommand(_options.model, systemPrompt), systemPrompt, userPrompt, _signal);
   } catch (e) {
     if (_options.signal?.aborted) {
       throw new ChatlogError('Aborted', 'ExternalAbort', `${_routeLabel} was aborted by an external signal`);

@@ -36,6 +36,14 @@ deckrd プラグインが生成する。クローン直後は存在しないた�
 `/deckrd init` を実行して展開する（Phase 0 が既存ファイルを上書きせずコピーする）。
 deckrd プラグイン未導入の場合は、まずプラグインを導入する。
 
+**deckrd 側でルールを更新しても、既存のコピーには反映されない。**
+`init` は既存ファイルを上書きしないため、再実行しても古いルールのまま黙って残る。
+更新を取り込むときは、該当する `docs/.deckrd/rules/deckrd-rule-*.md` を削除してから
+`/deckrd init` を再実行する。ルールの追加・削除・改名を伴う更新では
+`.claude/rules/deckrd-rules/deckrd-rules-index.md`（git 管理下）も削除して再生成し、
+差分を確認してからコミットする。手順の詳細は deckrd の `references/commands/init.md`
+（Migrating a project initialized before the rule consolidation）を参照する。
+
 ## プロジェクト構造
 
 ```bash

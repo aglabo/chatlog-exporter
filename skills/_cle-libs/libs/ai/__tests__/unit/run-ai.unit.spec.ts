@@ -19,6 +19,8 @@ import {
   assertStringIncludes,
 } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { _buildCommand, buildValidModelsMessage, runAI } from '../../run-ai.ts';
@@ -32,11 +34,15 @@ import { isAbortingAiError } from '../../abort-utils.ts';
 import type { CommandMockHandle } from '../../../../__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
+  makeCountingMock,
   makeDelayedSuccessMock,
   makeSuccessMock,
 } from '../../../../__tests__/helpers/deno-command-mock.ts';
+import type { FetchSpy } from '../../../../__tests__/helpers/llama-fetch-mock.ts';
+import { makeFetchSpy, makeLlamaOkResponse } from '../../../../__tests__/helpers/llama-fetch-mock.ts';
 import { makeLoggerStub } from '../../../../__tests__/helpers/logger-stub.ts';
 import type { AiModelToProvider } from '../../../../types/ai.const.types.ts';
+import type { OutputContract } from '../../../../types/json-schema.types.ts';
 import type { FetchProvider } from '../../../../types/providers.types.ts';
 // constants
 import { AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '../../../../types/ai.const.types.ts';
@@ -133,7 +139,69 @@ const _makeLateRejectingCommandStub = (delayMs: number) => {
   };
 };
 
+/**
+ * 応答を返さず、受け取った `init.signal` の abort でのみ reject する `FetchProvider` を生成する。
+ *
+ * `init.signal` が渡されない場合は即座に `Error('signal not passed')` で reject する（RED でハングさせない）。
+ *
+ * @param calls - 受け取った `input` / `init` を積む呼び出し記録
+ * @param onCall - 呼び出しを記録した直後に呼ぶフック
+ * @returns 注入用の `FetchProvider`
+ */
+const _abortAwareFetch = (
+  calls: { input: string | URL | Request; init?: RequestInit }[],
+  onCall?: () => void,
+): FetchProvider =>
+(input, init) => {
+  calls.push({ input, init });
+  onCall?.();
+  const _signal = init?.signal;
+  if (!_signal) { return Promise.reject(new Error('signal not passed')); }
+  if (_signal.aborted) { return Promise.reject(_signal.reason); }
+  return new Promise<Response>((_resolve, reject) => {
+    _signal.addEventListener('abort', () => reject(_signal.reason), { once: true });
+  });
+};
+
 // constants
+/** llama 経路へ渡す最小の出力契約。`buildLlamaRequest` は契約必須のため、fetch へ到達しうる Case はこれを渡す。 */
+const _MINIMAL_CONTRACT: OutputContract = { contract: 'line-prefixed', properties: { type: { type: 'string' } } };
+
+/** llama 経路のモデル指定。 */
+const _LLAMA_MODEL = 'llama/qwen3-14b';
+
+/** 送信まで到達する llama 経路の設定 YAML。`llamaEndpoint` の正規化後 URL は `http://127.0.0.1:8080/v1/chat/completions`。 */
+const _LLAMA_YAML = 'llamaEndpoint: http://127.0.0.1:8080/v1/\nmodel: llama/qwen3-14b\n';
+
+/**
+ * llama 経路の `runAI` を 2 経路で同一応答に対して実行する（T-LIB-AI-LWR-02-01 / 02-02）。
+ *
+ * A は `FetchProvider` を注入し、B は注入せず既定 `fetch` を `globalThis.fetch` の stub で置き換える。
+ * 実ネットワークへは接続しない。stub は例外時も `finally` で restore する。
+ *
+ * @returns A / B の fetch spy と `runAI` の戻り値
+ */
+const _runBothRoutes = async (): Promise<{
+  spyA: FetchSpy;
+  spyB: FetchSpy;
+  resultA: string;
+  resultB: string;
+}> => {
+  GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+  const _options: RunAIOptions = { model: _LLAMA_MODEL, outputContract: _MINIMAL_CONTRACT, timeoutMs: 60000 };
+  const _spyA = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+  const _spyB = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+
+  const _resultA = await runAI('sys', 'user', { ..._options, fetchProvider: _spyA.provider });
+  const _fetchStub = stub(globalThis, 'fetch', _spyB.provider);
+  try {
+    const _resultB = await runAI('sys', 'user', _options);
+    return { spyA: _spyA, spyB: _spyB, resultA: _resultA, resultB: _resultB };
+  } finally {
+    _fetchStub.restore();
+  }
+};
+
 /** レートリミット検出のテーブル駆動ケース (RA-13〜15, RA-21, RA-22)。stdout / stderr の両ストリームを検査対象とする。 */
 const _rateLimitCases = [
   {
@@ -348,6 +416,139 @@ const _listedModels = (message: string): string[] =>
  */
 const _listedProviders = (message: string): string[] =>
   message.split(' (or <provider>/<model> with provider: ')[1].replace(/\)$/, '').split(', ');
+
+/**
+ * `RunAIOptions.outputContract` の型受け入れケース。
+ *
+ * 契約タグは復元先の文字列表現を選ぶだけなので、同じタグでも契約定義は呼び出し元ごとに異なる
+ * （structured-output §4.3.1）。3 タグそれぞれに別の契約定義を与えて代入可能性を固定する。
+ */
+const _outputContractCases: { id: string; contract: OutputContract }[] = [
+  {
+    id: 'T-LIB-AI-LAP-08-02',
+    contract: {
+      contract: 'json-array',
+      properties: { project: { type: 'string', values: ['a', 'b'], fallback: 'b' } },
+    },
+  },
+  {
+    id: 'T-LIB-AI-LAP-08-03',
+    contract: {
+      contract: 'yaml',
+      firstField: 'tags',
+      properties: { tags: { type: 'array', items: { type: 'string', values: ['x'] } } },
+    },
+  },
+  {
+    id: 'T-LIB-AI-LAP-08-04',
+    contract: {
+      contract: 'line-prefixed',
+      properties: { decision: { type: 'string', values: ['keep'], fallback: 'keep' } },
+    },
+  },
+];
+
+/**
+ * 送信前のエンドポイント検証で中断される llama 経路のケース (LWR-05-01〜02)。
+ *
+ * `llamaEndpoint` の値（省略 / 空文字列）だけが異なり、期待する結果は共通。
+ */
+const _endpointErrorCases: { id: string; desc: string; yaml: string }[] = [
+  { id: 'T-LIB-AI-LWR-05-01', desc: 'llamaEndpoint 省略', yaml: 'model: llama/qwen3-14b\n' },
+  { id: 'T-LIB-AI-LWR-05-02', desc: 'llamaEndpoint が空文字列', yaml: "llamaEndpoint: ''\nmodel: llama/qwen3-14b\n" },
+];
+
+/**
+ * llama 経路で送信・応答の失敗を分類するケース (LWR-10-01〜03)。
+ *
+ * 送信関数の振る舞い（応答本文 / reject）だけが異なり、期待する `kind` は `AiError` で共通。
+ */
+const _llamaFailureCases: { id: string; desc: string; respond: FetchProvider; subindex: string }[] = [
+  {
+    id: 'T-LIB-AI-LWR-10-01',
+    desc: 'assistant 本文が JSON でない',
+    respond: () => Promise.resolve(makeLlamaOkResponse('not json')),
+    subindex: 'ResponseSchemaViolation',
+  },
+  {
+    // `_MINIMAL_CONTRACT` の `type`（string）へ数値を返す。キー欠落は復元側でも弾かれ、契約検証の有無を判別できない
+    id: 'T-LIB-AI-LWR-10-02',
+    desc: '契約不適合の応答',
+    respond: () => Promise.resolve(makeLlamaOkResponse('{"type":123}')),
+    subindex: 'ResponseSchemaViolation',
+  },
+  {
+    // 外部 abort もタイムアウトも無いまま、接続失敗で reject する
+    id: 'T-LIB-AI-LWR-10-03',
+    desc: 'FetchProvider の reject',
+    respond: () => Promise.reject(new TypeError('error sending request: Connection refused')),
+    subindex: 'BackendUnavailable',
+  },
+];
+
+/**
+ * llama 経路の失敗で FetchProvider がちょうど 1 回だけ呼ばれることを確かめる HTTP ステータス別のケース (LRI-12-01-01〜03)。
+ *
+ * `Response` 本文は 1 回しか読めないため、spy には行ごとに `new Response('', { status })` を生成するファクトリを渡す。
+ */
+const _noRetryCases: { id: string; desc: string; status: number; subindex: string }[] = [
+  { id: 'T-LIB-AI-LRI-12-01-01', desc: 'HTTP 404（中断側）', status: 404, subindex: 'BackendUnavailable' },
+  { id: 'T-LIB-AI-LRI-12-01-02', desc: 'HTTP 429（中断側）', status: 429, subindex: 'RateLimit' },
+  { id: 'T-LIB-AI-LRI-12-01-03', desc: 'HTTP 500（続行側）', status: 500, subindex: 'ExitFailure' },
+];
+
+// functions
+/**
+ * 呼び出し回数アサーションがリトライを検出できることの対照確認用ランナー (LRI-12-01-04)。
+ *
+ * `runAI` が 1 回失敗したら 1 回だけ再実行し、2 回目の例外をそのまま伝播する。本番コードには存在しない。
+ *
+ * @param systemPrompt - `runAI` へ渡すシステムプロンプト
+ * @param userPrompt - `runAI` へ渡すユーザープロンプト
+ * @param options - `runAI` へ渡すオプション
+ * @returns `runAI` の戻り値
+ */
+const _retryRunner = (systemPrompt: string, userPrompt: string, options: RunAIOptions): Promise<string> =>
+  runAI(systemPrompt, userPrompt, options).catch(() => runAI(systemPrompt, userPrompt, options));
+
+/**
+ * llama 経路の失敗が CLI バックエンドへフォールバックしないことを確かめる失敗分類別のケース (LRI-12-02-01〜03)。
+ */
+const _noFallbackCases: { id: string; desc: string; respond: FetchProvider; subindex: string }[] = [
+  {
+    id: 'T-LIB-AI-LRI-12-02-01',
+    desc: 'HTTP 404（中断側）',
+    respond: () => Promise.resolve(new Response('', { status: 404 })),
+    subindex: 'BackendUnavailable',
+  },
+  {
+    id: 'T-LIB-AI-LRI-12-02-02',
+    desc: 'HTTP 500（続行側）',
+    respond: () => Promise.resolve(new Response('', { status: 500 })),
+    subindex: 'ExitFailure',
+  },
+  {
+    id: 'T-LIB-AI-LRI-12-02-03',
+    desc: 'FetchProvider の reject',
+    respond: () => Promise.reject(new TypeError('error sending request: Connection refused')),
+    subindex: 'BackendUnavailable',
+  },
+];
+
+/**
+ * CLI 起動回数アサーションがフォールバックを検出できることの対照確認用ランナー (LRI-12-02-04)。
+ *
+ * `runAI` が失敗したら CLI バックエンド（`sonnet`）で 1 回だけ再実行する。本番コードには存在しない。
+ *
+ * @param systemPrompt - `runAI` へ渡すシステムプロンプト
+ * @param userPrompt - `runAI` へ渡すユーザープロンプト
+ * @param options - `runAI` へ渡すオプション
+ * @returns `runAI` の戻り値
+ */
+const _fallbackRunner = (systemPrompt: string, userPrompt: string, options: RunAIOptions): Promise<string> =>
+  runAI(systemPrompt, userPrompt, options).catch(() =>
+    runAI(systemPrompt, userPrompt, { ...options, model: 'sonnet' })
+  );
 
 // ─── Tests
 
@@ -1714,5 +1915,371 @@ describe('RunAIOptions.fetchProvider', () => {
     const _options: RunAIOptions = { fetchProvider: _fakeFetch };
 
     assertEquals(_options.fetchProvider, _fakeFetch);
+  });
+});
+
+/**
+ * `RunAIOptions.outputContract` の型受け入れを固定するテストスイート。
+ *
+ * 出力契約は呼び出し単位で変わるため任意フィールドとして受け付ける。省略した既存の
+ * 呼び出し元が無改修で通ること（REQ-C-005）と、3 契約タグいずれの契約定義も渡せることを
+ * 検証する（値の利用は後続タスク）。
+ *
+ * テスト ID 範囲: T-LIB-AI-LAP-08-01〜08-04
+ *
+ * @see RunAIOptions
+ */
+describe('RunAIOptions.outputContract', () => {
+  it('[Normal] T-LIB-AI-LAP-08-01: 出力契約を省略した RunAIOptions が型として成立する', () => {
+    // 任意フィールド追加後も既存呼び出し元が無改修で通ること自体が検証対象（REQ-C-005）
+    const _options: RunAIOptions = { model: 'gpt-5-mini', timeoutMs: 1000 };
+
+    assertEquals(_options.model, 'gpt-5-mini');
+  });
+
+  for (const tc of _outputContractCases) {
+    it(`[Normal] ${tc.id}: ${tc.contract.contract} の出力契約を任意フィールドへ代入できる`, () => {
+      const _options: RunAIOptions = { outputContract: tc.contract };
+
+      assertEquals(_options.outputContract, tc.contract);
+    });
+  }
+});
+
+/**
+ * `runAI` の llama 経路結線を固定するテストスイート。
+ *
+ * 経路判定が CLI コマンド構築（`_buildCommand`）より前に行われることを検証する
+ * （transport §4.1.1 不適合条件 3 が成立しない）。
+ *
+ * テスト ID 範囲: T-LIB-AI-LWR-02-01 〜 T-LIB-AI-LWR-02-02, T-LIB-AI-LWR-05-01 〜 T-LIB-AI-LWR-05-02, T-LIB-AI-LWR-06-01 〜 T-LIB-AI-LWR-06-03, T-LIB-AI-LWR-07-01 〜 T-LIB-AI-LWR-07-02, T-LIB-AI-LWR-08-01, T-LIB-AI-LWR-09-01, T-LIB-AI-LWR-10-01 〜 T-LIB-AI-LWR-10-03
+ *
+ * @see runAI
+ */
+describe('runAI — llama 経路の結線', () => {
+  /** llama 経路で送信まで到達するケース。 */
+  describe('When: 正常系（llama 経路の送信）', () => {
+    it('[Normal] T-LIB-AI-LWR-01-01: llama/qwen3-14b + llamaEndpoint → 正規化 URL への POST が FetchProvider へ渡る', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _spy = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+
+      await runAI('sys', 'user', {
+        model: _LLAMA_MODEL,
+        fetchProvider: _spy.provider,
+        outputContract: _MINIMAL_CONTRACT,
+        timeoutMs: 60000,
+      });
+
+      assertEquals(_spy.calls.length, 1);
+      assertEquals(String(_spy.calls[0].input), 'http://127.0.0.1:8080/v1/chat/completions');
+      assertEquals(_spy.calls[0].init?.method, 'POST');
+    });
+
+    it('[Normal] T-LIB-AI-LWR-02-01: FetchProvider 注入あり/なし → 送信関数が受け取るリクエストが一致する', async () => {
+      const { spyA: _spyA, spyB: _spyB } = await _runBothRoutes();
+
+      // signal は実行ごとに合成されるため比較対象から除く
+      const _toRequest = (call: { input: string | URL | Request; init?: RequestInit }) => ({
+        url: String(call.input),
+        method: call.init?.method,
+        headers: call.init?.headers,
+        body: call.init?.body,
+      });
+      assertEquals(_spyA.calls.length, 1);
+      assertEquals(_spyB.calls.length, 1);
+      assertEquals(_toRequest(_spyB.calls[0]), _toRequest(_spyA.calls[0]));
+    });
+
+    it('[Normal] T-LIB-AI-LWR-02-02: FetchProvider 注入あり/なし → 同一応答から同一の戻り値', async () => {
+      const { spyB: _spyB, resultA: _resultA, resultB: _resultB } = await _runBothRoutes();
+
+      assertEquals(_spyB.calls.length, 1);
+      assertEquals(_resultB, _resultA);
+    });
+
+    it('[Normal] T-LIB-AI-LWR-03-07: 契約適合の 2xx 応答 → line-prefixed 復元済み文字列 "type: research" が返る', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _spy = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+
+      const _result = await runAI('sys', 'user', {
+        model: _LLAMA_MODEL,
+        fetchProvider: _spy.provider,
+        outputContract: _MINIMAL_CONTRACT,
+        timeoutMs: 60000,
+      });
+
+      assertEquals(_result, 'type: research');
+    });
+  });
+
+  /** 送信前のエンドポイント検証で中断されるケース。 */
+  describe('When: 異常系（エンドポイント未設定）', () => {
+    for (const { id, desc, yaml } of _endpointErrorCases) {
+      it(`[Error] ${id}: ${desc} → FetchProvider 未呼び出しで ChatlogError(AiError/InvalidEndpoint)`, async () => {
+        GlobalConfig.getInstance({ yaml });
+        const _spy = makeFetchSpy(() => new Response(''));
+
+        const _err = await assertRejects(
+          () => runAI('sys', 'user', { fetchProvider: _spy.provider, outputContract: _MINIMAL_CONTRACT }),
+          ChatlogError,
+        ) as ChatlogError;
+
+        assertEquals(_err.kind, 'AiError');
+        assertEquals(_err.subindex, 'InvalidEndpoint');
+        assertEquals(_spy.calls.length, 0);
+      });
+    }
+  });
+
+  /** 送信・応答の失敗を AiError の subindex へ分類するケース。 */
+  describe('When: 異常系（llama 送信・応答の失敗分類）', () => {
+    for (const { id, desc, respond, subindex } of _llamaFailureCases) {
+      it(`[Error] ${id}: ${desc} → ChatlogError(AiError/${subindex})`, async () => {
+        GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+
+        const _err = await assertRejects(
+          () => runAI('sys', 'user', { fetchProvider: respond, outputContract: _MINIMAL_CONTRACT }),
+          ChatlogError,
+        ) as ChatlogError;
+
+        assertEquals(_err.kind, 'AiError');
+        assertEquals(_err.subindex, subindex);
+      });
+    }
+  });
+
+  /** 前段で合成した中断シグナルが送信関数まで届き、タイマーが timeoutMs に従って生成されるケース。 */
+  describe('When: エッジケース（FetchProvider への signal 伝播とタイマー生成）', () => {
+    // 全 Case が送信まで到達する llama 経路の設定を共有する（ファイル全体の resetInstance の後に実行される）
+    beforeEach(() => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+    });
+
+    it('[Edge] T-LIB-AI-LWR-06-01: timeoutMs + 外部 signal → FetchProvider の RequestInit.signal が合成済み AbortSignal', async () => {
+      const _external = new AbortController();
+      const _spy = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+
+      await runAI('sys', 'user', {
+        model: _LLAMA_MODEL,
+        fetchProvider: _spy.provider,
+        outputContract: _MINIMAL_CONTRACT,
+        timeoutMs: 60000,
+        signal: _external.signal,
+      });
+
+      const _received = _spy.calls[0].init?.signal;
+      // 外部 signal の素通しではなく、AbortSignal.any で合成された別インスタンスが届く
+      assert(_received instanceof AbortSignal);
+      assert(_received !== _external.signal);
+    });
+
+    it('[Edge] T-LIB-AI-LWR-06-02: timeoutMs=20 で応答なし → FetchProvider へ渡した signal が aborted', async () => {
+      const _calls: { input: string | URL | Request; init?: RequestInit }[] = [];
+
+      await assertRejects(() =>
+        runAI('sys', 'user', {
+          model: _LLAMA_MODEL,
+          fetchProvider: _abortAwareFetch(_calls),
+          outputContract: _MINIMAL_CONTRACT,
+          timeoutMs: 20,
+        })
+      );
+
+      // 分類の一致だけでなく、送信側へ渡した signal 自体が abort 状態へ遷移している
+      assertEquals(_calls[0].init?.signal?.aborted, true);
+    });
+
+    it('[Edge] T-LIB-AI-LWR-06-03: 送信中に外部 abort → FetchProvider へ渡した signal が aborted', async () => {
+      const _external = new AbortController();
+      let _abortedAtCall: boolean | undefined;
+      // 送信開始直後に外部 abort を発火し、その場で signal の状態を記録して即 settle する。
+      // AbortSignal.any は依存元の abort を同期的に伝播するため、伝播していなければ記録値は true にならず、
+      // タイマー（timeoutMs=60000）を待たずに失敗する
+      const _provider: FetchProvider = (_input, init) => {
+        _external.abort();
+        _abortedAtCall = init?.signal?.aborted;
+        return Promise.reject(new Error('fetch stub settled'));
+      };
+
+      await assertRejects(() =>
+        runAI('sys', 'user', {
+          model: _LLAMA_MODEL,
+          fetchProvider: _provider,
+          outputContract: _MINIMAL_CONTRACT,
+          timeoutMs: 60000,
+          signal: _external.signal,
+        })
+      );
+
+      // 分類の一致だけでなく、外部 abort が送信側へ渡した signal まで伝播している
+      assertEquals(_abortedAtCall, true);
+    });
+
+    // `timeoutMs: 0`（タイムアウト無効）では llama 経路でもタイマーを生成しない
+    it('[Edge] T-LIB-AI-LWR-07-01: llama 経路 + timeoutMs=0 → setTimeout は呼ばれない', async () => {
+      const _fetchSpy = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+      const _origSetTimeout = globalThis.setTimeout;
+      const _timerSpy = { calls: 0 };
+      globalThis.setTimeout = ((...args: Parameters<typeof _origSetTimeout>) => {
+        _timerSpy.calls++;
+        return _origSetTimeout(...args);
+      }) as typeof globalThis.setTimeout;
+
+      try {
+        await runAI('sys', 'user', {
+          model: _LLAMA_MODEL,
+          fetchProvider: _fetchSpy.provider,
+          outputContract: _MINIMAL_CONTRACT,
+          timeoutMs: 0,
+        });
+
+        // 空振り防止: llama 経路の送信まで到達している
+        assertEquals(_fetchSpy.calls.length, 1);
+        assertEquals(_timerSpy.calls, 0);
+      } finally {
+        globalThis.setTimeout = _origSetTimeout;
+      }
+    });
+  });
+
+  /** llama 経路の送信中に発火した外部 abort を、後段 catch が Aborted へ分類するケース。 */
+  describe('When: 異常系（llama 送信中の外部 abort）', () => {
+    it('[Error] T-LIB-AI-LWR-07-02: llama 経路の送信中に外部 abort → ChatlogError(Aborted/ExternalAbort)', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _external = new AbortController();
+      const _calls: { input: string | URL | Request; init?: RequestInit }[] = [];
+
+      // timeoutMs=60000 はタイムアウトが先に発火しないための値。送信直後の外部 abort で即 reject する
+      const _err = await assertRejects(
+        () =>
+          runAI('sys', 'user', {
+            model: _LLAMA_MODEL,
+            fetchProvider: _abortAwareFetch(_calls, () => _external.abort()),
+            outputContract: _MINIMAL_CONTRACT,
+            timeoutMs: 60000,
+            signal: _external.signal,
+          }),
+        ChatlogError,
+      ) as ChatlogError;
+
+      // 空振り防止: llama 経路の送信まで到達している
+      assertEquals(_calls.length, 1);
+      assertEquals(_err.kind, 'Aborted');
+      assertEquals(_err.subindex, 'ExternalAbort');
+    });
+  });
+
+  /** 経路判定と `_buildCommand` 呼び出しの実行順序をソース静的検査で守るケース。 */
+  describe('When: エッジケース（経路判定と _buildCommand の順序検査）', () => {
+    it('[Edge] T-LIB-AI-LWR-08-01: run-ai.ts ソース — _runViaHttp 呼び出しが _buildCommand 呼び出しより前にある', async () => {
+      const _source = await Deno.readTextFile(new URL('../../run-ai.ts', import.meta.url));
+      const _runAISource = _source.slice(_source.indexOf('export const runAI'));
+      const _httpCallAt = _runAISource.indexOf('_runViaHttp(');
+      const _buildCallAt = _runAISource.indexOf('_buildCommand(');
+
+      // (a) runAI 本体に llama 経路の呼び出しがある（`=== 'llama'` の経路ラベルでは判定しない）
+      assert(_httpCallAt !== -1);
+      // (b) その呼び出しが CLI コマンド構築より前にある
+      assert(_httpCallAt < _buildCallAt);
+    });
+  });
+
+  /** llamaEndpoint が設定されていても、モデル値に llama プレフィックスが無ければ CLI 経路のままのケース。 */
+  describe('When: エッジケース（llama プレフィックスの無いモデル値）', () => {
+    let commandHandle: CommandMockHandle;
+
+    afterEach(() => {
+      commandHandle?.restore();
+    });
+
+    it('[Edge] T-LIB-AI-LWR-09-01: llamaEndpoint 設定済み + model=sonnet → FetchProvider は呼ばれない', async () => {
+      GlobalConfig.getInstance({ yaml: 'llamaEndpoint: http://127.0.0.1:8080\nmodel: sonnet\n' });
+      commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('{"result":"ok"}')));
+      // 経路を誤って llama へ選んだ場合でも送信まで到達し、呼び出し回数のアサーションで検出できる入力にする
+      const _spy = makeFetchSpy(() => makeLlamaOkResponse('{"type":"research"}'));
+
+      await runAI('sys', 'user', { fetchProvider: _spy.provider, outputContract: _MINIMAL_CONTRACT });
+
+      assertEquals(_spy.calls.length, 0);
+    });
+  });
+});
+
+/**
+ * `runAI` の llama 経路で失敗したときにリトライも CLI バックエンドへのフォールバックもしないことを固定するテストスイート。
+ *
+ * テスト ID 範囲: T-LIB-AI-LRI-12-01-01 〜 T-LIB-AI-LRI-12-01-04, T-LIB-AI-LRI-12-02-01 〜 T-LIB-AI-LRI-12-02-04
+ *
+ * @see runAI
+ */
+describe('runAI — llama 経路の失敗処理', () => {
+  /** 中断側・続行側の失敗で FetchProvider の呼び出しが 1 回に留まるケース。 */
+  describe('When: 異常系（リトライなし）', () => {
+    for (const { id, desc, status, subindex } of _noRetryCases) {
+      it(`[Error] ${id}: ${desc} → ChatlogError(AiError/${subindex}) かつ FetchProvider 呼び出し 1 回`, async () => {
+        GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+        const _spy = makeFetchSpy(() => new Response('', { status }));
+
+        const _err = await assertRejects(
+          () => runAI('sys', 'user', { fetchProvider: _spy.provider, outputContract: _MINIMAL_CONTRACT }),
+          ChatlogError,
+        ) as ChatlogError;
+
+        assertEquals(_err.kind, 'AiError');
+        assertEquals(_err.subindex, subindex);
+        assertEquals(_spy.calls.length, 1);
+      });
+    }
+
+    it('[Error] T-LIB-AI-LRI-12-01-04: リトライ付きランナー → 呼び出し回数が 2 回になり、1 回のアサーションで検出できる', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _spy = makeFetchSpy(() => new Response('', { status: 500 }));
+
+      await assertRejects(
+        () => _retryRunner('sys', 'user', { fetchProvider: _spy.provider, outputContract: _MINIMAL_CONTRACT }),
+        ChatlogError,
+      );
+
+      assertEquals(_spy.calls.length, 2);
+    });
+  });
+
+  /** llama 経路の失敗で CLI バックエンドが起動されず、例外がそのまま伝播するケース。 */
+  describe('When: 異常系（CLI バックエンドへのフォールバックなし）', () => {
+    let commandHandle: CommandMockHandle;
+    const counter = { calls: 0 };
+
+    beforeEach(() => {
+      counter.calls = 0;
+      commandHandle = installCommandMock(makeCountingMock('{"result":"type: research"}', counter));
+    });
+
+    afterEach(() => {
+      commandHandle.restore();
+    });
+
+    for (const { id, desc, respond, subindex } of _noFallbackCases) {
+      it(`[Error] ${id}: ${desc} → ChatlogError(AiError/${subindex}) が伝播し Deno.Command は生成されない`, async () => {
+        GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+
+        const _err = await assertRejects(
+          () => runAI('sys', 'user', { fetchProvider: respond, outputContract: _MINIMAL_CONTRACT }),
+          ChatlogError,
+        ) as ChatlogError;
+
+        assertEquals(_err.kind, 'AiError');
+        assertEquals(_err.subindex, subindex);
+        assertEquals(counter.calls, 0);
+      });
+    }
+
+    it('[Error] T-LIB-AI-LRI-12-02-04: フォールバック付きランナー → Deno.Command が 1 回生成され、0 回のアサーションで検出できる', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _respond: FetchProvider = () => Promise.resolve(new Response('', { status: 500 }));
+
+      await _fallbackRunner('sys', 'user', { fetchProvider: _respond, outputContract: _MINIMAL_CONTRACT });
+
+      assertEquals(counter.calls, 1);
+    });
   });
 });

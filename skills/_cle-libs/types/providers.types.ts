@@ -6,6 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import type { OutputContract } from './json-schema.types.ts';
+
 // ─────────────────────────────────────────────
 // 環境変数系
 // ─────────────────────────────────────────────
@@ -99,6 +101,16 @@ export type RunAIOptions = {
   timeoutMs?: number;
   signal?: AbortSignal;
   fetchProvider?: FetchProvider;
+  /**
+   * この呼び出しに適用する出力契約（structured-output §4.3.1）。
+   *
+   * 契約タグ（`json-array` / `yaml` / `line-prefixed`）は復元先の文字列表現を選ぶだけで、
+   * スキーマを一意に決めない。required keys・値の型・enum の値域・フォールバック値は
+   * 契約定義 `properties` が定める。したがって同じ契約タグでも呼び出し元ごとにスキーマは異なる。
+   *
+   * 省略時は構造化出力を要求しない。
+   */
+  outputContract?: OutputContract;
 };
 
 /** `runAI` 互換の関数型。テスト用インジェクションに利用する。 */
