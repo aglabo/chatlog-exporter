@@ -14,6 +14,9 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { runAI } from '../../run-ai.ts';
 
+// ─── Classes
+import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
+
 // ─── Helpers
 import type { CommandMockHandle } from '../../../../__tests__/helpers/deno-command-mock.ts';
 import {
@@ -32,8 +35,15 @@ const _enc = new TextEncoder();
 
 let commandHandle: CommandMockHandle;
 
+// 設定ファイル（.config/chatlog-exporter/config.yaml）を読ませず、テストが与える YAML で設定を固定する
+beforeEach(() => {
+  GlobalConfig.resetInstance();
+  GlobalConfig.getInstance({ yaml: 'model: sonnet\n' });
+});
+
 afterEach(() => {
   commandHandle?.restore();
+  GlobalConfig.resetInstance();
 });
 
 describe('runAI', () => {
