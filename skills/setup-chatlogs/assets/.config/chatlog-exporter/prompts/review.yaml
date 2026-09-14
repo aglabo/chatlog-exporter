@@ -70,6 +70,12 @@ user: |
   Must be from: ${tags_list}
   Avoid redundancy between topics and tags.
 
+  ## corrected_frontmatter
+  Always return every field.
+  For fields you do not change, copy the current value exactly as given below.
+  Never return an empty list for topics — topics must always start with the domain (the Log category).
+  Use an empty list [] for tags ONLY when no entry applies — never to mean "unchanged".
+
   Output schema:
   validity: pass or fail
   errors:

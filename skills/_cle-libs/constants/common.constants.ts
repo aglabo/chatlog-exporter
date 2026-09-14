@@ -6,6 +6,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// types
+import type { FrontmatterFieldType } from '../types/frontmatter.types.ts';
+
 /** Markdown フロントマターの開始・終了区切り文字。 */
 export const FRONTMATTER_DELIMITER = '---';
 
@@ -14,9 +17,9 @@ export const FM_FIELD_TYPES = {
   type: 'string',
   category: 'string',
   title: 'string',
-  topics: 'array',
+  topics: 'nonEmptyArray',
   tags: 'array',
-} as const satisfies Record<string, 'string' | 'array'>;
+} as const satisfies Record<string, FrontmatterFieldType>;
 
 /** フロントマターフィールドの標準出力順序。 */
 export const DEFAULT_ORDERED_FIELDS: string[] = [

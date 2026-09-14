@@ -17,7 +17,12 @@ import { toStringWithNull } from './string-utils.ts';
 import { stringifyFrontmatter } from './yaml-utils.ts';
 
 // types
-import type { FrontmatterEntries, FrontmatterFields, FrontmatterResult } from '../../types/frontmatter.types.ts';
+import type {
+  FrontmatterEntries,
+  FrontmatterFields,
+  FrontmatterFieldType,
+  FrontmatterResult,
+} from '../../types/frontmatter.types.ts';
 import type { Result } from '../../types/result.types.ts';
 
 // Error
@@ -134,9 +139,10 @@ export const hasFrontmatter = (text: string): boolean => {
  * `FrontmatterFields` の必須フィールドがすべて充足しているか判定する。
  *
  * - `string[]` を渡した場合: 全フィールドを `'string'` 型として判定（非空であること）
- * - `Record<string, 'string' | 'array'>` を渡した場合: フィールドごとの期待型で判定
+ * - `Record<string, FrontmatterFieldType>` を渡した場合: フィールドごとの期待型で判定
  *   - `'string'`: 非空文字列であること
  *   - `'array'`: 配列であること（空配列を含む。スカラー文字列は不充足）
+ *   - `'nonEmptyArray'`: 配列かつ 1 要素以上であること（空配列・スカラー文字列は不充足）
  *
  * @param values - チェック対象のフィールド値を持つ `FrontmatterFields`
  * @param fields - フィールド名リスト、またはフィールド名と期待型のマップ（デフォルト: `FM_FIELD_TYPES`）
@@ -144,19 +150,26 @@ export const hasFrontmatter = (text: string): boolean => {
  */
 export const hasFrontmatterFields = (
   values: FrontmatterFields,
-  fields: readonly string[] | Record<string, 'string' | 'array'> = FM_FIELD_TYPES,
+  fields: readonly string[] | Record<string, FrontmatterFieldType> = FM_FIELD_TYPES,
 ): boolean => {
-  const _checkField = (expectedType: 'string' | 'array', value: string | string[] | undefined): boolean => {
-    if (expectedType === 'array') {
-      return Array.isArray(value);
+  const _checkField = (
+    expectedType: FrontmatterFieldType,
+    value: string | string[] | undefined,
+  ): boolean => {
+    switch (expectedType) {
+      case 'array':
+        return Array.isArray(value);
+      case 'nonEmptyArray':
+        return Array.isArray(value) && value.length >= 1;
+      case 'string':
+        return typeof value === 'string' && value.length > 0;
     }
-    return typeof value === 'string' && value.length > 0;
   };
 
   if (Array.isArray(fields)) {
     return fields.every((field) => _checkField('string', values[field]));
   }
-  return Object.entries(fields as Record<string, 'string' | 'array'>).every(
+  return Object.entries(fields as Record<string, FrontmatterFieldType>).every(
     ([field, expectedType]) => _checkField(expectedType, values[field]),
   );
 };

@@ -790,7 +790,7 @@ describe('hasFrontmatter', () => {
  *
  * `FrontmatterFields` の 5 フィールド充足チェックを検証する。
  *
- * テスト ID 範囲: T-FU-HFF-01 〜 T-FU-HFF-09
+ * テスト ID 範囲: T-FU-HFF-01 〜 T-FU-HFF-13
  *
  * @see hasFrontmatterFields
  */
@@ -822,6 +822,11 @@ describe('hasFrontmatterFields', () => {
     it('[Normal] T-FU-HFF-06: fieldsを["title"]に限定 → titleのみチェック → true', () => {
       const _fields: Record<string, string | string[]> = { title: 'Hello' };
       assertEquals(hasFrontmatterFields(_fields, ['title']), true);
+    });
+
+    it("[Normal] T-FU-HFF-10: fields で topics を 'nonEmptyArray' 指定、topics が非空配列 → true", () => {
+      const _fields: Record<string, string | string[]> = { topics: ['a'] };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray' }), true);
     });
   });
 
@@ -858,9 +863,25 @@ describe('hasFrontmatterFields', () => {
       };
       assertEquals(hasFrontmatterFields(_fields), false);
     });
+
+    it('[Error] T-FU-HFF-11: 既定値で topics が空配列 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: [],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it("[Error] T-FU-HFF-12: fields で topics を 'nonEmptyArray' 指定、topics がスカラー文字列 → false", () => {
+      const _fields: Record<string, string | string[]> = { topics: 'ai' };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray' }), false);
+    });
   });
 
-  /** 'array' フィールドの境界値ケース（空配列は充足）。 */
+  /** 配列フィールドの境界値ケース（tags の 'array' は空配列で充足、topics の 'nonEmptyArray' は 1 要素以上が必要）。 */
   describe('When: エッジケース', () => {
     it('[Edge] T-FU-HFF-04: 配列フィールド(tags)が空配列 → true', () => {
       const _fields: Record<string, string | string[]> = {
@@ -873,7 +894,7 @@ describe('hasFrontmatterFields', () => {
       assertEquals(hasFrontmatterFields(_fields), true);
     });
 
-    it('[Edge] T-FU-HFF-07: 配列フィールド(topics/tags)が両方空配列 → true', () => {
+    it('[Edge] T-FU-HFF-07: 配列フィールド(topics/tags)が両方空配列 → topics が不充足で false', () => {
       const _fields: Record<string, string | string[]> = {
         type: 'tech',
         category: 'backend',
@@ -881,7 +902,12 @@ describe('hasFrontmatterFields', () => {
         topics: [],
         tags: [],
       };
-      assertEquals(hasFrontmatterFields(_fields), true);
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it("[Edge] T-FU-HFF-13: 'array' は空配列で充足、'nonEmptyArray' は 1 要素で充足 → true", () => {
+      const _fields: Record<string, string | string[]> = { topics: ['a'], tags: [] };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray', tags: 'array' }), true);
     });
 
     it('[Edge] T-FU-HFF-09: 配列フィールド(topics)が空文字列（bare topics: 由来） → false', () => {
