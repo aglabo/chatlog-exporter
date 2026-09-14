@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env --allow-net
 // src: scripts/filter-chatlogs.ts
 // @(#): チャットログを claude CLI でバッチ判定し DISCARD ファイルを削除する
 //

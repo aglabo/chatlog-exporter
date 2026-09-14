@@ -149,7 +149,7 @@ deno run --config ./deno.json --allow-read --allow-write "$NOISE_FILTER_PATH" $R
 `ChatlogCache` の初期化で `TEMP` 環境変数を参照するため `--allow-env` が必須:
 
 ```bash
-deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" $ARGS
+deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" $ARGS
 ```
 
 引数からオプションを組み立てるルール:
