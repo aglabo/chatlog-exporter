@@ -45,7 +45,7 @@ import type {
   DenoCommandLike,
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-import type { AiRunnerProvider } from '../../../../../_cle-libs/types/providers.types.ts';
+import type { AiRunnerProvider, RunAIOptions } from '../../../../../_cle-libs/types/providers.types.ts';
 
 /**
  * 非ゼロ exit かつ stderr に rate limit 文言を含む出力を模倣するモッククラス。
@@ -445,6 +445,87 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
       assertEquals(result, ['/tmp/input/a.md', '/tmp/input/b.md']);
       assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
       assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.ERROR);
+    });
+  });
+});
+
+/**
+ * `processChunk` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #1）を渡すことを検証するスイート。
+ *
+ * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ *
+ * 出力契約違反（`ResponseSchemaViolation`）が続行側として扱われることも検証する。
+ *
+ * テスト ID 範囲: T-CL-OCT-01 〜 T-CL-OCT-02
+ *
+ * @see processChunk
+ */
+describe('processChunk — 出力契約（outputContract）', () => {
+  describe('When: aiRunnerProvider を呼び出す', () => {
+    let loggerStub: LoggerStub;
+    let cache: ChatlogCache<ClassifyCache>;
+
+    beforeEach(async () => {
+      loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+    });
+
+    it('[Normal] T-CL-OCT-01-01: options に #1 json-array 契約が渡り、model / signal も従来どおり渡る', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
+      const ctl = new AbortController();
+      let captured: RunAIOptions | undefined;
+      const runner: AiRunnerProvider = (_system, _user, options) => {
+        captured = options;
+        return Promise.resolve('[]');
+      };
+
+      await processChunk(metas, projects, 'sonnet', cache, ctl, runner);
+
+      assertEquals(captured?.outputContract, {
+        contract: 'json-array',
+        properties: {
+          file: { type: 'string' },
+          project: { type: 'string', values: ['app1', 'app2', 'misc'], fallback: 'misc' },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      });
+      assertEquals(captured?.model, 'sonnet');
+      assertStrictEquals(captured?.signal, ctl.signal);
+    });
+  });
+
+  /** 出力契約違反（`ResponseSchemaViolation`）を続行側として扱うケース（DR-18 / R-008）。 */
+  describe('When: aiRunnerProvider が ResponseSchemaViolation を投げる', () => {
+    let loggerStub: LoggerStub;
+    let cache: ChatlogCache<ClassifyCache>;
+
+    beforeEach(async () => {
+      loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+    });
+
+    it('[Error] T-CL-OCT-02-01: throw せずチャンク全件が action: ERROR として cache に書かれ、signal は abort されない', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
+      const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
+      const ctl = new AbortController();
+      const runner = _throwingRunner(new ChatlogError('AiError', 'ResponseSchemaViolation', 'schema violation'));
+
+      const result = await processChunk(metas, projects, 'sonnet', cache, ctl, runner);
+
+      assertEquals(result, ['/tmp/input/a.md', '/tmp/input/b.md']);
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(ctl.signal.aborted, false);
     });
   });
 });
