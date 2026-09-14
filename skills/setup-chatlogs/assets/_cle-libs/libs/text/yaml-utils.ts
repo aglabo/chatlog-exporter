@@ -11,10 +11,13 @@ import type { FrontmatterFields } from '../../types/frontmatter.types.ts';
 
 const _quoteString = (s: string): string => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
+const _serializeArray = (key: string, value: string[]): string =>
+  value.length === 0
+    ? `${key}: []\n`
+    : `${key}:\n${value.map((item) => `  - ${_quoteString(item)}`).join('\n')}\n`;
+
 const _serializeValue = (key: string, value: string | string[]): string =>
-  Array.isArray(value)
-    ? `${key}:\n${value.map((item) => `  - ${_quoteString(item)}`).join('\n')}\n`
-    : `${key}: ${_quoteString(value)}\n`;
+  Array.isArray(value) ? _serializeArray(key, value) : `${key}: ${_quoteString(value)}\n`;
 
 export const stringifyFrontmatter = (fields: FrontmatterFields): string =>
   Object.entries(fields).map(([k, v]) => _serializeValue(k, v)).join('');

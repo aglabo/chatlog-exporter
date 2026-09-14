@@ -136,7 +136,7 @@ export const hasFrontmatter = (text: string): boolean => {
  * - `string[]` を渡した場合: 全フィールドを `'string'` 型として判定（非空であること）
  * - `Record<string, 'string' | 'array'>` を渡した場合: フィールドごとの期待型で判定
  *   - `'string'`: 非空文字列であること
- *   - `'array'`: 1要素以上の配列であること（スカラー文字列は不充足）
+ *   - `'array'`: 配列であること（空配列を含む。スカラー文字列は不充足）
  *
  * @param values - チェック対象のフィールド値を持つ `FrontmatterFields`
  * @param fields - フィールド名リスト、またはフィールド名と期待型のマップ（デフォルト: `FM_FIELD_TYPES`）
@@ -148,7 +148,7 @@ export const hasFrontmatterFields = (
 ): boolean => {
   const _checkField = (expectedType: 'string' | 'array', value: string | string[] | undefined): boolean => {
     if (expectedType === 'array') {
-      return Array.isArray(value) && value.length >= 1;
+      return Array.isArray(value);
     }
     return typeof value === 'string' && value.length > 0;
   };
@@ -182,7 +182,7 @@ export const parseFrontmatterEntries = (text: string): FrontmatterEntries => {
 /**
  * `entries` を `fieldOrder` の順に並べ、空値を除いた Record を返す。
  *
- * `fieldOrder` の順に走査し、`undefined`・空文字列・空配列の値はスキップする。
+ * `fieldOrder` の順に走査し、`undefined`・空文字列の値はスキップする（空配列は保持）。
  * `fieldOrder` に重複があっても 1 回だけ出力する。
  *
  * @param entries - 並べ替え元の Record
@@ -199,9 +199,7 @@ export const reorderFrontmatterEntries = (
     if (_seen.has(field)) { continue; }
     _seen.add(field);
     const value = entries[field];
-    if (value === undefined) { continue; }
-    if (typeof value === 'string' && value === '') { continue; }
-    if (Array.isArray(value) && value.length === 0) { continue; }
+    if (value === undefined || value === '') { continue; }
     _result[field] = value;
   }
   return _result;
