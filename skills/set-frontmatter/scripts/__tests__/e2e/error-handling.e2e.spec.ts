@@ -16,8 +16,14 @@ import { main } from '../../set-frontmatter.ts';
 import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─── Helpers
-import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import {
+  installCommandMock,
+  makeClaudeJsonMock,
+  makeCountingMock,
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { dirExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { joinPath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import {
   makeDicsDir,
   makeRateLimitFailOnNthMock,
@@ -538,5 +544,118 @@ describe('main - ExitFailure 続行 (review フェーズ) (T-SF-E2E-19)', () => 
         });
       });
     });
+  });
+});
+
+// ─── T-SF-E2E-20〜22: 起動時の出力契約検査がキャッシュ作成・AI 呼び出し・エントリ読み込みより前に main を中断する ─
+
+/**
+ * 辞書読み込み直後の `assertSetfmContracts(dics)` が、category 辞書にフォールバック値
+ * `development` が無いとき main を `ChatlogError(InvalidFormat/InvalidDic)` で中断することを検証する。
+ *
+ * 呼び出し位置は main の振る舞いで固定する:
+ * - T-SF-E2E-20: AI 呼び出し（Deno.Command）が 0 回のまま reject する
+ * - T-SF-E2E-21: `.md` の無い inputDir でも reject する（`loadAllEntries` の「対象ファイルなし」早期 return より前）
+ * - T-SF-E2E-22: `--dry-run` でも同じく reject する
+ * - 各ケースの `-02`: reject 後に `<cacheDir>/fm-cache` が作成されていない（`ChatlogCache` 生成より前）
+ *
+ * テスト ID 範囲: T-SF-E2E-20-01 〜 T-SF-E2E-22-02
+ */
+describe('main - 起動時の出力契約検査 (T-SF-E2E-20〜22)', () => {
+  describe('Given: category.dic に development が無い辞書（bugfix のみ）', () => {
+    let outputDir: string;
+    let cacheDir: string;
+    let dicsDir: string;
+    let counter: { calls: number };
+    let commandHandle: CommandMockHandle;
+    let loggerStub: LoggerStub;
+
+    beforeEach(async () => {
+      outputDir = await Deno.makeTempDir();
+      cacheDir = await Deno.makeTempDir();
+      dicsDir = await makeDicsDir();
+      await Deno.writeTextFile(
+        `${dicsDir}/category.dic`,
+        'bugfix:\n  def: 不具合修正\n  desc: 不具合修正\n  rules:\n    when: []\n    not: []\n',
+      );
+      counter = { calls: 0 };
+      commandHandle = installCommandMock(makeCountingMock('', counter));
+      loggerStub = makeLoggerStub();
+    });
+
+    afterEach(async () => {
+      commandHandle.restore();
+      loggerStub.restore();
+      await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+      await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
+      // dicsDir は baseDir/dics なので親ディレクトリを削除
+      await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
+    });
+
+    const _runMain = (inputDir: string, extraArgs: string[] = []): Promise<void> =>
+      main([
+        '--input-dir',
+        inputDir,
+        '--output-dir',
+        outputDir,
+        '--cache-dir',
+        cacheDir,
+        '--no-review',
+        '--dics',
+        dicsDir,
+        ...extraArgs,
+      ]);
+
+    const _cases = [
+      {
+        id: 'T-SF-E2E-20',
+        when: '.md 1 件の inputDir で main を呼び出す',
+        makeInputDir: () => makeTargetDir(),
+        extraArgs: [],
+      },
+      {
+        id: 'T-SF-E2E-21',
+        when: '.md を含まない空の inputDir で main を呼び出す',
+        makeInputDir: () => Deno.makeTempDir(),
+        extraArgs: [],
+      },
+      {
+        id: 'T-SF-E2E-22',
+        when: '.md 1 件の inputDir で --dry-run を付けて main を呼び出す',
+        makeInputDir: () => makeTargetDir(),
+        extraArgs: ['--dry-run'],
+      },
+    ];
+
+    for (const { id, when, makeInputDir, extraArgs } of _cases) {
+      describe(`When: ${when}`, () => {
+        describe(`Then: ${id} - AI を呼ばずキャッシュも作らずに ChatlogError(InvalidFormat/InvalidDic) で reject する`, () => {
+          let inputDir: string;
+
+          beforeEach(async () => {
+            inputDir = await makeInputDir();
+          });
+
+          afterEach(async () => {
+            await Deno.remove(inputDir, { recursive: true }).catch(() => {});
+          });
+
+          it(`[Error] ${id}-01: reject し AI 呼び出しは 0 回`, async () => {
+            const _err = await assertRejects(() => _runMain(inputDir, extraArgs), ChatlogError) as ChatlogError;
+
+            assertEquals(_err.kind, 'InvalidFormat');
+            assertEquals(_err.subindex, 'InvalidDic');
+            assertEquals(_err.message.includes('category.dic: category: フォールバック値 "development"'), true);
+            assertEquals(counter.calls, 0);
+          });
+
+          it(`[Error] ${id}-02: reject 後に cacheDir 配下の fm-cache が作成されていない`, async () => {
+            await assertRejects(() => _runMain(inputDir, extraArgs), ChatlogError);
+
+            assertEquals(await dirExists(joinPath(cacheDir, 'fm-cache')), false);
+          });
+        });
+      });
+    }
   });
 });

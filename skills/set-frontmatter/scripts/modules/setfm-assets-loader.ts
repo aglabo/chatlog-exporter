@@ -1,6 +1,6 @@
 // src: scripts/modules/setfm-assets-loader.ts
 // @(#): set-frontmatter assets/ 配下の静的アセット（辞書・プロンプト）読み込みモジュール
-//       対象: loadDics / loadPrompts
+//       対象: loadDics / loadPrompts / resolveDicsDir
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -81,12 +81,24 @@ const _loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
   return { system, user };
 };
 
-export const loadDics = async (dicsDir: string): Promise<Dics> => {
-  const _resolvedDicsDir = resolveConfigPath({
+/**
+ * 辞書ディレクトリを解決する。
+ *
+ * 絶対パスは正規化してそのまま返し、相対パスは `.config/<appName>/` 基準に解決する。
+ * `loadDics` の読み込み先と、起動時検査のエラーメッセージに使う辞書パスを一致させるために公開する。
+ *
+ * @param dicsDir - 設定・引数で指定された辞書ディレクトリ
+ * @returns 解決済みの辞書ディレクトリ
+ */
+export const resolveDicsDir = (dicsDir: string): string =>
+  resolveConfigPath({
     configPath: dicsDir,
     defaultPath: dicsDir,
     config: GlobalConfig.getInstance(),
   });
+
+export const loadDics = async (dicsDir: string): Promise<Dics> => {
+  const _resolvedDicsDir = resolveDicsDir(dicsDir);
   const [categoryRaw, topicsRaw, tagsRaw, typesRaw] = await Promise.all([
     _readAssetFile(`${_resolvedDicsDir}/category.dic`),
     _readAssetFile(`${_resolvedDicsDir}/topics.dic`),

@@ -18,7 +18,7 @@ import { stub } from '@std/testing/mock';
 import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { generateFrontmatter } from '../../setfm-frontmatter.ts';
+import { buildFrontmatterOutputContract, generateFrontmatter } from '../../setfm-frontmatter.ts';
 // functions
 import { reviewFrontmatter } from '../../setfm-review.ts';
 
@@ -39,8 +39,10 @@ import type {
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { assertOutputContractValues } from '../../../../../_cle-libs/libs/ai/json-schema-builder.ts';
 import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 // types
+import type { RunAIOptions } from '../../../../../_cle-libs/types/providers.types.ts';
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
@@ -56,6 +58,18 @@ const _mockDics: Dics = {
   categoryEntries: [],
   typeEntries: [],
   topicEntries: [],
+};
+
+/** 出力契約テスト用 Dics。topics / tags の値域を契約定義へ導出できるよう、それぞれ 2 件のキーを持つ。 */
+const _contractDics: Dics = {
+  category: 'development,tooling',
+  tags: 'typescript,deno',
+  categoryEntries: [],
+  typeEntries: [],
+  topicEntries: [
+    { key: 'ai', def: 'AI', desc: 'AI 関連', rules: {} },
+    { key: 'tooling', def: 'Tooling', desc: 'ツール関連', rules: {} },
+  ],
 };
 
 /** テスト用最小 Prompts。'meta' キーにシステム・ユーザープロンプトを持つ。 */
@@ -275,6 +289,27 @@ describe('generateFrontmatter', () => {
       assertEquals(_entry.frontmatter.get('category'), 'original-cat');
       assertEquals(_entry.frontmatter.get('title'), 'overwrite test');
     });
+
+    it('[Normal] T-SF-FM-01-03: aiRunnerProvider が tags 空配列を返す → true を返し entry.frontmatter の tags に [] がセットされる', async () => {
+      const _runner = (): Promise<string> => Promise.resolve('title: "t"\ntopics:\n  - ai\ntags: []\n');
+
+      const _entry = _makeChatlogEntry();
+      const result = await generateFrontmatter(
+        _entry,
+        _MAX_CONTENT_LENGTH,
+        _mockDics,
+        _mockPrompts,
+        0,
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(result, true);
+      assertEquals(_entry.frontmatter.get('title'), 't');
+      assertEquals(_entry.frontmatter.get('topics'), ['ai']);
+      assertEquals(_entry.frontmatter.get('tags'), []);
+    });
   });
 
   /**
@@ -347,6 +382,25 @@ describe('generateFrontmatter', () => {
       const result = await generateFrontmatter(_entry, _MAX_CONTENT_LENGTH, _mockDics, _mockPrompts, 0);
 
       assertEquals(result, false);
+    });
+
+    it('[Error] T-SF-FM-02-05: aiRunnerProvider が topics 空配列を返す → false を返し entry.frontmatter は未更新', async () => {
+      const _runner = (): Promise<string> => Promise.resolve('title: "t"\ntopics: []\ntags: []\n');
+
+      const _entry = _makeChatlogEntry();
+      const result = await generateFrontmatter(
+        _entry,
+        _MAX_CONTENT_LENGTH,
+        _mockDics,
+        _mockPrompts,
+        0,
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(result, false);
+      assertEquals(_entry.frontmatter.get('title'), undefined);
     });
 
     it('[Error] T-SF-FM-02-03: AiError 以外の例外(TimedOut) → 即 throw (リトライしない)', async () => {
@@ -531,5 +585,116 @@ describe('generateFrontmatter / reviewFrontmatter — maxRetry ループは転�
     );
     assertEquals(_reviewError.kind, 'AiError');
     assertEquals(_reviewCounter.calls, 1);
+  });
+});
+
+/**
+ * `generateFrontmatter` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #4）を渡すことを検証するスイート。
+ *
+ * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ *
+ * テスト ID 範囲: T-SF-OCT-01 〜 T-SF-OCT-04
+ *
+ * @see generateFrontmatter
+ */
+describe('generateFrontmatter — 出力契約（outputContract）', () => {
+  describe('When: aiRunnerProvider を呼び出す', () => {
+    it('[Normal] T-SF-OCT-01-01: options に #4 yaml 契約（firstField title、topics / tags 要素 enum）が渡り true を返す', async () => {
+      let captured: RunAIOptions | undefined;
+      const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
+        captured = options;
+        return Promise.resolve('title: T\ntopics:\n  - ai\ntags:\n  - typescript\n');
+      };
+
+      const _result = await generateFrontmatter(
+        _makeChatlogEntry(),
+        30000,
+        _contractDics,
+        _mockPrompts,
+        0,
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(captured?.outputContract, {
+        contract: 'yaml',
+        firstField: 'title',
+        properties: {
+          title: { type: 'string' },
+          topics: { type: 'array', items: { type: 'string', values: ['ai', 'tooling'] } },
+          tags: { type: 'array', items: { type: 'string', values: ['typescript', 'deno'] } },
+        },
+      });
+      assertEquals(_result, true);
+    });
+  });
+
+  /** 出力契約違反（ResponseSchemaViolation）が maxRetry ループの外へ抜けるケース。 */
+  describe('When: aiRunnerProvider が ResponseSchemaViolation を throw する', () => {
+    it('[Error] T-SF-OCT-04-01: maxRetry=3 でもリトライせず ChatlogError(AiError/ResponseSchemaViolation) で reject し、呼び出しは 1 回', async () => {
+      let calls = 0;
+      const _runner = (): Promise<string> => {
+        calls++;
+        throw new ChatlogError('AiError', 'ResponseSchemaViolation', 'schema violation');
+      };
+
+      const _error = await assertRejects(
+        () =>
+          generateFrontmatter(
+            _makeChatlogEntry(),
+            30000,
+            _contractDics,
+            _mockPrompts,
+            3,
+            'sonnet',
+            undefined,
+            _runner,
+          ),
+        ChatlogError,
+      );
+
+      assertEquals(_error.kind, 'AiError');
+      assertEquals(_error.subindex, 'ResponseSchemaViolation');
+      assertEquals(calls, 1);
+    });
+  });
+});
+
+/**
+ * `buildFrontmatterOutputContract` が辞書から `topics` / `tags` の値域を導出することを検証するスイート。
+ *
+ * テスト ID 範囲: T-SF-OCT-07
+ *
+ * @see buildFrontmatterOutputContract
+ */
+describe('buildFrontmatterOutputContract', () => {
+  describe('When: 正常系', () => {
+    it("[Normal] T-SF-OCT-07-01: tags: 'typescript,deno' → tags の値域が ['typescript', 'deno'] になる", () => {
+      const _contract = buildFrontmatterOutputContract({ ..._contractDics, tags: 'typescript,deno' });
+
+      assertEquals(_contract.properties.tags, {
+        type: 'array',
+        items: { type: 'string', values: ['typescript', 'deno'] },
+      });
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it("[Edge] T-SF-OCT-07-02: tags: ''（空辞書）→ tags の値域が [] になり、値域検査を通過する", () => {
+      const _contract = buildFrontmatterOutputContract({ ..._contractDics, tags: '' });
+
+      assertEquals(_contract.properties.tags, { type: 'array', items: { type: 'string', values: [] } });
+      assertOutputContractValues(_contract);
+    });
+
+    it("[Edge] T-SF-OCT-07-03: tags: 'typescript,,deno,'（途中・末尾の空要素）→ tags の値域が ['typescript', 'deno'] になる", () => {
+      const _contract = buildFrontmatterOutputContract({ ..._contractDics, tags: 'typescript,,deno,' });
+
+      assertEquals(_contract.properties.tags, {
+        type: 'array',
+        items: { type: 'string', values: ['typescript', 'deno'] },
+      });
+    });
   });
 });

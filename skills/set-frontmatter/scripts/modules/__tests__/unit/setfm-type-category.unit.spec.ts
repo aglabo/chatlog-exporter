@@ -1,6 +1,6 @@
-// src: scripts/modules/__tests__/unit/judge-type-category.unit.spec.ts
-// @(#): judgeTypeAndCategory のユニットテスト
-//       対象: judgeTypeAndCategory, _buildTypeCategorySystemPrompt
+// src: scripts/modules/__tests__/unit/setfm-type-category.unit.spec.ts
+// @(#): setfm-type-category のユニットテスト
+//       対象: judgeTypeAndCategory, _buildTypeCategorySystemPrompt, buildTypeCategoryOutputContract
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import {
   _buildTypeCategorySystemPromptForTest as buildTypeCategorySystemPrompt,
+  buildTypeCategoryOutputContract,
   judgeTypeAndCategory,
 } from '../../setfm-type-category.ts';
 
@@ -36,13 +37,14 @@ import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logg
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { restoreContractText } from '../../../../../_cle-libs/libs/ai/output-contract.ts';
 // constants
 import {
   DEFAULT_FALLBACK_CATEGORY,
   DEFAULT_FALLBACK_TYPE,
 } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
-import type { AiRunnerProvider } from '../../../../../_cle-libs/types/providers.types.ts';
+import type { AiRunnerProvider, RunAIOptions } from '../../../../../_cle-libs/types/providers.types.ts';
 import type { DicEntry, Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
@@ -750,6 +752,113 @@ describe('judgeTypeAndCategory — llama 中断側判定（isAbortingAiError）'
       assertStrictEquals(_thrownBackendUnavailable, _backendUnavailable);
       assertEquals(_entryBackendUnavailable.frontmatter.get('type'), undefined);
       assertEquals(_entryBackendUnavailable.frontmatter.get('category'), undefined);
+    });
+  });
+});
+
+/**
+ * `judgeTypeAndCategory` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #6）を渡すことを検証するスイート。
+ *
+ * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ *
+ * テスト ID 範囲: T-SF-OCT-03-01 〜 T-SF-OCT-06-01
+ *
+ * @see judgeTypeAndCategory
+ */
+describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
+  describe('When: aiRunnerProvider を呼び出す', () => {
+    it('[Normal] T-SF-OCT-03-01: options に #6 line-prefixed 契約（type / category の enum と fallback）が渡る', async () => {
+      let captured: RunAIOptions | undefined;
+      const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
+        captured = options;
+        return Promise.resolve('type: discussion\ncategory: tooling');
+      };
+
+      await judgeTypeAndCategory(
+        _makeChatlogEntry('# テスト\n本文'),
+        30000,
+        _makeDics(),
+        _makePrompts(),
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(captured?.outputContract, {
+        contract: 'line-prefixed',
+        properties: {
+          type: { type: 'string', values: ['research', 'execution', 'discussion'], fallback: 'research' },
+          category: { type: 'string', values: ['development', 'tooling', 'ai'], fallback: 'development' },
+        },
+      });
+    });
+  });
+
+  /** line-prefixed 契約で復元したテキストが、フォールバックではなく辞書値として解決されるケース（AC-024）。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-SF-OCT-06-01: 契約から復元したテキストを返す → 非フォールバックの type / category が書き込まれ true を返す', async () => {
+      const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> =>
+        options?.outputContract
+          ? Promise.resolve(restoreContractText(options.outputContract, { type: 'discussion', category: 'tooling' }))
+          : Promise.reject(new Error('outputContract is not passed'));
+      const _entry = _makeChatlogEntry('# テスト\n本文');
+
+      const _result = await judgeTypeAndCategory(
+        _entry,
+        30000,
+        _makeDics(),
+        _makePrompts(),
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(_result, true);
+      assertEquals(_entry.frontmatter.get('type'), 'discussion');
+      assertEquals(_entry.frontmatter.get('category'), 'tooling');
+    });
+  });
+});
+
+/**
+ * `buildTypeCategoryOutputContract` のユニットテストスイート。
+ *
+ * `Dics` から type / category 判定の出力契約（structured-output §4.3.1 #6）を組み立てることを検証する。
+ * 値域は `judgeTypeAndCategory` の照合と同じ導出（typeEntries のキー / category の `,` 分割）を使う。
+ *
+ * テスト ID 範囲: T-SF-OCT-09-01 〜 T-SF-OCT-09-02
+ *
+ * @see buildTypeCategoryOutputContract
+ */
+describe('buildTypeCategoryOutputContract', () => {
+  /** 辞書に type / category の値が揃っている正常ケース。 */
+  describe('When: 正常系', () => {
+    it("[Normal] T-SF-OCT-09-01: typeEntries キー ['research','idea'] と category 'development,bugfix' → #6 line-prefixed 契約", () => {
+      const _dics: Dics = {
+        ..._makeDics([_makeTypeEntry({ key: 'research' }), _makeTypeEntry({ key: 'idea' })]),
+        category: 'development,bugfix',
+      };
+
+      assertEquals(buildTypeCategoryOutputContract(_dics), {
+        contract: 'line-prefixed',
+        properties: {
+          type: { type: 'string', values: ['research', 'idea'], fallback: 'research' },
+          category: { type: 'string', values: ['development', 'bugfix'], fallback: 'development' },
+        },
+      });
+    });
+  });
+
+  /** 辞書が空の境界ケース。 */
+  describe('When: エッジケース', () => {
+    it("[Edge] T-SF-OCT-09-02: category '' → category の値域は []（空要素を除去する）", () => {
+      const _dics: Dics = { ..._makeDics(), category: '' };
+
+      assertEquals(buildTypeCategoryOutputContract(_dics).properties.category, {
+        type: 'string',
+        values: [],
+        fallback: 'development',
+      });
     });
   });
 });

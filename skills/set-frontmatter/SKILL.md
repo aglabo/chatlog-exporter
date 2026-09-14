@@ -120,13 +120,13 @@ PATH_ARGS=()
 
 ```bash
 # INPUT_DIR のみ指定 (OUTPUT_DIR は --output-dir を省略してスクリプトのデフォルトに委ねる):
-deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
+deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
 
 # INPUT_DIR と OUTPUT_DIR 両方指定:
-deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env "$SCRIPT_PATH" \
+deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --output-dir "$OUTPUT_DIR" \
   $DRY_RUN_FLAG \
@@ -221,7 +221,16 @@ tags:
 - `tags.dic`: tags 選択肢 (キーが `<namespace>:<value>` 形式)
 - `types.dic`: type 選択肢 (`execution` / `incident` / `discussion` / `research` / `writing`)
 
-辞書ファイルが存在しない場合は警告を出して空として扱う (処理は継続する)。
+辞書ファイルが存在しない場合は警告を出して空として扱う。
+
+ただし、辞書の読み込み直後に出力契約の値域を検査する。次のいずれかに当てはまると、
+AI を呼び出す前に実行全体を中断する。`--dry-run` / `--no-review` を付けていても、AI バックエンドが何であっても同じ。
+
+- `category.dic` が存在しない・空、またはフォールバック値 `development` を含まない
+- `types.dic` が存在しない・空、またはフォールバック値 `research` を含まない
+
+中断時は `Invalid Format: <辞書ディレクトリ>/category.dic: category: 値域が空です` のように、
+原因となった辞書ファイルを示すエラーが出る。`tags.dic` / `topics.dic` は存在しない・空でも処理を続ける。
 
 ## 利用可能なオプション一覧
 

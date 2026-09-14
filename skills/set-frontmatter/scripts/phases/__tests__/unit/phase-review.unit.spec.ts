@@ -250,6 +250,7 @@ describe('phaseReview', () => {
 
   /**
    * validity='corrected' のとき r.corrected を cache.frontmatter に書き込むケース。
+   * r.corrected.topics が空配列のときは書き込まず status を review-failed にする（T-SF-PRV-03-01-04 / 07）。
    */
   describe('When: validity=corrected → r.corrected をキャッシュに書き込む', () => {
     it('[Normal] T-SF-PRV-03-01-01: corrected={type,category,title,topics,tags} → cache.frontmatter に反映', async () => {
@@ -266,6 +267,7 @@ describe('phaseReview', () => {
       assertEquals(fm?.['type'], 'tech');
       assertEquals(fm?.['category'], 'ai');
       assertEquals(fm?.['title'], 'T');
+      assertEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.REVIEWED);
     });
 
     it('[Normal] T-SF-PRV-03-01-02: corrected の type/category が cache.type/category に設定される', async () => {
@@ -316,21 +318,68 @@ describe('phaseReview', () => {
       assertEquals(cache.read(filePath).type, 'existing-type');
     });
 
-    it('[Edge] T-SF-PRV-03-01-04: r.corrected に空配列フィールドがある → cache の既存値が保持される', async () => {
+    it('[Error] T-SF-PRV-03-01-04: r.corrected.topics が空配列 → status=review-failed、既存 frontmatter/type/category を保持', async () => {
       const cache = await _makeCache();
       const filePath = '/path/to/a.md';
       await cache.write(filePath, {
         status: SETFM_CACHE_STATUSES.FRONTMATTER,
-        frontmatter: { topics: ['existing-topic'] },
+        type: 'existing-type',
+        category: 'existing-cat',
+        frontmatter: { topics: ['existing-topic'], title: 'cached-title' },
       });
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { topics: [], type: 'tech', category: 'ai' },
+      });
+      const entry = _makeEntry(filePath);
+      await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
+      const _cached = cache.read(filePath);
+      assertEquals(_cached.status, SETFM_CACHE_STATUSES.REVIEW_FAILED);
+      assertEquals(_cached.frontmatter?.['topics'], ['existing-topic']);
+      assertEquals(_cached.frontmatter?.['title'], 'cached-title');
+      assertEquals(_cached.type, 'existing-type');
+      assertEquals(_cached.category, 'existing-cat');
+    });
+
+    it('[Error] T-SF-PRV-03-01-07: r.corrected.topics が空配列 → logger.warn にファイル名と topics を含める', async () => {
+      const cache = await _makeCache();
       const { stub } = _makeCorrectedStub({
         validity: 'corrected',
         errors: [],
         corrected: { topics: [], type: 'tech' },
       });
+      const entry = _makeEntry('/path/to/a.md');
+      const warnSpy = spy(logger, 'warn');
+      try {
+        await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
+        assertEquals(warnSpy.calls.length, 1);
+        const _message = String(warnSpy.calls[0].args[0]);
+        assertEquals(_message.includes('a.md'), true);
+        assertEquals(_message.includes('topics'), true);
+      } finally {
+        warnSpy.restore();
+      }
+    });
+
+    it('[Edge] T-SF-PRV-03-01-06: r.corrected に topics/tags キーなし → cache の既存 topics/tags を保持', async () => {
+      const cache = await _makeCache();
+      const filePath = '/path/to/a.md';
+      await cache.write(filePath, {
+        status: SETFM_CACHE_STATUSES.FRONTMATTER,
+        frontmatter: { topics: ['existing-topic'], tags: ['old:tag'] },
+      });
+      const { stub } = _makeCorrectedStub({
+        validity: 'corrected',
+        errors: [],
+        corrected: { type: 'tech' },
+      });
       const entry = _makeEntry(filePath);
       await phaseReview([entry], cache, _dics, _prompts, { concurrency: 1, dryRun: false }, stub);
-      assertEquals(cache.read(filePath).frontmatter?.['topics'], ['existing-topic']);
+      const fm = cache.read(filePath).frontmatter;
+      assertEquals(fm?.['topics'], ['existing-topic']);
+      assertEquals(fm?.['tags'], ['old:tag']);
+      assertEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.REVIEWED);
     });
   });
 
