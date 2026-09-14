@@ -45,7 +45,7 @@
 # --kcov-options "--exclude-pattern=/usr"
 
 # Execution options
---jobs 16
+--jobs 4
 
 # --random none
 

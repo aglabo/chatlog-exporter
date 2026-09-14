@@ -27,6 +27,6 @@
     "test:system": "deno task test:module system",
     "test:fixtures": "deno task test:module fixtures",
     "test:scripts": "deno task test:module all scripts",
-    "test:module": "deno run --allow-read --allow-write --allow-run scripts/aplys-tester.ts"
+    "test:module": "deno run --allow-read --allow-write --allow-run --allow-net scripts/aplys-tester.ts"
   }
 }
