@@ -1,8 +1,8 @@
 ---
 title: "Implementation Plan: LAN llama サーバの AI バックエンド化"
-based-on: specifications-index.md v1.2.0
+based-on: specifications-index.md v1.3.0
 status: Draft
-version: 1.5.0
+version: 1.6.0
 created: "2026-09-03"
 ---
 
@@ -12,7 +12,7 @@ created: "2026-09-03"
   ja-technical-writing/no-unmatched-pair,
   -->
 <!-- markdownlint-disable no-space-in-code -->
-<!-- cspell:words setfm subindex aplys -->
+<!-- cspell:words setfm subindex aplys kwargs -->
 
 ## 1. Overview
 
@@ -46,8 +46,9 @@ classify-chatlogs / filter-chatlogs / normalize-chatlogs / set-frontmatter の 4
   ローカル対応は実用にならない) は DR-04 が採用、§6.2 (codex CLI 一択) は DR-01 が不採用、
   §6.6 (モデル名エラーメッセージ修正) は DR-06 が採用。§4 の `runAIStructured` 系による全面刷新は
   REQ-C-005 に反するため Out of Scope
-- Specifications: `specifications/specifications-index.md` v1.2.0 (索引) および分割 4 ファイル
-  (transport v2.0.1 / structured-output v2.1.0 / error-handling v2.0.1 / config-packaging v1.2.0)
+- Specifications: `specifications/specifications-index.md` v1.3.0 (索引) および分割 4 ファイル
+  (transport v2.0.1 / structured-output v2.3.0 / error-handling v2.0.1 / config-packaging v1.2.0)
+- Measurement: `measurements-response-format-2026-09-12.md` v1.0.0 (Phase 0 実測ゲートの記録)
 - Reviews: `reviews-claude-impl-explore-2026-09-04.md` /
   `reviews-claude-impl-harden-2026-09-04.md` (DR-20〜DR-23 を採択) /
   `reviews-claude-impl-fix-2026-09-04.md`。本版はこの 3 本の所見を反映したものにあたる
@@ -71,18 +72,18 @@ classify-chatlogs / filter-chatlogs / normalize-chatlogs / set-frontmatter の 4
 着手条件は本表が唯一の一覧を持つ。Phase 1〜4 は Phase 0 の結果に依存せず、実測の合否と独立に
 着地できる (DR-20 決定 3) 。Phase 5 以降が実測の合格に依存する。
 
-| Phase | 内容                               | Commit | 着手条件            |
-| ----- | ---------------------------------- | ------ | ------------------- |
-| 0     | REQ-F-016 実測ゲート               | なし   | なし (本計画の起点) |
-| 1     | DR-06 の周辺不具合修正             | 1〜2   | なし                |
-| 2     | 型・定数・設定の基盤               | 3〜5   | Phase 1 完了        |
-| 3     | 呼び出し元の中断判定拡張 (第 1 巡) | 6〜9   | Commit 5 完了       |
-| 4     | `runAI` の 3 層分割                | 10     | Phase 2 完了        |
-| 5     | 構造化出力                         | 11〜12 | **Phase 0 の合格**  |
-| 6     | HTTP トランスポート                | 13〜15 | Phase 5 完了        |
-| 7     | 出力契約の指定 (第 2 巡)           | 16〜19 | Commit 11 完了      |
-| 8     | 権限付与と結線                     | 20〜21 | Phase 4・6・7 完了  |
-| 9     | ドキュメント                       | 22     | Phase 8 完了        |
+| Phase | 内容                               | Commit | 着手条件                                 |
+| ----- | ---------------------------------- | ------ | ---------------------------------------- |
+| 0     | REQ-F-016 実測ゲート               | なし   | なし (本計画の起点)                      |
+| 1     | DR-06 の周辺不具合修正             | 1〜2   | なし                                     |
+| 2     | 型・定数・設定の基盤               | 3〜5   | Phase 1 完了                             |
+| 3     | 呼び出し元の中断判定拡張 (第 1 巡) | 6〜9   | Commit 5 完了                            |
+| 4     | `runAI` の 3 層分割                | 10     | Phase 2 完了                             |
+| 5     | 構造化出力                         | 11〜12 | **Phase 0 の合格** (2026-09-12 合格済み) |
+| 6     | HTTP トランスポート                | 13〜15 | Phase 5 完了                             |
+| 7     | 出力契約の指定 (第 2 巡)           | 16〜19 | Commit 11 完了                           |
+| 8     | 権限付与と結線                     | 20〜21 | Phase 4・6・7 完了                       |
+| 9     | ドキュメント                       | 22     | Phase 8 完了                             |
 
 Commit 21 (結線) はさらに 2 つの着手条件を持つ。(1) 6 呼び出しすべてが出力契約を指定済みで
 あること、(2) AI 実行経路への `--allow-net` 付与が完了していること (Commit 20) 。権限を経路より
@@ -94,10 +95,18 @@ Commit 21 (結線) はさらに 2 つの着手条件を持つ。(1) 6 呼び出�
 
 ### Phase 0: REQ-F-016 実測ゲート
 
-**参照**: REQ-F-016 / structured-output R-006 / DR-09・DR-22・DR-25
+**参照**: REQ-F-016 / structured-output R-006 / DR-09・DR-22・DR-25・DR-31
 
 実機 llama.cpp server に対し `response_format` (json_schema) 付きリクエストを実測する。
 commit を持たない。
+
+> **実測は 2026-09-12 に完了し、合格した。** 記録は
+> `measurements-response-format-2026-09-12.md` v1.0.0 が正であり、本節は以後その手順書として残す。
+> 着地は準拠 (honoured) 。3 スキーマ × 3 条件の 9 組がすべて 10/10 で、`finish_reason` は
+> 90 回すべて `stop` だった。モデル差の 3 組は測定せず、対応対象を測定レポート §1 の 1 構成に
+> 限定することで代えた (DR-31) 。対象構成は thinking を無効化する起動オプション
+> (`--chat-template-kwargs '{"enable_thinking":false}'`) を前提条件に含む。
+> これにより Phase 5 以降の着手条件を満たす。
 
 **測定内容**:
 
@@ -126,7 +135,7 @@ commit を持たない。
    `specifications-error-handling.md` §4.1 へ DR-26 の分類を反映する (仕様側の版上げを伴う)
 3. 本文書の frontmatter `based-on` と §1.2 Reference の版表記を、書き換え後の仕様の版へ更新する
 
-**不合格時の帰結** (DR-24 決定 3・4) : **Phase 1 (Commit 1・Commit 2) のみを着地させて
+**不合格時の帰結** (DR-24 決定 3・4) — 実測は合格したため本項は発動しなかった: **Phase 1 (Commit 1・Commit 2) のみを着地させて
 ブランチを閉じる。** Commit 3 以降はすべて llama バックエンドの存在を前提とするため破棄する。
 ネットワークを使う経路が存在しないため `--allow-net` の付与 (Commit 20) も行わない。Phase 3 の
 catch 拡張も、真を返す subindex を llama 経路しか throw しない以上、恒久的に偽となる分岐を
@@ -808,11 +817,11 @@ AC-012 (`bash scripts/sync-skill-assets.sh --check-staged` が差分なしで終
 
 ### 3.2 Phase 0 の実測に依存して残る未決
 
-| 未決                                                                                                 | 依存先              | 扱い                                                                                                                                      |
-| ---------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段 | Commit 15 の Step 5 | 判別できない 400 は続行側の `ExitFailure` に落とす。判別ロジックは差し替え可能な形に分離する                                              |
-| `finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認                                      | error-handling §4.1 | `finish_reason !== 'stop'` をすべて失敗とする。受理すべき値が判明したら §4.1 の表を改訂する                                               |
-| ~~`yaml` 契約の「許容型」の定義~~ (解決済み)                                                         | —                   | structured-output v2.1.0 §4.3.1 が呼び出し元ごとの required keys・値の型・enum 値域・フォールバック値を確定させた。Phase 0 には依存しない |
+| 未決                                                                                                 | 依存先              | 扱い                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段 | Commit 15 の Step 5 | **実測で HTTP 400 が 1 件も発生せず、判別条件は決められなかった** (測定レポート §3.2) 。判別できない 400 は続行側の `ExitFailure` に落とす既定を維持し、判別ロジックは差し替え可能な形に分離する |
+| ~~`finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認~~ (解決済み)                       | —                   | 実測 90 回すべてが `stop` であり、実装固有値は観測されなかった (測定レポート §3.1) 。`finish_reason !== 'stop'` をすべて失敗とする既定のまま error-handling §4.1 の改訂は不要                    |
+| ~~`yaml` 契約の「許容型」の定義~~ (解決済み)                                                         | —                   | structured-output v2.1.0 §4.3.1 が呼び出し元ごとの required keys・値の型・enum 値域・フォールバック値を確定させた。Phase 0 には依存しない                                                        |
 
 ---
 
@@ -945,3 +954,4 @@ R-004 は特定の commit に閉じない。§3.1 が対象 commit を列挙す�
 | 2026-09-05 | 1.4.0   | codex feasibility セカンドオピニオンの所見を反映: Commit 3 の Green を層ごとに分離し実 API と矛盾しない形へ訂正 (`parseModel` は provider prefix の照合のみで `llama/` を `{provider:'llama', model:''}` として解決する。空識別子の拒否は llama 限定の判定述語が担い、`ChatlogError` への写像は transport §4.1 Step 2 を担う Commit 10 前段が所有する)、対応する Green を Commit 10 へ追加。structured-output v2.1.0 §4.3.1 (呼び出し元ごとの契約定義) の新設を受けて Commit 11 / 12 の参照と本文を同表参照へ改め、辞書由来 enum の引数注入・単一値 enum のフォールバックの値域内包・配列要素 enum の空配列表現を Green へ追加、§3.2 の未決「`yaml` 契約の許容型」を解決済みとした |
 | 2026-09-06 | 1.4.1   | Commit 1 の非破壊判定を structured-output v2.1.2 §5.1 の訂正へ追随: 呼び出し元 3 箇所のうち filter は不適合であり、R-004 が意図した挙動として REQ-C-002 の例外に記録済みであることを明記（cle-nnb）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 2026-09-06 | 1.5.0   | PR #436 の codex レビュー所見（P1）を反映: Commit 9 が module 層の `setfm-type-category.ts` のみを対象としていたが、`setfm-frontmatter.ts` / `setfm-review.ts` から伝播した例外を phase 層の `runConcurrent` ワーカー（`phase-frontmatter.ts:133-139` / `phase-review.ts:80-86`）が `logger.error` + `return` で握りつぶすため、3 呼び出しのうち 2 つで REQ-F-006 のバッチ中断が成立しない。この 2 箇所の catch 第 1 分岐への新判定関数の追加を Commit 9 の変更対象へ加え、Green 条件を追加。normalize の `phase-segment.ts` には対応する catch が無く不要であることも明記                                                                                                         |
+| 2026-09-12 | 1.6.0   | Phase 0 実測ゲートの結果を反映 (MINOR: 実装対象を確定させる決定) 。合格 (9 組 10/10・`finish_reason` は全件 `stop`) を Phase 0 節へ記録し、参照へ測定レポート v1.0.0 を追加。§3.2 の未決 2 件を更新 (`finish_reason` は解決済み、HTTP 400 の読み分けは 400 未発生のため既定維持) 。based-on を specifications-index.md v1.3.0 へ、structured-output の版表記を v2.3.0 へ更新                                                                                                                                                                                                                                                                                                       |
