@@ -10,8 +10,9 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { phaseFrontmatter } from '../../phase-frontmatter.ts';
@@ -19,7 +20,10 @@ import { phaseFrontmatter } from '../../phase-frontmatter.ts';
 // ─── Helpers
 import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { generateFrontmatter } from '../../../modules/setfm-frontmatter.ts';
 // constants
 import { SETFM_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
@@ -253,7 +257,7 @@ const _makeFailGenerateStub = (_counter: { count: number }) =>
  * すべてのケースで cache MISS 状態（`_makeEmptyCache` 使用、`loadAll()` 未呼び出し）。
  * `_hasFrontmatterFields` は非 export のため、`phaseFrontmatter` 経由で振る舞いを検証する。
  *
- * テスト ID 範囲: T-SF-PF-01 〜 T-SF-PF-06
+ * テスト ID 範囲: T-SF-PF-01 〜 T-SF-PF-14
  *
  * @see phaseFrontmatter
  */
@@ -386,15 +390,17 @@ describe('_phaseFrontmatter', () => {
     });
   });
 
-  /** エッジケース: 空配列・空文字列は不充足として generateProvider に委ねる。 */
+  /** エッジケース: topics の空配列・空文字列は不充足として generateProvider に委ねる。 */
   describe('When: エッジケース', () => {
-    it('[Edge] T-SF-PF-06-01: topics が空配列 [] → generateProvider が1回呼ばれる', async () => {
-      const entry = _makeEmptyTopicsEntry('/path/to/empty-topics.md');
+    it('[Edge] T-SF-PF-06-01: topics が空配列 [] → 不充足として generateProvider が1回呼ばれ、status は frontmatter にならない', async () => {
+      const filePath = '/path/to/empty-topics.md';
+      const entry = _makeEmptyTopicsEntry(filePath);
       const counter = { count: 0 };
+      const cache = await _makeEmptyCache();
 
       await phaseFrontmatter(
         [entry],
-        await _makeEmptyCache(),
+        cache,
         _MAX_CONTENT_LENGTH,
         _DICS,
         _PROMPTS,
@@ -403,6 +409,7 @@ describe('_phaseFrontmatter', () => {
       );
 
       assertEquals(counter.count, 1);
+      assertNotEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.FRONTMATTER);
     });
 
     it('[Edge] T-SF-PF-06-02: title が空文字列 → generateProvider が1回呼ばれる', async () => {
@@ -607,6 +614,46 @@ describe('_phaseFrontmatter', () => {
         assertEquals(cache.read(filePath).status, SETFM_CACHE_STATUSES.FRONTMATTER);
       });
 
+      it('[Normal] T-SF-PF-12-02: AI 応答の tags が空配列 → status = frontmatter、frontmatter に [] を保持', async () => {
+        // generateProvider スタブではなく、実 generateFrontmatter + aiRunnerProvider スタブで空配列応答を通す
+        const filePath = '/path/to/empty-arrays-gen.md';
+        const entry = _makeEntry(filePath, ['type: research', 'category: development'], '# body');
+        const cache = await _makeEmptyCache();
+        // _DICS は空オブジェクトで出力契約の構築に使えないため、最小の Dics / Prompts を用意する
+        const _dics: Dics = {
+          category: 'development',
+          tags: 'typescript',
+          categoryEntries: [],
+          typeEntries: [],
+          topicEntries: [],
+        };
+        const _prompts: Prompts = {
+          categoryPrompts: new Map(),
+          prompts: new Map([['meta', { system: 'You are assistant.', user: 'Generate: {{body}}' }]]),
+        };
+        const _emptyArraysStub = (): Promise<string> => Promise.resolve('title: B\ntopics: [ai]\ntags: []\n');
+        const _generateProvider = (
+          entry: ChatlogEntry,
+          ...rest: [number, Dics, Prompts, number, string?, AbortSignal?]
+        ): Promise<boolean> => generateFrontmatter(entry, ...rest, _emptyArraysStub);
+
+        await phaseFrontmatter(
+          [entry],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _dics,
+          _prompts,
+          { concurrency: _CONCURRENCY, dryRun: false },
+          _generateProvider,
+        );
+
+        const _cached = cache.read(filePath);
+        assertEquals(_cached.status, SETFM_CACHE_STATUSES.FRONTMATTER);
+        assertEquals(_cached.frontmatter?.title, 'B');
+        assertEquals(_cached.frontmatter?.topics, ['ai']);
+        assertEquals(_cached.frontmatter?.tags, []);
+      });
+
       it('[Error] T-SF-PF-13-01: 生成失敗 (_ok=false) → status が frontmatter でない', async () => {
         const filePath = '/path/to/fail-gen.md';
         const entry = _makeMissingTopicsEntry(filePath);
@@ -644,6 +691,70 @@ describe('_phaseFrontmatter', () => {
 
         assertEquals(cache.read(filePath).status !== SETFM_CACHE_STATUSES.FRONTMATTER, true);
       });
+    });
+  });
+});
+
+/**
+ * `phaseFrontmatter` が出力契約違反（ResponseSchemaViolation）を当該ファイルの FAIL に留め、一括処理を続行することを検証するスイート。
+ *
+ * `generateProvider` から実 `generateFrontmatter` を呼び、`aiRunnerProvider` だけをスタブに差し替える。
+ * モジュール層の契約違反伝播は T-SF-OCT-04-01 でカバー済み。
+ *
+ * テスト ID 範囲: T-SF-OCTF-04
+ *
+ * @see phaseFrontmatter
+ */
+describe('phaseFrontmatter — 出力契約違反', () => {
+  describe('When: 一部ファイルの AI 応答が ResponseSchemaViolation になる', () => {
+    it('[Error] T-SF-OCTF-04-01: reject せず当該ファイルのみ FAIL を記録し、他ファイルの生成は続行する', async () => {
+      const _dics: Dics = {
+        category: 'development,tooling',
+        tags: 'typescript,deno',
+        categoryEntries: [],
+        typeEntries: [],
+        topicEntries: [
+          { key: 'ai', def: 'AI', desc: 'AI 関連', rules: {} },
+          { key: 'tooling', def: 'Tooling', desc: 'ツール関連', rules: {} },
+        ],
+      };
+      const _prompts: Prompts = {
+        categoryPrompts: new Map(),
+        prompts: new Map([['meta', { system: 'You are assistant.', user: 'Generate: {{body}}' }]]),
+      };
+      const _pathA = '/path/to/a.md';
+      const _pathB = '/path/to/b.md';
+      const _violationStub = (): Promise<string> =>
+        Promise.reject(new ChatlogError('AiError', 'ResponseSchemaViolation', 'schema violation'));
+      const _okStub = (): Promise<string> => Promise.resolve('title: B\ntopics:\n  - ai\ntags:\n  - typescript\n');
+      const _generateProvider = (
+        entry: ChatlogEntry,
+        ...rest: [number, Dics, Prompts, number, string?, AbortSignal?]
+      ): Promise<boolean> => generateFrontmatter(entry, ...rest, entry.filePath === _pathA ? _violationStub : _okStub);
+      const cache = await _makeEmptyCache();
+      const errorStub = stub(logger, 'error');
+
+      try {
+        await phaseFrontmatter(
+          [_makeEntry(_pathA, [], '# a'), _makeEntry(_pathB, [], '# b')],
+          cache,
+          _MAX_CONTENT_LENGTH,
+          _dics,
+          _prompts,
+          { concurrency: 1, dryRun: false, maxRetry: 3, model: 'sonnet' },
+          _generateProvider,
+        );
+      } finally {
+        errorStub.restore();
+      }
+
+      const _failLogs = errorStub.calls
+        .map((c) => String(c.args[0]))
+        .filter((msg) => msg.includes('FAIL (生成失敗)') && msg.includes('a.md'));
+      assertEquals(_failLogs.length, 1);
+      assertEquals(cache.read(_pathA).frontmatter, undefined);
+      assertEquals(cache.read(_pathA).status !== SETFM_CACHE_STATUSES.FRONTMATTER, true);
+      assertEquals(cache.read(_pathB).frontmatter?.title, 'B');
     });
   });
 });

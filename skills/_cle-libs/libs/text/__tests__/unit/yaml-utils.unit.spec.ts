@@ -14,6 +14,9 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { stringifyFrontmatter } from '../../yaml-utils.ts';
 
+// ─── Helpers
+import { parse as parseYaml } from '@std/yaml';
+
 // ─── Tests
 
 /**
@@ -22,7 +25,7 @@ import { stringifyFrontmatter } from '../../yaml-utils.ts';
  * `Record<string, string | string[]>` から YAML 文字列を生成する動作を検証する。
  * `_quoteString` / `_serializeValue` のエスケープ・直列化ロジックも間接的に検証する。
  *
- * テスト ID 範囲: T-YU-SF-01 〜 T-YU-SF-08
+ * テスト ID 範囲: T-YU-SF-01 〜 T-YU-SF-11
  *
  * @see stringifyFrontmatter
  */
@@ -78,6 +81,21 @@ describe('stringifyFrontmatter', () => {
         stringifyFrontmatter({ tags: ['only'] }),
         'tags:\n  - "only"\n',
       );
+    });
+
+    it('[Edge] T-YU-SF-09: 空配列 → `key: []\\n`', () => {
+      assertEquals(stringifyFrontmatter({ tags: [] }), 'tags: []\n');
+    });
+
+    it('[Edge] T-YU-SF-10: スカラー・空配列・非空配列の混在 → 挿入順を保持し非空配列の形式は不変', () => {
+      assertEquals(
+        stringifyFrontmatter({ title: 't', topics: [], tags: ['a'] }),
+        'title: "t"\ntopics: []\ntags:\n  - "a"\n',
+      );
+    });
+
+    it('[Edge] T-YU-SF-11: 空配列の出力を YAML パース → null ではなく空配列に戻る', () => {
+      assertEquals(parseYaml(stringifyFrontmatter({ tags: [] })), { tags: [] });
     });
   });
 });

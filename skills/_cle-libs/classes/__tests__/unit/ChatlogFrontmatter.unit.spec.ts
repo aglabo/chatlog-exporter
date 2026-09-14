@@ -19,7 +19,7 @@ import { ChatlogError } from '../../ChatlogError.class.ts';
 // ─────────────────────────────────────────────
 /**
  * @description ChatlogFrontmatter クラスのユニットテストスイート。
- * get / set / remove / equals / toFrontmatter および各コンストラクタ入力形式を網羅的に検証する。
+ * get / set / remove / equals / hasRequiredFields / toFrontmatter および各コンストラクタ入力形式を網羅的に検証する。
  */
 describe('ChatlogFrontmatter', () => {
   /**
@@ -394,6 +394,26 @@ describe('ChatlogFrontmatter', () => {
         // act & assert（equals は対称であるため両方向を検証する）
         assertEquals(fmA.equals(fmB), false);
         assertEquals(fmB.equals(fmA), false);
+      });
+    });
+  });
+
+  /**
+   * @description hasRequiredFields() メソッドのユニットテスト。
+   * type / category / title / topics / tags の充足判定を検証する。
+   */
+  describe('hasRequiredFields()', () => {
+    /** @description topics / tags が空配列など境界的なケース。 */
+    describe('When: エッジケース', () => {
+      it('T-CLS-CF-64: [Edge] topics / tags が空配列 [] → topics の空配列は不充足のため false を返す', () => {
+        // arrange（tags の空配列は充足するが、topics は 1 要素以上が必要）
+        const fm = new ChatlogFrontmatter('---\ntype: tech\ncategory: dev\ntitle: "A"\ntopics: []\ntags: []\n---\n');
+
+        // act
+        const result = fm.hasRequiredFields();
+
+        // assert
+        assertEquals(result, false);
       });
     });
   });

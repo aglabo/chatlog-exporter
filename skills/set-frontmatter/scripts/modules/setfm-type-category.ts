@@ -1,6 +1,6 @@
 // src: scripts/modules/setfm-type-category.ts
 // @(#): set-frontmatter Phase 2+3a type・category同時判定モジュール
-//       対象: judgeTypeAndCategory
+//       対象: judgeTypeAndCategory, buildTypeCategoryOutputContract
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -20,6 +20,7 @@ import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../_cle-libs/libs/io/logger.ts';
 import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 // types
+import type { OutputContract } from '../../../_cle-libs/types/json-schema.types.ts';
 import type { AiRunnerProvider } from '../../../_cle-libs/types/providers.types.ts';
 
 // ─── Local
@@ -44,6 +45,31 @@ const _buildTypeCategorySystemPrompt = (systemTemplate: string, dics: Dics, cate
     category_dics: _categoryDics,
     category_rules: categoryRules,
   });
+};
+
+/**
+ * type・category の値域を辞書から導出する。応答の照合と出力契約の両方がこの値域を使う。
+ * category は `,` 分割後に空要素を除去する。空辞書は空値域となり、起動時検証で拒否される。
+ */
+const _typeCategoryValues = (dics: Dics): { typeValues: string[]; categoryValues: string[] } => ({
+  typeValues: dics.typeEntries.map((e) => e.key),
+  categoryValues: dics.category.split(',').filter(Boolean),
+});
+
+/**
+ * type・category 判定の AI 応答に適用する出力契約（structured-output §4.3.1 #6）を組み立てる。
+ * 値域は `_typeCategoryValues` で導出し、フォールバック値は
+ * `DEFAULT_FALLBACK_TYPE` / `DEFAULT_FALLBACK_CATEGORY` とする。
+ */
+export const buildTypeCategoryOutputContract = (dics: Dics): OutputContract => {
+  const { typeValues, categoryValues } = _typeCategoryValues(dics);
+  return {
+    contract: 'line-prefixed',
+    properties: {
+      type: { type: 'string', values: typeValues, fallback: DEFAULT_FALLBACK_TYPE },
+      category: { type: 'string', values: categoryValues, fallback: DEFAULT_FALLBACK_CATEGORY },
+    },
+  };
 };
 
 /**
@@ -88,14 +114,19 @@ export const judgeTypeAndCategory = async (
     entries: entry.truncateContent(maxContentLength),
   });
 
-  const _validTypes = new Set(dics.typeEntries.map((e) => e.key));
-  const _validCategories = new Set(dics.category.split(','));
+  const { typeValues, categoryValues } = _typeCategoryValues(dics);
+  const _validTypes = new Set(typeValues);
+  const _validCategories = new Set(categoryValues);
 
   let type = DEFAULT_FALLBACK_TYPE;
   let category = DEFAULT_FALLBACK_CATEGORY;
 
   try {
-    const _raw = await aiRunnerProvider(_system, _user, { ...(model ? { model } : {}), ...(signal ? { signal } : {}) });
+    const _raw = await aiRunnerProvider(_system, _user, {
+      ...(model ? { model } : {}),
+      ...(signal ? { signal } : {}),
+      outputContract: buildTypeCategoryOutputContract(dics),
+    });
     const _lines = _raw.trim().split('\n');
     const _typeMatch = _lines.find((l) => l.startsWith('type:'));
     const _catMatch = _lines.find((l) => l.startsWith('category:'));

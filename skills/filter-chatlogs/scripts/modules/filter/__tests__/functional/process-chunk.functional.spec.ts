@@ -43,7 +43,7 @@ import { fileOrDirExists } from '../../../../../../_cle-libs/libs/file-ops/exist
 // constants
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 // types
-import type { AiRunnerProvider } from '../../../../../../_cle-libs/types/providers.types.ts';
+import type { AiRunnerProvider, RunAIOptions } from '../../../../../../_cle-libs/types/providers.types.ts';
 import type { CLEResult } from '../../../../types/cache.types.ts';
 
 // ─── Internal Helpers
@@ -51,6 +51,9 @@ import type { CLEResult } from '../../../../types/cache.types.ts';
 // constants
 /** テスト用 .md ファイル・`ChatlogEntry` に使う共通本文（frontmatter + 質問/回答 1 ターン）。 */
 const _TEMP_CONTENT = '---\ntitle: テスト\n---\n### User\n質問\n\n### Assistant\n回答\n';
+
+/** decision=ERROR が confidence に依存せず error 扱いになることを確かめる境界値（threshold=0.7 に対し 未満 / ちょうど / 上限）。 */
+const _ERROR_CONFIDENCE_CASES: readonly number[] = [0.0, 0.7, 1.0];
 
 // functions
 /**
@@ -115,6 +118,10 @@ function _makeRateLimitMock(): DenoCommandLike {
 
 /** 与えられた例外を必ず reject する `AiRunnerProvider` スタブを返すファクトリヘルパー。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
+
+/** 判定結果配列を JSON 文字列にして resolve する `AiRunnerProvider` スタブを返すファクトリヘルパー。 */
+const _resultsRunner = (results: readonly Record<string, unknown>[]): AiRunnerProvider => () =>
+  Promise.resolve(JSON.stringify(results));
 
 // ─── Tests
 
@@ -956,6 +963,149 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
 
       assertEquals(ctl.signal.aborted, true);
       assertEquals(stats.error, entries.length);
+    });
+  });
+});
+
+/**
+ * `processChunk` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #2）を渡すことを検証するスイート。
+ *
+ * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ *
+ * テスト ID 範囲: T-FL-OCT-01
+ *
+ * @see processChunk
+ */
+describe('processChunk — 出力契約（outputContract）', () => {
+  describe('When: aiRunnerProvider を呼び出す', () => {
+    let errStub: Stub;
+    let stats: FilterStats;
+    let cache: ChatlogCache<CLEResult>;
+
+    beforeEach(async () => {
+      errStub = stub(console, 'error', () => {});
+      stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+      cache = await _makeEmptyCache();
+    });
+
+    afterEach(() => {
+      errStub.restore();
+    });
+
+    it('[Normal] T-FL-OCT-01-01: options に #2 json-array 契約が渡る', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      let captured: RunAIOptions | undefined;
+      const runner: AiRunnerProvider = (_system, _user, options) => {
+        captured = options;
+        return Promise.resolve('[]');
+      };
+
+      await processChunk(entries, stats, 0.7, cache, new AbortController(), 'sonnet', runner);
+
+      assertEquals(captured?.outputContract, {
+        contract: 'json-array',
+        properties: {
+          file: { type: 'string' },
+          decision: { type: 'string', values: ['KEEP', 'DISCARD', 'ERROR'], fallback: 'ERROR' },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      });
+    });
+  });
+});
+
+/**
+ * `processChunk` が AI 応答の `decision: ERROR`（出力契約の fallback 値）を error 扱いにすることを検証するスイート。
+ *
+ * `aiRunnerProvider` スタブで応答 JSON を固定し、stats・キャッシュ・ログ・戻り値を検証する。
+ *
+ * テスト ID 範囲: T-FL-PCK-14
+ *
+ * @see processChunk
+ */
+describe('processChunk — decision=ERROR の扱い', () => {
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+  let ctl: AbortController;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+    ctl = new AbortController();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  describe('When: 単一ファイルの判定結果が decision=ERROR', () => {
+    const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+    const runner = _resultsRunner([{ file: 'a.md', decision: 'ERROR', confidence: 0.9, reason: 'unknown' }]);
+
+    it('[Normal] T-FL-PCK-14-01: stats.error のみ 1 加算され keep/skip/remove は 0 のまま', async () => {
+      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+      assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
+    });
+
+    it('[Normal] T-FL-PCK-14-02: キャッシュへ判定結果が書き込まれない', async () => {
+      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+      assertEquals(cache.read('/fake/input/a.md'), {});
+    });
+
+    it('[Normal] T-FL-PCK-14-03: error扱いログにファイル名が出て kept ログは出ない', async () => {
+      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+      const logged = errStub.calls.map((c) => c.args.join(' '));
+      assertEquals(logged.some((line) => line.includes('error扱い') && line.includes('a.md')), true);
+      assertEquals(logged.some((line) => line.includes('kept')), false);
+    });
+
+    it('[Normal] T-FL-PCK-14-04: チャンク失敗扱いにならず戻り値は undefined で ctl は abort されない', async () => {
+      const result = await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+      assertStrictEquals(result, undefined);
+      assertEquals(ctl.signal.aborted, false);
+    });
+  });
+
+  describe('When: decision=ERROR の confidence が閾値 0.7 の前後', () => {
+    const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+
+    for (const confidence of _ERROR_CONFIDENCE_CASES) {
+      it(`[Edge] T-FL-PCK-14-05: confidence=${confidence} → error=1・skip/keep=0・cache 未書き込み`, async () => {
+        const runner = _resultsRunner([{ file: 'a.md', decision: 'ERROR', confidence, reason: 'unknown' }]);
+
+        await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+        assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
+        assertEquals(cache.read('/fake/input/a.md'), {});
+      });
+    }
+  });
+
+  describe('When: KEEP / ERROR / DISCARD が混在するチャンクを処理する', () => {
+    const entries = ['k.md', 'e.md', 'd.md'].map((name) =>
+      new ChatlogEntry(_TEMP_CONTENT, { filePath: `/fake/input/${name}` })
+    );
+    const runner = _resultsRunner([
+      { file: 'k.md', decision: 'KEEP', confidence: 0.9, reason: 'why' },
+      { file: 'e.md', decision: 'ERROR', confidence: 0.9, reason: 'unknown' },
+      { file: 'd.md', decision: 'DISCARD', confidence: 0.9, reason: 'what' },
+    ]);
+
+    it('[Error] T-FL-PCK-14-06: ERROR のファイルだけが error 扱いになり前後のファイルは通常どおり判定される', async () => {
+      const result = await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+
+      assertStrictEquals(result, undefined);
+      assertEquals(stats, { keep: 1, skip: 0, remove: 0, error: 1 });
+      assertEquals(cache.read('/fake/input/k.md'), { decision: 'KEEP', confidence: 0.9, reason: 'why' });
+      assertEquals(cache.read('/fake/input/e.md'), {});
+      assertEquals(cache.read('/fake/input/d.md'), { decision: 'DISCARD', confidence: 0.9, reason: 'what' });
     });
   });
 });

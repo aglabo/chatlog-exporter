@@ -2,7 +2,7 @@
 title: "Design Specification: 構造化出力の強制（llama バックエンド）"
 based-on: requirements.md v1.6.0
 status: Draft
-version: 2.3.0
+version: 2.4.0
 created: "2026-09-02"
 ---
 
@@ -169,16 +169,17 @@ Schema construction（および response_format 適用そのもの）の実装�
 > **Reference**: This section lists formal DRs that affect this specification.
 > DRs are maintained in `decision-records.md` and are authoritative.
 
-| DR-ID | Title                                                                | Phase | Impact on This Spec                                              |
-| ----- | -------------------------------------------------------------------- | ----- | ---------------------------------------------------------------- |
-| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める   | spec  | Section 3・4 の response_format 適用条件とスキーマ生成規則の根拠 |
-| DR-06 | 既知の周辺不具合を本スコープで併せて直す                             | spec  | Section 4 の空配列パース規則（R-004, R-005）の根拠               |
-| DR-09 | 「OpenAI 互換」を実測ゲート（REQ-F-016）で裏付ける                   | spec  | Section 4 の測定ゲート規則（R-006）と Section 4.1 の分岐の根拠   |
-| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める | spec  | Section 4 の R-001 の適用条件拡張と R-007（YAML 契約変換）の根拠 |
-| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する   | spec  | R-001 の適用条件を無条件へ単純化することの根拠                   |
-| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける | spec  | R-008 が投げる `ResponseSchemaViolation` を続行側に置く根拠      |
-| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する   | spec  | §2.2 の 3 契約、R-001 の無条件適用、R-007 の復元先、§4.3 の根拠  |
-| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する         | spec  | R-004 の空配列受理を段 1 限定とすることの根拠                    |
+| DR-ID | Title                                                                | Phase | Impact on This Spec                                                        |
+| ----- | -------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------- |
+| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める   | spec  | Section 3・4 の response_format 適用条件とスキーマ生成規則の根拠           |
+| DR-06 | 既知の周辺不具合を本スコープで併せて直す                             | spec  | Section 4 の空配列パース規則（R-004, R-005）の根拠                         |
+| DR-09 | 「OpenAI 互換」を実測ゲート（REQ-F-016）で裏付ける                   | spec  | Section 4 の測定ゲート規則（R-006）と Section 4.1 の分岐の根拠             |
+| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める | spec  | Section 4 の R-001 の適用条件拡張と R-007（YAML 契約変換）の根拠           |
+| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する   | spec  | R-001 の適用条件を無条件へ単純化することの根拠                             |
+| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける | spec  | R-008 が投げる `ResponseSchemaViolation` を続行側に置く根拠                |
+| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する   | spec  | §2.2 の 3 契約、R-001 の無条件適用、R-007 の復元先、§4.3 の根拠            |
+| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する         | spec  | R-004 の空配列受理を段 1 限定とすることの根拠                              |
+| DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする      | tasks | §4.3.1 #4 / #5 のフォールバック列と「配列値の enum」の `topics` 例外の根拠 |
 
 ### 2.7 DD to DR Promotion Criteria
 
@@ -388,14 +389,14 @@ DR-19 決定 1）は **復元先の文字列表現** を選ぶものであり、
 R-001 のスキーマ構築、R-003 の enum フォールバック、R-008 の必須キー検証は、
 いずれも契約タグと次表の **契約定義** の組を唯一の入力とする。
 
-| # | 呼び出し元                | 契約タグ        | 復元の起点                 | required keys と値の型                                                                                                                                                                                                                                             | enum フィールドと値域の取得元                                                                      | フォールバック値                                                                       |
-| - | ------------------------- | --------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 1 | `phase-classify-ai.ts`    | `json-array`    | envelope `items`           | `items`: object の配列。要素は `ClassifyCache`（`classify-chatlogs/scripts/types/classify.types.ts`）の `file` / `project` / `confidence` / `reason`                                                                                                               | `project`: `projects.dic` のプロジェクト名                                                         | `FALLBACK_PROJECT`（`'misc'`）                                                         |
-| 2 | `filter/process-chunk.ts` | `json-array`    | envelope `items`           | `items`: object の配列。要素は `ClaudeResult`（`filter-chatlogs/scripts/types/filter.types.ts`）の `file` / `decision` / `confidence` / `reason`                                                                                                                   | `decision`: `FILTER_DECISIONS`（`filter-decision.const.types.ts`）                                 | `FILTER_DECISIONS.ERROR`（`'ERROR'`）                                                  |
-| 3 | `segment-ai.ts`           | `json-array`    | envelope `items`           | `items`: object の配列。要素は `filePath`: string / `segments`: object の配列。`segments` の要素は `title`: string / `summary`: string / `startLine`: integer / `endLine`: integer の 4 キーすべてを required とする（下記「ネストした object の必須キー」を参照） | なし                                                                                               | —                                                                                      |
-| 4 | `setfm-frontmatter.ts`    | `yaml`          | firstField `title`         | `title`: string / `topics`: string の配列 / `tags`: string の配列                                                                                                                                                                                                  | `topics`: `topics.dic` のキー（22 件）/ `tags`: `tags.dic` のキー（73 件）。いずれも配列要素の値域 | 空配列（下記「配列値の enum」を参照）                                                  |
-| 5 | `setfm-review.ts`         | `yaml`          | firstField `validity`      | `validity`: string / `errors`: string の配列 / `corrected_frontmatter`: object（`type` / `category` / `title`: string、`topics` / `tags`: string の配列）                                                                                                          | `validity`: `pass` \| `fail`。`corrected_frontmatter` の `type` / `category` は #6 と同じ辞書      | `validity` は `pass`。`corrected_frontmatter` の単一値 enum は #6 に同じ。配列は空配列 |
-| 6 | `setfm-type-category.ts`  | `line-prefixed` | 行頭 `type:` / `category:` | `type`: string / `category`: string                                                                                                                                                                                                                                | `type`: `types.dic` のキー / `category`: `category.dic` のキー                                     | `DEFAULT_FALLBACK_TYPE` / `DEFAULT_FALLBACK_CATEGORY`                                  |
+| # | 呼び出し元                | 契約タグ        | 復元の起点                 | required keys と値の型                                                                                                                                                                                                                                             | enum フィールドと値域の取得元                                                                      | フォールバック値                                                                              |
+| - | ------------------------- | --------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1 | `phase-classify-ai.ts`    | `json-array`    | envelope `items`           | `items`: object の配列。要素は `ClassifyCache`（`classify-chatlogs/scripts/types/classify.types.ts`）の `file` / `project` / `confidence` / `reason`                                                                                                               | `project`: `projects.dic` のプロジェクト名                                                         | `FALLBACK_PROJECT`（`'misc'`）                                                                |
+| 2 | `filter/process-chunk.ts` | `json-array`    | envelope `items`           | `items`: object の配列。要素は `ClaudeResult`（`filter-chatlogs/scripts/types/filter.types.ts`）の `file` / `decision` / `confidence` / `reason`                                                                                                                   | `decision`: `FILTER_DECISIONS`（`filter-decision.const.types.ts`）                                 | `FILTER_DECISIONS.ERROR`（`'ERROR'`）                                                         |
+| 3 | `segment-ai.ts`           | `json-array`    | envelope `items`           | `items`: object の配列。要素は `filePath`: string / `segments`: object の配列。`segments` の要素は `title`: string / `summary`: string / `startLine`: integer / `endLine`: integer の 4 キーすべてを required とする（下記「ネストした object の必須キー」を参照） | なし                                                                                               | —                                                                                             |
+| 4 | `setfm-frontmatter.ts`    | `yaml`          | firstField `title`         | `title`: string / `topics`: string の配列 / `tags`: string の配列                                                                                                                                                                                                  | `topics`: `topics.dic` のキー（22 件）/ `tags`: `tags.dic` のキー（73 件）。いずれも配列要素の値域 | `tags` は空配列。`topics` は持たない（空配列は後段で必須未充足。下記「配列値の enum」を参照） |
+| 5 | `setfm-review.ts`         | `yaml`          | firstField `validity`      | `validity`: string / `errors`: string の配列 / `corrected_frontmatter`: object（`type` / `category` / `title`: string、`topics` / `tags`: string の配列）                                                                                                          | `validity`: `pass` \| `fail`。`corrected_frontmatter` の `type` / `category` は #6 と同じ辞書      | `validity` は `pass`。`corrected_frontmatter` の単一値 enum は #6 に同じ。配列は #4 に同じ    |
+| 6 | `setfm-type-category.ts`  | `line-prefixed` | 行頭 `type:` / `category:` | `type`: string / `category`: string                                                                                                                                                                                                                                | `type`: `types.dic` のキー / `category`: `category.dic` のキー                                     | `DEFAULT_FALLBACK_TYPE` / `DEFAULT_FALLBACK_CATEGORY`                                         |
 
 **辞書由来 enum の扱い**: #1・#4・#5・#6 の値域は定数ではなく `.config/chatlog-exporter/dics/`
 配下の辞書から実行時に読み込まれる。したがってスキーマ構築関数は値域を引数として受け取り、
@@ -417,6 +418,15 @@ R-001 のスキーマ構築、R-003 の enum フォールバック、R-008 の�
 分類語彙へ持ち込むことになる。R-002 により `minItems` を置かないため、空配列はスキーマ上
 つねに許容される。R-003 が求めるフォールバック値の必須化は、`type` / `category` / `project` /
 `decision` のような **単一値の enum** に対する要求とする。
+
+ただし `topics` は「該当なし」を持たない。先頭要素は Log category と一致する domain であり
+（`meta.yaml` の TOPICS ASSIGNMENT RULES）、つねに 1 件以上の値が存在するためである。
+空配列を「該当なし」として受理すると、`hasRequiredFields()` が充足と判定して生成を
+スキップし、`--no-review` では空の `topics` が確定してしまう（PR #459 codex レビュー指摘）。
+R-002 により `minItems` は置かないので、スキーマ上は空配列が許容されたままとなる。
+非空の要求は呼び出し元の後段が持ち、`hasFrontmatterFields` の期待型 `'nonEmptyArray'` で
+判定する。`topics` が空配列の応答は必須未充足として生成失敗に扱う。`tags` は従来どおり
+空配列を「該当なし」として受理する。
 
 **ネストした object の必須キー**: 契約定義は配列要素・入れ子 object の **内部キーまで** 定める。
 「object の配列」で止めた定義をスキーマへ落とすと `{"type": "object"}` 相当となり、
@@ -566,3 +576,4 @@ filter（`skills/filter-chatlogs/scripts/modules/filter/process-chunk.ts`）は�
 | 2026-09-06 | 2.1.2   | §5.1 の非破壊判定を T-01 実装時の実測へ訂正: filter は戻り値と `stats` の内訳が変わるため不適合とし、R-004 が意図した挙動として REQ-C-002 の例外に記録。classify / normalize の適合判定は据え置き（cle-nnb）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | 2026-09-06 | 2.2.0   | PR #436 の codex レビュー所見（P1）を反映: §4.3.1 の #3（`segment-ai.ts`）が `segments` を「object の配列」で止めており、スキーマが `{ type: "object" }` 相当となってサーバが `{}` を返しても R-008 を通過してしまう問題を修正。要素の必須キー（`title` / `summary`: string、`startLine` / `endLine`: integer）を確定し、「ネストした object の必須キー」節を新設して契約定義が入れ子の内部キーまで定めることを規定                                                                                                                                                                                                                                                                                |
 | 2026-09-12 | 2.3.0   | Phase 0 実測の結果を反映 (MINOR: 実装対象を確定させる決定)。§4.1.1 を「実測結果に応じた分岐先」から実測記録へ書き換え、着地を準拠 (honoured) として確定。§4.2 へ DR-25 の合格線 (組ごと 10 試行・10/10) と DR-31 の実測範囲 (モデル差条件は未測定・対応対象を 1 構成に限定) を反映。§7 の未決 #1 (`response_format` の実対応レベル) を解決済みへ移した。記録先は `measurements-response-format-2026-09-12.md`                                                                                                                                                                                                                                                                                      |
+| 2026-09-15 | 2.4.0   | PR #459 の codex レビュー所見（P2）を反映 (MINOR: 実装対象を確定させる決定)。§4.3.1「配列値の enum」で `topics` を「該当なし」の対象から外し、非空を必須とした。空配列の `topics` は後段 (`hasFrontmatterFields` の `'nonEmptyArray'`) で必須未充足として生成失敗に扱う。R-002 により `minItems` は置かない。#4 / #5 のフォールバック列を `tags` のみ空配列へ訂正。決定は DR-32（cle-eft.13）                                                                                                                                                                                                                                                                                                      |

@@ -41,7 +41,7 @@ import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.clas
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
-import type { AiRunnerProvider } from '../../../../../_cle-libs/types/providers.types.ts';
+import type { AiRunnerProvider, RunAIOptions } from '../../../../../_cle-libs/types/providers.types.ts';
 
 // ─── Internal Helpers
 
@@ -804,5 +804,50 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
     assertEquals(result.size, 2);
     assertNull(result.get('a.md'));
     assertNull(result.get('b.md'));
+  });
+});
+
+/**
+ * `segmentChatlogs` の出力契約テストスイート。
+ *
+ * `options.aiRunnerProvider` へ呼び出しオプションを捕捉するスタブを注入し、
+ * structured-output §4.3.1 #3 の契約定義が `outputContract` として渡ることを検証する。
+ *
+ * テスト ID 範囲: T-NC-OCT-01-01
+ *
+ * @see segmentChatlogs
+ */
+describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', () => {
+  it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約が渡る', async () => {
+    // arrange
+    const captured: RunAIOptions[] = [];
+    const runner: AiRunnerProvider = (_system, _user, options) => {
+      if (options !== undefined) { captured.push(options); }
+      return Promise.resolve('[]');
+    };
+
+    // act
+    await segmentChatlogs([_makeEntry('/tmp/a.md', 'content a')], { model: 'sonnet', aiRunnerProvider: runner });
+
+    // assert
+    assertEquals(captured.length, 1);
+    assertEquals(captured[0].outputContract, {
+      contract: 'json-array',
+      properties: {
+        filePath: { type: 'string' },
+        segments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              summary: { type: 'string' },
+              startLine: { type: 'integer' },
+              endLine: { type: 'integer' },
+            },
+          },
+        },
+      },
+    });
   });
 });

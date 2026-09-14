@@ -12,14 +12,14 @@ import { describe, it } from '@std/testing/bdd';
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { runAI } from '../../run-ai.ts';
 
-const _shouldRunClaude = Deno.env.get('RUN_CLAUDE_TESTS') === '1';
+const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
 
 // ─────────────────────────────────────────────
 // runAI
 // ─────────────────────────────────────────────
 
 // ─── ignore check
-describe('should ignore runAI', { ignore: !_shouldRunClaude }, () => {
+describe('should ignore runAI', { ignore: !_shouldRunAI }, () => {
   it(
     'T-LIB-RA-SYS-01-01: 返却文字列が "hello" を含む（大文字小文字問わず）',
     async () => {

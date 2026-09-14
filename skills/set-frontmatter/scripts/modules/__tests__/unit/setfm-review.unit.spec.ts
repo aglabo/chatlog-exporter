@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/setfm-review.unit.spec.ts
 // @(#): reviewFrontmatter のユニットテスト
-//       対象: reviewFrontmatter
+//       対象: reviewFrontmatter, buildReviewOutputContract
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,11 +10,11 @@
 // cspell:words setfm sess
 
 // ─── BDD modules
-import { assert, assertEquals, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertRejects, assertThrows } from '@std/assert';
 import { afterEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { reviewFrontmatter } from '../../setfm-review.ts';
+import { buildReviewOutputContract, reviewFrontmatter } from '../../setfm-review.ts';
 
 // ─── Helpers
 import {
@@ -32,7 +32,9 @@ import type {
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { assertOutputContractValues } from '../../../../../_cle-libs/libs/ai/json-schema-builder.ts';
 // types
+import type { RunAIOptions } from '../../../../../_cle-libs/types/providers.types.ts';
 import type { Dics, Prompts } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
@@ -47,6 +49,21 @@ const _mockDics: Dics = {
   categoryEntries: [],
   typeEntries: [],
   topicEntries: [],
+};
+
+/** 出力契約テスト用 Dics。type / category / topics / tags の値域を契約定義へ導出できるよう、それぞれ 2 件のキーを持つ。 */
+const _contractDics: Dics = {
+  category: 'development,tooling',
+  tags: 'typescript,deno',
+  categoryEntries: [],
+  typeEntries: [
+    { key: 'research', def: 'Research', desc: '調査', rules: {} },
+    { key: 'discussion', def: 'Discussion', desc: '議論', rules: {} },
+  ],
+  topicEntries: [
+    { key: 'ai', def: 'AI', desc: 'AI 関連', rules: {} },
+    { key: 'tooling', def: 'Tooling', desc: 'ツール関連', rules: {} },
+  ],
 };
 
 /** テスト用最小 Prompts。'review' キーにシステム・ユーザープロンプトを持つ。 */
@@ -454,6 +471,65 @@ describe('reviewFrontmatter', () => {
       assertEquals(result.corrected?.['topics'], ['software-engineering', 'behavior']);
     });
 
+    it('[Normal] T-SF-RV-18-03: corrected_frontmatter.topics/tags が空配列 → r.corrected に [] を保持', async () => {
+      commandHandle = installCommandMock(
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics: []\n  tags: []\n'),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals(result.corrected?.['topics'], []);
+      assertEquals(result.corrected?.['tags'], []);
+    });
+
+    it('[Edge] T-SF-RV-18-04: corrected_frontmatter.topics が空文字のみ → r.corrected.topics = []', async () => {
+      commandHandle = installCommandMock(
+        makeClaudeJsonMock(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics:\n    - ""\n    - ""\n',
+        ),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals(result.corrected?.['topics'], []);
+    });
+
+    it('[Error] T-SF-RV-18-05: corrected_frontmatter.topics が null → r.corrected に topics キーなし', async () => {
+      commandHandle = installCommandMock(
+        makeClaudeJsonMock(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics: null\n  type: tech\n',
+        ),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals('topics' in (result.corrected ?? {}), false);
+    });
+
+    it('[Error] T-SF-RV-18-06: corrected_frontmatter.topics が文字列 → r.corrected に topics キーなし', async () => {
+      commandHandle = installCommandMock(
+        makeClaudeJsonMock(
+          'validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  topics: software-engineering\n  type: tech\n',
+        ),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      assertEquals(result.validity, 'corrected');
+      assertEquals('topics' in (result.corrected ?? {}), false);
+    });
+
+    it('[Edge] T-SF-RV-18-07: corrected_frontmatter に topics/tags キーなし → r.corrected に両キーなし', async () => {
+      commandHandle = installCommandMock(
+        makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong\ncorrected_frontmatter:\n  type: tech\n'),
+      );
+      const _entry = _makeChatlogEntry();
+      const result = await reviewFrontmatter(_entry, _mockDics, _mockPrompts, 0);
+      const _corrected = result.corrected ?? {};
+      assertEquals('topics' in _corrected, false);
+      assertEquals('tags' in _corrected, false);
+      assertEquals(_corrected.type, 'tech');
+    });
+
     it('[Edge] T-SF-RV-19-01: corrected オブジェクトのみ (corrected_frontmatter なし) → entry.frontmatter 変化なし + validity=error', async () => {
       commandHandle = installCommandMock(
         makeClaudeJsonMock('validity: fail\nerrors:\n  - wrong\ncorrected:\n  type: tech\n'),
@@ -531,6 +607,162 @@ describe('reviewFrontmatter', () => {
 
       assert(captured.instance !== null, 'mock was not instantiated');
       assertEquals(captured.instance.signal?.aborted, true);
+    });
+  });
+});
+
+/**
+ * `reviewFrontmatter` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #5）を渡すことを検証するスイート。
+ *
+ * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ *
+ * テスト ID 範囲: T-SF-OCT-02, T-SF-OCT-05
+ *
+ * @see reviewFrontmatter
+ */
+describe('reviewFrontmatter — 出力契約（outputContract）', () => {
+  describe('When: aiRunnerProvider を呼び出す', () => {
+    it('[Normal] T-SF-OCT-02-01: options に #5 yaml 契約（firstField validity、corrected_frontmatter 入れ子 object）が渡り pass を返す', async () => {
+      let captured: RunAIOptions | undefined;
+      const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
+        captured = options;
+        return Promise.resolve('validity: pass\nerrors: []');
+      };
+
+      const _result = await reviewFrontmatter(
+        _makeChatlogEntry(),
+        _contractDics,
+        _mockPrompts,
+        0,
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(captured?.outputContract, {
+        contract: 'yaml',
+        firstField: 'validity',
+        properties: {
+          validity: { type: 'string', values: ['pass', 'fail'], fallback: 'pass' },
+          errors: { type: 'array', items: { type: 'string' } },
+          corrected_frontmatter: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', values: ['research', 'discussion'], fallback: 'research' },
+              category: { type: 'string', values: ['development', 'tooling'], fallback: 'development' },
+              title: { type: 'string' },
+              topics: { type: 'array', items: { type: 'string', values: ['ai', 'tooling'] } },
+              tags: { type: 'array', items: { type: 'string', values: ['typescript', 'deno'] } },
+            },
+          },
+        },
+      });
+      assertEquals(_result, { validity: 'pass', errors: [] });
+    });
+  });
+
+  /** 出力契約違反（ResponseSchemaViolation）が maxRetry ループの外へ抜けるケース。 */
+  describe('When: aiRunnerProvider が ResponseSchemaViolation を throw する', () => {
+    it('[Error] T-SF-OCT-05-01: maxRetry=3 でもリトライせず ChatlogError(AiError/ResponseSchemaViolation) で reject し、呼び出しは 1 回', async () => {
+      let calls = 0;
+      const _runner = (): Promise<string> => {
+        calls++;
+        throw new ChatlogError('AiError', 'ResponseSchemaViolation', 'schema violation');
+      };
+
+      const _error = await assertRejects(
+        () =>
+          reviewFrontmatter(
+            _makeChatlogEntry(),
+            _contractDics,
+            _mockPrompts,
+            3,
+            'sonnet',
+            undefined,
+            _runner,
+          ),
+        ChatlogError,
+      );
+
+      assertEquals(_error.kind, 'AiError');
+      assertEquals(_error.subindex, 'ResponseSchemaViolation');
+      assertEquals(calls, 1);
+    });
+  });
+});
+
+/**
+ * `buildReviewOutputContract` が辞書から組み立てる出力契約（structured-output §4.3.1 #5）の値域を検証するスイート。
+ *
+ * 組み立てた契約を `assertOutputContractValues` に通し、起動時の設定エラー検出と tags 空要素の除去を確認する。
+ *
+ * テスト ID 範囲: T-SF-OCT-08
+ *
+ * @see buildReviewOutputContract
+ */
+describe('buildReviewOutputContract', () => {
+  /** 契約組み立て用 Dics。category / tags だけをケースごとに差し替える。 */
+  const _makeDics = (category: string, tags: string): Dics => ({
+    category,
+    tags,
+    categoryEntries: [],
+    typeEntries: [
+      { key: 'research', def: 'Research', desc: '調査', rules: {} },
+      { key: 'idea', def: 'Idea', desc: 'アイデア', rules: {} },
+    ],
+    topicEntries: [],
+  });
+
+  describe('When: 正常系', () => {
+    it('[Normal] T-SF-OCT-08-01: 通常辞書（category development,bugfix / tags typescript,deno）→ assertOutputContractValues が throw しない', () => {
+      const _contract = buildReviewOutputContract(_makeDics('development,bugfix', 'typescript,deno'));
+
+      assertOutputContractValues(_contract);
+    });
+  });
+
+  describe('When: 異常系', () => {
+    it('[Error] T-SF-OCT-08-02: category が bugfix のみ（development 欠落）→ ChatlogError(AiError/ResponseSchemaViolation)、detail が corrected_frontmatter.category のフォールバック値違反', () => {
+      const _contract = buildReviewOutputContract(_makeDics('bugfix', 'typescript,deno'));
+
+      const _error = assertThrows(() => assertOutputContractValues(_contract), ChatlogError);
+
+      assertEquals(_error.kind, 'AiError');
+      assertEquals(_error.subindex, 'ResponseSchemaViolation');
+      assert(
+        _error.message.startsWith('AI Error: corrected_frontmatter.category: フォールバック値 "development"'),
+        _error.message,
+      );
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it("[Edge] T-SF-OCT-08-03: tags が '' → corrected_frontmatter.tags の値域は []、assertOutputContractValues が throw しない", () => {
+      const _contract = buildReviewOutputContract(_makeDics('development,bugfix', ''));
+
+      assertEquals(_contract.properties.corrected_frontmatter, {
+        type: 'object',
+        properties: {
+          type: { type: 'string', values: ['research', 'idea'], fallback: 'research' },
+          category: { type: 'string', values: ['development', 'bugfix'], fallback: 'development' },
+          title: { type: 'string' },
+          topics: { type: 'array', items: { type: 'string', values: [] } },
+          tags: { type: 'array', items: { type: 'string', values: [] } },
+        },
+      });
+      assertOutputContractValues(_contract);
+    });
+
+    it("[Edge] T-SF-OCT-08-04: category が '' → 空要素を除去し、detail が corrected_frontmatter.category の空値域違反", () => {
+      const _contract = buildReviewOutputContract(_makeDics('', 'typescript,deno'));
+
+      const _error = assertThrows(() => assertOutputContractValues(_contract), ChatlogError);
+
+      assertEquals(_error.subindex, 'ResponseSchemaViolation');
+      assert(
+        _error.message.startsWith('AI Error: corrected_frontmatter.category: 値域が空です'),
+        _error.message,
+      );
     });
   });
 });

@@ -810,19 +810,24 @@ describe('extractEntryFrontmatter', () => {
 /**
  * `filterFrontmatterFields` のユニットテストスイート。
  *
- * FrontmatterFields から空・null・空配列のフィールドを除いたコピーを返すことを検証する。
+ * FrontmatterFields から undefined / null / 空文字列のフィールドを除き、配列は長さに関係なく保持することを検証する。
  */
 describe('filterFrontmatterFields', () => {
-  /** 有効なフィールドのみのマップ → そのまま返す正常ケース */
+  /** 有効なフィールド・空配列を含むマップを扱う正常ケース */
   describe('When: 正常系', () => {
     it('[Normal] T-SF-FF-01-01: 有効なフィールドのみのマップ → そのまま返す', () => {
       const result = filterFrontmatterFields({ type: 'tech', topics: ['x'] });
       assertEquals(result['type'], 'tech');
       assertEquals(result['topics'], ['x']);
     });
+
+    it('[Normal] T-SF-FF-01-02: 空配列・非空配列・空文字の混在 → 空配列を保持し空文字のみ除外', () => {
+      const result = filterFrontmatterFields({ title: 't', topics: [], tags: ['a'], category: '' });
+      assertEquals(result, { title: 't', topics: [], tags: ['a'] });
+    });
   });
 
-  /** 空値・空配列・空オブジェクトが除外されるエッジケース */
+  /** 空文字・null・undefined の除外、空配列の保持、空オブジェクトを扱うエッジケース */
   describe('When: エッジケース', () => {
     it('[Edge] T-SF-FF-02-01: 空文字列フィールド → 除外される', () => {
       const result = filterFrontmatterFields({ type: '', category: 'ai' });
@@ -830,14 +835,21 @@ describe('filterFrontmatterFields', () => {
       assertEquals(result['category'], 'ai');
     });
 
-    it('[Edge] T-SF-FF-02-02: 空配列フィールド → 除外される', () => {
+    it('[Edge] T-SF-FF-02-02: 空配列フィールド → 保持される', () => {
       const result = filterFrontmatterFields({ topics: [] });
-      assertEquals('topics' in result, false);
+      assertEquals(result, { topics: [] });
     });
 
     it('[Edge] T-SF-FF-02-03: 空オブジェクト → 空オブジェクトを返す', () => {
       const result = filterFrontmatterFields({});
       assertEquals(Object.keys(result).length, 0);
+    });
+
+    it('[Edge] T-SF-FF-02-04: null / undefined の値 → 除外される', () => {
+      const result = filterFrontmatterFields(
+        { title: 't', category: null, type: undefined } as unknown as FrontmatterFields,
+      );
+      assertEquals(result, { title: 't' });
     });
   });
 });

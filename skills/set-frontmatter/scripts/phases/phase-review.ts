@@ -12,11 +12,13 @@
 // ─── Shared scripts
 import { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { FM_FIELD_TYPES } from '../../../_cle-libs/constants/common.constants.ts';
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { isAbortingAiError } from '../../../_cle-libs/libs/ai/abort-utils.ts';
 import { logger } from '../../../_cle-libs/libs/io/logger.ts';
 import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { hasFrontmatterFields } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
 // ─── Local
 import { reviewFrontmatter } from '../modules/setfm-review.ts';
 import { extractEntryFrontmatter, filterFrontmatterFields } from '../modules/setfm-write.ts';
@@ -98,9 +100,17 @@ export const phaseReview = async (
             status: SETFM_CACHE_STATUSES.REVIEWED,
           });
         } else if (r.validity === 'corrected') {
-          logger.info(`${LOGGER_TEXT.INDENT}review corrected: ${getFilename(entry.filePath!)}`);
           const _existing = cache.read(entry.filePath!);
           const _filtered = filterFrontmatterFields(r.corrected ?? {});
+          // topics は非空必須。キーなしは「変更なし」として既存値を保持する
+          if ('topics' in _filtered && !hasFrontmatterFields(_filtered, { topics: FM_FIELD_TYPES.topics })) {
+            logger.warn(
+              `${LOGGER_TEXT.INDENT}review error: ${getFilename(entry.filePath!)} — corrected topics is empty`,
+            );
+            await cache.write(entry.filePath!, { ..._existing, status: SETFM_CACHE_STATUSES.REVIEW_FAILED });
+            return;
+          }
+          logger.info(`${LOGGER_TEXT.INDENT}review corrected: ${getFilename(entry.filePath!)}`);
           const _fmSnapshot = { ...(_existing.frontmatter ?? {}), ..._filtered };
           const _correctedType = (_filtered['type'] as string | undefined) ?? _existing.type;
           const _correctedCategory = (_filtered['category'] as string | undefined) ?? _existing.category;

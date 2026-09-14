@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.7.0
+version: 3.8.0
 created: "2026-09-02"
 ---
 
@@ -48,6 +48,7 @@ created: "2026-09-02"
 | DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）                |
 | DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）                      |
 | DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede） |
+| DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter              |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -1328,6 +1329,44 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
 
 ---
 
+## DR-32: `topics` は空配列を「該当なし」として受理せず、非空を必須とする
+
+**Status**: Accepted（structured §4.3.1「配列値の enum」の `topics` に関する規定を改めます）
+
+**Context**: structured §4.3.1「配列値の enum」（v2.1.0）は、`topics` / `tags` のどちらでも
+「該当なし」を空配列で表すと定めていました。main のマージにより `hasFrontmatterFields` の
+`'array'` 判定が空配列を充足とみなすようになり、`topics: []` のエントリで `hasRequiredFields()` が
+`true` を返します。その結果 `phaseFrontmatter` が生成をスキップし、`--no-review` では空の `topics` が
+確定します（PR #459 の codex レビュー指摘、P2）。一方で `meta.yaml` の TOPICS ASSIGNMENT RULES は、
+`topics` の先頭要素を Log category と一致する domain として必須にしています。`topics` には
+「該当なし」がそもそも存在しません。
+
+**Decision**:
+
+1. `topics` は非空を必須とする。空配列は必須未充足とし、AI 応答の `topics` が空配列なら生成失敗に扱う
+2. `tags` は従来どおり空配列を「該当なし」として受理する
+3. R-002（DR-04）によりスキーマに `minItems` は置かない。非空の要求は呼び出し元の後段が持ち、
+   `hasFrontmatterFields` の期待型 `'nonEmptyArray'` で判定する
+4. structured §4.3.1 の #4 / #5 のフォールバック列と「配列値の enum」節を v2.4.0 で改める
+
+**Alternatives Considered**:
+
+- 仕様どおり空配列を受理し、指摘を見送る — 空の `topics` がキャッシュとファイルへ永続化され、
+  再生成の機会が失われます。不採用
+- スキーマに `minItems: 1` を置いてサーバ側で強制する — R-002 / DR-04 が禁じる数量制約であり、
+  入力が黙って破棄される既知の不具合を再び招きます。不採用
+- `topics` と `tags` をまとめて非空必須にする — `tags` には該当なしが正当に存在するため、
+  該当する語が無いログが恒常的に生成失敗になります。不採用
+
+**Consequences**: 空の `topics` が確定する経路は閉じます。既存の `topics: []` のファイルは
+再生成の対象になり、`ChatlogCache` の初期化では未充足として分類されます。
+llama の enum 制約下で Log category が `topics.dic` に無い場合、AI は空配列しか返せず、
+そのエントリは毎回生成失敗になります。この挙動はユーザーが承知のうえで採用しました。
+解消するには `topics.dic` が全 category を含むよう辞書側で揃える必要があります。
+追跡は beads `cle-eft.13` です。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1365,3 +1404,4 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
 | 2026-09-08 | 3.6.0   | DR-30 を追加 (MINOR: 決定を追加)。sandbox バナーを RateLimit として分類しない方針を記録。`_SANDBOX_DISABLED_PATTERN` (commit 1fa0df52) を導入した一度目の方針を commit 35f29b3c で撤回し、`_RATE_LIMIT_PATTERN` を元に戻したこと、これにより classify / normalize / filter の sandbox バナー re-throw 検証タスクが検証対象ごと消滅したことを Consequences に記録。closed 済み beads issue `cle-uv0.1` のバックポート |
 | 2026-09-08 | 3.6.1   | Index に DR-29 の行を追加 (PATCH: 記載漏れの修正)。本文 DR-29 は v3.5.0 から存在するが、Index テーブルへの行追加が漏れていた。決定内容の変更はない。                                                                                                                                                                                                                                                                 |
 | 2026-09-12 | 3.7.0   | DR-31 を追加 (MINOR: 決定を追加)。Phase 0 実測で 3 スキーマ x 3 条件の 9 組が 10/10 となり準拠を確定。モデル差条件の 3 組は測定せず、対応対象を測定レポート §1 の 1 構成 (Qwen3.5-35B-A3B Q4_K_M + thinking 無効化フラグ) に限定する決定を記録。DR-25 決定 1・2 の条件集合を一部 supersede                                                                                                                           |
+| 2026-09-15 | 3.8.0   | DR-32 を追加 (MINOR: 決定を追加)。PR #459 の codex レビュー指摘 (P2) を受け、`topics` は空配列を「該当なし」として受理せず非空を必須とする決定を記録。`tags` は空配列を受理したまま。非空要求は `minItems` ではなく後段の `hasFrontmatterFields` (`'nonEmptyArray'`) が持つ。structured §4.3.1 を v2.4.0 で改訂                                                                                                      |

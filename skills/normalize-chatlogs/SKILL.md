@@ -72,7 +72,7 @@ SCRIPT_PATH = $SKILL_DIR/scripts/normalize-chatlogs.ts
 解決した `SCRIPT_PATH` を使い、Bash で次のように実行する。
 
 ```bash
-deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run "$SCRIPT_PATH" {変換後の引数}
+deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run --allow-net "$SCRIPT_PATH" {変換後の引数}
 ```
 
 > `--config ./deno.json` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`

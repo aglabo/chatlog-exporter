@@ -13,6 +13,15 @@
 /** frontmatter フィールドの値型。スカラー文字列または文字列配列。 */
 export type FrontmatterFields = Record<string, string | string[]>;
 
+/**
+ * frontmatter 必須フィールドの期待型。
+ *
+ * - `'string'`: 非空文字列
+ * - `'array'`: 配列（空配列を含む）
+ * - `'nonEmptyArray'`: 1 要素以上の配列
+ */
+export type FrontmatterFieldType = 'string' | 'array' | 'nonEmptyArray';
+
 // ─────────────────────────────────────────────
 // frontmatter 抽出結果系
 // ─────────────────────────────────────────────

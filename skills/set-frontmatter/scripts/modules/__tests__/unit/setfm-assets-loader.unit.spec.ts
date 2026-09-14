@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/setfm-assets-loader.unit.spec.ts
 // @(#): loadDics / loadPrompts のユニットテスト
-//       対象: loadDics, loadPrompts
+//       対象: loadDics, loadPrompts, resolveDicsDir
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -14,7 +14,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { loadDics, loadPrompts } from '../../setfm-assets-loader.ts';
+import { loadDics, loadPrompts, resolveDicsDir } from '../../setfm-assets-loader.ts';
 
 // ─── Helpers
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
@@ -207,6 +207,20 @@ describe('setfm-assets-loader', () => {
 
         assertEquals(result.category, 'tech,life');
         assertEquals(result.tags, 'typescript');
+      });
+    });
+  });
+
+  /**
+   * `resolveDicsDir` のテストスイート。
+   *
+   * 辞書ディレクトリを `loadDics` と同じ規則で解決することを検証する。
+   */
+  describe('resolveDicsDir', () => {
+    /** 絶対パスを渡す正常ケース。 */
+    describe('When: dicsDir に絶対パスを指定する', () => {
+      it('[Normal] T-SF-AL-07-01: 区切りが混在した絶対パス → 正規化されたパスがそのまま返る', () => {
+        assertEquals(resolveDicsDir('C:\\dics\\sub/dir'), 'C:/dics/sub/dir');
       });
     });
   });

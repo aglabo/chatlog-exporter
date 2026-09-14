@@ -511,9 +511,9 @@ describe('parseFrontmatterEntries', () => {
 /**
  * `reorderFrontmatterEntries` のユニットテストスイート。
  *
- * フィールド順序固定・空値スキップ・重複スキップ・空 fieldOrder を検証する。
+ * フィールド順序固定・空値スキップ（空配列は保持）・重複スキップ・空 fieldOrder を検証する。
  *
- * テスト ID 範囲: T-FU-BOE-01 〜 T-FU-BOE-06
+ * テスト ID 範囲: T-FU-BOE-01 〜 T-FU-BOE-07
  *
  * @see reorderFrontmatterEntries
  */
@@ -521,7 +521,7 @@ describe('reorderFrontmatterEntries', () => {
   /**
    * `reorderFrontmatterEntries` の正常系テスト。
    *
-   * フィールド順序・undefined スキップ・空文字列スキップ・空配列スキップを検証する。
+   * フィールド順序・undefined スキップ・空文字列スキップ・空配列保持を検証する。
    */
   describe('When: 正常系', () => {
     /** T-FU-BOE-01: entries と逆順の fieldOrder で順序が固定されることを確認する。 */
@@ -547,18 +547,19 @@ describe('reorderFrontmatterEntries', () => {
       assertEquals(Object.keys(result), ['title']);
     });
 
-    /** T-FU-BOE-04: 空配列の値はスキップされる。 */
-    it('[Normal] T-FU-BOE-04: 空配列はスキップされる', () => {
+    /** T-FU-BOE-04: 空配列の値は「該当なし」を表す正当な値として保持される。 */
+    it('[Normal] T-FU-BOE-04: 空配列は保持される', () => {
       const entries: Record<string, string | string[]> = { title: 'Hello', tags: [] };
       const result = reorderFrontmatterEntries(entries, ['title', 'tags']);
-      assertEquals(Object.keys(result), ['title']);
+      assertEquals(Object.keys(result), ['title', 'tags']);
+      assertEquals(result['tags'], []);
     });
   });
 
   /**
    * `reorderFrontmatterEntries` のエッジケーステスト。
    *
-   * fieldOrder の重複と空配列を検証する。
+   * fieldOrder の重複・空 fieldOrder・空文字列と空配列の混在を検証する。
    */
   describe('When: エッジケース', () => {
     /** T-FU-BOE-05: fieldOrder に重複フィールドがあっても 1 回だけ出力される。 */
@@ -574,6 +575,13 @@ describe('reorderFrontmatterEntries', () => {
       const entries: Record<string, string | string[]> = { title: 'Hello' };
       const result = reorderFrontmatterEntries(entries, []);
       assertEquals(result, {});
+    });
+
+    /** T-FU-BOE-07: 空文字列と空配列が混在するとき、空文字列だけがスキップされ空配列は保持される。 */
+    it('[Edge] T-FU-BOE-07: 空文字列はスキップされ空配列は保持される', () => {
+      const entries: Record<string, string | string[]> = { title: 'Hello', category: '', tags: [] };
+      const result = reorderFrontmatterEntries(entries, ['title', 'category', 'tags']);
+      assertEquals(result, { title: 'Hello', tags: [] });
     });
   });
 });
@@ -782,7 +790,7 @@ describe('hasFrontmatter', () => {
  *
  * `FrontmatterFields` の 5 フィールド充足チェックを検証する。
  *
- * テスト ID 範囲: T-FU-HFF-01 〜 T-FU-HFF-05
+ * テスト ID 範囲: T-FU-HFF-01 〜 T-FU-HFF-13
  *
  * @see hasFrontmatterFields
  */
@@ -815,6 +823,11 @@ describe('hasFrontmatterFields', () => {
       const _fields: Record<string, string | string[]> = { title: 'Hello' };
       assertEquals(hasFrontmatterFields(_fields, ['title']), true);
     });
+
+    it("[Normal] T-FU-HFF-10: fields で topics を 'nonEmptyArray' 指定、topics が非空配列 → true", () => {
+      const _fields: Record<string, string | string[]> = { topics: ['a'] };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray' }), true);
+    });
   });
 
   /** フィールド不足・空値のエラーケース。 */
@@ -840,13 +853,70 @@ describe('hasFrontmatterFields', () => {
       assertEquals(hasFrontmatterFields(_fields), false);
     });
 
-    it('[Error] T-FU-HFF-04: 配列フィールド(tags)が空配列 → false', () => {
+    it('[Error] T-FU-HFF-08: 配列フィールド(topics)がスカラー文字列 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: 'ai',
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it('[Error] T-FU-HFF-11: 既定値で topics が空配列 → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: [],
+        tags: ['tag1'],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it("[Error] T-FU-HFF-12: fields で topics を 'nonEmptyArray' 指定、topics がスカラー文字列 → false", () => {
+      const _fields: Record<string, string | string[]> = { topics: 'ai' };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray' }), false);
+    });
+  });
+
+  /** 配列フィールドの境界値ケース（tags の 'array' は空配列で充足、topics の 'nonEmptyArray' は 1 要素以上が必要）。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FU-HFF-04: 配列フィールド(tags)が空配列 → true', () => {
       const _fields: Record<string, string | string[]> = {
         type: 'tech',
         category: 'backend',
         title: 'My Title',
         topics: ['topic-a'],
         tags: [],
+      };
+      assertEquals(hasFrontmatterFields(_fields), true);
+    });
+
+    it('[Edge] T-FU-HFF-07: 配列フィールド(topics/tags)が両方空配列 → topics が不充足で false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: [],
+        tags: [],
+      };
+      assertEquals(hasFrontmatterFields(_fields), false);
+    });
+
+    it("[Edge] T-FU-HFF-13: 'array' は空配列で充足、'nonEmptyArray' は 1 要素で充足 → true", () => {
+      const _fields: Record<string, string | string[]> = { topics: ['a'], tags: [] };
+      assertEquals(hasFrontmatterFields(_fields, { topics: 'nonEmptyArray', tags: 'array' }), true);
+    });
+
+    it('[Edge] T-FU-HFF-09: 配列フィールド(topics)が空文字列（bare topics: 由来） → false', () => {
+      const _fields: Record<string, string | string[]> = {
+        type: 'tech',
+        category: 'backend',
+        title: 'My Title',
+        topics: '',
+        tags: ['tag1'],
       };
       assertEquals(hasFrontmatterFields(_fields), false);
     });

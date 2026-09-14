@@ -19,6 +19,7 @@ import { parseAiJsonArray } from '../../../../_cle-libs/libs/text/json-utils.ts'
 import { LOGGER_TEXT } from '../../../../_cle-libs/constants/logger.constants.ts';
 // types
 import type { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { OutputContract } from '../../../../_cle-libs/types/json-schema.types.ts';
 import type { AiRunnerProvider } from '../../../../_cle-libs/types/providers.types.ts';
 
 // ─── internal ───
@@ -69,6 +70,24 @@ DISCARD: the log records only WHAT happened — execution status, trivial Q&A, a
 conclusion that is now obvious from the code itself, or reasoning that only makes
 sense inside this session's context.`;
 
+/**
+ * filter の AI 応答に適用する出力契約（structured-output §4.3.1 #2）を組み立てる。
+ * `decision` の値域は `FILTER_DECISIONS` の wire 値で、キャッシュ用番兵 `EMPTY` は含めない。
+ */
+const _buildFilterOutputContract = (): OutputContract => ({
+  contract: 'json-array',
+  properties: {
+    file: { type: 'string' },
+    decision: {
+      type: 'string',
+      values: [FILTER_DECISIONS.KEEP, FILTER_DECISIONS.DISCARD, FILTER_DECISIONS.ERROR],
+      fallback: FILTER_DECISIONS.ERROR,
+    },
+    confidence: { type: 'number' },
+    reason: { type: 'string' },
+  },
+});
+
 // ─────────────────────────────────────────────
 // チャンク処理
 // ─────────────────────────────────────────────
@@ -89,6 +108,7 @@ export const processChunk = async (
     rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
       ...(model ? { model } : {}),
       signal: ctl.signal,
+      outputContract: _buildFilterOutputContract(),
     });
   } catch (e) {
     if (!(e instanceof ChatlogError)) { throw e; }
@@ -131,6 +151,9 @@ export const processChunk = async (
       await cache.write(entry.filePath as string, { decision: FILTER_DECISIONS.EMPTY, confidence, reason });
       logger.info(`${LOGGER_TEXT.INDENT}閾値未満 (decision=${decision}, conf=${confidence}): ${filename} - skipped`);
       stats.skip++;
+    } else if (decision === FILTER_DECISIONS.ERROR) {
+      logger.warn(`${LOGGER_TEXT.INDENT}error扱い (decision=${decision}, conf=${confidence}): ${filename}`);
+      stats.error++;
     } else {
       await cache.write(entry.filePath as string, { decision: FILTER_DECISIONS.KEEP, confidence, reason });
       logger.info(`${LOGGER_TEXT.INDENT}kept (decision=${decision}, conf=${confidence}): ${filename}`);

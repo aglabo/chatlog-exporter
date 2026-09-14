@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env --allow-net
 // src: scripts/set-frontmatter.ts
 // @(#): チャットログMarkdownにAI生成フロントマターを並列付加する
 //
@@ -37,7 +37,8 @@ import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // ─── Local
 import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../_cle-libs/classes/ChatlogEntry.class.ts';
-import { loadDics, loadPrompts } from './modules/setfm-assets-loader.ts';
+import { loadDics, loadPrompts, resolveDicsDir } from './modules/setfm-assets-loader.ts';
+import { assertSetfmContracts } from './modules/setfm-contracts.ts';
 import { phaseFrontmatter } from './phases/phase-frontmatter.ts';
 import { phaseReview } from './phases/phase-review.ts';
 import { phaseStatus } from './phases/phase-status.ts';
@@ -131,19 +132,21 @@ export const main = async (args: string[]): Promise<void> => {
     throw new ChatlogError('InputNotFound', 'NotFound', `ディレクトリが見つかりません: ${_inputDir}`);
   }
 
-  const _cache = new ChatlogCache<SetfmCache>(
-    'fm-cache',
-    _config.cacheDir,
-    { outputDir: _config.outputDir },
-  );
-  await _cache.ready;
-
   const [dics, prompts] = await Promise.all([loadDics(_config.dicsDir), loadPrompts(_config.promptsDir)]);
   logger.info(
     `辞書読み込み完了: category=${dics.category.split(',').length}件 `
       + `topics=${dics.topicEntries.length}件 tags=${dics.tags.split(',').length}件 `
       + `types=${dics.typeEntries.length}件`,
   );
+  // 辞書由来の出力契約をキャッシュディレクトリの作成・AI 呼び出し・エントリ読み込みより前に検査する（dry-run でも実行）
+  assertSetfmContracts(dics, resolveDicsDir(_config.dicsDir));
+
+  const _cache = new ChatlogCache<SetfmCache>(
+    'fm-cache',
+    _config.cacheDir,
+    { outputDir: _config.outputDir },
+  );
+  await _cache.ready;
 
   if (!_config.review) { logger.info('--no-review モード: Phase 3.1 をスキップします'); }
 

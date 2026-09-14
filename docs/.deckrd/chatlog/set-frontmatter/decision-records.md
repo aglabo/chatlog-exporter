@@ -2,7 +2,7 @@
 title: "Decision Records: chatlog/set-frontmatter"
 module: "chatlog/set-frontmatter"
 status: Draft
-version: 1.0.0
+version: 1.0.1
 created: "2026-09-08"
 ---
 
@@ -34,7 +34,7 @@ Keep frontmatter `version` equal to the newest Change History row below.
 | ID    | Decision                                                                     | 主な影響先                                |
 | ----- | ---------------------------------------------------------------------------- | ----------------------------------------- |
 | DR-01 | サマリーの `written` を `cached` に改め、変更範囲をラベルと表示名に限定する  | `phase.types.ts` / `set-frontmatter.ts`   |
-| DR-02 | 設計チェーンから切れたテストは削除せず、改番して `tasks.md` に対応項目を足す | `tasks.md` / `judge-type-category` テスト |
+| DR-02 | 設計チェーンから切れたテストは削除せず、改番して `tasks.md` に対応項目を足す | `tasks.md` / `setfm-type-category` テスト |
 
 ---
 
@@ -122,6 +122,10 @@ T-06 が宣言する Test ID prefix（`T-SF-LAB`）にも従います。
 タスク ID のないテストとして削除される経路が塞がれました。
 本 DR は「チェーンから切れたテストを見つけたときに削除ではなく接続を選ぶ」判断の前例になります。
 
+> 追記（2026-09-14）: `judge-type-category.unit.spec.ts` は `setfm-type-category.unit.spec.ts` に改名しました。
+> `buildTypeCategoryOutputContract` のテストが加わり、対象が `setfm-type-category.ts` の公開関数全体に
+> 広がったためです。`T-SF-LAB-03-02` は改名後のファイルにあり、テストの移動はしていません。
+
 > 出典: beads `cle-eek`（closed 2026-09-07） / GitHub #440
 
 ---
@@ -131,5 +135,6 @@ T-06 が宣言する Test ID prefix（`T-SF-LAB`）にも従います。
 | Date       | Version | Description                                                                                             |
 | ---------- | ------- | ------------------------------------------------------------------------------------------------------- |
 | 2026-09-08 | 1.0.0   | 初版。closed 済み beads issue のバックポートとして DR-01 / DR-02 を記録（`cle-ye2` / `cle-eek` が出典） |
+| 2026-09-14 | 1.0.1   | DR-02 にテストファイル改名（`judge-type-category` → `setfm-type-category`）を追記                       |
 
 <!-- markdownlint-enable line-length -->

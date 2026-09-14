@@ -44,17 +44,15 @@ export const extractEntryFrontmatter = (entry: ChatlogEntry): FrontmatterFields 
   ) as FrontmatterFields;
 
 /**
- * FrontmatterFields から空・null・空配列のフィールドを除いたコピーを返す。
+ * FrontmatterFields から undefined / null / 空文字列のフィールドを除いたコピーを返す。
+ * 配列は長さに関係なく保持する（空配列 `[]` は「該当なし」を表す有効値）。
  *
  * @param fields - フィルタ対象の frontmatter フィールドマップ
  * @returns フィルタ済みのフィールドマップ
  */
 export const filterFrontmatterFields = (fields: FrontmatterFields): FrontmatterFields =>
   Object.fromEntries(
-    Object.entries(fields).filter(([, v]) => {
-      if (Array.isArray(v)) { return v.length > 0; }
-      return v !== undefined && v !== null && v !== '';
-    }),
+    Object.entries(fields).filter(([, v]) => v !== undefined && v !== null && v !== ''),
   ) as FrontmatterFields;
 
 // ─────────────────────────────────────────────

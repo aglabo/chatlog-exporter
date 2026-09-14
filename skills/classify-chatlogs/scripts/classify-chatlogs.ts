@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-write --allow-env --allow-net
 // src: scripts/classify-chatlogs.ts
 // @(#): classify-chatlogs オーケストレーション — チャットログをプロジェクト別サブディレクトリに分類する
 //

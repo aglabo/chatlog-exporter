@@ -20,6 +20,7 @@ import { parseAiJsonArray } from '../../../_cle-libs/libs/text/json-utils.ts';
 import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // types
+import type { OutputContract } from '../../../_cle-libs/types/json-schema.types.ts';
 import type { AiRunnerProvider } from '../../../_cle-libs/types/providers.types.ts';
 import type {
   ClassifyCache,
@@ -87,6 +88,20 @@ If the file has no metadata AND the body is fewer than 3 lines, assign "${FALLBA
 Base your decision on: title, category, topics, tags.`;
 };
 
+/**
+ * classify の AI 応答に適用する出力契約（structured-output §4.3.1 #1）を組み立てる。
+ * `project` の値域は辞書 `projects` のキー集合、フォールバックは `FALLBACK_PROJECT`。
+ */
+const _buildClassifyOutputContract = (projects: ProjectDicEntry): OutputContract => ({
+  contract: 'json-array',
+  properties: {
+    file: { type: 'string' },
+    project: { type: 'string', values: Object.keys(projects), fallback: FALLBACK_PROJECT },
+    confidence: { type: 'number' },
+    reason: { type: 'string' },
+  },
+});
+
 /** チャンク全件に `action: ERROR` を `cache` へ書き込み、処理した filePath 一覧を返す。 */
 const _writeChunkError = async (
   chunkMetas: ChatlogEntry[],
@@ -122,7 +137,11 @@ export const processChunk = async (
 
   let rawResult: string;
   try {
-    rawResult = await aiRunnerProvider(_systemPrompt, _batchPrompt, { model, signal: ctl.signal });
+    rawResult = await aiRunnerProvider(_systemPrompt, _batchPrompt, {
+      model,
+      signal: ctl.signal,
+      outputContract: _buildClassifyOutputContract(projects),
+    });
   } catch (e) {
     if (isAbortingAiError(e) || ctl.signal.aborted) {
       throw e;

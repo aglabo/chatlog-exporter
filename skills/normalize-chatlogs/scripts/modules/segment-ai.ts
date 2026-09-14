@@ -13,6 +13,7 @@
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 // types
 import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import type { OutputContract } from '../../../_cle-libs/types/json-schema.types.ts';
 import type { AiRunnerProvider } from '../../../_cle-libs/types/providers.types.ts';
 
 // functions
@@ -51,6 +52,30 @@ type _AiSegmentRange = {
 
 /** 行番号を右詰めパディングする固定幅（5桁）。6桁以上の行番号はパディングなしでそのまま出力される。 */
 const LINE_NUMBER_WIDTH = 5;
+
+/**
+ * segment の AI 応答に適用する出力契約（structured-output §4.3.1 #3）を組み立てる。
+ * `segments` の要素は `title` / `summary` / `startLine` / `endLine` の 4 キーまで定義し、
+ * 行番号は `integer` とする。
+ */
+const _buildSegmentOutputContract = (): OutputContract => ({
+  contract: 'json-array',
+  properties: {
+    filePath: { type: 'string' },
+    segments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          summary: { type: 'string' },
+          startLine: { type: 'integer' },
+          endLine: { type: 'integer' },
+        },
+      },
+    },
+  },
+});
 
 /**
  * content の各行に 1-based の行番号を付与する（`segmentChatlogs` の userPrompt 生成専用）。
@@ -114,6 +139,7 @@ export const segmentChatlogs = async (
       model: options?.model ?? DEFAULT_AI_MODEL,
       ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+      outputContract: _buildSegmentOutputContract(),
     });
   } catch (e) {
     if (isAbortingAiError(e)) {
