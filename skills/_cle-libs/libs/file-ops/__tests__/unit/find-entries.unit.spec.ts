@@ -308,6 +308,36 @@ describe('findEntries', () => {
       });
     });
   });
+
+  // ─────────────────────────────────────────────
+  // T-FE-19: findEntries - glob 未注入時はデフォルト glob（expandGlob）で再帰収集
+  // ─────────────────────────────────────────────
+
+  describe('Given: 一時ディレクトリ直下とサブディレクトリに .md、直下に .txt がある', () => {
+    let _tmpDir: string;
+
+    beforeAll(async () => {
+      _tmpDir = normalizePath(await Deno.makeTempDir());
+      await Deno.mkdir(`${_tmpDir}/sub`);
+      await Deno.writeTextFile(`${_tmpDir}/a.md`, '# A');
+      await Deno.writeTextFile(`${_tmpDir}/sub/b.md`, '# B');
+      await Deno.writeTextFile(`${_tmpDir}/c.txt`, 'C');
+    });
+
+    afterAll(async () => {
+      await Deno.remove(_tmpDir, { recursive: true });
+    });
+
+    describe('When: findEntries([tmpDir], ".md") を glob 未注入で呼び出す', () => {
+      describe('Then: T-FE-19 - 再帰的に .md のみがソート済みで返される', () => {
+        it('T-FE-19-01: a.md と sub/b.md の正規化パスが返される', async () => {
+          const _result = await findEntries([_tmpDir], '.md');
+
+          assertEquals(_result, [`${_tmpDir}/a.md`, `${_tmpDir}/sub/b.md`]);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────

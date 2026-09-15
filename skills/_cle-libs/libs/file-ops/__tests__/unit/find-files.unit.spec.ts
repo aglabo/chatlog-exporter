@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assert, assertEquals, assertFalse, assertRejects } from '@std/assert';
+import { assert, assertEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // -- test target --
@@ -140,36 +140,6 @@ describe('findFiles', () => {
   });
 
   // ─────────────────────────────────────────────
-  // T-LIB-FF-04: .md 以外ファイルの除外
-  // ─────────────────────────────────────────────
-
-  describe('Given: glob が .md ファイルのみを返す（フィルタ済み）', () => {
-    describe('When: findFiles(dir, { glob }) を呼び出す', () => {
-      describe('Then: T-LIB-FF-04 - .md 以外ファイルの除外', () => {
-        it('T-LIB-FF-04-01: .md ファイルのみが返される（1件）', async () => {
-          const _glob = _makeGlob({
-            '/mock/dir': ['/mock/dir/readme.md'],
-          });
-
-          const _result = await findFiles('/mock/dir', { glob: _glob });
-
-          assertEquals(_result.length, 1);
-        });
-
-        it('T-LIB-FF-04-02: .txt/.yaml/.json ファイルは含まれない', async () => {
-          const _glob = _makeGlob({
-            '/mock/dir': ['/mock/dir/readme.md'],
-          });
-
-          const _result = await findFiles('/mock/dir', { glob: _glob });
-
-          assertFalse(_result.some((p) => p.endsWith('.txt') || p.endsWith('.yaml') || p.endsWith('.json')));
-        });
-      });
-    });
-  });
-
-  // ─────────────────────────────────────────────
   // T-LIB-FF-05: 存在しないディレクトリで空配列（例外なし）
   // ─────────────────────────────────────────────
 
@@ -242,7 +212,7 @@ describe('findFiles', () => {
   });
 
   // ─────────────────────────────────────────────
-  // T-LIB-FF-09〜11: findFilesFlat（1段のみ探索）
+  // T-LIB-FF-09〜12: findFilesFlat（1段のみ探索）
   // ─────────────────────────────────────────────
 
   describe('findFilesFlat', () => {
@@ -275,6 +245,18 @@ describe('findFiles', () => {
             : Promise.resolve(['/root/sub']);
         const _result = await findFilesFlat('/root', { glob: _glob });
         assertEquals(_result, ['/root/a.md']);
+      });
+    });
+
+    describe('When: 異常系', () => {
+      it('[Error] T-LIB-FF-12: ext がドット始まりでない ("md") → Error がスローされる', async () => {
+        const _glob: GlobProvider = () => Promise.resolve([]);
+
+        await assertRejects(
+          () => findFilesFlat('/mock', { ext: 'md', glob: _glob }),
+          Error,
+          "ext must start with '.'",
+        );
       });
     });
   });
