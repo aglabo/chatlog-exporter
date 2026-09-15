@@ -151,6 +151,13 @@ describe('ChatlogFrontmatter', () => {
         const result = fm.toFrontmatter(['title', 'tags'], { addTagHashes: true });
         assertEquals(result, '---\ntitle: "Hello"\ntags: []\n---\n');
       });
+
+      it('T-CLS-CF-65: addTagHashes:true 指定時、スカラー文字列の tags にも # が付与される', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', 'foo');
+        const result = fm.toFrontmatter(['tags'], { addTagHashes: true });
+        assertEquals(result, '---\ntags: "#foo"\n---\n');
+      });
     });
 
     describe('エッジケース', () => {

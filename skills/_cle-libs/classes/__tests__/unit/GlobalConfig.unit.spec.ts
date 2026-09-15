@@ -63,7 +63,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-154
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-155
  *
  * @see GlobalConfig
  */
@@ -995,6 +995,23 @@ describe('GlobalConfig', () => {
         );
         assertEquals(_err.kind, 'InvalidYaml');
         assertEquals(_err.subindex, 'UnknownKey');
+      });
+
+      it('[Error] T-CLS-GC-155: readTextFileProvider が NotFound 以外のエラー → 同一のエラーがそのまま再スローされる', () => {
+        const _config = GlobalConfig.getInstance();
+        const _thrown = new Deno.errors.PermissionDenied('permission denied');
+        const _deniedRead: ReadTextFileSyncProvider = () => {
+          throw _thrown;
+        };
+        const _err = assertThrows(
+          () =>
+            _config.loadConfigFile({
+              configPath: '/mock/config.yaml',
+              readTextFileProvider: _deniedRead,
+            }),
+          Deno.errors.PermissionDenied,
+        );
+        assertStrictEquals(_err, _thrown);
       });
     });
   });
