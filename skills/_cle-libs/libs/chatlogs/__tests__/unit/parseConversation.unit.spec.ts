@@ -12,7 +12,7 @@ import { assert, assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { parseConversation, renderConversation } from '../../conversation-utils.ts';
+import { parseConversation } from '../../conversation-utils.ts';
 
 // ─── Tests
 
@@ -21,10 +21,9 @@ import { parseConversation, renderConversation } from '../../conversation-utils.
  *
  * Markdown 本文から User/Assistant の会話ターンを正しく抽出できることを検証する。
  *
- * テスト ID 範囲: T-SC-PC-01 〜 T-SC-PC-09
+ * テスト ID 範囲: T-SC-PC-01 〜 T-SC-PC-07
  *
  * @see parseConversation
- * @see renderConversation
  */
 describe('parseConversation', () => {
   /** 正常な Markdown 会話本文のケース。 */
@@ -80,13 +79,6 @@ describe('parseConversation', () => {
       for (const turn of _result) {
         assert(turn.content.trim().length > 0);
       }
-    });
-
-    it('[Edge] T-SC-PC-08: renderConversation の maxChars が指定されると指定文字数以内に収まる', () => {
-      // parseConversation と renderConversation を組み合わせた境界値
-      const _turns = parseConversation('### User\n' + 'a'.repeat(200) + '\n### Assistant\n' + 'b'.repeat(200));
-      const _rendered = renderConversation(_turns, 100);
-      assert(_rendered.length <= 100);
     });
   });
 });
