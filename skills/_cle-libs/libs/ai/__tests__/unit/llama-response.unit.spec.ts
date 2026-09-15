@@ -323,8 +323,56 @@ const _RATE_LIMIT_STATUS_CASES: _RateLimitStatusCase[] = [
   { id: 'T-LIB-AI-LRI-03-03', status: 504 },
 ];
 
+/**
+ * 共通フィクスチャ: `response_format` のスキーマ変換に失敗した llama-server の HTTP 400 本文（DR-33）。
+ *
+ * `error.message` は改行を含む。`JSON.stringify` で組み立て、`\n` を実際の改行として載せる。
+ */
+const _SCHEMA_CONVERSION_FAILED_BODY_TEXT = JSON.stringify({
+  error: {
+    code: 400,
+    message: 'JSON schema conversion failed:\nUnrecognized schema: {"type":"bogus"}',
+    type: 'invalid_request_error',
+  },
+});
+
+/** 共通フィクスチャ: コンテキスト長超過で llama-server が返す HTTP 400 本文（続行側。DR-33 の反例）。 */
+const _CONTEXT_SIZE_EXCEEDED_BODY_TEXT = JSON.stringify({
+  error: {
+    code: 400,
+    message: 'request (40012 tokens) exceeds the available context size (32768 tokens), try increasing it',
+    type: 'exceed_context_size_error',
+    n_prompt_tokens: 40012,
+    n_ctx: 32768,
+  },
+});
+
+/** 共通フィクスチャ: 拒否本文と同じ `error.type` を持つ別の HTTP 400 本文（`error.type` を判別に使わないことの反例）。 */
+const _MESSAGES_REQUIRED_BODY_TEXT = JSON.stringify({
+  error: { code: 400, message: "'messages' is required", type: 'invalid_request_error' },
+});
+
+/** 共通フィクスチャ: JSON として parse できない HTTP 400 本文（判別関数が例外を投げないことの反例）。 */
+const _NON_JSON_BAD_REQUEST_BODY_TEXT = '<html>Bad Request</html>';
+
+/** 共通フィクスチャ: `error.message` が文字列でない HTTP 400 本文（判別関数が例外を投げないことの反例）。 */
+const _NON_STRING_MESSAGE_BODY_TEXT = JSON.stringify({
+  error: { code: 400, message: 42, type: 'invalid_request_error' },
+});
+
+/** 共通フィクスチャ: JSON の `null` だけの HTTP 400 本文（parse 結果が `null` でも判別関数が例外を投げないことの反例）。 */
+const _NULL_BODY_TEXT = 'null';
+
+/** 共通フィクスチャ: `error` が `null` の HTTP 400 本文（`error.message` を辿れなくても例外を投げないことの反例）。 */
+const _NULL_ERROR_BODY_TEXT = JSON.stringify({ error: null });
+
+/** 共通フィクスチャ: 拒否の文言が `error.message` の途中にある HTTP 400 本文（接頭辞でのみ照合することの反例）。 */
+const _PREFIX_IN_MIDDLE_BODY_TEXT = JSON.stringify({
+  error: { code: 400, message: 'upstream: JSON schema conversion failed', type: 'invalid_request_error' },
+});
+
 // types
-/** 続行側へ落とす非成功ステータス 1 件分の定義（テスト ID・ケース説明・ステータス）。 */
+/** 続行側へ落とす非成功ステータス 1 件分の定義（テスト ID・ケース説明・ステータス・本文）。 */
 type _OtherFailureStatusCase = {
   /** テスト ID。 */
   id: string;
@@ -332,6 +380,8 @@ type _OtherFailureStatusCase = {
   label: string;
   /** 応答に載せる HTTP ステータス。 */
   status: number;
+  /** 応答本文（生文字列）。省略時は `_responseWithStatus` の既定本文。 */
+  body?: string;
 };
 
 // constants
@@ -340,15 +390,58 @@ type _OtherFailureStatusCase = {
  * （error-handling §4.1 Step 6 / R-003 / DR-18）。
  *
  * いずれも `ChatlogError(AiError / ExitFailure)`（続行側）に分類される。
- * 400 は「`response_format` の拒否と判別できない 400」にあたり、中断側の
- * `ResponseFormatRejected` ではなく続行側へ落とすという既定を固定する
- * （implementation.md §3.2）。
+ * 400 の各行は DR-33 の判別条件（本文が JSON として parse でき、`error.message` が文字列で、
+ * `JSON schema conversion failed` で始まる）を満たさない「判別できない 400」にあたり、
+ * 中断側の `ResponseFormatRejected` ではなく続行側へ落とすという既定を固定する。
+ * `error.type` の一致・非 JSON 本文・非文字列 `error.message` でも判別関数が true にも例外にもならないことを含む。
  */
 const _OTHER_FAILURE_STATUS_CASES: _OtherFailureStatusCase[] = [
   {
-    id: 'T-LIB-AI-LRI-07-01',
-    label: 'HTTP 400 だが response_format の拒否と判別できない',
+    id: 'T-LIB-AI-LRI-07-01-01',
+    label: 'HTTP 400 で本文に error フィールドが無い',
     status: 400,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-02',
+    label: 'HTTP 400 でコンテキスト長超過',
+    status: 400,
+    body: _CONTEXT_SIZE_EXCEEDED_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-03',
+    label: "HTTP 400 で error.type は同じだが message が 'messages' is required",
+    status: 400,
+    body: _MESSAGES_REQUIRED_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-04',
+    label: 'HTTP 400 で本文が JSON として parse できない',
+    status: 400,
+    body: _NON_JSON_BAD_REQUEST_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-05',
+    label: 'HTTP 400 で error.message が文字列でない',
+    status: 400,
+    body: _NON_STRING_MESSAGE_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-06',
+    label: 'HTTP 400 で本文が JSON の null',
+    status: 400,
+    body: _NULL_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-07',
+    label: 'HTTP 400 で error が null',
+    status: 400,
+    body: _NULL_ERROR_BODY_TEXT,
+  },
+  {
+    id: 'T-LIB-AI-LRI-07-01-08',
+    label: 'HTTP 400 で拒否の文言が error.message の途中にある（接頭辞でない）',
+    status: 400,
+    body: _PREFIX_IN_MIDDLE_BODY_TEXT,
   },
   {
     id: 'T-LIB-AI-LRI-07-02',
@@ -405,7 +498,9 @@ const _responseWithStatus = (
  * 記録されることまで検証する。
  * あわせて error-handling §4.1 Step 6 / R-003 / DR-18 に基づき、上記いずれにも該当しない
  * 非成功ステータス（判別できない 400 を含む）が続行側の `ExitFailure` に分類されることを検証する。
- * Step 5（`ResponseFormatRejected`）は判別条件が未確定で到達しないため本ファイルでは検証しない。
+ * Step 5 / R-008 / DR-33 に基づき、`error.message` が `JSON schema conversion failed` で始まる 400 が
+ * 中断側の `ResponseFormatRejected` に分類されることと、`error.type` の一致・非 JSON 本文・
+ * 非文字列 `error.message` などの判別できない 400 が `ExitFailure` のままであることを検証する。
  *
  * エッジケースは error-handling §4.1 R-004 条件 d / DR-26 決定 3 に基づき、`finish_reason` が
  * 実装固有値・欠落・`null` のいずれでも「`stop` 以外」として同じ分類に落ちること、
@@ -414,7 +509,7 @@ const _responseWithStatus = (
  *
  * テスト ID: T-LIB-AI-LRI-01-01 〜 T-LIB-AI-LRI-01-03 / T-LIB-AI-LRI-03-01 〜 T-LIB-AI-LRI-03-03 /
  * T-LIB-AI-LRI-04-01 〜 T-LIB-AI-LRI-04-02 / T-LIB-AI-LRI-05-01 〜 T-LIB-AI-LRI-05-03 /
- * T-LIB-AI-LRI-07-01 〜 T-LIB-AI-LRI-07-02 / T-LIB-AI-LRI-08-01 〜 T-LIB-AI-LRI-08-06 / T-LIB-AI-LRI-09-01 〜 T-LIB-AI-LRI-09-06 /
+ * T-LIB-AI-LRI-06-01 / T-LIB-AI-LRI-07-01-01 〜 T-LIB-AI-LRI-07-01-08 / T-LIB-AI-LRI-07-02 / T-LIB-AI-LRI-08-01 〜 T-LIB-AI-LRI-08-06 / T-LIB-AI-LRI-09-01 〜 T-LIB-AI-LRI-09-06 /
  * T-LIB-AI-LRI-10-01 〜 T-LIB-AI-LRI-10-02-02
  *
  * @see interpretLlamaResponse
@@ -608,12 +703,23 @@ describe('interpretLlamaResponse', () => {
       });
     }
 
+    // 判別関数が拒否を読み取れないと Step 6 の ExitFailure へ落ち、このケースだけが落ちる（DR-33）。
+    it('[Error] T-LIB-AI-LRI-06-01: HTTP 400 かつ error.message が JSON schema conversion failed で始まる → AiError/ResponseFormatRejected', async () => {
+      const _error = await assertRejects(
+        () => interpretLlamaResponse(_responseWithStatus(400, _SCHEMA_CONVERSION_FAILED_BODY_TEXT)),
+        ChatlogError,
+      );
+
+      assertEquals(_error.kind, 'AiError');
+      assertEquals(_error.subindex, 'ResponseFormatRejected');
+    });
+
     // 本文・`Content-Type` は正常な応答と同じにしてあるため、Step 6 を落とすと
     // テキストが返り、これらのケースだけが落ちる（Step 7 の ExitFailure と取り違えない）。
-    for (const { id, label, status } of _OTHER_FAILURE_STATUS_CASES) {
+    for (const { id, label, status, body } of _OTHER_FAILURE_STATUS_CASES) {
       it(`[Error] ${id}: ${label} → AiError/ExitFailure`, async () => {
         const _error = await assertRejects(
-          () => interpretLlamaResponse(_responseWithStatus(status)),
+          () => interpretLlamaResponse(_responseWithStatus(status, body)),
           ChatlogError,
         );
 
@@ -755,7 +861,8 @@ type _FailureKindCase = {
  * （error-handling §4.1 Step 1〜7 + Step 6.5 / DR-03 / DR-18 決定 1 / REQ-C-003）。
  *
  * `subindex` は Step ごとに異なるが、`kind` は一律 `AiError` でなければならない。
- * Step 5（`ResponseFormatRejected`）は判別条件が未確定で到達しないため含めない。
+ * Step 5（`ResponseFormatRejected`）は T-LIB-AI-LRI-06-01 が `kind` まで検証済みで、本表に加えると
+ * 新しいテスト ID が要るため含めない。
  */
 const _FAILURE_KIND_CASES: _FailureKindCase[] = [
   {

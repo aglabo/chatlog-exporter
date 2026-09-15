@@ -48,23 +48,43 @@ const _AUTH_REQUIRED_STATUSES: readonly number[] = [401, 403];
 const _RESPONSE_FORMAT_REJECTED_STATUS = 400;
 
 /**
+ * `response_format` の拒否を示す `error.message` の接頭辞（DR-33 決定 1）。
+ *
+ * llama-server が JSON schema を grammar へ変換できなかったときの文言。後続に改行と詳細が続くため、
+ * 正規表現ではなく `startsWith` で照合する。
+ */
+const _RESPONSE_FORMAT_REJECTION_MESSAGE_PREFIX = 'JSON schema conversion failed';
+
+/**
  * HTTP 400 の応答本文が `response_format` の拒否を示すかを判定する（error-handling §4.1 Step 5 / R-008）。
  *
- * **判別条件は未確定であり、本実装は常に `false` を返す。** Phase 0 の実測では
- * HTTP 400 が 1 件も発生せず、`response_format` の拒否（中断）とコンテキスト長超過（続行）を
- * 読み分ける手段を決められなかったため（測定レポート §3.2）。判別できない 400 は
- * Step 6 の `ExitFailure`（続行）へ落とす既定を維持する（implementation.md §3.2）。
+ * 本文を JSON として parse でき、`error.message` が文字列で、かつ
+ * `JSON schema conversion failed` で始まる場合だけを拒否と判別する（DR-33 決定 1）。
+ * `error.type` は判別に使わない。`messages` 欠落など入力起因の 400 も同じ `invalid_request_error` を
+ * 返すため（DR-33 決定 2）。`response_format type must be one of` も本コードベースから到達しないため
+ * 条件に含めない（DR-33 決定 3）。
  *
- * 差し替えるには、実際に返った HTTP 400 の応答本文（`error.message` / `error.type` /
- * `error.param` の実値）と、そこから拒否を一意に言い当てるマッチ条件が必要になる。
- * それらが揃うまでこの関数だけを書き換えれば済むよう、判別ロジックを単独で分離してある。
+ * 本文が JSON でない・`error.message` が無いか文字列でない・接頭辞が一致しない場合は `false` を返し、
+ * Step 6 の `ExitFailure`（続行）へ落とす。例外は投げない（DR-33 決定 4 / DR-18 決定 1）。
  *
- * @param _body - HTTP 400 応答の生本文。判別条件が確定するまで参照しない
- * @returns `response_format` の拒否と判別できれば `true`（現状は常に `false`）
- * @see docs/.deckrd/libs/ai-backend/measurements-response-format-2026-09-12.md §3.2
- * @see docs/.deckrd/libs/ai-backend/implementation/implementation.md §3.2
+ * 判別条件は実測したサーバビルドの文言に依存する。llama.cpp server のビルドを変えるときは、
+ * 測定レポート §4 の手順で文言を再確認する（DR-33 決定 5）。
+ *
+ * @param body - HTTP 400 応答の生本文
+ * @returns `response_format` の拒否と判別できれば `true`
+ * @see docs/.deckrd/libs/ai-backend/decision-records.md DR-33
+ * @see docs/.deckrd/libs/ai-backend/measurements-response-format-rejection-2026-09-15.md
  */
-const _isResponseFormatRejection = (_body: string): boolean => false;
+const _isResponseFormatRejection = (body: string): boolean => {
+  let _payload: unknown;
+  try {
+    _payload = JSON.parse(body);
+  } catch {
+    return false;
+  }
+  const _message = (_payload as { error?: { message?: unknown } | null } | null)?.error?.message;
+  return typeof _message === 'string' && _message.startsWith(_RESPONSE_FORMAT_REJECTION_MESSAGE_PREFIX);
+};
 
 /**
  * `Content-Type` ヘッダが JSON 系を示すかを判定する（error-handling §4.1 Step 6.5 / DR-26 決定 2）。
@@ -137,7 +157,7 @@ const _extractAssistantText = (payload: unknown): string => {
  * （Edge error-handling-9）。
  * 次に Step 5 で HTTP ステータスが 400 かつ本文から `response_format` の拒否と判別できる応答を
  * 中断側の `ResponseFormatRejected` として throw する（error-handling §4.1 Step 5 / R-008）。
- * 判別は `_isResponseFormatRejection` が担うが、判別条件が未確定のため現状この分岐には到達しない。
+ * 判別は `_isResponseFormatRejection` が担い、`error.message` の接頭辞で読み分ける（DR-33）。
  * 最後に Step 6 で、上記いずれにも該当しない非成功ステータス（判別できない 400 を含む）を
  * 続行側の `ExitFailure` として throw する（error-handling §4.1 Step 6 / R-003 / DR-18）。
  *
