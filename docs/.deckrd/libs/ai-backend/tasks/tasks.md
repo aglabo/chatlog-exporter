@@ -4,7 +4,7 @@ module: libs/ai-backend
 status: Active
 created: "2026-09-04 00:00:00"
 source: specifications-index.md
-based-on: implementation.md v1.6.0
+based-on: implementation.md v1.7.0
 ---
 
 <!-- cspell:words qwen llamacpp -->
@@ -96,24 +96,24 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 ## Task Summary
 
-| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status      |
-| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ----------- |
-| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done        |
-| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done        |
-| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done        |
-| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done        |
-| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 8         | 19      | done        |
-| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done        |
-| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 17      | done        |
-| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 16      | done        |
-| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 23        | 31      | done        |
-| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 5         | 27      | done        |
-| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done        |
-| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 12        | 34      | in progress |
-| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done        |
-| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 16      | done        |
-| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 29      | done        |
-| **合計**                                                            | —      | —     | —       | **129**   | **260** | —           |
+| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status |
+| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ------ |
+| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done   |
+| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done   |
+| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done   |
+| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done   |
+| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 8         | 19      | done   |
+| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done   |
+| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 17      | done   |
+| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 16      | done   |
+| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 23        | 31      | done   |
+| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 5         | 27      | done   |
+| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done   |
+| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 12        | 34      | done   |
+| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done   |
+| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 16      | done   |
+| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 29      | done   |
+| **合計**                                                            | —      | —     | —       | **129**   | **260** | —      |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -1818,28 +1818,28 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-06: `response_format` 拒否と判別できる 400（Step 5）
 
-> **保留（`cle-eft.2.1` で追跡）**。Phase 0 実測（2026-09-12、90 回）で HTTP 400 が 1 件も発生せず、
-> 判別条件を決める材料が得られなかった（`measurements-response-format-2026-09-12.md` §3.2 /
-> implementation §3.2）。`_isResponseFormatRejection` は常に `false` を返し、判別できない 400 は
-> 続行側の `ExitFailure` に落とす既定を維持している（T-12-07 が検証済み）。
-> 実際に 400 を返すサーバ実装が観測されるまで、以下の着手条件は満たされない。
+> **着手可（`cle-eft.2.1` で追跡）**。Phase 0 実測（2026-09-12）では 400 が発生しなかったが、
+> 追加実測（`measurements-response-format-rejection-2026-09-15.md`）で不正なスキーマの 400 を観測し、
+> 判別条件を DR-33 が確定させた（error-handling v2.1.0 §4.1 / implementation v1.7.0 Commit 15 Step 5）。
 >
-> 「`response_format` 拒否と判別できる」の判別条件が未確定である。
-> 本文 JSON のどのフィールドを見るのか、文字列パターンで照合するのか、サーバ実装差をどう
-> 吸収するのかがいずれも決まっていないため、実装者ごとに別の heuristic が生まれる
-> （implementation §3.2 の未決 1）。
-> Phase 0 の実測レポートから **判別関数の入力例（実際に返った 400 応答本文）とマッチ条件** を
-> 本タスクへ書き下すまで、T-12-06 / T-12-07 に着手してはならない。
+> 判別関数の入力例（実測した 400 応答本文）:
+>
+> - 拒否と判別する: `{"error":{"code":400,"message":"JSON schema conversion failed:\nUnrecognized schema: {\"type\":\"bogus\"}","type":"invalid_request_error"}}`
+> - 判別しない（コンテキスト長超過）: `{"error":{"code":400,"message":"request (40012 tokens) exceeds the available context size (32768 tokens), try increasing it","type":"exceed_context_size_error","n_prompt_tokens":40012,"n_ctx":32768}}`
+> - 判別しない（同じ `error.type`）: `{"error":{"code":400,"message":"'messages' is required","type":"invalid_request_error"}}`
+>
+> マッチ条件: 本文を JSON として parse でき、`error.message` が文字列で、かつ `JSON schema conversion failed` で
+> 始まる。`error.type` は条件に含めない。本文が JSON でない場合を含め、判別関数は例外を投げない。
 > 判別ロジックは差し替え可能な形に分離する（implementation §3.2）。
 
-- [ ] **T-12-06-01**: HTTP 400 かつ本文から `response_format` の拒否と判別できる場合を `ResponseFormatRejected`（中断側）として分類する
+- [x] **T-12-06-01**: HTTP 400 かつ本文から `response_format` の拒否と判別できる場合を `ResponseFormatRejected`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-06-01`
   - Rule: error-handling R-008 / DR-18
-  - Scenario: Given `FetchProvider` が status 400 かつ `response_format` 拒否と判別可能な本文を返す, When llama 経路で応答解釈関数を呼ぶ
+  - Scenario: Given `FetchProvider` が status 400 かつ `error.message` が `JSON schema conversion failed` で始まる JSON 本文を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ResponseFormatRejected` が throw されること
-  > 現行の既定挙動でタスク化してある。Phase 0 実測後に error-handling §4.1 が改訂されたら、
-  > Scenario の「判別可能な本文」を実測で観測された具体的な本文とマッチ条件へ置き換える。
+  > Scenario は DR-33 のマッチ条件で置き換え済み。判別しない側（コンテキスト長超過・`messages` 欠落・
+  > 非 JSON 本文の 400）が `ExitFailure` に落ちることは T-12-07-01 の射程であり、本ケースの反例として併せて固定する。
 
 #### T-12-07: 判別できない非成功ステータス（Step 6）
 
