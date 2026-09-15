@@ -195,6 +195,22 @@ describe('_setByType', () => {
         assertNotNull(result);
         assert(result instanceof ChatlogError);
       });
+
+      it('[Error] T-SBT-IN-07: min=1, rawValue "0"（min 未満） → ChatlogError(OutOfRange)、config 未設定', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, { ..._entry('integer'), min: 1, max: 10 }, '0');
+        assert(result instanceof ChatlogError);
+        assertEquals(result.subindex, 'OutOfRange');
+        assertEquals(config['result'], undefined);
+      });
+
+      it('[Error] T-SBT-IN-08: max=10, rawValue "11"（max 超過） → ChatlogError(OutOfRange)、config 未設定', () => {
+        const config = _makeConfig();
+        const result = _setByTypeForTest(config, { ..._entry('integer'), min: 1, max: 10 }, '11');
+        assert(result instanceof ChatlogError);
+        assertEquals(result.subindex, 'OutOfRange');
+        assertEquals(config['result'], undefined);
+      });
     });
   });
 

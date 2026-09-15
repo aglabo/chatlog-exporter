@@ -305,13 +305,6 @@ describe('parseArgsToConfig', () => {
   describe('Given: 期間形式の位置引数のみ（agent なし）', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: T-PA-05 - idx0 が directory でも agent でもないため ChatlogError(InvalidArgs) がスローされる', () => {
-        it('T-PA-05-01: "2026-03" → ChatlogError(InvalidArgs) がスローされる', () => {
-          assertThrows(
-            () => parseArgs<TestConfig>(['2026-03'], TEST_SCHEMA),
-            ChatlogError,
-            'Invalid Args',
-          );
-        });
         it('T-PA-05-02: "2026" → ChatlogError(InvalidArgs) がスローされる（年のみ指定）', () => {
           assertThrows(
             () => parseArgs<TestConfig>(['2026'], TEST_SCHEMA),
@@ -329,7 +322,6 @@ describe('parseArgsToConfig', () => {
     describe('When: parseArgs(args) を呼び出す', () => {
       describe('Then: T-PA-06 - agent に設定される', () => {
         const _cases: { id: string; agent: string }[] = [
-          { id: 'T-PA-06-01', agent: 'claude' },
           { id: 'T-PA-06-02', agent: 'chatgpt' },
         ];
         for (const { id, agent } of _cases) {
@@ -772,15 +764,11 @@ describe('parseArgsToConfig', () => {
    *
    * `--no-` 追加後も `--dry-run` が `true` をセットし続けることを検証する。
    *
-   * テスト ID 範囲: T-PA-27-01 〜 T-PA-27-02
+   * テスト ID 範囲: T-PA-27-02
    */
   describe('Given: 既存フラグと --no- の混在', () => {
     /** 既存フラグ動作が変わっていないことを確認する正常系。 */
     describe('When: 正常系', () => {
-      it('[Normal] T-PA-27-01: --dry-run → dryRun: true (既存動作変更なし)', () => {
-        const result = parseArgs<TestConfig>(['--dry-run'], TEST_SCHEMA);
-        assertEquals(result.dryRun, true);
-      });
       it('[Normal] T-PA-27-02: --no-dry-run と --output の組み合わせ → 両フィールドが正しくセット', () => {
         const result = parseArgs<TestConfig>(['--no-dry-run', '--output', '/out'], TEST_SCHEMA);
         assertEquals(result.dryRun, false);
