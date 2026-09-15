@@ -13,6 +13,9 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { getProjectRoot, resetProjectRoot } from '../../dir-utils.ts';
 
+// ─── Helpers
+import { normalizePath } from '../../path-utils.ts';
+
 // ─── Tests
 
 // ─────────────────────────────────────────────
@@ -74,6 +77,16 @@ describe('getProjectRoot / resetProjectRoot', () => {
       resetProjectRoot('/another/path');
       const _result = getProjectRoot();
       assertEquals(_result, '/another/path');
+    });
+
+    it('[Normal] T-LIB-DU-61-03: シードせず resetProjectRoot() 後に getProjectRoot() → normalizePath(Deno.cwd()) が返る', () => {
+      resetProjectRoot('/home/user/project');
+      resetProjectRoot();
+      try {
+        assertEquals(getProjectRoot(), normalizePath(Deno.cwd()));
+      } finally {
+        resetProjectRoot();
+      }
     });
   });
 
