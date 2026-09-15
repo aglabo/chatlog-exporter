@@ -19,8 +19,8 @@ import { wrapClaudeJson } from '../deno-command-mock.ts';
 // constants
 /** `wrapClaudeJson` の入力 payload と期待エンベロープの対応表。 */
 const _cases = [
-  { payload: 'hello', expected: '{"result":"hello"}' },
-  { payload: '[{"a":1}]', expected: '{"result":"[{\\"a\\":1}]"}' },
+  { id: 'T-DCM-WCJ-01', payload: 'hello', expected: '{"result":"hello"}' },
+  { id: 'T-DCM-WCJ-02', payload: '[{"a":1}]', expected: '{"result":"[{\\"a\\":1}]"}' },
 ] as const;
 
 // ─── Tests
@@ -37,8 +37,8 @@ const _cases = [
 describe('wrapClaudeJson', () => {
   /** payload を `{"result":<payload>}` エンベロープに変換する正常系。 */
   describe('When: 正常系', () => {
-    for (const { payload, expected } of _cases) {
-      it(`[Normal] T-DCM-WCJ: payload=${payload} → ${expected}`, () => {
+    for (const { id, payload, expected } of _cases) {
+      it(`[Normal] ${id}: payload=${payload} → ${expected}`, () => {
         // act & assert
         assertEquals(wrapClaudeJson(payload), expected);
       });
