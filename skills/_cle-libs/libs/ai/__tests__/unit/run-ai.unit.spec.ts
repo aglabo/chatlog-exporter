@@ -50,6 +50,9 @@ import { AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '../../../../types/ai.con
 
 // ─── Internal Helpers
 
+// types
+type CommandSpec = { command: string; args: string[]; hasSystemPromptWithArgs: boolean };
+
 // functions
 /**
  * `Deno.Command` の代替クラスを返すファクトリ。
@@ -226,6 +229,42 @@ const _rateLimitCases = [
   },
   { id: 'T-LIB-AI-RA-22', label: 'Error', stdout: '', stderr: 'usage limit exceeded', desc: 'stderr に "usage limit"' },
 ] as const;
+
+const _cases: Array<{ model: string; expected: CommandSpec }> = [
+  {
+    model: 'sonnet',
+    expected: {
+      command: 'claude',
+      args: [
+        '--print',
+        '--output-format',
+        'json',
+        '--system-prompt',
+        'sys',
+        '--permission-mode',
+        'acceptEdits',
+        '--strict-mcp-config',
+        '--mcp-config',
+        '{"mcpServers":{}}',
+        '--model',
+        'sonnet',
+      ],
+      hasSystemPromptWithArgs: true,
+    },
+  },
+  {
+    model: 'gpt-5',
+    expected: { command: 'codex', args: ['exec', '--model', 'gpt-5'], hasSystemPromptWithArgs: false },
+  },
+  {
+    model: 'copilot/gpt-4',
+    expected: { command: 'copilot', args: ['--model', 'gpt-4'], hasSystemPromptWithArgs: false },
+  },
+  {
+    model: 'openai/gpt-4',
+    expected: { command: 'opencode', args: ['run', '--model', 'openai/gpt-4'], hasSystemPromptWithArgs: false },
+  },
+];
 
 /**
  * 分割前に受理されていた既存バックエンドのモデル値 (T-LIB-AI-RA-52-01 / T-LIB-AI-RA-52-02 / T-LIB-AI-RA-53-01)。
@@ -1284,6 +1323,23 @@ describe('runAI', () => {
           Deno.Command = _origCommand;
         }
       });
+
+      it('[Edge] T-LIB-AI-RA-41: runAI — exit 0 かつ claude JSON is_error:false/result:"ok" → .result ("ok") を返す', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('{"is_error":false,"result":"ok"}'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _result = await runAI('sys', 'user', { model: 'sonnet' });
+          assertEquals(_result, 'ok');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
     });
   });
 
@@ -1341,6 +1397,22 @@ describe('runAI', () => {
 
     afterEach(() => {
       commandHandle?.restore();
+    });
+
+    /** options 省略時に GlobalConfig の設定値へフォールバックするケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-AI-RA-18: options.model 省略 → GlobalConfig の model ("opus") が CLI 引数に使われる', async () => {
+        GlobalConfig.getInstance({ yaml: 'model: opus' });
+        const _capturedArgs: { value: string[] } = { value: [] };
+        commandHandle = installCommandMock(
+          makeSuccessMock(new TextEncoder().encode('{"result":"ok"}'), _capturedArgs),
+        );
+
+        await runAI('sys', 'user');
+
+        assertEquals(_capturedArgs.value.includes('--model'), true);
+        assertEquals(_capturedArgs.value[_capturedArgs.value.indexOf('--model') + 1], 'opus');
+      });
     });
 
     /** options 省略時に GlobalConfig の timeoutMs 設定値でタイムアウトが発生するケース。 */

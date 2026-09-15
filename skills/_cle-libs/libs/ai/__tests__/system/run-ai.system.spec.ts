@@ -6,9 +6,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { assertStringIncludes } from '@std/assert';
+import { assertRejects, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
+import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { runAI } from '../../run-ai.ts';
 
 const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
@@ -29,4 +30,21 @@ describe('should ignore runAI', { ignore: !_shouldRunAI }, () => {
       assertStringIncludes(result.toLowerCase(), 'hello');
     },
   );
+});
+
+// ──── グループ02: 不正モデル名
+describe('invalid model', () => {
+  describe('Given: 不正なモデル名 "invalid-model"', () => {
+    describe('When: runAI() を呼ぶ', () => {
+      describe('Then: T-LIB-RA-SYS-02 - UnknownModel エラーがスローされる', () => {
+        it('T-LIB-RA-SYS-02-01: ChatlogError(UnknownModel) がスローされる', async () => {
+          await assertRejects(
+            () => runAI('system', 'user', { model: 'invalid-model' }),
+            ChatlogError,
+            'Unknown Model',
+          );
+        });
+      });
+    });
+  });
 });
