@@ -285,6 +285,20 @@ const _classificationCases: Array<{
   subindex: string;
 }> = [
   {
+    desc: 'stderr に rate limit 表現 + exit 1',
+    makeStub: () =>
+      _makeCommandStub({
+        success: false,
+        code: 1,
+        stdout: new Uint8Array(),
+        stderr: new TextEncoder().encode('You have hit the rate limit'),
+        signal: null,
+      }),
+    makeOptions: () => ({ model: 'sonnet' }),
+    kind: 'AiError',
+    subindex: 'RateLimit',
+  },
+  {
     desc: 'stderr = "boom" + exit 1 (rate limit 表現なし)',
     makeStub: () =>
       _makeCommandStub({
@@ -299,11 +313,50 @@ const _classificationCases: Array<{
     subindex: 'ExitFailure',
   },
   {
+    desc: 'claude の stdout が JSON でない + exit 0',
+    makeStub: () =>
+      _makeCommandStub({
+        success: true,
+        code: 0,
+        stdout: new TextEncoder().encode('not json'),
+        stderr: new Uint8Array(),
+        signal: null,
+      }),
+    makeOptions: () => ({ model: 'sonnet' }),
+    kind: 'AiError',
+    subindex: 'InvalidFormat',
+  },
+  {
+    desc: '未知のモデル値',
+    makeStub: () =>
+      _makeCommandStub({
+        success: true,
+        code: 0,
+        stdout: new TextEncoder().encode('{"result":"ok"}'),
+        stderr: new Uint8Array(),
+        signal: null,
+      }),
+    makeOptions: () => ({ model: 'invalid-model' }),
+    kind: 'UnknownModel',
+    subindex: 'InvalidModel',
+  },
+  {
     desc: 'timeoutMs=1 + 100ms 遅延モック',
     makeStub: () => makeDelayedSuccessMock(100, new TextEncoder().encode('ok')),
     makeOptions: () => ({ model: 'sonnet', timeoutMs: 1 }),
     kind: 'TimedOut',
     subindex: 'Timeout',
+  },
+  {
+    desc: 'abort 済み外部 signal + reject モック',
+    makeStub: () => _makeRejectingCommandStub(),
+    makeOptions: () => {
+      const _external = new AbortController();
+      _external.abort();
+      return { model: 'sonnet', signal: _external.signal };
+    },
+    kind: 'Aborted',
+    subindex: 'ExternalAbort',
   },
 ];
 
@@ -1322,7 +1375,7 @@ describe('runAI', () => {
    *
    * 分割の前後で、正常応答した CLI の実行結果から返る文字列が変わらないことを確認する。
    *
-   * テスト ID 範囲: T-LIB-AI-RA-51-01 〜 T-LIB-AI-RA-57-03
+   * テスト ID 範囲: T-LIB-AI-RA-50-01 〜 T-LIB-AI-RA-57-03
    */
   describe('3-layer split', () => {
     let commandHandle: CommandMockHandle;
@@ -1331,13 +1384,20 @@ describe('runAI', () => {
       commandHandle?.restore();
     });
 
-    /**
-     * 分割前に受理されていた既存バックエンドのモデル値が、分割後も受理されるケース（非回帰ガード）。
-     *
-     * claude 経路は T-LIB-AI-RA-12 と同一のため除外する。
-     */
+    /** 正常応答した CLI から従来どおりの文字列が返るケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-LIB-AI-RA-50-01: runAI — 正常応答する Deno.Command スタブ → 分割前と同一の文字列 ("ok") を返す', async () => {
+        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('{"result":"ok"}')));
+
+        const _result = await runAI('sys', 'user', { model: 'sonnet' });
+
+        assertEquals(_result, 'ok');
+      });
+    });
+
+    /** 分割前に受理されていた既存バックエンドのモデル値が、分割後も受理されるケース（非回帰ガード）。 */
     describe('When: 正常系（既存バックエンドの受理）', () => {
-      for (const { model, backend, stdout, expected } of _backendCases.filter((c) => c.backend !== 'claude')) {
+      for (const { model, backend, stdout, expected } of _backendCases) {
         it(`[Normal] T-LIB-AI-RA-52-01: runAI — model="${model}" (${backend}) → UnknownModel を throw せず "${expected}" を返す`, async () => {
           commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(stdout)));
 

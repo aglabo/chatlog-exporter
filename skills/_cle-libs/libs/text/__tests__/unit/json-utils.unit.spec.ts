@@ -137,6 +137,7 @@ describe('parseAiJsonArray', () => {
       { id: 'T-LIB-J-04', label: '空文字列は null を返す', input: '' },
       { id: 'T-LIB-J-05', label: '配列を含まない文字列は null を返す', input: 'no array here' },
       { id: 'T-LIB-J-13', label: '[ で始まるが JSON.parse 失敗する場合は null を返す', input: '[invalid json' },
+      { id: 'T-LIB-J-21-01', label: '閉じられていない JSON は null を返す', input: '[{"a":1' },
       {
         id: 'T-LIB-J-14',
         label: '段階2・3 ともにパース失敗する場合は null を返す',

@@ -910,6 +910,7 @@ describe('Given: object でない応答ペイロード', () => {
         ['文字列', _CONTRACT_FRONTMATTER, 'text'],
         ['数値', _CONTRACT_FRONTMATTER, 42],
         ['配列', _CONTRACT_FRONTMATTER, []],
+        ['文字列（json-array 契約）', _CONTRACT_CLASSIFY, 'text'],
         ['文字列（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, 'text'],
       ];
 
@@ -948,6 +949,7 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
       // 別の理由で通ってしまい、起点キーの不変条件を検査したことにならない。
       const _cases: [label: string, contract: OutputContract][] = [
         ['契約定義のキーの綴り誤り', { ..._CONTRACT_FRONTMATTER, firstField: 'ttile' }],
+        ['契約定義に存在しないキー', { ..._CONTRACT_FRONTMATTER, firstField: 'summary' }],
       ];
 
       _cases.forEach(([label, contract]) => {
@@ -963,7 +965,7 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
         });
       });
 
-      // 上のケースは「ただ存在しないキー」であり、所属判定を `in` 演算子で
+      // 上の 2 ケースは「ただ存在しないキー」という点で等価であり、所属判定を `in` 演算子で
       // 書いても通る。`'toString' in properties` は `Object.prototype` を辿って真になるため、
       // 誤った起点キーが検証をすり抜けて §4.3.1 の沈黙経路へ落ちる。
       // 実装が `Object.keys(...).includes(...)` を使っていることをこのケースで固定する。
@@ -1001,6 +1003,7 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
       // 復元関数自身がガードを持つことを固定する。
       const _cases: [label: string, firstField: string][] = [
         ['契約定義のキーの綴り誤り', 'ttile'],
+        ['契約定義に存在しないキー', 'summary'],
         ['`Object.prototype` 由来のキー', 'toString'],
       ];
 
