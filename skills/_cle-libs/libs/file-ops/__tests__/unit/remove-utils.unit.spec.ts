@@ -45,7 +45,7 @@ const _removeTypeError = (_path: string): Promise<void> => Promise.reject(new Ty
  * 再スローするか、`logger.warn` でログ出力した上で `false` を返す。
  * ファイル I/O 起因ではないエラーは常に再スローする。
  *
- * テスト ID 範囲: T-LIB-RF-01 〜 T-LIB-RF-05
+ * テスト ID 範囲: T-LIB-RF-01 〜 T-LIB-RF-04
  *
  * @see removeFile
  */
@@ -127,21 +127,6 @@ describe('removeFile', () => {
         () => removeFile('/some/file.md', { removeProvider: _removeTypeError, throwFileIoError: false }),
         TypeError,
       );
-    });
-  });
-
-  /**
-   * `removeProvider` と `throwFileIoError` を同時に指定できることを検証するエッジケース。
-   */
-  describe('When: エッジケース', () => {
-    it('[Edge] T-LIB-RF-05-01: removeProvider と throwFileIoError を併用できる', async () => {
-      loggerStub = makeLoggerStub();
-      const result = await removeFile('/nonexistent/file.md', {
-        removeProvider: _removeNotFound,
-        throwFileIoError: false,
-      });
-      assertEquals(result, false);
-      assertEquals(loggerStub.warnLogs.length, 1);
     });
   });
 });

@@ -29,6 +29,19 @@ const _fakeGlobFull = async (_pattern: string): Promise<string[]> => [
 // deno-lint-ignore require-await
 const _fakeGlobEmpty = async (_pattern: string): Promise<string[]> => [];
 
+/**
+ * 受け取った glob パターンを記録し、常に空配列（ファイル不在）を返す `GlobProvider` フェイクを生成する。
+ *
+ * 空配列を返すため `backupOldPath` は rename に到達せず、実ファイルシステムに触れない。
+ *
+ * @param patterns - 受け取ったパターンを追記する配列
+ * @returns パターンを記録する `GlobProvider`
+ */
+const _makeRecordingGlob = (patterns: string[]) => (pattern: string): Promise<string[]> => {
+  patterns.push(pattern);
+  return Promise.resolve([]);
+};
+
 // ─── Tests
 
 /**
@@ -37,7 +50,7 @@ const _fakeGlobEmpty = async (_pattern: string): Promise<string[]> => [];
  * Fake の GlobProvider を使い、Deno ファイルシステムに依存せず
  * エラー処理ロジックおよびファイル不在時の正常終了をカバーする。
  *
- * テスト ID 範囲: T-LIB-B-05-01 〜 T-LIB-B-06-01
+ * テスト ID 範囲: T-LIB-B-05-01 〜 T-LIB-B-07-02
  *
  * @see backupOldPath
  */
@@ -72,6 +85,25 @@ describe('backupOldPath', () => {
 
         // act & assert (例外がスローされないことを確認)
         await backupOldPath(outputPath, _fakeGlobEmpty);
+      });
+    });
+
+    /** outputPath の形式から glob パターン（dir / baseName）を導出するケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-LIB-B-07-01: outputPath に .md 拡張子がない → 末尾を削らず baseName として glob する', async () => {
+        const _patterns: string[] = [];
+
+        await backupOldPath('/fake/output', _makeRecordingGlob(_patterns));
+
+        assertEquals(_patterns, ['/fake/output*.md']);
+      });
+
+      it('[Edge] T-LIB-B-07-02: outputPath に "/" がない → dir を "." として glob する', async () => {
+        const _patterns: string[] = [];
+
+        await backupOldPath('output.md', _makeRecordingGlob(_patterns));
+
+        assertEquals(_patterns, ['./output*.md']);
       });
     });
   });
