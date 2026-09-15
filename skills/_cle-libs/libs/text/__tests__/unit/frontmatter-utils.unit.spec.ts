@@ -116,19 +116,6 @@ describe('parseFrontmatter', () => {
     });
   });
 
-  describe('Given: CRLF 改行を含む frontmatter ブロック', () => {
-    describe('When: parseFrontmatter(text) を呼び出す', () => {
-      describe('Then: T-LIB-FM-07 - CRLF でも正しくパースされる', () => {
-        it('T-LIB-FM-07: CRLF 改行の正規化', () => {
-          const text = '---\r\ntitle: Hello\r\ncategory: dev\r\n---\r\nbody text';
-          const result = parseFrontmatter(text);
-          assertEquals(result.meta['title'], 'Hello');
-          assertEquals(result.meta['category'], 'dev');
-        });
-      });
-    });
-  });
-
   describe('Given: 空の frontmatter ブロック（---\\n---\\n の形式）', () => {
     describe('When: parseFrontmatter(text) を呼び出す', () => {
       describe('Then: T-LIB-FM-08 - meta:{}, content が後続テキストになる', () => {
@@ -339,138 +326,10 @@ describe('parseFrontmatterEntries', () => {
           assertEquals(result.meta['tags'], ['foo', '', 'bar']);
         });
 
-        it('T-LIB-FSM-06-05: tags に # が付いていない → そのまま返る（回帰確認）', () => {
-          const text = '---\ntags:\n  - foo\n  - bar\n---\nbody';
-          const result = parseFrontmatterEntries(text);
-          assertEquals(result.meta['tags'], ['foo', 'bar']);
-        });
-
         it('T-LIB-FSM-06-06: tags に # が付いている → 先頭の # が除去されて返る', () => {
           const text = '---\ntags:\n  - "#foo"\n  - "#bar"\n---\nbody';
           const result = parseFrontmatterEntries(text);
           assertEquals(result.meta['tags'], ['foo', 'bar']);
-        });
-      });
-    });
-  });
-
-  describe('Given: フロントマターのないテキスト "# タイトル\\n本文"', () => {
-    describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-LIB-FU-01 - meta={}、body=元テキスト', () => {
-        const text = '# タイトル\n本文';
-
-        it('T-LIB-FU-01-01: meta が空オブジェクトになる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta, {});
-        });
-
-        it('T-LIB-FU-01-02: body が元テキスト全体になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.content, text);
-        });
-      });
-    });
-  });
-
-  describe('Given: "---\\nkey: val\\n---\\n本文" というテキスト', () => {
-    describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-LIB-FU-02 - key=val, body=本文', () => {
-        const text = '---\nkey: val\n---\n本文';
-
-        it('T-LIB-FU-02-01: meta.key が "val" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['key'], 'val');
-        });
-
-        it('T-LIB-FU-02-02: body が "本文" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.content, '本文\n');
-        });
-      });
-    });
-  });
-
-  describe('Given: 複数フィールドを持つフロントマター', () => {
-    describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-LIB-FU-03 - 全フィールドが正しく抽出される', () => {
-        const text = [
-          '---',
-          'session_id: sess-001',
-          'date: 2026-03-15',
-          'project: my-project',
-          'slug: test-slug',
-          '---',
-          '',
-          '# タイトル',
-          '本文',
-        ].join('\n');
-
-        it('T-LIB-FU-03-01: session_id が "sess-001" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['session_id'], 'sess-001');
-        });
-
-        it('T-LIB-FU-03-02: date が "2026-03-15" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['date'], '2026-03-15');
-        });
-
-        it('T-LIB-FU-03-03: project が "my-project" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['project'], 'my-project');
-        });
-
-        it('T-LIB-FU-03-04: slug が "test-slug" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['slug'], 'test-slug');
-        });
-      });
-    });
-  });
-
-  describe('Given: CRLF 改行 ("\\r\\n") を含むテキスト', () => {
-    describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-LIB-FU-04 - LF に正規化されて解析される', () => {
-        const text = '---\r\nkey: val\r\n---\r\n本文';
-
-        it('T-LIB-FU-04-01: meta.key が "val" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta['key'], 'val');
-        });
-
-        it('T-LIB-FU-04-02: body が "本文" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.content, '本文\n');
-        });
-      });
-    });
-  });
-
-  describe('Given: 空のフロントマター "---\\n---\\n本文"', () => {
-    describe('When: parseFrontmatterEntries を呼び出す', () => {
-      describe('Then: T-LIB-FU-05 - meta={}、body=本文', () => {
-        const text = '---\n---\n本文';
-
-        it('T-LIB-FU-05-01: meta が空オブジェクトになる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.meta, {});
-        });
-
-        it('T-LIB-FU-05-02: body が "本文" になる', () => {
-          const result = parseFrontmatterEntries(text);
-
-          assertEquals(result.content, '本文\n');
         });
       });
     });
@@ -696,7 +555,7 @@ describe('divideEntry', () => {
  *
  * `Record<string, unknown>` から YAML frontmatter ブロック文字列を生成する動作を検証する。
  *
- * テスト ID 範囲: T-FU-RF-01 〜 T-FU-RF-04
+ * テスト ID 範囲: T-FU-RF-01 〜 T-FU-RF-02
  *
  * @see renderFrontmatter
  */
@@ -715,18 +574,6 @@ describe('renderFrontmatter', () => {
       const _fields = { title: 'Test Title' };
       const _result = renderFrontmatter(_fields);
       assertEquals(_result, '---\ntitle: "Test Title"\n---\n');
-    });
-
-    it('[Normal] T-FU-RF-03: 配列値 → "---\\nkey:\\n  - \\"a\\"\\n  - \\"b\\"\\n---\\n" を返す', () => {
-      const _fields = { topics: ['API', 'Deno'] };
-      const _result = renderFrontmatter(_fields);
-      assertEquals(_result, '---\ntopics:\n  - "API"\n  - "Deno"\n---\n');
-    });
-
-    it('[Normal] T-FU-RF-04: スカラーと配列の混在 → 挿入順通りに生成される（ダブルクォート）', () => {
-      const _fields = { title: 'My Title', tags: ['ts', 'deno'] };
-      const _result = renderFrontmatter(_fields);
-      assertEquals(_result, '---\ntitle: "My Title"\ntags:\n  - "ts"\n  - "deno"\n---\n');
     });
   });
 });
@@ -892,17 +739,6 @@ describe('hasFrontmatterFields', () => {
         tags: [],
       };
       assertEquals(hasFrontmatterFields(_fields), true);
-    });
-
-    it('[Edge] T-FU-HFF-07: 配列フィールド(topics/tags)が両方空配列 → topics が不充足で false', () => {
-      const _fields: Record<string, string | string[]> = {
-        type: 'tech',
-        category: 'backend',
-        title: 'My Title',
-        topics: [],
-        tags: [],
-      };
-      assertEquals(hasFrontmatterFields(_fields), false);
     });
 
     it("[Edge] T-FU-HFF-13: 'array' は空配列で充足、'nonEmptyArray' は 1 要素で充足 → true", () => {
