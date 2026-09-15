@@ -1,4 +1,5 @@
 allowBuilds:
+  "@scarf/scarf": false
   esbuild: false
 
 # blume は内部の .blume/ サンドボックスから自身の依存（astro とそのプラグイン群）を
