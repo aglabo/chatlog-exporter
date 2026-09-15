@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.8.0
+version: 3.9.0
 created: "2026-09-02"
 ---
 
@@ -49,6 +49,7 @@ created: "2026-09-02"
 | DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）                      |
 | DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede） |
 | DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter              |
+| DR-33 | `response_format` 拒否の 400 を `error.message` の接頭辞で判別する          | error-handling R-008（DR-18 Open Question を解決）                        |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -587,6 +588,9 @@ llama 経路専用の subindex が増えるため、DR-16 決定 3（R-004 に�
 サーバ実装によっては同じ HTTP 400 で返ります。応答本文のエラーメッセージを見ない限り区別できず、
 区別手段は REQ-F-016 の実測結果に依存します。実測までは 400 を続行側（`ExitFailure`）の既定とし、
 拒否と判別できた場合のみ `ResponseFormatRejected` に分類します。
+
+> **解決（DR-33）**: 追加実測（`measurements-response-format-rejection-2026-09-15.md`）により、
+> 判別条件を `error.message` の接頭辞 `JSON schema conversion failed` と確定しました。
 
 ---
 
@@ -1367,6 +1371,58 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 
 ---
 
+## DR-33: `response_format` 拒否の 400 を `error.message` の接頭辞で判別する
+
+**Status**: Accepted（DR-18 の Open Question を解決します）
+
+**Context**: error-handling R-008（Step 5）は「400 かつ本文から `response_format` の拒否と判別できる」
+応答を中断側の `ResponseFormatRejected` とします。Phase 0 の実測は妥当なスキーマのみを送ったため
+400 が 1 件も発生せず、判別条件を決められませんでした。そのため `_isResponseFormatRejection` は
+常に `false` を返し、T-12-06-01 は保留になっていました（beads `cle-eft.2.1`）。
+追加実測（`measurements-response-format-rejection-2026-09-15.md`）で、DR-31 の対象構成に不正な
+リクエストを送り、次を観測しました。
+
+1. 不正なスキーマは 400 になり、`error.message` が `JSON schema conversion failed` で始まる
+   （3 例で再現）。`error.type` は `invalid_request_error`
+2. `messages` 欠落も 400 / `invalid_request_error` であり、`error.type` だけでは読み分けられない
+3. コンテキスト長超過は 400 / `exceed_context_size_error`。不正なスキーマと同時に該当する場合は
+   スキーマ変換失敗として返る
+4. `type: "xml"` は 400 で `response_format type must be one of ...` を返すが、`buildLlamaRequest` は
+   `type: "json_schema"` を固定で送るため、本コードベースからは到達しない
+
+**Decision**:
+
+1. HTTP 400 のうち、本文を JSON として parse でき、`error.message` が文字列で、かつ
+   `JSON schema conversion failed` で始まるものを `response_format` の拒否と判別する
+2. 判別に使うのは `error.message` の接頭辞のみとする。`error.type` は条件に含めない
+3. `response_format type must be one of` は判別条件に含めない。本コードベースから到達しない形を
+   条件に加えても、それを殺すテストを production の経路から作れないため
+4. 本文が JSON でない・`error` や `error.message` が無い・接頭辞が一致しない 400 は、判別できない 400 として
+   従来どおり R-003（Step 6）の `ExitFailure`（続行側）へ落とす。判別関数は例外を投げない
+5. 判別条件は DR-31 の対象構成（llama.cpp server `b10688-c589f0ed1`）で実測した文言に依存する。
+   サーバのビルドを変えるときは、同レポート §4 の手順で文言を再確認する
+
+**Alternatives Considered**:
+
+- `error.type === 'invalid_request_error'` で判別する — `messages` 欠落など入力起因の 400 まで
+  中断側に分類し、一括処理が不要に止まる。不採用
+- 本文全体に `response_format` / `schema` などの部分文字列が含まれるかで判別する — 入力ログ由来の
+  文字列やサーバの別メッセージを拾う恐れがあり、実測していない形まで中断側に寄せる。不採用
+- `response_format type must be one of` も含める（多重防御） — 到達しない分岐が増え、削除しても
+  テストが落ちない。p2 の文言は `json_schema` を挙げないが同じビルドは `json_schema` を準拠として扱うため、
+  文言そのものも当てにならない。不採用
+- 判別を見送り、すべての 400 を `ExitFailure` のままにする — スキーマ変換に失敗する契約は全呼び出しで
+  同じ結果になり、続行側では失敗を件数分記録し続ける。DR-18 の「後続もすべて同じ結果になる失敗は
+  中断する」に反する。不採用
+
+**Consequences**: T-12-06-01 に着手でき、Phase 6（`cle-eft.2`）を完了できます。辞書から組んだ
+スキーマをサーバが変換できない場合は、最初の呼び出しで中断として現れます。コンテキスト長超過と
+`messages` 欠落は従来どおり続行側です。不正なスキーマのうち 200 を返す形（壊れた `pattern`・
+未知キーワード等）は Step 5 に到達せず、structured-output R-008 の契約検証が扱います。判別条件が
+サーバの文言に依存するため、ビルド更新時の再確認が運用上の義務になります。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1405,3 +1461,4 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 | 2026-09-08 | 3.6.1   | Index に DR-29 の行を追加 (PATCH: 記載漏れの修正)。本文 DR-29 は v3.5.0 から存在するが、Index テーブルへの行追加が漏れていた。決定内容の変更はない。                                                                                                                                                                                                                                                                 |
 | 2026-09-12 | 3.7.0   | DR-31 を追加 (MINOR: 決定を追加)。Phase 0 実測で 3 スキーマ x 3 条件の 9 組が 10/10 となり準拠を確定。モデル差条件の 3 組は測定せず、対応対象を測定レポート §1 の 1 構成 (Qwen3.5-35B-A3B Q4_K_M + thinking 無効化フラグ) に限定する決定を記録。DR-25 決定 1・2 の条件集合を一部 supersede                                                                                                                           |
 | 2026-09-15 | 3.8.0   | DR-32 を追加 (MINOR: 決定を追加)。PR #459 の codex レビュー指摘 (P2) を受け、`topics` は空配列を「該当なし」として受理せず非空を必須とする決定を記録。`tags` は空配列を受理したまま。非空要求は `minItems` ではなく後段の `hasFrontmatterFields` (`'nonEmptyArray'`) が持つ。structured §4.3.1 を v2.4.0 で改訂                                                                                                      |
+| 2026-09-15 | 3.9.0   | DR-33 を追加 (MINOR: 決定を追加)。追加実測 (`measurements-response-format-rejection-2026-09-15.md`) を受け、`response_format` 拒否の 400 を `error.message` の接頭辞 `JSON schema conversion failed` で判別すると確定。DR-18 の Open Question に解決を追記                                                                                                                                                           |
