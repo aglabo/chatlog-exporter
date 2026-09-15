@@ -14,7 +14,7 @@
   "packageManager": "pnpm@12.4.1",
   "engines": {
     "node": ">=24",
-    "pnpm": ">=11"
+    "pnpm": ">=12"
   },
   "author": "atsushifx",
   "license": "MIT",
