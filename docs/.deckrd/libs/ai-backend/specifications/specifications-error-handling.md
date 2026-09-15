@@ -2,7 +2,7 @@
 title: "Design Specification: LAN llama サーバの AI バックエンド化 — エラーハンドリング"
 based-on: requirements.md v1.6.0
 status: Draft
-version: 2.0.1
+version: 2.1.0
 created: "2026-09-02"
 ---
 
@@ -270,6 +270,11 @@ Evaluation MUST follow this order:
 R-006〜R-008 は DR-18 により新設した規則にあたります。既存の R-001〜R-005 の ID は付け替えていません。
 Step の順序と ID の順序は一致しません。評価は Step 欄の順に行います。
 
+R-008 の「応答本文から `response_format` の拒否と判別できる」は、本文を JSON として parse でき、
+`error.message` が文字列で、かつ `JSON schema conversion failed` で始まることを指します（DR-33）。
+本文が JSON でない・`error.message` が無い・接頭辞が一致しない 400 は、判別できない 400 として
+R-003 に落ちます。条件の根拠は `measurements-response-format-rejection-2026-09-15.md` です。
+
 **R-004 の「取り出せない」条件は次に限ります。本表が網羅の正であり、§5 Edge Cases は例示にとどまります。**
 
 | # | 条件                                                                                               |
@@ -375,10 +380,10 @@ R-005 のモデル値解釈は llama provider の追加によって既存の受�
 | 2    | `finish_reason` の正常値をどこまで受理するか                                        | `stop` のみを正常とする。実装固有値（`eos` / `end_turn` 等）は REQ-F-016 の実測で確認し、必要なら §4.1 の表を改訂する（codex risk A-01）                                                     |
 | 3    | `message.content` が `null` / 配列 / `tool_calls` の場合の扱い                      | いずれも「テキストでない本文」として R-004 の (b) / (c) に含め、続行側の `ExitFailure` とする（codex balanced M-02）                                                                         |
 
-**残る未決事項**: `response_format` の拒否（中断）とコンテキスト長超過（続行）が
-同じ HTTP 400 で返る場合、応答本文のエラーメッセージを見ないと区別できません。
-判別手段は REQ-F-016 の実測結果に依存します。実測までは判別できない 400 を続行側の
-`ExitFailure` に落とします（R-003 / DR-18 Open Question）。
+**解決済み（DR-33）**: `response_format` の拒否（中断）とコンテキスト長超過（続行）が
+同じ HTTP 400 で返る場合の読み分けは、`error.message` の接頭辞 `JSON schema conversion failed` で
+行います（§4.1 の R-008 注記）。コンテキスト長超過はこの接頭辞を持たず、R-003 の `ExitFailure` に落ちます。
+根拠は `measurements-response-format-rejection-2026-09-15.md` です。残る未決事項はありません。
 
 ---
 
@@ -395,3 +400,4 @@ R-005 のモデル値解釈は llama provider の追加によって既存の受�
 | 2026-09-02 | 1.1.0   | spec レビュー所見を反映: DR-15 により R-004 の条件へ `finish_reason` を追加、DR-16 により §2.1 の `kind` 記述を訂正し §3.2 を失敗系一覧の所有者に、§7 の未決 #1 を解決、Unit 名と用語を統一、§2.5 に Status Values 凡例を追加、§6 の欠落 4 件を補完                                                                                                                                                             |
 | 2026-09-02 | 2.0.0   | codex レビュー所見を反映: DR-18 により §3.2 の失敗分類を中断・続行の軸へ再定義し `BackendUnavailable` / `ResponseFormatRejected` / `ResponseSchemaViolation` を追加、§4.1 に R-006〜R-008 を新設、R-001 を中断側へ、R-004 の判定対象（`finish_reason` は `stop` のみ・`message.content` の形）を規則本文へ列挙、§2.1 に subindex が自由記述である前提を明記、§2.6 の Phase 列を decision-records に合わせて訂正 |
 | 2026-09-03 | 2.0.1   | 本文をですます体へ統一し textlint 指摘を解消（内容変更なし）                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-09-15 | 2.1.0   | DR-33 を反映 (MINOR: 実装対象を確定させる決定)。§4.1 に R-008 の判別条件（`error.message` の接頭辞 `JSON schema conversion failed`）を注記し、§7 の残る未決（400 の読み分け）を解決済みとした                                                                                                                                                                                                                   |
