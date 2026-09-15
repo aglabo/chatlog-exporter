@@ -55,11 +55,6 @@ describe('ChatlogError', () => {
         assertInstanceOf(_err, Error);
       });
 
-      it('[Normal] T-CLS-ERR-05: instanceof ChatlogError が true', () => {
-        const _err = new ChatlogError('InvalidFormat', 'NotClosed', 'msg');
-        assertInstanceOf(_err, ChatlogError);
-      });
-
       it('[Normal] T-CLS-ERR-06: kind=FileDirNotFound → message === File Or Dir Not Found: detail', () => {
         const _err = new ChatlogError('FileDirNotFound', 'SomeFile', 'detail');
         assertEquals(_err.message, 'File Or Dir Not Found: detail');

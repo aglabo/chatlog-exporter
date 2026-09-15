@@ -198,6 +198,12 @@ describe('ChatlogFrontmatter', () => {
         input: '---\ntitle: Hello\ntags:\n  - a\n  - b\n---\n',
         fields: [{ key: 'title', expected: 'Hello' }, { key: 'tags', expected: ['a', 'b'] }],
       },
+      {
+        id: 'T-CLS-CF-66',
+        label: '[正常] 配列要素のクォートなし YAML 日付は YYYY-MM-DD 文字列に変換される',
+        input: '---\ntopics:\n  - 2026-01-01\n  - dev\n---\n',
+        fields: [{ key: 'topics', expected: ['2026-01-01', 'dev'] }],
+      },
     ];
 
     for (const tc of _parseCases) {
@@ -414,6 +420,28 @@ describe('ChatlogFrontmatter', () => {
 
         // assert
         assertEquals(result, false);
+      });
+    });
+  });
+
+  /**
+   * @description hasBaseFields() メソッドのユニットテスト。
+   * type / category / title の 3 フィールドの充足判定を検証する。
+   */
+  describe('hasBaseFields()', () => {
+    /** @description 3 フィールドがすべて揃い充足と判定されるケース。 */
+    describe('When: 正常系', () => {
+      it('T-CLS-CF-67: [Normal] type / category / title がすべてある → true を返す（topics / tags は不要）', () => {
+        const fm = new ChatlogFrontmatter('---\ntype: tech\ncategory: dev\ntitle: "A"\n---\n');
+        assertEquals(fm.hasBaseFields(), true);
+      });
+    });
+
+    /** @description いずれかのフィールドが欠落し不充足と判定されるケース。 */
+    describe('When: 異常系', () => {
+      it('T-CLS-CF-68: [Error] title が欠落している → false を返す', () => {
+        const fm = new ChatlogFrontmatter('---\ntype: tech\ncategory: dev\ntopics:\n  - a\ntags:\n  - b\n---\n');
+        assertEquals(fm.hasBaseFields(), false);
       });
     });
   });

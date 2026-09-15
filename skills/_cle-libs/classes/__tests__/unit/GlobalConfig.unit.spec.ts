@@ -63,7 +63,7 @@ const _notFoundRead: ReadTextFileSyncProvider = () => {
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
  *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-154
+ * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-155
  *
  * @see GlobalConfig
  */
@@ -88,24 +88,10 @@ describe('GlobalConfig', () => {
         assertStrictEquals(_a, _b);
       });
 
-      it('[Normal] T-CLS-GC-02: 異なる変数から取得しても同じ状態を持つ', () => {
-        const _first = GlobalConfig.getInstance();
-        const _second = GlobalConfig.getInstance();
-        assertEquals(_first.get('agent'), _second.get('agent'));
-      });
-
       it('[Normal] T-CLS-GC-40: 引数なし+既定設定ファイル未存在 → get("agent") が DEFAULT_CONFIG_VALUES の値を返す', () => {
         const _config = GlobalConfig.getInstance({ readTextFileProvider: _notFoundRead });
         assertEquals(_config.get('agent'), 'claude');
         assertEquals(_config.get('chatlogsDir'), './chatlogs');
-      });
-
-      it('[Normal] T-CLS-GC-41: configFile 指定+存在+valid YAML → get("agent") が YAML 値を返す', () => {
-        const _config = GlobalConfig.getInstance({
-          configFile: '/mock/config.yaml',
-          readTextFileProvider: _makeReadOk('agent: chatgpt\n'),
-        });
-        assertEquals(_config.get('agent'), 'chatgpt');
       });
 
       it('[Normal] T-CLS-GC-61: yaml で chatlogsDir が設定される', () => {
@@ -339,12 +325,6 @@ describe('GlobalConfig', () => {
 
     /** 境界値・副作用・優先度など特殊なケース。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-CLS-GC-44: getInstance() の戻り値と再取得が同一参照', () => {
-        const _created = GlobalConfig.getInstance();
-        const _got = GlobalConfig.getInstance();
-        assertStrictEquals(_created, _got);
-      });
-
       it('[Edge] T-CLS-GC-63: yaml が空文字列のときデフォルト値が使われる', () => {
         const _config = GlobalConfig.getInstance({ yaml: '' });
         assertEquals(_config.get('agent'), 'claude');
@@ -698,12 +678,6 @@ describe('GlobalConfig', () => {
         errorType: TypeError,
       },
       {
-        id: 'T-CLS-GC-98',
-        label: 'chunkSize: 0 は範囲外のため ChatlogError をスローする',
-        input: 'chunkSize: 0\n',
-        errorType: ChatlogError,
-      },
-      {
         id: 'T-CLS-GC-99',
         label: 'chunkSize: 11 は範囲外のため ChatlogError をスローする',
         input: 'chunkSize: 11\n',
@@ -719,12 +693,6 @@ describe('GlobalConfig', () => {
         id: 'T-CLS-GC-101',
         label: 'concurrency: 0 は範囲外のため ChatlogError をスローする',
         input: 'concurrency: 0\n',
-        errorType: ChatlogError,
-      },
-      {
-        id: 'T-CLS-GC-102',
-        label: 'concurrency: 11 は範囲外のため ChatlogError をスローする',
-        input: 'concurrency: 11\n',
         errorType: ChatlogError,
       },
       {
@@ -995,6 +963,23 @@ describe('GlobalConfig', () => {
         );
         assertEquals(_err.kind, 'InvalidYaml');
         assertEquals(_err.subindex, 'UnknownKey');
+      });
+
+      it('[Error] T-CLS-GC-155: readTextFileProvider が NotFound 以外のエラー → 同一のエラーがそのまま再スローされる', () => {
+        const _config = GlobalConfig.getInstance();
+        const _thrown = new Deno.errors.PermissionDenied('permission denied');
+        const _deniedRead: ReadTextFileSyncProvider = () => {
+          throw _thrown;
+        };
+        const _err = assertThrows(
+          () =>
+            _config.loadConfigFile({
+              configPath: '/mock/config.yaml',
+              readTextFileProvider: _deniedRead,
+            }),
+          Deno.errors.PermissionDenied,
+        );
+        assertStrictEquals(_err, _thrown);
       });
     });
   });

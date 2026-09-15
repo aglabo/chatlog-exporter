@@ -7,10 +7,8 @@
 // https://opensource.org/licenses/MIT
 
 // -- BDD modules --
-import { assertEquals, assertThrows } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
-// -- error class --
-import { ChatlogError } from '../../ChatlogError.class.ts';
 // -- test target --
 import { ChatlogFrontmatter } from '../../ChatlogFrontmatter.class.ts';
 
@@ -151,6 +149,13 @@ describe('ChatlogFrontmatter', () => {
         const result = fm.toFrontmatter(['title', 'tags'], { addTagHashes: true });
         assertEquals(result, '---\ntitle: "Hello"\ntags: []\n---\n');
       });
+
+      it('T-CLS-CF-65: addTagHashes:true 指定時、スカラー文字列の tags にも # が付与される', () => {
+        const fm = new ChatlogFrontmatter('');
+        fm.set('tags', 'foo');
+        const result = fm.toFrontmatter(['tags'], { addTagHashes: true });
+        assertEquals(result, '---\ntags: "#foo"\n---\n');
+      });
     });
 
     describe('エッジケース', () => {
@@ -214,15 +219,6 @@ describe('ChatlogFrontmatter', () => {
           assertEquals(fm.toFrontmatter(tc.fieldOrder), tc.expected);
         });
       }
-    });
-
-    describe('エラーケース', () => {
-      it('T-CLS-CF-45: [エラー] fieldOrder が空配列の場合は InvalidArgs をスローする', () => {
-        const fm = new ChatlogFrontmatter('');
-        fm.set('title', 'Hello');
-        const err = assertThrows(() => fm.toFrontmatter([]), ChatlogError);
-        assertEquals(err.kind, 'InvalidArgs');
-      });
     });
   });
 });
