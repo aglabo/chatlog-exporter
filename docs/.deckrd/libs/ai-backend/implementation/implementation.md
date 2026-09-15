@@ -1,8 +1,8 @@
 ---
 title: "Implementation Plan: LAN llama サーバの AI バックエンド化"
-based-on: specifications-index.md v1.3.0
+based-on: specifications-index.md v1.4.0
 status: Draft
-version: 1.6.0
+version: 1.7.0
 created: "2026-09-03"
 ---
 
@@ -46,9 +46,10 @@ classify-chatlogs / filter-chatlogs / normalize-chatlogs / set-frontmatter の 4
   ローカル対応は実用にならない) は DR-04 が採用、§6.2 (codex CLI 一択) は DR-01 が不採用、
   §6.6 (モデル名エラーメッセージ修正) は DR-06 が採用。§4 の `runAIStructured` 系による全面刷新は
   REQ-C-005 に反するため Out of Scope
-- Specifications: `specifications/specifications-index.md` v1.3.0 (索引) および分割 4 ファイル
-  (transport v2.0.1 / structured-output v2.3.0 / error-handling v2.0.1 / config-packaging v1.2.0)
-- Measurement: `measurements-response-format-2026-09-12.md` v1.0.0 (Phase 0 実測ゲートの記録)
+- Specifications: `specifications/specifications-index.md` v1.4.0 (索引) および分割 4 ファイル
+  (transport v2.0.1 / structured-output v2.4.1 / error-handling v2.1.0 / config-packaging v1.2.0)
+- Measurement: `measurements-response-format-2026-09-12.md` v1.0.1 (Phase 0 実測ゲートの記録) /
+  `measurements-response-format-rejection-2026-09-15.md` v1.0.0 (`response_format` 拒否の 400 実測、DR-33)
 - Reviews: `reviews-claude-impl-explore-2026-09-04.md` /
   `reviews-claude-impl-harden-2026-09-04.md` (DR-20〜DR-23 を採択) /
   `reviews-claude-impl-fix-2026-09-04.md`。本版はこの 3 本の所見を反映したものにあたる
@@ -585,8 +586,9 @@ error-handling R-001〜R-008 / DR-03・DR-15・DR-18・DR-26
 - Step 3: 404 / 501 → `BackendUnavailable` (中断)
 - Step 4: 401 / 403 → `BackendUnavailable` (中断)
 - Step 5: 400 かつ本文から `response_format` の拒否と判別できる → `ResponseFormatRejected` (中断) 。
-  **判別条件は Phase 0 の実測結果から定める。** 判別できない 400 は Step 6 へ落とし、判別ロジックは
-  差し替え可能な形で分離しておく
+  **判別条件は本文を JSON として parse でき、`error.message` が `JSON schema conversion failed` で
+  始まること (DR-33)。** 判別関数は例外を投げず、非 JSON 本文・接頭辞不一致の 400 は Step 6 へ落とす。
+  判別ロジックは差し替え可能な形で分離しておく
 - Step 6: 上記以外の非成功ステータス (判別できない 400 を含む) → `ExitFailure` (続行)
 - Step 6.5: 成功ステータスだが本文が JSON として parse できない、または `Content-Type` が
   `application/json` 系でない (`stream: false` を無視して SSE / chunked を返すサーバ) →
@@ -817,11 +819,11 @@ AC-012 (`bash scripts/sync-skill-assets.sh --check-staged` が差分なしで終
 
 ### 3.2 Phase 0 の実測に依存して残る未決
 
-| 未決                                                                                                 | 依存先              | 扱い                                                                                                                                                                                             |
-| ---------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段 | Commit 15 の Step 5 | **実測で HTTP 400 が 1 件も発生せず、判別条件は決められなかった** (測定レポート §3.2) 。判別できない 400 は続行側の `ExitFailure` に落とす既定を維持し、判別ロジックは差し替え可能な形に分離する |
-| ~~`finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認~~ (解決済み)                       | —                   | 実測 90 回すべてが `stop` であり、実装固有値は観測されなかった (測定レポート §3.1) 。`finish_reason !== 'stop'` をすべて失敗とする既定のまま error-handling §4.1 の改訂は不要                    |
-| ~~`yaml` 契約の「許容型」の定義~~ (解決済み)                                                         | —                   | structured-output v2.1.0 §4.3.1 が呼び出し元ごとの required keys・値の型・enum 値域・フォールバック値を確定させた。Phase 0 には依存しない                                                        |
+| 未決                                                                                                                | 依存先 | 扱い                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~`response_format` の拒否 (中断) とコンテキスト長超過 (続行) が同じ HTTP 400 で返る場合の読み分け手段~~ (解決済み) | —      | Phase 0 では 400 が発生しなかったが、追加実測 (`measurements-response-format-rejection-2026-09-15.md`) で不正なスキーマの 400 を観測し、`error.message` の接頭辞 `JSON schema conversion failed` で判別すると確定した (DR-33) 。コンテキスト長超過は `ExitFailure` のまま |
+| ~~`finish_reason` の実装固有値 (`eos` / `end_turn` 等) の実在確認~~ (解決済み)                                      | —      | 実測 90 回すべてが `stop` であり、実装固有値は観測されなかった (測定レポート §3.1) 。`finish_reason !== 'stop'` をすべて失敗とする既定のまま error-handling §4.1 の改訂は不要                                                                                             |
+| ~~`yaml` 契約の「許容型」の定義~~ (解決済み)                                                                        | —      | structured-output v2.1.0 §4.3.1 が呼び出し元ごとの required keys・値の型・enum 値域・フォールバック値を確定させた。Phase 0 には依存しない                                                                                                                                 |
 
 ---
 
@@ -955,3 +957,4 @@ R-004 は特定の commit に閉じない。§3.1 が対象 commit を列挙す�
 | 2026-09-06 | 1.4.1   | Commit 1 の非破壊判定を structured-output v2.1.2 §5.1 の訂正へ追随: 呼び出し元 3 箇所のうち filter は不適合であり、R-004 が意図した挙動として REQ-C-002 の例外に記録済みであることを明記（cle-nnb）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 2026-09-06 | 1.5.0   | PR #436 の codex レビュー所見（P1）を反映: Commit 9 が module 層の `setfm-type-category.ts` のみを対象としていたが、`setfm-frontmatter.ts` / `setfm-review.ts` から伝播した例外を phase 層の `runConcurrent` ワーカー（`phase-frontmatter.ts:133-139` / `phase-review.ts:80-86`）が `logger.error` + `return` で握りつぶすため、3 呼び出しのうち 2 つで REQ-F-006 のバッチ中断が成立しない。この 2 箇所の catch 第 1 分岐への新判定関数の追加を Commit 9 の変更対象へ加え、Green 条件を追加。normalize の `phase-segment.ts` には対応する catch が無く不要であることも明記                                                                                                         |
 | 2026-09-12 | 1.6.0   | Phase 0 実測ゲートの結果を反映 (MINOR: 実装対象を確定させる決定) 。合格 (9 組 10/10・`finish_reason` は全件 `stop`) を Phase 0 節へ記録し、参照へ測定レポート v1.0.0 を追加。§3.2 の未決 2 件を更新 (`finish_reason` は解決済み、HTTP 400 の読み分けは 400 未発生のため既定維持) 。based-on を specifications-index.md v1.3.0 へ、structured-output の版表記を v2.3.0 へ更新                                                                                                                                                                                                                                                                                                       |
+| 2026-09-15 | 1.7.0   | DR-33 を反映 (MINOR: 実装対象を確定させる決定) 。Commit 15 Step 5 に判別条件 (`error.message` の接頭辞 `JSON schema conversion failed`、判別関数は例外を投げない) を記載し、§3.2 の未決「HTTP 400 の読み分け」を解決済みとした。参照へ追加実測レポート v1.0.0 を追加。based-on を specifications-index.md v1.4.0 へ、仕様の版表記を structured-output v2.4.1 / error-handling v2.1.0 へ更新                                                                                                                                                                                                                                                                                        |
