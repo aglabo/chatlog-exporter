@@ -152,6 +152,12 @@ const _CONTRACT_TYPE_CATEGORY: OutputContract = {
   },
 };
 
+/** boolean 型の直下キー `flag` だけを持つ line-prefixed 契約定義。§4.3.1 の契約に boolean が無いため型分岐の検証用に置く。 */
+const _CONTRACT_BOOLEAN: OutputContract = {
+  contract: 'line-prefixed',
+  properties: { flag: { type: 'boolean' } },
+};
+
 /** §4.3.1 #6 に適合する応答ペイロード。契約定義のキー順に行へ展開される。 */
 const _TYPE_CATEGORY_PAYLOAD = { type: 'execution', category: 'tooling' };
 
@@ -484,6 +490,12 @@ describe('Given: 必須キーすべてが §4.3.1 の型表どおりの値を持
           assertEquals(_thrown, undefined, `型表どおりの値で違反が投げられた: ${_thrown?.message}`);
         });
       });
+
+      it('[Normal] T-LIB-AI-OCV-11-02: boolean 型のキーに boolean 値 (true) では違反を投げない', () => {
+        const _thrown = _captureThrown(() => validateOutputContract(_CONTRACT_BOOLEAN, { flag: true }));
+
+        assertEquals(_thrown, undefined, `boolean 値で違反が投げられた: ${_thrown?.message}`);
+      });
     });
   });
 });
@@ -512,6 +524,14 @@ describe('Given: `response_format` が無視され、JSON として parse でき
           // 既存パース経路へのフォールバックが起きていないこと
           assertEquals(_returned, undefined, `契約不適合にもかかわらず文字列が返った: ${_returned}`);
         });
+      });
+
+      // json-array 契約では root の object 判定が envelope の取り出し側にあるため、検証関数を直接呼んで固定する
+      it('[Error] T-LIB-AI-OCV-12-02: json-array 契約で root が object でない → ChatlogError(AiError / ResponseSchemaViolation)', () => {
+        const _thrown = assertThrows(() => validateOutputContract(_CONTRACT_CLASSIFY, 'text'), ChatlogError);
+
+        assertEquals(_thrown.kind, 'AiError');
+        assertEquals(_thrown.subindex, 'ResponseSchemaViolation');
       });
     });
   });
@@ -632,6 +652,31 @@ describe('Given: 契約直下キーの値の型が契約定義と異なる yaml 
           const _thrown = assertThrows(() => validateOutputContract(contract, payload), ChatlogError);
 
           // 続行側の分類であること。`ResponseFormatIgnored`（中断側）としてはならない（DR-16）
+          assertEquals(_thrown.kind, 'AiError');
+          assertEquals(_thrown.subindex, 'ResponseSchemaViolation');
+        });
+      });
+
+      // boolean / array / object の型不一致（スカラー以外の分岐も含む）
+      const _typeMismatchCases: [id: string, label: string, contract: OutputContract, payload: unknown][] = [
+        ['T-LIB-AI-OCV-15-02', '`flag` が boolean でなく string', _CONTRACT_BOOLEAN, { flag: 'x' }],
+        ['T-LIB-AI-OCV-15-03', '#4 `topics` が配列でなく string', _CONTRACT_FRONTMATTER, {
+          title: 't',
+          topics: 'x',
+          tags: [],
+        }],
+        [
+          'T-LIB-AI-OCV-15-04',
+          '#5 `corrected_frontmatter` が object でなく string',
+          _CONTRACT_REVIEW,
+          { validity: 'pass', errors: [], corrected_frontmatter: 'x' },
+        ],
+      ];
+
+      _typeMismatchCases.forEach(([id, label, contract, payload]) => {
+        it(`[Error] ${id}: ${label} → ChatlogError(AiError / ResponseSchemaViolation)`, () => {
+          const _thrown = assertThrows(() => validateOutputContract(contract, payload), ChatlogError);
+
           assertEquals(_thrown.kind, 'AiError');
           assertEquals(_thrown.subindex, 'ResponseSchemaViolation');
         });
@@ -865,7 +910,6 @@ describe('Given: object でない応答ペイロード', () => {
         ['文字列', _CONTRACT_FRONTMATTER, 'text'],
         ['数値', _CONTRACT_FRONTMATTER, 42],
         ['配列', _CONTRACT_FRONTMATTER, []],
-        ['文字列（json-array 契約）', _CONTRACT_CLASSIFY, 'text'],
         ['文字列（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, 'text'],
       ];
 
@@ -904,7 +948,6 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
       // 別の理由で通ってしまい、起点キーの不変条件を検査したことにならない。
       const _cases: [label: string, contract: OutputContract][] = [
         ['契約定義のキーの綴り誤り', { ..._CONTRACT_FRONTMATTER, firstField: 'ttile' }],
-        ['契約定義に存在しないキー', { ..._CONTRACT_FRONTMATTER, firstField: 'summary' }],
       ];
 
       _cases.forEach(([label, contract]) => {
@@ -920,7 +963,7 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
         });
       });
 
-      // 上の 2 ケースは「ただ存在しないキー」という点で等価であり、所属判定を `in` 演算子で
+      // 上のケースは「ただ存在しないキー」であり、所属判定を `in` 演算子で
       // 書いても通る。`'toString' in properties` は `Object.prototype` を辿って真になるため、
       // 誤った起点キーが検証をすり抜けて §4.3.1 の沈黙経路へ落ちる。
       // 実装が `Object.keys(...).includes(...)` を使っていることをこのケースで固定する。
@@ -958,7 +1001,6 @@ describe('Given: 起点キーが契約定義の `properties` に無い yaml 契�
       // 復元関数自身がガードを持つことを固定する。
       const _cases: [label: string, firstField: string][] = [
         ['契約定義のキーの綴り誤り', 'ttile'],
-        ['契約定義に存在しないキー', 'summary'],
         ['`Object.prototype` 由来のキー', 'toString'],
       ];
 

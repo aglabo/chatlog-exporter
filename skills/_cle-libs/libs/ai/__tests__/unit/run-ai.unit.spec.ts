@@ -17,6 +17,7 @@ import {
   assertFalse,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
@@ -48,9 +49,6 @@ import type { FetchProvider } from '../../../../types/providers.types.ts';
 import { AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '../../../../types/ai.const.types.ts';
 
 // ─── Internal Helpers
-
-// types
-type CommandSpec = { command: string; args: string[]; hasSystemPromptWithArgs: boolean };
 
 // functions
 /**
@@ -229,42 +227,6 @@ const _rateLimitCases = [
   { id: 'T-LIB-AI-RA-22', label: 'Error', stdout: '', stderr: 'usage limit exceeded', desc: 'stderr に "usage limit"' },
 ] as const;
 
-const _cases: Array<{ model: string; expected: CommandSpec }> = [
-  {
-    model: 'sonnet',
-    expected: {
-      command: 'claude',
-      args: [
-        '--print',
-        '--output-format',
-        'json',
-        '--system-prompt',
-        'sys',
-        '--permission-mode',
-        'acceptEdits',
-        '--strict-mcp-config',
-        '--mcp-config',
-        '{"mcpServers":{}}',
-        '--model',
-        'sonnet',
-      ],
-      hasSystemPromptWithArgs: true,
-    },
-  },
-  {
-    model: 'gpt-5',
-    expected: { command: 'codex', args: ['exec', '--model', 'gpt-5'], hasSystemPromptWithArgs: false },
-  },
-  {
-    model: 'copilot/gpt-4',
-    expected: { command: 'copilot', args: ['--model', 'gpt-4'], hasSystemPromptWithArgs: false },
-  },
-  {
-    model: 'openai/gpt-4',
-    expected: { command: 'opencode', args: ['run', '--model', 'openai/gpt-4'], hasSystemPromptWithArgs: false },
-  },
-];
-
 /**
  * 分割前に受理されていた既存バックエンドのモデル値 (T-LIB-AI-RA-52-01 / T-LIB-AI-RA-52-02 / T-LIB-AI-RA-53-01)。
  *
@@ -323,20 +285,6 @@ const _classificationCases: Array<{
   subindex: string;
 }> = [
   {
-    desc: 'stderr に rate limit 表現 + exit 1',
-    makeStub: () =>
-      _makeCommandStub({
-        success: false,
-        code: 1,
-        stdout: new Uint8Array(),
-        stderr: new TextEncoder().encode('You have hit the rate limit'),
-        signal: null,
-      }),
-    makeOptions: () => ({ model: 'sonnet' }),
-    kind: 'AiError',
-    subindex: 'RateLimit',
-  },
-  {
     desc: 'stderr = "boom" + exit 1 (rate limit 表現なし)',
     makeStub: () =>
       _makeCommandStub({
@@ -351,50 +299,11 @@ const _classificationCases: Array<{
     subindex: 'ExitFailure',
   },
   {
-    desc: 'claude の stdout が JSON でない + exit 0',
-    makeStub: () =>
-      _makeCommandStub({
-        success: true,
-        code: 0,
-        stdout: new TextEncoder().encode('not json'),
-        stderr: new Uint8Array(),
-        signal: null,
-      }),
-    makeOptions: () => ({ model: 'sonnet' }),
-    kind: 'AiError',
-    subindex: 'InvalidFormat',
-  },
-  {
-    desc: '未知のモデル値',
-    makeStub: () =>
-      _makeCommandStub({
-        success: true,
-        code: 0,
-        stdout: new TextEncoder().encode('{"result":"ok"}'),
-        stderr: new Uint8Array(),
-        signal: null,
-      }),
-    makeOptions: () => ({ model: 'invalid-model' }),
-    kind: 'UnknownModel',
-    subindex: 'InvalidModel',
-  },
-  {
     desc: 'timeoutMs=1 + 100ms 遅延モック',
     makeStub: () => makeDelayedSuccessMock(100, new TextEncoder().encode('ok')),
     makeOptions: () => ({ model: 'sonnet', timeoutMs: 1 }),
     kind: 'TimedOut',
     subindex: 'Timeout',
-  },
-  {
-    desc: 'abort 済み外部 signal + reject モック',
-    makeStub: () => _makeRejectingCommandStub(),
-    makeOptions: () => {
-      const _external = new AbortController();
-      _external.abort();
-      return { model: 'sonnet', signal: _external.signal };
-    },
-    kind: 'Aborted',
-    subindex: 'ExternalAbort',
   },
 ];
 
@@ -567,7 +476,7 @@ afterEach(() => {
  *
  * モデル名から CLI コマンド・引数・hasSystemPromptWithArgs フラグを正しく生成することを検証する。
  *
- * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05
+ * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05, T-LIB-AI-RA-58 〜 T-LIB-AI-RA-59
  *
  * @see _buildCommand
  */
@@ -642,6 +551,21 @@ describe('_buildCommand', () => {
       const result = _buildCommand('sonnet', 'sys');
       assertEquals(result.command, 'claude');
       assertEquals(result.args.includes('--tools='), true);
+    });
+  });
+
+  /** CLI バックエンドを持たないモデル名で ChatlogError を投げる異常ケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-LIB-AI-RA-58: model=llama/x (HTTP 経路) → ChatlogError(UnknownModel) subindex=InvalidModel', () => {
+      const _err = assertThrows(() => _buildCommand('llama/x', 'sys'), ChatlogError);
+      assertEquals(_err.kind, 'UnknownModel');
+      assertEquals(_err.subindex, 'InvalidModel');
+    });
+
+    it('[Error] T-LIB-AI-RA-59: model=invalid-model → ChatlogError(UnknownModel) subindex=InvalidModel', () => {
+      const _err = assertThrows(() => _buildCommand('invalid-model', 'sys'), ChatlogError);
+      assertEquals(_err.kind, 'UnknownModel');
+      assertEquals(_err.subindex, 'InvalidModel');
     });
   });
 });
@@ -958,6 +882,27 @@ describe('runAI', () => {
         }
       });
 
+      it('[Error] T-LIB-AI-RA-60: runAI — exit 1 かつ claude stdout に "{" はあるが JSON パース不能 → フォールバックで AiError/ExitFailure', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('warn {not json'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
       it('[Error] T-LIB-AI-RA-42: runAI — exit 1 かつ ケースA完全JSON → message に "429" と result 文言 ("monthly spend limit") の両方が含まれる', async () => {
         const _origCommand = Deno.Command;
         const _stdout =
@@ -1133,6 +1078,27 @@ describe('runAI', () => {
         }
       });
 
+      it('[Error] T-LIB-AI-RA-61: runAI — exit 0 かつ claude stdout に "{" はあるが JSON パース不能 → ChatlogError(AiError/InvalidFormat)', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('warn {not json'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'InvalidFormat');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
       it('[Error] T-LIB-AI-RA-31: runAI — claude JSON が有効だが .result が文字列でない → ChatlogError(AiError/InvalidFormat)', async () => {
         const _origCommand = Deno.Command;
         Deno.Command = _makeCommandStub({
@@ -1265,23 +1231,6 @@ describe('runAI', () => {
           Deno.Command = _origCommand;
         }
       });
-
-      it('[Edge] T-LIB-AI-RA-41: runAI — exit 0 かつ claude JSON is_error:false/result:"ok" → .result ("ok") を返す', async () => {
-        const _origCommand = Deno.Command;
-        Deno.Command = _makeCommandStub({
-          success: true,
-          code: 0,
-          stdout: new TextEncoder().encode('{"is_error":false,"result":"ok"}'),
-          stderr: new Uint8Array(),
-          signal: null,
-        }) as unknown as typeof Deno.Command;
-        try {
-          const _result = await runAI('sys', 'user', { model: 'sonnet' });
-          assertEquals(_result, 'ok');
-        } finally {
-          Deno.Command = _origCommand;
-        }
-      });
     });
   });
 
@@ -1341,22 +1290,6 @@ describe('runAI', () => {
       commandHandle?.restore();
     });
 
-    /** options 省略時に GlobalConfig の設定値へフォールバックするケース。 */
-    describe('When: 正常系', () => {
-      it('[Normal] T-LIB-AI-RA-18: options.model 省略 → GlobalConfig の model ("opus") が CLI 引数に使われる', async () => {
-        GlobalConfig.getInstance({ yaml: 'model: opus' });
-        const _capturedArgs: { value: string[] } = { value: [] };
-        commandHandle = installCommandMock(
-          makeSuccessMock(new TextEncoder().encode('{"result":"ok"}'), _capturedArgs),
-        );
-
-        await runAI('sys', 'user');
-
-        assertEquals(_capturedArgs.value.includes('--model'), true);
-        assertEquals(_capturedArgs.value[_capturedArgs.value.indexOf('--model') + 1], 'opus');
-      });
-    });
-
     /** options 省略時に GlobalConfig の timeoutMs 設定値でタイムアウトが発生するケース。 */
     describe('When: 異常系', () => {
       it('[Error] T-LIB-AI-RA-19: options.timeoutMs 省略 → GlobalConfig の timeoutMs (1ms) でタイムアウトする', async () => {
@@ -1389,7 +1322,7 @@ describe('runAI', () => {
    *
    * 分割の前後で、正常応答した CLI の実行結果から返る文字列が変わらないことを確認する。
    *
-   * テスト ID 範囲: T-LIB-AI-RA-50-01 〜 T-LIB-AI-RA-57-03
+   * テスト ID 範囲: T-LIB-AI-RA-51-01 〜 T-LIB-AI-RA-57-03
    */
   describe('3-layer split', () => {
     let commandHandle: CommandMockHandle;
@@ -1398,20 +1331,13 @@ describe('runAI', () => {
       commandHandle?.restore();
     });
 
-    /** 正常応答した CLI から従来どおりの文字列が返るケース。 */
-    describe('When: 正常系', () => {
-      it('[Normal] T-LIB-AI-RA-50-01: runAI — 正常応答する Deno.Command スタブ → 分割前と同一の文字列 ("ok") を返す', async () => {
-        commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('{"result":"ok"}')));
-
-        const _result = await runAI('sys', 'user', { model: 'sonnet' });
-
-        assertEquals(_result, 'ok');
-      });
-    });
-
-    /** 分割前に受理されていた既存バックエンドのモデル値が、分割後も受理されるケース（非回帰ガード）。 */
+    /**
+     * 分割前に受理されていた既存バックエンドのモデル値が、分割後も受理されるケース（非回帰ガード）。
+     *
+     * claude 経路は T-LIB-AI-RA-12 と同一のため除外する。
+     */
     describe('When: 正常系（既存バックエンドの受理）', () => {
-      for (const { model, backend, stdout, expected } of _backendCases) {
+      for (const { model, backend, stdout, expected } of _backendCases.filter((c) => c.backend !== 'claude')) {
         it(`[Normal] T-LIB-AI-RA-52-01: runAI — model="${model}" (${backend}) → UnknownModel を throw せず "${expected}" を返す`, async () => {
           commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(stdout)));
 
