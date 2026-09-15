@@ -300,6 +300,15 @@ describe('assertHelpers', () => {
         );
       });
     });
+
+    /** エッジケース: subindex 省略時の動作。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-AH-TCE-05: subindex 省略時 → subindex を問わず通過する', () => {
+        // act & assert (no throw for any subindex value)
+        assertThrowsChatlogError(_throwChatlogError('InvalidArgs', 'anyValue'), 'InvalidArgs');
+        assertThrowsChatlogError(_throwChatlogError('InvalidArgs', ''), 'InvalidArgs');
+      });
+    });
   });
 
   /**
