@@ -16,19 +16,19 @@ _cmd=$(jq -r '.tool_input.command // ""' 2>/dev/null | tr -d '\r')
 # このフックは Bash ツール呼び出しのたびに走る。走査に入る前に安価に振り落とす。
 # 語の並びは見ない。引用符や行継続を挟んだ形を取りこぼさないため、部分一致だけで判定する
 case "$_cmd" in
-  *bd*) ;;
-  *) exit 0 ;;
+*bd*) ;;
+*) exit 0 ;;
 esac
 case "$_cmd" in
-  *create* | *new*) ;;
-  *) exit 0 ;;
+*create* | *new*) ;;
+*) exit 0 ;;
 esac
 
 # 巨大な入力は走査コストが跳ねる。jq 失敗時と同じく素通しする
 [ "${#_cmd}" -le 32768 ] || exit 0
 
 _NL=$'\n'
-_BS='\'
+_BS=$'\\'
 _bad=''
 _tokens=()
 
@@ -53,14 +53,14 @@ _check_segment() {
   for ((i = k + 2; i < n; i++)); do
     t=${_tokens[i]%%=*}
     case "$t" in
-      # batch / preview forms carry their parents elsewhere (or write nothing)
-      --dry-run | --graph | --file | -f | -h | --help) return 0 ;;
-      --parent | --external-ref)
-        # --parent=x なら値を持つ。素の --parent は後続トークンが値
-        if [ "${_tokens[i]}" != "$t" ] || [ $((i + 1)) -lt "$n" ]; then
-          return 0
-        fi
-        ;;
+    # batch / preview forms carry their parents elsewhere (or write nothing)
+    --dry-run | --graph | --file | -f | -h | --help) return 0 ;;
+    --parent | --external-ref)
+      # --parent=x なら値を持つ。素の --parent は後続トークンが値
+      if [ "${_tokens[i]}" != "$t" ] || [ $((i + 1)) -lt "$n" ]; then
+        return 0
+      fi
+      ;;
     esac
   done
 
@@ -74,6 +74,93 @@ _start=0
 _quote=''
 _tok=''
 _has=0
+# 同一行に複数の heredoc がありうる。本文は次の改行の後からなので保留キューに積む
+_hd_delims=()
+_hd_tabs=()
+
+# 終端行の存在検査用の索引。行の内容 -> その内容を持つ最後の行の開始位置。
+# `<<` ごとに全走査すると未終端の `<<` が多い入力で O(n^2) になるので、1 度だけ作る
+declare -A _line_pos=()
+declare -A _line_pos_tab=()
+_index_built=0
+
+_build_line_index() {
+  [ "$_index_built" -eq 0 ] || return 0
+  _index_built=1
+  local line detab pos=0 lines=()
+  readarray -t lines <<<"$_cmd"
+  for line in "${lines[@]}"; do
+    detab=${line#"${line%%[!$'\t']*}"}
+    [ -z "$line" ] || _line_pos["$line"]=$pos
+    [ -z "$detab" ] || _line_pos_tab["$detab"]=$pos
+    pos=$((pos + ${#line} + 1))
+  done
+}
+
+# `<<` の直後から呼ぶ。デリミタ語を読んでキューに積み、_i を語の末尾へ置く。
+# 語が識別子でなければ heredoc ではない (算術の左シフト等)。_i を戻して 1 を返す
+_push_heredoc() {
+  local dash='' delim='' c save=$_i
+  _i=$((_i + 2))
+  if [ "${_cmd:_i:1}" = '-' ]; then
+    dash=1
+    _i=$((_i + 1))
+  fi
+  # デリミタは `<<` / `<<-` に直接続くときだけ読む。空白を挟む形は heredoc とみなさない
+  # (算術の左シフト `$(( x << y ))` の誤認を塞ぐ。代償として `cat << EOF` も heredoc 扱いしない)
+  if [[ ${_cmd:_i:1} == [' '$'\t'] ]]; then
+    _i=$save
+    return 1
+  fi
+  while :; do
+    c=${_cmd:_i:1}
+    case "$c" in
+    '' | ' ' | $'\t' | $'\n' | ';' | '&' | '|' | '<' | '>') break ;;
+    # <<'EOF' と <<EOF は同じデリミタ。引用符とエスケープは剥がす
+    "'" | '"' | "$_BS") ;;
+    *) delim+=$c ;;
+    esac
+    _i=$((_i + 1))
+  done
+  if [[ ! $delim =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]]; then
+    _i=$save
+    return 1
+  fi
+  # 終端行が後方に実在するときだけ heredoc とみなす。無ければ不正入力なので
+  # heredoc 扱いをやめ、通常のトークンとして検査させる (算術の左シフト等がここに来る)
+  local pos
+  _build_line_index
+  if [ -z "$dash" ]; then pos=${_line_pos["$delim"]-}; else pos=${_line_pos_tab["$delim"]-}; fi
+  if [ -z "$pos" ] || [ "$pos" -lt "$_i" ]; then
+    _i=$save
+    return 1
+  fi
+  _hd_delims+=("$delim")
+  _hd_tabs+=("$dash")
+  _i=$((_i - 1)) # 呼び出し元のループ末尾にある +1 と辻褄を合わせる
+  return 0
+}
+
+# 改行でコマンド境界を打った直後に呼ぶ。保留中の heredoc 本文を読み飛ばし、
+# _i / _start を終端行の直後へ進める。終端が現れなければ末尾まで本文とみなす
+_skip_heredoc_bodies() {
+  local pos=$_start k line
+  for ((k = 0; k < ${#_hd_delims[@]}; k++)); do
+    while [ "$pos" -lt "$_len" ]; do
+      line=${_cmd:pos}
+      line=${line%%"$_NL"*}
+      pos=$((pos + ${#line} + 1))
+      # <<- はタブ字下げされた終端を許す
+      [ -z "${_hd_tabs[k]}" ] || line=${line#"${line%%[!$'\t']*}"}
+      [ "$line" != "${_hd_delims[k]}" ] || break
+    done
+  done
+  _hd_delims=()
+  _hd_tabs=()
+  [ "$pos" -le "$_len" ] || pos=$_len
+  _start=$pos
+  _i=$((pos - 1)) # 呼び出し元のループ末尾にある +1 と辻褄を合わせる
+}
 
 while [ "$_i" -lt "$_len" ]; do
   _c=${_cmd:_i:1}
@@ -100,27 +187,50 @@ while [ "$_i" -lt "$_len" ]; do
     fi
   else
     case "$_c" in
-      "'" | '"')
-        _quote=$_c
+    "'" | '"')
+      _quote=$_c
+      _has=1
+      ;;
+    ' ' | $'\t')
+      [ "$_has" -eq 0 ] || _tokens+=("$_tok")
+      _tok=''
+      _has=0
+      ;;
+    $'\n')
+      [ "$_has" -eq 0 ] || _tokens+=("$_tok")
+      _tok=''
+      _has=0
+      _check_segment "${_cmd:_start:_i-_start}"
+      _tokens=()
+      _start=$((_i + 1))
+      # heredoc 本文が始まるのは改行の後だけ。; や | で発火させてはならない
+      [ "${#_hd_delims[@]}" -eq 0 ] || _skip_heredoc_bodies
+      ;;
+    ';' | '&' | '|')
+      [ "$_has" -eq 0 ] || _tokens+=("$_tok")
+      _tok=''
+      _has=0
+      _check_segment "${_cmd:_start:_i-_start}"
+      _tokens=()
+      _start=$((_i + 1))
+      ;;
+    '<')
+      # herestring <<< は heredoc ではない。`<` 単体は通常のリダイレクト
+      if [ "${_cmd:_i+1:2}" = '<<' ]; then
+        _i=$((_i + 2))
+        _tok+='<<<'
         _has=1
-        ;;
-      ' ' | $'\t')
-        [ "$_has" -eq 0 ] || _tokens+=("$_tok")
-        _tok=''
-        _has=0
-        ;;
-      $'\n' | ';' | '&' | '|')
-        [ "$_has" -eq 0 ] || _tokens+=("$_tok")
-        _tok=''
-        _has=0
-        _check_segment "${_cmd:_start:_i - _start}"
-        _tokens=()
-        _start=$((_i + 1))
-        ;;
-      *)
+      elif [ "${_cmd:_i+1:1}" = '<' ] && _push_heredoc; then
+        : # heredoc としてキューに積んだ。トークンには何も残さない
+      else
         _tok+=$_c
         _has=1
-        ;;
+      fi
+      ;;
+    *)
+      _tok+=$_c
+      _has=1
+      ;;
     esac
   fi
 
