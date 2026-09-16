@@ -476,4 +476,82 @@ Describe 'check-beads-parent.sh'
       End
     End
   End
+
+  Describe '# コメントの扱い'
+    Describe 'When: 正常系'
+      It '[Normal] T-HK-CBP-63: 行末コメント内の create は検査しない'
+        When call run_hook 'echo ok # bd create --title x'
+        The status should equal 0
+      End
+
+      It '[Normal] T-HK-CBP-64: 単独行コメント内の create も検査しない'
+        When call run_hook $'# bd create --title x\necho ok'
+        The status should equal 0
+      End
+
+      It '[Normal] T-HK-CBP-65: ; の直後から始まるコメントも検査しない'
+        When call run_hook 'echo ok ;# bd create --title x'
+        The status should equal 0
+      End
+
+      It '[Normal] T-HK-CBP-66: タブ区切りのコメントも検査しない'
+        When call run_hook $'echo ok\t# bd create --title x'
+        The status should equal 0
+      End
+
+      It '[Normal] T-HK-CBP-67: 親ありの create に行末コメントが付いても通す'
+        When call run_hook 'bd create --parent cle-x --title y # note'
+        The status should equal 0
+      End
+    End
+
+    Describe 'When: 異常系'
+      It '[Error] T-HK-CBP-68: コメント内の heredoc トークンでは後続の create を素通しさせない'
+        When call run_hook $'echo ok # <<true\nbd create --title x\ntrue'
+        The status should equal 2
+      End
+
+      It '[Error] T-HK-CBP-69: 算術の基数記法はコメントとみなさず create を検出する'
+        When call run_hook 'echo $((16#ff)); bd create --title x'
+        The status should equal 2
+      End
+
+      It '[Error] T-HK-CBP-70: ${#v} の # はコメントとみなさず create を検出する'
+        When call run_hook 'v=abc; echo ${#v}; bd create --title x'
+        The status should equal 2
+      End
+
+      It '[Error] T-HK-CBP-71: 語中の # はコメントとみなさず create を検出する'
+        When call run_hook $'echo a#b\nbd create --title x'
+        The status should equal 2
+      End
+
+      It '[Error] T-HK-CBP-72: ダブルクォート内の # はコメントとみなさず create を検出する'
+        When call run_hook 'echo "#"; bd create --title x'
+        The status should equal 2
+      End
+
+      It '[Error] T-HK-CBP-73: シングルクォート内の # はコメントとみなさず create を検出する'
+        When call run_hook "echo '#'; bd create --title x"
+        The status should equal 2
+      End
+    End
+
+    Describe 'When: エッジケース'
+      It '[Edge] T-HK-CBP-74: コメント内の BEADS_NO_PARENT=1 では免除しない'
+        When call run_hook 'bd create --title x # BEADS_NO_PARENT=1'
+        The status should equal 2
+      End
+
+      It '[Edge] T-HK-CBP-75: 内容の無いコメントが付いても create を検出する'
+        When call run_hook 'bd create --title x #'
+        The status should equal 2
+      End
+
+      It '[Edge] T-HK-CBP-76: heredoc 本文中の # 行は heredoc の終端判定に影響しない'
+        When call run_hook $'cat <<EOF\n# <<X\nEOF\nbd create --title y'
+        The status should equal 2
+      End
+    End
+  End
 End
