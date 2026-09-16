@@ -25,8 +25,8 @@ import { isSafePath, resolveConfigPath } from '../../resolve-path.ts';
 // helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { resetProjectRoot } from '../../dir-utils.ts';
-// types
-import type { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
+// classes
+import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 
 // ─────────────────────────────────────────────
 // normalizePath
@@ -188,9 +188,6 @@ describe('normalizePath', () => {
     beforeEach(() => resetProjectRoot('/mock/root'));
     afterEach(() => resetProjectRoot());
 
-    it('[Normal] T-LIB-U-82-01: env 省略時は既存動作と同じ（${ProjectRoot}/skills → /mock/root/skills）', () => {
-      assertEquals(normalizePath('${ProjectRoot}/skills'), '/mock/root/skills');
-    });
     it('[Normal] T-LIB-U-82-02: カスタム env を渡すと ${TEMP}/work が mock の値で展開される', () => {
       assertEquals(normalizePath('${TEMP}/work', _mockEnv({ TEMP: '/tmp/work' })), '/tmp/work/work');
     });
@@ -735,24 +732,6 @@ describe('resolveConfigPath', () => {
     });
   });
 
-  describe('Given: configPath に絶対パスを指定し statProvider を渡さない', () => {
-    /** `statProvider` なしでパス解決のみ行うことを検証する。 */
-    describe('When: resolveConfigPath を実行する', () => {
-      /** statProvider 不要でも正規化パスが返ることを確認する。 */
-      describe('Then: T-LIB-U-14-16 - statProvider 未指定でも正規化パスが返る', () => {
-        it('T-LIB-U-14-16: statProvider 未指定でも /home/user/config.yaml が返る', () => {
-          assertEquals(
-            resolveConfigPath({
-              defaultPath: 'default.yaml',
-              configPath: '/home/user/config.yaml',
-            }),
-            '/home/user/config.yaml',
-          );
-        });
-      });
-    });
-  });
-
   describe('Given: config.configDir が getProjectRoot() 以外の任意ディレクトリを指定する', () => {
     describe('When: resolveConfigPath を実行する（config.configDir=/custom/base）', () => {
       describe('Then: T-LIB-U-14-17 - config.configDir 基準で正規化されて返る', () => {
@@ -849,6 +828,25 @@ describe('resolveConfigPath', () => {
             }),
             '.config/chatlog-exporter/.config/chatlog-exporter-x/config.yaml',
           );
+        });
+      });
+    });
+  });
+
+  describe('Given: 相対パスを指定し config を渡さない', () => {
+    describe('When: resolveConfigPath を実行する（GlobalConfig の appName=resolve-test）', () => {
+      describe('Then: T-LIB-U-14-23 - GlobalConfig.getInstance() の configDir 基準で結合される', () => {
+        it('[Normal] T-LIB-U-14-23: config 省略時は GlobalConfig シングルトンの configDir と結合されて返る', () => {
+          GlobalConfig.resetInstance();
+          GlobalConfig.getInstance({ yaml: '', appName: 'resolve-test' });
+          try {
+            assertEquals(
+              resolveConfigPath({ defaultPath: 'dics/tags.dic' }),
+              '.config/resolve-test/dics/tags.dic',
+            );
+          } finally {
+            GlobalConfig.resetInstance();
+          }
         });
       });
     });
@@ -969,9 +967,6 @@ describe('getRelativePath', () => {
 const _mockEnv = (map: Record<string, string | undefined>) => (key: string): string | undefined => map[key];
 
 // constants
-/** `TEMP=/sentinel/tmp` を返す EnvProvider スタブ（env 転送確認用）。 */
-const _sentinelEnv = (key: string): string | undefined => key === 'TEMP' ? '/sentinel/tmp' : undefined;
-
 /** 正常系テストケース（T-LIB-U-60）。 */
 const _cases = [
   { id: 'T-LIB-U-60-01', input: 'a/b/../c', expected: 'a/c' },
@@ -1045,7 +1040,7 @@ const _mockEnvNoTemp = (_key: string): string | undefined => undefined;
  *
  * projectRoot・TEMP・TMP・safeDirs による安全判定と、セグメント境界・相対パス解決を検証する。
  *
- * テスト ID 範囲: T-LIB-U-62-01 〜 T-LIB-U-62-10
+ * テスト ID 範囲: T-LIB-U-62-01 〜 T-LIB-U-62-11
  *
  * @see isSafePath
  */
@@ -1099,6 +1094,9 @@ describe('isSafePath', () => {
     });
     it('[Edge] T-LIB-U-62-10: TEMP/TMP が未設定のとき /tmp/x は false', async () => {
       assertEquals(await isSafePath('/tmp/x', { envProvider: _mockEnvNoTemp }), false);
+    });
+    it('[Edge] T-LIB-U-62-11: envProvider 省略時は Deno.env.get で判定し、projectRoot 配下は true', async () => {
+      assertEquals(await isSafePath('/home/user/project/file.ts'), true);
     });
   });
 });

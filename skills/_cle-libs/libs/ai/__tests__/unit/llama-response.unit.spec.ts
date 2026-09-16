@@ -671,7 +671,7 @@ const _fetchFailure = (causeMessage: string): TypeError =>
  * あわせて DR-26 決定 1 に基づき、Deno runtime 由来の失敗（権限不足・TLS 検証失敗）が
  * メッセージからネットワーク到達不能と読み分けられることを検証する。
  *
- * テスト ID: T-LIB-AI-LRI-02-01 〜 T-LIB-AI-LRI-02-03
+ * テスト ID: T-LIB-AI-LRI-02-01 〜 T-LIB-AI-LRI-02-04
  *
  * @see mapLlamaFetchFailure
  */
@@ -717,6 +717,15 @@ describe('mapLlamaFetchFailure', () => {
       assertEquals(_error.kind, 'AiError');
       assertEquals(_error.subindex, 'BackendUnavailable');
       assertStringIncludes(_error.message, _RUNTIME_FAILURE_MESSAGE_MARKER);
+    });
+
+    // `Error` でない reject 値は原因チェーンを持たないため、値そのものを文字列化してメッセージに残す。
+    it('[Error] T-LIB-AI-LRI-02-04: Error でない reject 値 ("boom") → AiError/BackendUnavailable + message に値を含む', () => {
+      const _error = assertThrows(() => mapLlamaFetchFailure('boom'), ChatlogError);
+
+      assertEquals(_error.kind, 'AiError');
+      assertEquals(_error.subindex, 'BackendUnavailable');
+      assertStringIncludes(_error.message, 'boom');
     });
   });
 });

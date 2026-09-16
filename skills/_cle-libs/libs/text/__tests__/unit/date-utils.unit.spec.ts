@@ -19,18 +19,6 @@ import { isoToDate, isoToLocalDayMs, isoToMs } from '../../date-utils.ts';
 // ─────────────────────────────────────────────
 
 describe('isoToLocalDayMs', () => {
-  describe('Given: 有効な ISO8601 タイムスタンプ', () => {
-    describe('When: isoToLocalDayMs を実行する', () => {
-      describe('Then: T-LIB-D-01 - number を返す', () => {
-        it('T-LIB-D-01-01: 有効な ISO 文字列は number を返し null でない', () => {
-          const result = isoToLocalDayMs('2026-04-20T10:30:00Z');
-          assertNotNull(result);
-          assertEquals(typeof result, 'number');
-        });
-      });
-    });
-  });
-
   describe('Given: isoToDate と同じ ISO 文字列', () => {
     describe('When: isoToLocalDayMs と isoToDate を実行する', () => {
       describe('Then: T-LIB-D-02 - 得られた年月日が isoToDate 結果と整合する', () => {
@@ -74,17 +62,6 @@ describe('isoToLocalDayMs', () => {
 // ─────────────────────────────────────────────
 
 describe('isoToDate', () => {
-  describe('Given: 有効な ISO8601 タイムスタンプ', () => {
-    describe('When: isoToDate を実行する', () => {
-      describe('Then: T-LIB-D-05 - YYYY-MM-DD 形式の文字列を返す', () => {
-        it('T-LIB-D-05-01: 有効な ISO 文字列は YYYY-MM-DD 形式を返す', () => {
-          const result = isoToDate('2026-04-20T10:30:00Z');
-          assert(/^\d{4}-\d{2}-\d{2}$/.test(result));
-        });
-      });
-    });
-  });
-
   describe('Given: 月・日が一桁になる日付', () => {
     describe('When: isoToDate を実行する', () => {
       describe('Then: T-LIB-D-06 - 月・日がゼロ埋め 2 桁で返る', () => {

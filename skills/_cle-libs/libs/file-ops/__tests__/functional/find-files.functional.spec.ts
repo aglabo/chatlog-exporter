@@ -11,7 +11,7 @@ import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // -- test target --
-import { findFiles } from '../../find-files.ts';
+import { findFiles, findFilesFlat } from '../../find-files.ts';
 
 // ─────────────────────────────────────────────
 // セットアップ
@@ -183,6 +183,29 @@ describe('findFiles', () => {
           const _result = await findFiles(tempDir, { ext: '.txt' });
 
           assertEquals(_result.every((p: string) => p.endsWith('.txt')), true);
+        });
+      });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────
+// T-LIB-FF-F-07: findFilesFlat（glob 未注入 → デフォルト glob）
+// ─────────────────────────────────────────────
+
+describe('findFilesFlat', () => {
+  describe('Given: 直下に .md 1件とサブディレクトリ配下に .md 1件がある', () => {
+    describe('When: findFilesFlat(dir) を glob 未注入で呼び出す', () => {
+      describe('Then: T-LIB-FF-F-07 - デフォルト glob で直下の .md のみ返る', () => {
+        it('T-LIB-FF-F-07-01: 直下の a.md 1件のみが返る', async () => {
+          await Deno.mkdir(`${tempDir}/sub`);
+          await Deno.writeTextFile(`${tempDir}/a.md`, '# A');
+          await Deno.writeTextFile(`${tempDir}/sub/b.md`, '# B');
+
+          const _result = await findFilesFlat(tempDir);
+
+          assertEquals(_result.length, 1);
+          assertEquals(_result[0].endsWith('/a.md'), true);
         });
       });
     });

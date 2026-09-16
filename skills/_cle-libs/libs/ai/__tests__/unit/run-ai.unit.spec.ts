@@ -17,6 +17,7 @@ import {
   assertFalse,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
@@ -567,7 +568,7 @@ afterEach(() => {
  *
  * モデル名から CLI コマンド・引数・hasSystemPromptWithArgs フラグを正しく生成することを検証する。
  *
- * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05
+ * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05, T-LIB-AI-RA-58 〜 T-LIB-AI-RA-59
  *
  * @see _buildCommand
  */
@@ -642,6 +643,21 @@ describe('_buildCommand', () => {
       const result = _buildCommand('sonnet', 'sys');
       assertEquals(result.command, 'claude');
       assertEquals(result.args.includes('--tools='), true);
+    });
+  });
+
+  /** CLI バックエンドを持たないモデル名で ChatlogError を投げる異常ケース。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-LIB-AI-RA-58: model=llama/x (HTTP 経路) → ChatlogError(UnknownModel) subindex=InvalidModel', () => {
+      const _err = assertThrows(() => _buildCommand('llama/x', 'sys'), ChatlogError);
+      assertEquals(_err.kind, 'UnknownModel');
+      assertEquals(_err.subindex, 'InvalidModel');
+    });
+
+    it('[Error] T-LIB-AI-RA-59: model=invalid-model → ChatlogError(UnknownModel) subindex=InvalidModel', () => {
+      const _err = assertThrows(() => _buildCommand('invalid-model', 'sys'), ChatlogError);
+      assertEquals(_err.kind, 'UnknownModel');
+      assertEquals(_err.subindex, 'InvalidModel');
     });
   });
 });
@@ -958,6 +974,27 @@ describe('runAI', () => {
         }
       });
 
+      it('[Error] T-LIB-AI-RA-60: runAI — exit 1 かつ claude stdout に "{" はあるが JSON パース不能 → フォールバックで AiError/ExitFailure', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode('warn {not json'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'ExitFailure');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
       it('[Error] T-LIB-AI-RA-42: runAI — exit 1 かつ ケースA完全JSON → message に "429" と result 文言 ("monthly spend limit") の両方が含まれる', async () => {
         const _origCommand = Deno.Command;
         const _stdout =
@@ -1118,6 +1155,27 @@ describe('runAI', () => {
           success: true,
           code: 0,
           stdout: new TextEncoder().encode('not a json output'),
+          stderr: new Uint8Array(),
+          signal: null,
+        }) as unknown as typeof Deno.Command;
+        try {
+          const _err = await assertRejects(
+            () => runAI('sys', 'user', { model: 'sonnet' }),
+            ChatlogError,
+          ) as ChatlogError;
+          assertEquals(_err.kind, 'AiError');
+          assertEquals(_err.subindex, 'InvalidFormat');
+        } finally {
+          Deno.Command = _origCommand;
+        }
+      });
+
+      it('[Error] T-LIB-AI-RA-61: runAI — exit 0 かつ claude stdout に "{" はあるが JSON パース不能 → ChatlogError(AiError/InvalidFormat)', async () => {
+        const _origCommand = Deno.Command;
+        Deno.Command = _makeCommandStub({
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode('warn {not json'),
           stderr: new Uint8Array(),
           signal: null,
         }) as unknown as typeof Deno.Command;

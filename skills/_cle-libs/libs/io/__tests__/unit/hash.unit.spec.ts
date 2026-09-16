@@ -9,6 +9,7 @@
 // -- BDD modules --
 import { assertEquals, assertMatch, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+import { stub } from '@std/testing/mock';
 
 // -- constants --
 import { DEFAULT_HASH_LENGTH } from '../../../../constants/defaults.constants.ts';
@@ -130,6 +131,32 @@ describe('generateHash', () => {
           const ra = await generateHash('project-a');
           const rb = await generateHash('project-b');
           assertNotEquals(ra, rb);
+        });
+      });
+    });
+  });
+
+  // ─── グループ05: 乱数の棄却サンプリング ─────────────────────────────────────
+
+  describe('Given: crypto.getRandomValues が棄却対象のバイト（長さ用 >= 247、文字用 >= 252）を先に返す', () => {
+    describe('When: generateHash を呼び出す', () => {
+      describe('Then: T-LIB-H-05 - 棄却分を再取得してハッシュを返す', () => {
+        it('[Edge] T-LIB-H-05-01: 棄却バイトはスキップされ、不足分だけ再取得したうえで 8 桁16進数を返す', async () => {
+          const _bytes = [[250], [0], [255, 252, 0, 1], [2, 3]];
+          using _randomStub = stub(
+            crypto,
+            'getRandomValues',
+            <T extends ArrayBufferView | null>(array: T): T => {
+              (array as unknown as Uint8Array).set(_bytes.shift()!);
+              return array;
+            },
+          );
+
+          const result = await generateHash('base');
+
+          assertEquals(_randomStub.calls.map((c) => (c.args[0] as Uint8Array).length), [1, 1, 4, 2]);
+          assertEquals(result.length, DEFAULT_HASH_LENGTH);
+          assertMatch(result, /^[0-9a-f]+$/);
         });
       });
     });

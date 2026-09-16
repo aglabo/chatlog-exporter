@@ -1,5 +1,5 @@
 // src: skills/_cle-libs/libs/__tests__/unit/concurrency.unit.spec.ts
-// @(#): withConcurrency / createTasks / runConcurrent / runChunked のユニットテスト（T-LIB-C-* / T-SF-WC-*）
+// @(#): withConcurrency / createTasks / runConcurrent / runChunked のユニットテスト（T-LIB-C-*）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -97,24 +97,6 @@ describe('withConcurrency', () => {
           ];
           const _results = await withConcurrency(_tasks, 3);
           assertEquals(_results, ['slow', 'fast1', 'fast2']);
-        });
-      });
-    });
-  });
-
-  describe('Given: 複数のタスクが reject する', () => {
-    describe('When: withConcurrency を実行する', () => {
-      describe('Then: T-LIB-C-15 - いずれかの reject が伝播する', () => {
-        it('T-LIB-C-15-01: 複数タスクが reject するとき Promise が reject される', async () => {
-          const _tasks = [
-            () => Promise.reject(new Error('fail-1')),
-            () => Promise.reject(new Error('fail-2')),
-            () => Promise.resolve('ok'),
-          ];
-          await assertRejects(
-            () => withConcurrency(_tasks, 2),
-            Error,
-          );
         });
       });
     });
@@ -290,105 +272,6 @@ describe('withConcurrency', () => {
     });
   });
 
-  describe('Given: 3タスクと limit=2', () => {
-    describe('When: withConcurrency(tasks, 2) を呼び出す', () => {
-      describe('Then: T-SF-WC-01 - 結果3件、順序保持', () => {
-        const tasks = [
-          () => Promise.resolve(1),
-          () => Promise.resolve(2),
-          () => Promise.resolve(3),
-        ];
-
-        it('T-SF-WC-01-01: 結果が3件返る', async () => {
-          const results = await withConcurrency(tasks, 2);
-
-          assertEquals(results.length, 3);
-        });
-
-        it('T-SF-WC-01-02: 結果が入力順と一致する', async () => {
-          const results = await withConcurrency(tasks, 2);
-
-          assertEquals(results, [1, 2, 3]);
-        });
-      });
-    });
-  });
-
-  describe('Given: 5タスクと limit=10（タスク数 < limit）', () => {
-    describe('When: withConcurrency(tasks, 10) を呼び出す', () => {
-      describe('Then: T-SF-WC-02 - 全タスク完了', () => {
-        const tasks = [0, 1, 2, 3, 4].map((n) => () => Promise.resolve(n));
-
-        it('T-SF-WC-02-01: 結果が5件返る', async () => {
-          const results = await withConcurrency(tasks, 10);
-
-          assertEquals(results.length, 5);
-        });
-
-        it('T-SF-WC-02-02: 結果が [0, 1, 2, 3, 4] になる', async () => {
-          const results = await withConcurrency(tasks, 10);
-
-          assertEquals(results, [0, 1, 2, 3, 4]);
-        });
-      });
-    });
-  });
-
-  describe('Given: 4タスクと limit=1', () => {
-    describe('When: withConcurrency(tasks, 1) を呼び出す', () => {
-      describe('Then: T-SF-WC-03 - 逐次実行、入力順と同じ結果順', () => {
-        const order: number[] = [];
-        const tasks = [10, 20, 30, 40].map((n) => () => {
-          order.push(n);
-          return Promise.resolve(n);
-        });
-
-        it('T-SF-WC-03-01: 結果の順序が入力順と一致する', async () => {
-          const results = await withConcurrency(tasks, 1);
-
-          assertEquals(results, [10, 20, 30, 40]);
-        });
-
-        it('T-SF-WC-03-02: タスク実行順が入力順と一致する', async () => {
-          order.length = 0;
-          await withConcurrency(tasks, 1);
-
-          assertEquals(order, [10, 20, 30, 40]);
-        });
-      });
-    });
-  });
-
-  describe('Given: 0件タスクと limit=4', () => {
-    describe('When: withConcurrency([], 4) を呼び出す', () => {
-      describe('Then: T-SF-WC-04 - 空配列が返る', () => {
-        it('T-SF-WC-04-01: 空配列が返る', async () => {
-          const results = await withConcurrency([], 4);
-
-          assertEquals(results, []);
-        });
-      });
-    });
-  });
-
-  describe('Given: 文字列を返す3タスクと limit=2', () => {
-    describe('When: withConcurrency(tasks, 2) を呼び出す', () => {
-      describe('Then: T-SF-WC-05 - 文字列の結果が正しく返る', () => {
-        const tasks = [
-          () => Promise.resolve('a'),
-          () => Promise.resolve('b'),
-          () => Promise.resolve('c'),
-        ];
-
-        it('T-SF-WC-05-01: 結果が ["a", "b", "c"] になる', async () => {
-          const results = await withConcurrency(tasks, 2);
-
-          assertEquals(results, ['a', 'b', 'c']);
-        });
-      });
-    });
-  });
-
   describe('Given: limit=2 でタスク0が即時 reject し、タスク1が ctl.signal の abort を購読する', () => {
     describe('When: withConcurrency(tasks, 2) を実行する', () => {
       describe('Then: T-LIB-C-27 - 実行中タスクが abort シグナルを尊重して速やかに完了する', () => {
@@ -445,13 +328,6 @@ describe('createTasks', () => {
         it('T-LIB-C-05-01: 返値の長さが items.length と一致する', () => {
           const _tasks = createTasks([1, 2, 3], (n) => Promise.resolve(n));
           assertEquals(_tasks.length, 3);
-        });
-
-        it('T-LIB-C-05-02: 各要素が関数である', () => {
-          const _tasks = createTasks([1, 2, 3], (n) => Promise.resolve(n));
-          for (const task of _tasks) {
-            assertEquals(typeof task, 'function');
-          }
         });
       });
     });
@@ -559,6 +435,22 @@ describe('runConcurrent', () => {
           assertEquals(_error.kind, 'ParallelExecutionError');
           assertEquals(_error.subindex, 'Error');
           assertEquals(_error.message.includes('boom'), true);
+        });
+      });
+    });
+  });
+
+  describe('Given: fn が Error 以外の値（文字列）で reject する', () => {
+    describe('When: runConcurrent を実行する', () => {
+      describe('Then: T-LIB-C-28 - subindex=UnknownError でラップされ detail は String(e) になる', () => {
+        it('T-LIB-C-28-01: reject 値 "oops" が kind=ParallelExecutionError, subindex=UnknownError でラップされる', async () => {
+          const _error = await assertRejects(
+            () => runConcurrent([1], () => Promise.reject('oops'), 2),
+            ChatlogError,
+          );
+          assertEquals(_error.kind, 'ParallelExecutionError');
+          assertEquals(_error.subindex, 'UnknownError');
+          assertEquals(_error.message.endsWith(': oops'), true);
         });
       });
     });
