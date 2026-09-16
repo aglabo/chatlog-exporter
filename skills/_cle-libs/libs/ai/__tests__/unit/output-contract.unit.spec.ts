@@ -910,8 +910,14 @@ describe('Given: object でない応答ペイロード', () => {
         ['文字列', _CONTRACT_FRONTMATTER, 'text'],
         ['数値', _CONTRACT_FRONTMATTER, 42],
         ['配列', _CONTRACT_FRONTMATTER, []],
+        ['null（json-array 契約）', _CONTRACT_CLASSIFY, null],
         ['文字列（json-array 契約）', _CONTRACT_CLASSIFY, 'text'],
+        ['数値（json-array 契約）', _CONTRACT_CLASSIFY, 42],
+        ['配列（json-array 契約）', _CONTRACT_CLASSIFY, []],
+        ['null（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, null],
         ['文字列（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, 'text'],
+        ['数値（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, 42],
+        ['配列（line-prefixed 契約）', _CONTRACT_TYPE_CATEGORY, []],
       ];
 
       _cases.forEach(([label, contract, payload]) => {
