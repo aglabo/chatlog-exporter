@@ -298,6 +298,24 @@ strip キャッシュを削除してから実行する。内容ハッシュや m
 **運用フロー**: 孤立退避が検出されたら `--recover-orphans` で復帰させ、その後 **フラグ無しで再実行** して strip する。
 復帰しただけでは未 strip の状態に戻るだけで、定型部は除去されない。
 
+## AI バックエンドの設定
+
+AI バックエンドは `model` で選ぶ。AI を呼ぶのは filter モードのみで、`strip` は AI を使わない。モデルは `config.yaml` の `model` で指定する。
+
+- `llama/<model>` (例: `llama/avalon`) → LAN 上の llama サーバへ HTTP で要求する。
+  接続先は `config.yaml` の `llamaEndpoint` (例: `http://avalon:8080/`) で指定する。
+  環境変数・CLI フラグでは指定できない
+- `llamaEndpoint` が空 (既定) のまま `llama/<model>` を指定すると、`InvalidEndpoint` で中断する
+- それ以外 (例: `haiku`) → 従来どおりバックエンド CLI を起動する
+
+```yaml
+model: "llama/avalon"
+llamaEndpoint: "http://avalon:8080/"
+```
+
+`agent` はエクスポート元エージェント (どのログを読むか) の指定で、AI バックエンドとは別軸になる。
+`agent: codex` と `model: llama/avalon` のように、両者は独立して組み合わせられる。
+
 ## dry-run の挙動に関する注意
 
 filter モードの `--dry-run` は、**claude CLI を呼び出さず対象ファイルを一覧表示するだけ**。
