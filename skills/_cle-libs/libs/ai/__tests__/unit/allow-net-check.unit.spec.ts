@@ -27,6 +27,17 @@ type _ConformingCase = {
   readonly conforming: boolean;
 };
 
+/**
+ * 付与エイリアス（値付き `--allow-net=<host>` / `-N=<host>`・`-N`・`-A`・`--allow-all`）を `--allow-net` の付与として扱う判定テーブルの 1 行。
+ * 期待値は `forbidden` と `required` の両方をとる。期待適合性は expectation から導出する（forbidden → 不適合、required → 適合）。
+ */
+type _GrantAliasCase = {
+  readonly id: string;
+  readonly label: string;
+  readonly line: string;
+  readonly expectation: AllowNetExpectation;
+};
+
 /** 判定対象外テーブルの 1 行。 */
 type _ExcludedCase = { readonly id: string; readonly line: string; readonly expectation: AllowNetExpectation };
 
@@ -89,6 +100,88 @@ const _requiredCases: readonly _ConformingCase[] = [
   },
 ];
 
+/**
+ * 付与エイリアス（値付き `--allow-net=<host>` / `-N=<host>`・`-N`・`-A`・`--allow-all`・`N` / `A` を含む結合短縮フラグ）を含む行 fixture と期待値。
+ * 期待適合性は expectation から導出する（forbidden → 不適合、required → 対照として適合）。
+ * フラグ集合に `--allow-net` そのものは含まれないため、`_forbiddenCases` / `_requiredCases` とは別に検証する。
+ */
+const _grantAliasCases: readonly _GrantAliasCase[] = [
+  {
+    id: 'T-LIB-AI-NET-04-05',
+    label: 'filter $NOISE_FILTER_PATH に --allow-net=localhost',
+    line: `${_NON_AI_RUN} --allow-net=localhost "$NOISE_FILTER_PATH" $REST_ARGS`,
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-06',
+    label: 'filter $STRIP_PATH のフラグ列を -A に置換',
+    line: 'deno run -A "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-07',
+    label: 'filter $STRIP_PATH のフラグ列を --allow-all に置換',
+    line: 'deno run --allow-all "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-08',
+    label: 'filter $STRIP_PATH のフラグ列を -N に置換',
+    line: 'deno run -N "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-09',
+    label: 'filter $NOISE_FILTER_PATH に -N=localhost',
+    line: `${_NON_AI_RUN} -N=localhost "$NOISE_FILTER_PATH" $REST_ARGS`,
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-10',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -NR に置換',
+    line: 'deno run -NR "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-11',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RN に置換',
+    line: 'deno run -RN "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-04-12',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RA に置換',
+    line: 'deno run -RA "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+  },
+  {
+    id: 'T-LIB-AI-NET-05-05',
+    label: 'SKILL.md 実行行のフラグ列を -A に置換（対照）',
+    line: 'deno run --config ./deno.json -A "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+  },
+  {
+    id: 'T-LIB-AI-NET-05-06',
+    label: 'SKILL.md 実行行に --allow-net=localhost（対照）',
+    line:
+      'deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net=localhost "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+  },
+  {
+    id: 'T-LIB-AI-NET-05-07',
+    label: 'SKILL.md 実行行のフラグ列を --allow-all に置換（対照）',
+    line: 'deno run --config ./deno.json --allow-all "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+  },
+  {
+    id: 'T-LIB-AI-NET-05-08',
+    label: 'SKILL.md 実行行に -N（対照）',
+    line:
+      'deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env -N "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+  },
+];
+
 /** `extractDenoRunFlags` が `null` を返すべき、フラグ列を記述しない行。 */
 const _nullFlagCases: readonly { readonly id: string; readonly line: string }[] = [
   { id: 'T-LIB-AI-NET-06-01', line: '- 引数なし → deno run ... "$SCRIPT_PATH"' },
@@ -100,6 +193,14 @@ const _excludedCases: readonly _ExcludedCase[] = [
   { id: 'T-LIB-AI-NET-06-03', line: 'deno run ... --single-file', expectation: 'forbidden' },
 ];
 
+/** `extractDenoRunFlags` がフラグ形式（`^-{1,2}[A-Za-z]`）でないトークンと、単独の `-` / `--` 以降のトークンを除いて返すべきフラグ集合。 */
+const _flagSetCases: readonly { readonly id: string; readonly line: string; readonly flags: readonly string[] }[] = [
+  { id: 'T-LIB-AI-NET-06-04', line: 'deno run --allow-read - < script.ts', flags: ['--allow-read'] },
+  { id: 'T-LIB-AI-NET-06-05', line: 'deno run --allow-read -- --allow-net script.ts', flags: ['--allow-read'] },
+  { id: 'T-LIB-AI-NET-06-06', line: 'deno run --allow-read - --allow-net < script.ts', flags: ['--allow-read'] },
+  { id: 'T-LIB-AI-NET-06-07', line: 'deno run --allow-read -1 script.ts', flags: ['--allow-read'] },
+];
+
 // ─── Tests
 
 /**
@@ -107,7 +208,7 @@ const _excludedCases: readonly _ExcludedCase[] = [
  *
  * fixture 文字列を純関数に渡し、フラグ抽出と適合判定を検証する。
  *
- * テスト ID 範囲: T-LIB-AI-NET-04-01 〜 T-LIB-AI-NET-06-03
+ * テスト ID 範囲: T-LIB-AI-NET-04-01 〜 T-LIB-AI-NET-06-07
  *
  * @see extractDenoRunFlags
  * @see checkAllowNet
@@ -132,9 +233,18 @@ describe('allow-net-check', () => {
         assertEquals(_result.flags.has('--allow-net'), tc.conforming);
       });
     }
+
+    for (const tc of _grantAliasCases) {
+      const _conforming = tc.expectation === 'required';
+      it(`[Error] ${tc.id}: ${tc.expectation} / ${tc.label} → ${_conforming ? '適合' : '不適合'}`, () => {
+        const _result = checkAllowNet(tc.line, tc.expectation);
+        assert(!_result.excluded, 'excluded になってはならない');
+        assertEquals(_result.conforming, _conforming);
+      });
+    }
   });
 
-  /** フラグ列を記述しない例示行を判定対象外とするケース。 */
+  /** フラグ列を記述しない例示行を判定対象外とするケースと、フラグ形式でないトークンを除外するケース。 */
   describe('When: エッジケース', () => {
     for (const tc of _nullFlagCases) {
       it(`[Edge] ${tc.id}: extractDenoRunFlags(${tc.line}) → null`, () => {
@@ -145,6 +255,12 @@ describe('allow-net-check', () => {
     for (const tc of _excludedCases) {
       it(`[Edge] ${tc.id}: checkAllowNet(${tc.line}, ${tc.expectation}) → excluded`, () => {
         assertEquals(checkAllowNet(tc.line, tc.expectation), { excluded: true });
+      });
+    }
+
+    for (const tc of _flagSetCases) {
+      it(`[Edge] ${tc.id}: extractDenoRunFlags(${tc.line}) → {${tc.flags.join(', ')}}`, () => {
+        assertEquals(extractDenoRunFlags(tc.line), new Set(tc.flags));
       });
     }
   });
