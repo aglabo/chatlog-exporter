@@ -20,15 +20,15 @@ _path=$(printf '%s' "$_path" | tr '\134' '/')
 
 # セグメント境界で .beads/ にアンカーする（foo.beads/ や docs/my.beads/ を拾わない）
 case "$_path" in
-  .beads/*) _rel="${_path#.beads/}" ;;
-  */.beads/*) _rel="${_path#*/.beads/}" ;;
-  *) exit 0 ;;
+.beads/*) _rel="${_path#.beads/}" ;;
+*/.beads/*) _rel="${_path#*/.beads/}" ;;
+*) exit 0 ;;
 esac
 
 # 人間が編集してよいのはこの 3 つだけ。完全一致で判定する
 # （.beads/backup/config.yaml は bd 生成物なので通さない）
 case "$_rel" in
-  config.yaml | README.md | .gitignore) exit 0 ;;
+config.yaml | README.md | .gitignore) exit 0 ;;
 esac
 
 cat >&2 <<EOF
