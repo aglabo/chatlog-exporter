@@ -17,13 +17,18 @@ import { checkAllowNet, enumerateTargetLines, extractDenoRunFlags } from '../hel
 import type { AllowNetExpectation, TargetLine } from '../helpers/allow-net-check.ts';
 
 // ─── Helpers
+// libs
+import { fromFileUrl } from '@std/path';
 import { getFilename, joinPath, normalizePath } from '../../../path-utils/path-utils.ts';
 
 // ─── Internal Helpers
 
 // constants
-/** リポジトリルートの絶対パス（Windows の `/C:/...` 形式も正規化する）。 */
-const _REPO_ROOT = normalizePath(new URL('../../../../../../', import.meta.url).pathname);
+/**
+ * リポジトリルートの絶対パス。
+ * `fromFileUrl` でパーセントエンコード（空白・非 ASCII）をデコードしてから正規化する。
+ */
+const _REPO_ROOT = normalizePath(fromFileUrl(new URL('../../../../../../', import.meta.url)));
 
 /** shebang 行を持たないスクリプトのスキル名。 */
 const _NO_SHEBANG_SKILL = 'normalize-chatlogs';

@@ -78,6 +78,13 @@ const _normalCases: EndpointCase[] = [
     yaml: 'llamaEndpoint: http://192.168.1.10:8080\n',
     expected: 'http://192.168.1.10:8080',
   },
+  {
+    caseId: 'T-04-01-02',
+    testId: 'T-CLS-GCL-01-02',
+    label: '他キーと同時指定でも llamaEndpoint が独立に解決される',
+    yaml: 'agent: chatgpt\nmodel: llama/qwen3-14b\nllamaEndpoint: http://192.168.1.10:8080\n',
+    expected: 'http://192.168.1.10:8080',
+  },
 ];
 
 /** 正常系: agent と model が互いに影響せず解決されるケース。 */

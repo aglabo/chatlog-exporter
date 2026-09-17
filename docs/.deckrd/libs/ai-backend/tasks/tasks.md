@@ -4,7 +4,7 @@ module: libs/ai-backend
 status: Active
 created: "2026-09-04 00:00:00"
 source: specifications-index.md
-based-on: implementation.md v1.6.0
+based-on: implementation.md v1.7.0
 ---
 
 <!-- cspell:words qwen llamacpp -->
@@ -96,24 +96,24 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 ## Task Summary
 
-| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status      |
-| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ----------- |
-| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done        |
-| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done        |
-| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done        |
-| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done        |
-| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 8         | 19      | done        |
-| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done        |
-| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 17      | done        |
-| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 16      | done        |
-| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 23        | 31      | done        |
-| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 5         | 27      | done        |
-| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done        |
-| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 12        | 34      | in progress |
-| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done        |
-| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 16      | done        |
-| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 29      | done        |
-| **合計**                                                            | —      | —     | —       | **129**   | **260** | —           |
+| Test Target                                                         | Commit | Phase | Gate    | Scenarios | Cases   | Status |
+| ------------------------------------------------------------------- | ------ | ----- | ------- | --------- | ------- | ------ |
+| T-01: `parseAiJsonArray` / `_tryParseArray`                         | 1      | 1     | —       | 3         | 6       | done   |
+| T-02: 受理モデル形式の文言生成関数                                  | 2      | 1     | —       | 4         | 7       | done   |
+| T-03: `parseModel` / `getAiBackend` / `isValidModel` + llama 定数群 | 3      | 2     | —       | 7         | 11      | done   |
+| T-04: `GlobalConfig` (`llamaEndpoint`)                              | 4      | 2     | —       | 7         | 9       | done   |
+| T-05: `FetchProvider` 型 / llama 中断側判定関数                     | 5      | 2     | —       | 8         | 19      | done   |
+| T-06: 呼び出し元 catch の中断判定拡張 (4 スキル)                    | 6〜9   | 3     | —       | 12        | 18      | done   |
+| T-07: `runAI` の 3 層分割                                           | 10     | 4     | —       | 8         | 17      | done   |
+| T-08: json_schema 構築関数                                          | 11     | 5     | Phase 0 | 9         | 16      | done   |
+| T-09: on-wire contract validation 関数と契約別復元関数              | 12     | 5     | Phase 0 | 23        | 31      | done   |
+| T-10: エンドポイント受理判定関数 / URL 正規化関数                   | 13     | 6     | Phase 0 | 5         | 27      | done   |
+| T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done   |
+| T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 13        | 35      | done   |
+| T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done   |
+| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 32      | done   |
+| T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 30      | done   |
+| **合計**                                                            | —      | —     | —       | **130**   | **278** | —      |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -1818,28 +1818,28 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-12-06: `response_format` 拒否と判別できる 400（Step 5）
 
-> **保留（`cle-eft.2.1` で追跡）**。Phase 0 実測（2026-09-12、90 回）で HTTP 400 が 1 件も発生せず、
-> 判別条件を決める材料が得られなかった（`measurements-response-format-2026-09-12.md` §3.2 /
-> implementation §3.2）。`_isResponseFormatRejection` は常に `false` を返し、判別できない 400 は
-> 続行側の `ExitFailure` に落とす既定を維持している（T-12-07 が検証済み）。
-> 実際に 400 を返すサーバ実装が観測されるまで、以下の着手条件は満たされない。
+> **着手可（`cle-eft.2.1` で追跡）**。Phase 0 実測（2026-09-12）では 400 が発生しなかったが、
+> 追加実測（`measurements-response-format-rejection-2026-09-15.md`）で不正なスキーマの 400 を観測し、
+> 判別条件を DR-33 が確定させた（error-handling v2.1.0 §4.1 / implementation v1.7.0 Commit 15 Step 5）。
 >
-> 「`response_format` 拒否と判別できる」の判別条件が未確定である。
-> 本文 JSON のどのフィールドを見るのか、文字列パターンで照合するのか、サーバ実装差をどう
-> 吸収するのかがいずれも決まっていないため、実装者ごとに別の heuristic が生まれる
-> （implementation §3.2 の未決 1）。
-> Phase 0 の実測レポートから **判別関数の入力例（実際に返った 400 応答本文）とマッチ条件** を
-> 本タスクへ書き下すまで、T-12-06 / T-12-07 に着手してはならない。
+> 判別関数の入力例（実測した 400 応答本文）:
+>
+> - 拒否と判別する: `{"error":{"code":400,"message":"JSON schema conversion failed:\nUnrecognized schema: {\"type\":\"bogus\"}","type":"invalid_request_error"}}`
+> - 判別しない（コンテキスト長超過）: `{"error":{"code":400,"message":"request (40012 tokens) exceeds the available context size (32768 tokens), try increasing it","type":"exceed_context_size_error","n_prompt_tokens":40012,"n_ctx":32768}}`
+> - 判別しない（同じ `error.type`）: `{"error":{"code":400,"message":"'messages' is required","type":"invalid_request_error"}}`
+>
+> マッチ条件: 本文を JSON として parse でき、`error.message` が文字列で、かつ `JSON schema conversion failed` で
+> 始まる。`error.type` は条件に含めない。本文が JSON でない場合を含め、判別関数は例外を投げない。
 > 判別ロジックは差し替え可能な形に分離する（implementation §3.2）。
 
-- [ ] **T-12-06-01**: HTTP 400 かつ本文から `response_format` の拒否と判別できる場合を `ResponseFormatRejected`（中断側）として分類する
+- [x] **T-12-06-01**: HTTP 400 かつ本文から `response_format` の拒否と判別できる場合を `ResponseFormatRejected`（中断側）として分類する
   - Target: `llama 応答解釈とエラー写像`
   - Test ID: `T-LIB-AI-LRI-06-01`
   - Rule: error-handling R-008 / DR-18
-  - Scenario: Given `FetchProvider` が status 400 かつ `response_format` 拒否と判別可能な本文を返す, When llama 経路で応答解釈関数を呼ぶ
+  - Scenario: Given `FetchProvider` が status 400 かつ `error.message` が `JSON schema conversion failed` で始まる JSON 本文を返す, When llama 経路で応答解釈関数を呼ぶ
   - Expected: Then `subindex: ResponseFormatRejected` が throw されること
-  > 現行の既定挙動でタスク化してある。Phase 0 実測後に error-handling §4.1 が改訂されたら、
-  > Scenario の「判別可能な本文」を実測で観測された具体的な本文とマッチ条件へ置き換える。
+  > Scenario は DR-33 のマッチ条件で置き換え済み。判別しない側（コンテキスト長超過・`messages` 欠落・
+  > 非 JSON 本文の 400）が `ExitFailure` に落ちることは T-12-07-01 の射程であり、本ケースの反例として併せて固定する。
 
 #### T-12-07: 判別できない非成功ステータス（Step 6）
 
@@ -1993,6 +1993,16 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Rule: DR-03 / REQ-C-003 / DR-02
   - Scenario: Given llama 経路が任意の失敗分類を throw する状況, When llama 経路で `runAI` を呼ぶ
   - Expected: Then CLI バックエンドのコマンド構築・起動が一度も行われず、例外がそのまま呼び出し元へ伝播すること
+
+#### T-12-13: 実 TLS での検証失敗文言の回帰（system）
+
+- [x] **T-12-13-01**: 自己署名証明書のサーバへの実 `fetch` の reject 値が TLS 検証失敗の語を含み、runtime 由来の `BackendUnavailable` に分類される
+  - Target: `mapLlamaFetchFailure`（system テスト。`__tests__/system/`）
+  - Test ID: `T-LIB-AI-LRI-13-01`
+  - Rule: error-handling R-001 / DR-26 決定 1
+  - Scenario: Given 実行時に openssl で生成した自己署名証明書で `127.0.0.1` に TLS サーバを立て、`--allow-net` を持つ子 Deno プロセスから `fetch` する, When その reject 値を `mapLlamaFetchFailure` に渡す
+  - Expected: Then `cause` チェーンに `invalid peer certificate` が含まれ、チェーンに `Deno.errors.NotCapable` が含まれず、`subindex: BackendUnavailable` かつ `error.message` に runtime 由来である旨が含まれること。失敗時は検証済み Deno 版 (2.9.6) と実行中の版を示す
+  - Note: rustls の文言は Deno 版に依存する（cle-eft.9）。本ケースは Deno 更新で文言が変わったことを検知するための回帰である。ループバック通信と openssl を伴う実測テストのため、`RUN_AI=1`（`--use-ai`）指定時のみ実行し、既定の実行では ignore する（DR-21 決定 6）。`RUN_AI=1` で openssl が解決できない環境では失敗させる（黙って skip しない）
 
 ---
 
@@ -2169,6 +2179,62 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given `--allow-net` を含まない `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 適合と判定されること（常に不適合を返す実装を検出する）
 
+- [x] **T-14-04-05**: 値付きの `--allow-net=<host>` も付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-05`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行に `--allow-net=localhost` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-06**: `-A` を全権限付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-06`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-A` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-07**: `--allow-all` を全権限付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-07`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `--allow-all` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-08**: Deno 2 の短縮形 `-N` を付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-08`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-N` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-09**: 値付きの短縮形 `-N=<host>` を付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-09`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行に `-N=localhost` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-10**: 短縮フラグの結合 `-NR` を付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-10`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-NR` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること（Deno 2.9.6 は `-NR` を受理し net 権限を付与する）
+
+- [x] **T-14-04-11**: 短縮フラグの結合 `-RN`（`N` が末尾）を付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-11`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RN` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
+- [x] **T-14-04-12**: 短縮フラグの結合 `-RA` を全権限付与として不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-12`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RA` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+
 #### T-14-05: AI を呼ぶ経路の対象行に `--allow-net` が欠落している
 
 - [x] **T-14-05-01**: SKILL.md 実行行に `--allow-net` が欠けていれば不適合と判定する
@@ -2199,6 +2265,34 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given `--allow-net` を含む shebang 行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 適合と判定されること（常に不適合を返す実装を検出する）
 
+- [x] **T-14-05-05**: `-A` を持つ AI 経路の行は `--allow-net` を含むものとして適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-05`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given フラグ列を `-A` とした SKILL.md 実行行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、適合と判定されること
+
+- [x] **T-14-05-06**: 値付きの `--allow-net=<host>` を持つ AI 経路の行は適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-06`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given `--allow-net=localhost` を含む SKILL.md 実行行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、適合と判定されること
+
+- [x] **T-14-05-07**: `--allow-all` を持つ AI 経路の行は `--allow-net` を含むものとして適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-07`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given フラグ列を `--allow-all` とした SKILL.md 実行行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、適合と判定されること
+
+- [x] **T-14-05-08**: Deno 2 の短縮形 `-N` を持つ AI 経路の行は適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-05-08`
+  - Rule: config-packaging R-003 / DD-03 / AC-011
+  - Scenario: Given `-N` を含む SKILL.md 実行行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、適合と判定されること
+
 ### [エッジケース] Edge Cases
 
 #### T-14-06: フラグ列を省略した SKILL.md 例示行
@@ -2223,6 +2317,34 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Rule: config-packaging R-003 / Edge config-packaging-7
   - Scenario: Given `deno run ... --single-file` の例示行を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then その行は `--allow-net` の有無によって適合・不適合を判定されず、検査対象から除外されること
+
+- [x] **T-14-06-04**: 単独の `-` トークンをフラグ集合に含めない
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-04`
+  - Rule: config-packaging R-003 / DD-03
+  - Scenario: Given `deno run --allow-read - < script.ts` のように標準入力を表す単独の `-` を含む fixture 文字列をフラグ抽出関数へ渡す, When フラグ集合を抽出する
+  - Expected: Then フラグ集合が `--allow-read` のみとなり、`-` を含まないこと（`^-{1,2}[A-Za-z]` に一致するトークンのみをフラグとする）
+
+- [x] **T-14-06-05**: 単独の `--` 以降のトークンをフラグ集合に含めない
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-05`
+  - Rule: config-packaging R-003 / DD-03
+  - Scenario: Given `deno run --allow-read -- --allow-net script.ts` のように単独の `--` の後ろにフラグ形式のトークンを置いた fixture 文字列をフラグ抽出関数へ渡す, When フラグ集合を抽出する
+  - Expected: Then フラグ集合が `--allow-read` のみとなること（`--` 以降はスクリプト引数とみなす）
+
+- [x] **T-14-06-06**: 単独の `-` 以降のトークンをフラグ集合に含めない
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-06`
+  - Rule: config-packaging R-003 / DD-03
+  - Scenario: Given `deno run --allow-read - --allow-net < script.ts` のように標準入力を表す単独の `-` の後ろにフラグ形式のトークンを置いた fixture 文字列をフラグ抽出関数へ渡す, When フラグ集合を抽出する
+  - Expected: Then フラグ集合が `--allow-read` のみとなること（`-` 以降はスクリプト引数とみなす）
+
+- [x] **T-14-06-07**: 英字で始まらない `-1` のようなトークンをフラグ集合に含めない（対照）
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-06-07`
+  - Rule: config-packaging R-003 / DD-03
+  - Scenario: Given `deno run --allow-read -1 script.ts` のように `-` の後に数字が続くトークンを含む fixture 文字列をフラグ抽出関数へ渡す, When フラグ集合を抽出する
+  - Expected: Then フラグ集合が `--allow-read` のみとなること（`-1` はフラグでもスクリプト引数の開始でもない）
 
 #### T-14-07: `normalize-chatlogs` は shebang 行を持たない
 
@@ -2267,14 +2389,14 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Test ID: `T-LIB-AI-LWR-02-01`
   - Rule: transport R-005 / §4.4 / AC-013
   - Scenario: Given 同一入力に対し、送信関数（`FetchProvider`）だけを差し替えた 2 経路, When リクエスト構築処理を比較する
-  - Expected: Then 両経路が同一のリクエスト構築関数を通ること。判定は構築関数の **参照同一性**、または spy による呼び出し順と引数の一致で行う。既定 `fetch` を実際に呼ぶ経路を作らない（実ネットワークへ接続しない）
+  - Expected: Then 両経路の送信関数が受け取るリクエスト（URL・メソッド・ヘッダー・ボディ。実行ごとに合成される `signal` は除く）が一致すること。注入なしの経路は `globalThis.fetch` を stub で置き換え、既定 `fetch` を実際に呼ぶ経路を作らない（実ネットワークへ接続しない）
 
 - [x] **T-15-02-02**: `FetchProvider` 注入あり・なしで同一の応答解釈処理を通る
   - Target: `_runViaHttp`
   - Test ID: `T-LIB-AI-LWR-02-02`
   - Rule: transport R-005 / §4.4 / AC-013
   - Scenario: Given 同一の応答本文を返すよう差し替えた送信関数を持つ 2 経路, When 応答解釈処理を比較する
-  - Expected: Then 両経路が同一の応答解釈関数を通り、同一の結果（文字列または分類）を返すこと。判定は T-15-02-01 と同じく参照同一性か spy の呼び出し一致で行い、実ネットワークへ接続しない
+  - Expected: Then 両経路が同一の結果（文字列）を返すこと。判定は同一応答に対する `runAI` の戻り値の一致で行い、T-15-02-01 と同じく実ネットワークへ接続しない
 
 #### T-15-03: 6 呼び出しが契約から構築した `response_format` を含み復元済み文字列を受け取る
 
@@ -2493,6 +2615,13 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given llama 経路の実行中に外部 `AbortSignal` を発火させる, When `runAI` を実行する
   - Expected: Then `Aborted/ExternalAbort` として分類されること
 
+- [x] **T-15-07-03**: タイムアウトが `TimedOut/Timeout` として呼び出し元へ届く
+  - Target: `_runViaHttp`
+  - Test ID: `T-LIB-AI-LWR-07-03`
+  - Rule: transport R-004 / AC-008
+  - Scenario: Given `timeoutMs` 経過後も応答が返らない `FetchProvider` スタブ, When llama 経路で `runAI` を実行する
+  - Expected: Then 送信関数の reject を分類した `AiError/BackendUnavailable` ではなく、`TimedOut/Timeout` として分類されること
+
 #### T-15-08: 経路の判定が `_buildCommand` の呼び出しより前に置かれている（不適合条件 3）
 
 - [x] **T-15-08-01**: transport §4.1.1 不適合条件 (3) が成立しない
@@ -2659,24 +2788,24 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 
 ## Category Balance
 
-| Test Target | Normal | Error  | Edge   | Cases   | 判定  |
-| ----------- | ------ | ------ | ------ | ------- | ----- |
-| T-01        | 2      | 1      | 3      | 6       | [OK]  |
-| T-02        | 5      | [N/A]  | 2      | 7       | [N/A] |
-| T-03        | 5      | 4      | 2      | 11      | [OK]  |
-| T-04        | 4      | 1      | 4      | 9       | [OK]  |
-| T-05        | 8      | [N/A]  | 11     | 19      | [N/A] |
-| T-06        | 6      | 7      | 5      | 18      | [OK]  |
-| T-07        | 3      | 9      | 5      | 17      | [OK]  |
-| T-08        | 13     | 1      | 2      | 16      | [OK]  |
-| T-09        | 5      | 14     | 12     | 31      | [OK]  |
-| T-10        | 6      | 7      | 14     | 27      | [OK]  |
-| T-11        | 8      | 1      | 1      | 10      | [OK]  |
-| T-12        | 3      | 26     | 5      | 34      | [OK]  |
-| T-13        | 6      | 3      | 1      | 10      | [OK]  |
-| T-14        | 3      | 8      | 5      | 16      | [OK]  |
-| T-15        | 15     | 7      | 7      | 29      | [OK]  |
-| **合計**    | **92** | **89** | **79** | **260** | —     |
+| Test Target | Normal | Error   | Edge   | Cases   | 判定  |
+| ----------- | ------ | ------- | ------ | ------- | ----- |
+| T-01        | 2      | 1       | 3      | 6       | [OK]  |
+| T-02        | 5      | [N/A]   | 2      | 7       | [N/A] |
+| T-03        | 5      | 4       | 2      | 11      | [OK]  |
+| T-04        | 4      | 1       | 4      | 9       | [OK]  |
+| T-05        | 8      | [N/A]   | 11     | 19      | [N/A] |
+| T-06        | 6      | 7       | 5      | 18      | [OK]  |
+| T-07        | 3      | 9       | 5      | 17      | [OK]  |
+| T-08        | 13     | 1       | 2      | 16      | [OK]  |
+| T-09        | 5      | 14      | 12     | 31      | [OK]  |
+| T-10        | 6      | 7       | 14     | 27      | [OK]  |
+| T-11        | 8      | 1       | 1      | 10      | [OK]  |
+| T-12        | 3      | 26      | 6      | 35      | [OK]  |
+| T-13        | 6      | 3       | 1      | 10      | [OK]  |
+| T-14        | 3      | 20      | 9      | 32      | [OK]  |
+| T-15        | 15     | 7       | 8      | 30      | [OK]  |
+| **合計**    | **92** | **101** | **85** | **278** | —     |
 
 > **[N/A] T-02** — 定数 (`AI_PROVIDERS` / `AI_MODEL_TO_PROVIDER_MAP`) から案内文言を
 > 組み立てる純粋な関数であり、throw する経路を持たない。

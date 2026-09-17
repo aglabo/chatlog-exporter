@@ -47,6 +47,36 @@ const _OMITTED = '...';
 /** shebang 行の接頭辞。 */
 const _SHEBANG = '#!';
 
+/** ネットワーク権限を付与するフラグ。 */
+const _ALLOW_NET = '--allow-net';
+
+/** Deno 2 のネットワーク権限の短縮フラグ。 */
+const _ALLOW_NET_SHORT = '-N';
+
+/** 全権限を付与する短縮フラグ（ネットワーク権限を含む）。 */
+const _ALLOW_ALL_SHORT = '-A';
+
+/** 全権限を付与するフラグ（ネットワーク権限を含む）。 */
+const _ALLOW_ALL = '--allow-all';
+
+/** 完全一致でネットワーク権限を付与するフラグ（`--allow-net`・`-N`・`-A`・`--allow-all`）。 */
+const _NET_GRANT_FLAGS: ReadonlySet<string> = new Set([_ALLOW_NET, _ALLOW_NET_SHORT, _ALLOW_ALL_SHORT, _ALLOW_ALL]);
+
+/** 値付き（`<name>=<host>`）でネットワーク権限を付与するフラグ名（`--allow-net`・`-N`）。 */
+const _NET_GRANT_VALUED_FLAGS: readonly string[] = [_ALLOW_NET, _ALLOW_NET_SHORT];
+
+/** 結合短縮フラグ（`-NR` など、`-` + 英字 2 文字以上）の形式。 */
+const _COMBINED_SHORT_FLAGS = /^-[A-Za-z]{2,}$/;
+
+/** 結合短縮フラグのうち、ネットワーク権限を付与する文字（`N`・`A`）。 */
+const _NET_GRANT_SHORT_CHARS: readonly string[] = [_ALLOW_NET_SHORT, _ALLOW_ALL_SHORT].map((flag) => flag.slice(1));
+
+/** フラグとみなすトークンの形式。単独の `-` / `--` などを除く。 */
+const _FLAG_TOKEN = /^-{1,2}[A-Za-z]/;
+
+/** スクリプト引数の開始を示す単独トークン（`-` は標準入力のスクリプト、`--` は引数区切り）。 */
+const _SCRIPT_ARGS_START: ReadonlySet<string> = new Set(['-', '--']);
+
 /** 行区切り（CRLF / LF）。 */
 const _LINE_BREAK = /\r?\n/;
 
@@ -54,19 +84,27 @@ const _LINE_BREAK = /\r?\n/;
 // 内部ヘルパー
 // ─────────────────────────────────────────────
 
-/** スクリプト引数トークン（`"` / `$` 始まり、または `.ts` 終わり）かどうか。 */
+/** スクリプト引数の開始トークン（`"` / `$` 始まり、`.ts` 終わり、または単独の `-` / `--`）かどうか。 */
 const _isScriptArg = (token: string): boolean =>
-  token.startsWith('"') || token.startsWith('$') || token.endsWith('.ts');
+  token.startsWith('"') || token.startsWith('$') || token.endsWith('.ts') || _SCRIPT_ARGS_START.has(token);
+
+/** ネットワーク権限を付与するフラグ（`--allow-net`・短縮形の `-N`・値付きの `--allow-net=<host>` / `-N=<host>`・全権限の `-A` / `--allow-all`・`N` / `A` を含む結合短縮フラグ `-NR` など）を含むかどうか。`-P` / `--permission-set` は静的に判定できないため対象外。 */
+const _grantsNet = (flags: ReadonlySet<string>): boolean =>
+  [...flags].some((flag) =>
+    _NET_GRANT_FLAGS.has(flag) || _NET_GRANT_VALUED_FLAGS.some((name) => flag.startsWith(`${name}=`))
+    || (_COMBINED_SHORT_FLAGS.test(flag) && _NET_GRANT_SHORT_CHARS.some((char) => flag.includes(char)))
+  );
 
 // ─────────────────────────────────────────────
 // 純関数
 // ─────────────────────────────────────────────
 
 /**
- * `deno run` 行からスクリプト引数より前の `--` フラグ集合を抽出する。
+ * `deno run` 行からスクリプト引数より前のフラグ集合を抽出する。
+ * フラグは `-{1,2}` + 英字で始まるトークン（`-A` / `-N` などの短縮形を含む）とする。単独の `-` / `--` はスクリプト引数の開始とみなし、それ以降は含めない。
  *
  * @param line - SKILL.md の `deno run` 行、または shebang 行
- * @returns フラグ集合。`deno run` を含まない行・フラグ列を `...` で省略した行・`--` フラグが無い行は `null`
+ * @returns フラグ集合。`deno run` を含まない行・フラグ列を `...` で省略した行・フラグが無い行は `null`
  */
 export const extractDenoRunFlags = (line: string): ReadonlySet<string> | null => {
   const _start = line.indexOf(_DENO_RUN);
@@ -77,12 +115,15 @@ export const extractDenoRunFlags = (line: string): ReadonlySet<string> | null =>
   const _head = _scriptIndex < 0 ? _tokens : _tokens.slice(0, _scriptIndex);
   if (_head.includes(_OMITTED)) { return null; }
 
-  const _flags = _head.filter((token) => token.startsWith('--'));
+  const _flags = _head.filter((token) => _FLAG_TOKEN.test(token));
   return _flags.length === 0 ? null : new Set(_flags);
 };
 
 /**
  * `deno run` 行の `--allow-net` 付与が期待値に適合するかを判定する。
+ * 短縮形の `-N`、値付きの `--allow-net=<host>` / `-N=<host>`、全権限の `-A` / `--allow-all`、`N` / `A` を含む結合短縮フラグも付与として扱う。
+ * `-P` / `--permission-set` は付与内容が config ファイル側で決まり行からは静的に判定できないため、付与として扱わない
+ * （現リポジトリの検査対象行では未使用）。
  *
  * @param line - 検査対象の行
  * @param expectation - `--allow-net` が必要か禁止か
@@ -92,7 +133,7 @@ export const checkAllowNet = (line: string, expectation: AllowNetExpectation): A
   const _flags = extractDenoRunFlags(line);
   if (_flags === null) { return { excluded: true }; }
 
-  return { excluded: false, flags: _flags, conforming: _flags.has('--allow-net') === (expectation === 'required') };
+  return { excluded: false, flags: _flags, conforming: _grantsNet(_flags) === (expectation === 'required') };
 };
 
 // ─────────────────────────────────────────────
