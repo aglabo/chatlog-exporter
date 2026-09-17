@@ -27,6 +27,53 @@ import type { PeriodRange } from '../../types/filter.types.ts';
 /** 期間フィルタを設定しない（全期間対象）`PeriodRange` 定数。テスト内で期間外除外を行わない場合に使用する。 */
 const ALL_PERIOD: PeriodRange = parsePeriod(undefined);
 
+/** Codex が user ターンとして自動注入する `<recommended_plugins>` プリアンブル。 */
+const _PREAMBLE = '<recommended_plugins>\n- github: GitHub integration\n</recommended_plugins>';
+
+/** 既存除外 (回帰ガード) の対象となる注入 user ターン。`id` は Then ラベルのテスト ID (`it` は `-01` / `-02` を付ける)。 */
+const _injectedCases = [
+  {
+    id: 'T-EC-PX-12',
+    label: '<permissions instructions>',
+    injected: '<permissions instructions>\nsandbox: workspace-write\n</permissions instructions>',
+  },
+  {
+    id: 'T-EC-PX-13',
+    label: '<environment_context>',
+    injected: '<environment_context>\n  <cwd>/work/app</cwd>\n</environment_context>',
+  },
+];
+
+// functions
+
+/**
+ * session_meta・user ターン群・assistant ターン 1 件からなる Codex JSONL を書き込む。
+ *
+ * @param filePath - 書き込み先の JSONL パス
+ * @param userTexts - 出現順に並べた user ターンの `input_text`
+ * @param assistantText - 末尾に置く assistant ターンの `output_text`
+ * @returns 書き込み完了で解決する Promise
+ */
+async function _writeCodexSession(filePath: string, userTexts: string[], assistantText: string): Promise<void> {
+  await writeJsonl(filePath, [
+    {
+      timestamp: '2026-03-15T11:00:00.000Z',
+      type: 'session_meta',
+      payload: { id: 'codex-sess-injected', cwd: '/home/user/projects/my-app', model: 'o4-mini' },
+    },
+    ...userTexts.map((text, i) => ({
+      timestamp: `2026-03-15T11:00:0${i + 1}.000Z`,
+      type: 'response_item',
+      payload: { role: 'user', content: [{ type: 'input_text', text }] },
+    })),
+    {
+      timestamp: '2026-03-15T11:00:10.000Z',
+      type: 'response_item',
+      payload: { role: 'assistant', content: [{ type: 'output_text', text: assistantText }] },
+    },
+  ]);
+}
+
 // ─── Tests
 
 /**
@@ -397,6 +444,150 @@ describe('parseCodexSession', () => {
           assertNotNull(sessionA);
           assertNotNull(sessionB);
           assertNotEquals(sessionA!.meta.sessionId, sessionB!.meta.sessionId);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-09: プリアンブル + 実質問 → プリアンブル除外 ──────────────────
+
+  /**
+   * Codex が自動注入する `<recommended_plugins>` プリアンブルの後に実質問が続くシナリオ。
+   * プリアンブルの user ターンが除外され、次の実質問が firstUserText になることを確認する。
+   */
+  describe('Given: "<recommended_plugins>" プリアンブルの後に実質問が続くJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+    describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
+      let filePath: string;
+
+      beforeEach(async () => {
+        filePath = `${tempDir}/preamble-question.jsonl`;
+        await _writeCodexSession(filePath, [_PREAMBLE, '実際の質問です'], '回答です');
+      });
+
+      describe('Then: T-EC-PX-09 - プリアンブルの user ターンが除外される', () => {
+        it('[Normal] T-EC-PX-09-01: firstUserText が "実際の質問です"', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
+          assertNotNull(result);
+          assertEquals(result!.meta.firstUserText, '実際の質問です');
+        });
+
+        it('[Normal] T-EC-PX-09-02: turns の件数が 2 (プリアンブル除外後)', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
+          assertEquals(result!.turns.length, 2);
+        });
+
+        it('[Normal] T-EC-PX-09-03: "<recommended_plugins>" で始まる turn が無い', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
+          assertEquals(result!.turns.some((t) => t.content.startsWith('<recommended_plugins>')), false);
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-10: プリアンブル + commit-message-generator 定義 → null ───────
+
+  /**
+   * プリアンブルの後に commit-message-generator のスキル定義が続くシナリオ。
+   * セッションスキップ判定がプリアンブル除外後の先頭 user ターンで行われることを確認する。
+   */
+  describe('Given: "<recommended_plugins>" プリアンブルの後に commit-message-generator 定義が続くJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+    describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
+      describe('Then: T-EC-PX-10 - null を返す', () => {
+        it('[Normal] T-EC-PX-10-01: null を返す', async () => {
+          const filePath = `${tempDir}/preamble-commit-generator.jsonl`;
+          await _writeCodexSession(filePath, [
+            _PREAMBLE,
+            '---\nname: commit-message-generator\ndescription: Generate commit messages\n---\n差分からコミットメッセージを生成する',
+          ], 'feat: add x');
+
+          assertNull(await parseCodexSession(filePath, ALL_PERIOD));
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-11: プリアンブルのみ → null ───────────────────────────────────
+
+  /**
+   * user ターンが注入プリアンブルしか無いシナリオ。
+   * 除外後に user ターンが残らないため、セッション全体がスキップされることを確認する。
+   */
+  describe('Given: user ターンが "<recommended_plugins>" プリアンブルのみのJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+    describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
+      describe('Then: T-EC-PX-11 - null を返す', () => {
+        it('[Error] T-EC-PX-11-01: null を返す', async () => {
+          const filePath = `${tempDir}/preamble-only.jsonl`;
+          await _writeCodexSession(filePath, [_PREAMBLE], 'プラグインを確認しました');
+
+          assertNull(await parseCodexSession(filePath, ALL_PERIOD));
+        });
+      });
+    });
+  });
+
+  // ─── T-EC-PX-12 / T-EC-PX-13: 既存の注入ターン除外 (回帰ガード) ────────────
+
+  /**
+   * `<permissions instructions>` / `<environment_context>` で始まる user ターンの除外が
+   * 維持されることを確認する回帰ガード。
+   */
+  describe('Given: user ターンが既存の注入タグで始まるJSONL', () => {
+    for (const { id, label, injected } of _injectedCases) {
+      /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+      describe(`When: ${label} ターンの後に実質問が続くセッションをパースする`, () => {
+        let filePath: string;
+
+        beforeEach(async () => {
+          filePath = `${tempDir}/${id}.jsonl`;
+          await _writeCodexSession(filePath, [injected, '実際の質問です'], '回答です');
+        });
+
+        describe(`Then: ${id} - ${label} ターンが除外される`, () => {
+          it(`[Edge] ${id}-01: firstUserText が "実際の質問です"`, async () => {
+            const result = await parseCodexSession(filePath, ALL_PERIOD);
+            assertNotNull(result);
+            assertEquals(result!.meta.firstUserText, '実際の質問です');
+          });
+
+          it(`[Edge] ${id}-02: turns の件数が 2 (${label} 除外後)`, async () => {
+            const result = await parseCodexSession(filePath, ALL_PERIOD);
+            assertEquals(result!.turns.length, 2);
+          });
+        });
+      });
+    }
+  });
+
+  // ─── T-EC-PX-14: 行頭以外の <recommended_plugins> は除外しない ─────────────
+
+  /**
+   * 文中に `<recommended_plugins>` を含むだけの user ターンの対照シナリオ。
+   * 除外判定が行頭一致に限られ、実質問として残ることを確認する。
+   */
+  describe('Given: user ターンが文中に "<recommended_plugins>" を含むJSONL', () => {
+    /** `parseCodexSession(filePath, allPeriod)` を呼び出したときの結果を検証する。 */
+    describe('When: parseCodexSession(filePath, allPeriod) を呼び出す', () => {
+      const question = '質問: <recommended_plugins> とは何ですか';
+      let filePath: string;
+
+      beforeEach(async () => {
+        filePath = `${tempDir}/inline-tag.jsonl`;
+        await _writeCodexSession(filePath, [question], '回答です');
+      });
+
+      describe('Then: T-EC-PX-14 - user ターンが除外されない', () => {
+        it('[Edge] T-EC-PX-14-01: firstUserText が元の質問文', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
+          assertNotNull(result);
+          assertEquals(result!.meta.firstUserText, question);
+        });
+
+        it('[Edge] T-EC-PX-14-02: turns の件数が 2', async () => {
+          const result = await parseCodexSession(filePath, ALL_PERIOD);
+          assertEquals(result!.turns.length, 2);
         });
       });
     });
