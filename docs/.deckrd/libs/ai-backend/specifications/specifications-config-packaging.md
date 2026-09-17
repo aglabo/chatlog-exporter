@@ -2,7 +2,7 @@
 title: "Design Specification: LAN llama サーバの AI バックエンド化 — Configuration and Packaging"
 based-on: requirements.md v1.6.0
 status: Draft
-version: 1.2.0
+version: 1.2.1
 created: "2026-09-02"
 ---
 
@@ -134,11 +134,12 @@ scoping も両者から独立して決まる（実行コマンドの記述はソ
 > **Reference**: This section lists formal DRs that affect this specification.
 > DRs are maintained in `decision-records.md` and are authoritative.
 
-| DR-ID | Title                                                                     | Phase | Impact on This Spec                                                                     |
-| ----- | ------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------- |
-| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする               | spec  | Agent/backend axis separation が `agent` 選択肢を変更しないことの根拠                   |
-| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する | spec  | Endpoint configuration key / Agent/backend axis separation の入力源と表現形式を規定する |
-| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                            | spec  | R-003 / DD-03 が付与するフラグを宛先限定なしとすることの根拠                            |
+| DR-ID | Title                                                                     | Phase | Impact on This Spec                                                                            |
+| ----- | ------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする               | spec  | Agent/backend axis separation が `agent` 選択肢を変更しないことの根拠                          |
+| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する | spec  | Endpoint configuration key / Agent/backend axis separation の入力源と表現形式を規定する        |
+| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                            | spec  | R-003 / DD-03 が付与するフラグを宛先限定なしとすることの根拠                                   |
+| DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする  | impl  | R-003 / DD-03 の静的検査 (AC-011) で結合短縮フラグを不適合とし、検査対象行に書かないことの根拠 |
 
 ### 2.7 DD to DR Promotion Criteria
 
@@ -282,3 +283,4 @@ No reordering is permitted.
 | 2026-09-02 | 1.1.2   | 要件 v1.5.0 の内容へ追随: §2.6 に DR-13 を追加、REQ-F-010 が追記したフラグ列省略の例示行の除外規定を Edge Cases に反映                                                                   |
 | 2026-09-02 | 1.1.3   | spec レビュー所見を反映: R-003 の判定対象に shebang 行を明記（§5 が既に持つ規範を規則本文へ）、§6 の欠落 4 件を補完、サーバ位置を指す語を統一                                            |
 | 2026-09-02 | 1.2.0   | codex レビュー所見を反映: §2.2 のモデル値の供給元を実態（オプションまたは設定）へ訂正、R-004 の差分検査手段を AC-012 への参照として明示、§7 に shebang 行の論点を解決済みとして追加      |
+| 2026-09-18 | 1.2.1   | §2.6 に DR-34 を追加 (R-003 / DD-03 の静的検査で結合短縮フラグを不適合とする根拠。規範本文の変更なし)                                                                                    |
