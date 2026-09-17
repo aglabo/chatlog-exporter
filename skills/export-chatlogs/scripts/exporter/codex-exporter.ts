@@ -21,6 +21,8 @@ import { ConversationRole } from '../../../_cle-libs/types/conversation-role.con
 import { inPeriod, parsePeriod } from '../libs/period-filter.ts';
 import { resolveSessionId, writeSession } from '../libs/session-writer.ts';
 import { isSkippable, isSkippableSession } from '../libs/skip-rules.ts';
+// constants
+import { CODEX_INJECTED_USER_PREFIXES } from '../constants/skip-rules.constants.ts';
 // types
 import type { Turn } from '../../../_cle-libs/types/conversation.types.ts';
 import type { ExportConfig } from '../types/export-config.types.ts';
@@ -68,6 +70,9 @@ export const stripUserInstructions = (text: string): string => {
  * - `"# AGENTS.md instructions"` で始まるテキスト
  * - `"<permissions instructions>"` で始まるテキスト
  * - `"<environment_context>"` で始まるテキスト
+ * - `"<recommended_plugins>"` で始まるテキスト
+ *
+ * 接頭辞の一覧は `CODEX_INJECTED_USER_PREFIXES` で管理する。
  *
  * @param filePath Codex JSONL ファイルの絶対パス
  * @param range `parsePeriod()` が生成した期間フィルタ
@@ -127,13 +132,10 @@ export const parseCodexSession = async (
     if (!cleaned) { continue; }
     if (role === ConversationRole.user && isSkippable(cleaned)) { continue; }
 
-    // user の AGENTS.md/permissions/environment_context は除外
+    // user の AGENTS.md/permissions/environment_context/recommended_plugins は除外
     if (
-      role === ConversationRole.user && (
-        cleaned.startsWith('# AGENTS.md instructions')
-        || cleaned.startsWith('<permissions instructions>')
-        || cleaned.startsWith('<environment_context>')
-      )
+      role === ConversationRole.user
+      && CODEX_INJECTED_USER_PREFIXES.some((prefix) => cleaned.startsWith(prefix))
     ) { continue; }
 
     turns.push({ role: role as ConversationRole, content: cleaned });
