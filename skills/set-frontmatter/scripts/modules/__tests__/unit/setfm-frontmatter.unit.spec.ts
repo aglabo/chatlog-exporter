@@ -11,7 +11,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertRejects } from '@std/assert';
-import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+import { afterEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
 // types
@@ -238,22 +238,6 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
     entry.frontmatter.set(key, val);
   }
   return entry;
-};
-
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
 };
 
 // ─── Tests

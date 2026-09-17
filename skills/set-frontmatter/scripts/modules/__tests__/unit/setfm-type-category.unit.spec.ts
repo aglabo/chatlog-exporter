@@ -262,22 +262,6 @@ const _makeChatlogEntry = (body: string): ChatlogEntry => {
 /** 常に指定した値で reject する `AiRunnerProvider` スタブを返す。catch 側の分岐判定だけを検証するために使う。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
 
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
-
 // ─── Tests
 
 /**

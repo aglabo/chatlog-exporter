@@ -124,22 +124,6 @@ const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e
 const _resultsRunner = (results: readonly Record<string, unknown>[]): AiRunnerProvider => () =>
   Promise.resolve(JSON.stringify(results));
 
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
-
 // ─── Tests
 
 /**

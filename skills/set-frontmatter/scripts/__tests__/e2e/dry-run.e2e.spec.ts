@@ -17,7 +17,6 @@ import { main } from '../../set-frontmatter.ts';
 import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { useDefaultGlobalConfig } from '../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 import {
   makeCacheDir,
@@ -30,24 +29,6 @@ import { SETFM_CACHE_STATUSES } from '../../types/cache.const.type.ts';
 // types
 import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-
-// ─── Internal Helpers
-
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
 
 // ─── Tests
 
