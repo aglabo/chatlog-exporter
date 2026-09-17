@@ -89,3 +89,18 @@ export const SKIP_PREFIXES = [
   'Unknown skill:',
   "Say 'OK' and nothing else.",
 ];
+
+/**
+ * Codex が user ターンとして自動注入するシステム情報の接頭辞。
+ *
+ * `parseCodexSession()` は、これらのいずれかで始まる user ターンを会話から除外する。
+ * 判定は行頭一致のため、文中にタグを含むだけの user ターンは除外しない。
+ *
+ * @see parseCodexSession
+ */
+export const CODEX_INJECTED_USER_PREFIXES: string[] = [
+  '# AGENTS.md instructions',
+  '<permissions instructions>',
+  '<environment_context>',
+  '<recommended_plugins>',
+];
