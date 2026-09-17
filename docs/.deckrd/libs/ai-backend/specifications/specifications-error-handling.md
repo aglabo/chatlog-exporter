@@ -2,7 +2,7 @@
 title: "Design Specification: LAN llama サーバの AI バックエンド化 — エラーハンドリング"
 based-on: requirements.md v1.6.0
 status: Draft
-version: 2.1.0
+version: 2.2.0
 created: "2026-09-02"
 ---
 
@@ -169,6 +169,7 @@ DR-18 が新設する `BackendUnavailable` / `ResponseFormatRejected` / `Respons
 | DR-16 | 失敗系分類の一覧を error-handling が単独で所有する                    | spec  | §3.2 が経路全体の失敗系一覧を持つ根拠。決定 3（R-004 に専用 subindex を設けない）は DR-18 が撤回した    |
 | DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける  | spec  | §3.2 の中断・続行の別、および §4.1 の R-001 / R-006 / R-007 / R-008 の根拠                              |
 | DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する    | spec  | §3.2 に `ResponseSchemaViolation` を再掲することの根拠                                                  |
+| DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える       | spec  | 決定 2 が §4.1 R-009（Step 6.5）の根拠                                                                  |
 
 ### 2.7 DD to DR Promotion Criteria
 
@@ -214,14 +215,14 @@ DR-18 が新設する `BackendUnavailable` / `ResponseFormatRejected` / `Respons
 中断は呼び出し元が一括処理を止めることを、続行は当該呼び出しのみを失敗として記録し
 残りの処理を進めることを意味します。
 
-| subindex                  | 扱い | 発生条件                                                              | 分類規則の所在                              |
-| ------------------------- | ---- | --------------------------------------------------------------------- | ------------------------------------------- |
-| `RateLimit`               | 中断 | HTTP 429 / 503 / 504（過負荷系）                                      | §4.1 R-002                                  |
-| `InvalidEndpoint`         | 中断 | サーバ位置値が未設定、または `http` / `https` の絶対 URL でない       | `specifications-transport.md` R-006         |
-| `BackendUnavailable`      | 中断 | 接続失敗（到達不能・DNS 解決失敗）／HTTP 404・501／HTTP 401・403      | §4.1 R-001, R-006, R-007                    |
-| `ResponseFormatRejected`  | 中断 | HTTP 400 のうち、`response_format` の拒否と判別できたもの             | §4.1 R-008                                  |
-| `ExitFailure`             | 続行 | 上記以外の非成功ステータス（入力起因の 400 を含む）／使えない応答本文 | §4.1 R-003, R-004                           |
-| `ResponseSchemaViolation` | 続行 | 2xx 応答の本文が呼び出し元の出力契約に適合しない                      | `specifications-structured-output.md` R-008 |
+| subindex                  | 扱い | 発生条件                                                                                       | 分類規則の所在                              |
+| ------------------------- | ---- | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `RateLimit`               | 中断 | HTTP 429 / 503 / 504（過負荷系）                                                               | §4.1 R-002                                  |
+| `InvalidEndpoint`         | 中断 | サーバ位置値が未設定、または `http` / `https` の絶対 URL でない                                | `specifications-transport.md` R-006         |
+| `BackendUnavailable`      | 中断 | 接続失敗（到達不能・DNS 解決失敗）／HTTP 404・501／HTTP 401・403／成功ステータスの非 JSON 応答 | §4.1 R-001, R-006, R-007, R-009             |
+| `ResponseFormatRejected`  | 中断 | HTTP 400 のうち、`response_format` の拒否と判別できたもの                                      | §4.1 R-008                                  |
+| `ExitFailure`             | 続行 | 上記以外の非成功ステータス（入力起因の 400 を含む）／使えない応答本文                          | §4.1 R-003, R-004                           |
+| `ResponseSchemaViolation` | 続行 | 2xx 応答の本文が呼び出し元の出力契約に適合しない                                               | `specifications-structured-output.md` R-008 |
 
 不正モデル名は上記とは独立した経路であり、受理形式を列挙する案内メッセージとともに
 throw されます（§4.2 R-005）。
@@ -257,17 +258,21 @@ Rule IDs are referenced in Traceability and Edge Cases.
 
 Evaluation MUST follow this order:
 
-| Rule ID | Step | Condition                                                                                                         | Outcome                                                                     |
-| ------- | ---: | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| R-001   |    1 | リクエストに対して HTTP 応答が一切得られない（接続失敗・到達不能・DNS 解決失敗）                                  | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
-| R-002   |    2 | HTTP 応答ステータスが 429、503、または 504 である                                                                 | `kind: AiError, subindex: RateLimit` を throw する（**中断**）              |
-| R-006   |    3 | HTTP 応答ステータスが 404 または 501 である                                                                       | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
-| R-007   |    4 | HTTP 応答ステータスが 401 または 403 である                                                                       | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
-| R-008   |    5 | HTTP 応答ステータスが 400 であり、応答本文から `response_format` の拒否と判別できる                               | `kind: AiError, subindex: ResponseFormatRejected` を throw する（**中断**） |
-| R-003   |    6 | HTTP 応答ステータスが R-002・R-006〜R-008 のいずれにも該当しない非成功ステータスである（判別できない 400 を含む） | `kind: AiError, subindex: ExitFailure` を throw する（**続行**）            |
-| R-004   |    7 | HTTP 応答ステータスは成功だが、応答本文からアシスタントテキストを取り出せない（下表）                             | `kind: AiError, subindex: ExitFailure` を throw する（**続行**）            |
+| Rule ID | Step | Condition                                                                                                                           | Outcome                                                                     |
+| ------- | ---: | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| R-001   |    1 | リクエストに対して HTTP 応答が一切得られない（接続失敗・到達不能・DNS 解決失敗）                                                    | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
+| R-002   |    2 | HTTP 応答ステータスが 429、503、または 504 である                                                                                   | `kind: AiError, subindex: RateLimit` を throw する（**中断**）              |
+| R-006   |    3 | HTTP 応答ステータスが 404 または 501 である                                                                                         | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
+| R-007   |    4 | HTTP 応答ステータスが 401 または 403 である                                                                                         | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
+| R-008   |    5 | HTTP 応答ステータスが 400 であり、応答本文から `response_format` の拒否と判別できる                                                 | `kind: AiError, subindex: ResponseFormatRejected` を throw する（**中断**） |
+| R-003   |    6 | HTTP 応答ステータスが R-002・R-006〜R-008 のいずれにも該当しない非成功ステータスである（判別できない 400 を含む）                   | `kind: AiError, subindex: ExitFailure` を throw する（**続行**）            |
+| R-009   |  6.5 | HTTP 応答ステータスは成功だが、`Content-Type` が `application/json` 系でない（欠落を含む）、または本文を JSON として parse できない | `kind: AiError, subindex: BackendUnavailable` を throw する（**中断**）     |
+| R-004   |    7 | HTTP 応答ステータスは成功だが、応答本文からアシスタントテキストを取り出せない（下表）                                               | `kind: AiError, subindex: ExitFailure` を throw する（**続行**）            |
 
 R-006〜R-008 は DR-18 により新設した規則にあたります。既存の R-001〜R-005 の ID は付け替えていません。
+R-009 は DR-26 決定 2 により新設した規則にあたります。Step 6.5 は Step 6 と Step 7 の間に割り込む番号であり、
+R-004（Step 7）は R-009 を通過した応答にのみ適用します。R-009 を省くと、`stream: false` を無視して
+SSE / chunked を返すサーバの応答が R-004 で続行側に分類され、後続のすべての呼び出しが同じ失敗を繰り返します。
 Step の順序と ID の順序は一致しません。評価は Step 欄の順に行います。
 
 R-008 の「応答本文から `response_format` の拒否と判別できる」は、本文を JSON として parse でき、
@@ -295,7 +300,7 @@ R-003 に落ちます。条件の根拠は `measurements-response-format-rejecti
 R-004 の評価対象は `specifications-transport.md` R-007 が選んだ `choices[0]` とします。
 `choices` が空で選択そのものが成立しない場合も、本規則により `ExitFailure` として分類します。
 
-No reordering is permitted. R-001〜R-004 のいずれも、リトライまたは他バックエンドへの
+No reordering is permitted. R-001〜R-004 および R-006〜R-009 のいずれも、リトライまたは他バックエンドへの
 フォールバックを伴いません（DR-03）。中断・続行の別は分類の帰結であって、
 AI 実行側の振る舞いの違いではありません。AI 実行はいずれの場合も 1 回で確定的に失敗します。
 
@@ -331,20 +336,21 @@ R-005 のモデル値解釈は llama provider の追加によって既存の受�
 
 ## 5. Edge Cases
 
-| Input                                                                 | Classification                                                                                                                                | REQ       | Rationale                                                                                                                                                                                                  |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| サーバホストが到達不能（応答が得られない）                            | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | 接続そのものが成立しておらず、後続の呼び出しも同じ結果になる。一括処理を中断する（DR-18）                                                                                                                  |
-| サーバは到達可能だが 404 を返す                                       | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | エンドポイントを実装していないことを示し、後続の呼び出しも同じ結果になる（R-006）                                                                                                                          |
-| サーバが 429 を返す                                                   | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | 既存のレートリミット判定の意味論に合わせ、並列度を落として中断すべき状態として分類する                                                                                                                     |
-| サーバが 503 を返す                                                   | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | コールドスタート・モデルロード中を示唆するローカル LLM 特有の状態                                                                                                                                          |
-| サーバが 504 を返す                                                   | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | キュー詰まり・ゲートウェイタイムアウトを示唆するローカル LLM 特有の状態                                                                                                                                    |
-| 成功ステータスだが `choices` が空                                     | `subindex: ExitFailure`（続行）                                                                                                               | REQ-F-006 | フォールバック値を返さず、使えない応答を明示的な失敗として扱う（DD-02）。単一応答に固有の失敗のため処理は続行する                                                                                          |
-| 成功ステータスだがメッセージ内容がテキストでない                      | `subindex: ExitFailure`                                                                                                                       | REQ-F-006 | 同上                                                                                                                                                                                                       |
-| 成功ステータスだが `finish_reason` が `length` 等の正常完了以外を示す | `subindex: ExitFailure`                                                                                                                       | REQ-F-006 | 生成パラメータを送らない（DR-15）ため切り詰めはサーバ既定に依存して起きうる。検知しないと構造化出力の目的を満たさない文字列が呼び出し元のパーサへ素通りする                                                |
-| サーバが認証を要求し 401 / 403 を返す                                 | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | §2 Assumptions の「認証を要求しない構成」という前提が崩れた場合にあたる（R-007）。設定を変えない限り後続もすべて失敗するため中断し、`detail` に前提の崩れを記して 404 や到達不能と読み分けられるようにする |
-| サーバが 400 を返し、本文から `response_format` の拒否と判別できる    | `subindex: ResponseFormatRejected`（中断）                                                                                                    | REQ-F-006 | スキーマ強制が効かない以上、後続の呼び出しも同じ結果になる（R-008）。判別できない 400 は入力起因の可能性があるため続行側の `ExitFailure` に落とす                                                          |
-| モデル値が既知のいずれの形式にも一致しない                            | 不正モデル名として throw（受理形式を案内）                                                                                                    | REQ-F-014 | 案内メッセージが実態（llama provider を含む）と乖離しないようにする                                                                                                                                        |
-| モデル値にスラッシュが 2 つ以上含まれる                               | 最初のスラッシュまでを provider、以降の全体をモデル名として解釈する。provider が既知であれば受理し、未知であれば不正モデル名として throw する | REQ-F-014 | 既存のモデル名解決がこの規則で動いており、`llama/org/model` のような入力は現に受理される。ここで拒否に変えると既存バックエンドの受理範囲を狭めることになり、REQ-C-002（既存非破壊）に反する                |
+| Input                                                                                       | Classification                                                                                                                                | REQ       | Rationale                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| サーバホストが到達不能（応答が得られない）                                                  | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | 接続そのものが成立しておらず、後続の呼び出しも同じ結果になる。一括処理を中断する（DR-18）                                                                                                                  |
+| サーバは到達可能だが 404 を返す                                                             | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | エンドポイントを実装していないことを示し、後続の呼び出しも同じ結果になる（R-006）                                                                                                                          |
+| サーバが 429 を返す                                                                         | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | 既存のレートリミット判定の意味論に合わせ、並列度を落として中断すべき状態として分類する                                                                                                                     |
+| サーバが 503 を返す                                                                         | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | コールドスタート・モデルロード中を示唆するローカル LLM 特有の状態                                                                                                                                          |
+| サーバが 504 を返す                                                                         | `subindex: RateLimit`                                                                                                                         | REQ-F-005 | キュー詰まり・ゲートウェイタイムアウトを示唆するローカル LLM 特有の状態                                                                                                                                    |
+| 成功ステータスだが `choices` が空                                                           | `subindex: ExitFailure`（続行）                                                                                                               | REQ-F-006 | フォールバック値を返さず、使えない応答を明示的な失敗として扱う（DD-02）。単一応答に固有の失敗のため処理は続行する                                                                                          |
+| 成功ステータスだがメッセージ内容がテキストでない                                            | `subindex: ExitFailure`                                                                                                                       | REQ-F-006 | 同上                                                                                                                                                                                                       |
+| 成功ステータスだが `finish_reason` が `length` 等の正常完了以外を示す                       | `subindex: ExitFailure`                                                                                                                       | REQ-F-006 | 生成パラメータを送らない（DR-15）ため切り詰めはサーバ既定に依存して起きうる。検知しないと構造化出力の目的を満たさない文字列が呼び出し元のパーサへ素通りする                                                |
+| サーバが認証を要求し 401 / 403 を返す                                                       | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | §2 Assumptions の「認証を要求しない構成」という前提が崩れた場合にあたる（R-007）。設定を変えない限り後続もすべて失敗するため中断し、`detail` に前提の崩れを記して 404 や到達不能と読み分けられるようにする |
+| 成功ステータスだが `Content-Type` が JSON 系でない、または本文を JSON として parse できない | `subindex: BackendUnavailable`（中断）                                                                                                        | REQ-F-006 | `stream: false` を無視して SSE / chunked を返すなど、サーバが送信したフィールドを honour していないことを示し、後続の呼び出しも同じ結果になる（R-009）                                                     |
+| サーバが 400 を返し、本文から `response_format` の拒否と判別できる                          | `subindex: ResponseFormatRejected`（中断）                                                                                                    | REQ-F-006 | スキーマ強制が効かない以上、後続の呼び出しも同じ結果になる（R-008）。判別できない 400 は入力起因の可能性があるため続行側の `ExitFailure` に落とす                                                          |
+| モデル値が既知のいずれの形式にも一致しない                                                  | 不正モデル名として throw（受理形式を案内）                                                                                                    | REQ-F-014 | 案内メッセージが実態（llama provider を含む）と乖離しないようにする                                                                                                                                        |
+| モデル値にスラッシュが 2 つ以上含まれる                                                     | 最初のスラッシュまでを provider、以降の全体をモデル名として解釈する。provider が既知であれば受理し、未知であれば不正モデル名として throw する | REQ-F-014 | 既存のモデル名解決がこの規則で動いており、`llama/org/model` のような入力は現に受理される。ここで拒否に変えると既存バックエンドの受理範囲を狭めることになり、REQ-C-002（既存非破壊）に反する                |
 
 ---
 
@@ -353,7 +359,7 @@ R-005 のモデル値解釈は llama provider の追加によって既存の受�
 | Requirement ID                                        | Spec Rule                                         | Notes                                                                                                     |
 | ----------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | REQ-F-005                                             | R-002                                             | 429 / 503 / 504 を RateLimit に写像する規則                                                               |
-| REQ-F-006                                             | R-001, R-003, R-004, R-006, R-007, R-008          | 接続失敗・非成功ステータス・使えない成功応答をいずれも即座に throw する規則と、中断・続行の subindex 割当 |
+| REQ-F-006                                             | R-001, R-003, R-004, R-006, R-007, R-008, R-009   | 接続失敗・非成功ステータス・使えない成功応答をいずれも即座に throw する規則と、中断・続行の subindex 割当 |
 | REQ-F-014                                             | R-005                                             | 不正モデル名の案内メッセージに llama provider を含める規則                                                |
 | REQ-F-017, REQ-F-019, REQ-NF-003                      | Covered in: `specifications-transport.md`         | —                                                                                                         |
 | REQ-F-018                                             | Covered in: `specifications-structured-output.md` | —                                                                                                         |
@@ -401,3 +407,4 @@ R-005 のモデル値解釈は llama provider の追加によって既存の受�
 | 2026-09-02 | 2.0.0   | codex レビュー所見を反映: DR-18 により §3.2 の失敗分類を中断・続行の軸へ再定義し `BackendUnavailable` / `ResponseFormatRejected` / `ResponseSchemaViolation` を追加、§4.1 に R-006〜R-008 を新設、R-001 を中断側へ、R-004 の判定対象（`finish_reason` は `stop` のみ・`message.content` の形）を規則本文へ列挙、§2.1 に subindex が自由記述である前提を明記、§2.6 の Phase 列を decision-records に合わせて訂正 |
 | 2026-09-03 | 2.0.1   | 本文をですます体へ統一し textlint 指摘を解消（内容変更なし）                                                                                                                                                                                                                                                                                                                                                    |
 | 2026-09-15 | 2.1.0   | DR-33 を反映 (MINOR: 実装対象を確定させる決定)。§4.1 に R-008 の判別条件（`error.message` の接頭辞 `JSON schema conversion failed`）を注記し、§7 の残る未決（400 の読み分け）を解決済みとした                                                                                                                                                                                                                   |
+| 2026-09-17 | 2.2.0   | DR-26 決定 2 を反映 (MINOR: 規則の追加)。§4.1 に Content-Type / JSON parse のゲートを R-009（Step 6.5）として規則 ID 付きで追加し、§2.6・§3.2・§5・§6 を追随させた                                                                                                                                                                                                                                              |

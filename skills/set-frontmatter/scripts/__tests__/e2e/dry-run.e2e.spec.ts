@@ -16,6 +16,7 @@ import { main } from '../../set-frontmatter.ts';
 // ─── Helpers
 import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
 import {
   makeCacheDir,
@@ -29,11 +30,31 @@ import { SETFM_CACHE_STATUSES } from '../../types/cache.const.type.ts';
 import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
+// ─── Internal Helpers
+
+/**
+ * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
+ *
+ * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
+ * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
+ */
+const _useDefaultGlobalConfig = (): void => {
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+    GlobalConfig.getInstance({ yaml: '' });
+  });
+  afterEach(() => {
+    GlobalConfig.resetInstance();
+  });
+};
+
 // ─── Tests
 
 // ─── T-SF-E2E-01: dry-run → ファイル変更なし ─────────────────────────────────
 
 describe('main - dry-run モード', () => {
+  _useDefaultGlobalConfig();
+
   describe('Given: 1件の .md ファイルと dry-run フラグ', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--dry-run", ...]) を呼び出す', () => {
       describe('Then: T-SF-E2E-01 - ファイルが変更されない', () => {
@@ -189,6 +210,8 @@ describe('main - dry-run モード', () => {
 // ─── T-SF-DR: dry-run 完了ログと dry-run ループ対象 ──────────────────────────
 
 describe('main - dry-run 完了ログ (T-SF-DR)', () => {
+  _useDefaultGlobalConfig();
+
   /**
    * `dry-run` 時の完了ログと `[dry-run]` ループ対象の検証。
    *
@@ -485,6 +508,8 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
 // ─── T-SF-DR-06: dry-run ステータス別集計 ────────────────────────────────────
 
 describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
+  _useDefaultGlobalConfig();
+
   /**
    * `--dry-run` 時、全エントリを到達 status ごとに集計した `dry-run 集計:` ログを検証する。
    *
@@ -662,6 +687,8 @@ describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
 // ─── T-SF-E2E-DR-05: dry-run → FAIL(yaml空) が出ない ────────────────────────
 
 describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
+  _useDefaultGlobalConfig();
+
   /**
    * `--dry-run` 実行時は Phase 4 の FAIL 判定をスキップし、
    * `FAIL (yaml空)` のエラーログが出力されないことを検証する。

@@ -166,6 +166,24 @@ tags:
 ---
 ```
 
+## AI バックエンドの設定
+
+AI バックエンドは `model` で選ぶ。指定は `--model` が `config.yaml` の `model` より優先される。
+
+- `llama/<model>` (例: `llama/avalon`) → LAN 上の llama サーバへ HTTP で要求する。
+  接続先は `config.yaml` の `llamaEndpoint` (例: `http://avalon:8080/`) で指定する。
+  環境変数・CLI フラグでは指定できない
+- `llamaEndpoint` が空 (既定) のまま `llama/<model>` を指定すると、`InvalidEndpoint` で中断する
+- それ以外 (例: `haiku`) → 従来どおりバックエンド CLI を起動する
+
+```yaml
+model: "llama/avalon"
+llamaEndpoint: "http://avalon:8080/"
+```
+
+`agent` はエクスポート元エージェント (どのログを読むか) の指定で、AI バックエンドとは別軸になる。
+`agent: codex` と `model: llama/avalon` のように、両者は独立して組み合わせられる。
+
 ## 利用可能なオプション一覧
 
 | オプション         | 説明                                                   |

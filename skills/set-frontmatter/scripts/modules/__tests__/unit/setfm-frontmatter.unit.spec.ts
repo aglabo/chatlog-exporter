@@ -11,7 +11,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertRejects } from '@std/assert';
-import { afterEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
 import { stub } from '@std/testing/mock';
 // types
@@ -239,6 +239,22 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
   return entry;
 };
 
+/**
+ * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
+ *
+ * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
+ * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
+ */
+const _useDefaultGlobalConfig = (): void => {
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+    GlobalConfig.getInstance({ yaml: '' });
+  });
+  afterEach(() => {
+    GlobalConfig.resetInstance();
+  });
+};
+
 // ─── Tests
 
 /**
@@ -251,6 +267,8 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
  * @see generateFrontmatter
  */
 describe('generateFrontmatter', () => {
+  _useDefaultGlobalConfig();
+
   let commandHandle: CommandMockHandle;
 
   afterEach(() => {
@@ -556,6 +574,8 @@ describe('generateFrontmatter', () => {
  * @see reviewFrontmatter
  */
 describe('generateFrontmatter / reviewFrontmatter — maxRetry ループは転送エラーを retry しない', () => {
+  _useDefaultGlobalConfig();
+
   let commandHandle: CommandMockHandle | undefined;
 
   afterEach(() => {
@@ -598,6 +618,8 @@ describe('generateFrontmatter / reviewFrontmatter — maxRetry ループは転�
  * @see generateFrontmatter
  */
 describe('generateFrontmatter — 出力契約（outputContract）', () => {
+  _useDefaultGlobalConfig();
+
   describe('When: aiRunnerProvider を呼び出す', () => {
     it('[Normal] T-SF-OCT-01-01: options に #4 yaml 契約（firstField title、topics / tags 要素 enum）が渡り true を返す', async () => {
       let captured: RunAIOptions | undefined;
@@ -669,6 +691,8 @@ describe('generateFrontmatter — 出力契約（outputContract）', () => {
  * @see buildFrontmatterOutputContract
  */
 describe('buildFrontmatterOutputContract', () => {
+  _useDefaultGlobalConfig();
+
   describe('When: 正常系', () => {
     it("[Normal] T-SF-OCT-07-01: tags: 'typescript,deno' → tags の値域が ['typescript', 'deno'] になる", () => {
       const _contract = buildFrontmatterOutputContract({ ..._contractDics, tags: 'typescript,deno' });

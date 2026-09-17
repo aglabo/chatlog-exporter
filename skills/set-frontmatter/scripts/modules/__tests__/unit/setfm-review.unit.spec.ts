@@ -11,7 +11,7 @@
 
 // ─── BDD modules
 import { assert, assertEquals, assertRejects, assertThrows } from '@std/assert';
-import { afterEach, describe, it } from '@std/testing/bdd';
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { buildReviewOutputContract, reviewFrontmatter } from '../../setfm-review.ts';
@@ -199,6 +199,22 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
   return entry;
 };
 
+/**
+ * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
+ *
+ * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
+ * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
+ */
+const _useDefaultGlobalConfig = (): void => {
+  beforeEach(() => {
+    GlobalConfig.resetInstance();
+    GlobalConfig.getInstance({ yaml: '' });
+  });
+  afterEach(() => {
+    GlobalConfig.resetInstance();
+  });
+};
+
 // ─── Tests
 
 /**
@@ -211,6 +227,8 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
  * @see reviewFrontmatter
  */
 describe('reviewFrontmatter', () => {
+  _useDefaultGlobalConfig();
+
   let commandHandle: CommandMockHandle;
 
   afterEach(() => {
@@ -621,6 +639,8 @@ describe('reviewFrontmatter', () => {
  * @see reviewFrontmatter
  */
 describe('reviewFrontmatter — 出力契約（outputContract）', () => {
+  _useDefaultGlobalConfig();
+
   describe('When: aiRunnerProvider を呼び出す', () => {
     it('[Normal] T-SF-OCT-02-01: options に #5 yaml 契約（firstField validity、corrected_frontmatter 入れ子 object）が渡り pass を返す', async () => {
       let captured: RunAIOptions | undefined;
@@ -701,6 +721,8 @@ describe('reviewFrontmatter — 出力契約（outputContract）', () => {
  * @see buildReviewOutputContract
  */
 describe('buildReviewOutputContract', () => {
+  _useDefaultGlobalConfig();
+
   /** 契約組み立て用 Dics。category / tags だけをケースごとに差し替える。 */
   const _makeDics = (category: string, tags: string): Dics => ({
     category,

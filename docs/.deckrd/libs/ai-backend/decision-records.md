@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.9.0
+version: 3.10.0
 created: "2026-09-02"
 ---
 
@@ -738,6 +738,11 @@ AC-024（`type` / `category` がフォールバック値へ落ちない）の 6 
    書かない。したがって `scripts/aplys-tester.ts` の `buildDenoArgs` に `--allow-net` を
    付与しない。Commit 17 の付与対象は SKILL.md 4 本・shebang 3 本・`deno.json` の
    `test:module` に閉じる
+6. 決定 5 の例外として、Deno runtime の実挙動を観測する回帰テスト（T-LIB-AI-LRI-13-01: 実 TLS
+   検証失敗の文言）はループバック通信を伴う実測テストとして置く。ただし `RUN_AI=1`
+   （`deno task test:module ... --use-ai`）指定時のみ実行し、既定のテスト実行では ignore する。
+   既定の実行は実ネットワーク・openssl に依存しない。Deno を更新したときは `--use-ai` を付けて
+   実行し、文言の変化を確認する（PR #467 の codex レビュー指摘 P2）
 
 **Alternatives Considered**:
 
@@ -1462,3 +1467,4 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 | 2026-09-12 | 3.7.0   | DR-31 を追加 (MINOR: 決定を追加)。Phase 0 実測で 3 スキーマ x 3 条件の 9 組が 10/10 となり準拠を確定。モデル差条件の 3 組は測定せず、対応対象を測定レポート §1 の 1 構成 (Qwen3.5-35B-A3B Q4_K_M + thinking 無効化フラグ) に限定する決定を記録。DR-25 決定 1・2 の条件集合を一部 supersede                                                                                                                           |
 | 2026-09-15 | 3.8.0   | DR-32 を追加 (MINOR: 決定を追加)。PR #459 の codex レビュー指摘 (P2) を受け、`topics` は空配列を「該当なし」として受理せず非空を必須とする決定を記録。`tags` は空配列を受理したまま。非空要求は `minItems` ではなく後段の `hasFrontmatterFields` (`'nonEmptyArray'`) が持つ。structured §4.3.1 を v2.4.0 で改訂                                                                                                      |
 | 2026-09-15 | 3.9.0   | DR-33 を追加 (MINOR: 決定を追加)。追加実測 (`measurements-response-format-rejection-2026-09-15.md`) を受け、`response_format` 拒否の 400 を `error.message` の接頭辞 `JSON schema conversion failed` で判別すると確定。DR-18 の Open Question に解決を追記                                                                                                                                                           |
+| 2026-09-17 | 3.10.0  | DR-21 に決定 6 を追加 (MINOR: 決定を追加)。PR #467 の codex レビュー指摘 (P2) を受け、実 TLS 検証失敗の回帰テスト T-LIB-AI-LRI-13-01 を決定 5 の例外とし、`RUN_AI=1` (`--use-ai`) 指定時のみ実行すると確定                                                                                                                                                                                                           |

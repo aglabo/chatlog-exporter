@@ -2010,7 +2010,7 @@ describe('RunAIOptions.outputContract', () => {
  * 経路判定が CLI コマンド構築（`_buildCommand`）より前に行われることを検証する
  * （transport §4.1.1 不適合条件 3 が成立しない）。
  *
- * テスト ID 範囲: T-LIB-AI-LWR-02-01 〜 T-LIB-AI-LWR-02-02, T-LIB-AI-LWR-05-01 〜 T-LIB-AI-LWR-05-02, T-LIB-AI-LWR-06-01 〜 T-LIB-AI-LWR-06-03, T-LIB-AI-LWR-07-01 〜 T-LIB-AI-LWR-07-02, T-LIB-AI-LWR-08-01, T-LIB-AI-LWR-09-01, T-LIB-AI-LWR-10-01 〜 T-LIB-AI-LWR-10-03
+ * テスト ID 範囲: T-LIB-AI-LWR-02-01 〜 T-LIB-AI-LWR-02-02, T-LIB-AI-LWR-05-01 〜 T-LIB-AI-LWR-05-02, T-LIB-AI-LWR-06-01 〜 T-LIB-AI-LWR-06-03, T-LIB-AI-LWR-07-01 〜 T-LIB-AI-LWR-07-03, T-LIB-AI-LWR-08-01, T-LIB-AI-LWR-09-01, T-LIB-AI-LWR-10-01 〜 T-LIB-AI-LWR-10-03
  *
  * @see runAI
  */
@@ -2200,7 +2200,7 @@ describe('runAI — llama 経路の結線', () => {
     });
   });
 
-  /** llama 経路の送信中に発火した外部 abort を、後段 catch が Aborted へ分類するケース。 */
+  /** llama 経路の送信中に発火した外部 abort / タイムアウトを、後段 catch が Aborted / TimedOut へ分類するケース。 */
   describe('When: 異常系（llama 送信中の外部 abort）', () => {
     it('[Error] T-LIB-AI-LWR-07-02: llama 経路の送信中に外部 abort → ChatlogError(Aborted/ExternalAbort)', async () => {
       GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
@@ -2224,6 +2224,29 @@ describe('runAI — llama 経路の結線', () => {
       assertEquals(_calls.length, 1);
       assertEquals(_err.kind, 'Aborted');
       assertEquals(_err.subindex, 'ExternalAbort');
+    });
+
+    it('[Error] T-LIB-AI-LWR-07-03: llama 経路で timeoutMs=20 経過 → ChatlogError(TimedOut/Timeout)', async () => {
+      GlobalConfig.getInstance({ yaml: _LLAMA_YAML });
+      const _calls: { input: string | URL | Request; init?: RequestInit }[] = [];
+
+      // _abortAwareFetch は signal が abort されるまで解決しない。timeoutMs=20 の経過で reject させる
+      const _err = await assertRejects(
+        () =>
+          runAI('sys', 'user', {
+            model: _LLAMA_MODEL,
+            fetchProvider: _abortAwareFetch(_calls),
+            outputContract: _MINIMAL_CONTRACT,
+            timeoutMs: 20,
+          }),
+        ChatlogError,
+      ) as ChatlogError;
+
+      // 空振り防止: llama 経路の送信まで到達している
+      assertEquals(_calls.length, 1);
+      // mapLlamaFetchFailure の AiError/BackendUnavailable ではなく、タイムアウトとして分類される
+      assertEquals(_err.kind, 'TimedOut');
+      assertEquals(_err.subindex, 'Timeout');
     });
   });
 
