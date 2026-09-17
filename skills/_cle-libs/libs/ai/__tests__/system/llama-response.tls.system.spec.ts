@@ -20,6 +20,9 @@ import { joinPath } from '../../../path-utils/path-utils.ts';
 // ─── Internal Helpers
 
 // constants
+/** `RUN_AI=1` が設定されている場合に `true`。実測テストの実行制御に使用する。 */
+const _shouldRunAI = Deno.env.get('RUN_AI') === '1';
+
 /** 本テストの cause 文言（rustls の `invalid peer certificate`）を実測した Deno のバージョン。 */
 const _VERIFIED_DENO_VERSION = '2.9.6';
 
@@ -166,12 +169,14 @@ async function _observeTlsFailure(certPath: string, keyPath: string): Promise<_T
  * error-handling R-001 / DR-26 決定 1 に基づき、実際の Deno runtime が自己署名証明書を拒否した
  * reject 値が runtime 由来の `BackendUnavailable` に分類されることを回帰検証する。
  * cause 文言は Deno（rustls）のバージョンに依存するため、失敗時は検証済み版と実行中の版を示す。
+ * ループバックの実通信と openssl を伴う実測テストのため、`RUN_AI=1`（`--use-ai`）指定時のみ実行する
+ * （DR-21 決定 5 の例外）。
  *
  * テスト ID: T-LIB-AI-LRI-13-01
  *
  * @see mapLlamaFetchFailure
  */
-describe('mapLlamaFetchFailure', () => {
+describe('mapLlamaFetchFailure', { ignore: !_shouldRunAI }, () => {
   /** 自己署名証明書の TLS サーバへの実 fetch が reject されるケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-LIB-AI-LRI-13-01: 自己署名証明書サーバへの実 fetch の reject 値 → runtime 由来の BackendUnavailable', async () => {
