@@ -72,6 +72,7 @@ export const extractChatGPTText = (message: ChatGPTMessage | null): string => {
  * ChatGPT mapping を currentNodeId から root まで遡り、root→leaf 順のメッセージ列を返す。
  *
  * - `currentNodeId` が `mapping` に存在しない → `[]`
+ * - `parent` が循環 → 訪問済みノードで遡りを打ち切る
  * - `message === null` → スキップ
  * - `message.weight === 0.0` → スキップ（`undefined` は除外しない）
  * - `author.role === 'system'` または `'tool'` → スキップ
@@ -88,8 +89,11 @@ export const traverseConversation = (
 
   // parent を辿って root まで遡る
   const chain: ChatGPTMappingNode[] = [];
+  const visited = new Set<string>();
   let nodeId: string | null = currentNodeId;
   while (nodeId !== null) {
+    if (visited.has(nodeId)) { break; }
+    visited.add(nodeId);
     const node: ChatGPTMappingNode | undefined = mapping[nodeId];
     if (!node) { break; }
     chain.push(node);
@@ -97,16 +101,11 @@ export const traverseConversation = (
   }
 
   // 逆順にして root→leaf 順にし、フィルタを適用
-  chain.reverse();
-  const messages: ChatGPTMessage[] = [];
-  for (const node of chain) {
-    const msg = node.message;
-    if (!msg) { continue; }
-    if (msg.weight === 0) { continue; }
-    if (msg.author.role === 'system' || msg.author.role === 'tool') { continue; }
-    messages.push(msg);
-  }
-  return messages;
+  return chain.reverse()
+    .map((node) => node.message)
+    .filter((msg): msg is ChatGPTMessage =>
+      !!msg && msg.weight !== 0 && msg.author.role !== 'system' && msg.author.role !== 'tool'
+    );
 };
 
 // ─────────────────────────────────────────────
@@ -132,46 +131,99 @@ export const parseChatGPTConversation = async (
   range: PeriodRange,
 ): Promise<ExportedSession | null> => {
   // 期間チェック
-  const isoTimestamp = new Date(conv.create_time * 1000).toISOString();
-  if (!inPeriod(isoTimestamp, range)) { return null; }
+  const _isoTimestamp = _toIsoTimestamp(conv);
+  if (!inPeriod(_isoTimestamp, range)) { return null; }
 
-  // current_node の取得（フォールバック: children が空のノードの最後）
-  let currentNodeId = conv.current_node;
-  if (!currentNodeId) {
-    const leafNodes = Object.values(conv.mapping).filter(
-      (node) => node.children.length === 0,
-    );
-    if (leafNodes.length === 0) { return null; }
-    currentNodeId = leafNodes[leafNodes.length - 1].id;
-  }
+  const _currentNodeId = _resolveCurrentNodeId(conv);
+  if (_currentNodeId === null) { return null; }
 
-  // メッセージ列取得
-  const messages = traverseConversation(conv.mapping, currentNodeId);
+  const _messages = traverseConversation(conv.mapping, _currentNodeId);
+  const _turns = _messages.map(_toChatGPTTurn).filter((t): t is Turn => t !== null);
 
-  // Turn 変換
-  const turns: Turn[] = [];
-  for (const msg of messages) {
-    const role = msg.author.role;
-    if (role !== ConversationRole.user && role !== ConversationRole.assistant) { continue; }
-    const text = extractChatGPTText(msg);
-    if (!text) { continue; }
-    if (role === ConversationRole.user && isSkippable(text)) { continue; }
-    turns.push({ role: role as ConversationRole, content: text });
-  }
+  // 有効な user ターンが0件、またはスキップ対象セッション → null
+  const _firstUserTurn = _turns.find((t) => t.role === ConversationRole.user);
+  if (!_firstUserTurn || isSkippableSession(_firstUserTurn.content)) { return null; }
 
-  // 有効な user ターンが0件 → null
-  const firstUserTurn = turns.find((t) => t.role === ConversationRole.user);
-  if (!firstUserTurn) { return null; }
-  if (isSkippableSession(firstUserTurn.content)) { return null; }
+  const _meta = await _buildChatGPTSessionMeta(conv, _isoTimestamp, _firstUserTurn.content);
+  return { meta: _meta, turns: _turns };
+};
 
-  const meta: SessionMeta = {
+/**
+ * 会話の作成時刻（UNIX 秒）を ISO 8601 文字列に変換する。
+ *
+ * @param conv ChatGPT 会話オブジェクト
+ * @returns `create_time` を ISO 8601 形式にした文字列
+ */
+const _toIsoTimestamp = (conv: ChatGPTConversation): string => {
+  return new Date(conv.create_time * 1000).toISOString();
+};
+
+/**
+ * トラバースの起点となる末尾ノードの ID を解決する。
+ *
+ * - `current_node` があればそれを返す
+ * - 無ければ `children` が空のノードのうち最後の 1 件の `id` を返す
+ *
+ * @param conv ChatGPT 会話オブジェクト
+ * @returns 末尾ノードの ID、該当ノードが無い場合は `null`
+ */
+const _resolveCurrentNodeId = (conv: ChatGPTConversation): string | null => {
+  if (conv.current_node) { return conv.current_node; }
+  const _leafNodes = Object.values(conv.mapping).filter((node) => node.children.length === 0);
+  return _leafNodes.at(-1)?.id ?? null;
+};
+
+/**
+ * role が会話ターンの対象（user / assistant）かを判定する型ガード。
+ *
+ * @param role メッセージ author の role
+ * @returns `user` または `assistant` なら `true`
+ */
+const _isConversationRole = (role: string): role is ConversationRole =>
+  role === ConversationRole.user || role === ConversationRole.assistant;
+
+/**
+ * ChatGPT メッセージ 1 件から会話ターンを抽出する。
+ *
+ * role が user / assistant のメッセージのみを対象とし、`extractChatGPTText` でテキストを取り出す。
+ * テキストが空、または user で `isSkippable` に該当する場合は除外する。
+ *
+ * @param message ChatGPT メッセージオブジェクト
+ * @returns 抽出したターン、対象外の場合は `null`
+ */
+const _toChatGPTTurn = (message: ChatGPTMessage): Turn | null => {
+  const _role = message.author.role;
+  if (!_isConversationRole(_role)) { return null; }
+
+  const _text = extractChatGPTText(message);
+  if (!_text) { return null; }
+  if (_role === ConversationRole.user && isSkippable(_text)) { return null; }
+
+  return { role: _role, content: _text };
+};
+
+/**
+ * 会話オブジェクトからセッションメタ情報を組み立てる。
+ *
+ * - `sessionId`: `conversation_id` を `resolveSessionId` で解決（欠落時は補完）
+ * - `date`: `isoTimestamp` の日付部分
+ *
+ * @param conv ChatGPT 会話オブジェクト
+ * @param isoTimestamp 会話作成時刻の ISO 8601 文字列
+ * @param firstUserText 最初の user ターンのテキスト
+ * @returns セッションメタ情報（`slug` は空文字）
+ */
+const _buildChatGPTSessionMeta = async (
+  conv: ChatGPTConversation,
+  isoTimestamp: string,
+  firstUserText: string,
+): Promise<SessionMeta> => {
+  return {
     sessionId: await resolveSessionId(conv.conversation_id),
     date: isoToDate(isoTimestamp),
     slug: '',
-    firstUserText: firstUserTurn.content,
+    firstUserText,
   };
-
-  return { meta, turns };
 };
 
 // ─────────────────────────────────────────────
@@ -184,7 +236,7 @@ export const parseChatGPTConversation = async (
  * - `Deno.readDir(baseDir)` で1階層走査
  * - `/^conversations-.*\.json$/` にマッチするファイルのみ収集
  * - ソートして返す
- * - ディレクトリ不存在 → 空配列（try/catch）
+ * - ディレクトリ不存在 (NotFound) → 空配列 / それ以外の例外 → 再スロー
  *
  * @param baseDir ChatGPT エクスポートディレクトリのパス
  * @returns ソート済みの JSON ファイルパス配列
@@ -197,7 +249,8 @@ export const findChatGPTFiles = async (baseDir: string): Promise<string[]> => {
         results.push(`${baseDir}/${entry.name}`);
       }
     }
-  } catch {
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) { throw e; }
     return [];
   }
   return results.sort();
@@ -211,6 +264,7 @@ export const findChatGPTFiles = async (baseDir: string): Promise<string[]> => {
  * conversations-*.json の1ファイルを読み込み、全会話をパース・書き出しする。
  *
  * - ファイル読み込み失敗 → `{ errorCount: 1 }` を返す（例外を伝播させない）
+ * - 配列でない JSON → `{ errorCount: 1 }` を返す
  * - 各会話のパース/書き込みエラー → `errorCount++` して継続
  * - parse が null → `skippedCount++` して継続
  *
@@ -233,7 +287,11 @@ const _processFile = async (
   let conversations: ChatGPTConversation[];
   try {
     const text = await readTextFile(file);
-    conversations = JSON.parse(text) as ChatGPTConversation[];
+    const parsed: unknown = JSON.parse(text);
+    if (!Array.isArray(parsed)) {
+      return { outputPaths: [], skippedCount: 0, errorCount: 1 };
+    }
+    conversations = parsed as ChatGPTConversation[];
   } catch {
     return { outputPaths: [], skippedCount: 0, errorCount: 1 };
   }
@@ -266,15 +324,9 @@ const _processFile = async (
  * @returns マージ済み ExportResult
  */
 const _mergeResults = (results: FileResult[]): ExportResult => {
-  const outputPaths: string[] = [];
-  let skippedCount = 0;
-  let errorCount = 0;
-
-  for (const r of results) {
-    outputPaths.push(...r.outputPaths);
-    skippedCount += r.skippedCount;
-    errorCount += r.errorCount;
-  }
+  const outputPaths = results.flatMap((r) => r.outputPaths);
+  const skippedCount = results.reduce((sum, r) => sum + r.skippedCount, 0);
+  const errorCount = results.reduce((sum, r) => sum + r.errorCount, 0);
 
   return { exportedCount: outputPaths.length, skippedCount, errorCount, outputPaths };
 };

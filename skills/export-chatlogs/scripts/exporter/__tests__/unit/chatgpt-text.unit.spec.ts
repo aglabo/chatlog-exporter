@@ -8,11 +8,14 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertThrows } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { extractChatGPTText } from '../../chatgpt-exporter.ts';
+
+// ─── Types
+import type { ChatGPTMessage } from '../../types/chatgpt-entry.types.ts';
 
 // ─── Tests
 /**
@@ -121,6 +124,43 @@ describe('extractChatGPTText', () => {
         },
       };
       assertEquals(extractChatGPTText(message), '');
+    });
+  });
+
+  // ─── T-EC-GT-01-06: content_type: 'text', parts 未定義 → '' ────────────────
+
+  /**
+   * parts プロパティ自体が存在しない境界値ケース。
+   * parts 未定義は空配列として扱われ、空文字列が返ることを検証する。
+   */
+  describe('Given: content_type="text", parts 未定義', () => {
+    it('T-EC-GT-01-06: "" を返す', () => {
+      const message = {
+        id: 'msg-1',
+        author: { role: 'user' },
+        create_time: null,
+        content: {
+          content_type: 'text',
+        },
+      };
+      assertEquals(extractChatGPTText(message), '');
+    });
+  });
+
+  // ─── T-EC-GT-01-07: message.content 欠落 → TypeError ──────────────────────
+
+  /**
+   * content プロパティ自体が存在しない異常系ケース。
+   * content_type を無条件に参照するため、TypeError が送出されることを検証する。
+   */
+  describe('Given: message.content 欠落', () => {
+    it('T-EC-GT-01-07: TypeError を throw する', () => {
+      const message = {
+        id: 'msg-1',
+        author: { role: 'user' },
+        create_time: null,
+      } as unknown as ChatGPTMessage;
+      assertThrows(() => extractChatGPTText(message), TypeError);
     });
   });
 });

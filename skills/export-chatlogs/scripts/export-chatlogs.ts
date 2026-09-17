@@ -160,4 +160,11 @@ export const main = async (
   logger.info(`出力先: ${exportDir}/${agent}/`);
 };
 
-if (import.meta.main) { await main(); }
+if (import.meta.main) {
+  try {
+    await main();
+  } catch (e) {
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
+  }
+}

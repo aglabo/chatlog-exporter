@@ -11,7 +11,7 @@
 import { readTextFile } from '../../../_cle-libs/libs/file-io/read-utils.ts';
 import { findEntries } from '../../../_cle-libs/libs/file-ops/find-entries.ts';
 import { homeDir } from '../../../_cle-libs/libs/path-utils/path-env.ts';
-import { normalizePath } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { getFilename } from '../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { isoToDate } from '../../../_cle-libs/libs/text/date-utils.ts';
 // constants
 import { ConversationRole } from '../../../_cle-libs/types/conversation-role.const.types.ts';
@@ -82,80 +82,117 @@ export const parseCodexSession = async (
   filePath: string,
   range: PeriodRange,
 ): Promise<ExportedSession | null> => {
-  let lines: string[];
+  const _entries = await _readCodexEntries(filePath);
+  if (!_entries) { return null; }
+
+  // session_meta からセッション情報を取得
+  const _metaEntry = _entries.find((e) => e.type === 'session_meta');
+  if (!_metaEntry) { return null; }
+
+  // 期間チェック（session_meta の timestamp で判定）
+  if (!inPeriod(_metaEntry.timestamp, range)) { return null; }
+
+  const _turns = _entries.map(_extractCodexTurn).filter((t): t is Turn => t !== null);
+
+  // 意味あるユーザーターンがなければスキップ
+  const _firstUserTurn = _turns.find((t) => t.role === ConversationRole.user);
+  if (!_firstUserTurn || isSkippableSession(_firstUserTurn.content)) { return null; }
+
+  const _meta = await _buildCodexSessionMeta(_metaEntry, _firstUserTurn.content);
+  return { meta: _meta, turns: _turns };
+};
+
+/**
+ * Codex JSONL ファイルを読み込み、各行をパースしたエントリ配列を返す。
+ *
+ * 空行は除外し、JSON として解釈できない行は捨てる。
+ *
+ * @param filePath Codex JSONL ファイルの絶対パス
+ * @returns パース済みエントリ配列、ファイルを読み込めない場合は `null`
+ */
+const _readCodexEntries = async (filePath: string): Promise<CodexEntry[] | null> => {
+  let _text: string;
   try {
-    const text = await readTextFile(filePath);
-    lines = text.split('\n').filter((l) => l.trim());
+    _text = await readTextFile(filePath);
   } catch {
     return null;
   }
-
-  const entries: CodexEntry[] = [];
-  for (const line of lines) {
-    try {
-      entries.push(JSON.parse(line));
-    } catch {
-      // skip
-    }
-  }
-
-  // session_meta からセッション情報を取得
-  const metaEntry = entries.find((e) => e.type === 'session_meta');
-  if (!metaEntry) { return null; }
-
-  const sessionId = await resolveSessionId(metaEntry.payload.id);
-  const cwd = metaEntry.payload.cwd ?? '';
-  const project = cwd ? normalizePath(cwd).split('/').pop()! : 'unknown';
-  const sessionTimestamp = metaEntry.timestamp;
-
-  // 期間チェック（session_meta の timestamp で判定）
-  if (!inPeriod(sessionTimestamp, range)) { return null; }
-
-  // 会話ターン抽出（response_item の role=user/assistant）
-  const turns: Turn[] = [];
-  for (const e of entries) {
-    if (e.type !== 'response_item') { continue; }
-    const role = e.payload.role;
-    if (role !== ConversationRole.user && role !== ConversationRole.assistant) { continue; }
-
-    const content = e.payload.content ?? [];
-    const textType = role === ConversationRole.user ? 'input_text' : 'output_text';
-    const parts: string[] = [];
-    for (const c of content) {
-      if (c.type === textType && c.text) {
-        parts.push(c.text);
+  return _text
+    .split('\n')
+    .filter((line) => line.trim())
+    .flatMap((line): CodexEntry[] => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return [];
       }
-    }
-    const text = parts.join('\n').trim();
-    if (!text) { continue; }
-    const cleaned = role === ConversationRole.user ? stripUserInstructions(text) : text;
-    if (!cleaned) { continue; }
-    if (role === ConversationRole.user && isSkippable(cleaned)) { continue; }
+    });
+};
 
-    // user の AGENTS.md/permissions/environment_context/recommended_plugins は除外
-    if (
-      role === ConversationRole.user
-      && CODEX_INJECTED_USER_PREFIXES.some((prefix) => cleaned.startsWith(prefix))
-    ) { continue; }
+/**
+ * user テキストが Codex の自動注入コンテンツか判定する。
+ *
+ * 接頭辞は `CODEX_INJECTED_USER_PREFIXES`（AGENTS.md / permissions /
+ * environment_context / recommended_plugins）で判定する。文中の出現は対象外。
+ *
+ * @param text 判定対象の user テキスト
+ * @returns いずれかの接頭辞で始まる場合は `true`
+ */
+const _isInjectedUserText = (text: string): boolean => {
+  return CODEX_INJECTED_USER_PREFIXES.some((prefix) => text.startsWith(prefix));
+};
 
-    turns.push({ role: role as ConversationRole, content: cleaned });
-  }
+/**
+ * Codex エントリ 1 件から会話ターンを抽出する。
+ *
+ * `response_item` かつ role が user / assistant のエントリのみを対象とし、
+ * user は `input_text`、assistant は `output_text` を改行で連結してトリムする。
+ * user はさらに `<user_instructions>` を除去し、空・スキップ対象・自動注入なら除外する。
+ *
+ * @param entry Codex JSONL のエントリ
+ * @returns 抽出したターン、対象外の場合は `null`
+ */
+const _extractCodexTurn = (entry: CodexEntry): Turn | null => {
+  if (entry.type !== 'response_item') { return null; }
+  const _role = entry.payload.role;
+  if (_role !== ConversationRole.user && _role !== ConversationRole.assistant) { return null; }
 
-  // 意味あるユーザーターンがなければスキップ
-  const firstUserTurn = turns.find((t) => t.role === ConversationRole.user);
-  if (!firstUserTurn) { return null; }
-  if (isSkippableSession(firstUserTurn.content)) { return null; }
+  const _isUser = _role === ConversationRole.user;
+  const _textType = _isUser ? 'input_text' : 'output_text';
+  const _text = (entry.payload.content ?? [])
+    .filter((c) => c.type === _textType && c.text)
+    .map((c) => c.text)
+    .join('\n')
+    .trim();
+  if (!_text) { return null; }
 
-  const date = isoToDate(sessionTimestamp);
-  const meta: SessionMeta = {
-    sessionId,
-    date,
-    project,
+  const _cleaned = _isUser ? stripUserInstructions(_text) : _text;
+  if (!_cleaned) { return null; }
+  if (_isUser && (isSkippable(_cleaned) || _isInjectedUserText(_cleaned))) { return null; }
+
+  return { role: _role as ConversationRole, content: _cleaned };
+};
+
+/**
+ * `session_meta` エントリからセッションメタ情報を組み立てる。
+ *
+ * - `sessionId`: `payload.id` を `resolveSessionId` で解決（欠落時は補完）
+ * - `project`: `payload.cwd` のディレクトリ名、無ければ `'unknown'`
+ * - `date`: `timestamp` の日付部分
+ *
+ * @param metaEntry `session_meta` エントリ
+ * @param firstUserText 最初の user ターンのテキスト
+ * @returns セッションメタ情報（`slug` は空文字）
+ */
+const _buildCodexSessionMeta = async (metaEntry: CodexEntry, firstUserText: string): Promise<SessionMeta> => {
+  const _cwd = metaEntry.payload.cwd ?? '';
+  return {
+    sessionId: await resolveSessionId(metaEntry.payload.id),
+    date: isoToDate(metaEntry.timestamp),
+    project: _cwd ? getFilename(_cwd) : 'unknown',
     slug: '',
-    firstUserText: firstUserTurn.content,
+    firstUserText,
   };
-
-  return { meta, turns };
 };
 
 // ─────────────────────────────────────────────

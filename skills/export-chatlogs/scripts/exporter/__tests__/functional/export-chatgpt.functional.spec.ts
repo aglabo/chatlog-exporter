@@ -71,7 +71,7 @@ async function _writeConvFile(filePath: string, conversations: ChatGPTConversati
  * 正常系: T-EC-GE-01（1件）/ T-EC-GE-06（3件並列）/ T-EC-GE-10（順序保証）
  * スキップ: T-EC-GE-02（parseConversation が null）
  * 境界値: T-EC-GE-03（0件）/ T-EC-GE-04（inputDir 未設定）
- * エラー系: T-EC-GE-05（writeSession 例外）/ T-EC-GE-09（全ファイル読み込み失敗）
+ * エラー系: T-EC-GE-05（writeSession 例外）/ T-EC-GE-09（全ファイル読み込み失敗）/ T-EC-GE-12（配列でない JSON）
  * 混在: T-EC-GE-07（エラー・正常・スキップ混在）/ T-EC-GE-08（複数会話・複数ファイル）
  *
  * @see exportChatGPT
@@ -704,6 +704,58 @@ describe('exportChatGPT', () => {
           '/fake/session-z.md',
         ]);
         assertEquals(result.exportedCount, 3);
+      });
+    });
+  });
+
+  // ─── T-EC-GE-12: 配列でない JSON ファイルと正常ファイルの混在 ─────────────
+  // objFile ('{}') / nullFile ('null') は配列でない → errorCount に計上
+  // validFile は有効会話1件 → exportedCount に計上
+
+  /**
+   * 配列でない JSON の混在ケース。
+   * JSON としては正しいが配列でないファイル（`{}` / `null`）が有効ファイルと混在しても
+   * exportChatGPT が reject せず、非配列ファイルを errorCount に計上することを検証する。
+   */
+  describe('Given: {} のファイル・null のファイル・有効会話1件のファイルを返す Provider', () => {
+    /** `exportChatGPT` を呼び出したときの戻り値を検証する。 */
+    describe('When: exportChatGPT(config, providers) を呼び出す', () => {
+      it('T-EC-GE-12: reject せず exportedCount=1, skippedCount=0, errorCount=2, outputPaths=["/fake/path.md"]', async () => {
+        const objFile = `${tempDir}/conversations-001.json`;
+        const nullFile = `${tempDir}/conversations-002.json`;
+        const validFile = `${tempDir}/conversations-003.json`;
+        const dummyConv: ChatGPTConversation = {
+          id: 'valid',
+          conversation_id: 'conv-uuid-valid',
+          create_time: 1742000000,
+          title: 'valid',
+          mapping: {},
+        };
+        await Promise.all([
+          Deno.writeTextFile(objFile, '{}'),
+          Deno.writeTextFile(nullFile, 'null'),
+          _writeConvFile(validFile, [dummyConv]),
+        ]);
+
+        const config: ExportConfig = {
+          agent: 'chatgpt',
+          exportDir: outputDir,
+          inputDir: tempDir,
+          period: undefined,
+        };
+
+        const result = await exportChatGPT(config, {
+          findFiles: (_baseDir: string): Promise<string[]> => Promise.resolve([objFile, nullFile, validFile]),
+          parseConversation: (_conv: ChatGPTConversation, _range: PeriodRange): Promise<ExportedSession | null> =>
+            Promise.resolve(_makeValidSession()),
+          writeSession: (_outputDir: string, _agent: string, _session: ExportedSession): Promise<string> =>
+            Promise.resolve('/fake/path.md'),
+        });
+
+        assertEquals(result.exportedCount, 1);
+        assertEquals(result.skippedCount, 0);
+        assertEquals(result.errorCount, 2);
+        assertEquals(result.outputPaths, ['/fake/path.md']);
       });
     });
   });

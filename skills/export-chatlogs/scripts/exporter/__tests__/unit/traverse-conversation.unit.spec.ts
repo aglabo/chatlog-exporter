@@ -25,6 +25,7 @@ import type { ChatGPTMappingNode } from '../../types/chatgpt-entry.types.ts';
 //     - message === null
 //     - message.weight === 0（0.0 含む）
 //     - author.role === 'system' または 'tool'
+//   parent が循環する壊れた mapping では、訪問済みノードに戻った時点で遡りを打ち切る（ハングしない）。
 //   フィルタはこの関数内に閉じており、parseChatGPTConversation への副作用はない。
 
 /**
@@ -34,7 +35,7 @@ import type { ChatGPTMappingNode } from '../../types/chatgpt-entry.types.ts';
  * フィルタリングされたメッセージ列を返す関数を検証する。
  * 除外対象: message=null・weight=0・author.role が 'system' または 'tool'。
  * 線形チェーン・weight=0 除外・system/tool role 除外・null メッセージ除外・
- * 存在しないノード ID・weight 未設定の各ケースをカバーする。
+ * 存在しないノード ID・weight 未設定・parent 循環参照の各ケースをカバーする。
  *
  * @see traverseConversation
  */
@@ -321,6 +322,44 @@ describe('traverseConversation', () => {
       const result = traverseConversation(mapping, 'node-1');
       assertEquals(result.length, 1);
       assertEquals(result[0].id, 'msg-1');
+    });
+  });
+
+  // ─── T-EC-GT-02-08: parent が循環する mapping → 訪問済みで打ち切る ───
+
+  /**
+   * parent が循環する壊れた mapping の異常系ケース。
+   * 壊れた mapping で parent が循環してもハングせず、
+   * 訪問済みノードで遡りを打ち切ることを検証する。
+   */
+  describe('Given: parent が互いを指す循環 mapping', () => {
+    it('T-EC-GT-02-08: 循環を検出して遡りを打ち切る', () => {
+      const mapping: Record<string, ChatGPTMappingNode> = {
+        'node-a': {
+          id: 'node-a',
+          message: {
+            id: 'msg-a',
+            author: { role: 'user' },
+            create_time: 1000,
+            content: { content_type: 'text', parts: ['question'] },
+          },
+          parent: 'node-b',
+          children: ['node-b'],
+        },
+        'node-b': {
+          id: 'node-b',
+          message: {
+            id: 'msg-b',
+            author: { role: 'assistant' },
+            create_time: 2000,
+            content: { content_type: 'text', parts: ['answer'] },
+          },
+          parent: 'node-a',
+          children: ['node-a'],
+        },
+      };
+      const result = traverseConversation(mapping, 'node-b');
+      assertEquals(result.map((m) => m.id), ['msg-a', 'msg-b']);
     });
   });
 });

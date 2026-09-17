@@ -14,7 +14,7 @@
 // sessionId 欠落時は resolveSessionId（generateHash）で代替値を生成するため await が必要。
 
 // ─── BDD modules
-import { assertEquals, assertNotEquals } from '@std/assert';
+import { assertEquals, assertNotEquals, assertRejects } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 import { assertNotNull, assertNull } from '../../../../../_cle-libs/__tests__/helpers/assert.ts';
 
@@ -25,7 +25,7 @@ import { parseChatGPTConversation } from '../../chatgpt-exporter.ts';
 // ─── Helpers
 // types
 import type { PeriodRange } from '../../../types/filter.types.ts';
-import type { ChatGPTConversation } from '../../types/chatgpt-entry.types.ts';
+import type { ChatGPTConversation, ChatGPTMessage } from '../../types/chatgpt-entry.types.ts';
 
 // ─── Internal Helpers
 
@@ -77,6 +77,11 @@ function _makeNormalConv(): ChatGPTConversation {
   };
 }
 
+/** conv.mapping[nodeId] のメッセージを返すヘルパー（_makeNormalConv の加工用。message は非 null 前提） */
+function _messageOf(conv: ChatGPTConversation, nodeId: string): ChatGPTMessage {
+  return conv.mapping[nodeId].message!;
+}
+
 // ─── Tests
 
 /**
@@ -85,6 +90,8 @@ function _makeNormalConv(): ChatGPTConversation {
  * 非同期関数として動作し、ChatGPTConversation と PeriodRange を受け取り、
  * ExportedSession または null を返す関数を検証する。
  * period フィルタ・isSkippable 判定・current_node フォールバックの各仕様をカバーする。
+ * 加えて、create_time が NaN のときの RangeError・user ターン 0 件・空本文ターンの除外・
+ * 未知 role（developer）の除外・isSkippableSession によるセッションスキップをカバーする。
  *
  * @see parseChatGPTConversation
  * @see parsePeriod
@@ -306,6 +313,128 @@ describe('parseChatGPTConversation', () => {
         assertNotNull(sessionA);
         assertNotNull(sessionB);
         assertNotEquals(sessionA!.meta.sessionId, sessionB!.meta.sessionId);
+      });
+    });
+  });
+
+  // ─── T-EC-GP-06: create_time 不正 → RangeError ────────────────────────────
+
+  /**
+   * create_time が NaN の会話に対する異常系ケース。
+   * ISO 文字列化で Invalid time value が発生し、Promise が RangeError で reject されることを検証する。
+   */
+  describe('Given: create_time が NaN の会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの reject を検証する。 */
+    describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
+      it('T-EC-GP-06-01: RangeError で reject される', async () => {
+        const conv: ChatGPTConversation = { ..._makeNormalConv(), create_time: NaN };
+        await assertRejects(() => parseChatGPTConversation(conv, ALL_PERIOD), RangeError);
+      });
+    });
+  });
+
+  // ─── T-EC-GP-07: user ターン 0 件 → null ──────────────────────────────────
+
+  /**
+   * user ターンを含まない会話（sys → assistant → assistant）のケース。
+   * 有効な先頭 user ターンが得られないため null を返すことを検証する。
+   */
+  describe('Given: assistant メッセージのみの会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
+    describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
+      // null 理由: no-user-turn（user ターンが 0 件）
+      it('T-EC-GP-07-01: null を返す', async () => {
+        const conv = _makeNormalConv();
+        _messageOf(conv, 'user-1').author.role = 'assistant';
+        const result = await parseChatGPTConversation(conv, ALL_PERIOD);
+        assertNull(result);
+      });
+    });
+  });
+
+  // ─── T-EC-GP-08: 空本文ターンの除外 ───────────────────────────────────────
+
+  /**
+   * 本文が空白のみの assistant ターンを含む会話のケース。
+   * 抽出テキストが空になるターンは turns から除外されることを検証する。
+   */
+  describe('Given: assistant ターンの本文が空白のみの会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの turns を検証する。 */
+    describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
+      it('T-EC-GP-08-01: 空本文の assistant ターンが除外され、user ターンのみが残る', async () => {
+        const conv = _makeNormalConv();
+        _messageOf(conv, 'assist-1').content.parts = ['  '];
+        const result = await parseChatGPTConversation(conv, ALL_PERIOD);
+        assertNotNull(result);
+        assertEquals(result!.turns.length, 1);
+        assertEquals(result!.turns[0].role, 'user');
+        assertEquals(result!.turns[0].content, 'コードレビューをお願いします');
+      });
+    });
+  });
+
+  // ─── T-EC-GP-09: 未知 role の除外 ─────────────────────────────────────────
+
+  /**
+   * user / assistant 以外の role（'developer'）のメッセージを経路上に含む会話のケース。
+   * 未知 role のメッセージは turns に含まれないことを検証する。
+   */
+  describe('Given: user と assistant の間に developer ロールのメッセージを含む会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの turns を検証する。 */
+    describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
+      it('T-EC-GP-09-01: developer ロールのメッセージが turns に含まれない', async () => {
+        const conv = _makeNormalConv();
+        conv.mapping['dev-1'] = {
+          id: 'dev-1',
+          message: {
+            id: 'msg-dev-1',
+            author: { role: 'developer' },
+            create_time: 1742000005,
+            content: { content_type: 'text', parts: ['開発者向けの指示文です'] },
+          },
+          parent: 'user-1',
+          children: ['assist-1'],
+        };
+        conv.mapping['user-1'].children = ['dev-1'];
+        conv.mapping['assist-1'].parent = 'dev-1';
+        const result = await parseChatGPTConversation(conv, ALL_PERIOD);
+        assertNotNull(result);
+        assertEquals(result!.turns.length, 2);
+        assertEquals(result!.turns.map((t) => t.role), ['user', 'assistant']);
+        assertEquals(result!.turns.map((t) => t.content), ['コードレビューをお願いします', 'コードを確認しました。']);
+      });
+    });
+  });
+
+  // ─── T-EC-GP-10: セッションスキップ → null ────────────────────────────────
+
+  /**
+   * 先頭 user テキストが isSkippableSession に該当する会話のケース。
+   * SESSION_SKIP_KEYWORDS（'commit message generator'）を含むセッションは null を返すことを検証する。
+   */
+  describe('Given: 先頭 user テキストに SESSION_SKIP_KEYWORDS を含む会話', () => {
+    /** `parseChatGPTConversation` を呼び出したときの戻り値を検証する。 */
+    describe('When: parseChatGPTConversation(conv, allPeriod) を呼び出す', () => {
+      // null 理由: skippable-session（自動生成セッション）
+      it('T-EC-GP-10-01: null を返す', async () => {
+        const conv = _makeNormalConv();
+        // 空文字でなく、SKIP_PREFIXES の前方一致にも短文肯定（SKIP_EXACT）の完全一致にも該当しないため、
+        // ターン単位の isSkippable では除外されない
+        _messageOf(conv, 'user-1').content.parts = [
+          'You are a commit message generator. Write a message for the staged diff.',
+        ];
+        const result = await parseChatGPTConversation(conv, ALL_PERIOD);
+        assertNull(result);
+      });
+
+      // 対照: キーワードを含まない同形の文では null にならない（GP-10-01 の null が isSkippableSession 由来であることを示す）
+      it('T-EC-GP-10-02: キーワードを含まない同形の文では null を返さず turns[0] にその文が入る', async () => {
+        const conv = _makeNormalConv();
+        const _text = 'You are a code reviewer. Write a message for the staged diff.';
+        _messageOf(conv, 'user-1').content.parts = [_text];
+        const result = await parseChatGPTConversation(conv, ALL_PERIOD);
+        assertNotNull(result);
+        assertEquals(result!.turns[0].content, _text);
       });
     });
   });

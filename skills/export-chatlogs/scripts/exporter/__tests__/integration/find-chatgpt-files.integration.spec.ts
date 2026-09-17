@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -26,6 +26,7 @@ import { findChatGPTFiles } from '../../chatgpt-exporter.ts';
  * - conversations-*.json ファイルのみを収集する（glob フィルタ）
  * - 全パスが .json 拡張子で終わる
  * - ディレクトリが存在しないとき空配列を返す（例外なし）
+ * - NotFound 以外の例外 (例: baseDir が通常ファイル → NotADirectory) は再スローする
  * - conversations-*.json 以外のファイルは除外される
  * - 複数ファイルは辞書順ソートされて返される
  *
@@ -130,6 +131,28 @@ describe('findChatGPTFiles', () => {
         const result = await findChatGPTFiles(tempDir);
         const sorted = [...result].sort();
         assertEquals(result, sorted);
+      });
+    });
+  });
+
+  // ─── T-EC-GF-05: NotFound 以外の例外 → 再スロー ──────────────────────────
+
+  /**
+   * NotFound 以外の読み取りエラーの異常系ケース。
+   * baseDir が通常ファイルのとき、空配列で握りつぶさず例外を再スローすることを検証する。
+   */
+  describe('Given: baseDir が通常ファイルである', () => {
+    let filePath: string;
+
+    beforeEach(async () => {
+      filePath = `${tempDir}/not-a-dir.txt`;
+      await Deno.writeTextFile(filePath, 'x');
+    });
+
+    /** `findChatGPTFiles` を呼び出したときの例外を検証する。 */
+    describe('When: findChatGPTFiles(filePath) を呼び出す', () => {
+      it('T-EC-GF-05-01: Deno.errors.NotADirectory で reject する', async () => {
+        await assertRejects(() => findChatGPTFiles(filePath), Deno.errors.NotADirectory);
       });
     });
   });
