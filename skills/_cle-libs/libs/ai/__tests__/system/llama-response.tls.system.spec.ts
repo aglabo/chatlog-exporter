@@ -39,6 +39,15 @@ const _TARGET_URL = new URL('../../llama-response.ts', import.meta.url).href;
 const _CHILD_TIMEOUT_MS = 30_000;
 
 /**
+ * 証明書生成で openssl に `-config` で渡す最小設定。
+ *
+ * 環境の `OPENSSL_CONF` が別バージョンの openssl 用設定を指していると、`req -x509` が既定で読む
+ * `v3_ca` セクションを解釈できず失敗する（例: 3.5.x は 4.x 記法の `keyid:nonss` を解釈できない）。
+ * `x509_extensions` を持たない設定を渡し、実行環境の設定ファイルに依存しないようにする。
+ */
+const _OPENSSL_MIN_CONFIG = '[req]\ndistinguished_name = req_dn\n[req_dn]\n';
+
+/**
  * 子 Deno プロセスで実行するコード。
  *
  * 引数 `[certPath, keyPath, targetUrl]` を受け取り、自己署名証明書の TLS サーバへ fetch した
@@ -110,9 +119,13 @@ const _versionNote = (detail: string): string =>
 async function _generateSelfSignedCert(dir: string): Promise<{ certPath: string; keyPath: string }> {
   const _certPath = joinPath(dir, 'cert.pem');
   const _keyPath = joinPath(dir, 'key.pem');
+  const _configPath = joinPath(dir, 'openssl.cnf');
+  await Deno.writeTextFile(_configPath, _OPENSSL_MIN_CONFIG);
   const _args = [
     'req',
     '-x509',
+    '-config',
+    _configPath,
     '-newkey',
     'rsa:2048',
     '-nodes',

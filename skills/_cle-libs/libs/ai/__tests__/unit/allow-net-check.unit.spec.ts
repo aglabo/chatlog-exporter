@@ -30,12 +30,26 @@ type _ConformingCase = {
 /**
  * 付与エイリアス（値付き `--allow-net=<host>` / `-N=<host>`・`-N`・`-A`・`--allow-all`）を `--allow-net` の付与として扱う判定テーブルの 1 行。
  * 期待値は `forbidden` と `required` の両方をとる。期待適合性は expectation から導出する（forbidden → 不適合、required → 適合）。
+ * 期待適合性を expectation から導出できない結合短縮フラグのケースは `_CombinedShortFlagCase` を使う。
  */
 type _GrantAliasCase = {
   readonly id: string;
   readonly label: string;
   readonly line: string;
   readonly expectation: AllowNetExpectation;
+};
+
+/**
+ * 結合短縮フラグ（`-` + 英字 2 文字以上、`=<値>` 付きを含む）を含む行の判定テーブルの 1 行。
+ * DR-34 により結合短縮フラグは期待値にかかわらず不適合となるため、`expectation` から `conforming` を導出できない。
+ * 対照ケース（単独短縮フラグ）も同じテーブルで回すので、両者を独立したフィールドとして持つ。
+ */
+type _CombinedShortFlagCase = {
+  readonly id: string;
+  readonly label: string;
+  readonly line: string;
+  readonly expectation: AllowNetExpectation;
+  readonly conforming: boolean;
 };
 
 /** 判定対象外テーブルの 1 行。 */
@@ -101,7 +115,7 @@ const _requiredCases: readonly _ConformingCase[] = [
 ];
 
 /**
- * 付与エイリアス（値付き `--allow-net=<host>` / `-N=<host>`・`-N`・`-A`・`--allow-all`・`N` / `A` を含む結合短縮フラグ）を含む行 fixture と期待値。
+ * 付与エイリアス（値付き `--allow-net=<host>` / `-N=<host>`・`-N`・`-A`・`--allow-all`）を含む行 fixture と期待値。
  * 期待適合性は expectation から導出する（forbidden → 不適合、required → 対照として適合）。
  * フラグ集合に `--allow-net` そのものは含まれないため、`_forbiddenCases` / `_requiredCases` とは別に検証する。
  */
@@ -137,24 +151,6 @@ const _grantAliasCases: readonly _GrantAliasCase[] = [
     expectation: 'forbidden',
   },
   {
-    id: 'T-LIB-AI-NET-04-10',
-    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -NR に置換',
-    line: 'deno run -NR "$STRIP_PATH" $STRIP_ARGS',
-    expectation: 'forbidden',
-  },
-  {
-    id: 'T-LIB-AI-NET-04-11',
-    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RN に置換',
-    line: 'deno run -RN "$STRIP_PATH" $STRIP_ARGS',
-    expectation: 'forbidden',
-  },
-  {
-    id: 'T-LIB-AI-NET-04-12',
-    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RA に置換',
-    line: 'deno run -RA "$STRIP_PATH" $STRIP_ARGS',
-    expectation: 'forbidden',
-  },
-  {
     id: 'T-LIB-AI-NET-05-05',
     label: 'SKILL.md 実行行のフラグ列を -A に置換（対照）',
     line: 'deno run --config ./deno.json -A "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
@@ -179,6 +175,99 @@ const _grantAliasCases: readonly _GrantAliasCase[] = [
     line:
       'deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env -N "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
     expectation: 'required',
+  },
+];
+
+/**
+ * 結合短縮フラグを含む行 fixture と、期待値・期待適合性の組（DR-34）。
+ * 結合短縮フラグを含む行は `required` / `forbidden` のいずれでも不適合とする。最終行は単独短縮フラグ `-R` の対照。
+ * `04-10` 〜 `04-13` は `_grantAliasCases` から移動した行で、結合短縮フラグであること自体により不適合となる。
+ */
+const _combinedShortFlagCases: readonly _CombinedShortFlagCase[] = [
+  {
+    id: 'T-LIB-AI-NET-04-10',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -NR に置換',
+    line: 'deno run -NR "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-04-11',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RN に置換',
+    line: 'deno run -RN "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-04-12',
+    label: 'filter $STRIP_PATH のフラグ列を結合短縮フラグ -RA に置換',
+    line: 'deno run -RA "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-04-13',
+    label: 'filter $STRIP_PATH のフラグ列を値付き結合短縮フラグ -RN=api.x に置換',
+    line: 'deno run -RN=api.x "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-01',
+    label: 'SKILL.md 実行行のフラグ列を結合短縮フラグ -RN に置換',
+    line: 'deno run --config ./deno.json -RN "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-02',
+    label: 'SKILL.md 実行行のフラグ列を結合短縮フラグ -RA に置換',
+    line: 'deno run --config ./deno.json -RA "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-03',
+    label: 'SKILL.md 実行行のフラグ列を値付き結合短縮フラグ -NR=api.x に置換',
+    line: 'deno run --config ./deno.json -NR=api.x "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-04',
+    label: 'filter $STRIP_PATH のフラグ列を N / A を含まない結合短縮フラグ -RE に置換',
+    line: 'deno run -RE "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-06',
+    label: 'SKILL.md 実行行に --allow-net と結合短縮フラグ -RE を併記',
+    line:
+      'deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net -RE "$SCRIPT_PATH" [agent] [YYYY-MM] [オプション]',
+    expectation: 'required',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-07',
+    label: 'filter $STRIP_PATH のフラグ列を英字 3 文字の結合短縮フラグ -ENV に置換',
+    line: 'deno run -ENV "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-08',
+    label: 'filter $STRIP_PATH のフラグ列を小文字の結合短縮フラグ -rn に置換',
+    line: 'deno run -rn "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: false,
+  },
+  {
+    id: 'T-LIB-AI-NET-09-05',
+    label: 'filter $STRIP_PATH のフラグ列を単独短縮フラグ -R に置換（対照）',
+    line: 'deno run -R "$STRIP_PATH" $STRIP_ARGS',
+    expectation: 'forbidden',
+    conforming: true,
   },
 ];
 
@@ -208,7 +297,7 @@ const _flagSetCases: readonly { readonly id: string; readonly line: string; read
  *
  * fixture 文字列を純関数に渡し、フラグ抽出と適合判定を検証する。
  *
- * テスト ID 範囲: T-LIB-AI-NET-04-01 〜 T-LIB-AI-NET-06-07
+ * テスト ID 範囲: T-LIB-AI-NET-04-01 〜 T-LIB-AI-NET-06-07, T-LIB-AI-NET-09-01 〜 T-LIB-AI-NET-09-08
  *
  * @see extractDenoRunFlags
  * @see checkAllowNet
@@ -240,6 +329,14 @@ describe('allow-net-check', () => {
         const _result = checkAllowNet(tc.line, tc.expectation);
         assert(!_result.excluded, 'excluded になってはならない');
         assertEquals(_result.conforming, _conforming);
+      });
+    }
+
+    for (const tc of _combinedShortFlagCases) {
+      it(`[Error] ${tc.id}: ${tc.expectation} / ${tc.label} → ${tc.conforming ? '適合' : '不適合'}`, () => {
+        const _result = checkAllowNet(tc.line, tc.expectation);
+        assert(!_result.excluded, 'excluded になってはならない');
+        assertEquals(_result.conforming, tc.conforming);
       });
     }
   });
