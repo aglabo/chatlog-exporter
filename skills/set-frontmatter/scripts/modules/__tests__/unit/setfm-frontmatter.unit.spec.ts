@@ -36,6 +36,7 @@ import type {
   CommandMockHandle,
   DenoCommandLike,
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
@@ -267,7 +268,7 @@ const _useDefaultGlobalConfig = (): void => {
  * @see generateFrontmatter
  */
 describe('generateFrontmatter', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let commandHandle: CommandMockHandle;
 
@@ -574,7 +575,7 @@ describe('generateFrontmatter', () => {
  * @see reviewFrontmatter
  */
 describe('generateFrontmatter / reviewFrontmatter — maxRetry ループは転送エラーを retry しない', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let commandHandle: CommandMockHandle | undefined;
 
@@ -618,7 +619,7 @@ describe('generateFrontmatter / reviewFrontmatter — maxRetry ループは転�
  * @see generateFrontmatter
  */
 describe('generateFrontmatter — 出力契約（outputContract）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
     it('[Normal] T-SF-OCT-01-01: options に #4 yaml 契約（firstField title、topics / tags 要素 enum）が渡り true を返す', async () => {
@@ -691,7 +692,7 @@ describe('generateFrontmatter — 出力契約（outputContract）', () => {
  * @see buildFrontmatterOutputContract
  */
 describe('buildFrontmatterOutputContract', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: 正常系', () => {
     it("[Normal] T-SF-OCT-07-01: tags: 'typescript,deno' → tags の値域が ['typescript', 'deno'] になる", () => {

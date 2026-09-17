@@ -15,6 +15,7 @@ import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
 import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
@@ -53,7 +54,7 @@ const _useDefaultGlobalConfig = (): void => {
 // ─── T-SF-E2E-01: dry-run → ファイル変更なし ─────────────────────────────────
 
 describe('main - dry-run モード', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: 1件の .md ファイルと dry-run フラグ', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--dry-run", ...]) を呼び出す', () => {
@@ -210,7 +211,7 @@ describe('main - dry-run モード', () => {
 // ─── T-SF-DR: dry-run 完了ログと dry-run ループ対象 ──────────────────────────
 
 describe('main - dry-run 完了ログ (T-SF-DR)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /**
    * `dry-run` 時の完了ログと `[dry-run]` ループ対象の検証。
@@ -508,7 +509,7 @@ describe('main - dry-run 完了ログ (T-SF-DR)', () => {
 // ─── T-SF-DR-06: dry-run ステータス別集計 ────────────────────────────────────
 
 describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /**
    * `--dry-run` 時、全エントリを到達 status ごとに集計した `dry-run 集計:` ログを検証する。
@@ -687,7 +688,7 @@ describe('main - dry-run ステータス別集計 (T-SF-DR-06)', () => {
 // ─── T-SF-E2E-DR-05: dry-run → FAIL(yaml空) が出ない ────────────────────────
 
 describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /**
    * `--dry-run` 実行時は Phase 4 の FAIL 判定をスキップし、

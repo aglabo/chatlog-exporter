@@ -15,6 +15,7 @@ import { main } from '../../set-frontmatter.ts';
 
 // ─── Helpers
 import { installCommandMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
@@ -46,7 +47,7 @@ const _useDefaultGlobalConfig = (): void => {
 // ─── T-SF-E2E-10: --cache-dir が ChatlogCache に渡される ─────────────────────────
 
 describe('main - --cache-dir オプション', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: inputDir に test.md を配置し、--cache-dir を明示指定', () => {
     describe('When: main() を呼び出す', () => {

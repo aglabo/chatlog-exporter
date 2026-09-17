@@ -29,6 +29,7 @@ import type {
   CommandMockHandle,
   DenoCommandLike,
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
@@ -227,7 +228,7 @@ const _useDefaultGlobalConfig = (): void => {
  * @see reviewFrontmatter
  */
 describe('reviewFrontmatter', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let commandHandle: CommandMockHandle;
 
@@ -639,7 +640,7 @@ describe('reviewFrontmatter', () => {
  * @see reviewFrontmatter
  */
 describe('reviewFrontmatter — 出力契約（outputContract）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
     it('[Normal] T-SF-OCT-02-01: options に #5 yaml 契約（firstField validity、corrected_frontmatter 入れ子 object）が渡り pass を返す', async () => {
@@ -721,7 +722,7 @@ describe('reviewFrontmatter — 出力契約（outputContract）', () => {
  * @see buildReviewOutputContract
  */
 describe('buildReviewOutputContract', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /** 契約組み立て用 Dics。category / tags だけをケースごとに差し替える。 */
   const _makeDics = (category: string, tags: string): Dics => ({
