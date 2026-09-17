@@ -2002,7 +2002,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Rule: error-handling R-001 / DR-26 決定 1
   - Scenario: Given 実行時に openssl で生成した自己署名証明書で `127.0.0.1` に TLS サーバを立て、`--allow-net` を持つ子 Deno プロセスから `fetch` する, When その reject 値を `mapLlamaFetchFailure` に渡す
   - Expected: Then `cause` チェーンに `invalid peer certificate` が含まれ、チェーンに `Deno.errors.NotCapable` が含まれず、`subindex: BackendUnavailable` かつ `error.message` に runtime 由来である旨が含まれること。失敗時は検証済み Deno 版 (2.9.6) と実行中の版を示す
-  - Note: rustls の文言は Deno 版に依存する（cle-eft.9）。本ケースは Deno 更新で文言が変わったことを検知するための回帰であり、版に関わらず常に実行する。openssl が解決できない環境では失敗させる（黙って ignore しない）
+  - Note: rustls の文言は Deno 版に依存する（cle-eft.9）。本ケースは Deno 更新で文言が変わったことを検知するための回帰である。ループバック通信と openssl を伴う実測テストのため、`RUN_AI=1`（`--use-ai`）指定時のみ実行し、既定の実行では ignore する（DR-21 決定 6）。`RUN_AI=1` で openssl が解決できない環境では失敗させる（黙って skip しない）
 
 ---
 
