@@ -14,10 +14,13 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { loadClassifyEntries } from '../../load-entries.ts';
 
+// ─── Collaborators
+import { partitionEntries } from '../../../phases/phase-partition.ts';
+
 // ─── Helpers
 // types
 import type { FrontmatterFields } from '../../../../../_cle-libs/types/frontmatter.types.ts';
-import type { FindBufferEntriesOptions } from '../../../types/classify.types.ts';
+import type { FindBufferEntriesOptions, ProjectDicEntry } from '../../../types/classify.types.ts';
 import type { LoadClassifyEntryFailure } from '../../../types/load-classify-entry.types.ts';
 
 // constants
@@ -40,6 +43,9 @@ const _makeErrorResult = (path: string): LoadClassifyEntryFailure => ({
   error: new Error('load failed'),
 });
 
+/** テスト用プロジェクト辞書。`proj-a` のみを含む。 */
+const _projects: ProjectDicEntry = { 'proj-a': {} };
+
 // ─── Tests
 
 /**
@@ -47,9 +53,10 @@ const _makeErrorResult = (path: string): LoadClassifyEntryFailure => ({
  *
  * ファイルパス一覧から `ChatlogEntry` を読み込み、成功分（`entries`）と失敗分（`errors`）に分離する。
  * 成功エントリについては必ず `action`（既定値 `EMPTY`）をキャッシュへ書き込み、既存 project frontmatter が
- * あれば同じ書き込みに含める。読み込み失敗エントリはキャッシュへエラー記録したうえで `errors` に含める。
+ * プロジェクト辞書に存在する場合のみ同じ書き込みに含める。読み込み失敗エントリはキャッシュへエラー記録した
+ * うえで `errors` に含める。cache に残った辞書外 `project` も同じ述語で落とす。
  *
- * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-05
+ * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-09
  *
  * @see loadClassifyEntries
  */
@@ -62,7 +69,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project: 'proj-a' })),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
 
       assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
       assertEquals(_result.errors.length, 0);
@@ -77,7 +84,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeEntry(_filePath, {})),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
 
       assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
       assertEquals(_result.errors.length, 0);
@@ -104,6 +111,7 @@ describe('loadClassifyEntries', () => {
         [_withProject, _errorPath, _noProject],
         _cache,
         { concurrency: 4 },
+        _projects,
         _opts,
       );
 
@@ -115,6 +123,66 @@ describe('loadClassifyEntries', () => {
       assertEquals(_cache.read(_noProject).project, undefined);
       assertEquals(_cache.read(_noProject).action, CLASSIFY_ACTIONS.EMPTY);
     });
+
+    it('[Normal] T-CL-LCE-06: frontmatter の project が辞書外 → cache に project が書き込まれない', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/unknown.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project: 'not-in-dic' })),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
+
+      assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
+      assertEquals(_cache.read(_filePath).project, undefined);
+      assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.EMPTY);
+    });
+
+    it('[Normal] T-CL-LCE-07: frontmatter の project が辞書外 → partitionEntries で uncached に入る', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/unknown.md';
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project: 'not-in-dic' })),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
+      const _partition = partitionEntries(_result.entries, _cache);
+
+      assertEquals(_partition.uncached.map((e) => e.filePath), [_filePath]);
+      assertEquals(_partition.cached.length, 0);
+    });
+
+    it('[Normal] T-CL-LCE-08: cache に残った辞書外 project → cache から落ち partitionEntries で uncached に入る', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/stale.md';
+      await _cache.write(_filePath, { project: 'not-in-dic', action: CLASSIFY_ACTIONS.MOVE });
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, {})),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
+      const _partition = partitionEntries(_result.entries, _cache);
+
+      assertEquals(_cache.read(_filePath).project, undefined);
+      assertEquals(_partition.uncached.map((e) => e.filePath), [_filePath]);
+      assertEquals(_partition.cached.length, 0);
+    });
+
+    it('[Normal] T-CL-LCE-09: cache に残った辞書内 project → cache に保持され partitionEntries で cached に入る', async () => {
+      const _cache = await _makeEmptyClassifyCache();
+      const _filePath = '/tmp/input/kept.md';
+      await _cache.write(_filePath, { project: 'proj-a', action: CLASSIFY_ACTIONS.MOVE });
+      const _opts: FindBufferEntriesOptions = {
+        loadMeta: () => Promise.resolve(_makeEntry(_filePath, {})),
+      };
+
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
+      const _partition = partitionEntries(_result.entries, _cache);
+
+      assertEquals(_cache.read(_filePath).project, 'proj-a');
+      assertEquals(_partition.cached.map((e) => e.filePath), [_filePath]);
+      assertEquals(_partition.uncached.length, 0);
+    });
   });
 
   describe('When: エッジケース', () => {
@@ -125,7 +193,7 @@ describe('loadClassifyEntries', () => {
         loadMeta: () => Promise.resolve(_makeErrorResult(_filePath)),
       };
 
-      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _opts);
+      const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
 
       assertEquals(_result.entries.length, 0);
       assertEquals(_result.errors.map((e) => e.filePath), [_filePath]);
@@ -139,7 +207,7 @@ describe('loadClassifyEntries', () => {
         const _filePath = `${_tempDir}/bad-yaml.md`;
         await Deno.writeTextFile(_filePath, '---\ntitle: [unclosed\n---\n本文');
 
-        const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 });
+        const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects);
 
         assertEquals(_result.entries.length, 0);
         assertEquals(_result.errors.map((e) => e.filePath), [_filePath]);
