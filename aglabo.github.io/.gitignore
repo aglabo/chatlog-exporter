@@ -1,17 +1,56 @@
 # src: .gitignore
-# @(#) : ignore settings for chatlog-exporter
+# @(#) : ignore settings for chatlog-exporter website
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-## blume
-.blume/
+# default: ignore all files
+*
 
-# ignore node modules
+# Allow directories, so git descends into them
+!*/
+
+# Deny build artifacts & dependencies (must come after `!*/`)
+.blume/
+.blume-verify/
+dist/
 node_modules/
 
-# created page dir
-dist/
-.blume-verify/
+# Allow git settings
+!**/.gitignore
+
+# Allow sources & configs
+!**/*.ts
+!**/*.mts
+!**/*.js
+!**/*.mjs
+!**/*.json
+!**/*.yaml
+!**/*.yml
+!**/*.toml
+
+# Allow contents
+!**/*.md
+!**/*.mdx
+!**/*.astro
+!**/*.css
+!**/*.svg
+!**/*.png
+!**/*.jpg
+!**/*.webp
+!**/*.ico
+
+# Allow public assets (extension-less dotfiles such as .nojekyll)
+!/public/**
+
+# Allow README, LICENSE, CONTRIBUTING
+!**/README*
+!**/LICENSE*
+!**/CONTRIBUTING*
+
+# Allow AI agent docs & editor settings
+!**/AGENTS.md
+!**/CLAUDE*.md
+!**/.editorconfig
