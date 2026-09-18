@@ -7,123 +7,150 @@
 # https://opensource.org/licenses/MIT
 
 
-##  General
-#   OS specific files
-.DS_Store
-thumbs.db
+# default: ignore all files
+*
 
-#   logs, patches
-*.log
-*.diff
-*.patch
+## Allow Template files
+!/templates
+!/templates/**
 
-#   history, cache
-.history/
-.cache/
-# **/*cache
+# Allow README, LICENSE, CONTRIBUTING
+!**/README*
+!**/LICENSE*
+!**/CONTRIBUTING*
 
+# Allow .github directories
+!.github/
+!.github/**
 
-#   backup/swap/temp
-$~*
-~*
-*~
-*.tmp
-*.swp
-*.lock
-# lock files are tracked
-!deno.lock
-!pnpm-lock.yaml
+# Allow other ignore
+!*ignore
 
-# session files
-*.session.json
-**/session.json
-**/*.session.json
+# Allow editorconfig
+!**/.editorconfig
 
-# .env files
-.env*
+# Allow settings
+!**/settings.json
+
+## Root configs
+!**/package.json
+!**/pnpm-lock.yaml
+!/renovate.json
+!/lefthook.yml
+!/dprint.jsonc
+!/.shellspec
+!/.mcp.json
+!/mise.toml
+
+# ChangeLog
+!**/CHANGELOG.md
+!**/Release-Note.md
+
+# deno
+!/deno.json
+!/deno.lock
+
+## .env
+.env
 .env.*
-# example environment file
 !.env.example
 
-# build
-dist/
+## Config
+# chatlog-exporter configs (source tree consumed by scripts/sync-skill-assets.sh)
+!/.config/
+!/.config/chatlog-exporter/
+!/.config/chatlog-exporter/**
 
-# release
-releases/*
-!releases/.keep
+# config files
+!/configs/
+!/configs/**
+!/configs/**/*.json
+!/configs/**/*.yml
+!/configs/**/*.yaml
+!/configs/**/*.toml
+!/configs/**/*rc
+!/configs/**/*.js
+!/configs/**/*.mjs
 
-#
-.local/*
+# runners & scripts
+!/runners
+!/runners/**
+!/runners/**/*.sh
+!/scripts
+!/scripts/**
+!/scripts/**/*.sh
+!/scripts/**/*.ts
 
+## AI Agents
+# codex, etc
+!**/AGENTS.md
 
-## Development tools (installed locally)
-.tools/
+# claude code
+!**/CLAUDE*.md
 
-## Worktrees
-# worktree base dir
-.worktrees/
-
-## Coverage
-coverage*/
-
-## AI generated files
-
-## Coding AI depended
-# SDD (Spec-Driven Development) files
-
-# claude code setting
-.claude/*
-
-# settings
-!.claude/**/settings.json
-
-# agents can tracking
+# allowlist details: .claude/.gitignore
+!.claude/
 !**/CLAUDE*.md
 !.claude/agents/
 !.claude/agents/**
+!.claude/agents/**/*.md
+!.claude/hooks/
+!.claude/hooks/**
+!.claude/hooks/**/*.sh
 !.claude/rules/
 !.claude/rules/**
+!.claude/rules/**/*.md
+!.claude/skills/
+!.claude/skills/**
+!.claude/skills/**/*.md
+!.claude/skills/**/*.ts
+
+# for IDD lib
 !.claude/commands/
 !.claude/commands/**
-
-# MCP server dependency files
-.cocoindex_code/
-.serena/
-.lsmcp/
-.codegraph/
-.cocoindex_code/
-
-## Temporary directories are never tracked
-temp/
-tmp/
-**/temp/
-**/tmp/
+!.claude/commands/**/*.sh
 
 ##  Editor
 #   VSCode
-.vscode/*
+!.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 !.vscode/cspell*
+!.vscode/cspell*/**
 
-## Node
-node_modules/
-.pnpm-store/
+
 
 ## beads
 .beads/*
-!**/.gitignore
 !.beads/config.yaml
 !.beads/issues.jsonl
 
+# WebSite
+# contents are allowlisted by aglabo.github.io/.gitignore.
+# NOTE: the directory line below must stay - root's `*` matches the directory
+#       itself, and git would never descend to read the nested .gitignore.
+!aglabo.github.io/
 
-# Beads / Dolt files (added by bd init)
-.dolt/
-*.db
-.beads-credential-key
+## Projects
+# projects main
+!skills/
+!skills/**
+!skills/**/*.md
+!skills/**/*.ts
+
+# projects docs
+!docs
+!docs/**
+!docs/**/*.md
+
 
 ##  Git
+# allow git settings
+!/.git*
+
+# allow all gitignore
 !**/.gitignore
+
