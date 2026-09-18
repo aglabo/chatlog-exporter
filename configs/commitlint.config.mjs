@@ -10,7 +10,6 @@
 export default {
   extends: ['@commitlint/config-conventional'],
 
-
   parserPreset: {
     parserOpts: {
       headerPattern: /^(?:(merge)\s+\(#(\d+)\):\s+)?(\w+)(?:\(([^)]+)\))?!?: (.+)$/,
