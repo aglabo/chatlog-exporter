@@ -35,6 +35,16 @@ is_lefthook_installed() {
 }
 
 ##
+# @description Print how to put an installed tool on PATH and that a new shell is required
+# @arg $1 string Directory to prepend to PATH
+print_path_hint() {
+  local path_entry="$1"
+  echo "  Add to PATH: export PATH=\"${path_entry}:\$PATH\""
+  echo "  This entry is NOT active in the current shell."
+  echo "  Write it to your shell profile, then restart the shell (or re-source the profile)."
+}
+
+##
 # @description Check if shellspec is already installed in specified directory
 # @arg $1 string Directory path where shellspec should be installed
 # @return 0 If shellspec is installed
@@ -42,16 +52,6 @@ is_lefthook_installed() {
 is_shellspec_installed() {
   local install_dir="$1"
   [[ -f "${install_dir}/shellspec" ]]
-}
-
-##
-# @description Check if agla-doc-tools is already installed in specified directory
-# @arg $1 string Directory path where agla-doc-tools should be installed
-# @return 0 If agla-doc-tools is installed
-# @return 1 If agla-doc-tools is not installed
-is_agla_doc_tools_installed() {
-  local install_dir="$1"
-  [[ -f "${install_dir}/bin/textlint" ]]
 }
 
 ##
@@ -73,6 +73,7 @@ setup_shellspec() {
 
   if is_shellspec_installed "$install_dir"; then
     echo "shellspec is already installed in $install_dir"
+    print_path_hint "\$PWD/$install_dir"
     return 0
   fi
 
@@ -81,7 +82,7 @@ setup_shellspec() {
   # Clone shellspec repository
   if git clone --depth 1 https://github.com/shellspec/shellspec.git "$install_dir" >/dev/null 2>&1; then
     echo "shellspec installed successfully to $install_dir"
-    echo "Add to PATH: export PATH=\"\$PWD/$install_dir:\$PATH\""
+    print_path_hint "\$PWD/$install_dir"
     return 0
   else
     echo "Error: shellspec installation failed" >&2
@@ -90,51 +91,55 @@ setup_shellspec() {
 }
 
 ##
-# @description Install agla-doc-tools to specified directory
-#
-# Provides the remark / textlint / cspell executables used by the lint:* scripts.
-# These are not local devDependencies: the toolchain is centralized in
-# aglabo/agla-doc-tools, which exposes bin/ wrappers that run each CLI against
-# its own node_modules. The lint:* scripts are local-only, so this install is
-# skipped in CI along with the rest of main().
-#
-# @arg $1 string Directory path where agla-doc-tools will be installed
-#               (default: ${HOME}/.local/tools/agla-doc-tools, shared across repositories)
-# @return 0 If installation succeeds
-# @return 1 If installation fails
-setup_agla_doc_tools() {
-  local install_dir="${1:-${HOME}/.local/tools/agla-doc-tools}"
+# @description Check if an aglabo tool is already checked out
+# @arg $1 string Repository name (e.g. agla-dev-tools)
+# @arg $2 string Directory path where aglabo tools are checked out
+# @return 0 If the tool is installed
+# @return 1 If the tool is not installed
+is_agla_tool_installed() {
+  local repo="$1"
+  local tools_dir="$2"
+  [[ -d "${tools_dir}/${repo}/bin" ]]
+}
 
-  if is_agla_doc_tools_installed "$install_dir"; then
-    echo "agla-doc-tools is already installed in $install_dir"
+##
+# @description Check out an aglabo tool repository
+# @arg $1 string Repository name (e.g. agla-dev-tools)
+# @arg $2 string Directory path where aglabo tools are checked out (default: ~/.local/tools)
+# @return 0 If installation succeeds or is skipped
+# @return 1 If installation fails
+setup_agla_tool() {
+  local repo="$1"
+  local tools_dir="${2:-${HOME}/.local/tools}"
+  local install_dir="${tools_dir}/${repo}"
+
+  if is_agla_tool_installed "$repo" "$tools_dir"; then
+    echo "$repo is already installed in $install_dir"
+    print_path_hint "$install_dir/bin"
     return 0
   fi
 
-  echo "Installing agla-doc-tools to $install_dir..."
+  echo "Installing $repo to $install_dir..."
 
-  if ! git clone --depth 1 https://github.com/aglabo/agla-doc-tools.git "$install_dir" >/dev/null 2>&1; then
-    echo "Error: agla-doc-tools clone failed" >&2
+  mkdir -p "$tools_dir"
+
+  # Clone aglabo tool repository
+  if git clone --depth 1 "https://github.com/aglabo/${repo}.git" "$install_dir" >/dev/null 2>&1; then
+    echo "$repo installed successfully to $install_dir"
+    print_path_hint "$install_dir/bin"
+    return 0
+  else
+    echo "Error: $repo installation failed" >&2
+    if [[ -d "$install_dir" ]]; then
+      echo "Hint: $install_dir already exists but is incomplete. Remove it and retry." >&2
+    fi
     return 1
   fi
-
-  # bin/ wrappers resolve the CLIs from the tool repository's own node_modules
-  # On failure, discard the clone made just above: bin/textlint is tracked in the
-  # repository, so leaving it behind would make the next run skip this install and
-  # treat the unusable wrappers as a completed setup.
-  if ! (cd "$install_dir" && pnpm install --frozen-lockfile >/dev/null 2>&1); then
-    rm -rf "$install_dir"
-    echo "Error: agla-doc-tools dependency install failed" >&2
-    return 1
-  fi
-
-  echo "agla-doc-tools installed successfully to $install_dir"
-  echo "Add to PATH: export PATH=\"$install_dir/bin:\$PATH\""
 }
 
 ##
 # @description Main entry point
 # @arg $1 string Optional shellspec installation directory (default: .tools/shellspec)
-# @arg $2 string Optional agla-doc-tools installation directory (default: ${HOME}/.local/tools/agla-doc-tools)
 # @return 0 If installation succeeds or is skipped
 # @return 1 If installation fails
 main() {
@@ -155,8 +160,18 @@ main() {
   local shellspec_dir="${1:-.tools/shellspec}"
   setup_shellspec "$shellspec_dir"
 
-  # Install agla-doc-tools (provides remark / textlint / cspell)
-  setup_agla_doc_tools "${2:-${HOME}/.local/tools/agla-doc-tools}"
+  # Install aglabo tools (non-fatal: a failure must not abort `prepare`)
+  setup_agla_tool "agla-dev-tools" || true
+  setup_agla_tool "agla-doc-tools" || true
+
+  echo ""
+  echo "Setup finished. The PATH entries printed above are required to run the installed tools."
+  echo "They take effect only in a new shell: restart the shell (or re-source your profile) before using them."
 }
+
+# Skip execution when this script is sourced
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
 
 main "$@"

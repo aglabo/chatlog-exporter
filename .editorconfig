@@ -20,23 +20,8 @@ indent_size = 2
 tab_width = 2
 
 # ─────────────────────────────
-# Shell Scripts
+# Exclude directories/files
 # ─────────────────────────────
-[*.{sh,bash,zsh}]
-indent_style = space
-indent_size = 2
-tab_width = 2
-
-# PowerShell
-[*.ps1]
-indent_style = space
-indent_size = 4
-tab_width = 4
-
-# ─────────────────────────────
-# shfmt Settings
-# ─────────────────────────────
-# Exclude from shfmt
 [**/node_modules/*]
 ignore = true
 
@@ -49,7 +34,16 @@ ignore = true
 [**/*.spec.sh]
 ignore = true
 
-#  shell script foematter settings
+
+# ─────────────────────────────
+# Shell Scripts
+# ─────────────────────────────
+[*.{sh,bash,zsh}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+#  shell script formatter settings
 # --language-dialect
 shell_variant      = bash
 simplify           = true
@@ -60,14 +54,27 @@ space_redirects    = true
 keep_padding       = true
 # --func-next-line
 function_next_line = true
-minify             = true
+# --minify
+minify             = false
+
+# PowerShell
+[*.ps1]
+indent_style = space
+indent_size = 4
+tab_width = 4
 
 
 # ─────────────────────────────
 # Source Code Files
 # ─────────────────────────────
 # TypeScript
-[*.{ts,tsx}]
+[*.{ts,tsx,js,jsx}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+# JavaScript
+[*.{js,*js}]
 indent_style = space
 indent_size = 2
 tab_width = 2
@@ -80,6 +87,7 @@ tab_width = 2
 indent_style = space
 indent_size = 2
 tab_width = 2
+
 
 # ─────────────────────────────
 # configuration files

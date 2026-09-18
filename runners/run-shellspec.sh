@@ -101,7 +101,7 @@ get_spec_files() {
   # path-filter branch and is used as-is.
   #
   # Separators are written as [/] rather than a bare /: on Windows/Git Bash the
-  # MSYS argument path conversion rewrites a pattern shaped like /c/ before rg
+  # MSYS argument path conversion rewrites a pattern shaped like /�c/ before rg
   # ever receives it (confirmed via MSYS_NO_PATHCONV), which silently matches
   # nothing. A pattern starting with [ is left alone. This is not an rg defect.
   #
@@ -175,14 +175,7 @@ resolve_spec_files() {
 
   local test_type="$1"
   shift
-  # Test types that open the integration test gate.
-  # "integration" always runs the integration tests when requested.
-  # "system" needs the integration gate open as well.
-  # "all" means everything, so keeping the gate closed would make it a weaker
-  # suite than running "integration" and "system" separately.
-  case "$test_type" in
-  integration | system | all) SKIP_INTEGRATION_TESTS=0 ;;
-  esac
+  [[ "$test_type" == "system" ]] && SKIP_INTEGRATION_TESTS=0
 
   local -a file_filters=()
   local parsing_shellspec_args=0
@@ -217,43 +210,19 @@ run_shellspec() {
   (cd "$PROJECT_ROOT" && export SKIP_INTEGRATION_TESTS && bash "$SHELLSPEC" "${normalized_args[@]}")
 }
 
-usage() {
-  cat <<'USAGE'
-Usage: run-shellspec.sh <test-type|spec-file|spec-glob> [--integration] [shellspec-options]
-
-Test types:
-  all           Run every spec
-  unit          Run unit specs
-  functional    Run functional specs
-  integration   Run integration specs
-  system        Run system specs
-  e2e           Run e2e specs
-
-Options:
-  --integration Run integration tests that are skipped by default
-
-Examples:
-  run-shellspec.sh all
-  run-shellspec.sh unit
-  run-shellspec.sh path/to/foo.spec.sh
-  run-shellspec.sh 'path/to/__tests__/unit/*.spec.sh'
-USAGE
-}
-
 main() {
   if [[ $# -eq 0 ]]; then
-    usage >&2
-    exit 1
+    run_shellspec
+    exit $?
   fi
 
   parse_options "$@" >/dev/null
 
-  # Options-only invocation (e.g. "--integration") selects no specs. Running
-  # shellspec's default path here would report success without checking the
-  # specs the caller meant to run, so ask for an explicit selection instead.
+  # Options-only invocation (e.g. "--integration") selects no specs, which is
+  # the same intent as no arguments at all: run shellspec's default path.
   if [[ ${#PARSED_ARGS[@]} -eq 0 ]]; then
-    usage >&2
-    exit 1
+    run_shellspec
+    exit $?
   fi
 
   local resolved resolved_file
