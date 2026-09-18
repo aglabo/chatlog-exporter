@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.10.0
+version: 3.11.0
 created: "2026-09-02"
 ---
 
@@ -50,6 +50,7 @@ created: "2026-09-02"
 | DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede） |
 | DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter              |
 | DR-33 | `response_format` 拒否の 400 を `error.message` の接頭辞で判別する          | error-handling R-008（DR-18 Open Question を解決）                        |
+| DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする    | config-packaging R-003 / DD-03 / AC-011（DR-13 の静的検査を補う）         |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -1428,6 +1429,53 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 
 ---
 
+## DR-34: `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする
+
+**Status**: Accepted（DR-13 / config-packaging DD-03 の静的検査を補います）
+
+**Context**: AC-011（`--allow-net` の付与範囲）の静的検査は、`SKILL.md` の `deno run` 行と shebang 行から
+フラグ集合を取り出し、ネットワーク権限を付与するフラグの有無を期待値（`required` / `forbidden`）と
+照合します。単独の `-N` / `-A` / `-N=<host>` と長形式フラグに加え、`-NR` / `-RN` のような結合短縮フラグも
+付与判定の対象にしていました。cle-eft.4.4 のレビューで、値付きの結合短縮フラグ `-RN=<host>` が
+結合形として認識されず、`forbidden` の行で適合と誤判定されることが判明しました（beads `cle-eft.4.5`）。
+Deno 2.9.6 で `Deno.permissions.query` を使って実測したところ、次の挙動でした。
+
+1. `-RN=api.x` は受理され、値は末尾の `N` に付く。net は `api.x` のみ許可、read は全許可
+2. `-NR=api.x` も受理され、値は末尾の `R` に付く。net は全許可、read は `api.x` のみ許可
+3. `-RA=api.x` はエラーになる（`A` は値を取らない）
+
+`cle-eft.4.5` では `=` より前の英字に `N` / `A` を含むかで判定するよう修正しましたが、`-ENV` のように
+Deno が受理しない結合も付与として扱う過検出が残り、ホスト部を判定から外すことの負例も欠けていました。
+一方、検査対象行には結合短縮フラグが 1 件も存在しません。
+
+**Decision**:
+
+1. 結合短縮フラグ（`-` + 英字 2 文字以上、`=<値>` 付きを含む。例: `-NR` / `-RN` / `-RA` / `-RN=<host>` / `-RE`）を
+   含む行は、ネットワーク権限を付与するかどうかを判定せず、期待値 `required` / `forbidden` のいずれでも不適合とする
+2. 単独の短縮フラグ（`-N` / `-A` / `-N=<host>` / `-R` など）と長形式フラグ（`--allow-net` / `--allow-net=<host>` /
+   `--allow-all`）の扱いは従来どおりとする
+3. 検査対象行（`SKILL.md` の `deno run` 行・shebang 行）には結合短縮フラグを書かない。
+   権限フラグは長形式または単独の短縮形で記述する
+4. `cle-eft.4.5` で導入した、結合短縮フラグの `=` より前に `N` / `A` を含むかの判定は削除する
+
+**Alternatives Considered**:
+
+- Deno の引数解析を忠実に再現する（値を末尾の文字に付け、受理されない結合を除外する） — Deno の
+  バージョンごとに解析規則を追う必要があり、検査が守る数行に対して保守負担が大きい。
+  `cle-eft.4.5` の修正はこの方向で、過検出と負例不足が残った。不採用
+- 現行の判定を残し、ホスト部の負例と `-NR=<host>` のケースを足してテストだけ補強する — 過検出
+  （`-ENV` など）は解消せず、判定規則そのものの複雑さも残る。不採用
+- 結合短縮フラグを検査対象外（excluded）とする — 付与の有無を確かめないまま行が素通りし、
+  AC-011 の検査に穴が開く。不採用
+
+**Consequences**: 付与判定から Deno の値付与規則を再現する処理が消え、`-RN=<host>` の検出漏れ、
+`-ENV` の過検出、ホスト部の誤走査がまとめて解消します。`N` / `A` を含まない結合（`-RE` など）も
+`forbidden` の行で不適合になるため、従来より厳しくなります。現行の検査対象行に結合短縮フラグは
+無いため、既存の行は影響を受けません。今後 `SKILL.md` や shebang に権限フラグを書くときは、
+長形式または単独の短縮形を使う必要があります。検証は `tasks.md` T-14-09 が担います（beads `cle-eft.4.6`）。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1468,3 +1516,4 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 | 2026-09-15 | 3.8.0   | DR-32 を追加 (MINOR: 決定を追加)。PR #459 の codex レビュー指摘 (P2) を受け、`topics` は空配列を「該当なし」として受理せず非空を必須とする決定を記録。`tags` は空配列を受理したまま。非空要求は `minItems` ではなく後段の `hasFrontmatterFields` (`'nonEmptyArray'`) が持つ。structured §4.3.1 を v2.4.0 で改訂                                                                                                      |
 | 2026-09-15 | 3.9.0   | DR-33 を追加 (MINOR: 決定を追加)。追加実測 (`measurements-response-format-rejection-2026-09-15.md`) を受け、`response_format` 拒否の 400 を `error.message` の接頭辞 `JSON schema conversion failed` で判別すると確定。DR-18 の Open Question に解決を追記                                                                                                                                                           |
 | 2026-09-17 | 3.10.0  | DR-21 に決定 6 を追加 (MINOR: 決定を追加)。PR #467 の codex レビュー指摘 (P2) を受け、実 TLS 検証失敗の回帰テスト T-LIB-AI-LRI-13-01 を決定 5 の例外とし、`RUN_AI=1` (`--use-ai`) 指定時のみ実行すると確定                                                                                                                                                                                                           |
+| 2026-09-18 | 3.11.0  | DR-34 を追加 (MINOR: 決定を追加)。`cle-eft.4.5` の修正 (値付き結合短縮フラグ `-RN=<host>` の検出) に過検出と負例不足が残ったため、`--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とし、検査対象行に書かないと確定 (beads `cle-eft.4.6`)                                                                                                                                                           |

@@ -32,6 +32,7 @@ import type {
   CommandMockHandle,
   DenoCommandLike,
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
@@ -261,22 +262,6 @@ const _makeChatlogEntry = (body: string): ChatlogEntry => {
 /** 常に指定した値で reject する `AiRunnerProvider` スタブを返す。catch 側の分岐判定だけを検証するために使う。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
 
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
-
 // ─── Tests
 
 /**
@@ -289,7 +274,7 @@ const _useDefaultGlobalConfig = (): void => {
  * @see _buildTypeCategorySystemPromptForTest
  */
 describe('_buildTypeCategorySystemPrompt', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /** type_dics・category_dics・category_rules の3つが system prompt に含まれる正常ケース。 */
   describe('When: 正常系', () => {
@@ -354,7 +339,7 @@ describe('_buildTypeCategorySystemPrompt', () => {
  * @see judgeTypeAndCategory
  */
 describe('judgeTypeAndCategory', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let commandHandle: CommandMockHandle;
   let loggerStub: LoggerStub;
@@ -701,7 +686,7 @@ describe('judgeTypeAndCategory', () => {
  * @see judgeTypeAndCategory
  */
 describe('judgeTypeAndCategory — llama 中断側判定（isAbortingAiError）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let loggerStub: LoggerStub;
 
@@ -788,7 +773,7 @@ describe('judgeTypeAndCategory — llama 中断側判定（isAbortingAiError）'
  * @see judgeTypeAndCategory
  */
 describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
     it('[Normal] T-SF-OCT-03-01: options に #6 line-prefixed 契約（type / category の enum と fallback）が渡る', async () => {
@@ -855,7 +840,7 @@ describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
  * @see buildTypeCategoryOutputContract
  */
 describe('buildTypeCategoryOutputContract', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /** 辞書に type / category の値が揃っている正常ケース。 */
   describe('When: 正常系', () => {

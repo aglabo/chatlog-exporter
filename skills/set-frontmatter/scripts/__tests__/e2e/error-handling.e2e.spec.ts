@@ -21,8 +21,8 @@ import {
   makeClaudeJsonMock,
   makeCountingMock,
 } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { dirExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { joinPath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import {
@@ -37,30 +37,12 @@ import {
 import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 
-// ─── Internal Helpers
-
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
-
 // ─── Tests
 
 // ─── T-SF-E2E-05: yaml 生成失敗 → stats.fail が出力される ───────────────────
 
 describe('main - yaml 生成失敗', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Claude CLI がすべて成功するが yaml が空になるモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", ...]) を呼び出す', () => {
@@ -126,7 +108,7 @@ describe('main - yaml 生成失敗', () => {
  * テスト ID 範囲: T-SF-E2E-13-01
  */
 describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase 2.1 の runAI が rate limit 応答を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
@@ -187,7 +169,7 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
  * テスト ID 範囲: T-SF-E2E-16-01
  */
 describe('main - rate limit 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-16)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1 最初の runAI が rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--cache-dir", ..., "--no-review", "--dics", ...]) を呼び出す', () => {
@@ -260,7 +242,7 @@ describe('main - rate limit 貫通 (Phase 2.1 / バグ発生箇所) (T-SF-E2E-16
  * テスト ID 範囲: T-SF-E2E-14-01
  */
 describe('main - rate limit 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1 成功・Phase2.2 で rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
@@ -330,7 +312,7 @@ describe('main - rate limit 貫通 (frontmatter フェーズ) (T-SF-E2E-14)', ()
  * テスト ID 範囲: T-SF-E2E-15-01
  */
 describe('main - rate limit 貫通 (review フェーズ) (T-SF-E2E-15)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1/2.2 成功・Phase3.1(review) で rate limit を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--dics", ...]) を呼び出す', () => {
@@ -402,7 +384,7 @@ describe('main - rate limit 貫通 (review フェーズ) (T-SF-E2E-15)', () => {
  * テスト ID 範囲: T-SF-E2E-17-01
  */
 describe('main - ExitFailure 続行 (Phase 2.1 type/category) (T-SF-E2E-17)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1 最初の runAI が ExitFailure(is_error:true/status:500) を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
@@ -463,7 +445,7 @@ describe('main - ExitFailure 続行 (Phase 2.1 type/category) (T-SF-E2E-17)', ()
  * テスト ID 範囲: T-SF-E2E-18-01
  */
 describe('main - ExitFailure 続行 (frontmatter フェーズ) (T-SF-E2E-18)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1 成功・Phase2.2 で ExitFailure を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
@@ -527,7 +509,7 @@ describe('main - ExitFailure 続行 (frontmatter フェーズ) (T-SF-E2E-18)', (
  * テスト ID 範囲: T-SF-E2E-19-01
  */
 describe('main - ExitFailure 続行 (review フェーズ) (T-SF-E2E-19)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: Phase2.1/2.2 成功・Phase3.1(review) で ExitFailure を返すモック', () => {
     describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--dics", ...]) を呼び出す', () => {
@@ -597,7 +579,7 @@ describe('main - ExitFailure 続行 (review フェーズ) (T-SF-E2E-19)', () => 
  * テスト ID 範囲: T-SF-E2E-20-01 〜 T-SF-E2E-22-02
  */
 describe('main - 起動時の出力契約検査 (T-SF-E2E-20〜22)', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('Given: category.dic に development が無い辞書（bugfix のみ）', () => {
     let outputDir: string;

@@ -111,9 +111,9 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 | T-11: llama リクエストボディ構築                                    | 14     | 6     | Phase 0 | 3         | 10      | done   |
 | T-12: llama 応答解釈とエラー写像                                    | 15     | 6     | Phase 0 | 13        | 35      | done   |
 | T-13: 出力契約の指定 (6 呼び出し)                                   | 16〜19 | 7     | Phase 0 | 10        | 10      | done   |
-| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 8         | 32      | done   |
+| T-14: `--allow-net` 付与範囲の静的検査                              | 20     | 8     | Phase 0 | 9         | 41      | done   |
 | T-15: `_runViaHttp` の結線                                          | 21     | 8     | Phase 0 | 10        | 30      | done   |
-| **合計**                                                            | —      | —     | —       | **130**   | **278** | —      |
+| **合計**                                                            | —      | —     | —       | **131**   | **287** | —      |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -2117,6 +2117,13 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 > 負例（T-14-04 / T-14-05 / T-14-06）はリポジトリ内に不適合な行が存在しないため実ファイルでは
 > 再現できない。fixture 文字列を純関数へ渡す unit テストとして書く。
 > 実ファイルを走査するのは正例（T-14-01〜T-14-03・T-14-07）のみとし、system テストに置く。
+>
+> **結合短縮フラグの一律不許可**（DR-34）: `-NR` / `-RN` / `-RA` / `-RN=<host>` のような結合短縮フラグ
+> （`-` + 英字 2 文字以上、`=<値>` 付きを含む）は、ネットワーク権限を付与するかどうかを判定せず、
+> 期待値 `required` / `forbidden` のいずれでも不適合とする。Deno は値を末尾の文字に付ける
+> （`-RN=<host>` は net 限定、`-NR=<host>` は net 全付与 + read 限定）ため、付与判定を静的に再現すると
+> 検出漏れと過検出が生じる。検査対象行には結合短縮フラグが存在しないため、書き方を狭める。
+> 単独の `-N` / `-A` / `-N=<host>` と長形式フラグの付与判定は従来どおり行う。
 
 ### [正常] Normal Cases
 
@@ -2214,26 +2221,33 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given `filter-chatlogs` の `$NOISE_FILTER_PATH` 実行行に `-N=localhost` を混ぜた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
 
-- [x] **T-14-04-10**: 短縮フラグの結合 `-NR` を付与として不適合と判定する
+- [x] **T-14-04-10**: 結合短縮フラグ `-NR` を不適合と判定する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-04-10`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
   - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-NR` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
-  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること（Deno 2.9.6 は `-NR` を受理し net 権限を付与する）
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
 
-- [x] **T-14-04-11**: 短縮フラグの結合 `-RN`（`N` が末尾）を付与として不適合と判定する
+- [x] **T-14-04-11**: 結合短縮フラグ `-RN`（`N` が末尾）を不適合と判定する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-04-11`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
   - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RN` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
-  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
 
-- [x] **T-14-04-12**: 短縮フラグの結合 `-RA` を全権限付与として不適合と判定する
+- [x] **T-14-04-12**: 結合短縮フラグ `-RA` を不適合と判定する
   - Target: `--allow-net 付与範囲の静的検査`
   - Test ID: `T-LIB-AI-NET-04-12`
   - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
   - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RA` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
-  - Expected: Then 判定対象外にならず、過剰な権限付与として不適合と判定されること
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-04-13**: 値付きの結合短縮フラグ `-RN=<host>` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-04-13`
+  - Rule: config-packaging R-003 / DD-03 / Edge config-packaging-5 / AC-011
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RN=api.x` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
 
 #### T-14-05: AI を呼ぶ経路の対象行に `--allow-net` が欠落している
 
@@ -2292,6 +2306,64 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Rule: config-packaging R-003 / DD-03 / AC-011
   - Scenario: Given `-N` を含む SKILL.md 実行行を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
   - Expected: Then 判定対象外にならず、適合と判定されること
+
+#### T-14-09: 結合短縮フラグは期待値にかかわらず不適合
+
+- [x] **T-14-09-01**: 期待値 `required` でも `N` を含む結合短縮フラグ `-RN` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-01`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given SKILL.md 実行行のフラグ列を `-RN` に置き換えた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-09-02**: 期待値 `required` でも `A` を含む結合短縮フラグ `-RA` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-02`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given SKILL.md 実行行のフラグ列を `-RA` に置き換えた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-09-03**: 期待値 `required` でも値付きの結合短縮フラグ `-NR=<host>` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-03`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given SKILL.md 実行行のフラグ列を `-NR=api.x` に置き換えた fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-09-04**: 期待値 `forbidden` でも `N` / `A` を含まない結合短縮フラグ `-RE` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-04`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-RE` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-09-05**: 単独の短縮フラグ `-R` は結合短縮フラグとして扱わず適合と判定する（対照）
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-05`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-R` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、適合と判定されること
+
+- [x] **T-14-09-06**: `--allow-net` を持つ行でも結合短縮フラグが同居していれば不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-06`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given SKILL.md 実行行に `--allow-net` と無関係な結合短縮フラグ `-RE` を併記した fixture 文字列を、期待値 `required` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること（付与判定より結合短縮フラグの検出が先に効くこと）
+
+- [x] **T-14-09-07**: 英字 3 文字の結合短縮フラグ `-ENV` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-07`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-ENV` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
+
+- [x] **T-14-09-08**: 小文字の結合短縮フラグ `-rn` を不適合と判定する
+  - Target: `--allow-net 付与範囲の静的検査`
+  - Test ID: `T-LIB-AI-NET-09-08`
+  - Rule: config-packaging R-003 / DD-03 / AC-011 / DR-34
+  - Scenario: Given `filter-chatlogs` の `$STRIP_PATH` 実行行のフラグ列を `-rn` に置き換えた fixture 文字列を、期待値 `forbidden` で検査純関数へ渡す, When 静的検査を行う
+  - Expected: Then 判定対象外にならず、結合短縮フラグとして不適合と判定されること
 
 ### [エッジケース] Edge Cases
 
@@ -2803,9 +2875,9 @@ Edge Cases 行には元来 ID がないため、各 spec §5 の表の出現順�
 | T-11        | 8      | 1       | 1      | 10      | [OK]  |
 | T-12        | 3      | 26      | 6      | 35      | [OK]  |
 | T-13        | 6      | 3       | 1      | 10      | [OK]  |
-| T-14        | 3      | 20      | 9      | 32      | [OK]  |
+| T-14        | 3      | 29      | 9      | 41      | [OK]  |
 | T-15        | 15     | 7       | 8      | 30      | [OK]  |
-| **合計**    | **92** | **101** | **85** | **278** | —     |
+| **合計**    | **92** | **110** | **85** | **287** | —     |
 
 > **[N/A] T-02** — 定数 (`AI_PROVIDERS` / `AI_MODEL_TO_PROVIDER_MAP`) から案内文言を
 > 組み立てる純粋な関数であり、throw する経路を持たない。
