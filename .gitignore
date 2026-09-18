@@ -10,10 +10,6 @@
 # default: ignore all files
 *
 
-## Allow Template files
-!/templates
-!/templates/**
-
 # Allow README, LICENSE, CONTRIBUTING
 !**/README*
 !**/LICENSE*
@@ -124,7 +120,7 @@
 
 
 ## beads
-.beads/*
+!.beads/
 !.beads/config.yaml
 !.beads/issues.jsonl
 
