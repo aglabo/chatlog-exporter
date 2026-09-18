@@ -21,7 +21,7 @@ import { classifyByNoAI } from '../../phase-classify-noai.ts';
 // types
 import type { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { FrontmatterFields } from '../../../../../_cle-libs/types/frontmatter.types.ts';
-import type { ClassifyAction } from '../../../types/classify.types.ts';
+import type { ClassifyAction, ProjectDicEntry } from '../../../types/classify.types.ts';
 // functions
 import {
   findFixtureDirs,
@@ -30,6 +30,8 @@ import {
 import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
 import { fileExists } from '../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
+// constants
+import { FALLBACK_PROJECT } from '../../../constants/classify.constants.ts';
 // helpers
 import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers/classify-test-helpers.ts';
 
@@ -37,6 +39,9 @@ import { _makeEmptyClassifyCache, _makeEntry } from '../../../__tests__/_helpers
 
 // constants
 const FIXTURES_DIR = normalizePath(new URL('./fixtures-data/pre-classify', import.meta.url).pathname);
+
+/** fixture が参照するプロジェクト辞書。`loadProjectDic` と同様に `FALLBACK_PROJECT` を必ず含む。 */
+const _PROJECTS: ProjectDicEntry = { app1: {}, [FALLBACK_PROJECT]: {} };
 
 // types
 interface _FixtureInput {
@@ -115,7 +120,7 @@ describe('classifyByNoAI', () => {
           const _entry = _buildEntry(input);
           const cache = await _makeEmptyClassifyCache();
 
-          await classifyByNoAI(_entry, cache);
+          await classifyByNoAI(_entry, cache, _PROJECTS);
 
           const _cached = cache.read(input.filePath);
           assertEquals(_cached.action, expected.action, `action が一致しない (fixture: ${_relPath})`);

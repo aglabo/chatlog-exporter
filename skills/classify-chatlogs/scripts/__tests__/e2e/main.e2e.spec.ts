@@ -203,6 +203,12 @@ describe('main - project 設定済みファイルの dry-run スキップ', () =
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          // `existing-project` must be present in the project dictionary: out-of-dictionary
+          // `project:` values are no longer cached, so they would go to AI classification, not skip
+          await Deno.writeTextFile(
+            `${configsDir}/projects.dic`,
+            'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
+          );
           await Deno.writeTextFile(
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
@@ -258,6 +264,12 @@ describe('main - project 設定済みファイルの dry-run スキップ', () =
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          // `existing-project` must be present in the project dictionary: out-of-dictionary
+          // `project:` values are no longer cached, so they would go to AI classification
+          await Deno.writeTextFile(
+            `${configsDir}/projects.dic`,
+            'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
+          );
           await Deno.writeTextFile(
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
@@ -305,6 +317,12 @@ describe('main - project 設定済みファイルの実移動', () => {
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          // `existing-project` must be present in the project dictionary: out-of-dictionary
+          // `project:` values are no longer cached, so they would go to AI classification, not move
+          await Deno.writeTextFile(
+            `${configsDir}/projects.dic`,
+            'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
+          );
           await Deno.writeTextFile(
             `${monthDir}/chat.md`,
             '---\ntitle: テスト\nproject: existing-project\n---\n本文',
