@@ -8,6 +8,7 @@
 
 # track gitignore
 !**/.gitignore
+!settings.json
 
 # track files settings for
 !agents/
