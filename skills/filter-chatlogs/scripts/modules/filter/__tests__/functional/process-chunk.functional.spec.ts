@@ -27,6 +27,7 @@ import {
   makeFailMock,
   makeNotFoundMock,
 } from '../../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { useDefaultGlobalConfig } from '../../../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { ChatlogCache } from '../../../../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../../_cle-libs/classes/ChatlogError.class.ts';
@@ -123,22 +124,6 @@ const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e
 const _resultsRunner = (results: readonly Record<string, unknown>[]): AiRunnerProvider => () =>
   Promise.resolve(JSON.stringify(results));
 
-/**
- * GlobalConfig を DEFAULT_CONFIG_VALUES で初期化する beforeEach / afterEach を登録する。
- *
- * ローカルの `.config/chatlog-exporter/config.yaml`（model / llamaEndpoint 等）を読ませないため、
- * 各テスト前に空 YAML でシングルトンを作り直し、テスト後にリセットする。
- */
-const _useDefaultGlobalConfig = (): void => {
-  beforeEach(() => {
-    GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: '' });
-  });
-  afterEach(() => {
-    GlobalConfig.resetInstance();
-  });
-};
-
 // ─── Tests
 
 /**
@@ -160,7 +145,7 @@ const _useDefaultGlobalConfig = (): void => {
  * @see processChunk
  */
 describe('processChunk', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   /** テスト用一時ディレクトリのパス。各テスト後に削除する。 */
   let tempDir: string;
@@ -900,7 +885,7 @@ describe('processChunk', () => {
  * @see isAbortingAiError
  */
 describe('processChunk — llama 中断側判定（isAbortingAiError）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider が例外を投げる', () => {
     let errStub: Stub;
@@ -997,7 +982,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
  * @see processChunk
  */
 describe('processChunk — 出力契約（outputContract）', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
     let errStub: Stub;
@@ -1047,7 +1032,7 @@ describe('processChunk — 出力契約（outputContract）', () => {
  * @see processChunk
  */
 describe('processChunk — decision=ERROR の扱い', () => {
-  _useDefaultGlobalConfig();
+  useDefaultGlobalConfig();
 
   let errStub: Stub;
   let stats: FilterStats;

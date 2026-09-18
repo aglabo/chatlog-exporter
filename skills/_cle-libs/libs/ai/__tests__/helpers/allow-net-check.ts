@@ -65,11 +65,11 @@ const _NET_GRANT_FLAGS: ReadonlySet<string> = new Set([_ALLOW_NET, _ALLOW_NET_SH
 /** 値付き（`<name>=<host>`）でネットワーク権限を付与するフラグ名（`--allow-net`・`-N`）。 */
 const _NET_GRANT_VALUED_FLAGS: readonly string[] = [_ALLOW_NET, _ALLOW_NET_SHORT];
 
-/** 結合短縮フラグ（`-NR` など、`-` + 英字 2 文字以上）の形式。 */
-const _COMBINED_SHORT_FLAGS = /^-[A-Za-z]{2,}$/;
-
-/** 結合短縮フラグのうち、ネットワーク権限を付与する文字（`N`・`A`）。 */
-const _NET_GRANT_SHORT_CHARS: readonly string[] = [_ALLOW_NET_SHORT, _ALLOW_ALL_SHORT].map((flag) => flag.slice(1));
+/**
+ * 結合短縮フラグ（`-NR` など、`-` + 英字 2 文字以上）の形式。値付きの結合短縮フラグ `-RN=<host>` にも一致する。
+ * DR-34 により、この形式に一致する行は付与の有無を判定せず不適合とするため、存在判定のみに使う。
+ */
+const _COMBINED_SHORT_FLAGS = /^-[A-Za-z]{2,}(?:=.*)?$/;
 
 /** フラグとみなすトークンの形式。単独の `-` / `--` などを除く。 */
 const _FLAG_TOKEN = /^-{1,2}[A-Za-z]/;
@@ -88,11 +88,18 @@ const _LINE_BREAK = /\r?\n/;
 const _isScriptArg = (token: string): boolean =>
   token.startsWith('"') || token.startsWith('$') || token.endsWith('.ts') || _SCRIPT_ARGS_START.has(token);
 
-/** ネットワーク権限を付与するフラグ（`--allow-net`・短縮形の `-N`・値付きの `--allow-net=<host>` / `-N=<host>`・全権限の `-A` / `--allow-all`・`N` / `A` を含む結合短縮フラグ `-NR` など）を含むかどうか。`-P` / `--permission-set` は静的に判定できないため対象外。 */
+/** 結合短縮フラグ（`-` + 英字 2 文字以上。値付きの `-RN=<host>` を含む）を 1 つでも含むかどうか。 */
+const _hasCombinedShortFlag = (flags: ReadonlySet<string>): boolean =>
+  [...flags].some((flag) => _COMBINED_SHORT_FLAGS.test(flag));
+
+/**
+ * ネットワーク権限を付与するフラグ（`--allow-net`・短縮形の `-N`・値付きの `--allow-net=<host>` / `-N=<host>`・全権限の `-A` / `--allow-all`）を含むかどうか。
+ * `-P` / `--permission-set` は静的に判定できないため対象外。
+ * 結合短縮フラグ（`-NR` など）は付与の有無を判定せず、`checkAllowNet` が不適合として扱う（DR-34）。
+ */
 const _grantsNet = (flags: ReadonlySet<string>): boolean =>
   [...flags].some((flag) =>
     _NET_GRANT_FLAGS.has(flag) || _NET_GRANT_VALUED_FLAGS.some((name) => flag.startsWith(`${name}=`))
-    || (_COMBINED_SHORT_FLAGS.test(flag) && _NET_GRANT_SHORT_CHARS.some((char) => flag.includes(char)))
   );
 
 // ─────────────────────────────────────────────
@@ -121,7 +128,9 @@ export const extractDenoRunFlags = (line: string): ReadonlySet<string> | null =>
 
 /**
  * `deno run` 行の `--allow-net` 付与が期待値に適合するかを判定する。
- * 短縮形の `-N`、値付きの `--allow-net=<host>` / `-N=<host>`、全権限の `-A` / `--allow-all`、`N` / `A` を含む結合短縮フラグも付与として扱う。
+ * 短縮形の `-N`、値付きの `--allow-net=<host>` / `-N=<host>`、全権限の `-A` / `--allow-all` も付与として扱う。
+ * 結合短縮フラグ（`-` + 英字 2 文字以上。値付きの `-RN=<host>` を含む）を 1 つでも含む行は、付与の有無を判定せず、
+ * 期待値 `required` / `forbidden` のいずれでも不適合とする（DR-34）。
  * `-P` / `--permission-set` は付与内容が config ファイル側で決まり行からは静的に判定できないため、付与として扱わない
  * （現リポジトリの検査対象行では未使用）。
  *
@@ -132,6 +141,7 @@ export const extractDenoRunFlags = (line: string): ReadonlySet<string> | null =>
 export const checkAllowNet = (line: string, expectation: AllowNetExpectation): AllowNetCheckResult => {
   const _flags = extractDenoRunFlags(line);
   if (_flags === null) { return { excluded: true }; }
+  if (_hasCombinedShortFlag(_flags)) { return { excluded: false, flags: _flags, conforming: false }; }
 
   return { excluded: false, flags: _flags, conforming: _grantsNet(_flags) === (expectation === 'required') };
 };
