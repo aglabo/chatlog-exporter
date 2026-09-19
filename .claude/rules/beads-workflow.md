@@ -5,17 +5,29 @@
 セッション開始からタスク完了まで、beads を通す経路は下表に固定する。
 `.beads/` 配下のファイルを直接書き換えて状態を変えることはしない。
 
-| 場面           | 使うコマンド                | 備考                                           |
-| -------------- | --------------------------- | ---------------------------------------------- |
-| セッション開始 | `bd prime`                  | `SessionStart` / `PreCompact` フックが自動実行 |
-| タスク選択     | `bd ready` → `bd show <id>` | 着手可能な issue を確認して選ぶ                |
-| 着手           | `bd update <id> --claim`    | 担当を明示してから作業に入る                   |
-| 作業中         | `bd note <id> <本文>`       | 進捗・判断・検証結果をその都度残す             |
-| 新規作業の発生 | `bd create --parent <id>`   | 親は必須（[beads-issue.md](beads-issue.md)）   |
-| 完了           | `bd close <id>`             |                                                |
+| 場面           | 使うコマンド                       | 備考                                           |
+| -------------- | ---------------------------------- | ---------------------------------------------- |
+| セッション開始 | `bd prime`                         | `SessionStart` / `PreCompact` フックが自動実行 |
+| タスク選択     | `bd ready` → `bd show <id>`        | 着手可能な issue を確認して選ぶ                |
+| 着手           | `bd update <id> --claim`           | 担当を明示してから作業に入る                   |
+| 作業中         | `bd note <id> <本文>`              | 進捗・判断・検証結果をその都度残す             |
+| 新規作業の発生 | `bd create --parent <id>`          | 親は必須（[beads-issue.md](beads-issue.md)）   |
+| 完了           | `bd close <id>`                    |                                                |
+| 完了直後       | `bd export -o .beads/issues.jsonl` | close / update の結果を git 追跡下へ出す       |
 
 タスク管理に TodoWrite・TaskCreate・markdown の TODO リストは使わない。
 記録先は beads に一本化する。
+
+### 完了後の export は省略しない
+
+`bd close` / `bd update` の結果は `.beads/embeddeddolt/`（git ignore 済み）にしか残らず、
+`bd dolt show` の Remotes は `(none)` なので `bd dolt push` の経路も無い。
+git 追跡下の `.beads/issues.jsonl` へ `bd export -o .beads/issues.jsonl` するのが、
+issue 状態をリモートと新しいクローンへ届ける唯一の手段。
+
+フラグは付けない（`--include-memories` / `--all` は memory の agent context を巻き込む）。
+export は parent を独立フィールドとして持たず、`dependencies[]` の `type=parent-child`
+（`depends_on_id` が親）として持つ。親リンクの有無を JSONL で検査するときはこちらを見る。
 
 ## 原則: `.beads/` は bd の管理領域
 
@@ -57,6 +69,10 @@
 
 どちらのフックも Claude Code のツール経由しか見ない。素の端末・他エージェント
 からの操作は通らないため、**ルール本体が正であり、フックは補助**である。
+
+lefthook pre-commit の commit ゲート（`scripts/check-beads-links.sh`）は 2026-09-16 に取り下げた。
+起票時に親を強制する PreToolUse フックで目的が達成されており、強制点は上記 2 本 + ShellSpec に固定する。
+**再提案しない。**
 
 Bash 経由の破壊（`rm .beads/...`、リダイレクト、`sed -i`）は意図的に対象外に
 してある。bd 自身のコマンドや git 操作との誤検知を避けるためで、ここは規約で守る。

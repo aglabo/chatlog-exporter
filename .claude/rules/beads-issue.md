@@ -18,6 +18,22 @@
 起票後に判明した場合は `bd update <id> --external-ref gh-<n>` で後付けする。
 ただし**空のまま放置しない** — 放置分は後でタイトル類似度による突合が必要になる。
 
+## GitHub 紐付けは description にも 1 行書く
+
+`external_ref` は `.beads/issues.jsonl` へ export されない（2026-09-08 実測: 当時の 182 件すべてに
+当該フィールドなし）。`.beads/embeddeddolt/` は git ignore されているため、`--external-ref` の値は
+ローカルの Dolt にしか残らず、クローンし直すと失われる。
+
+クローンを越えて残る担体は description の文字列だけなので、`--external-ref` と併せて
+description 冒頭に次の 1 行を書く。
+
+```text
+GitHub: https://github.com/aglabo/chatlog-exporter/issues/<n>
+```
+
+`bd list --json` / `bd show --json` は `external_ref` を返すのでローカル判定には使えるが、
+突合の根拠にはしない。
+
 ## 理由
 
 2026-09-08 に closed beads issue 200 件を GitHub / deckrd へバックポートした
