@@ -5,15 +5,15 @@
 セッション開始からタスク完了まで、beads を通す経路は下表に固定する。
 `.beads/` 配下のファイルを直接書き換えて状態を変えることはしない。
 
-| 場面           | 使うコマンド                       | 備考                                           |
-| -------------- | ---------------------------------- | ---------------------------------------------- |
-| セッション開始 | `bd prime`                         | `SessionStart` / `PreCompact` フックが自動実行 |
-| タスク選択     | `bd ready` → `bd show <id>`        | 着手可能な issue を確認して選ぶ                |
-| 着手           | `bd update <id> --claim`           | 担当を明示してから作業に入る                   |
-| 作業中         | `bd note <id> <本文>`              | 進捗・判断・検証結果をその都度残す             |
-| 新規作業の発生 | `bd create --parent <id>`          | 親は必須（[beads-issue.md](beads-issue.md)）   |
-| 完了           | `bd close <id>`                    |                                                |
-| 完了直後       | `bd export -o .beads/issues.jsonl` | close / update の結果を git 追跡下へ出す       |
+| 場面           | 使うコマンド                       | 備考                                                   |
+| -------------- | ---------------------------------- | ------------------------------------------------------ |
+| セッション開始 | `bd prime`                         | `SessionStart` / `PreCompact` フックが自動実行         |
+| タスク選択     | `bd ready` → `bd show <id>`        | 着手可能な issue を確認して選ぶ                        |
+| 着手           | `bd update <id> --claim`           | 担当を明示してから作業に入る                           |
+| 作業中         | `bd note <id> <本文>`              | 進捗・判断・検証結果をその都度残す                     |
+| 新規作業の発生 | `bd create --parent <id>`          | 親は必須（[beads-rule-issue.md](beads-rule-issue.md)） |
+| 完了           | `bd close <id>`                    |                                                        |
+| 完了直後       | `bd export -o .beads/issues.jsonl` | close / update の結果を git 追跡下へ出す               |
 
 タスク管理に TodoWrite・TaskCreate・markdown の TODO リストは使わない。
 記録先は beads に一本化する。
