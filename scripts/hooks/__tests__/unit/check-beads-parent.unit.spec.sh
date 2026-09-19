@@ -1,5 +1,5 @@
 # src: ./scripts/hooks/__tests__/unit/check-beads-parent.unit.spec.sh
-# @(#) : unit spec for check-beads-parent hook  (see .claude/rules/beads-issue.md)
+# @(#) : unit spec for check-beads-parent hook  (see .claude/rules/beads-rules/beads-rule-issue.md)
 #        対象: .claude/hooks/check-beads-parent.sh
 #
 # Copyright (c) 2026- atsushifx <https://github.com/atsushifx>

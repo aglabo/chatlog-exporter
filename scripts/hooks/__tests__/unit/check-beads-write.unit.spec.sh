@@ -1,5 +1,5 @@
 # src: ./scripts/hooks/__tests__/unit/check-beads-write.unit.spec.sh
-# @(#) : unit spec for check-beads-write hook  (see .claude/rules/beads-workflow.md)
+# @(#) : unit spec for check-beads-write hook  (see .claude/rules/beads-rules/beads-rule-workflow.md)
 #        対象: .claude/hooks/check-beads-write.sh
 #
 # Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
