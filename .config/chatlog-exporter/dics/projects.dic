@@ -86,6 +86,22 @@ lcl:
     when:
       - lcl に関するログ
 
+# ── インフラ・自宅サーバ ─────────────────────────────────
+
+homelab:
+  def: Self-hosted server infrastructure including Proxmox VE, virtualization, storage, and LAN services
+  category: infrastructure
+  desc: 自宅サーバ・ホームラボ運用。Proxmox VE のアップグレード・LXC/VM 構築・RAID/ストレージ・GPUパススルー・LAN上のサービス運用
+  rules:
+    when:
+      - Proxmox VE・PVE・LXC・仮想マシン構築に関するログ
+      - RAID・mdadm・bcache・HDD/SSD などストレージ構成に関するログ
+      - GPUパススルー・ドライバ設定など自宅サーバのハードウェア設定に関するログ
+      - LAN上で動かすサービス（llama.cpp サーバ等）の構築・運用に関するログ
+    not:
+      - GitHub Actions・CI/CD基盤（ci-platform で分類）
+      - 開発マシン上の開発環境設定（dev-tooling で分類）
+
 # ── 開発ツール・環境構築 ─────────────────────────────────
 
 dev-tooling:
