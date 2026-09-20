@@ -5,7 +5,7 @@ description: >
   フロントマター付きMarkdownとして出力する。
   /normalize-chatlogs で呼び出す。
   入力ファイルのフロントマターを引き継ぎつつ、title/log_idをAIが生成する。summaryは本文の`## Summary`セクションに使われる。
-argument-hint: "<agent> <YYYY-MM> | <path> [--output-dir <dir>] [--concurrency <n>] [--model <model>] [--dry-run]"
+argument-hint: "<agent> <YYYY-MM> | <path> [--output-dir <dir>] [--concurrency <n>] [--batch-size <n>] [--max-batch-chars <n>] [--model <model>] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
@@ -88,6 +88,8 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run
 - `/path/to/chatlogs` → `deno run ... "$SCRIPT_PATH" /path/to/chatlogs`
 - `--output-dir <dir>` を含む → `--output-dir <dir>` をスクリプトに転送
 - `--concurrency <n>` を含む → `--concurrency <n>` をスクリプトに転送
+- `--batch-size <n>` を含む → `--batch-size <n>` をスクリプトに転送
+- `--max-batch-chars <n>` を含む → `--max-batch-chars <n>` をスクリプトに転送
 - `--model <model>` を含む → `--model <model>` をスクリプトに転送
 - `--dry-run` を含む → `--dry-run` を末尾に追加
 
@@ -95,7 +97,7 @@ deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run
 
 1. 入力ディレクトリ配下の `.md` ファイルを再帰的に収集
 2. Claude CLI で各 chatlog をトピック別セグメントに分割 (1 ファイルあたり最大 5 セグメント。
-   AI 呼び出しは 4 ファイルずつのバッチで実行される)
+   AI 呼び出しは **件数と累積文字数の早い方**でバッチを区切る。既定は 4 ファイル / 20000 文字)
 3. 各セグメントをフロントマター付き Markdown として出力
 4. 出力ファイル名形式: `<baseName>-<XX>-<hash7>.md`
 5. 既存ファイルがある場合は `.old-NN.md` にバックアップ後、アトミックに上書き (tmp-then-rename)
@@ -120,19 +122,21 @@ llamaEndpoint: "http://avalon:8080/"
 
 ## 利用可能なオプション一覧
 
-| オプション         | 説明                                               |
-| ------------------ | -------------------------------------------------- |
-| `--agent AGENT`    | 対象エージェント (`claude`, `chatgpt`, `codex`)    |
-| `--period YYYY-MM` | 対象期間 (`YYYY-MM` 形式のみ。`YYYY` 単体は不可)   |
-| `--input-dir DIR`  | 入力ディレクトリを直接指定 (agent / period を無視) |
-| `--output-dir DIR` | 出力先ベースディレクトリ                           |
-| `--concurrency N`  | 並列実行数 (デフォルト: 4)                         |
-| `--timeout-ms N`   | AI 呼び出しのタイムアウト (ミリ秒)                 |
-| `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)  |
-| `--config FILE`    | GlobalConfig ファイルのパス                        |
-| `--fail-fast`      | 失敗時に即座に中断する                             |
-| `--single-file`    | AI へ1ファイルずつ渡す (バッチ相乗りを避ける)      |
-| `--dry-run`        | ファイルを書き出さない (AI 分割もスキップされる)   |
+| オプション            | 説明                                                           |
+| --------------------- | -------------------------------------------------------------- |
+| `--agent AGENT`       | 対象エージェント (`claude`, `chatgpt`, `codex`)                |
+| `--period YYYY-MM`    | 対象期間 (`YYYY-MM` 形式のみ。`YYYY` 単体は不可)               |
+| `--input-dir DIR`     | 入力ディレクトリを直接指定 (agent / period を無視)             |
+| `--output-dir DIR`    | 出力先ベースディレクトリ                                       |
+| `--concurrency N`     | 並列実行数 (デフォルト: 4)                                     |
+| `--batch-size N`      | 1 バッチの最大ファイル数 (デフォルト: 4)                       |
+| `--max-batch-chars N` | 1 バッチの累積本文文字数の上限 (デフォルト: 20000。0 で無制限) |
+| `--timeout-ms N`      | AI 呼び出しのタイムアウト (ミリ秒)                             |
+| `--model MODEL`       | AI モデル名 (デフォルト: GlobalConfig の `model`)              |
+| `--config FILE`       | GlobalConfig ファイルのパス                                    |
+| `--fail-fast`         | 失敗時に即座に中断する                                         |
+| `--single-file`       | AI へ1ファイルずつ渡す (バッチ相乗りを避ける)                  |
+| `--dry-run`           | ファイルを書き出さない (AI 分割もスキップされる)               |
 
 上記以外の `--` オプションを渡すと `UnknownOption` エラーで異常終了する。
 
