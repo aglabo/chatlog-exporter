@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { buildConfig } from '../../normalize-config.ts';
 
 // ─── Helpers
+import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/defaults.constants.ts';
@@ -26,7 +27,7 @@ import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/default
  *
  * CLI 引数・GlobalConfig・デフォルト値から NormalizeConfig を構築する処理を検証する。
  *
- * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-15
+ * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-19
  *
  * @see buildConfig
  */
@@ -59,6 +60,21 @@ describe('buildConfig', () => {
             assertEquals(buildConfig([]).timeoutMs, 120_000);
           });
         });
+
+        describe('Then: T-NC-BC-16 - バッチ二重上限のデフォルト値が適用される', () => {
+          // 実在する設定ファイルの値が混入しないよう、空 YAML でシングルトンを事前生成する
+          beforeEach(() => {
+            GlobalConfig.getInstance({ yaml: '' });
+          });
+
+          // 期待値は仕様として固定するためリテラルで書く（定数を import すると恒真になり既定値の変化を検知できない）
+          it('T-NC-BC-16-01: batchSize が既定値 4 になる', () => {
+            assertEquals(buildConfig([]).batchSize, 4);
+          });
+          it('T-NC-BC-16-02: maxBatchChars が既定値 20000 になる', () => {
+            assertEquals(buildConfig([]).maxBatchChars, 20000);
+          });
+        });
       });
     });
 
@@ -70,6 +86,53 @@ describe('buildConfig', () => {
           });
           it('T-NC-BC-02-02: --dry-run → dryRun = true', () => {
             assertEquals(buildConfig(['--dry-run']).dryRun, true);
+          });
+        });
+      });
+    });
+
+    describe('Given: --batch-size / --max-batch-chars を指定した引数', () => {
+      describe('When: buildConfig(args) を呼び出す', () => {
+        describe('Then: T-NC-BC-17 - CLI 引数の値が既定値を上書きする', () => {
+          const _cases = [
+            { id: 'T-NC-BC-17-01', args: ['--batch-size', '2'], field: 'batchSize', expected: 2 },
+            { id: 'T-NC-BC-17-02', args: ['--max-batch-chars', '1000'], field: 'maxBatchChars', expected: 1000 },
+          ] as const;
+          for (const { id, args, field, expected } of _cases) {
+            it(`${id}: ${args.join(' ')} → ${field} = ${expected}`, () => {
+              assertEquals(buildConfig([...args])[field], expected);
+            });
+          }
+        });
+      });
+    });
+
+    describe('Given: GlobalConfig に batchSize / maxBatchChars が設定されている', () => {
+      describe('When: buildConfig([]) を呼び出す', () => {
+        describe('Then: T-NC-BC-17 - config.yaml の値が既定値を上書きする', () => {
+          const _cases = [
+            { id: 'T-NC-BC-17-03', yaml: 'batchSize: 6', field: 'batchSize', expected: 6 },
+            { id: 'T-NC-BC-17-04', yaml: 'maxBatchChars: 12000', field: 'maxBatchChars', expected: 12000 },
+          ] as const;
+          for (const { id, yaml, field, expected } of _cases) {
+            it(`${id}: yaml "${yaml}" → ${field} = ${expected}`, () => {
+              GlobalConfig.getInstance({ yaml });
+              assertEquals(buildConfig([])[field], expected);
+            });
+          }
+        });
+      });
+    });
+
+    describe('Given: GlobalConfig の batchSize と --batch-size の両方が指定されている', () => {
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: 'batchSize: 6' });
+      });
+
+      describe('When: buildConfig(args) を呼び出す', () => {
+        describe('Then: T-NC-BC-17 - CLI 引数が config.yaml より優先される', () => {
+          it('T-NC-BC-17-05: yaml "batchSize: 6" + --batch-size 2 → batchSize = 2', () => {
+            assertEquals(buildConfig(['--batch-size', '2']).batchSize, 2);
           });
         });
       });
@@ -215,6 +278,26 @@ describe('buildConfig', () => {
         assertThrows(() => buildConfig(['--concurrency', 'abc']), Error);
       });
     });
+
+    describe('Given: 非整数の max-batch-chars', () => {
+      it('T-NC-BC-18-01: --max-batch-chars abc → ChatlogError(InvalidArgs/NotAnInteger) がスローされる', () => {
+        const _error = assertThrows(() => buildConfig(['--max-batch-chars', 'abc']), ChatlogError);
+        assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'NotAnInteger']);
+      });
+    });
+
+    describe('Given: 範囲外の値を持つ config.yaml', () => {
+      const _errorCases = [
+        { id: 'T-NC-BC-18-02', yaml: 'batchSize: 0' },
+        { id: 'T-NC-BC-18-03', yaml: 'maxBatchChars: 1000001' },
+      ] as const;
+      for (const { id, yaml } of _errorCases) {
+        it(`${id}: yaml "${yaml}" → ChatlogError(InvalidYaml/OutOfRange) がスローされる`, () => {
+          const _error = assertThrows(() => GlobalConfig.getInstance({ yaml }), ChatlogError);
+          assertEquals([_error.kind, _error.subindex], ['InvalidYaml', 'OutOfRange']);
+        });
+      }
+    });
   });
 
   /** 境界値・defaults 明示指定など特殊なケース。 */
@@ -255,5 +338,21 @@ describe('buildConfig', () => {
     it('[Edge] T-NC-BC-15-01: 同じオプションを 2 回渡したとき後の値が採用される', () => {
       assertEquals(buildConfig(['--concurrency', '4', '--concurrency', '8']).concurrency, 8);
     });
+
+    it('[Edge] T-NC-BC-19-01: --max-batch-chars 0 → maxBatchChars が 0（無制限の明示指定）になる', () => {
+      assertEquals(buildConfig(['--max-batch-chars', '0']).maxBatchChars, 0);
+    });
+
+    // config.yaml のスキーマ範囲は両端を含む（`_assertInRange` が `<` / `>` で判定する）
+    const _upperBoundCases = [
+      { id: 'T-NC-BC-19-02', yaml: 'maxBatchChars: 1000000', field: 'maxBatchChars', expected: 1000000 },
+      { id: 'T-NC-BC-19-03', yaml: 'batchSize: 10', field: 'batchSize', expected: 10 },
+    ] as const;
+    for (const { id, yaml, field, expected } of _upperBoundCases) {
+      it(`[Edge] ${id}: yaml "${yaml}" → ${field} が上限値 ${expected} のまま通る`, () => {
+        GlobalConfig.getInstance({ yaml });
+        assertEquals(buildConfig([])[field], expected);
+      });
+    }
   });
 });

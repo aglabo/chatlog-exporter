@@ -166,14 +166,18 @@ const _accountSegmentFailures = (
  *
  * @param inputDir   - Source directory (files are discovered here via findFiles)
  * @param outputBase - Base output directory
- * @param config     - Processing config (dryRun, concurrency)
+ * @param config     - Processing config (dryRun, concurrency, model/timeoutMs, failFast, singleFile,
+ *                     and the `batchSize`/`maxBatchChars` chunk limits forwarded to {@link phaseSegment})
  * @param stats      - Mutable counters updated in place
  * @param hashFn     - Optional hash generator for output file names (injectable for testing)
  */
 export const processFiles = async (
   inputDir: string,
   outputBase: string,
-  config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'timeoutMs' | 'failFast' | 'singleFile'>,
+  config: Pick<
+    NormalizeConfig,
+    'dryRun' | 'concurrency' | 'model' | 'timeoutMs' | 'failFast' | 'singleFile' | 'batchSize' | 'maxBatchChars'
+  >,
   stats: Stats,
   hashFn?: HashProvider,
 ): Promise<void> => {
