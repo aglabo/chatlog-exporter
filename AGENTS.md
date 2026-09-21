@@ -9,7 +9,8 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --claim  # Claim work atomically
 bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
+bd dolt push          # backup to git remote
+bd export -o .beads/issues.jsonl  # Export issues to git-tracked JSONL
 ```
 
 ## Non-Interactive Shell Commands
@@ -73,7 +74,7 @@ bd close <id>         # Complete work
 
    ```bash
    git pull --rebase
-   bd dolt push
+   bd export -o .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```
