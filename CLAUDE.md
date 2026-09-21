@@ -108,6 +108,7 @@ bd close <id>         # Complete work
    ```bash
    git pull --rebase
    bd dolt push
+   bd export -o .beads/issues.jsonl
    git push
    git status  # MUST show "up to date with origin"
    ```

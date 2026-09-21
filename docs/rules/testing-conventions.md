@@ -40,6 +40,24 @@ it('all cases pass', () => {
 テストケース配列を `it` の中やファイルトップレベルに直書きしない。
 `_cases` / `_fixtures` / `_errorCases` として Internal Helpers (2 章グループ 4) に置く。
 
+### provider 注入テストは「provider に何が渡されたか」を検証する
+
+fake / stub を注入するテストでは、戻り値の検証だけでなく **provider が受け取った引数を assert する。**
+引数を無視して固定値を返す fake は、実装が対象を取り違えても全ケース PASS になる。
+
+実例: `sweepBackups` の unit テストで fake glob が pattern 引数を無視していたため、実装の
+`findFilesFlat` の ext を `.bak` → `.md` に変えても 16 ケース全部が PASS した。これは本関数の最悪の故障
+(対象ディレクトリの `.md` 本体を全削除する) が無検出になることを意味する。
+`_makeGlobSpy` で pattern を記録し `${dir}/*.bak` を検証する形にしたところ、`.md` 変異体で FAIL するようになった。
+
+### Test Target は観測可能な振る舞いを持つ関数に限る
+
+commit 単位をそのまま Test Target に写像しない。型定義のみ・定数のみの変更は Error / Edge が立たず、
+埋め草の `it()` を書く羽目になる (どの Test Target も Normal / Error / Edge がゼロ件なら出力禁止という
+ハードゲートに引っかかる)。型・定数は**消費側の Target に畳む**。
+ただし畳んでも実挙動のリグレッションテストは残す。
+カテゴリの件数確認は目視でなく `awk` 等で機械カウントする。
+
 ---
 
 ## 1. ファイルヘッダ

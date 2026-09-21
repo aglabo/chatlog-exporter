@@ -17,7 +17,7 @@ import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 // types
 import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
-import type { ClassifyCache, ClassifyConfig } from '../types/classify.types.ts';
+import type { ClassifyCache, ClassifyConfig, ProjectDicEntry } from '../types/classify.types.ts';
 // constants
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
@@ -25,7 +25,7 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
 /**
  * バッファエントリに対して AI 不要なケースの事前分類を行い、判定結果を `cache` に書き込む。
- * - frontmatter に `project` フィールドがある場合: `move`
+ * - frontmatter の `project` フィールドが `projects`（プロジェクト辞書）に存在する場合: `move`
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
  * - それ以外: 何もしない（`action`/`project` 未設定のまま、AI 処理対象）
  *
@@ -34,13 +34,16 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 export const classifyByNoAI = async (
   entry: ChatlogEntry,
   cache: ChatlogCache<ClassifyCache>,
+  projects: ProjectDicEntry,
 ): Promise<ChatlogEntry> => {
   const f = entry;
   const _fm = f.frontmatter;
   const _existingProject = _fm.get('project');
 
-  // プロジェクト指定済み → 移動
-  if (typeof _existingProject === 'string' && _existingProject) {
+  // 辞書に存在するプロジェクト指定済み → 移動。辞書外・空文字は後段の判定へ落とす
+  const _isKnownProject = typeof _existingProject === 'string' && _existingProject !== ''
+    && Object.hasOwn(projects, _existingProject);
+  if (_isKnownProject) {
     await cache.write(f.filePath!, { project: _existingProject, action: CLASSIFY_ACTIONS.MOVE });
     return entry;
   }
@@ -75,8 +78,9 @@ export const processClassifyNoAI = async (
   buffer: ChatlogEntry[],
   cache: ChatlogCache<ClassifyCache>,
   config: Pick<ClassifyConfig, 'concurrency'>,
+  projects: ProjectDicEntry,
 ): Promise<{ move: ChatlogEntry[]; remaining: ChatlogEntry[] }> => {
-  await runConcurrent(buffer, (entry) => classifyByNoAI(entry, cache), config.concurrency);
+  await runConcurrent(buffer, (entry) => classifyByNoAI(entry, cache, projects), config.concurrency);
   const move = buffer.filter((entry) => cache.read(entry.filePath!).project);
   const remaining = buffer.filter((entry) => !cache.read(entry.filePath!).project);
   return { move, remaining };

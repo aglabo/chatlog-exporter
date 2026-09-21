@@ -1,6 +1,7 @@
 # Beads - AI-Native Issue Tracking
 
 <!-- cspell:words steveyegge -->
+<!-- markdownlint-disable line-length -->
 
 Welcome to Beads! This repository uses **Beads** for issue tracking - a modern, AI-native tool designed to live directly in your codebase alongside your code.
 
@@ -28,8 +29,8 @@ bd show <issue-id>
 bd update <issue-id> --claim
 bd update <issue-id> --status done
 
-# Sync with Dolt remote
-bd dolt push
+# Export issues to git-tracked JSONL
+bd export -o .beads/issues.jsonl
 ```
 
 ### Working with Issues

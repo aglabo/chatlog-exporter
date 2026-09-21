@@ -118,7 +118,7 @@ const _classify = async (
 ): Promise<ClassifyPartition> => {
   // Step 1: 分類候補エントリの読み込み。読み込み失敗（frontmatter パースエラー等）は errors に分離され、
   // 誤って処理を継続しないよう後続の事前分類・AI分類には渡らない
-  const { entries, errors } = await loadClassifyEntries(filePaths, cache, config);
+  const { entries, errors } = await loadClassifyEntries(filePaths, cache, config, projects);
   if (errors.length > 0) {
     stats.error += errors.length;
     errors.forEach(({ filePath, error }) =>
@@ -130,7 +130,7 @@ const _classify = async (
   const partition = partitionEntries(entries, cache);
 
   // Step 3: 分類 (AI なし)
-  const { remaining } = await processClassifyNoAI(partition.uncached, cache, config);
+  const { remaining } = await processClassifyNoAI(partition.uncached, cache, config, projects);
 
   // Step 4: 分類（AI あり）
   await classifyByAI(remaining, projects, config, cache, config.dryRun);

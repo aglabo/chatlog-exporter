@@ -67,6 +67,19 @@ export const DEFAULT_CHUNK_SIZE = 10;
 /** 同時実行するタスクの最大並列数。 */
 export const DEFAULT_CONCURRENCY = 4;
 
+/** 1 チャンクあたりの最大ファイル数。 */
+export const DEFAULT_BATCH_SIZE = 4;
+
+/**
+ * 1 チャンクあたりの累積 content 文字数の上限。0 = 無制限。
+ *
+ * 既定 20000 の根拠: `_addLineNumbers` の `"%5d: "` パディングでトークン数がほぼ倍になるため
+ * （p50 ×1.92 / p90 ×1.68 / max ×1.71、avalon の `POST /tokenize` 実測）、
+ * 本文 20,000 字 ≈ 8,300 tok → 行番号付与後 ≈ 14,100 tok。
+ * プロンプト処理 93.4 tok/s 実測で PP 約 150 秒 + 生成 約 65 秒 ≈ 216 秒（`timeoutMs: 300_000` に余裕 84 秒）。
+ */
+export const DEFAULT_MAX_BATCH_CHARS = 20000;
+
 // ─────────────────────────────────────────────
 // ハッシュ生成系
 // ─────────────────────────────────────────────

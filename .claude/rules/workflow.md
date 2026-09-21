@@ -14,3 +14,14 @@ deckrd の `deckrd-rule-workflow.md` が正とする
 2. `dprint check` が通る
 3. `deno task test` が全件パスする
 4. ユーザーに完了を伝え、コミットはユーザーに委ねる
+
+## PR 下書きの言語
+
+PR 下書き（`temp/idd/pr/` 以下）はテンプレートに従い、本文（Overview・Changes・Additional Notes 等）を
+**英語で書く。** チェックリストのラベルもテンプレートのまま英語を維持する。
+
+## lefthook の pre-push を検証するとき
+
+lefthook v2 の pre-push は `no matching push files` でコマンドをスキップする。
+未 push commit が無い状態で `lefthook run pre-push` を実行しても検証にならない。
+実際の発火を確かめるには、bare リポジトリを remote に見立てて使い捨てクローンから push する。

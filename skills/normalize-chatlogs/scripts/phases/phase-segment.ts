@@ -17,7 +17,6 @@ import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class
 import { hasSegments, toCacheKey } from '../libs/cache-utils.ts';
 import { segmentChatlogs } from '../modules/segment-ai.ts';
 // constants
-import { BATCH_SIZE } from '../constants/normalize.constants.ts';
 import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // libs
 import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
@@ -89,6 +88,33 @@ const _processChunk = async (
 };
 
 /**
+ * 件数上限 `batchSize` と累積文字数上限 `maxBatchChars` の **早い方** でチャンクを閉じる。
+ *
+ * - `maxBatchChars === 0` は無制限（`maxContentLength: 0` と同じ規約）
+ * - 単一ファイルが `maxBatchChars` を超える場合、そのファイル単独で 1 チャンクとする
+ *   （空チャンクを作らない）
+ * - 入力順を保存し、全エントリがちょうど 1 チャンクに 1 回だけ現れる
+ *
+ * @param entries       - チャンク分割対象のエントリ（入力順）
+ * @param batchSize     - 1 チャンクあたりの最大ファイル数
+ * @param maxBatchChars - 1 チャンクあたりの累積 `content.length` 上限（0 = 無制限）
+ * @returns 入力順を保った ChatlogEntry の配列の配列
+ */
+const _chunkEntries = (
+  entries: ChatlogEntry[],
+  batchSize: number,
+  maxBatchChars: number,
+): ChatlogEntry[][] =>
+  entries.reduce<ChatlogEntry[][]>((chunks, entry) => {
+    const _last = chunks.at(-1);
+    const _fits = _last !== undefined
+      && _last.length < batchSize
+      && (maxBatchChars === 0
+        || _last.reduce((sum, e) => sum + e.content.length, 0) + entry.content.length <= maxBatchChars);
+    return _fits ? [...chunks.slice(0, -1), [..._last, entry]] : [...chunks, [entry]];
+  }, []);
+
+/**
  * Determines segment split plans for `entries`, preferring cached `segments`
  * (resume support) over a fresh AI call, and persists newly-decided segments to the cache.
  *
@@ -96,8 +122,12 @@ const _processChunk = async (
  * already-cached entries are returned, uncached entries are left unplanned (the caller
  * accounts for them as skipped — see `_accountSegmentFailures` in `process-files.ts`).
  *
- * Entries with cached `segments` are returned as-is (no AI call). The remainder is chunked
- * into groups of at most `BATCH_SIZE` (or 1 when `config.singleFile` is true) and each chunk
+ * Entries with cached `segments` are returned as-is (no AI call). The remainder is chunked by
+ * {@link _chunkEntries} under two limits, whichever is reached first: at most `config.batchSize`
+ * files per chunk (default `DEFAULT_BATCH_SIZE`, forced to 1 when `config.singleFile` is
+ * true) and at most `config.maxBatchChars` cumulative `content` characters per chunk
+ * (default `DEFAULT_MAX_BATCH_CHARS`, `0` meaning unlimited). A single file exceeding
+ * `maxBatchChars` becomes a chunk of its own rather than producing an empty chunk. Each chunk
  * is processed via {@link _processChunk} with parallelism `concurrency` to bound prompt size
  * and timeout risk. On success, segment data (`title`/`summary`/`startLine`/`endLine`) are written
  * to the cache. Entries whose AI call failed, whose segments came back empty, or whose segments
@@ -109,14 +139,15 @@ const _processChunk = async (
  *
  * @param entries     - Files loaded as `ChatlogEntry`
  * @param cache       - Cache read for resume, written with decided segment boundaries
- * @param config      - Model/timeout/singleFile/dryRun options forwarded to `segmentChatlogs` and chunking
+ * @param config      - Model/timeout/singleFile/dryRun options forwarded to `segmentChatlogs`, plus
+ *                      the `batchSize`/`maxBatchChars` chunk limits (both required; resolved by `buildConfig`)
  * @param concurrency - Parallelism for processing chunks
  * @returns Entries whose segment boundaries are present in the cache after this call
  */
 export const phaseSegment = async (
   entries: ChatlogEntry[],
   cache: ChatlogCache<NormalizeCache>,
-  config: Pick<NormalizeConfig, 'model' | 'timeoutMs' | 'dryRun' | 'singleFile'>,
+  config: Pick<NormalizeConfig, 'model' | 'timeoutMs' | 'dryRun' | 'singleFile' | 'batchSize' | 'maxBatchChars'>,
   concurrency: number,
 ): Promise<ChatlogEntry[]> => {
   const _cachedEntries = entries.filter((entry) => hasSegments(entry, cache));
@@ -125,10 +156,10 @@ export const phaseSegment = async (
   }
   const _uncachedEntries = entries.filter((entry) => !hasSegments(entry, cache));
 
-  const _chunkSize = config.singleFile ? 1 : BATCH_SIZE;
-  const _chunks = Array.from(
-    { length: Math.ceil(_uncachedEntries.length / _chunkSize) },
-    (_, i) => _uncachedEntries.slice(i * _chunkSize, (i + 1) * _chunkSize),
+  const _chunks = _chunkEntries(
+    _uncachedEntries,
+    config.singleFile ? 1 : config.batchSize,
+    config.maxBatchChars,
   );
 
   const _processedChunks = await runConcurrent(

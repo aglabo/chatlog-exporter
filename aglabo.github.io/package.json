@@ -1,18 +1,13 @@
 {
   "name": "aglabo.github.io",
-  "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "private": true,
   "description": "",
-  "main": "index.js",
   "keywords": [],
-  "author": "atsushifx",
   "license": "MIT",
-  "packageManager": "pnpm@12.4.1",
-  "engines": {
-    "node": ">=24",
-    "pnpm": ">=12"
-  },
+  "author": "atsushifx",
+  "type": "module",
+  "main": "index.js",
   "scripts": {
     "docs:dev": "pnpm exec blume dev",
     "docs:build": "pnpm exec blume build"
@@ -20,5 +15,10 @@
   "devDependencies": {
     "blume": "~1.5.3",
     "esbuild": "^0.28.2"
+  },
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=12"
   }
 }
