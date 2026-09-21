@@ -72,6 +72,10 @@ export type NormalizeConfig = DefaultArgFields & {
   concurrency: number;
   failFast?: boolean;
   singleFile?: boolean;
+  /** 1 チャンクあたりの最大ファイル数。 */
+  batchSize: number;
+  /** 1 チャンクあたりの累積 `content` 文字数の上限。0 = 無制限。 */
+  maxBatchChars: number;
 };
 
 /** T が ArgValue 互換であることをコンパイル時に強制するための恒等型。 */

@@ -7,9 +7,17 @@
 // https://opensource.org/licenses/MIT
 
 // constants
-import { DEFAULT_CONCURRENCY } from '../../../_cle-libs/constants/defaults.constants.ts';
+import {
+  DEFAULT_BATCH_SIZE,
+  DEFAULT_CONCURRENCY,
+  DEFAULT_MAX_BATCH_CHARS,
+} from '../../../_cle-libs/constants/defaults.constants.ts';
 // types
 import type { NormalizeConfig } from '../types/normalize.types.ts';
+
+// ─── Re-exports
+
+export { DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_CHARS };
 
 // ─── Constants defintion
 
@@ -17,10 +25,9 @@ import type { NormalizeConfig } from '../types/normalize.types.ts';
 export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
   dryRun: false,
   concurrency: DEFAULT_CONCURRENCY,
+  batchSize: DEFAULT_BATCH_SIZE,
+  maxBatchChars: DEFAULT_MAX_BATCH_CHARS,
 };
 
 /** Maximum number of segments per file. Segments returned by the AI are truncated to this count. */
 export const MAX_SEGMENTS = 5;
-
-/** Maximum number of files processed in a single AI call. Larger values increase the risk of timeouts. */
-export const BATCH_SIZE = 4;

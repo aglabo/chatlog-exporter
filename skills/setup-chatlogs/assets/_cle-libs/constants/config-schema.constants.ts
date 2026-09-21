@@ -7,9 +7,11 @@
 // https://opensource.org/licenses/MIT
 
 import {
+  DEFAULT_BATCH_SIZE,
   DEFAULT_CACHE_ROOT,
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_CONFIG_DIR,
+  DEFAULT_MAX_BATCH_CHARS,
   DEFAULT_MAX_RETRY,
 } from './defaults.constants.ts';
 // types
@@ -33,6 +35,10 @@ export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   chunkSize: { type: 'number', min: 1, max: 10 },
   /** 同時実行する並列タスク数の上限。 */
   concurrency: { type: 'number', min: 1, max: 10 },
+  /** 1 チャンクあたりの最大ファイル数（normalize-chatlogs のセグメント分割）。 */
+  batchSize: { type: 'number', min: 1, max: 10 },
+  /** 1 チャンクあたりの累積 content 文字数の上限。0 = 無制限。 */
+  maxBatchChars: { type: 'number', min: 0, max: 1000000 },
   /** コンテンツ最小文字数フィルタ閾値。 */
   minCharCount: { type: 'number', min: 0, max: 100000 },
   /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
@@ -78,6 +84,10 @@ export const DEFAULT_CONFIG_VALUES = {
   chunkSize: 10,
   /** デフォルト並列数は 4 タスク */
   concurrency: 4,
+  /** デフォルトバッチサイズは 4 ファイル */
+  batchSize: DEFAULT_BATCH_SIZE,
+  /** デフォルト累積文字数上限は 20,000 文字 */
+  maxBatchChars: DEFAULT_MAX_BATCH_CHARS,
   /** デフォルト辞書ディレクトリ（`.config/<appName>/` からの相対値。GlobalConfig.get() が絶対パスに解決する） */
   dicsDir: 'dics',
   /** デフォルトプロジェクト辞書パス */

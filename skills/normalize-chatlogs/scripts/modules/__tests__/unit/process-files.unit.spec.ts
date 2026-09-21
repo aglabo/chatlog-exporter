@@ -40,18 +40,43 @@ import { initStats } from '../../../libs/stats-utils.ts';
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 import type { NormalizeConfig, Stats } from '../../../types/normalize.types.ts';
 // constants
-import { BATCH_SIZE } from '../../../constants/normalize.constants.ts';
+import { DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_CHARS } from '../../../constants/normalize.constants.ts';
 import { NORMALIZE_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 
 // ─── Internal Helpers
 
+// types
+
+/**
+ * `processFiles` の `config` 引数に渡す設定の型。
+ *
+ * チャンク上限（`batchSize` / `maxBatchChars`）は `NormalizeConfig` の必須フィールドであり、
+ * `processFiles` がそのまま `phaseSegment` へ渡すため、テストの config にも必ず含める。
+ */
+type _ProcessConfig = Pick<
+  NormalizeConfig,
+  'dryRun' | 'concurrency' | 'model' | 'failFast' | 'singleFile' | 'batchSize' | 'maxBatchChars'
+>;
+
 // constants
-const _CONFIG: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
+
+/** `processFiles` に渡す既定の config。チャンク上限は既定値を明示し、上限を検証するケースとの前提差を消す。 */
+const _CONFIG: _ProcessConfig = {
   dryRun: true,
   concurrency: 2,
+  batchSize: DEFAULT_BATCH_SIZE,
+  maxBatchChars: DEFAULT_MAX_BATCH_CHARS,
 };
 
 // functions
+
+/**
+ * `processFiles` の `config` 引数を {@link _CONFIG} ベースで組み立てる。
+ *
+ * @param overrides - 既定値から変更するフィールド
+ * @returns `_CONFIG` に `overrides` を重ねた config
+ */
+const _makeConfig = (overrides: Partial<_ProcessConfig> = {}): _ProcessConfig => ({ ..._CONFIG, ...overrides });
 
 /** テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。他テストの残留キャッシュの影響を防ぐ。 */
 const _makeGlobalConfig = (tempDir: string): GlobalConfig =>
@@ -87,6 +112,71 @@ const _readCache = async (filePath: string): Promise<Partial<NormalizeCache>> =>
 /** `Stats` の全カウンタ（success/fail/done/error/skip）の合計。入力ファイル数との不変条件検証に使う。 */
 const _totalStats = (stats: Stats): number => stats.done + stats.error + stats.fail + stats.skip + stats.success;
 
+/**
+ * `dir/<name>.md` に `ChatlogEntry.content` の長さが `contentLength` になる本文を書き出す。
+ *
+ * `ChatlogEntry` は本文末尾に `
+` を付与するため、素材は `contentLength - 1` 文字で作る。
+ * チャンク上限は生の `content.length` で判定されるので、長さを厳密に固定する。
+ *
+ * @param dir           - 書き出し先ディレクトリ
+ * @param name          - 拡張子を除いたファイル名
+ * @param contentLength - `ChatlogEntry.content` の文字数（1 以上）
+ * @returns 書き出したファイルの正規化済みパス
+ */
+const _writeSizedFile = async (dir: string, name: string, contentLength: number): Promise<string> => {
+  const _filePath = normalizePath(`${dir}/${name}.md`);
+  await Deno.writeTextFile(_filePath, 'x'.repeat(contentLength - 1));
+  return _filePath;
+};
+
+/**
+ * `dir` 直下に `contentLength` で指定した長さの本文を持つ `.md` ファイルを `count` 件書き出す。
+ *
+ * @param dir           - 書き出し先ディレクトリ
+ * @param count         - 書き出すファイル数
+ * @param contentLength - 各ファイルの `ChatlogEntry.content` の文字数（1 以上）
+ * @returns 書き出したファイルの正規化済みパス（`file0.md` 〜 の昇順）
+ */
+const _writeSizedFiles = (dir: string, count: number, contentLength: number): Promise<string[]> =>
+  Promise.all(Array.from({ length: count }, (_, i) => _writeSizedFile(dir, `file${i}`, contentLength)));
+
+/**
+ * `filePaths` の全ファイルに 1 セグメント（1 行目のみ）を返す AI 応答を組み立てる。
+ *
+ * `segmentChatlogs` は入力チャンクに無い `filePath` を無視するため、どのチャンクに対しても
+ * 同じ応答を返して構わない。チャンク分割の検証では「何回呼ばれたか」だけが関心事になる。
+ *
+ * @param filePaths - 応答に含めるファイルパス
+ * @returns `Deno.Command` モックの stdout に渡す claude JSON エンベロープ文字列
+ */
+const _makeSegmentResponse = (filePaths: string[]): string =>
+  wrapClaudeJson(
+    JSON.stringify(
+      filePaths.map((filePath) => ({
+        filePath,
+        segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 1 }],
+      })),
+    ),
+  );
+
+/**
+ * `filePaths` の全ファイルに 1 セグメントを返す AI モックを `Deno.Command` へ差し込む。
+ *
+ * `Deno.Command` は 1 チャンク（= 1 AI 呼び出し）につき 1 回だけ構築されるため、
+ * 返り値の `counter.calls` はそのままチャンク数になる。
+ *
+ * @param filePaths - AI 応答に含めるファイルパス
+ * @returns 復元用ハンドルと AI 呼び出し回数カウンタ
+ */
+const _installSegmentMock = (
+  filePaths: string[],
+): { handle: CommandMockHandle; counter: { calls: number } } => {
+  const _counter = { calls: 0 };
+  const _handle = installCommandMock(makeCountingMock(_makeSegmentResponse(filePaths), _counter));
+  return { handle: _handle, counter: _counter };
+};
+
 // ─── Tests
 
 /**
@@ -94,7 +184,8 @@ const _totalStats = (stats: Stats): number => stats.done + stats.error + stats.f
  *
  * AI 呼び出し（segmentChatlogs）をモックして stats の更新と dryRun 動作を検証する。
  *
- * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-07, T-PF-VAL-01 〜 T-PF-VAL-05
+ * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-07, T-PF-VAL-01 〜 T-PF-VAL-05,
+ *                T-NC-PRF-01-01 〜 T-NC-PRF-04-01
  *
  * @see processFiles
  */
@@ -284,11 +375,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout, capturedArgs));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
-        dryRun: false,
-        concurrency: 1,
-        model: 'claude-opus-4-7',
-      };
+      const config = _makeConfig({ dryRun: false, concurrency: 1, model: 'claude-opus-4-7' });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -308,11 +395,7 @@ describe('processFiles', () => {
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
       await Deno.writeTextFile(`${tmpDir}/file2.md`, '# File2\n\nContent2');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: true,
-        concurrency: 1,
-        failFast: false,
-      };
+      const config = _makeConfig({ dryRun: true, concurrency: 1, failFast: false });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -327,11 +410,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeFailMock(1));
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: false,
-        concurrency: 1,
-        failFast: true,
-      };
+      const config = _makeConfig({ dryRun: false, concurrency: 1, failFast: true });
 
       // act & assert
       const err = await assertRejects(
@@ -346,11 +425,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeFailMock(1));
 
       await Deno.writeTextFile(`${tmpDir}/file1.md`, '# File1\n\nContent1');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: true,
-        concurrency: 1,
-        failFast: true,
-      };
+      const config = _makeConfig({ dryRun: true, concurrency: 1, failFast: true });
 
       // act — dryRun=true なので failFast=true でも throw されない
       await processFiles(tmpDir, outputDir, config, stats);
@@ -369,10 +444,7 @@ describe('processFiles', () => {
 
       const filePath = normalizePath(`${tmpDir}/target-file.md`);
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
-        dryRun: false,
-        concurrency: 2,
-      };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
       let warnStub: Stub | undefined;
 
       try {
@@ -415,11 +487,7 @@ describe('processFiles', () => {
       // arrange
       const badFilePath = normalizePath(`${tmpDir}/bad-yaml.md`);
       await Deno.writeTextFile(badFilePath, '---\ntitle: [unclosed\n---\n本文');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: true,
-        concurrency: 1,
-        failFast: true,
-      };
+      const config = _makeConfig({ dryRun: true, concurrency: 1, failFast: true });
 
       // act & assert
       const err = await assertRejects(
@@ -440,11 +508,7 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath: goodFilePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'failFast'> = {
-        dryRun: true,
-        concurrency: 2,
-        failFast: false,
-      };
+      const config = _makeConfig({ dryRun: true, concurrency: 2, failFast: false });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -474,11 +538,11 @@ describe('processFiles', () => {
     });
   });
 
-  /** BATCH_SIZE 境界: ファイル数が BATCH_SIZE を超えるとき 2 チャンクに分割して処理するケース。 */
-  describe('When: BATCH_SIZE 境界', () => {
-    it('[Edge] T-PF-BATCH-01: ファイル数が BATCH_SIZE+1 のとき全ファイルが処理されて stats.fail === 0', async () => {
-      // arrange — BATCH_SIZE+1 件のファイルを作成して 2 チャンク分の処理を誘発する
-      const fileCount = BATCH_SIZE + 1;
+  /** DEFAULT_BATCH_SIZE 境界: ファイル数が DEFAULT_BATCH_SIZE を超えるとき 2 チャンクに分割して処理するケース。 */
+  describe('When: DEFAULT_BATCH_SIZE 境界', () => {
+    it('[Edge] T-PF-BATCH-01: ファイル数が DEFAULT_BATCH_SIZE+1 のとき全ファイルが処理されて stats.fail === 0', async () => {
+      // arrange — DEFAULT_BATCH_SIZE+1 件のファイルを作成して 2 チャンク分の処理を誘発する
+      const fileCount = DEFAULT_BATCH_SIZE + 1;
       const filePaths: string[] = [];
       for (let i = 0; i < fileCount; i++) {
         const fp = normalizePath(`${tmpDir}/file${i}.md`);
@@ -491,15 +555,71 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = {
-        dryRun: true,
-        concurrency: 2,
-      };
+      const config = _makeConfig({ dryRun: true, concurrency: 2 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert — 全ファイルが処理され fail がゼロ
+      assertEquals(stats.fail, 0);
+    });
+  });
+
+  /**
+   * チャンク上限の伝播: `config.batchSize` / `config.maxBatchChars` が `phaseSegment` の
+   * チャンク生成まで届くことを、AI 呼び出し回数と stats で検証する。
+   *
+   * すべて `dryRun: false` で呼ぶ。`dryRun: true` では `phaseSegment` がキャッシュ済みエントリを
+   * 返して即 return し、チャンク生成も AI 呼び出しも一切通らないため、伝播を検証できない。
+   */
+  describe('When: チャンク上限の伝播', () => {
+    it('[Normal] T-NC-PRF-01-01: maxBatchChars が小さいとき batchSize より細かく分割され AI が 4 回呼ばれる', async () => {
+      // arrange — 本文 120 文字 x 4 件。2 件で 240 文字となり maxBatchChars(200) を超えるため 1 件ずつに割れる
+      const filePaths = await _writeSizedFiles(tmpDir, 4, 120);
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      const config = _makeConfig({ dryRun: false, concurrency: 1, batchSize: 4, maxBatchChars: 200 });
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — 件数上限(4)では 1 チャンクだが、文字数上限が先に効いて 4 チャンクになる
+      assertEquals(counter.calls, 4);
+      assertEquals(stats.fail, 0);
+    });
+
+    it('[Error] T-NC-PRF-02-01: 単一ファイルが maxBatchChars を超えても取りこぼさず全件処理される', async () => {
+      // arrange — small(20 文字) は上限(100)内、big(500 文字) は単独でも上限を超える
+      const smallPath = await _writeSizedFile(tmpDir, 'small', 20);
+      const bigPath = await _writeSizedFile(tmpDir, 'big', 500);
+      const { handle, counter } = _installSegmentMock([smallPath, bigPath]);
+      mockHandle = handle;
+
+      const config = _makeConfig({ dryRun: false, concurrency: 1, batchSize: 4, maxBatchChars: 100 });
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — 超過ファイルは単独チャンクへ降格するだけで、空チャンク送りにも取りこぼしにもならない
+      assertEquals(counter.calls, 2);
+      assertEquals(stats.success, 2);
+      assertEquals(stats.fail, 0);
+    });
+
+    it('[Edge] T-NC-PRF-03-01: maxBatchChars が 0 のとき文字数に関係なく batchSize だけで分割される', async () => {
+      // arrange — 本文 5000 文字 x 4 件（累積 20000 文字）。0 は無制限なので累積を数えずに束ねる
+      const filePaths = await _writeSizedFiles(tmpDir, 4, 5000);
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      const config = _makeConfig({ dryRun: false, concurrency: 1, batchSize: 4, maxBatchChars: 0 });
+
+      // act
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — 件数上限(4)だけが効いて 1 チャンクに収まる
+      assertEquals(counter.calls, 1);
       assertEquals(stats.fail, 0);
     });
   });
@@ -520,7 +640,7 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // 出力済みファイルなし
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -540,7 +660,7 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // misc サブディレクトリを作成しない（outputDir 自体は存在する）
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       // act — エラーなしで処理が完了するはず
       await processFiles(tmpDir, outputDir, config, stats);
@@ -560,7 +680,7 @@ describe('processFiles', () => {
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
       // misc ディレクトリにマッチするファイルなし
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -581,11 +701,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model' | 'singleFile'> = {
-        dryRun: false,
-        concurrency: 1,
-        singleFile: true,
-      };
+      const config = _makeConfig({ dryRun: false, concurrency: 1, singleFile: true });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -606,7 +722,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
       const stats1: Stats = initStats();
 
       // act — 1回目: 実際に処理を成功させる
@@ -642,7 +758,7 @@ describe('processFiles', () => {
 
       // 2回目: dryRun=false で同じファイルを処理 → キャッシュ未登録なのでスキップされず処理される
       const stats2: Stats = initStats();
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
@@ -669,7 +785,7 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
       const stats2: Stats = initStats();
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       await processFiles(tmpDir, outputDir, config, stats2);
 
@@ -694,7 +810,7 @@ describe('processFiles', () => {
       await Deno.mkdir(notesDir, { recursive: true });
       await Deno.writeTextFile(`${notesDir}/report.md`, 'unrelated note, not a normalize output');
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 2 };
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -713,7 +829,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -757,7 +873,7 @@ describe('processFiles', () => {
 
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock('[]', counter));
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -790,7 +906,7 @@ describe('processFiles', () => {
         makeCountingMock(wrapClaudeJson(JSON.stringify([{ filePath, segments }])), counter),
       );
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
@@ -813,7 +929,7 @@ describe('processFiles', () => {
       const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath: otherPath, segments }])));
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
-      const config: Pick<NormalizeConfig, 'dryRun' | 'concurrency' | 'model'> = { dryRun: false, concurrency: 1 };
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
