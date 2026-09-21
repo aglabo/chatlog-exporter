@@ -22,8 +22,12 @@
 
 `bd close` / `bd update` の結果は `.beads/embeddeddolt/`（git ignore 済み）にしか残らず、
 `bd dolt show` の Remotes は `(none)` なので `bd dolt push` の経路も無い。
+`.beads/config.yaml` の `sync.remote` も `git+https://…` であり、同期経路は git に寄せてある。
 git 追跡下の `.beads/issues.jsonl` へ `bd export -o .beads/issues.jsonl` するのが、
 issue 状態をリモートと新しいクローンへ届ける唯一の手段。
+
+`AGENTS.md` / `CLAUDE.md` / `.beads/README.md` にあった `bd dolt push` は bd のテンプレート由来で、
+この構成では実行しても同期先が無い。2026-09-21 に `bd export` へ統一した。
 
 フラグは付けない（`--include-memories` / `--all` は memory の agent context を巻き込む）。
 export は parent を独立フィールドとして持たず、`dependencies[]` の `type=parent-child`

@@ -20,19 +20,22 @@
 
 ## GitHub 紐付けは description にも 1 行書く
 
-`external_ref` は `.beads/issues.jsonl` へ export されない（2026-09-08 実測: 当時の 182 件すべてに
-当該フィールドなし）。`.beads/embeddeddolt/` は git ignore されているため、`--external-ref` の値は
-ローカルの Dolt にしか残らず、クローンし直すと失われる。
-
-クローンを越えて残る担体は description の文字列だけなので、`--external-ref` と併せて
-description 冒頭に次の 1 行を書く。
+`--external-ref` と併せて、description 冒頭に次の 1 行を書く。
 
 ```text
 GitHub: https://github.com/aglabo/chatlog-exporter/issues/<n>
 ```
 
-`bd list --json` / `bd show --json` は `external_ref` を返すのでローカル判定には使えるが、
-突合の根拠にはしない。
+`external_ref` は現行の bd では `.beads/issues.jsonl` へ export される（2026-09-21 実測:
+312 件中 229 件に当該フィールドあり。`cle-znk` = `gh-453` を含む）。したがって
+`bd list --json` / `bd show --json` に加え、**JSONL 側の `external_ref` も突合の根拠に使ってよい。**
+
+それでも description の 1 行を重ねるのは、`external_ref` 単独では次の 3 点を賄えないため。
+
+- export に乗っていない古い issue が残る（同実測で 83 件）。起票規約より前のものが該当する
+- bd の export 形式は現に一度変わっている（2026-09-08 時点では 182 件すべてにフィールドが無く、
+  当時この節は「export されない」と書いていた）。また変わりうる
+- description は JSONL の差分でも GitHub の画面でも bd 無しに読める
 
 ## 理由
 
