@@ -72,7 +72,8 @@ describe('main - aggregation', () => {
         );
       }
 
-      // Build batch responses for all 4 files — they are processed as 1 batch (BATCH_SIZE=4)
+      // Build batch responses for all 4 files — they are processed as 1 batch (DEFAULT_BATCH_SIZE=4,
+      // total content well under DEFAULT_MAX_BATCH_CHARS=20000)
       const batchResponse = JSON.stringify(
         Array.from({ length: 4 }, (_, i) => ({
           filePath: normalizePath(`${inputDir}/chat-${i + 1}.md`),
@@ -108,7 +109,8 @@ describe('main - aggregation', () => {
   /**
    * 異常系: AI がバッチ全体で exit 失敗 → 全 3 ファイルが fail に集計される。
    *
-   * 注: バッチ処理 (BATCH_SIZE=4) では 3 ファイルが 1 回の AI 呼び出しで処理される。
+   * 注: バッチ処理 (DEFAULT_BATCH_SIZE=4 / DEFAULT_MAX_BATCH_CHARS=20000) では 3 ファイルが
+   * 1 回の AI 呼び出しで処理される。
    * AI 呼び出し自体が失敗した場合、バッチ内の全ファイルが fail としてカウントされる。
    */
   describe('Given: 3 件の MD ファイルのうち AI がバッチ全体で失敗する', () => {

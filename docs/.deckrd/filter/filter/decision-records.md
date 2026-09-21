@@ -2,7 +2,7 @@
 title: "Decision Records: filter/filter"
 module: "filter/filter"
 status: Draft
-version: 1.0.0
+version: 1.1.0
 created: "2026-09-08"
 ---
 
@@ -35,6 +35,7 @@ Keep frontmatter `version` equal to the newest Change History row below.
 | ----- | ------------------------------------------------------------------------------ | --------------------------------------- |
 | DR-01 | fixture テストは本体のプロンプトと同一経路を通し、パース失敗を assert で落とす | `fixtures.spec.ts` / `process-chunk.ts` |
 | DR-02 | 実 AI を呼ぶテストは system tier に一本化し、fixtures tier を廃止する          | `keep-discard-criteria.system.spec.ts`  |
+| DR-03 | KEEP / DISCARD の判定軸は技術性ではなく「WHY が残っているか」                  | `process-chunk.ts` の `_SYSTEM_PROMPT`  |
 
 ---
 
@@ -125,10 +126,42 @@ PASS することを確認しています。
 
 ---
 
+## DR-03: KEEP / DISCARD の判定軸は技術性ではなく「WHY が残っているか」
+
+**Status**: Accepted
+
+**Context**: 旧判定軸は「会話が技術的か」でした。この軸は両方向に外していました。
+
+1. 技術用語が濃いだけの実行ログを拾いすぎる
+2. 技術的に薄いが、却下理由・制約・ハマりどころ・ユーザーの確定回答が残るログを取りこぼす
+
+**Decision**: `process-chunk.ts` の `_SYSTEM_PROMPT` の判定軸を
+**「判断の理由 (WHY) が残っているか」** に置き換える (2026-08-21)。
+KEEP は the log records WHY、DISCARD は the log records only WHAT happened。
+
+新軸の文言は、ユーザーのグローバル `CLAUDE.md` の長期メモリ規約
+(設計判断とその理由 / 制約・前提 / ハマりどころと解法 / ユーザーの確定回答) から移植したものです。
+
+**Rationale**: 技術性はプロンプトで明示しなくても、判定を行う claude 自身が担保します。
+併記すると旧軸の失敗 (1) を再び招くため書かない — これはユーザーの判断です。
+
+実測 (各 5 回) では、旧基準の 2 fixture 同時 PASS が約 8% だったのに対し、
+新基準は 5 / 5・confidence 0.85-0.96 でした。
+
+**Consequences**: 検証は system テスト
+`skills/filter-chatlogs/scripts/__tests__/system/filter/keep-discard-criteria.system.spec.ts`
+(`RUN_AI=1` ゲート、T-FL-KDC-01 / 02) が担います。
+DR-01 / DR-02 が前提としている「新しい KEEP 基準」とは本 DR を指します。
+
+> 出典: 2026-09-19 の永続メモリー棚卸しで `bd remember` から移送（決定自体は 2026-08-21）
+
+---
+
 ## Change History
 
 | Date       | Version | Description                                                                                             |
 | ---------- | ------- | ------------------------------------------------------------------------------------------------------- |
 | 2026-09-08 | 1.0.0   | 初版。closed 済み beads issue のバックポートとして DR-01 / DR-02 を記録（`cle-8s3` / `cle-er9` が出典） |
+| 2026-09-19 | 1.1.0   | DR-03 を追加。永続メモリー `filter-keep-discard-criterion` から移送                                     |
 
 <!-- markdownlint-enable line-length -->

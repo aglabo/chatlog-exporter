@@ -23,10 +23,18 @@ import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 
 // --- local
 // constants
+/**
+ * `buildConfig` が受け付ける CLI オプションのスキーマ。
+ *
+ * `integer` 型に `min` / `max` は付けない（既存 `--concurrency` と同じ方針）。
+ * 範囲検証は `DEFAULT_CONFIG_SCHEMA`（`GlobalConfig`）側が config.yaml の値に対して担う。
+ */
 const _SCHEMA: ArgSchema<NormalizeConfig> = [
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
   { option: '--concurrency', field: 'concurrency', type: 'integer' },
+  { option: '--batch-size', field: 'batchSize', type: 'integer' },
+  { option: '--max-batch-chars', field: 'maxBatchChars', type: 'integer' },
   { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--fail-fast', field: 'failFast', type: 'flag' },
@@ -39,6 +47,9 @@ const _SCHEMA: ArgSchema<NormalizeConfig> = [
  *   「CLI > GlobalConfig > defaults」の優先度で内部マージ済みの設定を返すため、
  *   GlobalConfig の値を個別に再取得しない。
  * - `dryRun` は `DEFAULT_NORMALIZE_CONFIG` により未指定時 `false` になる。
+ * - `batchSize`（`--batch-size`）と `maxBatchChars`（`--max-batch-chars`）はセグメント分割の
+ *   二重上限で、いずれも「CLI > config.yaml > `DEFAULT_NORMALIZE_CONFIG`」の順で解決される。
+ *   `maxBatchChars: 0` は無制限を意味する。
  */
 export const buildConfig = (
   args: string[],
