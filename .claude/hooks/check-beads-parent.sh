@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # src: .claude/hooks/check-beads-parent.sh
-# @(#) : block `bd create` without a parent (see .claude/rules/beads-issue.md)
+# @(#) : block `bd create` without a parent (see .claude/rules/beads-rules/beads-rule-issue.md)
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
@@ -264,7 +264,7 @@ _check_segment "${_cmd:_start}"
 [ -n "$_bad" ] || exit 0
 
 cat >&2 <<EOF
-beads 起票規約違反: 親の指定がない bd create を止めました (.claude/rules/beads-issue.md)。
+beads 起票規約違反: 親の指定がない bd create を止めました (.claude/rules/beads-rules/beads-rule-issue.md)。
 
 ${_bad}
 すべての beads issue は起票時に親を持つこと。次のいずれかを付けて実行し直す。

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # src: .claude/hooks/check-beads-write.sh
-# @(#) : block Write/Edit into bd-managed files under .beads/ (see .claude/rules/beads-workflow.md)
+# @(#) : block Write/Edit into bd-managed files under .beads/ (see .claude/rules/beads-rules/beads-rule-workflow.md)
 #
 # Copyright (c) 2026- atsushifx <http://github.com/atsushifx>
 #
@@ -32,7 +32,7 @@ config.yaml | README.md | .gitignore) exit 0 ;;
 esac
 
 cat >&2 <<EOF
-beads 管理ファイルへの直接書き込みを止めました (.claude/rules/beads-workflow.md)。
+beads 管理ファイルへの直接書き込みを止めました (.claude/rules/beads-rules/beads-rule-workflow.md)。
 
   .beads/${_rel}
 

@@ -22,6 +22,17 @@ deckrd:
     when:
       - deckrd コマンド・要件定義・仕様設計フローに関するログ
 
+idd-framework:
+  def: An issue-driven development framework providing agent skills for multiple AI coding agents
+  category: development
+  desc: Issue駆動開発フレームワーク。idd系コマンドのエージェントスキル化・共通ライブラリ設計・Claude以外のAIコーディングエージェント対応
+  rules:
+    when:
+      - idd-framework・idd系コマンドのスキル化・共通ライブラリ設計に関するログ
+      - deckrd を参考にした idd-framework のアーキテクチャ検討のログ
+    not:
+      - deckrd 自体の機能開発（deckrd で分類）
+
 gstack:
   def: A CLI dispatcher tool supporting multiple subcommands and multilingual output
   category: development
@@ -85,6 +96,22 @@ lcl:
   rules:
     when:
       - lcl に関するログ
+
+# ── インフラ・自宅サーバ ─────────────────────────────────
+
+homelab:
+  def: Self-hosted server infrastructure including Proxmox VE, virtualization, storage, and LAN services
+  category: infrastructure
+  desc: 自宅サーバ・ホームラボ運用。Proxmox VE のアップグレード・LXC/VM 構築・RAID/ストレージ・GPUパススルー・LAN上のサービス運用
+  rules:
+    when:
+      - Proxmox VE・PVE・LXC・仮想マシン構築に関するログ
+      - RAID・mdadm・bcache・HDD/SSD などストレージ構成に関するログ
+      - GPUパススルー・ドライバ設定など自宅サーバのハードウェア設定に関するログ
+      - LAN上で動かすサービス（llama.cpp サーバ等）の構築・運用に関するログ
+    not:
+      - GitHub Actions・CI/CD基盤（ci-platform で分類）
+      - 開発マシン上の開発環境設定（dev-tooling で分類）
 
 # ── 開発ツール・環境構築 ─────────────────────────────────
 
