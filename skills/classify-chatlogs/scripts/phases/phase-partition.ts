@@ -19,6 +19,9 @@ import type { ClassifyCache, ClassifyPartition } from '../types/classify.types.t
  *
  * `action`/`status` は判定に用いない。事前分類（`processClassifyNoAI`）の実行は呼び出し元の責務であり、
  * この関数は分割のみを行う。
+ *
+ * 「`cached` = 確定済み」という不変条件は、`loadClassifyEntries` が cache を正規化し
+ * 辞書外 `project` を落とし切っていることに依存する（ここでは辞書検証を行わない）。
  */
 export const partitionEntries = (
   loaded: ChatlogEntry[],
