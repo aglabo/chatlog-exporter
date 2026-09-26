@@ -36,6 +36,7 @@ import type { StripDecision, StripReason } from '../../../types/strip.types.ts';
 import { LOGGER_TEXT } from '../../../../../_cle-libs/constants/logger.constants.ts';
 import { BAK_SUFFIX } from '../../../constants/common.constants.ts';
 import { STRIP_CACHE_STATUSES } from '../../../types/strip-cache-status.const.types.ts';
+import { STRIP_REMOVAL_KINDS } from '../../../types/strip-removal-kind.const.types.ts';
 
 // ─── Internal Helpers
 
@@ -308,8 +309,20 @@ const _makeDecision = (
 ): { filePath: string; decision: StripDecision } => {
   const _hasRemoval = outcome === 'stripped' || outcome === 'skipped';
   const _range = _hasRemoval
-    ? { removalStartLine: 4, removalEndLine: 9, removedBytes: 42, contentBytes: 100 }
-    : { removalStartLine: -1, removalEndLine: -1, removedBytes: 0, contentBytes: 0 };
+    ? {
+      removalStartLine: 4,
+      removalEndLine: 9,
+      removedBytes: 42,
+      contentBytes: 100,
+      removalKind: STRIP_REMOVAL_KINDS.HEAD,
+    }
+    : {
+      removalStartLine: -1,
+      removalEndLine: -1,
+      removedBytes: 0,
+      contentBytes: 0,
+      removalKind: STRIP_REMOVAL_KINDS.NONE,
+    };
   return { filePath, decision: { outcome, reason: _REASON_BY_OUTCOME[outcome], ..._range } };
 };
 
