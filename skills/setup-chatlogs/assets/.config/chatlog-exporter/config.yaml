@@ -13,7 +13,7 @@ agent: claude
 # Use "llama/<model>" to call the llama server set in llamaEndpoint over HTTP.
 model: "llama/avalon" # local llama server. Empty = built-in default "sonnet"
 timeoutMs: 300_000 # 5 min (ms)
-maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
+maxRetry: 1 # Max retry count for runAI (0 = no retry, max 10)
 
 # Llama backend
 # Endpoint URL of the llama server on the LAN. Empty string means unset.
@@ -26,7 +26,7 @@ maxRandomLength: 16
 
 # Parallel / batch processing
 chunkSize: 2
-concurrency: 1 # must not exceed the llama server slot count (--parallel)
+concurrency: 2 # must not exceed the llama server slot count (--parallel)
 
 # Character count filters
 minCharCount: 1000 # Minimum content length
