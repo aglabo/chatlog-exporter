@@ -2,10 +2,16 @@
 // @(#): strip 判定カスケードの結果型定義
 //       対象: StripOutcome / StripRule / StripReason / StripDecision
 //
+// 除去種別の識別子は types/strip-removal-kind.const.types.ts に置く
+//
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
+
+// ─── internal ───
+// types
+import type { StripRemovalKind } from './strip-removal-kind.const.types.ts';
 
 /**
  * strip 判定の分類結果。
@@ -18,8 +24,14 @@
  */
 export type StripOutcome = 'stripped' | 'done' | 'passthrough' | 'error' | 'skipped';
 
-/** 判定カスケードで成立しうる規則の識別子（specifications.md Section 4.2）。 */
-export type StripRule = 'R-002' | 'R-003' | 'R-004' | 'R-005' | 'R-006' | 'R-007' | 'R-008';
+/**
+ * 判定カスケードで成立しうる規則の識別子（specifications.md Section 4.2）。
+ *
+ * `'R-018'` は `## Excerpt` 直後の前置き区間を除去対象とする規則だが、`StripReason.rule` として
+ * 出力されることはない。R-006 と排他であり、どちらも不成立のときの passthrough は既存の
+ * キャッシュ記録との互換のため `'R-006'` を担ぐためである（DR-41 決定 2）。
+ */
+export type StripRule = 'R-002' | 'R-003' | 'R-004' | 'R-005' | 'R-006' | 'R-007' | 'R-008' | 'R-018';
 
 /**
  * 判定が成立した理由。規則 ID を担ぐ判別可能ユニオン。
@@ -68,4 +80,12 @@ export interface StripDecision {
    * すなわち全分類を対象とした本文バイト数は原理的に算出できない。
    */
   contentBytes: number;
+  /**
+   * 確定した除去範囲の種別。
+   *
+   * `'head'` は R-006 の頭部定型部、`'paste'` は R-018 の `## Excerpt` 直後の前置き区間を指す。
+   * 行番号だけでは経路を復元できないため、書き込み側が除去の当て方を選ぶ根拠としてここで担ぐ。
+   * 除去範囲を持たない分類（`done` / `passthrough` / `error`）では `'none'` になる。
+   */
+  removalKind: StripRemovalKind;
 }
