@@ -15,9 +15,6 @@ system: |
 user: |
   Generate metadata for the following engineering log.
 
-  Log type: ${log_type}
-  Log category: ${log_category}
-
   General requirements:
   - Tags must be chosen only from the provided list based on actual content appearance
   - Output YAML only. No code fences, no extra text.
@@ -73,6 +70,9 @@ user: |
     - string  # follow the when/not rules above
   tags:
     - string  # must be from: ${tags_list}
+
+  Log type: ${log_type}
+  Log category: ${log_category}
 
   ---
   ${body}
