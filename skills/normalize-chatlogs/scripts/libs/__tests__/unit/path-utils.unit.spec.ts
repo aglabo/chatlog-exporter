@@ -14,6 +14,25 @@ import { describe, it } from '@std/testing/bdd';
 // ─── Test target
 import { extractSegmentBaseName } from '../../path-utils.ts';
 
+// ─── Internal Helpers
+
+// constants
+
+/**
+ * 数字 `0` を含む 7 桁 hex ハッシュを持つファイルパスの一覧。
+ *
+ * ハッシュは `git rev-parse --short` 由来なので `0` を含む値が普通に出る。
+ * 除去パターンの文字クラスが `[0-9a-f]` から `[1-9a-f]` へ狭まると、これらの
+ * ハッシュが除去されずベース名に残る。先頭・中央・末尾・全桁の 4 位置を並べ、
+ * どの桁が落ちても検出できるようにする。
+ */
+const _zeroHexHashCases = [
+  { filePath: 'path/to/2026-03-11-api-0a1b2c3.md', label: 'ハッシュ先頭が 0' },
+  { filePath: 'path/to/2026-03-11-api-a1b0c2d.md', label: 'ハッシュ中央が 0' },
+  { filePath: 'path/to/2026-03-11-api-a1b2c30.md', label: 'ハッシュ末尾が 0' },
+  { filePath: 'path/to/2026-03-11-api-0000000.md', label: 'ハッシュ全桁が 0' },
+] as const;
+
 // ─── Tests
 
 /**
@@ -23,6 +42,7 @@ import { extractSegmentBaseName } from '../../path-utils.ts';
  * ベース名を返す純粋関数の正常系・エッジケースを検証する。
  *
  * テスト ID 範囲: T-NC-ESB-05-01-01 〜 T-NC-ESB-05-02-02
+ * （うち T-NC-ESB-05-01-04 は `0` を含むハッシュ 4 パターンのテーブル駆動）
  *
  * @see extractSegmentBaseName
  */
@@ -52,6 +72,14 @@ describe('extractSegmentBaseName', () => {
 
       assertEquals(result, '2026-03-11-topic');
     });
+
+    for (const { filePath, label } of _zeroHexHashCases) {
+      it(`[Normal] T-NC-ESB-05-01-04: 0 を含む 7 桁 hex ハッシュも除去する — ${label} (${filePath})`, () => {
+        const result = extractSegmentBaseName(filePath);
+
+        assertEquals(result, '2026-03-11-api');
+      });
+    }
   });
 
   /** ディレクトリなし・拡張子なしの境界条件ケース。 */

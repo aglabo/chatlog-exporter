@@ -42,7 +42,7 @@ import { ChatlogFrontmatter } from '../../../../../_cle-libs/classes/ChatlogFron
  * hash7 は `hashFn` 引数として注入した値が使われる。
  * `hashFn` 未指定時は `generateHash(baseName, { length: 7 })` で SHA-256 由来の 7 文字ハッシュを返す。
  *
- * テスト ID 範囲: T-NC-SIO-06-01-01 〜 T-NC-SIO-06-04-01
+ * テスト ID 範囲: T-NC-SIO-06-01-01 〜 T-NC-SIO-06-05-01
  *
  * @see generateOutputFileName
  */
@@ -85,6 +85,19 @@ describe('generateOutputFileName', () => {
       const result = await generateOutputFileName(filePath, 0, hashFn);
 
       assertEquals(result, '2026-03-11-topic-01-abc1234.md');
+    });
+  });
+
+  /** `hashFn` を渡さず実ハッシュ経路（`generateHash`）を通すケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-NC-SIO-06-05-01: hashFn 未指定のとき hash 部は 7 桁の 16 進数になる', async () => {
+      const filePath = 'chatlogs/claude/2026/2026-03/test-file.md';
+
+      const result = await generateOutputFileName(filePath, 0);
+
+      const matched = /^test-file-01-([0-9a-f]+)\.md$/.exec(result);
+      assert(matched !== null, `unexpected file name: ${result}`);
+      assertEquals(matched[1].length, 7, `hash part must be 7 hex chars, got "${matched[1]}"`);
     });
   });
 });
@@ -142,7 +155,7 @@ describe('generateSegmentFile', () => {
  * ChatlogFrontmatter インスタンスとセグメントメタデータを合成して `---` デリミタ付きフロントマターを
  * コンテンツの先頭に付加する関数の正常系・エッジケースを検証する。
  *
- * テスト ID 範囲: T-NC-SIO-12-01-01 〜 T-NC-SIO-12-03-02
+ * テスト ID 範囲: T-NC-SIO-12-01-01 〜 T-NC-SIO-12-04-01
  *
  * @see attachFrontmatter
  */
@@ -197,6 +210,18 @@ describe('attachFrontmatter', () => {
 
       const contentOccurrences = result.split('## Summary\ntext').length - 1;
       assertEquals(contentOccurrences, 1);
+    });
+
+    it('[Normal] T-NC-SIO-12-04-01: tags の各要素に "#" が前置されて出力される（addTagHashes: true）', () => {
+      fm.set('tags', ['ci', 'deno']);
+      const segmentMeta = { title: 'T', log_id: 'x' };
+      const content = '## Summary\ntext';
+
+      const result = attachFrontmatter(content, fm, segmentMeta);
+
+      assert(result.includes('tags:\n  - "#ci"\n  - "#deno"\n'), `tag hashes missing in:\n${result}`);
+      assertFalse(result.includes('- "ci"'));
+      assertFalse(result.includes('- "deno"'));
     });
   });
 

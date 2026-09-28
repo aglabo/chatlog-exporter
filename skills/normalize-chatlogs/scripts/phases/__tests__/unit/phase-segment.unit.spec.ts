@@ -15,6 +15,7 @@ import {
   BaseMockCommand,
   installCommandMock,
   makeCountingMock,
+  makeDelayedSuccessMock,
   makeFailMock,
   makeSuccessMock,
   wrapClaudeJson,
@@ -31,6 +32,7 @@ import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.clas
 import { phaseSegment } from '../../phase-segment.ts';
 
 // ─── Helpers
+import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { toCacheKey } from '../../../libs/cache-utils.ts';
 // classes
 import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
@@ -40,6 +42,7 @@ import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.co
 import { DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_CHARS } from '../../../constants/normalize.constants.ts';
 import { NORMALIZE_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
 // types
+import type { LoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import type { NormalizeCache } from '../../../types/cache.const.type.ts';
 
 // ─── Internal Helpers
@@ -228,6 +231,39 @@ const _makeRateLimitVsSignalCaptureMock = (
   } as unknown as DenoCommandLike;
 };
 
+/**
+ * 被覆修復の検証に使う本文（非空 5 行）。
+ *
+ * `ChatlogEntry` は本文末尾に `\n` を付けるため、`content.split('\n')` は末尾の空文字列を
+ * 含む 6 要素になる。つまり修復後の最終 `endLine` は 6、6 行目は空行として warn の対象外になる。
+ */
+const _COVERAGE_BODY = ['l1', 'l2', 'l3', 'l4', 'l5'].join('\n');
+
+/** `_COVERAGE_BODY` を持つエントリの `content.split('\n').length`（末尾の空行を含む）。 */
+const _COVERAGE_TOTAL_LINES = 6;
+
+/**
+ * 修復 warn（`absorbed ... into adjacent segments`）だけを `warnLogs` から抜き出す。
+ *
+ * `segmentChatlogs` も同じ `logger.warn` を使うため、件数を数えるときは種別で絞る必要がある。
+ *
+ * @param loggerStub - `makeLoggerStub()` のハンドル
+ * @returns 修復 warn のメッセージ配列（出力順）
+ */
+const _repairWarnings = (loggerStub: LoggerStub): string[] =>
+  loggerStub.warnLogs.filter((log) => log.includes('into adjacent segments'));
+
+/**
+ * `timeoutMs` 転送の検証で AI 応答を遅らせる時間（ミリ秒）。
+ *
+ * `timeoutMs: 1` を転送できていれば応答より先に abort され、転送しなければ既定の 120s が効いて
+ * 完走する。その差が出る程度に短く、実行時間を延ばさない値を選ぶ。
+ */
+const _AI_RESPONSE_DELAY_MS = 50;
+
+/** `timeoutMs` 転送の検証に使うエントリのパス。 */
+const _TIMEOUT_FILE_PATH = 'slow.md';
+
 // ─── Tests
 
 /**
@@ -236,7 +272,8 @@ const _makeRateLimitVsSignalCaptureMock = (
  * キャッシュ済みエントリのスキップ、未キャッシュエントリのチャンク分割・AI呼び出し・
  * キャッシュ書き込み、セグメント取得失敗時の `status: 'retry'` 記録と戻り値からの除外を検証する。
  *
- * テスト ID 範囲: T-PP-01-01 〜 T-PP-13-01、T-NC-PSG-01-01 〜 T-NC-PSG-05-01
+ * テスト ID 範囲: T-PP-01-01 〜 T-PP-13-01、T-NC-PSG-01-01 〜 T-NC-PSG-06-02、
+ * T-NC-PSC-01-01 〜 T-NC-PSC-02-05
  *
  * @see phaseSegment
  */
@@ -275,27 +312,26 @@ describe('phaseSegment', () => {
       assertEquals(result, [entry]);
     });
 
-    it('[Normal] T-PP-02-01: 未キャッシュエントリはチャンク分割されキャッシュに status:set で書き込まれる', async () => {
-      // arrange — DEFAULT_BATCH_SIZE(4) 未満の3件の未キャッシュエントリ
+    it('[Normal] T-PP-02-01: 未キャッシュ 5 件は 2 チャンクに分割され全件キャッシュに status:set で書き込まれる', async () => {
+      // arrange — 既定の件数上限を 1 件超える 5 件。累積文字数は上限に遠く及ばないので件数上限だけが効く
       const entries = [
         _makeEntry('a.md', 'ca'),
         _makeEntry('b.md', 'cb'),
         _makeEntry('c.md', 'cc'),
+        _makeEntry('d.md', 'cd'),
+        _makeEntry('e.md', 'ce'),
       ];
-      const aiResponse = _makeAiResponse([
-        { filePath: 'a.md', segments: [{ title: 'TA', startLine: 1, endLine: 1 }] },
-        { filePath: 'b.md', segments: [{ title: 'TB', startLine: 1, endLine: 1 }] },
-        { filePath: 'c.md', segments: [{ title: 'TC', startLine: 1, endLine: 1 }] },
-      ]);
+      const aiResponse = _makeAiResponseFor(entries);
       const counter = { calls: 0 };
       mockHandle = installCommandMock(makeCountingMock(aiResponse, counter));
 
       // act
       const result = await phaseSegment(entries, cache, _baseConfig, 1);
 
-      // assert — チャンク数は ceil(3/DEFAULT_BATCH_SIZE) = 1
-      assertEquals(counter.calls, Math.ceil(entries.length / DEFAULT_BATCH_SIZE));
-      assertEquals(result.length, 3);
+      // assert — 5 件は 4 件 + 1 件の 2 チャンクに割れる。
+      //          期待値はリテラルで固定する（実装が読む定数から計算すると分割の振る舞いを固定できない）
+      assertEquals(counter.calls, 2);
+      assertEquals(result.length, 5);
       for (const entry of entries) {
         const cached = cache.read(toCacheKey(entry.filePath!));
         assertEquals(cached.status, 'set');
@@ -663,6 +699,224 @@ describe('phaseSegment', () => {
 
         // assert — singleFile が batchSize を 1 に上書きするため 1 件 1 チャンクになる
         assertEquals(recorded, [['a.md'], ['b.md']]);
+      });
+    });
+  });
+
+  /**
+   * AI が本文全体を覆わない範囲を返したときの自動修復グループ。
+   *
+   * `extractLines` のクランプは未カバー行をエラー無しで落とすため、修復はキャッシュへ書く直前に行う
+   * （`phase-write` は修復済みの境界をそのまま読む）。`repairSegmentCoverage` はセグメント件数を
+   * 変えないので、余った行は隣接セグメントへ吸収される。その事実を伝えるのが warn の役割であり、
+   * 空行だけの吸収は実害が無いのでノイズにしない。
+   */
+  describe('When: AI の範囲が本文を覆わない', () => {
+    let loggerStub: LoggerStub;
+
+    beforeEach(() => {
+      loggerStub = makeLoggerStub();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+    });
+
+    describe('Then: 未カバー行を隣接セグメントへ吸収してキャッシュに書く', () => {
+      it('[Normal] T-NC-PSC-01-01: head / 内部ギャップ / tail の穴を埋めた segments がキャッシュに書かれる', async () => {
+        // arrange — 6 行の本文に対し AI は 2 行目と 4 行目だけを返す（1・3・5・6 行目が未カバー）
+        const entry = _makeEntry('gap.md', _COVERAGE_BODY);
+        assertEquals(entry.content.split('\n').length, _COVERAGE_TOTAL_LINES);
+        const aiResponse = _makeAiResponse([
+          {
+            filePath: 'gap.md',
+            segments: [
+              { title: 'A', startLine: 2, endLine: 2 },
+              { title: 'B', startLine: 4, endLine: 4 },
+            ],
+          },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — キャッシュ側が 1..6 を隙間なく覆う。件数は増えず title/summary も維持される
+        assertEquals(result, [entry]);
+        const cached = cache.read(toCacheKey('gap.md'));
+        assertEquals(cached.status, NORMALIZE_CACHE_STATUSES.SET);
+        assertEquals(cached.segments, [
+          { title: 'A', summary: 'summary', startLine: 1, endLine: 3 },
+          { title: 'B', summary: 'summary', startLine: 4, endLine: _COVERAGE_TOTAL_LINES },
+        ]);
+      });
+
+      it('[Edge] T-NC-PSC-01-02: 未カバーが末尾の空行だけでも範囲は本文末まで伸びる', async () => {
+        // arrange — 'l1\nl2' の content は末尾 '\n' により 3 要素。3 行目（空文字列）だけが未カバー
+        const entry = _makeEntry('blank-tail.md', 'l1\nl2');
+        assertEquals(entry.content.split('\n'), ['l1', 'l2', '']);
+        const aiResponse = _makeAiResponse([
+          { filePath: 'blank-tail.md', segments: [{ title: 'T', startLine: 1, endLine: 2 }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert
+        assertEquals(cache.read(toCacheKey('blank-tail.md')).segments, [
+          { title: 'T', summary: 'summary', startLine: 1, endLine: 3 },
+        ]);
+      });
+    });
+
+    describe('Then: warn は非空行を吸収したときだけ出す', () => {
+      it('[Normal] T-NC-PSC-02-01: 非空行を吸収したときファイル名・件数・行番号を含む warn が 1 件出る', async () => {
+        // arrange — T-NC-PSC-01-01 と同じ穴。未カバーの非空行は 1・3・5 行目（6 行目は空行）
+        const entry = _makeEntry('gap.md', _COVERAGE_BODY);
+        const aiResponse = _makeAiResponse([
+          {
+            filePath: 'gap.md',
+            segments: [
+              { title: 'A', startLine: 2, endLine: 2 },
+              { title: 'B', startLine: 4, endLine: 4 },
+            ],
+          },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 「吸収した」と読める文言であることまで含めて固定する
+        assertEquals(_repairWarnings(loggerStub), [
+          'phaseSegment: absorbed 3 uncovered non-blank line(s) into adjacent segments — gap (lines 1, 3, 5)',
+        ]);
+      });
+
+      it('[Edge] T-NC-PSC-02-02: 吸収した非空行が 5 件を超えるとき行番号は先頭 5 件 + "..." に畳まれる', async () => {
+        // arrange — 10 行の本文に対し AI は 8..9 行目だけを返す（非空の未カバーは 1..7 と 10 の 8 件）
+        const entry = _makeEntry('long.md', Array.from({ length: 10 }, (_, i) => `l${i + 1}`).join('\n'));
+        const aiResponse = _makeAiResponse([
+          { filePath: 'long.md', segments: [{ title: 'T', startLine: 8, endLine: 9 }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 最悪 25 行になるので全件は並べない
+        assertEquals(_repairWarnings(loggerStub), [
+          'phaseSegment: absorbed 8 uncovered non-blank line(s) into adjacent segments — long (lines 1, 2, 3, 4, 5, ...)',
+        ]);
+      });
+
+      it('[Edge] T-NC-PSC-02-05: 吸収した非空行がちょうど 1 件でも warn が出る', async () => {
+        // arrange — 'l1\nl2' は末尾 '\n' で 3 行。AI が 2..3 行目だけを返すので未カバーの非空行は 1 行目のみ
+        const entry = _makeEntry('single-gap.md', 'l1\nl2');
+        assertEquals(entry.content.split('\n'), ['l1', 'l2', '']);
+        const aiResponse = _makeAiResponse([
+          { filePath: 'single-gap.md', segments: [{ title: 'T', startLine: 2, endLine: 3 }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 0 件（T-NC-PSC-02-03）と複数件（T-NC-PSC-02-01）の間の境界。1 件でも黙らない
+        assertEquals(_repairWarnings(loggerStub), [
+          'phaseSegment: absorbed 1 uncovered non-blank line(s) into adjacent segments — single-gap (lines 1)',
+        ]);
+      });
+
+      it('[Edge] T-NC-PSC-02-03: 未カバーが空行だけのとき warn は出ない', async () => {
+        // arrange — 未カバーは末尾の空文字列 1 行のみ（T-NC-PSC-01-02 と同じ入力）
+        const entry = _makeEntry('blank-tail.md', 'l1\nl2');
+        const aiResponse = _makeAiResponse([
+          { filePath: 'blank-tail.md', segments: [{ title: 'T', startLine: 1, endLine: 2 }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 空行の吸収は実害が無いので警告しない（18 試行中 8 件が該当しノイズになる）
+        assertEquals(loggerStub.warnLogs, []);
+      });
+
+      it('[Error] T-NC-PSC-02-04: startLine 欠落で retry になるとき修復 warn は出ず segments も書かれない', async () => {
+        // arrange — endLine だけを与え startLine を省略した応答。修復以前に retry 判定へ落ちる
+        const entry = _makeEntry('no-start.md', _COVERAGE_BODY);
+        const aiResponse = _makeAiResponse([
+          { filePath: 'no-start.md', segments: [{ title: 'T', endLine: 3 }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 既存の retry 判定が修復配線で潰れていないこと
+        assertEquals(result, []);
+        const cached = cache.read(toCacheKey('no-start.md'));
+        assertEquals(cached.status, NORMALIZE_CACHE_STATUSES.RETRY);
+        assertEquals(cached.segments, undefined);
+        assertEquals(loggerStub.warnLogs, []);
+      });
+    });
+  });
+
+  /**
+   * `config.timeoutMs` を `segmentChatlogs` へ転送する挙動のグループ。
+   *
+   * `phaseSegment` は `segmentChatlogs` を直接 import するため options を直接覗けない。
+   * 代わりに転送先（`runAI` が張るタイムアウトタイマー）の効果で観測する: 応答を
+   * `_AI_RESPONSE_DELAY_MS` 遅らせたモックに対し、`timeoutMs: 1` が届いていれば応答前に
+   * abort され `TimedOut` 由来の warn と `status: 'retry'` が残る。届かなければ既定の
+   * 120s が効いて完走する。戻り値だけでなく warn の文言まで見て、AI 失敗一般ではなく
+   * タイムアウトであることを固定する。
+   */
+  describe('When: timeoutMs の転送', () => {
+    let loggerStub: LoggerStub;
+
+    beforeEach(() => {
+      loggerStub = makeLoggerStub();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+    });
+
+    describe('Then: config.timeoutMs の有無が AI 呼び出しの制限時間に反映される', () => {
+      it('[Normal] T-NC-PSG-06-01: timeoutMs:1 を渡すと応答を待たず打ち切られ retry が書かれる', async () => {
+        // arrange — 50ms 後に成功応答を返すモック。1ms の制限が届いていれば応答前に abort される
+        const entry = _makeEntry(_TIMEOUT_FILE_PATH, 'content');
+        mockHandle = installCommandMock(
+          makeDelayedSuccessMock(_AI_RESPONSE_DELAY_MS, new TextEncoder().encode(_makeAiResponseFor([entry]))),
+        );
+
+        // act
+        const result = await phaseSegment([entry], cache, { ..._baseConfig, timeoutMs: 1 }, 1);
+
+        // assert — タイムアウト由来であることを warn の文言で区別する（AI 失敗一般では別文言になる）
+        assertEquals(loggerStub.warnLogs, ['segmentChatlogs: timed out — slow']);
+        assertEquals(result, []);
+        assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.RETRY);
+      });
+
+      it('[Edge] T-NC-PSG-06-02: timeoutMs を渡さないと既定(120s)が効き 50ms の応答でも完走する', async () => {
+        // arrange — T-NC-PSG-06-01 と同じ遅延モック。config だけが異なる
+        const entry = _makeEntry(_TIMEOUT_FILE_PATH, 'content');
+        mockHandle = installCommandMock(
+          makeDelayedSuccessMock(_AI_RESPONSE_DELAY_MS, new TextEncoder().encode(_makeAiResponseFor([entry]))),
+        );
+
+        // act
+        const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — 打ち切られないので warn は出ず segments が確定する
+        assertEquals(loggerStub.warnLogs, []);
+        assertEquals(result, [entry]);
+        assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.SET);
       });
     });
   });

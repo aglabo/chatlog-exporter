@@ -8,7 +8,7 @@
 // This software is released under the MIT License.
 
 // ─── Deno Test module
-import { assertEquals, assertMatch } from '@std/assert';
+import { assertEquals, assertMatch, assertRejects } from '@std/assert';
 import { after, afterEach, before, beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── test target ───────────────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ import {
   silenceLog,
 } from '../../../../_cle-libs/__tests__/helpers/e2e-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
+import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
 import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
@@ -386,6 +387,54 @@ describe('main - I/O', () => {
 
           const files = await findFiles(outputDir);
           assertEquals(files.length, 1);
+        });
+      });
+    });
+  });
+
+  // ─── T-NC-EIO-15-08: 存在しない入力ディレクトリ ───────────────────────────────────
+
+  /**
+   * 異常系: 入力ディレクトリが存在しないとき `main()` は処理を始めずに throw する。
+   *
+   * 終了コード 1 はシステムテスト（`T-NC-SYS-01-01`）がサブプロセス経由で見ているが、
+   * サブプロセスの実行はカバレッジにも例外の種類にも現れない。どのエラーで止まるのかは
+   * ここで `main()` を直接呼んで固定する。
+   */
+  describe('Given: 存在しないパスを --input-dir に指定する', () => {
+    let inputDir: string;
+    let outputDir: string;
+    let logSilencer: LogSilencer;
+
+    beforeEach(async () => {
+      ({ inputDir, outputDir } = await makeTempDirs());
+      GlobalConfig.resetInstance();
+      _makeGlobalConfig(outputDir);
+      logSilencer = silenceLog();
+    });
+
+    afterEach(async () => {
+      GlobalConfig.resetInstance();
+      logSilencer.restore();
+      await removeTempDirs(inputDir, outputDir);
+    });
+
+    describe('When: main(["--input-dir", 存在しないパス, "--output-dir", outputDir]) を呼び出す', () => {
+      describe('Then: Task T-NC-EIO-15-08-01 - InputNotFound で中断する', () => {
+        it('T-NC-EIO-15-08-01-01: ChatlogError(kind=InputNotFound, subindex=NotFound) が投げられ該当パスが message に載る', async () => {
+          // arrange — 作成済み一時ディレクトリ配下の未作成パス（他テストと衝突しない）
+          const missingDir = `${inputDir}/does-not-exist`;
+
+          // act
+          const error = await assertRejects(
+            () => main(['--input-dir', missingDir, '--output-dir', outputDir]),
+            ChatlogError,
+          );
+
+          // assert — 種別まで固定する（別の失敗で偶然 reject しても通らないようにする）
+          assertEquals(error.kind, 'InputNotFound');
+          assertEquals(error.subindex, 'NotFound');
+          assertMatch(error.message, /does-not-exist/);
         });
       });
     });
