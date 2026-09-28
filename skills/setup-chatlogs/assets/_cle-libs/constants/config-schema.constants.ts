@@ -12,6 +12,7 @@ import {
   DEFAULT_CHATLOGS_DIR,
   DEFAULT_CONFIG_DIR,
   DEFAULT_MAX_BATCH_CHARS,
+  DEFAULT_MAX_BODY_CHARS,
   DEFAULT_MAX_RETRY,
 } from './defaults.constants.ts';
 // types
@@ -45,6 +46,12 @@ export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   minAssistantChars: { type: 'number', min: 0, max: 100000 },
   /** コンテンツ最大文字数フィルタ閾値。 */
   maxContentLength: { type: 'number', min: 0, max: 100000 },
+  /**
+   * バッチプロンプトへ埋め込む 1 本分の本文の最大文字数。上限は maxContentLength と揃える。
+   * 0 は無効（min: 1）。renderConversation(conv, 0) が空文字列を返し、全件 DISCARD が起こりうるため、
+   * 0 = 無制限とする maxBatchChars とは意味が異なる。
+   */
+  maxBodyChars: { type: 'number', min: 1, max: 100000 },
   /** DISCARD 判定に必要な最低信頼度スコア（filter-chatlog 使用）。 */
   discardThreshold: { type: 'number', min: 0, max: 1 },
   /** 辞書ファイルが置かれたディレクトリのパス。 */
@@ -104,6 +111,8 @@ export const DEFAULT_CONFIG_VALUES = {
   minAssistantChars: 300,
   /** デフォルトコンテンツ最大文字数 */
   maxContentLength: 4000,
+  /** デフォルト本文最大文字数（設定可能化より前のハードコード値と同値。リテラル直書きせず共通定数を参照する） */
+  maxBodyChars: DEFAULT_MAX_BODY_CHARS,
   /** デフォルト DISCARD 閾値 */
   discardThreshold: 0.7,
   /** デフォルト最大リトライ回数 */
