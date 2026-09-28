@@ -21,9 +21,6 @@ import type { StripConfig } from '../types/strip-config.types.ts';
 // filter-chatlogs 固有定数
 // ─────────────────────────────────────────────
 
-/** バッチプロンプトに含める本文の最大文字数。 */
-export const MAX_BODY_CHARS = 8000;
-
 /**
  * バッチプロンプトのブロック境界に用いるデリミタ接頭辞。
  *
