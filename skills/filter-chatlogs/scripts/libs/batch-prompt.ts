@@ -39,15 +39,16 @@ const _neutralizeDelimiters = (body: string): string =>
  * 単一エントリをデリミタで囲んだブロック文字列に変換する。
  *
  * @param entry - 変換対象の `ChatlogEntry`
+ * @param maxBodyChars - ブロック本文に埋め込む最大文字数
  * @returns `<<<CHATLOG file="NAME">>>` 〜 `<<<END_CHATLOG>>>` で囲んだブロック
  */
-const _buildBlock = (entry: ChatlogEntry): string => {
+const _buildBlock = (entry: ChatlogEntry, maxBodyChars: number): string => {
   const filename = entry.filename;
   if (filename === undefined) {
     throw new ChatlogError('InvalidArgs', 'MissingFilePath', 'entry.filePath is required');
   }
   const open = CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', filename);
-  const body = _neutralizeDelimiters(extractConversation(entry.content)).trimEnd();
+  const body = extractConversation(_neutralizeDelimiters(entry.content), maxBodyChars).trimEnd();
   return `${open}\n${body}\n${CHATLOG_BLOCK_CLOSE}\n\n`;
 };
 
@@ -58,6 +59,8 @@ const _buildBlock = (entry: ChatlogEntry): string => {
  * ログ本文が境界を偽装して判定タスクを乗っ取ることはできない。
  *
  * @param entries - 読み込み済みの `ChatlogEntry` 配列
+ * @param maxBodyChars - 各ブロック本文に埋め込む最大文字数。全エントリに同じ値を適用する
  * @returns デリミタで区切ったバッチプロンプト文字列。空配列の場合は `''`
  */
-export const buildBatchPrompt = (entries: ChatlogEntry[]): string => entries.map(_buildBlock).join('');
+export const buildBatchPrompt = (entries: ChatlogEntry[], maxBodyChars: number): string =>
+  entries.map((entry) => _buildBlock(entry, maxBodyChars)).join('');

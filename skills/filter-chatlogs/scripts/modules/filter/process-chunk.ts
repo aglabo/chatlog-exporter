@@ -98,10 +98,11 @@ export const processChunk = async (
   discardThreshold: number,
   cache: ChatlogCache<CLEResult>,
   ctl: AbortController,
+  maxBodyChars: number,
   model?: string,
   aiRunnerProvider: AiRunnerProvider = runAI,
 ): Promise<ChatlogError | undefined> => {
-  const batchPrompt = buildBatchPrompt(chunkEntries);
+  const batchPrompt = buildBatchPrompt(chunkEntries, maxBodyChars);
 
   let rawResult: string;
   try {

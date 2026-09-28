@@ -16,6 +16,10 @@ import { _phase3PartitionByContent } from '../../prefilter.ts';
 // classes
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
+// ─── Helpers
+// constants
+import { DEFAULT_CONFIG_VALUES } from '../../../../../_cle-libs/constants/config-schema.constants.ts';
+
 // ─── Internal Helpers
 
 // functions
@@ -53,7 +57,7 @@ describe('_phase3PartitionByContent', () => {
           const content = _makeBody({ userText: 'u'.repeat(500), assistantText: 'a'.repeat(500), extraPadding: 200 });
           const readOk = [_makeEntry('/a/ok.md', content)];
 
-          const result = _phase3PartitionByContent(readOk, 1000, 300);
+          const result = _phase3PartitionByContent(readOk, 1000, 300, DEFAULT_CONFIG_VALUES.maxBodyChars as number);
 
           assertEquals(result.results, []);
           assertEquals(result.survivors.length, 1);
@@ -73,7 +77,7 @@ describe('_phase3PartitionByContent', () => {
         it('T-FL-P3-02-01: results に outcome=excluded-content, reason=本文が空 が追加される', () => {
           const readOk = [_makeEntry('/a/empty.md', '   \n  ')];
 
-          const result = _phase3PartitionByContent(readOk, 1000, 300);
+          const result = _phase3PartitionByContent(readOk, 1000, 300, DEFAULT_CONFIG_VALUES.maxBodyChars as number);
 
           assertEquals(result.survivors, []);
           assertEquals(result.results, [
@@ -93,7 +97,7 @@ describe('_phase3PartitionByContent', () => {
           const content = '短い本文';
           const readOk = [_makeEntry('/a/short.md', content)];
 
-          const result = _phase3PartitionByContent(readOk, 1000, 300);
+          const result = _phase3PartitionByContent(readOk, 1000, 300, DEFAULT_CONFIG_VALUES.maxBodyChars as number);
 
           assertEquals(result.survivors, []);
           assertEquals(result.results.length, 1);
@@ -120,7 +124,7 @@ describe('_phase3PartitionByContent', () => {
             _makeEntry('/b/empty.md', ''),
           ];
 
-          const result = _phase3PartitionByContent(readOk, 1000, 300);
+          const result = _phase3PartitionByContent(readOk, 1000, 300, DEFAULT_CONFIG_VALUES.maxBodyChars as number);
 
           assertEquals(result.survivors.length, 1);
           assertEquals(result.survivors[0].filePath, '/a/ok.md');

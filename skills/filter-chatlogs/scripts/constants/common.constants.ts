@@ -73,6 +73,7 @@ export const DEFAULT_NOISE_FILTER_CONFIG: NoiseFilterConfig = {
   // config.yaml only
   minCharCount: DEFAULT_CONFIG_VALUES.minCharCount,
   minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
+  maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars,
   concurrency: DEFAULT_CONFIG_VALUES.concurrency,
 };
 
@@ -97,5 +98,6 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   concurrency: DEFAULT_CONFIG_VALUES.concurrency,
   minCharCount: DEFAULT_CONFIG_VALUES.minCharCount,
   minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
+  maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars,
   discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold,
 };
