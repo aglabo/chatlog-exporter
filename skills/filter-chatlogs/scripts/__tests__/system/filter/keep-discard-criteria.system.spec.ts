@@ -32,6 +32,15 @@ import type { ClaudeResult } from '../../../types/filter.types.ts';
 // ─── Internal Helpers
 
 // constants
+/**
+ * 本テストが `buildBatchPrompt` へ渡す本文上限。既定値と同じ 8000 をリテラルで固定する。
+ *
+ * production の `DEFAULT_MAX_BODY_CHARS` を**意図的に import しない**。
+ * 定数を参照すると既定値を変えたときに本ファイルの期待値も黙って追従し、
+ * 既定値の変更がテストに検出されなくなるため。
+ */
+const _TEST_MAX_BODY_CHARS = 8000;
+
 /** 判定基準テスト用 fixture ルートディレクトリの絶対パス。 */
 const FIXTURES_DIR = normalizePath(new URL('./fixtures', import.meta.url).pathname);
 
@@ -109,7 +118,7 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
  */
 const _judgeFixture = async (inputPath: string): Promise<ClaudeResult> => {
   const _entry = new ChatlogEntry(await readTextFile(inputPath), { filePath: inputPath });
-  const _prompt = buildBatchPrompt([_entry]);
+  const _prompt = buildBatchPrompt([_entry], _TEST_MAX_BODY_CHARS);
   const _raw = await runAI(_SYSTEM_PROMPT, _prompt);
   const _parsed = parseAiJsonArray<ClaudeResult>(_raw);
   assert(
