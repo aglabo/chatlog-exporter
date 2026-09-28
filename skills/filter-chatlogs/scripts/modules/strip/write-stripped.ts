@@ -20,13 +20,48 @@ import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.t
 import type { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
 
 // ─── internal ───
+// functions
+import { isPasteMarkerLine } from '../../libs/strip-boundary.ts';
 // constants
 import { BAK_SUFFIX } from '../../constants/common.constants.ts';
-import { STRIP_BOUNDARY_HEADING } from '../../constants/strip.constants.ts';
+import { STRIP_BOUNDARY_HEADING, STRIP_EXCERPT_HEADING } from '../../constants/strip.constants.ts';
 import { STRIP_CACHE_STATUSES } from '../../types/strip-cache-status.const.types.ts';
+import { STRIP_REMOVAL_KINDS } from '../../types/strip-removal-kind.const.types.ts';
 // types
 import type { StripCache } from '../../types/cache.types.ts';
+import type { StripRemovalKind } from '../../types/strip-removal-kind.const.types.ts';
 import type { StripDecision } from '../../types/strip.types.ts';
+
+// ─── constants ───
+
+/**
+ * 除去種別ごとの「除去範囲が現在の内容と対応しているか」を判定するアンカー（DR-42）。
+ *
+ * `specifications.md` Section 4.2 のアンカー表と 1 対 1 で対応する。
+ *
+ * - `head`（R-008 / DR-01）の除去範囲は「本文先頭〜境界見出しの直前」。開始辺は除去開始行が
+ *   frontmatter 行数と一致すること、終了辺は除去終了行の直後が `## Summary` であること
+ * - `paste`（R-018 / DR-41）の除去範囲は「`## Excerpt` の次行〜前置き区間内の最後の
+ *   貼り付けマーカー行」。開始辺は除去開始行の直前が `## Excerpt` であること、
+ *   終了辺は除去終了行が貼り付けマーカー行であること
+ * - `none` は除去範囲を持たない分類であり、書き込み経路へ入ること自体が不整合（防御的分岐）
+ *
+ * 範囲外を指す `lines[end + 1]` / `lines[end]` / `lines[start - 1]` が `undefined` になる比較は
+ * **意図的**である。範囲外はそのまま不整合として扱う。
+ *
+ * **除去規則を追加するときはこの表にもアンカーを追加すること。** 怠るとその規則の判定は
+ * 全件 `StaleDecision` となり 1 件も除去されない（DR-42 Consequences）。
+ */
+const _ANCHOR_CHECKS: Record<
+  StripRemovalKind,
+  (lines: readonly string[], start: number, end: number, fmLines: number) => boolean
+> = {
+  [STRIP_REMOVAL_KINDS.HEAD]: (lines, start, end, fmLines) =>
+    start === fmLines && lines[end + 1] === STRIP_BOUNDARY_HEADING,
+  [STRIP_REMOVAL_KINDS.PASTE]: (lines, start, end) =>
+    lines[start - 1] === STRIP_EXCERPT_HEADING && isPasteMarkerLine(lines[end] ?? ''),
+  [STRIP_REMOVAL_KINDS.NONE]: () => false,
+};
 
 // ─── functions ───
 
@@ -47,7 +82,9 @@ import type { StripDecision } from '../../types/strip.types.ts';
  *
  * splice の直前に、除去範囲と**現在の**内容の整合を再検証する（REQ-F-008 / Edge 17 / DR-35）。
  * 判定の確定後にファイルが差し替わっていると除去範囲が現在の内容と対応しないため、
- * frontmatter の有無・frontmatter 行数との一致・除去終了行の直後が境界見出しであることを確認する。
+ * frontmatter の有無と範囲の順序を共通検証として確認したうえで、除去範囲の両端が現在の内容の
+ * どの目印に接しているべきかを `removalKind` ごとのアンカーで確認する（DR-42。`head` は
+ * frontmatter 行数と境界見出し、`paste` は `## Excerpt` と貼り付けマーカー行）。
  * 不整合の場合は書き込みを行わず `ChatlogError('FailFast', 'StaleDecision')` を返す。
  * `divideEntry` は壊れた frontmatter で throw するため、`hasFrontmatter` を先に評価する。
  *
@@ -92,11 +129,11 @@ export const writeStripped = async (
   if (!hasFrontmatter(_read)) {
     return new ChatlogError('FailFast', 'StaleDecision', `frontmatter missing: ${filePath}`);
   }
-  const { removalStartLine: _start, removalEndLine: _end } = decision;
+  const { removalStartLine: _start, removalEndLine: _end, removalKind: _kind } = decision;
   const _fmLines = frontmatterLines(divideEntry(_read).frontmatter);
-  // `_end + 1` が範囲外のとき `_lines[_end + 1]` は `undefined` となり、境界見出しと一致しない。
-  // 範囲外を不整合として扱うため、この `undefined` 比較は意図的である。
-  if (_start !== _fmLines || _end < _start || _lines[_end + 1] !== STRIP_BOUNDARY_HEADING) {
+  // 範囲の順序検査は除去種別によらない共通検証として左側に置く。除去範囲そのものの当て方は
+  // 種別ごとに異なるため、`_ANCHOR_CHECKS` へ委ねる（DR-42）。
+  if (_end < _start || !_ANCHOR_CHECKS[_kind](_lines, _start, _end, _fmLines)) {
     return new ChatlogError('FailFast', 'StaleDecision', `removal range does not match content: ${filePath}`);
   }
 

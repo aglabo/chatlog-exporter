@@ -1,5 +1,5 @@
 // src: scripts/libs/classify-strip.ts
-// @(#): strip 判定カスケード（R-002 〜 R-008）
+// @(#): strip 判定カスケード（R-002 〜 R-008 / R-018）
 //       対象: classifyStrip
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -20,20 +20,33 @@ import type { ReadTextFileProvider } from '../../../_cle-libs/types/providers.ty
 
 // ─── internal ───
 // functions
-import { findBoundaryLine, hasTemplateMarker } from './strip-boundary.ts';
+import { findBoundaryLine, findPasteWrapperRange, hasTemplateMarker } from './strip-boundary.ts';
 // constants
 import { BAK_SUFFIX } from '../constants/common.constants.ts';
 import { STRIP_MAX_REMOVAL_RATE } from '../constants/strip.constants.ts';
 import { STRIP_CACHE_STATUSES } from '../types/strip-cache-status.const.types.ts';
+import { STRIP_REMOVAL_KINDS } from '../types/strip-removal-kind.const.types.ts';
 // types
 import type { StripCache } from '../types/cache.types.ts';
 import type { StripCacheStatus } from '../types/strip-cache-status.const.types.ts';
+import type { StripRemovalKind } from '../types/strip-removal-kind.const.types.ts';
 import type { StripDecision, StripReason } from '../types/strip.types.ts';
 
 // ─── constants ───
 
-/** 除去範囲を持たない分類（`done` / `passthrough` / `error`）の除去範囲フィールド。不在を `-1` / `0` で表す。 */
-const _NO_REMOVAL = { removalStartLine: -1, removalEndLine: -1, removedBytes: 0, contentBytes: 0 } as const;
+/**
+ * 除去範囲を持たない分類（`done` / `passthrough` / `error`）の除去範囲フィールド。
+ *
+ * 不在を `-1` / `0` で表し、除去種別は `'none'` とする。`_decide` 経由の全分類がこれを担ぐため、
+ * 非除去分類の戻り値の形はこの 1 箇所で決まる。
+ */
+const _NO_REMOVAL = {
+  removalStartLine: -1,
+  removalEndLine: -1,
+  removedBytes: 0,
+  contentBytes: 0,
+  removalKind: STRIP_REMOVAL_KINDS.NONE,
+} as const;
 
 /**
  * R-003 が「処理済み」とみなすキャッシュのステータス（DR-31 決定 2）。
@@ -49,6 +62,35 @@ const _PROCESSED_STATUSES: readonly (StripCacheStatus | undefined)[] = [
   STRIP_CACHE_STATUSES.STRIPPED,
   STRIP_CACHE_STATUSES.PASSTHROUGH,
 ];
+
+/**
+ * 除去種別ごとの「除去後の本文が空になるか」の判定（R-007 / DR-43）。
+ *
+ * `specifications.md` Section 4.2 の「除去後の本文が空の判定（head 経路に限定）」の表と
+ * 1 対 1 で対応する。`write-stripped.ts` の再検証アンカー表 `_ANCHOR_CHECKS`（DR-42）と
+ * 同じ形を採るのは、除去規則を追加したときに**両方の表が更新対象である**ことを示すためである。
+ *
+ * - `head`（R-006 / DR-01）は境界見出し `## Summary` の **次行** から後ろが空であるかを見る。
+ *   除去範囲の直後が境界見出しであり、その行自体は残るため、除去範囲の次行を起点にすると
+ *   見出し 1 行の存在によって常に「空でない」と判定される
+ * - `paste`（R-018 / DR-41）は評価しない。除去範囲は `## Excerpt` の次行から始まり、直前の
+ *   当該見出しは除去範囲に入らないため、除去後の本文は常に見出しを含み空になりえない。
+ *   除去範囲の次行を起点にすると、除去範囲より **前** にある `## Summary` 以降の本文が
+ *   評価から落ち、要約本文が健在なログを error にしてしまう（DR-43 Context）
+ * - `none` は除去範囲を持たない分類であり、R-007 へ到達しない（防御的分岐）
+ *
+ * 除去率の条件（`STRIP_MAX_REMOVAL_RATE` 超）は**両種別で共通**であり、この表に含めない。
+ *
+ * **除去規則を追加するときはこの表にも判定を追加すること。**
+ */
+const _EMPTY_BODY_CHECKS: Record<
+  StripRemovalKind,
+  (lines: readonly string[], boundaryIdx: number) => boolean
+> = {
+  [STRIP_REMOVAL_KINDS.HEAD]: (lines, boundaryIdx) => lines.slice(boundaryIdx + 1).join('\n').trim() === '',
+  [STRIP_REMOVAL_KINDS.PASTE]: () => false,
+  [STRIP_REMOVAL_KINDS.NONE]: () => false,
+};
 
 // ─── types ───
 
@@ -72,7 +114,7 @@ type ClassifyStripOptions = {
 
 // ─── functions ───
 
-/** 除去を伴わない判定結果を組み立てる。除去範囲フィールドは常に `-1` / `-1` / `0`。 */
+/** 除去を伴わない判定結果を組み立てる。除去範囲フィールドは常に `-1` / `-1` / `0` / `'none'`。 */
 const _decide = (
   outcome: Exclude<StripDecision['outcome'], 'stripped' | 'skipped'>,
   reason: StripReason,
@@ -101,14 +143,69 @@ const _ioReason = (error: Error, rule: 'R-002' | 'R-004', path: string): StripRe
 const _utf8Length = (text: string): number => new TextEncoder().encode(text).length;
 
 /**
- * strip 判定カスケード（R-002 〜 R-008）を評価し、単一ファイルの判定結果を返す。
+ * R-006 / R-018 を評価し、除去範囲を content 基準（0 起点・両端含む）で確定する。
+ *
+ * 両者は**排他**であり R-006 が優先する。1 ファイルから 2 箇所を同時に除去しないため、
+ * R-006 が成立した時点で R-018 は評価しない（DR-41 決定 2）。
+ *
+ * R-007 の「除去後の本文が空」の判定に必要なのは除去種別のみであり、末尾の起点はここで返さない。
+ * 空判定を行うのは `head` 経路だけで、その起点は境界見出しの次行に固定される（DR-43）。
+ * 種別ごとの判定は `_EMPTY_BODY_CHECKS` が担う。
+ *
+ * @param lines - 本文を改行で分割した行配列（frontmatter を除く）
+ * @param content - 本文テキスト（frontmatter を除く）
+ * @param boundaryIdx - 境界見出し `## Summary` の行インデックス（0 起点）
+ * @returns 確定した除去範囲と種別。R-006 / R-018 いずれも不成立の場合は `undefined`
+ */
+const _resolveRemoval = (
+  lines: readonly string[],
+  content: string,
+  boundaryIdx: number,
+): { kind: StripRemovalKind; start: number; end: number } | undefined => {
+  // R-006: 本文先頭〜境界の直前に定型部マーカーがある（範囲を限定しないと Edge 13 を誤判定する）
+  if (hasTemplateMarker(lines.slice(0, boundaryIdx).join('\n'))) {
+    return { kind: STRIP_REMOVAL_KINDS.HEAD, start: 0, end: boundaryIdx - 1 };
+  }
+
+  // R-018: `## Excerpt` 直後の貼り付け前置き区間がある
+  const _paste = findPasteWrapperRange(content);
+  return _paste === undefined
+    ? undefined
+    : { kind: STRIP_REMOVAL_KINDS.PASTE, start: _paste.start, end: _paste.end };
+};
+
+/**
+ * strip 判定カスケード（R-002 〜 R-008 / R-018）を評価し、単一ファイルの判定結果を返す。
  *
  * 評価順序は仕様上変更できない（specifications.md Section 4.2）ため、早期 return の連鎖として実装する。
- * R-002 (error) → R-003 (done: 処理済み記録) → R-004 (done) → R-005 (passthrough) → R-006 (passthrough)
- * → R-007 (error) → R-008 (stripped / skipped)。
+ * R-002 (error) → R-003 (done: 処理済み記録) → R-004 (done) → R-005 (passthrough)
+ * → R-006 / R-018 (passthrough) → R-007 (error) → R-008 (stripped / skipped)。
+ *
+ * ## R-006 と R-018 は排他である（DR-41 決定 2）
+ *
+ * R-006 は頭部の定型部（本文先頭〜境界見出しの直前）、R-018 は `## Excerpt` 直後の貼り付け
+ * 前置き区間を除去対象とする。1 ファイルから 2 箇所を同時に除去しないため、R-006 が成立した
+ * 場合は R-018 を評価しない。確定した除去範囲の種別は `removalKind` が担ぐ。
+ *
+ * どちらも不成立のときの `reason.rule` は `'R-006'` とする。既存の strip キャッシュには
+ * `rule: R-006` の passthrough 記録が残っており、`'R-018'` へ変えると記録の互換が壊れる。
  *
  * frontmatter の有無判定には `hasFrontmatter` を使う。`divideEntry` は壊れた frontmatter で throw し、
  * 1 件の異常が実行全体を中断させて DD-03 に反するため、R-002 通過後にのみ呼ぶ。
+ *
+ * ## 判定に用いる本文は生テキストから導出する（DR-45）
+ *
+ * `divideEntry` は frontmatter の取得と検証にのみ用い、**本文の取得には用いない**。本文は
+ * 生テキスト（`readTextFile` が LF 正規化済み）を行分割し、frontmatter 行数だけ先頭を落として
+ * 導出する。`divideEntry` は `normalizeLine(text).trim()` で全文を trim するため最終行の末尾空白が
+ * 失われ、生テキストを `split('\n')` する書き込み側（`writeStripped`）と異なる行内容を評価する。
+ * 一度も変更していないファイルが `StaleDecision` になるのはこの食い違いが原因であり、生テキストから
+ * 導出すれば判定側と書き込み側が byte-identical な行内容を見る。
+ *
+ * 導出が成立する前提は frontmatter が行 0 から始まることである。`hasFrontmatter` は `---` で
+ * 始まらないテキストを `false` とし R-002 が error として弾くため、ここへ到達したファイルでは
+ * 必ず行 0 が開き区切りである。境界検出・除去範囲・R-007 の空判定・バイト数はすべてこの本文
+ * （とその行配列）に対して評価し、`divideEntry` の本文と混在させない。
  *
  * ## 本関数は副作用を持たない
  *
@@ -193,35 +290,41 @@ export const classifyStrip = async (
     return _decide('error', _ioReason(e, 'R-004', filePath));
   }
 
-  const { frontmatter, content } = divideEntry(_read);
-  const _lines = content.split('\n');
-  const _boundaryIdx = findBoundaryLine(content);
+  // 判定に用いる本文は生テキストから導出する（DR-45）。`divideEntry` は frontmatter の取得と
+  // 検証にのみ用い、本文は `_read`（`readTextFile` が LF 正規化済み）を行分割して frontmatter
+  // 行数だけ先頭を落として得る。以降の判定はすべてこの `_content` / `_lines` に対して行う。
+  const _fmLines = frontmatterLines(divideEntry(_read).frontmatter);
+  const _lines = _read.split('\n').slice(_fmLines);
+  const _content = _lines.join('\n');
+  const _boundaryIdx = findBoundaryLine(_content);
 
   // R-005: 本文に境界見出しが 1 つも存在しない
   if (_boundaryIdx === -1) { return _decide('passthrough', { rule: 'R-005' }); }
 
-  // R-006: 本文先頭〜境界の直前に定型部マーカーが無い（範囲を限定しないと Edge 13 を誤判定する）
-  const _removalRange = _lines.slice(0, _boundaryIdx).join('\n');
-  if (!hasTemplateMarker(_removalRange)) { return _decide('passthrough', { rule: 'R-006' }); }
+  // R-006 → R-018: 除去範囲を確定する。両者は排他で R-006 が優先する（DR-41 決定 2）。
+  // どちらも不成立のときの `reason.rule` は `'R-006'` のままとする（既存キャッシュ記録との互換）。
+  const _removal = _resolveRemoval(_lines, _content, _boundaryIdx);
+  if (_removal === undefined) { return _decide('passthrough', { rule: 'R-006' }); }
 
-  // R-007: 安全弁。境界見出しより後ろが空、または除去率が上限を超える
-  const _removedBytes = _utf8Length(_removalRange);
-  const _contentBytes = _utf8Length(content);
-  const _afterBoundary = _lines.slice(_boundaryIdx + 1).join('\n');
+  // R-007: 安全弁。除去後の本文が空（`head` のみ評価 / DR-43）、または除去率が上限を超える
+  // （除去率の条件は両種別で共通）
+  const _removedBytes = _utf8Length(_lines.slice(_removal.start, _removal.end + 1).join('\n'));
+  const _contentBytes = _utf8Length(_content);
+  const _isEmptyAfterRemoval = _EMPTY_BODY_CHECKS[_removal.kind](_lines, _boundaryIdx);
   const _removalRate = _contentBytes === 0 ? 1 : _removedBytes / _contentBytes;
-  if (_afterBoundary.trim() === '' || _removalRate > STRIP_MAX_REMOVAL_RATE) {
+  if (_isEmptyAfterRemoval || _removalRate > STRIP_MAX_REMOVAL_RATE) {
     return _decide('error', { rule: 'R-007' });
   }
 
   // R-008: 上記すべてに該当しない → 除去する（行番号はファイル全体基準、バイト数は本文基準）。
   // dry-run は書き込みを見送るため分類のみ `skipped` へ振り替え、除去範囲は同値のまま担ぐ
-  const _fmLines = frontmatterLines(frontmatter);
   return {
     outcome: dryRun ? 'skipped' : 'stripped',
     reason: { rule: 'R-008' },
-    removalStartLine: _fmLines,
-    removalEndLine: _fmLines + _boundaryIdx - 1,
+    removalStartLine: _fmLines + _removal.start,
+    removalEndLine: _fmLines + _removal.end,
     removedBytes: _removedBytes,
     contentBytes: _contentBytes,
+    removalKind: _removal.kind,
   };
 };
