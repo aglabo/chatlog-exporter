@@ -116,6 +116,10 @@ Usage: $script_name [OPTIONS]
 Generate Conventional Commits format messages by analyzing staged changes
 and recent commit history using AI.
 
+Arguments:
+  FILE                        Commit message file passed by git in hook mode
+                              (equivalent to --output FILE)
+
 Options:
   --output FILE, -o FILE      Write commit message to FILE instead of stdout
   --model MODEL               AI model name (default: sonnet)
@@ -131,6 +135,11 @@ Examples:
 
   # Short option form
   $script_name -o .git/COMMIT_EDITMSG
+
+  # Git hook form (symlinked as .git/hooks/prepare-commit-msg)
+  # Git passes the message file, the message source, and the commit SHA;
+  # the first positional argument is used as the output file.
+  $script_name .git/COMMIT_EDITMSG message
 EOF
 }
 
@@ -140,9 +149,13 @@ EOF
 # @option --output FILE|-o FILE Write commit message to FILE instead of stdout
 # @option --model MODEL Specify AI model name (default: sonnet)
 # @option -h|--help Display usage information
+# @arg $1 string When symlinked as a git hook: commit message file (used as output file)
+# @arg $2 string When symlinked as a git hook: message source (ignored)
+# @arg $3 string When symlinked as a git hook: commit SHA (ignored)
 # @example
 #   parse_options "$@"
 #   parse_options --model claude-sonnet-4-5 --output .git/COMMIT_EDITMSG
+#   parse_options .git/COMMIT_EDITMSG message   # git hook invocation
 # @exitcode 0 If parsing succeeds
 # @exitcode 1 If unknown option provided or required argument missing
 # @global OUTPUT_FILE
@@ -173,6 +186,14 @@ parse_options() {
     -*)
       echo "Error: Unknown option: $1" >&2
       exit 1
+      ;;
+    *)
+      # Git hook interface: $1 = commit message file, $2 = message source, $3 = SHA.
+      # Take the first positional as the output file, drop the remaining metadata.
+      if [[ -z "$OUTPUT_FILE" ]]; then
+        OUTPUT_FILE="$1"
+      fi
+      shift
       ;;
     esac
   done
@@ -229,7 +250,7 @@ make_context_block() {
 # - Supports piped stdin: ... | "${AI_COMMAND[@]}"
 #
 # **Supported Providers:**
-# - OpenAI (gpt-*, o1-*) → codex exec --model <model>
+# - OpenAI (gpt-*, o1-*) → codex exec -s read-only --color never --model <model>
 # - Anthropic (claude-*, haiku, sonnet, opus) → claude -p --model <model>
 # - OpenCode (org/model) → opencode run --model <model>
 #
@@ -253,13 +274,14 @@ get_model_command() {
   case "$model" in
   # OpenAI models
   gpt-* | o1-*)
-    AI_COMMAND=("codex" "exec" "--model" "${model}")
+    AI_COMMAND=("codex" "exec" "-s" "read-only" "--color" "never" "--model" "${model}")
     ;;
 
   # Anthropic (Claude) models
-  claude-* | haiku | sonnet | opus)
-    # execute claude with no-mcp, accept edits permission
-    AI_COMMAND=("claude" "-p" "--permission-mode" "acceptEdits" "--strict-mcp-config" "--mcp-config" '{"mcpServers":{}}' "--model" "${model}")
+  claude-* | haiku | sonnet | opus | fable)
+    # execute claude with no-mcp and read-only tools (mirrors codex -s read-only):
+    # the staged diff is untrusted input, so the generator must not write
+    AI_COMMAND=("claude" "-p" "--tools" "Read,Grep,Glob" "--strict-mcp-config" "--mcp-config" '{"mcpServers":{}}' "--model" "${model}")
     ;;
 
   # Copilot models (copilot/model format)

@@ -27,7 +27,7 @@ import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/default
  *
  * CLI 引数・GlobalConfig・デフォルト値から NormalizeConfig を構築する処理を検証する。
  *
- * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-19
+ * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-22
  *
  * @see buildConfig
  */
@@ -298,6 +298,29 @@ describe('buildConfig', () => {
         });
       }
     });
+
+    // CLI の範囲検査は `_SCHEMA` の min / max に依存する。範囲外の値が黙って通らないことを固定する
+    describe('Given: 範囲外の値を持つ CLI 引数', () => {
+      // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
+      const _outOfRangeCases = [
+        { id: 'T-NC-BC-20-01', args: ['--batch-size', '0'] },
+        { id: 'T-NC-BC-20-02', args: ['--batch-size', '-1'] },
+        { id: 'T-NC-BC-20-03', args: ['--batch-size', '11'] },
+        { id: 'T-NC-BC-20-04', args: ['--max-batch-chars', '-1'] },
+        // 上限の 1 つ外側。`max` が 1 でも緩むと素通りするため、`max: 1000000` の値そのものを固定する
+        { id: 'T-NC-BC-20-05', args: ['--max-batch-chars', '1000001'] },
+      ] as const;
+      for (const { id, args } of _outOfRangeCases) {
+        it(`[Error] ${id}: ${args.join(' ')} → ChatlogError(InvalidArgs/OutOfRange) がスローされる`, () => {
+          const _error = assertThrows(() => buildConfig([...args]), ChatlogError);
+          assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'OutOfRange']);
+        });
+      }
+    });
   });
 
   /** 境界値・defaults 明示指定など特殊なケース。 */
@@ -339,6 +362,8 @@ describe('buildConfig', () => {
       assertEquals(buildConfig(['--concurrency', '4', '--concurrency', '8']).concurrency, 8);
     });
 
+    // `_SCHEMA` の `min: 0` を守る境界ガード。`--max-batch-chars` の範囲検査が、
+    // 無制限を意味する 0 を誤って弾かないことを固定する
     it('[Edge] T-NC-BC-19-01: --max-batch-chars 0 → maxBatchChars が 0（無制限の明示指定）になる', () => {
       assertEquals(buildConfig(['--max-batch-chars', '0']).maxBatchChars, 0);
     });
@@ -354,5 +379,63 @@ describe('buildConfig', () => {
         assertEquals(buildConfig([])[field], expected);
       });
     }
+
+    /**
+     * CLI 経路の有効な境界値（下限ちょうど・上限ちょうど）を固定する。
+     *
+     * `T-NC-BC-20-*` は範囲外が弾かれることしか見ていないため、`_SCHEMA` の `min` / `max` が
+     * 内側へずれても（`min: 1` → `2`、`max: 10` → `9`）1 件も落ちない。
+     * ここで「境界値ちょうどは通る」を主張して、範囲そのものを両側から挟む。
+     * 期待値は仕様として固定するためリテラルで書く（`_SCHEMA` を import すると恒真になる）。
+     */
+    describe('Given: 境界値ちょうどの CLI 引数', () => {
+      // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
+      const _cliBoundaryCases = [
+        { id: 'T-NC-BC-22-01', args: ['--batch-size', '1'], field: 'batchSize', expected: 1 },
+        { id: 'T-NC-BC-22-02', args: ['--batch-size', '10'], field: 'batchSize', expected: 10 },
+        { id: 'T-NC-BC-22-03', args: ['--max-batch-chars', '1000000'], field: 'maxBatchChars', expected: 1000000 },
+      ] as const;
+      for (const { id, args, field, expected } of _cliBoundaryCases) {
+        it(`[Edge] ${id}: ${args.join(' ')} → ${field} が境界値 ${expected} のまま通る`, () => {
+          assertEquals(buildConfig([...args])[field], expected);
+        });
+      }
+    });
+
+    /**
+     * 非整数値を与えたときの現行挙動を固定する回帰テスト。
+     *
+     * 整数性の検査は実装に無い。この差は意図的に固定しているもので、挙動を変える場合はこのテストを更新すること。
+     */
+    describe('Given: batchSize / maxBatchChars に非整数値を与える', () => {
+      // config.yaml 経路: `parseNumber` は整数性を検査しないため小数がそのまま残る
+      const _yamlFractionCases = [
+        { id: 'T-NC-BC-21-01', yaml: 'batchSize: 4.5', field: 'batchSize', expected: 4.5 },
+        { id: 'T-NC-BC-21-03', yaml: 'maxBatchChars: 100.5', field: 'maxBatchChars', expected: 100.5 },
+      ] as const;
+      for (const { id, yaml, field, expected } of _yamlFractionCases) {
+        it(`[Edge] ${id}: yaml "${yaml}" → ${field} が小数 ${expected} のまま通る（現行挙動の固定）`, () => {
+          GlobalConfig.getInstance({ yaml });
+          assertEquals(buildConfig([])[field], expected);
+        });
+      }
+
+      // CLI 経路: `parseArgs` の integer 型は `parseInt` なので小数部が黙って切り捨てられる
+      const _cliFractionCases = [
+        { id: 'T-NC-BC-21-02', args: ['--batch-size', '4.5'], field: 'batchSize', expected: 4 },
+        { id: 'T-NC-BC-21-04', args: ['--max-batch-chars', '100.5'], field: 'maxBatchChars', expected: 100 },
+      ] as const;
+      for (const { id, args, field, expected } of _cliFractionCases) {
+        it(`[Edge] ${id}: ${args.join(' ')} → ${field} が ${expected} へ切り捨てられる（現行挙動の固定）`, () => {
+          // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+          GlobalConfig.getInstance({ yaml: '' });
+          assertEquals(buildConfig([...args])[field], expected);
+        });
+      }
+    });
   });
 });

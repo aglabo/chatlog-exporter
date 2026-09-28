@@ -53,14 +53,46 @@ const _makeEntry = (filePath: string, content: string): ChatlogEntry => new Chat
 /** 与えられた値で必ず reject する `AiRunnerProvider` スタブを返す。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
 
+/** 与えられた生応答文字列を必ず返す `AiRunnerProvider` スタブを返す。 */
+const _resolvingRunner = (raw: string): AiRunnerProvider => () => Promise.resolve(raw);
+
+/**
+ * `logger.warn` を stub した状態で `fn` を実行し、warn に渡されたメッセージ列を返す。
+ *
+ * stub の restore は `finally` で必ず行う。
+ *
+ * @param fn - warn を観測したい非同期処理
+ * @returns `logger.warn` の第 1 引数を呼び出し順に並べた配列
+ */
+const _captureWarnings = async (fn: () => Promise<unknown>): Promise<string[]> => {
+  const warnStub: Stub = stub(logger, 'warn');
+  try {
+    await fn();
+    return warnStub.calls.map((call) => String(call.args[0]));
+  } finally {
+    warnStub.restore();
+  }
+};
+
 // constants
 
-/** `_addLineNumbers` の行番号パディング仕様を検証するテストケース（行インデックス → 期待される行頭プレフィックス）。 */
-const _lineNumberPaddingCases = [
-  { lineIndex: 1, expectedPrefix: '    1: ' },
-  { lineIndex: 42, expectedPrefix: '   42: ' },
+/** `_addLineNumbers` の行頭プレフィックス仕様を検証するテストケース（行インデックス → 期待される行頭プレフィックス）。 */
+const _lineNumberPrefixCases = [
+  { lineIndex: 1, expectedPrefix: '1: ' },
+  { lineIndex: 42, expectedPrefix: '42: ' },
   { lineIndex: 99999, expectedPrefix: '99999: ' },
   { lineIndex: 100000, expectedPrefix: '100000: ' },
+] as const;
+
+/**
+ * AI が `segments` に配列以外を返したときのテストケース。
+ *
+ * `segmentChatlogs` の `Array.isArray(aiEntry.segments) ? … : []` の false 側を通す。
+ */
+const _nonArraySegmentCases = [
+  { id: 'T-SCB-NA-01', label: 'null', segments: null },
+  { id: 'T-SCB-NA-02', label: '文字列', segments: 'not-an-array' },
+  { id: 'T-SCB-NA-03', label: 'オブジェクト', segments: { title: 'T', summary: 'S' } },
 ] as const;
 
 // classes
@@ -209,7 +241,8 @@ const _makeSignalCaptureMock = (
  * 正常系・異常系・エッジケースを検証する。
  *
  * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
- * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-25, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-02
+ * T-SCB-WL-01 〜 T-SCB-WL-04, T-SCB-NA-01 〜 T-SCB-NA-03, T-SCB-SP-01,
+ * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-26, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-02
  *
  * @see segmentChatlogs
  */
@@ -399,6 +432,36 @@ describe('segmentChatlogs', () => {
       }
     });
 
+    it('[Error] T-SCB-WL-03: ChatlogError(TimedOut) のとき warn は "timed out" 側のメッセージになる', async () => {
+      // arrange — runAI がタイムアウトで throw する ChatlogError('TimedOut', 'Timeout') を模す
+      const inputs = [_makeEntry('file-timeout.md', 'content')];
+
+      // act
+      const warnings = await _captureWarnings(() =>
+        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(new ChatlogError('TimedOut', 'Timeout')) })
+      );
+
+      // assert — TimedOut 専用の文言が出て、汎用 AI エラーの文言は出ない
+      assertEquals(warnings.length, 1);
+      assertEquals(warnings[0], 'segmentChatlogs: timed out — file-timeout');
+      assertFalse(warnings[0].includes('AI error'));
+    });
+
+    it('[Error] T-SCB-WL-04: TimedOut 以外の ChatlogError のとき warn は "AI error" 側のメッセージになる', async () => {
+      // arrange — 中断側でない AiError（握りつぶされて null Map になる種類）
+      const inputs = [_makeEntry('file-aierror.md', 'content')];
+
+      // act
+      const warnings = await _captureWarnings(() =>
+        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(new ChatlogError('AiError', 'ExitFailure')) })
+      );
+
+      // assert — 汎用 AI エラーの文言が出て、TimedOut 専用の文言は出ない
+      assertEquals(warnings.length, 1);
+      assertEquals(warnings[0], 'segmentChatlogs: AI error — file-aierror');
+      assertFalse(warnings[0].includes('timed out'));
+    });
+
     it('[Error] T-SCB-02-03: runAI が ChatlogError(AiError, RateLimit) を throw するとき握りつぶさず再 throw する', async () => {
       // arrange — stderr に "rate limit" を含む非ゼロ exit を返す runAI 呼び出し
       const inputs = [_makeEntry('a.md', 'content a')];
@@ -456,6 +519,22 @@ describe('segmentChatlogs', () => {
       assertNull(result.get('known.md'));
       assertFalse(result.has('unknown.md'));
     });
+
+    for (const { id, label, segments } of _nonArraySegmentCases) {
+      it(`[Edge] ${id}: AI が segments に配列以外（${label}）を返すとき空セグメント扱いになる`, async () => {
+        // arrange — AI 応答の segments が配列でない
+        const inputs = [_makeEntry('a.md', 'content a')];
+        const aiResult = [{ filePath: 'a.md', segments }];
+
+        // act
+        const result = await segmentChatlogs(inputs, {
+          aiRunnerProvider: _resolvingRunner(JSON.stringify(aiResult)),
+        });
+
+        // assert — null（AI 応答なし）ではなく空配列（応答はあるがセグメント 0 件）になる
+        assertEquals(result.get('a.md'), []);
+      });
+    }
   });
 
   /** userPrompt に行番号付きコンテンツが含まれることを検証するケース。 */
@@ -473,16 +552,16 @@ describe('segmentChatlogs', () => {
       // act
       await segmentChatlogs([_makeEntry('test.md', content)]);
 
-      // assert — stdin には "    1: line A\n    2: line B" が含まれる（5桁固定幅右詰め）
+      // assert — stdin には "1: line A\n2: line B" が含まれる（パディングなし）
       assert(captured.instance !== null, 'mock was not instantiated');
       const written = captured.instance.capturedStdin.join('');
       assert(
-        written.includes('    1: line A\n    2: line B'),
+        written.includes('1: line A\n2: line B'),
         `expected line-numbered content in stdin, got: ${written}`,
       );
     });
 
-    for (const { lineIndex, expectedPrefix } of _lineNumberPaddingCases) {
+    for (const { lineIndex, expectedPrefix } of _lineNumberPrefixCases) {
       it(`[Normal] T-NC-SIO-LR-26: 行番号 ${lineIndex} は "${expectedPrefix}" というプレフィックスで出力される`, async () => {
         // arrange
         const aiResult = [
@@ -496,7 +575,7 @@ describe('segmentChatlogs', () => {
         // act
         await segmentChatlogs([_makeEntry('test.md', content)]);
 
-        // assert — 対象行の行頭プレフィックスが仕様通り（1〜5桁は5桁固定幅右詰め、6桁以上はパディングなし）
+        // assert — 対象行の行頭プレフィックスが仕様通り（桁数にかかわらずパディングなし）
         assert(captured.instance !== null, 'mock was not instantiated');
         const written = captured.instance.capturedStdin.join('');
         const targetLine = written.split('\n').find((line) => line.startsWith(expectedPrefix));

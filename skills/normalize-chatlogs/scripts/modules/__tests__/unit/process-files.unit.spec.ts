@@ -185,7 +185,7 @@ const _installSegmentMock = (
  * AI 呼び出し（segmentChatlogs）をモックして stats の更新と dryRun 動作を検証する。
  *
  * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-07, T-PF-VAL-01 〜 T-PF-VAL-05,
- *                T-NC-PRF-01-01 〜 T-NC-PRF-04-01
+ *                T-NC-PRF-01-01 〜 T-NC-PRF-03-01
  *
  * @see processFiles
  */
@@ -362,6 +362,34 @@ describe('processFiles', () => {
         ChatlogError,
       );
     });
+
+    // `Deno.mkdir` が成功しても outputBase がディレクトリとして見えない状況（作成直後の消失・
+    // 同名ファイルの割り込みなど）を再現する。この経路は実ファイルシステムでは踏めないため、
+    // `dirExists` が内部で呼ぶ `Deno.stat` を outputBase に対してだけ NotFound にして到達させる
+    it('[Error] T-PF-VAL-05: mkdir 後も outputBase がディレクトリとして見えないとき ChatlogError(FileDirNotFound/OutputBase) を投げる', async () => {
+      // arrange — outputBase は inputDir の外に置く（containment チェックより前で落とすため）
+      const missingBase = normalizePath(`${outputDir}/vanished-base`);
+      let statStub: Stub | undefined;
+
+      try {
+        statStub = stub(Deno, 'stat', (path: string | URL): Promise<Deno.FileInfo> => {
+          // inputDir など outputBase 以外のパスは本物の Deno.stat に委ねる
+          if (normalizePath(String(path)) === missingBase) {
+            return Promise.reject(new Deno.errors.NotFound(`stubbed missing: ${missingBase}`));
+          }
+          return (statStub!.original as typeof Deno.stat)(path);
+        });
+
+        // act & assert
+        const err = await assertRejects(
+          () => processFiles(tmpDir, missingBase, _CONFIG, stats),
+          ChatlogError,
+        );
+        assertEquals([(err as ChatlogError).kind, (err as ChatlogError).subindex], ['FileDirNotFound', 'OutputBase']);
+      } finally {
+        statStub?.restore();
+      }
+    });
   });
 
   /** model 伝播: config.model が segmentChatlogsBatch の --model 引数として渡されるケース。 */
@@ -432,6 +460,25 @@ describe('processFiles', () => {
 
       // assert
       assertEquals(stats.skip, 1);
+      assertEquals(stats.fail, 0);
+    });
+
+    // `_accountSegmentFailures` の fail-fast ガードは「失敗が 1 件以上あるとき」に限られる。
+    // 条件が件数を問わない形へ緩むと、全件成功した実行まで中断されるため、0 件側を明示的に固定する
+    it('[Normal] T-PF-FF-04: failFast=true かつ dryRun=false でも失敗が 0 件なら throw されず全件 success になる', async () => {
+      // arrange — 2 件とも AI がセグメントを返すので failedEntries は空になる
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 50);
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      const config = _makeConfig({ dryRun: false, concurrency: 1, failFast: true });
+
+      // act — ここで ChatlogError('FailFast') が飛べば失敗 0 件でも中断していることになる
+      await processFiles(tmpDir, outputDir, config, stats);
+
+      // assert — AI は実際に呼ばれ、2 件とも書き出しまで到達する
+      assert(counter.calls > 0);
+      assertEquals(stats.success, 2);
       assertEquals(stats.fail, 0);
     });
   });
@@ -536,31 +583,56 @@ describe('processFiles', () => {
         errorStub?.restore();
       }
     });
+
+    // `T-PF-LE-04` は「1 件のとき出る」しか見ていないため、件数条件が緩むと
+    // 読み込みエラー 0 件の実行でも `can't read files: 0` を出す退行を素通しする。
+    // 0 件側で当該ログが出ないことを主張して、条件そのものを両側から挟む
+    it("[Normal] T-PF-LE-05: 読み込みエラーが 0 件のとき can't read files ログは出力されず stats.error も増えない", async () => {
+      // arrange — frontmatter が正常なファイルのみを置く
+      const filePath = normalizePath(`${tmpDir}/good.md`);
+      await Deno.writeTextFile(filePath, '# Test\n\nContent');
+      const { handle } = _installSegmentMock([filePath]);
+      mockHandle = handle;
+
+      const config = _makeConfig({ dryRun: false, concurrency: 1 });
+      let errorStub: Stub | undefined;
+
+      try {
+        errorStub = stub(logger, 'error');
+
+        // act
+        await processFiles(tmpDir, outputDir, config, stats);
+
+        // assert — 読み込みエラー用の logger.error は 1 度も呼ばれない
+        const readFailureLogs = errorStub.calls.filter((call) => String(call.args[0]).includes("can't read files"));
+        assertEquals(readFailureLogs.length, 0);
+        assertEquals(stats.error, 0);
+        assertEquals(stats.success, 1);
+      } finally {
+        errorStub?.restore();
+      }
+    });
   });
 
   /** DEFAULT_BATCH_SIZE 境界: ファイル数が DEFAULT_BATCH_SIZE を超えるとき 2 チャンクに分割して処理するケース。 */
   describe('When: DEFAULT_BATCH_SIZE 境界', () => {
-    it('[Edge] T-PF-BATCH-01: ファイル数が DEFAULT_BATCH_SIZE+1 のとき全ファイルが処理されて stats.fail === 0', async () => {
-      // arrange — DEFAULT_BATCH_SIZE+1 件のファイルを作成して 2 チャンク分の処理を誘発する
+    it('[Edge] T-PF-BATCH-01: ファイル数が DEFAULT_BATCH_SIZE+1 のとき 2 チャンクに分割され AI が 2 回呼ばれる', async () => {
+      // arrange — 本文 100 文字 x (DEFAULT_BATCH_SIZE+1) 件。累積 500 文字は DEFAULT_MAX_BATCH_CHARS(20000) に届かないので、
+      //           チャンクを閉じるのは件数上限だけになる。
+      //           dryRun は false でなければならない — true だと phaseSegment が早期 return してチャンク分割に到達しない
       const fileCount = DEFAULT_BATCH_SIZE + 1;
-      const filePaths: string[] = [];
-      for (let i = 0; i < fileCount; i++) {
-        const fp = normalizePath(`${tmpDir}/file${i}.md`);
-        await Deno.writeTextFile(fp, `# File ${i}\n\nContent`);
-        filePaths.push(fp);
-      }
+      const filePaths = await _writeSizedFiles(tmpDir, fileCount, 100);
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
 
-      const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const batch = filePaths.map((fp) => ({ filePath: fp, segments }));
-      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify(batch)));
-      mockHandle = installCommandMock(makeSuccessMock(stdout));
-
-      const config = _makeConfig({ dryRun: true, concurrency: 2 });
+      const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — 全ファイルが処理され fail がゼロ
+      // assert — 件数上限(DEFAULT_BATCH_SIZE=4)で 4 件 + 1 件の 2 チャンクに割れ、どのファイルも取りこぼされない
+      assertEquals(counter.calls, 2);
+      assertEquals(stats.success, fileCount);
       assertEquals(stats.fail, 0);
     });
   });
@@ -607,19 +679,19 @@ describe('processFiles', () => {
       assertEquals(stats.fail, 0);
     });
 
-    it('[Edge] T-NC-PRF-03-01: maxBatchChars が 0 のとき文字数に関係なく batchSize だけで分割される', async () => {
-      // arrange — 本文 5000 文字 x 4 件（累積 20000 文字）。0 は無制限なので累積を数えずに束ねる
+    it('[Edge] T-NC-PRF-03-01: maxBatchChars が 0 のとき累積文字数は無視され batchSize(2) だけで 2 チャンクに割れる', async () => {
+      // arrange — 本文 5000 文字 x 4 件（累積 20000 文字）。0 は無制限なので文字数では割れず、件数上限 2 だけが効く
       const filePaths = await _writeSizedFiles(tmpDir, 4, 5000);
       const { handle, counter } = _installSegmentMock(filePaths);
       mockHandle = handle;
 
-      const config = _makeConfig({ dryRun: false, concurrency: 1, batchSize: 4, maxBatchChars: 0 });
+      const config = _makeConfig({ dryRun: false, concurrency: 1, batchSize: 2, maxBatchChars: 0 });
 
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — 件数上限(4)だけが効いて 1 チャンクに収まる
-      assertEquals(counter.calls, 1);
+      // assert — 既定値(DEFAULT_BATCH_SIZE=4)なら 1 チャンクになる。config.batchSize(2) が届いてこそ 2 チャンクになる
+      assertEquals(counter.calls, 2);
       assertEquals(stats.fail, 0);
     });
   });
@@ -834,11 +906,14 @@ describe('processFiles', () => {
       // act
       await processFiles(tmpDir, outputDir, config, stats);
 
-      // assert — cache に segments の境界情報が保存される
+      // assert — cache に segments の境界情報が保存される。
+      //          本文 '# Test\n\nContent' の content は末尾 '\n' 込みで 4 行分になり、AI が返した
+      //          endLine:2 では 3 行目 'Content' が欠落する。`_processChunk` の被覆修復により
+      //          endLine は本文末（4）まで伸びた値がキャッシュへ入る（cle-kju.12）。
       const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
       await cache.ready;
       const cached = cache.read('dummy');
-      assertEquals(cached.segments, [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 2 }]);
+      assertEquals(cached.segments, [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 4 }]);
     });
 
     it("[Normal] T-PF-CACHE-06: dryRun=true のとき AI は呼ばれず cache にも segments/status:'set' は書き込まれない", async () => {

@@ -50,9 +50,6 @@ type _AiSegmentRange = {
   endLine: number;
 };
 
-/** 行番号を右詰めパディングする固定幅（5桁）。6桁以上の行番号はパディングなしでそのまま出力される。 */
-const LINE_NUMBER_WIDTH = 5;
-
 /**
  * segment の AI 応答に適用する出力契約（structured-output §4.3.1 #3）を組み立てる。
  * `segments` の要素は `title` / `summary` / `startLine` / `endLine` の 4 キーまで定義し、
@@ -80,13 +77,14 @@ const _buildSegmentOutputContract = (): OutputContract => ({
 /**
  * content の各行に 1-based の行番号を付与する（`segmentChatlogs` の userPrompt 生成専用）。
  *
- * 行番号は5桁固定幅で右詰めパディングする。6桁以上になった場合はパディングせずそのまま出力する。
+ * 各行の先頭に `<行番号>: ` を前置する（桁揃えのパディングはしない）。
+ * トークナイザはパディングの連続空白を桁数に関係なく 2 トークンへ分解するため、
+ * 桁揃えをやめて 1 行あたり 2 トークン削減している（`'%5d: '` 5.87 tok/行 → `'%d: '` 3.87 tok/行、avalon 実測）。
+ * コロンは markdown の番号付きリスト（`1. foo`）との曖昧さを避けるため残す。
  */
 const _addLineNumbers = (content: string): string => {
   if (!content) { return ''; }
-  return content.split('\n').map((line, i) => `${String(i + 1).padStart(LINE_NUMBER_WIDTH, ' ')}: ${line}`).join(
-    '\n',
-  );
+  return content.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
 };
 
 /**
