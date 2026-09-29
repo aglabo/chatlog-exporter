@@ -167,7 +167,15 @@ export const main = async (args?: string[]): Promise<void> => {
       const chunkResults = await runChunked(
         targetEntries,
         _chunkSize,
-        (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl, _config.maxBodyChars),
+        (chunk, ctl) =>
+          processChunk(chunk, stats, {
+            discardThreshold: _config.discardThreshold,
+            cache: _cache,
+            ctl,
+            maxBodyChars: _config.maxBodyChars,
+            maxRetry: _config.maxRetry,
+            model: _config.model,
+          }),
         _config.concurrency,
       );
 

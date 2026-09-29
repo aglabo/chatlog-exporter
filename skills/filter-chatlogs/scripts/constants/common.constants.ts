@@ -99,4 +99,5 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
   maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars,
   discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold,
+  maxRetry: DEFAULT_CONFIG_VALUES.maxRetry,
 };
