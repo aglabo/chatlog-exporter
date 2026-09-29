@@ -62,6 +62,37 @@ export const buildReviewOutputContract = (dics: Dics): OutputContract => ({
   },
 });
 
+/**
+ * 固定部プレースホルダ 4 本（`${type_dics}` / `${topic_list}` / `${category_list}` / `${tags_list}`）の
+ * 変数マップを組み立てる。
+ *
+ * system 描画と user 描画の両方がこのマップを使う。導出式を 1 箇所に閉じるための関数であり、
+ * 呼び出し側で `formatDicEntries` / `formatDicEntriesShort` を直接書かない。
+ *
+ * @param dics - 固定部プレースホルダの導出元辞書
+ * @returns 固定部プレースホルダの変数マップ
+ */
+const _buildReviewInvariantVars = (dics: Dics): Record<string, string> => ({
+  type_dics: formatDicEntries(dics.typeEntries),
+  topic_list: formatDicEntriesShort(dics.topicEntries),
+  category_list: dics.category,
+  tags_list: dics.tags,
+});
+
+/**
+ * typeEntries・topicEntries・category・tags を整形し、テンプレートに埋め込んで system prompt を生成する。
+ *
+ * 4 つの RULE セクションと辞書由来の値域は 1 実行のあいだ不変であり、llama-server の
+ * prefix キャッシュは system メッセージ単位でしか再利用されない（DR-36）。そのため
+ * 固定部のプレースホルダ 4 本は user ではなく system 側で描画する。
+ *
+ * @param systemTemplate - `review.yaml` の `system` テンプレート
+ * @param dics - 固定部プレースホルダの導出元辞書
+ * @returns 描画済み system prompt
+ */
+const _buildReviewSystemPrompt = (systemTemplate: string, dics: Dics): string =>
+  renderPrompt(systemTemplate, _buildReviewInvariantVars(dics));
+
 export const reviewFrontmatter = async (
   entry: ChatlogEntry,
   dics: Dics,
@@ -72,14 +103,14 @@ export const reviewFrontmatter = async (
   aiRunnerProvider: AiRunnerProvider = runAI,
 ): Promise<ReviewResult> => {
   const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
-  const typeList = formatDicEntries(dics.typeEntries);
-  const topicList = formatDicEntriesShort(dics.topicEntries);
-  const system = renderPrompt(tmpl.system, {});
+  const system = _buildReviewSystemPrompt(tmpl.system, dics);
+  // 固定部の変数を user 側にも渡すのは、旧 `review.yaml`（固定部が user 節に残る形）との後方互換のため。
+  // `.config/chatlog-exporter/prompts/` は setup-chatlogs がディレクトリ単位でスキップするので、
+  // スキルだけ更新した環境には旧テンプレートが残り、渡さないと `renderPrompt` が NotDefined で throw する。
+  // `renderPrompt` はテンプレートに出現した変数しか引かないため、新テンプレートでの描画結果は変わらない
+  // （PR #490 の Codex レビュー指摘 / `cle-kju.6.5`）。
   const user = renderPrompt(tmpl.user, {
-    type_dics: typeList,
-    topic_list: topicList,
-    category_list: dics.category,
-    tags_list: dics.tags,
+    ..._buildReviewInvariantVars(dics),
     result_type: (entry.frontmatter.get('type') as string) ?? '',
     result_category: (entry.frontmatter.get('category') as string) ?? '',
     result_yaml: entry.frontmatter.toFrontmatter(),

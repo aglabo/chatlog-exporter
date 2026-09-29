@@ -49,6 +49,34 @@ export const buildFrontmatterOutputContract = (dics: Dics): OutputContract => ({
   },
 });
 
+/**
+ * 固定部プレースホルダ（`${topic_list}` / `${tags_list}`）の変数マップを組み立てる。
+ *
+ * system 描画と user 描画の両方がこのマップを使う。導出式を 1 箇所に閉じるための関数であり、
+ * 呼び出し側で `formatDicEntries` を直接書かない。
+ *
+ * @param dics - `${topic_list}` / `${tags_list}` の導出元辞書
+ * @returns 固定部プレースホルダの変数マップ
+ */
+const _buildMetaInvariantVars = (dics: Dics): Record<string, string> => ({
+  topic_list: formatDicEntries(dics.topicEntries),
+  tags_list: dics.tags,
+});
+
+/**
+ * topicEntries・tags を整形し、テンプレートに埋め込んで system prompt を生成する。
+ *
+ * 固定部（規則ブロックと辞書由来の値域）は 1 実行のあいだ不変であり、llama-server の
+ * prefix キャッシュは system メッセージ単位でしか再利用されない（DR-36）。そのため
+ * `${topic_list}` / `${tags_list}` は user ではなく system 側で描画する。
+ *
+ * @param systemTemplate - `meta.yaml` の `system` テンプレート
+ * @param dics - `${topic_list}` / `${tags_list}` の導出元辞書
+ * @returns 描画済み system prompt
+ */
+const _buildMetaSystemPrompt = (systemTemplate: string, dics: Dics): string =>
+  renderPrompt(systemTemplate, _buildMetaInvariantVars(dics));
+
 export const generateFrontmatter = async (
   entry: ChatlogEntry,
   maxContentLength: number,
@@ -62,13 +90,16 @@ export const generateFrontmatter = async (
   const type = (entry.frontmatter.get('type') as string) ?? DEFAULT_FALLBACK_TYPE;
   const category = (entry.frontmatter.get('category') as string) ?? DEFAULT_FALLBACK_CATEGORY;
   const tmpl = prompts.prompts.get('meta') ?? { system: '', user: '' };
-  const topicList = formatDicEntries(dics.topicEntries);
-  const system = renderPrompt(tmpl.system, {});
+  const system = _buildMetaSystemPrompt(tmpl.system, dics);
+  // 固定部の変数を user 側にも渡すのは、旧 `meta.yaml`（固定部が user 節に残る形）との後方互換のため。
+  // `.config/chatlog-exporter/prompts/` は setup-chatlogs がディレクトリ単位でスキップするので、
+  // スキルだけ更新した環境には旧テンプレートが残り、渡さないと `renderPrompt` が NotDefined で throw する。
+  // `renderPrompt` はテンプレートに出現した変数しか引かないため、新テンプレートでの描画結果は変わらない
+  // （PR #490 の Codex レビュー指摘 / `cle-kju.6.5`）。
   const user = renderPrompt(tmpl.user, {
+    ..._buildMetaInvariantVars(dics),
     log_type: type,
     log_category: category,
-    topic_list: topicList,
-    tags_list: dics.tags,
     body: entry.truncateContent(maxContentLength),
   });
 

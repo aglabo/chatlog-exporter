@@ -2,20 +2,17 @@
 # @(#) Phase 3.5: フロントマターレビュープロンプトテンプレート
 #
 # 変数:
-#   ${type_dics}        — types.dic から生成したtype一覧（when/not付き）
-#   ${topic_list}       — topics.dic から生成したtopic一覧（簡略版）
-#   ${category_list}    — category.dic から生成したcategory一覧（カンマ区切り）
-#   ${tags_list}        — tags.dic から生成したtag一覧（カンマ区切り）
-#   ${result_type}      — 生成済みtype
-#   ${result_category}  — 生成済みcategory
-#   ${result_yaml}      — 生成済みYAML（title/topics/tags）
+#   system: ${type_dics}        — types.dic から生成したtype一覧（when/not付き）
+#           ${topic_list}       — topics.dic から生成したtopic一覧（簡略版）
+#           ${category_list}    — category.dic から生成したcategory一覧（カンマ区切り）
+#           ${tags_list}        — tags.dic から生成したtag一覧（カンマ区切り）
+#   user:   ${result_type}      — 生成済みtype
+#           ${result_category}  — 生成済みcategory
+#           ${result_yaml}      — 生成済みYAML（title/topics/tags）
 
 system: |
   You are a strict frontmatter reviewer.
   Output YAML only. No code fences, no extra text. No questions, no explanations.
-
-user: |
-  Review the following frontmatter against these rules:
 
   ## RULE 0 — type
   Must be one of the following. Choose the best match for the PRIMARY purpose.
@@ -87,6 +84,9 @@ user: |
       - string
     tags:
       - string
+
+user: |
+  Review the following frontmatter against the rules above:
 
   ---
   type: ${result_type}
