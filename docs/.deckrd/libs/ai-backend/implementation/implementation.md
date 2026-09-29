@@ -2,7 +2,7 @@
 title: "Implementation Plan: LAN llama サーバの AI バックエンド化"
 based-on: specifications-index.md v1.4.0
 status: Draft
-version: 1.7.0
+version: 1.7.1
 created: "2026-09-03"
 ---
 
@@ -127,7 +127,7 @@ commit を持たない。
 
 **成果物と完了条件** (DR-22)
 
-1. `docs/.deckrd/libs/ai-backend/measurements-response-format-<date>.md` を新設し、再現情報
+1. `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` を新設し、再現情報
    (対象サーバ実装・ビルド／バージョン・起動オプション・モデル名と量子化レベル・入力長・
    3 スキーマ × 4 条件それぞれの 10 回中の準拠回数・`finish_reason` の実値分布) を記録する
 2. `specifications-structured-output.md` §4.1.1 と §7 を、結論と当該レポートへの参照リンクへ
@@ -958,3 +958,4 @@ R-004 は特定の commit に閉じない。§3.1 が対象 commit を列挙す�
 | 2026-09-06 | 1.5.0   | PR #436 の codex レビュー所見（P1）を反映: Commit 9 が module 層の `setfm-type-category.ts` のみを対象としていたが、`setfm-frontmatter.ts` / `setfm-review.ts` から伝播した例外を phase 層の `runConcurrent` ワーカー（`phase-frontmatter.ts:133-139` / `phase-review.ts:80-86`）が `logger.error` + `return` で握りつぶすため、3 呼び出しのうち 2 つで REQ-F-006 のバッチ中断が成立しない。この 2 箇所の catch 第 1 分岐への新判定関数の追加を Commit 9 の変更対象へ加え、Green 条件を追加。normalize の `phase-segment.ts` には対応する catch が無く不要であることも明記                                                                                                         |
 | 2026-09-12 | 1.6.0   | Phase 0 実測ゲートの結果を反映 (MINOR: 実装対象を確定させる決定) 。合格 (9 組 10/10・`finish_reason` は全件 `stop`) を Phase 0 節へ記録し、参照へ測定レポート v1.0.0 を追加。§3.2 の未決 2 件を更新 (`finish_reason` は解決済み、HTTP 400 の読み分けは 400 未発生のため既定維持) 。based-on を specifications-index.md v1.3.0 へ、structured-output の版表記を v2.3.0 へ更新                                                                                                                                                                                                                                                                                                       |
 | 2026-09-15 | 1.7.0   | DR-33 を反映 (MINOR: 実装対象を確定させる決定) 。Commit 15 Step 5 に判別条件 (`error.message` の接頭辞 `JSON schema conversion failed`、判別関数は例外を投げない) を記載し、§3.2 の未決「HTTP 400 の読み分け」を解決済みとした。参照へ追加実測レポート v1.0.0 を追加。based-on を specifications-index.md v1.4.0 へ、仕様の版表記を structured-output v2.4.1 / error-handling v2.1.0 へ更新                                                                                                                                                                                                                                                                                        |
+| 2026-09-29 | 1.7.1   | DR-35 へ追随 (PATCH: 訂正のみ、決定内容の変更なし) 。Phase 0 の成果物パスを `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` へ更新。作業記録を `workspaces/` に置く決定 (DR-35、DR-22 決定 1 の配置を supersede) に合わせたもので、成果物の内容と完了条件は変えていない (beads `cle-kju.3.3.3`)                                                                                                                                                                                                                                                                                                                                                   |
