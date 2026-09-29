@@ -184,6 +184,9 @@ deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env
      そのセッション内でしか意味を持たない文脈依存の記述
    - DISCARD かつ confidence >= `discardThreshold` (既定 0.7、`config.yaml` で変更可) → 削除対象として記録
    - DISCARD だが confidence が閾値未満 → 判定を保留し、次回実行時に再判定する
+   - AI 応答の形が壊れている (JSON パース失敗 / 空配列 / 要素数がチャンク件数と不一致) →
+     同じチャンクを `maxRetry` (既定 2、`config.yaml` で変更可) 回まで再要求する。
+     使い切ったらチャンク全件を `error` に計上し、生出力をログへ出す (判定は次回実行へ持ち越す)
 3. sweep (削除) — 記録済みの DISCARD ファイルを実際に削除する
 
 > 判定結果は永続キャッシュに保存されるため、再実行時は判定済みファイルの AI 呼び出しがスキップされる。
