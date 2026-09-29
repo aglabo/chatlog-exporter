@@ -2,18 +2,15 @@
 # @(#) Phase 3b: フロントマター生成プロンプトテンプレート
 #
 # 変数:
-#   ${log_type}        — 判定済みtype
-#   ${log_category}    — 判定済みcategory
-#   ${topic_list}      — topics.dic から生成したtopic一覧（when/not付き）
-#   ${tags_list}       — tags.dic から生成したtag一覧（カンマ区切り）
-#   ${body}            — ログ本文
+#   system: ${topic_list}    — topics.dic から生成したtopic一覧（when/not付き）
+#           ${tags_list}     — tags.dic から生成したtag一覧（カンマ区切り）
+#   user:   ${log_type}      — 判定済みtype
+#           ${log_category}  — 判定済みcategory
+#           ${body}          — ログ本文
 
 system: |
   You are a metadata generator for engineering logs.
   Output YAML only. No code fences, no extra text. No questions, no explanations.
-
-user: |
-  Generate metadata for the following engineering log.
 
   General requirements:
   - Tags must be chosen only from the provided list based on actual content appearance
@@ -70,6 +67,9 @@ user: |
     - string  # follow the when/not rules above
   tags:
     - string  # must be from: ${tags_list}
+
+user: |
+  Generate metadata for the following engineering log.
 
   Log type: ${log_type}
   Log category: ${log_category}
