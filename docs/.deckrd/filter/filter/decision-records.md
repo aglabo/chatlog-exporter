@@ -2,7 +2,7 @@
 title: "Decision Records: filter/filter"
 module: "filter/filter"
 status: Draft
-version: 1.1.0
+version: 1.2.0
 created: "2026-09-08"
 ---
 
@@ -31,11 +31,12 @@ Keep frontmatter `version` equal to the newest Change History row below.
 
 ## Index
 
-| ID    | Decision                                                                       | 主な影響先                              |
-| ----- | ------------------------------------------------------------------------------ | --------------------------------------- |
-| DR-01 | fixture テストは本体のプロンプトと同一経路を通し、パース失敗を assert で落とす | `fixtures.spec.ts` / `process-chunk.ts` |
-| DR-02 | 実 AI を呼ぶテストは system tier に一本化し、fixtures tier を廃止する          | `keep-discard-criteria.system.spec.ts`  |
-| DR-03 | KEEP / DISCARD の判定軸は技術性ではなく「WHY が残っているか」                  | `process-chunk.ts` の `_SYSTEM_PROMPT`  |
+| ID    | Decision                                                                       | 主な影響先                                  |
+| ----- | ------------------------------------------------------------------------------ | ------------------------------------------- |
+| DR-01 | fixture テストは本体のプロンプトと同一経路を通し、パース失敗を assert で落とす | `fixtures.spec.ts` / `process-chunk.ts`     |
+| DR-02 | 実 AI を呼ぶテストは system tier に一本化し、fixtures tier を廃止する          | `keep-discard-criteria.system.spec.ts`      |
+| DR-03 | KEEP / DISCARD の判定軸は技術性ではなく「WHY が残っているか」                  | `process-chunk.ts` の `_SYSTEM_PROMPT`      |
+| DR-04 | prefilter の「会話本文が空」判定は削除する（User ターン検査が覆う）            | `prefilter.ts` の `_classifyEntryByContent` |
 
 ---
 
@@ -157,11 +158,70 @@ DR-01 / DR-02 が前提としている「新しい KEEP 基準」とは本 DR �
 
 ---
 
+## DR-04: prefilter の「会話本文が空」判定は削除する（User ターン検査が覆う）
+
+**Status**: Accepted
+
+> 本 DR が対象とする `prefilter.ts` は `filter-chatlogs.ts` と `noise-filter-chatlogs.ts` の
+> 両エントリで共有されます。本書冒頭のスコープ注記が挙げる `filter/noise-filter` は
+> ディレクトリが存在しないため、共有部分の決定は本書に置きます。
+
+**Context**: `_classifyEntryByContent` は `extractConversation(content, maxBodyChars)` の結果が
+空かどうかで `'会話本文が空'` として除外する分岐を持っていました。この分岐に渡る `maxBodyChars` は、
+どんな値を入れても振る舞いを変えない死んだ引数でした。さらに調べると、**分岐そのものが
+すべての入力に対して到達不能**でした。
+
+`_classifyEntryByContent` は同じ `content` を 2 回評価します。
+
+1. `isExcludedByContent(content, ...)` が `!hasUserTurn(parseConversation(content))` のとき
+   `'Userターンが存在しない'` として除外する
+2. それを通過した場合にのみ `extractConversation` の空判定へ進む
+
+会話ターンが 0 件なら User ターンも 0 件なので (1) で必ず除外されます。したがって (2) に到達した
+時点で User ターンが 1 件以上あり、`renderConversation` は各ターンを `'### User\n…'` /
+`'### Assistant\n…'` として join した文字列を返すため、`maxBodyChars >= 1` のいかなる値でも
+先頭が `'#'` になり `.trim()` は空になりません。`maxBodyChars` はスキーマで `min: 1` に
+固定されているので `0` を渡す経路もありません。
+
+実測: 分岐をまるごと削除すると `deno task test` の 445 件のうち落ちるのは `T-FL-PFF-22-01`
+（`maxBodyChars: 0` を直接渡してこの配線を pin するテスト）の 1 件だけでした。`0` はスキーマが
+禁じる値なので、このテストは production から到達できない入力を pin していました。
+
+**Decision**: `prefilterFiles` / `_phase3PartitionByContent` / `_classifyEntryByContent` から
+`maxBodyChars` 引数を落とし、`'会話本文が空'` 分岐を削除する。`PrefilterFilesOptions` と
+`NoiseFilterConfig` からも同名フィールドを落とす（noise-filter は AI を呼ばないため用途が皆無）。
+**代替ガードは足さない。**
+
+**Alternatives Considered**:
+
+- **引数だけ落として `parseConversation(content).length === 0` のガードを残す** — 却下。
+  同じ理由で到達不能のままなので、テストで覆えない分岐が残るだけです。防御的に見えて、
+  実際には「この分岐が動いた例が 1 つも存在しない」状態を固定します
+- **切り詰め後の本文長が閾値未満なら除外する形にして `maxBodyChars` を生かす** — 却下。
+  `minCharCount` が既に本文長のゲートを持っており、`maxBodyChars` は `SKILL.md` と
+  `config.yaml` で「バッチプロンプトへ埋め込む本文の切り詰め長」と文書化されています。
+  同一のキーに除外閾値の意味を重ねると、設定の意味が二重化します
+
+**Consequences**: `maxBodyChars` の意味はバッチプロンプトの切り詰め長だけになり、
+`SKILL.md` の記述と実体が一致します。`T-FL-PFF-22` / `T-FL-PFF-23` は廃番とし、この連番を
+再利用してはいけません。削除後の保証は次の 2 件が担います。
+
+- `T-FL-IC-02-03` — 会話見出しを含まない `minCharCount` 以上の本文が
+  `'Userターンが存在しない'` で除外される（unit）
+- `T-FL-PFF-24-01` — 同じ入力が `prefilterFiles` を通過しない（functional）
+
+レビュー（人間・AI とも）が「会話本文の空判定が無い」と指摘してきたら、本 DR で閉じてください。
+
+> 出典: beads `cle-kju.3.2.1`（GitHub #478）
+
+---
+
 ## Change History
 
 | Date       | Version | Description                                                                                             |
 | ---------- | ------- | ------------------------------------------------------------------------------------------------------- |
 | 2026-09-08 | 1.0.0   | 初版。closed 済み beads issue のバックポートとして DR-01 / DR-02 を記録（`cle-8s3` / `cle-er9` が出典） |
 | 2026-09-19 | 1.1.0   | DR-03 を追加。永続メモリー `filter-keep-discard-criterion` から移送                                     |
+| 2026-09-29 | 1.2.0   | DR-04 を追加。prefilter の到達不能な「会話本文が空」判定と死んだ `maxBodyChars` 引数の削除を記録        |
 
 <!-- markdownlint-enable line-length -->
