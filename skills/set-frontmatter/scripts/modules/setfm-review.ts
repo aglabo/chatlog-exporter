@@ -62,6 +62,25 @@ export const buildReviewOutputContract = (dics: Dics): OutputContract => ({
   },
 });
 
+/**
+ * typeEntries・topicEntries・category・tags を整形し、テンプレートに埋め込んで system prompt を生成する。
+ *
+ * 4 つの RULE セクションと辞書由来の値域は 1 実行のあいだ不変であり、llama-server の
+ * prefix キャッシュは system メッセージ単位でしか再利用されない（DR-36）。そのため
+ * 固定部のプレースホルダ 4 本は user ではなく system 側で描画する。
+ *
+ * @param systemTemplate - `review.yaml` の `system` テンプレート
+ * @param dics - 固定部プレースホルダの導出元辞書
+ * @returns 描画済み system prompt
+ */
+const _buildReviewSystemPrompt = (systemTemplate: string, dics: Dics): string =>
+  renderPrompt(systemTemplate, {
+    type_dics: formatDicEntries(dics.typeEntries),
+    topic_list: formatDicEntriesShort(dics.topicEntries),
+    category_list: dics.category,
+    tags_list: dics.tags,
+  });
+
 export const reviewFrontmatter = async (
   entry: ChatlogEntry,
   dics: Dics,
@@ -72,14 +91,8 @@ export const reviewFrontmatter = async (
   aiRunnerProvider: AiRunnerProvider = runAI,
 ): Promise<ReviewResult> => {
   const tmpl = prompts.prompts.get('review') ?? { system: '', user: '' };
-  const typeList = formatDicEntries(dics.typeEntries);
-  const topicList = formatDicEntriesShort(dics.topicEntries);
-  const system = renderPrompt(tmpl.system, {});
+  const system = _buildReviewSystemPrompt(tmpl.system, dics);
   const user = renderPrompt(tmpl.user, {
-    type_dics: typeList,
-    topic_list: topicList,
-    category_list: dics.category,
-    tags_list: dics.tags,
     result_type: (entry.frontmatter.get('type') as string) ?? '',
     result_category: (entry.frontmatter.get('category') as string) ?? '',
     result_yaml: entry.frontmatter.toFrontmatter(),

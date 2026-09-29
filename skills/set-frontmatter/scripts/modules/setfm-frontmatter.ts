@@ -49,6 +49,23 @@ export const buildFrontmatterOutputContract = (dics: Dics): OutputContract => ({
   },
 });
 
+/**
+ * topicEntries・tags を整形し、テンプレートに埋め込んで system prompt を生成する。
+ *
+ * 固定部（規則ブロックと辞書由来の値域）は 1 実行のあいだ不変であり、llama-server の
+ * prefix キャッシュは system メッセージ単位でしか再利用されない（DR-36）。そのため
+ * `${topic_list}` / `${tags_list}` は user ではなく system 側で描画する。
+ *
+ * @param systemTemplate - `meta.yaml` の `system` テンプレート
+ * @param dics - `${topic_list}` / `${tags_list}` の導出元辞書
+ * @returns 描画済み system prompt
+ */
+const _buildMetaSystemPrompt = (systemTemplate: string, dics: Dics): string =>
+  renderPrompt(systemTemplate, {
+    topic_list: formatDicEntries(dics.topicEntries),
+    tags_list: dics.tags,
+  });
+
 export const generateFrontmatter = async (
   entry: ChatlogEntry,
   maxContentLength: number,
@@ -62,13 +79,10 @@ export const generateFrontmatter = async (
   const type = (entry.frontmatter.get('type') as string) ?? DEFAULT_FALLBACK_TYPE;
   const category = (entry.frontmatter.get('category') as string) ?? DEFAULT_FALLBACK_CATEGORY;
   const tmpl = prompts.prompts.get('meta') ?? { system: '', user: '' };
-  const topicList = formatDicEntries(dics.topicEntries);
-  const system = renderPrompt(tmpl.system, {});
+  const system = _buildMetaSystemPrompt(tmpl.system, dics);
   const user = renderPrompt(tmpl.user, {
     log_type: type,
     log_category: category,
-    topic_list: topicList,
-    tags_list: dics.tags,
     body: entry.truncateContent(maxContentLength),
   });
 

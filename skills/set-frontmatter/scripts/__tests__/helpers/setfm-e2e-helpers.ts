@@ -48,11 +48,11 @@ export async function makeDicsDir(): Promise<string> {
   );
   await Deno.writeTextFile(
     `${promptsDir}/meta.yaml`,
-    'system: "meta"\nuser: "${log_type} ${log_category} ${topic_list} ${tags_list} ${body}"\n',
+    'system: "meta ${topic_list} ${tags_list}"\nuser: "${log_type} ${log_category} ${body}"\n',
   );
   await Deno.writeTextFile(
     `${promptsDir}/review.yaml`,
-    'system: "review"\nuser: "${type_dics} ${topic_list} ${category_list} ${tags_list} ${result_type} ${result_category} ${result_yaml}"\n',
+    'system: "review ${type_dics} ${topic_list} ${category_list} ${tags_list}"\nuser: "${result_type} ${result_category} ${result_yaml}"\n',
   );
 
   return dicsDir;
