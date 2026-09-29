@@ -82,6 +82,29 @@ const _mockPrompts: Prompts = {
 };
 
 /**
+ * 既存ユーザーの `.config/chatlog-exporter/prompts/meta.yaml` に残る旧テンプレート。
+ *
+ * `user` 節に固定部プレースホルダ `${topic_list}` / `${tags_list}` を持つ。setup-chatlogs が
+ * prompts ディレクトリを単位でスキップするため、この形のまま `generateFrontmatter` へ渡される。
+ */
+const _legacyMetaPrompts: Prompts = {
+  categoryPrompts: new Map(),
+  prompts: new Map([
+    ['meta', {
+      system: 'You are assistant.',
+      user: [
+        'type: ${log_type}',
+        'category: ${log_category}',
+        'topics:',
+        '${topic_list}',
+        'tags: ${tags_list}',
+        'body: ${body}',
+      ].join('\n'),
+    }],
+  ]),
+};
+
+/**
  * `Deno.Command` に渡された `opts.signal` をキャプチャする成功モック。
  *
  * `runAI` は内部タイムアウト用 signal を `AbortSignal.any()` で合成して渡すため、
@@ -542,6 +565,40 @@ describe('generateFrontmatter', () => {
 
       assert(captured.instance !== null, 'mock was not instantiated');
       assertEquals(captured.instance.signal?.aborted, true);
+    });
+  });
+
+  /**
+   * 固定部プレースホルダを `user` 節に残した旧 `meta.yaml` を渡すケース。
+   *
+   * 固定部の描画が system 側へ移ったあとも、旧テンプレートを `InvalidArgs/NotDefined` で
+   * 落とさず描画しきり、辞書の値が user へ流し込まれることを検証する。
+   */
+  describe('When: 旧テンプレート（user 節に固定部プレースホルダを残す）', () => {
+    it('[Edge] T-SF-FM-07-01: user 節に ${topic_list} / ${tags_list} を含む旧 meta.yaml → NotDefined で落ちず true を返し、user に辞書の値が描画される', async () => {
+      let capturedUser: string | undefined;
+      const _runner = (_system: string, user: string): Promise<string> => {
+        capturedUser = user;
+        return Promise.resolve('title: "legacy"\ntopics:\n  - ai\ntags:\n  - typescript\n');
+      };
+
+      const _entry = _makeChatlogEntry();
+      const _result = await generateFrontmatter(
+        _entry,
+        _MAX_CONTENT_LENGTH,
+        _contractDics,
+        _legacyMetaPrompts,
+        0,
+        'sonnet',
+        undefined,
+        _runner,
+      );
+
+      assertEquals(_result, true);
+      assertEquals(_entry.frontmatter.get('title'), 'legacy');
+      const _user = capturedUser ?? '';
+      assert(_user.includes('- ai: AI'), `topic_list が user へ描画されていない: ${_user}`);
+      assert(_user.includes('tags: typescript,deno'), `tags_list が user へ描画されていない: ${_user}`);
     });
   });
 });
