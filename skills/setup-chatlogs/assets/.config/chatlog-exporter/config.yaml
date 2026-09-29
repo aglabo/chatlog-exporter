@@ -31,7 +31,7 @@ concurrency: 1 # must not exceed the llama server slot count (--parallel)
 # Character count filters
 minCharCount: 1000 # Minimum content length
 minAssistantChars: 300 # Minimum assistant response length (when userTurns=1)
-# Measured on avalon 2026-09-29. See docs/.deckrd/libs/ai-backend/measurements-context-limits-2026-09-29.md
+# Measured on avalon 2026-09-29. See docs/.deckrd/libs/ai-backend/workspaces/measurements-context-limits-2026-09-29.md
 maxContentLength: 10000 # Maximum content length. Gate: cold meta 111.1s (<= 180s), corpus 1.49x of 4000
 maxBodyChars: 10000 # Maximum body length embedded per chatlog in a batch prompt. Gate: cold 136.2s worst of 3
 

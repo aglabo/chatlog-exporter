@@ -161,7 +161,7 @@ llama-server --help | grep -E -- '--flash-attn|--cache-type-k|--cache-type-v|--n
 **落としてはいけない既存フラグ**:
 
 - **thinking を無効にする指定**（外すと構造化出力の実測結果が無効になる）。
-  `docs/.deckrd/libs/ai-backend/measurements-response-format-2026-09-12.md` §1 は
+  `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-2026-09-12.md` §1 は
   `--chat-template-kwargs '{"enable_thinking":false}'` を「必須の起動オプション」として記録しているが、
   **build `b10688` はこれを deprecated とし、起動時に次の警告を出す。**
 
@@ -248,7 +248,7 @@ GTT が上限に近づいたら `--n-cpu-moe` を増やすか `-c` を下げる�
 > **解消（2026-09-29 / `cle-kju.3.3`）**: 入力上限を実測して確定した。
 > `maxContentLength` 4000 → **10000**、`maxBodyChars` 8000 → **10000**、`chunkSize` は **2 のまま据え置き**。
 >
-> 引き上げ幅を決めたのは ctx ではなく**プロンプト処理時間**だった。ctx は 262,144 あるが、
+> 引き上げ幅を決めたのは ctx ではなく **プロンプト処理時間** だった。ctx は 262,144 あるが、
 > 採用値でも最大 約 16,500 tok しか使わない（15 倍以上の余裕）。拘束したのは
 > 「1 リクエスト 180 秒以内」（`timeoutMs: 300_000` / `maxRetry: 2`）の側である。
 >
@@ -258,7 +258,7 @@ GTT が上限に近づいたら `--n-cpu-moe` を増やすか `-c` を下げる�
 > - 前方一致キャッシュは **system メッセージ単位でしか効かない**（`cached_tokens` が system の
 >   トークン数ちょうどで止まる）。user メッセージ内の固定部は毎回再処理される
 >
-> 詳細: `docs/.deckrd/libs/ai-backend/measurements-context-limits-2026-09-29.md`
+> 詳細: `docs/.deckrd/libs/ai-backend/workspaces/measurements-context-limits-2026-09-29.md`
 
 ## 7. 適用結果と残りの記入欄
 

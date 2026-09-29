@@ -110,7 +110,7 @@ export const DEFAULT_MAX_BATCH_CHARS = 20000;
  *   ゲート超過を防げない
  * - スループットはコーパス全体（n=3,739）で 8000 比 1.29 倍。切り詰め率は 68.2% → 42.0%
  *
- * @see docs/.deckrd/libs/ai-backend/measurements-context-limits-2026-09-29.md
+ * @see docs/.deckrd/libs/ai-backend/workspaces/measurements-context-limits-2026-09-29.md
  *
  * `0` は無制限ではなく無効とする（スキーマは `min: 1`）。
  * `renderConversation(conv, 0)` は空文字列を返すため、`0` を許すと本文が空のまま
