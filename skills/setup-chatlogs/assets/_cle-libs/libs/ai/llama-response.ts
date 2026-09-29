@@ -73,7 +73,7 @@ const _RESPONSE_FORMAT_REJECTION_MESSAGE_PREFIX = 'JSON schema conversion failed
  * @param body - HTTP 400 応答の生本文
  * @returns `response_format` の拒否と判別できれば `true`
  * @see docs/.deckrd/libs/ai-backend/decision-records.md DR-33
- * @see docs/.deckrd/libs/ai-backend/measurements-response-format-rejection-2026-09-15.md
+ * @see docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-rejection-2026-09-15.md
  */
 const _isResponseFormatRejection = (body: string): boolean => {
   let _payload: unknown;

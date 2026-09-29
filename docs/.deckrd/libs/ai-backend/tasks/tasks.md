@@ -4,7 +4,7 @@ module: libs/ai-backend
 status: Active
 created: "2026-09-04 00:00:00"
 source: specifications-index.md
-based-on: implementation.md v1.7.0
+based-on: implementation.md v1.7.1
 ---
 
 <!-- cspell:words qwen llamacpp -->
@@ -61,7 +61,7 @@ Phase 5 以降 (Commit 11〜22) は **Phase 0 実測ゲートの合格** が着�
 
 着手前に 3 項目すべてを確認する。記憶や「たぶん終わっている」で代替しない。
 
-1. `docs/.deckrd/libs/ai-backend/measurements-response-format-<date>.md` が存在し、
+1. `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` が存在し、
    3 スキーマ × 4 条件の 12 組すべてが 10/10 である (DR-25 の合格線)
 2. `implementation.md` §3.2 に Phase 0 依存の未決が残っていない
    (残る 2 件は `response_format` 拒否の読み分けと `finish_reason` の実装固有値)

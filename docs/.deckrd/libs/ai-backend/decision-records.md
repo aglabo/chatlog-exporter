@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.11.0
+version: 3.12.1
 created: "2026-09-02"
 ---
 
@@ -51,6 +51,7 @@ created: "2026-09-02"
 | DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter              |
 | DR-33 | `response_format` 拒否の 400 を `error.message` の接頭辞で判別する          | error-handling R-008（DR-18 Open Question を解決）                        |
 | DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする    | config-packaging R-003 / DD-03 / AC-011（DR-13 の静的検査を補う）         |
+| DR-35 | 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く       | ドキュメント配置（DR-22 決定 1 の配置を supersede）                       |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -767,7 +768,7 @@ AC-024（`type` / `category` がフォールバック値へ落ちない）の 6 
 
 ## DR-22: Phase 0 の実測を独立した測定レポートに記録し、完了時に下流文書を再基準化する
 
-**Status**: Accepted（決定 4 は DR-24 が supersede しました）
+**Status**: Accepted（決定 4 は DR-24 が、決定 1 の配置は DR-35 が supersede しました）
 
 **Context**: 2 つの論点が Phase 0（REQ-F-016 の実測ゲート）に集まっていました。
 
@@ -1476,6 +1477,51 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 
 ---
 
+## DR-35: 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く
+
+**Status**: Accepted（DR-22 決定 1 の配置を supersede します）
+
+**Context**: DR-22 決定 1 は実測レポートを
+`docs/.deckrd/libs/ai-backend/measurements-response-format-<date>.md` に置くと定めました。
+そのとき `docs/.deckrd/notes/` は「設計検討のノートを置く場所であり、規範文書から参照される
+記録の置き場としては役割が異なる」として退け、モジュール直下を選んでいます。
+
+その後 `cle-kju.3.3` の入力上限実測で 3 本目のレポート
+（`measurements-context-limits-2026-09-29.md`）が加わり、モジュール直下に規範文書
+（`requirements.md` / `specifications-*.md` / `decision-records.md`）と作業記録が
+並ぶ形になりました。PR #489 で 3 本を `workspaces/` へ移しましたが、ディレクトリを
+設けること自体は決めておらず、DR-22 決定 1 が移動前のパスを指したまま残っていました
+（beads `cle-kju.3.3.3`）。
+
+改訂中の deckrd は、作業時のメモなど残したいものを `workspaces/` に置く方針を採っています。
+本 DR はそれに合わせます。
+
+**Decision**:
+
+1. 実測レポートのような作業記録は、モジュール直下ではなく
+   `docs/.deckrd/libs/<module>/workspaces/` に置く。DR-22 決定 1 のパスは
+   `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` と読み替える
+2. 規範文書から作業記録を**完全パスで**参照するときは、そのパスに `workspaces/` を含める。
+   `measurements-response-format-2026-09-12.md` のようにファイル名だけを挙げる引用は本決定の
+   対象外とし、既存の書式のまま残す（ディレクトリを主張していないため、移動で不正にならない）。
+   規範文書自体はモジュール直下に置いたままとする
+3. `docs/.deckrd/notes/` の役割は DR-22 のまま変えない（設計検討のノート）。`workspaces/` は
+   モジュールに属する作業記録を置く場所であり、両者は併存する
+
+**Alternatives Considered**:
+
+- レポートをモジュール直下へ戻す — DR-22 決定 1 の字面は保てますが、レポートが増えるほど
+  規範文書と混ざります。deckrd 本体の方針とも食い違う。不採用
+- ディレクトリ名を `notes/` にする — `docs/.deckrd/notes/` と紛らわしく、DR-22 が両者を
+  区別した意味が失われる。不採用
+
+**Consequences**: モジュール直下には規範文書だけが並び、作業記録が増えても一覧性が落ちません。
+一方で deckrd のルール本体（`docs/.deckrd/rules/`、git 管理外）はまだ `workspaces/` に
+言及していないため、deckrd プラグイン側の更新を取り込むまでは本 DR がこのリポジトリでの
+根拠になります。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1517,3 +1563,5 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 | 2026-09-15 | 3.9.0   | DR-33 を追加 (MINOR: 決定を追加)。追加実測 (`measurements-response-format-rejection-2026-09-15.md`) を受け、`response_format` 拒否の 400 を `error.message` の接頭辞 `JSON schema conversion failed` で判別すると確定。DR-18 の Open Question に解決を追記                                                                                                                                                           |
 | 2026-09-17 | 3.10.0  | DR-21 に決定 6 を追加 (MINOR: 決定を追加)。PR #467 の codex レビュー指摘 (P2) を受け、実 TLS 検証失敗の回帰テスト T-LIB-AI-LRI-13-01 を決定 5 の例外とし、`RUN_AI=1` (`--use-ai`) 指定時のみ実行すると確定                                                                                                                                                                                                           |
 | 2026-09-18 | 3.11.0  | DR-34 を追加 (MINOR: 決定を追加)。`cle-eft.4.5` の修正 (値付き結合短縮フラグ `-RN=<host>` の検出) に過検出と負例不足が残ったため、`--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とし、検査対象行に書かないと確定 (beads `cle-eft.4.6`)                                                                                                                                                           |
+| 2026-09-29 | 3.12.0  | DR-35 を追加 (MINOR: 決定を追加)。作業記録をモジュール直下ではなく `docs/.deckrd/libs/<module>/workspaces/` に置くと確定し、DR-22 決定 1 の配置を supersede。改訂中の deckrd がメモ類を `workspaces/` に置く方針であることに合わせた。`implementation.md` §Phase 0 と `tasks/tasks.md` の完了判定チェックリストのパスを追随 (beads `cle-kju.3.3.3`)                                                                  |
+| 2026-09-29 | 3.12.1  | DR-35 決定 2 を明確化 (PATCH: 明確化、決定内容の変更なし)。「規範文書から作業記録への参照は、このパスで張る」が、素のファイル名による引用まで完全パス化を要求するとも読めたため、完全パス参照と素のファイル名引用を書き分けた。PR #489 の 2 回目 Codex レビュー (P2) を受けたもので、実際の配置と参照は変えていない (beads `cle-kju.3.3.10`)                                                                         |

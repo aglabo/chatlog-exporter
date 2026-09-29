@@ -46,7 +46,10 @@ allowed-tools: Bash, Glob
 - `--dry-run` → 削除せず対象ファイルを一覧表示 (判定は行わない。後述の注意を参照)
 - `--single-file` → 1 ファイルずつ判定 (chunkSize を 1 に固定)
 - `--max-body-chars N` → バッチプロンプトへ埋め込む 1 本分の本文の最大文字数 (1〜100000)。
-  未指定時は `config.yaml` の `maxBodyChars` (既定 8000) を使う
+  未指定時は `config.yaml` の `maxBodyChars` を使う。
+  優先順位は **CLI 引数 > `config.yaml` > 組み込み既定 (8000)**。
+  本リポジトリが配布する `config.yaml` は **10000** を設定しているため、
+  `/setup-chatlogs` で展開した既定環境での実効値は 10000 になる
 
 **noise-filter モードの引数解析** (`noise-filter` トークンを除いた残りの引数に適用):
 

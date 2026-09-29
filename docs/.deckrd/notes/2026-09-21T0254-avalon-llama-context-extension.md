@@ -161,7 +161,7 @@ llama-server --help | grep -E -- '--flash-attn|--cache-type-k|--cache-type-v|--n
 **落としてはいけない既存フラグ**:
 
 - **thinking を無効にする指定**（外すと構造化出力の実測結果が無効になる）。
-  `docs/.deckrd/libs/ai-backend/measurements-response-format-2026-09-12.md` §1 は
+  `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-2026-09-12.md` §1 は
   `--chat-template-kwargs '{"enable_thinking":false}'` を「必須の起動オプション」として記録しているが、
   **build `b10688` はこれを deprecated とし、起動時に次の警告を出す。**
 
@@ -241,8 +241,24 @@ GTT が上限に近づいたら `--n-cpu-moe` を増やすか `-c` を下げる�
   （チャットに書くだけでは次セッションに残らない）
 - 別 issue に切る。今回は触らない:
   - `timeoutMs: 300_000` — 超長プロンプトのプロンプト処理が 5 分を超える可能性がある
-  - `maxContentLength: 4000` / `chunkSize: 2` — サーバの ctx が伸びても、クライアントが
-    4000 文字で切っている限り入力は長くならない。ctx 拡張の効果を実測してから決める
+  - ~~`maxContentLength: 4000` / `chunkSize: 2` — サーバの ctx が伸びても、クライアントが
+    4000 文字で切っている限り入力は長くならない。ctx 拡張の効果を実測してから決める~~
+    → **2026-09-29 に解消**（`cle-kju.3.3`）。下記参照
+
+> **解消（2026-09-29 / `cle-kju.3.3`）**: 入力上限を実測して確定した。
+> `maxContentLength` 4000 → **10000**、`maxBodyChars` 8000 → **10000**、`chunkSize` は **2 のまま据え置き**。
+>
+> 引き上げ幅を決めたのは ctx ではなく **プロンプト処理時間** だった。ctx は 262,144 あるが、
+> 採用値でも最大 約 16,500 tok しか使わない（15 倍以上の余裕）。拘束したのは
+> 「1 リクエスト 180 秒以内」（`timeoutMs: 300_000` / `maxRetry: 2`）の側である。
+>
+> - プロンプト処理は線形ではない。`t(n) = 9.84n + 3.52e-4·n²` [ms]（実測 12 点に誤差 1.58 秒以内）。
+>   見かけの tok/s は 86.7（5k tok）→ 63.8（16.5k tok）と落ちる。
+>   §7.3 の「97 tok/s」は短いプロンプトの値であり、**長いプロンプトの外挿に使ってはならない**
+> - 前方一致キャッシュは **system メッセージ単位でしか効かない**（`cached_tokens` が system の
+>   トークン数ちょうどで止まる）。user メッセージ内の固定部は毎回再処理される
+>
+> 詳細: `docs/.deckrd/libs/ai-backend/workspaces/measurements-context-limits-2026-09-29.md`
 
 ## 7. 適用結果と残りの記入欄
 
