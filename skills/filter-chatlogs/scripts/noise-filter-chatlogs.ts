@@ -60,8 +60,9 @@ import { prefilterFiles } from './modules/prefilter.ts';
 // ─────────────────────────────────────────────
 
 export const main = async (args: string[] = Deno.args): Promise<void> => {
-  const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars, maxBodyChars, concurrency } =
-    buildConfig(args);
+  const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars, concurrency } = buildConfig(
+    args,
+  );
   const _searchDir = resolveChatlogsDir({
     chatlogsDir,
     agent,
@@ -95,7 +96,6 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   const targetEntries = await prefilterFiles(entries, stats, {
     minCharCount,
     minAssistantChars,
-    maxBodyChars,
     dryRun,
     concurrency,
   });

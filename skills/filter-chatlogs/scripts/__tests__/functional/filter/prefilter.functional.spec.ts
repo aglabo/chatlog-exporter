@@ -20,7 +20,7 @@ import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.clas
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-import { makePeriodDir, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
+import { makePeriodDir, makePlainContent, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
 // constants
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 // types
@@ -63,7 +63,7 @@ const _writeEntry = async (filePath: string, text: string): Promise<ChatlogEntry
  * - ファイル名が除外パターンに一致する（例: `say-ok-and-nothing-else.md`）
  * - 本文（frontmatter を除いた部分）が空または 1000 文字未満
  *
- * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-23
+ * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-24
  *
  * @see prefilterFiles
  */
@@ -542,66 +542,38 @@ describe('prefilterFiles', () => {
     });
   });
   /**
-   * 本文は内容チェックを通過するが、`maxBodyChars` を明示指定したファイルの前提条件グループ。
+   * `### User` / `### Assistant` 見出しを 1 つも含まない本文のファイルを入力とする前提条件グループ。
    *
-   * 会話本文の空判定（`extractConversation` の結果が空か）が、モジュール定数ではなく
-   * `options.maxBodyChars` で行われることを検証する。
+   * 本文長は `minCharCount`（既定 1000）以上あるため「短すぎる」では弾かれず、
+   * 会話ターンが 0 件であることを理由に除外される入力クラスにあたる。
    */
-  describe('Given: 内容チェックを通過する本文と maxBodyChars を指定した options', () => {
-    /** maxBodyChars=0 を指定して prefilterFiles を呼び出すとき。 */
-    describe('When: prefilterFiles([file], stats, { maxBodyChars: 0, ... }) を呼び出す', () => {
-      /**
-       * 会話本文が空と判定され、通過しないことを検証する。
-       *
-       * `0` は設定スキーマ上は無効値（`min: 1`）だが、`renderConversation(conv, 0)` が
-       * 空文字列を返す唯一の値であり、引数が `_classifyEntryByContent` まで届いているかを
-       * 観測できる境界値である（`defaults.constants.ts` の `DEFAULT_MAX_BODY_CHARS` 参照）。
-       */
-      describe('Then: T-FL-PFF-22 - options.maxBodyChars で会話本文の空判定が行われる', () => {
-        it('T-FL-PFF-22-01: maxBodyChars=0 → 会話本文が空として除外される', async () => {
-          const filePath = `${periodDir1}/max-body-chars-zero.md`;
-          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
-          const loggerStub = makeLoggerStub();
-
-          const result = await prefilterFiles([entry], _makeStats(), {
-            maxBodyChars: 0,
-            dryRun: true,
-            concurrency: 2,
-          });
-          loggerStub.restore();
-
-          assertEquals(result.map((e) => e.filePath), []);
-          assertEquals(
-            loggerStub.dryrunLogs.some((line) =>
-              line.includes('会話本文が空') && line.includes('max-body-chars-zero.md')
-            ),
-            true,
-          );
-        });
-      });
-    });
-  });
-  /**
-   * `maxBodyChars` を含まない options を渡す前提条件グループ。
-   *
-   * 分割代入の既定値（`DEFAULT_CONFIG_VALUES.maxBodyChars`）が使われ、
-   * 会話本文が空と誤判定されないことを検証する。
-   */
-  describe('Given: maxBodyChars を含まない options', () => {
-    /** maxBodyChars を省略して prefilterFiles を呼び出すとき。 */
+  describe('Given: 会話見出しを含まない minCharCount 以上の本文を持つファイル', () => {
+    /** 既定の options で prefilterFiles を呼び出すとき。 */
     describe('When: prefilterFiles([file], stats, { dryRun, concurrency }) を呼び出す', () => {
-      /** 既定値で会話本文が描画され、ファイルが通過することを検証する。 */
-      describe('Then: T-FL-PFF-23 - DEFAULT_CONFIG_VALUES.maxBodyChars が使われる', () => {
-        it('T-FL-PFF-23-01: maxBodyChars 未指定 → 会話本文が空にならず通過する', async () => {
-          const filePath = `${periodDir1}/max-body-chars-default.md`;
-          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+      /**
+       * User ターン不在として除外され、通過しないことを検証する。
+       *
+       * `isExcludedByContent` の User ターン判定がこの入力クラスを覆っていることを固定する。
+       */
+      describe('Then: T-FL-PFF-24 - Userターンが存在しない として除外される', () => {
+        it('T-FL-PFF-24-01: 会話ターン 0 件の本文 → Userターンが存在しない で除外される', async () => {
+          const filePath = `${periodDir1}/no-conversation-turns.md`;
+          const entry = await _writeEntry(
+            filePath,
+            makePlainContent('見出しなし', 'x'.repeat(FILTER_MIN_CONTENT_LENGTH * 3)),
+          );
           const loggerStub = makeLoggerStub();
 
           const result = await prefilterFiles([entry], _makeStats(), { dryRun: true, concurrency: 2 });
           loggerStub.restore();
 
-          assertEquals(result.map((e) => e.filePath), [filePath]);
-          assertEquals(loggerStub.dryrunLogs.some((line) => line.includes('会話本文が空')), false);
+          assertEquals(result.map((e) => e.filePath), []);
+          assertEquals(
+            loggerStub.dryrunLogs.some((line) =>
+              line.includes('Userターンが存在しない') && line.includes('no-conversation-turns.md')
+            ),
+            true,
+          );
         });
       });
     });

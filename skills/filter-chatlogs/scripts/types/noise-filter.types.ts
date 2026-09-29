@@ -22,8 +22,6 @@ export type NoiseFilterConfig = DefaultArgFields & {
   minCharCount: number;
   /** User ターンが 1 件のとき、Assistant 応答の最小文字数（GlobalConfig の minAssistantChars 由来）。 */
   minAssistantChars: number;
-  /** 会話本文の空判定に使う本文最大文字数（GlobalConfig の maxBodyChars 由来）。 */
-  maxBodyChars: number;
   /** 同時実行する読み込み処理の最大並列数。 */
   concurrency: number;
 };

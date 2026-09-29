@@ -93,6 +93,4 @@ export interface PrefilterFilesOptions extends FilterProcessOptions {
   minCharCount?: number;
   /** User ターン 1 件時の Assistant 応答最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）。 */
   minAssistantChars?: number;
-  /** 会話本文の空判定に使う本文最大文字数（デフォルト: `DEFAULT_CONFIG_VALUES.maxBodyChars`）。 */
-  maxBodyChars?: number;
 }
