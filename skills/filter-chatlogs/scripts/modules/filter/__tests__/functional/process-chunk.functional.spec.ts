@@ -38,10 +38,11 @@ import type {
   CommandMockHandle,
   DenoCommandLike,
 } from '../../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
-import { makePeriodDir } from '../../../../__tests__/_helpers/fixtures.ts';
+import { makePeriodDir, makeRepeatedContent } from '../../../../__tests__/_helpers/fixtures.ts';
 // exists
 import { fileOrDirExists } from '../../../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // constants
+import { CHATLOG_BLOCK_CLOSE, CHATLOG_BLOCK_OPEN_TEMPLATE } from '../../../../constants/common.constants.ts';
 import { FILTER_DECISIONS } from '../../../../types/filter-decision.const.types.ts';
 // types
 import type { AiRunnerProvider, RunAIOptions } from '../../../../../../_cle-libs/types/providers.types.ts';
@@ -55,6 +56,14 @@ const _TEMP_CONTENT = '---\ntitle: テスト\n---\n### User\n質問\n\n### Assis
 
 /** decision=ERROR が confidence に依存せず error 扱いになることを確かめる境界値（threshold=0.7 に対し 未満 / ちょうど / 上限）。 */
 const _ERROR_CONFIDENCE_CASES: readonly number[] = [0.0, 0.7, 1.0];
+
+/**
+ * `T-FL-PCK-15` で `processChunk` に渡す本文最大文字数。
+ *
+ * 既定値（`DEFAULT_CONFIG_VALUES.maxBodyChars` = 8000）と十分に離れた小さい値を選び、
+ * 引数が無視されて既定値で描画された場合に必ず超過が観測されるようにする。
+ */
+const _SMALL_MAX_BODY_CHARS = 50;
 
 // functions
 /**
@@ -120,6 +129,24 @@ function _makeRateLimitMock(): DenoCommandLike {
 /** 与えられた例外を必ず reject する `AiRunnerProvider` スタブを返すファクトリヘルパー。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
 
+/**
+ * バッチプロンプト文字列から、各ログブロックの本文（開始デリミタ〜終了デリミタの間）を取り出す。
+ *
+ * `buildBatchPrompt` が出力する `<<<CHATLOG file="NAME">>>` 〜 `<<<END_CHATLOG>>>` の
+ * 囲みを行単位で走査し、囲まれた本文だけを配列で返す。
+ *
+ * @param prompt - `aiRunnerProvider` が受け取った user プロンプト文字列
+ * @returns ブロック本文の配列（ブロック出現順）
+ */
+const _extractBlockBodies = (prompt: string): string[] => {
+  const openPrefix = CHATLOG_BLOCK_OPEN_TEMPLATE.split('{file}')[0];
+  return prompt
+    .split(openPrefix)
+    .slice(1)
+    .map((block) => block.slice(block.indexOf('\n') + 1))
+    .map((block) => block.split(CHATLOG_BLOCK_CLOSE)[0].trimEnd());
+};
+
 /** 判定結果配列を JSON 文字列にして resolve する `AiRunnerProvider` スタブを返すファクトリヘルパー。 */
 const _resultsRunner = (results: readonly Record<string, unknown>[]): AiRunnerProvider => () =>
   Promise.resolve(JSON.stringify(results));
@@ -140,7 +167,7 @@ const _resultsRunner = (results: readonly Record<string, unknown>[]): AiRunnerPr
  * - CLI エラー（`ChatlogError`）・JSON パース失敗 → 全件 `stats.error` に計上し `ChatlogError` を返す（cache へは書き込まない）。RateLimit の場合は `ctl.abort()` を呼ぶ
  * - 非 `ChatlogError`（CLI バイナリ不在等）→ 握りつぶさず throw する
  *
- * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-10
+ * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-15
  *
  * @see processChunk
  */
@@ -217,7 +244,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
           logStub.restore();
 
@@ -244,7 +278,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
           logStub.restore();
 
@@ -272,7 +313,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
           logStub.restore();
 
@@ -310,7 +358,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(stats.keep, 1);
@@ -330,7 +385,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(cache.read(filePath), { decision: FILTER_DECISIONS.KEEP, confidence: 0.9, reason: 'valuable' });
@@ -364,7 +426,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(stats.skip, 1);
@@ -386,7 +455,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(cache.read(filePath), { decision: FILTER_DECISIONS.EMPTY, confidence: 0.6, reason: 'low conf' });
@@ -417,7 +493,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry1, entry2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1, entry2],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(stats.error, 2);
@@ -439,6 +522,7 @@ describe('processChunk', () => {
             DEFAULT_CONFIG_VALUES.discardThreshold as number,
             cache,
             ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
           );
           errStub.restore();
 
@@ -455,7 +539,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry1], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(cache.read(file1), {});
@@ -472,7 +563,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry1, entry2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1, entry2],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
@@ -509,6 +607,7 @@ describe('processChunk', () => {
             DEFAULT_CONFIG_VALUES.discardThreshold as number,
             cache,
             ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
           );
           errStub.restore();
 
@@ -551,6 +650,7 @@ describe('processChunk', () => {
             DEFAULT_CONFIG_VALUES.discardThreshold as number,
             cache,
             ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
           );
           errStub.restore();
 
@@ -572,7 +672,14 @@ describe('processChunk', () => {
           const ctl = new AbortController();
           ctl.abort();
 
-          await processChunk([entry1, entry2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1, entry2],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
@@ -591,7 +698,14 @@ describe('processChunk', () => {
           ctl.abort();
           const abortStub = stub(ctl, 'abort');
 
-          await processChunk([entry1], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
           abortStub.restore();
 
@@ -623,7 +737,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(stats.error, 1);
@@ -647,6 +768,7 @@ describe('processChunk', () => {
             DEFAULT_CONFIG_VALUES.discardThreshold as number,
             cache,
             ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
           );
           errStub.restore();
 
@@ -665,7 +787,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(cache.read(filePath), {});
@@ -684,7 +813,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry1, entry2], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry1, entry2],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           const logged = errStub.calls.map((c) => c.args.join(' ')).join('\n');
@@ -720,7 +856,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           assertEquals(stats.skip, 1);
@@ -751,7 +894,15 @@ describe('processChunk', () => {
           const ctl = new AbortController();
 
           await assertRejects(
-            () => processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl),
+            () =>
+              processChunk(
+                [entry],
+                stats,
+                DEFAULT_CONFIG_VALUES.discardThreshold as number,
+                cache,
+                ctl,
+                DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+              ),
             Deno.errors.NotFound,
           );
           errStub.restore();
@@ -785,7 +936,15 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl, 'haiku');
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+            'haiku',
+          );
           errStub.restore();
 
           const modelIndex = capturedArgs.value.indexOf('--model');
@@ -823,7 +982,14 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, DEFAULT_CONFIG_VALUES.discardThreshold as number, cache, ctl);
+          await processChunk(
+            [entry],
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            ctl,
+            DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          );
           errStub.restore();
 
           const modelIndex = capturedArgs.value.indexOf('--model');
@@ -859,7 +1025,7 @@ describe('processChunk', () => {
           const cache = await _makeEmptyCache();
           const ctl = new AbortController();
 
-          await processChunk([entry], stats, 0.5, cache, ctl);
+          await processChunk([entry], stats, 0.5, cache, ctl, DEFAULT_CONFIG_VALUES.maxBodyChars as number);
           errStub.restore();
           logStub.restore();
 
@@ -918,6 +1084,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
         DEFAULT_CONFIG_VALUES.discardThreshold as number,
         cache,
         ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
         undefined,
         _throwingRunner(thrown),
       );
@@ -934,6 +1101,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
         DEFAULT_CONFIG_VALUES.discardThreshold as number,
         cache,
         ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
         undefined,
         _throwingRunner(new ChatlogError('AiError', 'RateLimit')),
       );
@@ -948,6 +1116,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
         DEFAULT_CONFIG_VALUES.discardThreshold as number,
         cache,
         ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
         undefined,
         _throwingRunner(new ChatlogError('AiError', 'BackendUnavailable')),
       );
@@ -962,6 +1131,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
         DEFAULT_CONFIG_VALUES.discardThreshold as number,
         cache,
         ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
         undefined,
         _throwingRunner(new ChatlogError('AiError', 'RateLimit')),
       );
@@ -1007,7 +1177,16 @@ describe('processChunk — 出力契約（outputContract）', () => {
         return Promise.resolve('[]');
       };
 
-      await processChunk(entries, stats, 0.7, cache, new AbortController(), 'sonnet', runner);
+      await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        new AbortController(),
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        'sonnet',
+        runner,
+      );
 
       assertEquals(captured?.outputContract, {
         contract: 'json-array',
@@ -1055,19 +1234,46 @@ describe('processChunk — decision=ERROR の扱い', () => {
     const runner = _resultsRunner([{ file: 'a.md', decision: 'ERROR', confidence: 0.9, reason: 'unknown' }]);
 
     it('[Normal] T-FL-PCK-14-01: stats.error のみ 1 加算され keep/skip/remove は 0 のまま', async () => {
-      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+      await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        undefined,
+        runner,
+      );
 
       assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
     });
 
     it('[Normal] T-FL-PCK-14-02: キャッシュへ判定結果が書き込まれない', async () => {
-      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+      await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        undefined,
+        runner,
+      );
 
       assertEquals(cache.read('/fake/input/a.md'), {});
     });
 
     it('[Normal] T-FL-PCK-14-03: error扱いログにファイル名が出て kept ログは出ない', async () => {
-      await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+      await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        undefined,
+        runner,
+      );
 
       const logged = errStub.calls.map((c) => c.args.join(' '));
       assertEquals(logged.some((line) => line.includes('error扱い') && line.includes('a.md')), true);
@@ -1075,7 +1281,16 @@ describe('processChunk — decision=ERROR の扱い', () => {
     });
 
     it('[Normal] T-FL-PCK-14-04: チャンク失敗扱いにならず戻り値は undefined で ctl は abort されない', async () => {
-      const result = await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+      const result = await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        undefined,
+        runner,
+      );
 
       assertStrictEquals(result, undefined);
       assertEquals(ctl.signal.aborted, false);
@@ -1089,7 +1304,16 @@ describe('processChunk — decision=ERROR の扱い', () => {
       it(`[Edge] T-FL-PCK-14-05: confidence=${confidence} → error=1・skip/keep=0・cache 未書き込み`, async () => {
         const runner = _resultsRunner([{ file: 'a.md', decision: 'ERROR', confidence, reason: 'unknown' }]);
 
-        await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+        await processChunk(
+          entries,
+          stats,
+          0.7,
+          cache,
+          ctl,
+          DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+          undefined,
+          runner,
+        );
 
         assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
         assertEquals(cache.read('/fake/input/a.md'), {});
@@ -1108,13 +1332,89 @@ describe('processChunk — decision=ERROR の扱い', () => {
     ]);
 
     it('[Error] T-FL-PCK-14-06: ERROR のファイルだけが error 扱いになり前後のファイルは通常どおり判定される', async () => {
-      const result = await processChunk(entries, stats, 0.7, cache, ctl, undefined, runner);
+      const result = await processChunk(
+        entries,
+        stats,
+        0.7,
+        cache,
+        ctl,
+        DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        undefined,
+        runner,
+      );
 
       assertStrictEquals(result, undefined);
       assertEquals(stats, { keep: 1, skip: 0, remove: 0, error: 1 });
       assertEquals(cache.read('/fake/input/k.md'), { decision: 'KEEP', confidence: 0.9, reason: 'why' });
       assertEquals(cache.read('/fake/input/e.md'), {});
       assertEquals(cache.read('/fake/input/d.md'), { decision: 'DISCARD', confidence: 0.9, reason: 'what' });
+    });
+  });
+});
+
+/**
+ * `processChunk` が引数で受け取った `maxBodyChars` をバッチプロンプト構築へ渡すことを検証するスイート。
+ *
+ * `aiRunnerProvider` を注入して user プロンプトを捕獲し、**provider が受け取った引数**を検証する
+ * （`docs/rules/testing-conventions.md`「provider 注入テストは provider に何が渡されたかを検証する」）。
+ *
+ * テスト ID 範囲: T-FL-PCK-15
+ *
+ * @see processChunk
+ */
+describe('processChunk — 本文最大文字数（maxBodyChars）', () => {
+  useDefaultGlobalConfig();
+
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  /** 本文が `maxBodyChars` を大きく超えるエントリ 2 件のチャンクを入力とする前提条件グループ。 */
+  describe('Given: 本文が maxBodyChars を超えるエントリ 2 件のチャンク', () => {
+    /** maxBodyChars を明示して processChunk を呼び出すとき。 */
+    describe('When: processChunk([entry1, entry2], ..., maxBodyChars, undefined, runner) を呼び出す', () => {
+      /** user プロンプトの全ブロック本文が maxBodyChars 以下に切り詰められることを検証する。 */
+      describe('Then: T-FL-PCK-15 - user プロンプトの各ブロック本文が maxBodyChars 以下', () => {
+        it('[Normal] T-FL-PCK-15-01: 渡した maxBodyChars で全ブロック本文が切り詰められる', async () => {
+          const entries = ['a.md', 'b.md'].map((name) =>
+            new ChatlogEntry(makeRepeatedContent(500), { filePath: `/fake/input/${name}` })
+          );
+          let capturedUser: string | undefined;
+          const runner: AiRunnerProvider = (_system, user) => {
+            capturedUser = user;
+            return Promise.resolve('[]');
+          };
+
+          await processChunk(
+            entries,
+            stats,
+            DEFAULT_CONFIG_VALUES.discardThreshold as number,
+            cache,
+            new AbortController(),
+            _SMALL_MAX_BODY_CHARS,
+            undefined,
+            runner,
+          );
+
+          const bodies = _extractBlockBodies(capturedUser ?? '');
+          assertEquals(bodies.length, 2);
+          assertEquals(
+            bodies.filter((body) => body.length > _SMALL_MAX_BODY_CHARS).map((body) => body.length),
+            [],
+            `maxBodyChars=${_SMALL_MAX_BODY_CHARS} を超える本文が user プロンプトに含まれている`,
+          );
+        });
+      });
     });
   });
 });

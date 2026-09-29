@@ -25,6 +25,15 @@ import { CHUNK_SIZE, MAX_PROMPT_LENGTH, OVER_MAX_CHARS_LENGTH } from '../../_hel
 // ─── Internal Helpers
 
 // constants
+/**
+ * 本テストが `buildBatchPrompt` へ渡す本文上限。既定値と同じ 8000 をリテラルで固定する。
+ *
+ * production の `DEFAULT_MAX_BODY_CHARS` を**意図的に import しない**。
+ * 定数を参照すると既定値を変えたときに本ファイルの期待値も黙って追従し、
+ * 既定値の変更がテストに検出されなくなるため。
+ */
+const _TEST_MAX_BODY_CHARS = 8000;
+
 /** 開始デリミタ行の末尾。本文の開始位置を求めるために使う。 */
 const _DELIMITER_TAIL = '">>>';
 
@@ -43,7 +52,7 @@ const _bodyOf = (prompt: string): string =>
  *
  * `buildBatchPrompt(entries)` は読み込み済み `ChatlogEntry[]` を受け取り、
  * 各ログを `<<<CHATLOG file="NAME">>>` 〜 `<<<END_CHATLOG>>>` で囲んだバッチプロンプト文字列を同期的に生成する。
- * 本文が `MAX_BODY_CHARS`（8000）を超える場合は切り詰める。
+ * 本文が既定の本文上限（8000 文字）を超える場合は切り詰める。
  *
  * テスト ID 範囲: T-FL-BP-01 〜 T-FL-BP-09
  *
@@ -62,7 +71,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-01-01: [Normal] フロントマターの "title:" が出力に含まれない', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assert(!result.includes('title:'));
         });
@@ -70,7 +79,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-01-02: [Normal] 本文テキスト "質問" が出力に含まれる', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, '質問');
         });
@@ -78,7 +87,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-01-04: [Normal] 開始デリミタが "<<<CHATLOG file="<filename>">>>" の形式で出力される', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, _openTag('chat.md'));
         });
@@ -86,7 +95,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-01-05: [Normal] ブロックが終了デリミタで閉じられる', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト', '質問', '回答'), { filePath: '/chatlogs/chat.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, CHATLOG_BLOCK_CLOSE);
         });
@@ -94,7 +103,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-01-03: [Normal] サブディレクトリ内ファイルでもファイル名のみが抽出される', () => {
           const entry = new ChatlogEntry(makeValidContent('テスト'), { filePath: '/chatlogs/sub/deep.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, 'deep.md');
           assert(!result.includes('sub/'));
@@ -108,7 +117,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-02-01: [Edgecase] 開始デリミタは出力される', () => {
           const entry = new ChatlogEntry(makeFrontmatter('空'), { filePath: '/chatlogs/empty.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, _openTag('empty.md'));
         });
@@ -116,7 +125,7 @@ describe('buildBatchPrompt', () => {
         it('T-FL-BP-02-02: [Edgecase] デリミタに挟まれた本文が空になる', () => {
           const entry = new ChatlogEntry(makeFrontmatter('空'), { filePath: '/chatlogs/empty.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertEquals(_bodyOf(result).trim(), '');
         });
@@ -132,7 +141,7 @@ describe('buildBatchPrompt', () => {
             filePath: '/chatlogs/plain.md',
           });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, _openTag('plain.md'));
         });
@@ -142,21 +151,21 @@ describe('buildBatchPrompt', () => {
             filePath: '/chatlogs/plain.md',
           });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
           assertEquals(_bodyOf(result).trim(), '');
         });
       });
 
-      /** `MAX_BODY_CHARS`（8000）を超える本文は切り詰められ、出力が肥大化しないことを検証する。 */
+      /** 既定の本文上限（8000 文字）を超える本文は切り詰められ、出力が肥大化しないことを検証する。 */
       describe('Then: [Edgecase] T-FL-BP-04 - 長大な本文は切り詰められる', () => {
         it('T-FL-BP-04-01: [Edgecase] 結果の長さが無制限に増大しない', () => {
           const longText = 'x'.repeat(OVER_MAX_CHARS_LENGTH);
           const entry = new ChatlogEntry(makeValidContent('Long', longText, '回答'), { filePath: '/chatlogs/long.md' });
 
-          const result = buildBatchPrompt([entry]);
+          const result = buildBatchPrompt([entry], _TEST_MAX_BODY_CHARS);
 
-          // MAX_BODY_CHARS=8000 + ヘッダー分で合理的な範囲内に収まる
+          // 本文上限 8000 + ヘッダー分で合理的な範囲内に収まる
           assertEquals(result.length < MAX_PROMPT_LENGTH, true);
         });
       });
@@ -176,7 +185,7 @@ describe('buildBatchPrompt', () => {
           const entry1 = new ChatlogEntry(makeValidContent('A', '質問A', '回答A'), { filePath: '/chatlogs/chat-a.md' });
           const entry2 = new ChatlogEntry(makeValidContent('B', '質問B', '回答B'), { filePath: '/chatlogs/chat-b.md' });
 
-          const result = buildBatchPrompt([entry1, entry2]);
+          const result = buildBatchPrompt([entry1, entry2], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, _openTag('chat-a.md'));
           assertStringIncludes(result, _openTag('chat-b.md'));
@@ -186,7 +195,7 @@ describe('buildBatchPrompt', () => {
           const entry1 = new ChatlogEntry(makeValidContent('A', '質問A', '回答A'), { filePath: '/chatlogs/chat-a.md' });
           const entry2 = new ChatlogEntry(makeValidContent('B', '質問B', '回答B'), { filePath: '/chatlogs/chat-b.md' });
 
-          const result = buildBatchPrompt([entry1, entry2]);
+          const result = buildBatchPrompt([entry1, entry2], _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, '\n' + _openTag('chat-b.md'));
         });
@@ -213,7 +222,7 @@ describe('buildBatchPrompt', () => {
             );
           }
 
-          const result = buildBatchPrompt(entries);
+          const result = buildBatchPrompt(entries, _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(result, _openTag(`chat-${CHUNK_SIZE}.md`));
         });
@@ -228,7 +237,7 @@ describe('buildBatchPrompt', () => {
             );
           }
 
-          const result = buildBatchPrompt(entries);
+          const result = buildBatchPrompt(entries, _TEST_MAX_BODY_CHARS);
 
           for (let i = 1; i <= CHUNK_SIZE; i++) {
             assertStringIncludes(result, _openTag(`chat-${i}.md`));
@@ -248,7 +257,7 @@ describe('buildBatchPrompt', () => {
       /** 空文字列が返されることを検証する。 */
       describe('Then: [Edgecase] T-FL-BP-09 - 空文字列が返される', () => {
         it('T-FL-BP-09-01: [Edgecase] 戻り値が "" である', () => {
-          const result = buildBatchPrompt([]);
+          const result = buildBatchPrompt([], _TEST_MAX_BODY_CHARS);
 
           assertEquals(result, '');
         });

@@ -267,6 +267,15 @@ describe('isExcludedByContent', () => {
 
           assert(reason.includes('User'));
         });
+
+        // 会話見出しを 1 つも含まない本文（ターン 0 件）も、この判定で除外されることを固定する。
+        // 後続タスクで `会話本文が空` 判定を削除しても入力クラスが取りこぼされないことの根拠。
+        it('T-FL-IC-02-03: 会話見出しを含まない本文 → reason が "Userターンが存在しない"', () => {
+          const body = 'これは会話見出しを含まないプレーンテキストです。'.repeat(50);
+          const { reason } = isExcludedByContent(body);
+
+          assertEquals(reason, 'Userターンが存在しない');
+        });
       });
     });
   });

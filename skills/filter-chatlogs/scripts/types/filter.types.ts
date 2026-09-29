@@ -39,6 +39,8 @@ export interface FilterConfig {
   minCharCount: number;
   /** Assistant 応答最小文字数閾値（userTurns=1 時）。 */
   minAssistantChars: number;
+  /** バッチプロンプトへ埋め込む 1 本分の本文の最大文字数（`--max-body-chars` で上書き可能）。 */
+  maxBodyChars: number;
   /** DISCARD 判定に必要な最低信頼度スコア。 */
   discardThreshold: number;
   /** claude CLI 判定に使用する AI モデル名（例: `sonnet`, `haiku`）。省略時は runAI 側のデフォルトを使用する。 */

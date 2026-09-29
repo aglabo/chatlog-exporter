@@ -59,6 +59,7 @@ import type { FilterConfig, FilterParsedConfig } from './types/filter.types.ts';
 /** filter-chatlogs の引数スキーマ。 */
 const _SCHEMA: ArgSchema<FilterParsedConfig> = [
   { option: '--chunk-size', field: 'chunkSize', type: 'integer', min: 1, max: 10 },
+  { option: '--max-body-chars', field: 'maxBodyChars', type: 'integer', min: 1, max: 100000 },
   { option: '--single-file', field: 'singleFile', type: 'flag' },
 ];
 
@@ -166,7 +167,7 @@ export const main = async (args?: string[]): Promise<void> => {
       const chunkResults = await runChunked(
         targetEntries,
         _chunkSize,
-        (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl),
+        (chunk, ctl) => processChunk(chunk, stats, _config.discardThreshold, _cache, ctl, _config.maxBodyChars),
         _config.concurrency,
       );
 

@@ -6,7 +6,7 @@ description: >
   strip サブコマンドでは、AIを使わず本文先頭の定型部（TOPICS ASSIGNMENT RULES 等）を除去する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] [--max-body-chars N] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
 allowed-tools: Bash, Glob
 ---
 
@@ -45,6 +45,11 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM` (例: `chatgpt 2026-03`) → 指定 agent・指定月
 - `--dry-run` → 削除せず対象ファイルを一覧表示 (判定は行わない。後述の注意を参照)
 - `--single-file` → 1 ファイルずつ判定 (chunkSize を 1 に固定)
+- `--max-body-chars N` → バッチプロンプトへ埋め込む 1 本分の本文の最大文字数 (1〜100000)。
+  未指定時は `config.yaml` の `maxBodyChars` を使う。
+  優先順位は **CLI 引数 > `config.yaml` > 組み込み既定 (8000)**。
+  本リポジトリが配布する `config.yaml` は **10000** を設定しているため、
+  `/setup-chatlogs` で展開した既定環境での実効値は 10000 になる
 
 **noise-filter モードの引数解析** (`noise-filter` トークンを除いた残りの引数に適用):
 
@@ -161,6 +166,7 @@ deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env
 - `agent YYYY-MM` → `deno run ... "$SCRIPT_PATH" chatgpt 2026-03`
 - `--dry-run` を含む → 末尾に `--dry-run` を追加
 - `--single-file` を含む → 末尾に `--single-file` を追加
+- `--max-body-chars N` を含む → 末尾に `--max-body-chars N` を追加
 
 <!-- textlint-enable ja-technical-writing/sentence-length -->
 

@@ -30,7 +30,6 @@ import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // functions
 import { checkFilename, isPreambleTurn } from '../libs/classify-file.ts';
-import { extractConversation } from '../libs/common-utils.ts';
 // constants
 import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 import { FILTER_DECISIONS } from '../types/filter-decision.const.types.ts';
@@ -158,7 +157,7 @@ type _ContentClassification =
 /**
  * 1 ファイルの本文を内容チェックで分類する。
  *
- * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当する場合は
+ * 本文が空、または `isExcludedByContent` の内容チェックに該当する場合は
  * `excluded-content` の分類結果を、それ以外は入力エントリそのものを返す純粋関数。
  *
  * @param entry - 読み込み済みの `ChatlogEntry`
@@ -187,21 +186,13 @@ const _classifyEntryByContent = (
     return { kind: 'excluded', result: { filePath, filename, reason, decision: FILTER_DECISIONS.DISCARD } };
   }
 
-  const bodyText = extractConversation(content);
-  if (!bodyText.trim()) {
-    return {
-      kind: 'excluded',
-      result: { filePath, filename, reason: '会話本文が空', decision: FILTER_DECISIONS.DISCARD },
-    };
-  }
-
   return { kind: 'survivor', entry };
 };
 
 /**
  * 読み込み済みファイルの本文を内容チェックで分類する。
  *
- * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当するファイルは
+ * 本文が空、または `isExcludedByContent` の内容チェックに該当するファイルは
  * `excluded-content` として確定し、通過したファイルのみ `survivors` に含める。
  *
  * @param readOk - 読み込み済みの `ChatlogEntry` 配列

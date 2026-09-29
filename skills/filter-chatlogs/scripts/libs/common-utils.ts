@@ -15,20 +15,16 @@ import { dirExists } from '../../../_cle-libs/libs/file-ops/exists-utils.ts';
 // types
 import type { StatProvider } from '../../../_cle-libs/types/providers.types.ts';
 
-// ─── internal ───
-// constants
-import { MAX_BODY_CHARS } from '../constants/common.constants.ts';
-
 /**
  * 本文テキストを会話ターンに分解し、`maxChars` 文字以内に収めた Markdown 文字列を返す。
  *
  * バッチプロンプトに埋め込む本文の切り詰めに使用する。
  *
  * @param body - 変換元の本文テキスト（frontmatter を除いたコンテンツ部分）
- * @param maxChars - 出力の最大文字数（デフォルト: `MAX_BODY_CHARS`）
+ * @param maxChars - 出力の最大文字数（必須。呼び出し元が設定値を明示的に渡す）
  * @returns 会話ターンを Markdown 形式に再構築した文字列（`maxChars` 文字以内）
  */
-export const extractConversation = (body: string, maxChars = MAX_BODY_CHARS): string =>
+export const extractConversation = (body: string, maxChars: number): string =>
   renderConversation(parseConversation(body), maxChars);
 
 /**

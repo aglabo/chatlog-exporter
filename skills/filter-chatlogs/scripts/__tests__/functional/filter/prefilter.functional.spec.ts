@@ -20,7 +20,7 @@ import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.clas
 
 // ─── Helpers
 import { makeLoggerStub } from '../../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
-import { makePeriodDir, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
+import { makePeriodDir, makePlainContent, makeRepeatedContent, makeValidContent } from '../../_helpers/fixtures.ts';
 // constants
 import { FILTER_MIN_CONTENT_LENGTH } from '../../_helpers/constants.ts';
 // types
@@ -63,7 +63,7 @@ const _writeEntry = async (filePath: string, text: string): Promise<ChatlogEntry
  * - ファイル名が除外パターンに一致する（例: `say-ok-and-nothing-else.md`）
  * - 本文（frontmatter を除いた部分）が空または 1000 文字未満
  *
- * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-21
+ * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-24
  *
  * @see prefilterFiles
  */
@@ -537,6 +537,43 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(passed.map((e) => e.filePath), [filePath]);
+        });
+      });
+    });
+  });
+  /**
+   * `### User` / `### Assistant` 見出しを 1 つも含まない本文のファイルを入力とする前提条件グループ。
+   *
+   * 本文長は `minCharCount`（既定 1000）以上あるため「短すぎる」では弾かれず、
+   * 会話ターンが 0 件であることを理由に除外される入力クラスにあたる。
+   */
+  describe('Given: 会話見出しを含まない minCharCount 以上の本文を持つファイル', () => {
+    /** 既定の options で prefilterFiles を呼び出すとき。 */
+    describe('When: prefilterFiles([file], stats, { dryRun, concurrency }) を呼び出す', () => {
+      /**
+       * User ターン不在として除外され、通過しないことを検証する。
+       *
+       * `isExcludedByContent` の User ターン判定がこの入力クラスを覆っていることを固定する。
+       */
+      describe('Then: T-FL-PFF-24 - Userターンが存在しない として除外される', () => {
+        it('T-FL-PFF-24-01: 会話ターン 0 件の本文 → Userターンが存在しない で除外される', async () => {
+          const filePath = `${periodDir1}/no-conversation-turns.md`;
+          const entry = await _writeEntry(
+            filePath,
+            makePlainContent('見出しなし', 'x'.repeat(FILTER_MIN_CONTENT_LENGTH * 3)),
+          );
+          const loggerStub = makeLoggerStub();
+
+          const result = await prefilterFiles([entry], _makeStats(), { dryRun: true, concurrency: 2 });
+          loggerStub.restore();
+
+          assertEquals(result.map((e) => e.filePath), []);
+          assertEquals(
+            loggerStub.dryrunLogs.some((line) =>
+              line.includes('Userターンが存在しない') && line.includes('no-conversation-turns.md')
+            ),
+            true,
+          );
         });
       });
     });

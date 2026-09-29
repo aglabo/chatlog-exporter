@@ -39,21 +39,82 @@ import {
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // constants
 import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../../../_cle-libs/constants/defaults.constants.ts';
+import { CHATLOG_BLOCK_CLOSE, CHATLOG_BLOCK_OPEN_TEMPLATE } from '../../constants/common.constants.ts';
 import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 import { FILTER_MIN_CONTENT_LENGTH } from '../_helpers/constants.ts';
 // types
-import type { CommandMockHandle, DenoCommandLike } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import type {
+  CommandMockHandle,
+  DenoCommandLike,
+  StdinCapture,
+} from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 // e2e helpers
 import { assertFileNotExist } from '../../../../_cle-libs/__tests__/helpers/assert.ts';
 import { fileExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
 import { makeRepeatedContent, makeTestDirs } from '../_helpers/fixtures.ts';
 // helpers
+import {
+  parseConversation,
+  renderConversation,
+} from '../../../../_cle-libs/libs/chatlogs/conversation-utils.ts';
 import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-utils.ts';
 
 // ─── Internal Helpers
 
+// constants
+
+/**
+ * `T-FL-E2E-24` で config.yaml に注入する `maxBodyChars`。
+ *
+ * `_makeValidContent()` のレンダリング後の会話本文は
+ * `### User` + `u` * 500 + `### Assistant` + `a` * 500 = 1025 文字になる
+ * （`FILTER_MIN_CONTENT_LENGTH` = 500）。
+ * 切り詰めが観測できるよう、この全長 1025 より小さく、かつ既定値
+ * `DEFAULT_CONFIG_VALUES.maxBodyChars`（8000）より十分小さい値として 600 を選んだ。
+ */
+const _TEST_MAX_BODY_CHARS = 600;
+
+/**
+ * `CHATLOG_BLOCK_OPEN_TEMPLATE` からファイル名部分を除いた開始デリミタの接頭辞。
+ *
+ * ブロック開始行はファイル名ごとに異なるため、テンプレートの `{file}` より前だけを
+ * 行の判定に使う。デリミタ文字列をテストへ直書きしない（production 定数から導出する）。
+ */
+const _BLOCK_OPEN_PREFIX = CHATLOG_BLOCK_OPEN_TEMPLATE.slice(0, CHATLOG_BLOCK_OPEN_TEMPLATE.indexOf('{file}'));
+
 // functions
+
+/**
+ * stdin に流れたバッチプロンプトから、各チャットログブロックの本文だけを取り出す。
+ *
+ * 開始デリミタ行の次行から終了デリミタ行の直前までを 1 ブロックの本文とみなす。
+ *
+ * @param prompt - stdin へ書き込まれたプロンプト全文
+ * @returns ブロック本文の配列（出現順）
+ * @throws {Error} 開始デリミタに対応する終了デリミタが見つからないとき
+ */
+const _extractBlockBodies = (prompt: string): string[] => {
+  const lines = prompt.split('\n');
+  const openIndexes = lines.flatMap((line, index) => line.startsWith(_BLOCK_OPEN_PREFIX) ? [index] : []);
+  return openIndexes.map((openIndex) => {
+    const closeIndex = lines.indexOf(CHATLOG_BLOCK_CLOSE, openIndex + 1);
+    if (closeIndex === -1) {
+      throw new Error(`block close delimiter not found after line ${openIndex}`);
+    }
+    return lines.slice(openIndex + 1, closeIndex).join('\n');
+  });
+};
+
+/**
+ * 切り詰めなしの会話本文（`### User` / `### Assistant` 再構築後）の文字数を返す。
+ *
+ * `T-FL-E2E-24-02` の「切り詰めが実際に起きた」判定の基準値に使う。
+ *
+ * @param content - チャットログ Markdown の全文（frontmatter 込み）
+ * @returns 切り詰めを掛けずにレンダリングした会話本文の文字数
+ */
+const _fullConversationLength = (content: string): number => renderConversation(parseConversation(content)).length;
 
 /** `_makeTestDirs` のラッパー。デフォルト引数付きで `makeTestDirs` を呼び出す。 */
 const _makeTestDirs = (agent = 'claude', period = '2026-03') => makeTestDirs(agent, period);
@@ -394,6 +455,91 @@ describe('main - model 配線', () => {
           const modelIndex = capturedArgs.value.indexOf('--model');
           assertEquals(modelIndex !== -1, true);
           assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+        });
+      });
+    });
+  });
+});
+
+// ─── T-FL-E2E-24: maxBodyChars 配線 ──────────────────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（maxBodyChars 配線）。
+ *
+ * config.yaml の `maxBodyChars` 設定が、claude CLI へ stdin で渡るバッチプロンプトの
+ * 各ログブロック本文の切り詰め幅として実際に効くことを検証する。
+ *
+ * バッチプロンプトは `runAI` が stdin へ書き込むため、`Deno.Command` の args を見る
+ * `capturedArgs` では観測できない。共有モックの `StdinCapture` で stdin を捕捉する。
+ *
+ * テスト ID 範囲: T-FL-E2E-24
+ *
+ * @see main
+ */
+describe('main - maxBodyChars 配線', () => {
+  /**
+   * config.yaml に `maxBodyChars`（会話本文全長より小さい値）を設定し、
+   * 1 件の KEEP 判定ファイルが存在する前提。
+   */
+  describe('Given: config.yaml に maxBodyChars を設定・keep.md（KEEP判定）を配置', () => {
+    /** `main([...args])` を呼び出すとき。 */
+    describe('When: main([...args]) を呼び出す', () => {
+      /** stdin へ流れたバッチプロンプトのブロック本文が設定値で切り詰められていること。 */
+      describe('Then: T-FL-E2E-24 - stdin のバッチプロンプト本文が maxBodyChars で切り詰められる', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let capturedStdin: StdinCapture;
+        let content: string;
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nmaxBodyChars: ${_TEST_MAX_BODY_CHARS}`);
+          capturedStdin = { value: [] };
+          commandHandle = installCommandMock(
+            makeClaudeJsonMock(
+              JSON.stringify([{
+                file: 'keep.md',
+                decision: FILTER_DECISIONS.KEEP,
+                confidence: 0.9,
+                reason: 'valuable',
+              }]),
+              undefined,
+              capturedStdin,
+            ),
+          );
+          loggerStub = makeLoggerStub();
+          content = _makeValidContent();
+          await Deno.writeTextFile(`${chatlogsDir}/keep.md`, content);
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it(`[Normal] T-FL-E2E-24-01: 各ブロック本文が maxBodyChars(${_TEST_MAX_BODY_CHARS}) ちょうどに切り詰められる`, async () => {
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          const bodies = _extractBlockBodies(capturedStdin.value.join(''));
+          // 実長をそのまま並べて照合する。件数ズレも長さズレも失敗時に実測値が読める。
+          // 「超えない」ではなく「一致する」を見るのは、第 6 引数が maxBodyChars より小さい
+          // 別の config フィールド（minAssistantChars 等）へ取り違えられた場合も捕捉するため。
+          assertEquals(bodies.map((body) => body.length), [_TEST_MAX_BODY_CHARS]);
+        });
+
+        it('[Normal] T-FL-E2E-24-02: 各ブロック本文が切り詰めなしの会話本文全長より短い', async () => {
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir]);
+
+          const fullLength = _fullConversationLength(content);
+          const bodies = _extractBlockBodies(capturedStdin.value.join(''));
+          assertEquals(bodies.length, 1);
+          // T-FL-E2E-24-01 の空振り化を防ぐガード。_TEST_MAX_BODY_CHARS が将来全長以上へ
+          // ずれると、切り詰めが起きないまま -01 が通ってしまう。ここが先に落ちる。
+          assertEquals(bodies.filter((body) => body.length >= fullLength).map((body) => body.length), []);
         });
       });
     });

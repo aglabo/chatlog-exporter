@@ -16,16 +16,38 @@ export type DenoCommandLike = new(cmd: string, opts: { args: string[]; signal?: 
   output(): Promise<{ success: boolean; code: number; stdout: Uint8Array }>;
 };
 
+/**
+ * stdin へ書き込まれた内容を蓄積するキャプチャ箱。
+ *
+ * `runAI` が `getWriter().write()` で送るプロンプト本文を検証するために使う。
+ * `capturedArgs?: { value: string[] }` と同じボックス方式で、`write()` ごとに
+ * デコード済み文字列を `value` へ push する。
+ */
+export interface StdinCapture {
+  value: string[];
+}
+
 // ─── 抽象基底クラス ────────────────────────────────────────────────────────────
 
 /** spawn() 共通骨格と no-op stdin writer を提供する抽象基底クラス。 */
 export abstract class BaseMockCommand {
-  /** no-op stdin writer を返す。全サブクラスで共有する。 */
-  protected static makeStdin() {
+  /**
+   * stdin のキャプチャ先。サブクラスが設定したときだけ stdin 本文を記録する。
+   * 未設定（`undefined`）のときは従来どおり no-op writer として振る舞う。
+   */
+  protected stdinSink?: StdinCapture;
+
+  /**
+   * stdin writer を返す。全サブクラスで共有する。
+   *
+   * @param sink - 指定されたときだけ `write()` の引数をデコードして蓄積する。省略時は no-op。
+   */
+  protected static makeStdin(sink?: StdinCapture) {
     return {
       getWriter() {
         return {
-          write(_data: Uint8Array) {
+          write(data: Uint8Array) {
+            sink?.value.push(new TextDecoder().decode(data));
             return Promise.resolve();
           },
           close() {
@@ -39,7 +61,7 @@ export abstract class BaseMockCommand {
   /** spawn() の共通骨格。makeOutput() をサブクラスで実装する。 */
   spawn() {
     return {
-      stdin: BaseMockCommand.makeStdin(),
+      stdin: BaseMockCommand.makeStdin(this.stdinSink),
       output: () => this.makeOutput(),
     };
   }
@@ -57,7 +79,7 @@ export abstract class BaseMockCommand {
 
 /**
  * 正常終了(exit 0)を模倣するモッククラス。
- * stdout の内容と constructor に渡された args を検査できる。
+ * stdout の内容と constructor に渡された args、および stdin へ書かれた本文を検査できる。
  */
 export class SuccessMockCommand extends BaseMockCommand {
   private readonly stdout: Uint8Array;
@@ -68,10 +90,12 @@ export class SuccessMockCommand extends BaseMockCommand {
     opts: { args: string[] },
     stdout: Uint8Array,
     capturedArgs?: { value: string[] },
+    capturedStdin?: StdinCapture,
   ) {
     super();
     this.stdout = stdout;
     this.capturedArgs = capturedArgs;
+    this.stdinSink = capturedStdin;
     if (this.capturedArgs) { this.capturedArgs.value = opts.args; }
   }
 
@@ -175,14 +199,19 @@ export class CountingMockCommand extends BaseMockCommand {
 /**
  * SuccessMockCommand を DenoCommandLike として返すヘルパー。
  * Deno.Command の置き換えに使用する。
+ *
+ * @param stdout - モックが返す stdout バイト列
+ * @param capturedArgs - 指定時、constructor に渡された `opts.args` を記録する
+ * @param capturedStdin - 指定時、stdin へ書かれた本文をデコードして記録する
  */
 export function makeSuccessMock(
   stdout: Uint8Array,
   capturedArgs?: { value: string[] },
+  capturedStdin?: StdinCapture,
 ): DenoCommandLike {
   return class extends SuccessMockCommand {
     constructor(cmd: string, opts: { args: string[] }) {
-      super(cmd, opts, stdout, capturedArgs);
+      super(cmd, opts, stdout, capturedArgs, capturedStdin);
     }
   };
 }
@@ -194,7 +223,8 @@ export const wrapClaudeJson = (payload: string): string => JSON.stringify({ resu
 export const makeClaudeJsonMock = (
   payload: string,
   capturedArgs?: { value: string[] },
-): DenoCommandLike => makeSuccessMock(new TextEncoder().encode(wrapClaudeJson(payload)), capturedArgs);
+  capturedStdin?: StdinCapture,
+): DenoCommandLike => makeSuccessMock(new TextEncoder().encode(wrapClaudeJson(payload)), capturedArgs, capturedStdin);
 
 /** FailMockCommand を DenoCommandLike として返すヘルパー。 */
 export function makeFailMock(code: number): DenoCommandLike {

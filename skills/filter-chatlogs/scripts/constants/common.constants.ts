@@ -21,9 +21,6 @@ import type { StripConfig } from '../types/strip-config.types.ts';
 // filter-chatlogs 固有定数
 // ─────────────────────────────────────────────
 
-/** バッチプロンプトに含める本文の最大文字数。 */
-export const MAX_BODY_CHARS = 8000;
-
 /**
  * バッチプロンプトのブロック境界に用いるデリミタ接頭辞。
  *
@@ -100,5 +97,6 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   concurrency: DEFAULT_CONFIG_VALUES.concurrency,
   minCharCount: DEFAULT_CONFIG_VALUES.minCharCount,
   minAssistantChars: DEFAULT_CONFIG_VALUES.minAssistantChars,
+  maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars,
   discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold,
 };

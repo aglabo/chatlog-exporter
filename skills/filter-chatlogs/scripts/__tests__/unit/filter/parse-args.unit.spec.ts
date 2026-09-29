@@ -13,6 +13,9 @@ import { beforeEach, describe, it } from '@std/testing/bdd';
 
 // ─── Test target
 import { _setByTypeForTest, parseArgs } from '../../../../../_cle-libs/libs/io/parse-args.ts';
+// functions
+// 本番の `_SCHEMA` は filter-chatlogs.ts の module 内部シンボルのため、それを parseArgs に渡す buildConfig 経由で検証する
+import { buildConfig } from '../../../filter-chatlogs.ts';
 
 // ─── Helpers
 // classes
@@ -300,6 +303,55 @@ describe('parseArgs', () => {
             );
             assertEquals(err, null);
             assertEquals(config.someField, expected);
+          });
+        }
+      });
+    });
+  });
+
+  // ─── T-FL-PA-20: --max-body-chars の範囲検査（本番 _SCHEMA 経由） ─────────
+
+  /**
+   * `--max-body-chars` の範囲検査を検証するグループ。
+   *
+   * CLI 値は `GlobalConfig._assertInRange`（`parseYaml` 経路のみ）を通らないため、
+   * `DEFAULT_CONFIG_SCHEMA.maxBodyChars` と同じ `min: 1` / `max: 100000` を
+   * CLI スキーマ側でも持つ必要がある（cle-kju.9）。
+   * 本番スキーマ自体を検査対象にするため、ローカルの代替エントリではなく
+   * `buildConfig` 経由で `parseArgs` を呼ぶ。
+   */
+  describe('Given: CLI 引数 --max-body-chars に範囲外の値を渡す', () => {
+    describe('When: 本番 _SCHEMA で parseArgs を呼び出す', () => {
+      describe('Then: T-FL-PA-20 - ChatlogError(InvalidArgs, OutOfRange) が throw される', () => {
+        const _outOfRangeCases: { id: string; rawValue: string }[] = [
+          { id: 'T-FL-PA-20-01', rawValue: '0' },
+          { id: 'T-FL-PA-20-02', rawValue: '100001' },
+        ];
+        for (const { id, rawValue } of _outOfRangeCases) {
+          it(`${id}: --max-body-chars ${rawValue} → ChatlogError(InvalidArgs, OutOfRange)`, () => {
+            const err = assertThrows(() => buildConfig(['--max-body-chars', rawValue]), ChatlogError);
+            assertEquals(err.kind, 'InvalidArgs');
+            assertEquals(err.subindex, 'OutOfRange');
+          });
+        }
+      });
+    });
+  });
+  // ─── T-FL-PA-21: --max-body-chars の境界値 ───────────────────────────
+
+  /**
+   * `--max-body-chars` の境界値（`min` / `max` 自身）が受理されることを検証するグループ。
+   */
+  describe('Given: CLI 引数 --max-body-chars に境界値を渡す', () => {
+    describe('When: 本番 _SCHEMA で parseArgs を呼び出す', () => {
+      describe('Then: T-FL-PA-21 - throw せず maxBodyChars にその値が設定される', () => {
+        const _boundaryCases: { id: string; rawValue: string; expected: number }[] = [
+          { id: 'T-FL-PA-21-01', rawValue: '1', expected: 1 },
+          { id: 'T-FL-PA-21-02', rawValue: '100000', expected: 100000 },
+        ];
+        for (const { id, rawValue, expected } of _boundaryCases) {
+          it(`${id}: --max-body-chars ${rawValue} → maxBodyChars === ${expected}`, () => {
+            assertEquals(buildConfig(['--max-body-chars', rawValue]).maxBodyChars, expected);
           });
         }
       });
