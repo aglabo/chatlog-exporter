@@ -4,7 +4,7 @@ module: libs/ai-backend
 status: Active
 created: "2026-09-04 00:00:00"
 source: specifications-index.md
-based-on: implementation.md v1.7.0
+based-on: implementation.md v1.7.1
 ---
 
 <!-- cspell:words qwen llamacpp -->

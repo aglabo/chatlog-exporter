@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.12.0
+version: 3.12.1
 created: "2026-09-02"
 ---
 
@@ -1501,7 +1501,10 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 1. 実測レポートのような作業記録は、モジュール直下ではなく
    `docs/.deckrd/libs/<module>/workspaces/` に置く。DR-22 決定 1 のパスは
    `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` と読み替える
-2. 規範文書から作業記録への参照は、このパスで張る。規範文書自体はモジュール直下に置いたままとする
+2. 規範文書から作業記録を**完全パスで**参照するときは、そのパスに `workspaces/` を含める。
+   `measurements-response-format-2026-09-12.md` のようにファイル名だけを挙げる引用は本決定の
+   対象外とし、既存の書式のまま残す（ディレクトリを主張していないため、移動で不正にならない）。
+   規範文書自体はモジュール直下に置いたままとする
 3. `docs/.deckrd/notes/` の役割は DR-22 のまま変えない（設計検討のノート）。`workspaces/` は
    モジュールに属する作業記録を置く場所であり、両者は併存する
 
@@ -1561,3 +1564,4 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 | 2026-09-17 | 3.10.0  | DR-21 に決定 6 を追加 (MINOR: 決定を追加)。PR #467 の codex レビュー指摘 (P2) を受け、実 TLS 検証失敗の回帰テスト T-LIB-AI-LRI-13-01 を決定 5 の例外とし、`RUN_AI=1` (`--use-ai`) 指定時のみ実行すると確定                                                                                                                                                                                                           |
 | 2026-09-18 | 3.11.0  | DR-34 を追加 (MINOR: 決定を追加)。`cle-eft.4.5` の修正 (値付き結合短縮フラグ `-RN=<host>` の検出) に過検出と負例不足が残ったため、`--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とし、検査対象行に書かないと確定 (beads `cle-eft.4.6`)                                                                                                                                                           |
 | 2026-09-29 | 3.12.0  | DR-35 を追加 (MINOR: 決定を追加)。作業記録をモジュール直下ではなく `docs/.deckrd/libs/<module>/workspaces/` に置くと確定し、DR-22 決定 1 の配置を supersede。改訂中の deckrd がメモ類を `workspaces/` に置く方針であることに合わせた。`implementation.md` §Phase 0 と `tasks/tasks.md` の完了判定チェックリストのパスを追随 (beads `cle-kju.3.3.3`)                                                                  |
+| 2026-09-29 | 3.12.1  | DR-35 決定 2 を明確化 (PATCH: 明確化、決定内容の変更なし)。「規範文書から作業記録への参照は、このパスで張る」が、素のファイル名による引用まで完全パス化を要求するとも読めたため、完全パス参照と素のファイル名引用を書き分けた。PR #489 の 2 回目 Codex レビュー (P2) を受けたもので、実際の配置と参照は変えていない (beads `cle-kju.3.3.10`)                                                                         |
