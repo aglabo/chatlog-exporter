@@ -30,7 +30,6 @@ import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 // functions
 import { checkFilename, isPreambleTurn } from '../libs/classify-file.ts';
-import { extractConversation } from '../libs/common-utils.ts';
 // constants
 import { SYSTEM_TAG_PREFIXES } from '../constants/patterns.constants.ts';
 import { FILTER_DECISIONS } from '../types/filter-decision.const.types.ts';
@@ -158,20 +157,18 @@ type _ContentClassification =
 /**
  * 1 ファイルの本文を内容チェックで分類する。
  *
- * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当する場合は
+ * 本文が空、または `isExcludedByContent` の内容チェックに該当する場合は
  * `excluded-content` の分類結果を、それ以外は入力エントリそのものを返す純粋関数。
  *
  * @param entry - 読み込み済みの `ChatlogEntry`
  * @param minCharCount - 本文の最小文字数
  * @param minAssistantChars - User ターン 1 件のときの Assistant 応答最小文字数
- * @param maxBodyChars - 会話本文の空判定に使う本文最大文字数
  * @returns 除外確定結果、または通過ファイルのエントリ
  */
 const _classifyEntryByContent = (
   entry: ChatlogEntry,
   minCharCount: number,
   minAssistantChars: number,
-  maxBodyChars: number,
 ): _ContentClassification => {
   const filePath = entry.filePath as string;
   const filename = entry.filename as string;
@@ -189,38 +186,26 @@ const _classifyEntryByContent = (
     return { kind: 'excluded', result: { filePath, filename, reason, decision: FILTER_DECISIONS.DISCARD } };
   }
 
-  const bodyText = extractConversation(content, maxBodyChars);
-  if (!bodyText.trim()) {
-    return {
-      kind: 'excluded',
-      result: { filePath, filename, reason: '会話本文が空', decision: FILTER_DECISIONS.DISCARD },
-    };
-  }
-
   return { kind: 'survivor', entry };
 };
 
 /**
  * 読み込み済みファイルの本文を内容チェックで分類する。
  *
- * 本文が空・内容が短すぎる・会話本文が空のいずれかに該当するファイルは
+ * 本文が空、または `isExcludedByContent` の内容チェックに該当するファイルは
  * `excluded-content` として確定し、通過したファイルのみ `survivors` に含める。
  *
  * @param readOk - 読み込み済みの `ChatlogEntry` 配列
  * @param minCharCount - 本文の最小文字数
  * @param minAssistantChars - User ターン 1 件のときの Assistant 応答最小文字数
- * @param maxBodyChars - 会話本文の空判定に使う本文最大文字数
  * @returns 通過ファイル情報（`survivors`）と、この段階で確定した分類結果（`results`）
  */
 export const _phase3PartitionByContent = (
   readOk: ChatlogEntry[],
   minCharCount: number,
   minAssistantChars: number,
-  maxBodyChars: number,
 ): { survivors: ChatlogEntry[]; results: DiscardFile[] } => {
-  const classified = readOk.map((entry) =>
-    _classifyEntryByContent(entry, minCharCount, minAssistantChars, maxBodyChars)
-  );
+  const classified = readOk.map((entry) => _classifyEntryByContent(entry, minCharCount, minAssistantChars));
 
   const results = classified
     .filter((c): c is { kind: 'excluded'; result: DiscardFile } => c.kind === 'excluded')
@@ -292,7 +277,6 @@ export const _discardFiles = async (
  * @param options - `prefilterFiles` のオプション
  * @param options.minCharCount - 本文の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minCharCount`）
  * @param options.minAssistantChars - User ターンが 1 件のとき、Assistant 応答の最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）
- * @param options.maxBodyChars - 会話本文の空判定に使う本文最大文字数（デフォルト: `DEFAULT_CONFIG_VALUES.maxBodyChars`）
  * @param options.dryRun - `true` のとき、削除対象ファイルを実削除せず `stats.skip` に計上する（デフォルト: `false`）
  * @param options.concurrency - 同時実行する削除処理の最大並列数。
  * @returns フィルタリングを通過した `ChatlogEntry` 配列
@@ -305,13 +289,12 @@ export const prefilterFiles = async (
   const {
     minCharCount = DEFAULT_CONFIG_VALUES.minCharCount as number,
     minAssistantChars = DEFAULT_CONFIG_VALUES.minAssistantChars as number,
-    maxBodyChars = DEFAULT_CONFIG_VALUES.maxBodyChars as number,
     dryRun = false,
     concurrency,
   } = options;
 
   const { fileList, discardFiles } = _phase1PartitionByFilename(entries);
-  const byContent = _phase3PartitionByContent(fileList, minCharCount, minAssistantChars, maxBodyChars);
+  const byContent = _phase3PartitionByContent(fileList, minCharCount, minAssistantChars);
 
   const toDelete = [...discardFiles, ...byContent.results];
 

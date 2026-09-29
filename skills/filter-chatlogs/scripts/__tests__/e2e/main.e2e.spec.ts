@@ -72,7 +72,6 @@ import { resetProjectRoot } from '../../../../_cle-libs/libs/path-utils/dir-util
  * （`FILTER_MIN_CONTENT_LENGTH` = 500）。
  * 切り詰めが観測できるよう、この全長 1025 より小さく、かつ既定値
  * `DEFAULT_CONFIG_VALUES.maxBodyChars`（8000）より十分小さい値として 600 を選んだ。
- * 600 は `prefilter` の「会話本文が空」判定にも掛からない（空にならない）。
  */
 const _TEST_MAX_BODY_CHARS = 600;
 
