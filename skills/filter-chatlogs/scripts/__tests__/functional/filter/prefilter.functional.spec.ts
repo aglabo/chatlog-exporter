@@ -63,7 +63,7 @@ const _writeEntry = async (filePath: string, text: string): Promise<ChatlogEntry
  * - ファイル名が除外パターンに一致する（例: `say-ok-and-nothing-else.md`）
  * - 本文（frontmatter を除いた部分）が空または 1000 文字未満
  *
- * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-21
+ * テスト ID 範囲: T-FL-PFF-01 〜 T-FL-PFF-23
  *
  * @see prefilterFiles
  */
@@ -537,6 +537,71 @@ describe('prefilterFiles', () => {
           errStub.restore();
 
           assertEquals(passed.map((e) => e.filePath), [filePath]);
+        });
+      });
+    });
+  });
+  /**
+   * 本文は内容チェックを通過するが、`maxBodyChars` を明示指定したファイルの前提条件グループ。
+   *
+   * 会話本文の空判定（`extractConversation` の結果が空か）が、モジュール定数ではなく
+   * `options.maxBodyChars` で行われることを検証する。
+   */
+  describe('Given: 内容チェックを通過する本文と maxBodyChars を指定した options', () => {
+    /** maxBodyChars=0 を指定して prefilterFiles を呼び出すとき。 */
+    describe('When: prefilterFiles([file], stats, { maxBodyChars: 0, ... }) を呼び出す', () => {
+      /**
+       * 会話本文が空と判定され、通過しないことを検証する。
+       *
+       * `0` は設定スキーマ上は無効値（`min: 1`）だが、`renderConversation(conv, 0)` が
+       * 空文字列を返す唯一の値であり、引数が `_classifyEntryByContent` まで届いているかを
+       * 観測できる境界値である（`defaults.constants.ts` の `DEFAULT_MAX_BODY_CHARS` 参照）。
+       */
+      describe('Then: T-FL-PFF-22 - options.maxBodyChars で会話本文の空判定が行われる', () => {
+        it('T-FL-PFF-22-01: maxBodyChars=0 → 会話本文が空として除外される', async () => {
+          const filePath = `${periodDir1}/max-body-chars-zero.md`;
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+
+          const result = await prefilterFiles([entry], _makeStats(), {
+            maxBodyChars: 0,
+            dryRun: true,
+            concurrency: 2,
+          });
+          loggerStub.restore();
+
+          assertEquals(result.map((e) => e.filePath), []);
+          assertEquals(
+            loggerStub.dryrunLogs.some((line) =>
+              line.includes('会話本文が空') && line.includes('max-body-chars-zero.md')
+            ),
+            true,
+          );
+        });
+      });
+    });
+  });
+  /**
+   * `maxBodyChars` を含まない options を渡す前提条件グループ。
+   *
+   * 分割代入の既定値（`DEFAULT_CONFIG_VALUES.maxBodyChars`）が使われ、
+   * 会話本文が空と誤判定されないことを検証する。
+   */
+  describe('Given: maxBodyChars を含まない options', () => {
+    /** maxBodyChars を省略して prefilterFiles を呼び出すとき。 */
+    describe('When: prefilterFiles([file], stats, { dryRun, concurrency }) を呼び出す', () => {
+      /** 既定値で会話本文が描画され、ファイルが通過することを検証する。 */
+      describe('Then: T-FL-PFF-23 - DEFAULT_CONFIG_VALUES.maxBodyChars が使われる', () => {
+        it('T-FL-PFF-23-01: maxBodyChars 未指定 → 会話本文が空にならず通過する', async () => {
+          const filePath = `${periodDir1}/max-body-chars-default.md`;
+          const entry = await _writeEntry(filePath, makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH));
+          const loggerStub = makeLoggerStub();
+
+          const result = await prefilterFiles([entry], _makeStats(), { dryRun: true, concurrency: 2 });
+          loggerStub.restore();
+
+          assertEquals(result.map((e) => e.filePath), [filePath]);
+          assertEquals(loggerStub.dryrunLogs.some((line) => line.includes('会話本文が空')), false);
         });
       });
     });

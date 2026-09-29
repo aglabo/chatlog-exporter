@@ -46,6 +46,15 @@ afterEach(async () => {
 
 // ─── 内部ヘルパー ─────────────────────────────────────────────────────────────
 
+/**
+ * 本テストが `buildBatchPrompt` へ渡す本文上限。既定値と同じ 8000 をリテラルで固定する。
+ *
+ * production の `DEFAULT_MAX_BODY_CHARS` を**意図的に import しない**。
+ * 定数を参照すると既定値を変えたときに本ファイルの期待値も黙って追従し、
+ * 既定値の変更がテストに検出されなくなるため。
+ */
+const _TEST_MAX_BODY_CHARS = 8000;
+
 /** `FILTER_MIN_CONTENT_LENGTH` を固定して `makeRepeatedContent` を呼び出す。 */
 const _makeValidContent = (title: string) => makeRepeatedContent(FILTER_MIN_CONTENT_LENGTH, title);
 
@@ -106,7 +115,7 @@ describe('prefilterFiles → buildBatchPrompt パイプライン', () => {
           const passed = await prefilterFiles(entries, _makeStats(), { dryRun: false, concurrency: 2 });
           errStub.restore();
 
-          const prompt = buildBatchPrompt(passed);
+          const prompt = buildBatchPrompt(passed, _TEST_MAX_BODY_CHARS);
 
           assertStringIncludes(prompt, CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', 'chat-1.md'));
           assertStringIncludes(prompt, CHATLOG_BLOCK_OPEN_TEMPLATE.replace('{file}', 'chat-2.md'));
@@ -123,7 +132,7 @@ describe('buildBatchPrompt 空リスト', () => {
     describe('When: buildBatchPrompt([]) を呼び出す', () => {
       describe('Then: T-FL-IO-03 - 空文字列が返される', () => {
         it('T-FL-IO-03-01: 空リスト → 空文字列', () => {
-          const result = buildBatchPrompt([]);
+          const result = buildBatchPrompt([], _TEST_MAX_BODY_CHARS);
 
           assertEquals(result, '');
         });

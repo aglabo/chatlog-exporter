@@ -32,6 +32,7 @@ concurrency: 1 # must not exceed the llama server slot count (--parallel)
 minCharCount: 1000 # Minimum content length
 minAssistantChars: 300 # Minimum assistant response length (when userTurns=1)
 maxContentLength: 4000 # Maximum content length
+maxBodyChars: 8000 # Maximum body length embedded per chatlog in a batch prompt
 
 # DISCARD threshold (filter-chatlog)
 discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value

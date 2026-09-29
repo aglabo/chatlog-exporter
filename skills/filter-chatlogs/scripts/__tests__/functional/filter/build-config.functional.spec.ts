@@ -653,6 +653,65 @@ describe('buildConfig', () => {
     });
   });
 
+  // ─── maxBodyChars 優先順位（CLI > GlobalConfig > defaults） ──────────────────
+
+  /**
+   * GlobalConfig に `maxBodyChars` が設定され、CLI でも `--max-body-chars` を指定した前提条件グループ。
+   *
+   * `maxBodyChars` は `_SCHEMA` に `--max-body-chars` の CLI オプション定義があるため、
+   * CLI > GlobalConfig > defaults の優先順位で解決される。
+   */
+  describe('Given: GlobalConfig に maxBodyChars=8000 が設定されている', () => {
+    describe('When: CLI 引数で --max-body-chars 16000 を指定して buildConfig を呼び出す', () => {
+      /** CLI 引数の maxBodyChars が GlobalConfig より優先されることを検証する。 */
+      describe('Then: T-FL-BC-44 - CLI 引数の maxBodyChars が優先される', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('maxBodyChars: 8000');
+        });
+        it('T-FL-BC-44-01: globalConfig=8000, args=[--max-body-chars, 16000] → result.maxBodyChars === 16000', () => {
+          const result = buildConfig(['--max-body-chars', '16000']);
+          assertEquals(result.maxBodyChars, 16000);
+        });
+      });
+    });
+  });
+
+  /**
+   * GlobalConfig に `maxBodyChars` が設定され、CLI では指定していない前提条件グループ。
+   */
+  describe('Given: GlobalConfig に maxBodyChars=16000 が設定されている', () => {
+    describe('When: CLI 引数で --max-body-chars を指定せず buildConfig を呼び出す', () => {
+      /** GlobalConfig の maxBodyChars が結果に反映される（黙って落ちない）ことを検証する。 */
+      describe('Then: T-FL-BC-44 - GlobalConfig の maxBodyChars が使われる', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('maxBodyChars: 16000');
+        });
+        it('T-FL-BC-44-02: globalConfig.maxBodyChars=16000, CLI 未指定 → result.maxBodyChars === 16000', () => {
+          const result = buildConfig([]);
+          assertEquals(result.maxBodyChars, 16000);
+        });
+      });
+    });
+  });
+
+  /**
+   * GlobalConfig にも CLI にも `maxBodyChars` の指定が無い前提条件グループ。
+   */
+  describe('Given: GlobalConfig にも CLI にも maxBodyChars の指定が無い', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** 既定値 `DEFAULT_CONFIG_VALUES.maxBodyChars` が使われることを検証する。 */
+      describe('Then: T-FL-BC-44 - DEFAULT_CONFIG_VALUES.maxBodyChars が使われる', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance({ yaml: '' });
+        });
+        it('T-FL-BC-44-03: maxBodyChars 未指定 → result.maxBodyChars === DEFAULT_CONFIG_VALUES.maxBodyChars', () => {
+          const result = buildConfig([]);
+          assertEquals(result.maxBodyChars, DEFAULT_CONFIG_VALUES.maxBodyChars);
+        });
+      });
+    });
+  });
+
   // ─── configFile が結果に含まれない ───────────────────────────────────────────
 
   /**
