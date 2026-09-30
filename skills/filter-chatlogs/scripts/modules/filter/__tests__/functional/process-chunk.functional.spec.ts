@@ -1394,7 +1394,7 @@ describe('processChunk — 本文最大文字数（maxBodyChars）', () => {
 /**
  * AI が構文的に有効な空配列（`[]`）を返したときの `processChunk` の扱いを検証するスイート。
  *
- * `parseAiJsonArray` は段 1 で空配列を成功として返すため、`if (!parsed)` を素通りして
+ * `parseAiJsonArray` を `{ allowEmpty: true }` で呼ぶため空配列が `[]` として返り、`if (!parsed)` を素通りして
  * チャンク全員が「判定不能 skip」に落ちる（GitHub #483）。空配列応答は JSON パース失敗と
  * 同じく回復不能な応答であり、チャンク全件を `stats.error` に計上して
  * `ChatlogError('InvalidFormat', 'EmptyArray')` を返す（cache へは書き込まず、`ctl.abort()` も呼ばない）。

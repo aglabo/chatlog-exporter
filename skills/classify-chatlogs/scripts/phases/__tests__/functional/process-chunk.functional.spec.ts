@@ -75,6 +75,12 @@ const _makeRateLimitMock = (): DenoCommandLike => _RateLimitMockCommand as unkno
 /** 与えられた例外を必ず reject する `AiRunnerProvider` スタブを返すファクトリヘルパー。 */
 const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e);
 
+/** コードフェンスで包まれた空配列応答。T-CL-PC-10-04 で使う。 */
+const _FENCED_EMPTY_ARRAY = ['```json', '[]', '```'].join('\n');
+
+/** 与えられた生文字列をそのまま返す `AiRunnerProvider` スタブ。 */
+const _rawRunner = (raw: string): AiRunnerProvider => () => Promise.resolve(raw);
+
 // ─── Tests
 
 /**
@@ -83,7 +89,7 @@ const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e
  * AI 呼び出しの成功・失敗・JSON パースエラー・ファイル名不一致を検証する。
  * 戻り値は `ChatlogEntry[]`（副作用なし）。
  *
- * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-08
+ * テスト ID 範囲: T-CL-PC-01 〜 T-CL-PC-10
  *
  * @see processChunk
  */
@@ -314,6 +320,58 @@ describe('processChunk', () => {
       );
       assertEquals(cache.read('/tmp/input/a.md'), {});
     });
+
+    it('[Error] T-CL-PC-10-01: 空配列応答 → チャンク全件が action: ERROR かつ project 未設定（misc へ分類しない）', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await processChunk(metas, projects, model, cache, new AbortController(), _rawRunner('[]'));
+
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(
+        cache.read('/tmp/input/a.md').project,
+        undefined,
+        'a.md に project が書かれている（misc へ移動する）',
+      );
+      assertEquals(
+        cache.read('/tmp/input/b.md').project,
+        undefined,
+        'b.md に project が書かれている（misc へ移動する）',
+      );
+    });
+
+    it('[Error] T-CL-PC-10-02: 空配列応答 → warn に「AI 応答が空配列」と生出力が出て「JSON パース失敗」は出ない', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await processChunk(metas, projects, model, cache, new AbortController(), _rawRunner('[]'));
+
+      assertEquals(
+        loggerStub.warnLogs.some((l) => l.includes('AI 応答が空配列')),
+        true,
+        '空配列専用の警告が warnLogs に記録されていない',
+      );
+      assertEquals(
+        loggerStub.warnLogs.some((l) => l.includes('[]')),
+        true,
+        '生出力が warnLogs に記録されていない',
+      );
+      assertEquals(
+        loggerStub.warnLogs.some((l) => l.includes('JSON パース失敗')),
+        false,
+        '空配列応答が JSON パース失敗として報告されている',
+      );
+    });
+
+    it('[Error] T-CL-PC-10-03: 空配列応答 → 処理した filePath 一覧（2件）が返される', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      const result = await processChunk(metas, projects, model, cache, new AbortController(), _rawRunner('[]'));
+
+      assertEquals(result, ['/tmp/input/a.md', '/tmp/input/b.md']);
+    });
   });
 
   /**
@@ -379,6 +437,27 @@ describe('processChunk', () => {
       await processChunk(metas, projects, model, cache, new AbortController());
 
       assertEquals(cache.read('/tmp/input/a.md').project, 'app1');
+    });
+
+    it('[Edge] T-CL-PC-10-04: コードフェンス付き空配列応答 → action: ERROR かつ warn に「AI 応答が空配列」が出る', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md')];
+      const projects: ProjectDicEntry = { app1: {}, misc: {} };
+
+      await processChunk(
+        metas,
+        projects,
+        model,
+        cache,
+        new AbortController(),
+        _rawRunner(_FENCED_EMPTY_ARRAY),
+      );
+
+      assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
+      assertEquals(
+        loggerStub.warnLogs.some((l) => l.includes('AI 応答が空配列')),
+        true,
+        '空配列専用の警告が warnLogs に記録されていない',
+      );
     });
   });
 });
