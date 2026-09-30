@@ -2,7 +2,7 @@
 title: "Decision Records: filter/filter"
 module: "filter/filter"
 status: Draft
-version: 1.5.0
+version: 1.6.0
 created: "2026-09-08"
 ---
 
@@ -40,6 +40,7 @@ Keep frontmatter `version` equal to the newest Change History row below.
 | DR-05 | AI の空配列応答は共有パーサではなく filter 側でチャンク失敗として扱う          | `process-chunk.ts` の `_failChunk`          |
 | DR-06 | 応答の形が壊れているときだけチャンクを再要求する                               | `process-chunk.ts` の `_validateResponse`   |
 | DR-07 | 位置引数は 6 個までとし、超えたらオブジェクト引数に畳む                        | `process-chunk.ts` / `filter.types.ts`      |
+| DR-08 | llama 経路の応答契約違反は実行失敗ではなく再要求対象とする                     | `abort-utils.ts` / `process-chunk.ts`       |
 
 ---
 
@@ -297,6 +298,7 @@ gh-484 が空配列の扱いを変えた後も、filter は自前の `parsed.len
    - 要素数がチャンク件数と不一致 → `CountMismatch`（新規）
 3. **AI 実行そのものの失敗（`ChatlogError` の throw）は再要求しない。** 従来どおり即
    `stats.error` 加算 + 返却とし、中断側エラーでは `ctl.abort()` を先に効かせる
+   （**DR-08 で対象を限定**。throw で届く失敗のうち応答契約違反は再要求対象に移した）
 4. 使い切ったら `_failChunk` を **1 回だけ**呼ぶ。`stats.error` の加算はチャンク件数ちょうどで、
    試行回数分の多重加算はしない
 5. 要素数不一致で使い切った場合も**チャンク全件を error** にし、部分一致分を cache に書かない
@@ -422,6 +424,68 @@ DISCARD 閾値に 8000 を渡しても実行時まで気づけません。
 
 ---
 
+## DR-08: llama 経路の応答契約違反は実行失敗ではなく再要求対象とする
+
+**Status**: Accepted
+
+**Context**: DR-06 決定 3 は「AI 実行そのものの失敗（`ChatlogError` の throw）は再要求しない」と
+定めました。この書き方は「throw で届く失敗 = 実行失敗」という前提に立っています。
+llama 経路ではその前提が成り立ちません。`run-ai.ts` の `_runViaHttp` は応答を受け取ったあとに
+自分で `parseContractPayload` / `validateOutputContract` を呼び、不適合を
+`ChatlogError('AiError', 'ResponseSchemaViolation', ...)` として throw します
+（DR-18 決定 1 が llama 経路の `kind` を一律 `AiError` に固定しているため）。
+
+結果、`processChunk` の `catch` は種別を問わず即 `return` し、DR-06 が再要求対象と定めた
+「応答の形が壊れている」失敗のうち **JSON パース失敗と契約違反が `_validateResponse` に
+到達しないまま 1 回で error 確定**していました。`isAbortingAiError` の中断側一覧に
+`ResponseSchemaViolation` は含まれないため `ctl.abort()` も呼ばれず、
+「中断しないが再要求もしない」状態でした。
+
+空配列と要素数不一致は契約検証を通過して `_validateResponse` に届くため、再要求されていました。
+CLI 経路（claude / codex）は stdout をそのまま返すため 3 ケースすべてが届きます。
+したがって欠落は **llama 経路 × パース失敗 / 契約違反**に限られます。
+
+**Decision**:
+
+1. DR-06 決定 3 の対象を**実行失敗・中断側エラー**（接続失敗・レートリミット・終了コード非 0・
+   `ResponseFormatRejected` 等）に限定する。再要求するか否かの境界は「throw か否か」ではなく
+   **subindex** とする
+2. 続行側 subindex `ResponseSchemaViolation` を `abort-utils.ts` が単独所有する
+   （`RESPONSE_FORMAT_VIOLATION_SUBINDEX`）。判定述語 `isResponseFormatViolation` も同ファイルに置き、
+   呼び出し元に文字列リテラルを直書きさせない。`_ABORT_SUBINDEXES` には**入れない**
+   （中断側の扱いと `isAbortingAiError` の振る舞いは変えない）
+3. `processChunk` の `catch` を 3 分岐にする。非 `ChatlogError` → `throw` /
+   応答契約違反 → `_lastFailure` へ記録して次の attempt へ / それ以外の `ChatlogError` → 従来どおり即 `return`
+4. 応答契約違反の分岐では `stats.error` を**加算しない**。加算は使い切り時の `_failChunk` 1 回だけとし、
+   DR-06 決定 4 の「チャンク件数ちょうど」を throw 経路にも適用する
+5. throw 経路では生応答が手元に残らないため、`_failChunk` に渡す raw output には**例外メッセージ**を載せる。
+   `_lastFailure` を `{ reason, subindex, rawResult }` に拡張し、`_validateResponse` 経由と throw 経由を
+   同じ形で扱う
+
+**Alternatives Considered**:
+
+- **`ResponseSchemaViolation` を `_ABORT_SUBINDEXES` に加える** — 却下。中断側に入れると
+  `ctl.abort()` が走り、残りのチャンクまで止まります。応答の揺らぎは同じ要求を送り直せば
+  直り得る失敗であり、取りこぼしを減らすという DR-06 の趣旨に正面から反します
+- **`_runViaHttp` の契約検証をやめ、生応答を `_validateResponse` に委ねる** — 却下。
+  on-wire contract validation は llama 経路の transport 要件（R-007 / R-008）であり、
+  filter 以外の呼び出し元も依存します。filter の都合で共通経路の検証を外すのは筋が逆です
+- **`catch` で `stats.error` を加算したまま `_failChunk` 側の加算を止める** — 却下。
+  `_validateResponse` 経由の既存経路が `_failChunk` の加算に依存しており、
+  DR-06 決定 4 の「1 回だけ」が壊れます。加算点を 1 つに保つほうが不変条件を守れます
+- **filter 側で `e.subindex === 'ResponseSchemaViolation'` を直接見る** — 却下。
+  中断側と続行側の線引きが実装ファイルへ散り、片方だけ変わっても型検査に掛かりません
+  （DR-16 決定 1 が中断側一覧を `abort-utils.ts` へ寄せたのと同じ理由）
+
+**Consequences**: llama 経路でパース失敗・契約違反が起きても判定が確定する率が上がります。
+AI 呼び出し回数の上限は DR-06 と同じ（最大 `maxRetry + 1` 倍）で、新たな増加はありません。
+`abort-utils.ts` は中断側と続行側の両方の subindex を単独所有する形になりました。
+検証は `T-FL-PCK-18-01` 〜 `-06`（functional）と `T-LIB-AI-LAP-09` / `-10`（unit）が担います。
+
+> 出典: beads `cle-dny7`（GitHub #483） / PR #493 `discussion_r4139537356` / 前提は DR-06
+
+---
+
 ## Change History
 
 | Date       | Version | Description                                                                                             |
@@ -432,5 +496,6 @@ DISCARD 閾値に 8000 を渡しても実行時まで気づけません。
 | 2026-09-30 | 1.3.0   | DR-05 を追加。AI の空配列応答を filter 側でチャンク失敗として扱う決定を記録                             |
 | 2026-09-30 | 1.4.0   | DR-06 を追加。応答の形が壊れているときだけチャンクを再要求する決定を記録                                |
 | 2026-09-30 | 1.5.0   | DR-07 を追加。位置引数の上限を 6 個と定め、`processChunk` をオブジェクト引数へ畳む決定を記録            |
+| 2026-09-30 | 1.6.0   | DR-08 を追加。llama 経路の応答契約違反を実行失敗から切り離し再要求対象とする決定を記録                  |
 
 <!-- markdownlint-enable line-length -->
