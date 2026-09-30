@@ -115,8 +115,33 @@ const _writeChunkError = async (
 };
 
 /**
+ * 応答の形が壊れているチャンクを、理由 + 生出力の先頭 200 文字を添えて error 扱いにする。
+ *
+ * JSON パース失敗と空配列応答は扱いが同一のため、分岐ごとに同じ文言組み立てとログ出力を
+ * 書き写さないようここへ寄せる。
+ *
+ * @param chunkMetas - error 扱いにするチャンク内のエントリ
+ * @param cache - 判定結果の書き込み先
+ * @param rawResult - AI の生応答。先頭 200 文字を理由文言に載せる
+ * @param reason - 失敗理由の見出し（例: `'JSON パース失敗'`）
+ * @returns 処理した filePath 一覧
+ */
+const _failChunk = (
+  chunkMetas: ChatlogEntry[],
+  cache: ChatlogCache<ClassifyCache>,
+  rawResult: string,
+  reason: string,
+): Promise<string[]> => {
+  const _detail = `${reason}: ${rawResult.slice(0, 200)}`;
+  logger.warn(`${LOGGER_TEXT.INDENT}${_detail}`);
+  return _writeChunkError(chunkMetas, cache, _detail);
+};
+
+/**
  * 1チャンク分のファイルを AI で一括分類し、判定結果を `cache` に書き込む。
  * - AI 呼び出し失敗・JSON パース失敗のどちらもチャンク全件を `action: ERROR` として `cache` に書き込む。
+ * - 空配列応答（`[]`）も同様にチャンク全件を `action: ERROR` として扱い、`project` は書き込まない
+ *   （全件を `FALLBACK_PROJECT` へ移動させない）。
  * - AI の返答でファイル名が一致しない場合は `FALLBACK_PROJECT` を使用する。
  * - 副作用（ファイル移動）は行わない。判定結果はすべて `cache.write()` に記録する。
  *
@@ -151,12 +176,9 @@ export const processChunk = async (
     return _writeChunkError(chunkMetas, cache, _reason);
   }
 
-  const parsed = parseAiJsonArray<ClassifyCache>(rawResult);
-  if (!parsed) {
-    const _reason = `JSON パース失敗: ${rawResult.slice(0, 200)}`;
-    logger.warn(`${LOGGER_TEXT.INDENT}${_reason}`);
-    return _writeChunkError(chunkMetas, cache, _reason);
-  }
+  const parsed = parseAiJsonArray<ClassifyCache>(rawResult, { allowEmpty: true });
+  if (!parsed) { return _failChunk(chunkMetas, cache, rawResult, 'JSON パース失敗'); }
+  if (parsed.length === 0) { return _failChunk(chunkMetas, cache, rawResult, 'AI 応答が空配列'); }
 
   await Promise.all(chunkMetas.map((fileMeta) => {
     const result = parsed.find((r) => r.file === fileMeta.filename);
