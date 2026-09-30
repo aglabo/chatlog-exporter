@@ -207,13 +207,13 @@ describe('parseAiJsonArray', () => {
     });
   });
 
-  // ─── T-FL-PJ-04-03: 構文的に有効な空配列 → 空配列 ──────────────────────────
+  // ─── T-FL-PJ-04-03: 構文的に有効な空配列 + { allowEmpty: true } → 空配列 ────
 
   describe('Given: 構文的に有効な空の JSON 配列', () => {
-    describe('When: parseAiJsonArray(raw) を呼び出す', () => {
+    describe('When: filter の実呼び出しと同じく { allowEmpty: true } を明示して parseAiJsonArray(raw, options) を呼び出す', () => {
       describe('Then: T-FL-PJ-04 - 空配列が成功として返される', () => {
-        it('T-FL-PJ-04-03: 空の配列 → 空配列（成功として返る）', () => {
-          const result = parseAiJsonArray('[]');
+        it('T-FL-PJ-04-03: 空の配列 + { allowEmpty: true } → 空配列（成功として返る）', () => {
+          const result = parseAiJsonArray('[]', { allowEmpty: true });
 
           assertEquals(result, []);
         });
