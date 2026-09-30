@@ -74,7 +74,7 @@ const _CUSTOM_DEFAULTS: FilterConfig = {
  * - `concurrency`/`minCharCount`/`minAssistantChars`/`discardThreshold` は
  *   `_SCHEMA` に CLI オプション定義が無いため、GlobalConfig > defaults の優先順位のみ検証する。
  *
- * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-43
+ * テスト ID 範囲: T-FL-BC-01 〜 T-FL-BC-45
  *
  * @see buildConfig
  */
@@ -707,6 +707,47 @@ describe('buildConfig', () => {
         it('T-FL-BC-44-03: maxBodyChars 未指定 → result.maxBodyChars === DEFAULT_CONFIG_VALUES.maxBodyChars', () => {
           const result = buildConfig([]);
           assertEquals(result.maxBodyChars, DEFAULT_CONFIG_VALUES.maxBodyChars);
+        });
+      });
+    });
+  });
+
+  // ─── maxRetry 解決（GlobalConfig > defaults） ────────────────────────────────
+
+  /**
+   * GlobalConfig に `maxRetry` が設定されている前提条件グループ。
+   *
+   * `maxRetry` は `_SCHEMA` に CLI オプション定義を持たないため、
+   * GlobalConfig > defaults の優先順位のみを検証する（config.yaml で制御する）。
+   */
+  describe('Given: GlobalConfig に maxRetry=5 が設定されている', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** GlobalConfig の maxRetry が結果に反映される（黙って落ちない）ことを検証する。 */
+      describe('Then: T-FL-BC-45 - GlobalConfig の maxRetry が使われる', () => {
+        beforeEach(async () => {
+          await _makeGlobalConfig('maxRetry: 5');
+        });
+        it('[Normal] T-FL-BC-45-01: globalConfig.maxRetry=5, CLI 未指定 → result.maxRetry === 5', () => {
+          const result = buildConfig([]);
+          assertEquals(result.maxRetry, 5);
+        });
+      });
+    });
+  });
+
+  /**
+   * GlobalConfig に `maxRetry` の指定が無い前提条件グループ。
+   */
+  describe('Given: GlobalConfig に maxRetry の指定が無い', () => {
+    describe('When: buildConfig を呼び出す', () => {
+      /** 既定値 `DEFAULT_CONFIG_VALUES.maxRetry`（= DEFAULT_MAX_RETRY = 2）が使われることを検証する。 */
+      describe('Then: T-FL-BC-45 - DEFAULT_CONFIG_VALUES.maxRetry が使われる', () => {
+        beforeEach(async () => {
+          await GlobalConfig.getInstance({ yaml: '' });
+        });
+        it('[Normal] T-FL-BC-45-02: maxRetry 未指定 → result.maxRetry === DEFAULT_CONFIG_VALUES.maxRetry', () => {
+          const result = buildConfig([]);
+          assertEquals(result.maxRetry, DEFAULT_CONFIG_VALUES.maxRetry);
         });
       });
     });

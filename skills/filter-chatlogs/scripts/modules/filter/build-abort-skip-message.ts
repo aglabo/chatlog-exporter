@@ -24,8 +24,9 @@ const _DEFAULT_ABORT_REASON = 'AI 実行の中断';
  * `runChunked` の戻り値経由でそのまま呼び出し元に届いている。ここではその戻り値から
  * 中断側のエラーを先頭順に 1 件だけ拾い、理由ラベルに変換する。
  *
- * 戻り値には JSON パース失敗（`InvalidFormat` / `JsonParse`）のような続行側エラーも
- * 混在するため、単に最初の定義済み要素を採ってはならない。`describeAbortReason` が
+ * 戻り値には JSON パース失敗（`InvalidFormat` / `JsonParse`）や空配列応答
+ * （`InvalidFormat` / `EmptyArray`）のような続行側エラーも混在するため、
+ * 単に最初の定義済み要素を採ってはならない。`describeAbortReason` が
  * 中断側にのみラベルを返すことで、続行側と未実行チャンク（穴＝`undefined` として走査される）は
  * 自動的に除外される。
  *

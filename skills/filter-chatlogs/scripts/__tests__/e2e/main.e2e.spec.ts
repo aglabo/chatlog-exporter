@@ -1918,3 +1918,73 @@ describe('main - --single-file フラグ', () => {
     });
   });
 });
+
+// ─── T-FL-E2E-25: CLI --model 配線 ───────────────────────────────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（CLI `--model` 配線）。
+ *
+ * `T-FL-E2E-23` が config.yaml 経由の配線を見るのに対し、こちらは CLI の `--model` が
+ * `processChunk` → `runAI` の `options.model` を経由して AI CLI 起動引数まで届くことを検証する。
+ * `runAI` は `options.model` が無いと GlobalConfig の `model` へフォールバックするため、
+ * GlobalConfig には別値（`opus`）を置き、観測値が CLI 指定値であることを一意に判定する。
+ *
+ * テスト ID 範囲: T-FL-E2E-25
+ *
+ * @see main
+ */
+describe('main - CLI --model 配線', () => {
+  /**
+   * config.yaml に `model: opus` を設定し、1 件の KEEP 判定ファイルが存在する前提。
+   *
+   * CLI で `--model haiku` を指定したとき、claude CLI の起動引数に反映されることを確認する。
+   */
+  describe('Given: config.yaml に model: opus を設定・keep.md（KEEP判定）を配置', () => {
+    /** `main([...args, "--model", "haiku"])` を呼び出すとき。 */
+    describe('When: main([...args, "--model", "haiku"]) を呼び出す', () => {
+      /** claude CLI の起動引数の `--model` の次要素が GlobalConfig の `opus` ではなく `haiku` であること。 */
+      describe('Then: T-FL-E2E-25 - CLI 指定の --model が GlobalConfig の model より優先して届く', () => {
+        let tempDir: string;
+        let chatlogsDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let capturedArgs: { value: string[] };
+
+        beforeEach(async () => {
+          ({ tempDir, chatlogsDir } = await _makeTestDirs());
+          // 判定結果キャッシュを tempDir 配下に隔離し、他テストの残留キャッシュの影響を防ぐ
+          await _makeGlobalConfig(`cacheDir: '${tempDir}/cache'\nmodel: opus`);
+          capturedArgs = { value: [] };
+          commandHandle = installCommandMock(
+            makeClaudeJsonMock(
+              JSON.stringify([{
+                file: 'keep.md',
+                decision: FILTER_DECISIONS.KEEP,
+                confidence: 0.9,
+                reason: 'valuable',
+              }]),
+              capturedArgs,
+            ),
+          );
+          loggerStub = makeLoggerStub();
+          await Deno.writeTextFile(`${chatlogsDir}/keep.md`, _makeValidContent());
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          loggerStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(tempDir, { recursive: true });
+        });
+
+        it('[Normal] T-FL-E2E-25-01: 起動引数の --model の次要素が haiku になる', async () => {
+          await main(['claude', '2026-03', '--input-dir', chatlogsDir, '--model', 'haiku']);
+
+          const modelIndex = capturedArgs.value.indexOf('--model');
+          assertEquals(modelIndex !== -1, true);
+          assertEquals(capturedArgs.value[modelIndex + 1], 'haiku');
+        });
+      });
+    });
+  });
+});

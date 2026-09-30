@@ -8,10 +8,13 @@
 
 // ─── shared ───
 // classes
-import type { ChatlogCache } from '../../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // functions
-import { isAbortingAiError } from '../../../../_cle-libs/libs/ai/abort-utils.ts';
+import {
+  isAbortingAiError,
+  isResponseFormatViolation,
+  RESPONSE_FORMAT_VIOLATION_SUBINDEX,
+} from '../../../../_cle-libs/libs/ai/abort-utils.ts';
 import { runAI } from '../../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
 import { parseAiJsonArray } from '../../../../_cle-libs/libs/text/json-utils.ts';
@@ -20,7 +23,6 @@ import { LOGGER_TEXT } from '../../../../_cle-libs/constants/logger.constants.ts
 // types
 import type { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { OutputContract } from '../../../../_cle-libs/types/json-schema.types.ts';
-import type { AiRunnerProvider } from '../../../../_cle-libs/types/providers.types.ts';
 
 // ─── internal ───
 // functions
@@ -29,8 +31,7 @@ import { FILTER_DECISIONS } from '../../types/filter-decision.const.types.ts';
 // constants
 import { CHATLOG_BLOCK_CLOSE, CHATLOG_BLOCK_OPEN_TEMPLATE } from '../../constants/common.constants.ts';
 // types
-import type { CLEResult } from '../../types/cache.types.ts';
-import type { ClaudeResult } from '../../types/filter.types.ts';
+import type { ClaudeResult, ProcessChunkOptions } from '../../types/filter.types.ts';
 import type { FilterStats } from '../../types/stats.types.ts';
 
 // ─────────────────────────────────────────────
@@ -71,6 +72,15 @@ conclusion that is now obvious from the code itself, or reasoning that only make
 sense inside this session's context.`;
 
 /**
+ * チャンク再要求回数の上限。
+ *
+ * `config-schema.constants.ts` の `maxRetry: { type: 'number', min: 0, max: 10 }` と同値。
+ * スキーマを迂回して直接 `processChunk` を呼ぶ経路（テスト等）でも上限を効かせるための
+ * 二重の歯止めであり、`setfm-frontmatter.ts` / `setfm-review.ts` の `Math.min(maxRetry, 10)` と同趣旨。
+ */
+const _MAX_RETRY_LIMIT = 10;
+
+/**
  * filter の AI 応答に適用する出力契約（structured-output §4.3.1 #2）を組み立てる。
  * `decision` の値域は `FILTER_DECISIONS` の wire 値で、キャッシュ用番兵 `EMPTY` は含めない。
  */
@@ -88,6 +98,88 @@ const _buildFilterOutputContract = (): OutputContract => ({
   },
 });
 
+/**
+ * 応答が出力契約に適合しなかったときの失敗理由の見出し。
+ *
+ * `_validateResponse` の `'JSON パース失敗'` / `'AI 応答が空配列'` と同じ粒度で揃える
+ * （どちらも「応答の形が壊れている」失敗で、再要求の対象になる）。
+ */
+const _RESPONSE_FORMAT_VIOLATION_REASON = '応答が出力契約に適合しない';
+
+/** `_validateResponse` の戻り値。形が壊れている場合は失敗理由と `ChatlogError` の subindex を持つ。 */
+type _ValidatedResponse =
+  | { ok: true; parsed: ClaudeResult[] }
+  | { ok: false; reason: string; subindex: string };
+
+/**
+ * 再要求ループで最後に観測した「応答の形が壊れている」失敗。
+ *
+ * 再要求を使い切ったときに `_failChunk` へそのまま渡す。`rawResult` を組に含めるのは、
+ * 応答形式違反が throw で届く経路では生応答が手元に残らず、例外メッセージを代わりに
+ * 載せる必要があるためである（`_validateResponse` 経由では従来どおり生応答を入れる）。
+ */
+type _ChunkFailure = { reason: string; subindex: string; rawResult: string };
+
+/**
+ * AI の生応答をパースし、チャンク処理に使える形かどうかを検証する。
+ *
+ * 「応答の形が壊れている」3 ケース（パース失敗・空配列・要素数不一致）を区別して返す。
+ * 呼び出し元はこの区別を使って再要求するかどうかを決め、使い切ったときは
+ * `subindex` をそのまま `ChatlogError` に載せる。
+ *
+ * 要素数の一致だけを見て、ファイル名の一致は見ない。件数が合ったうえでの名前違いは
+ * 従来どおり該当ファイル単位の「判定不能 skip」で扱う（チャンク全体の失敗にしない）。
+ *
+ * @param rawResult - AI の生応答
+ * @param expectedCount - 応答に期待する要素数（チャンク内のファイル数）
+ * @returns 検証を通れば `{ ok: true, parsed }`、壊れていれば理由と subindex
+ */
+const _validateResponse = (rawResult: string, expectedCount: number): _ValidatedResponse => {
+  const _parsed = parseAiJsonArray<ClaudeResult>(rawResult);
+  if (!_parsed) { return { ok: false, reason: 'JSON パース失敗', subindex: 'JsonParse' }; }
+  if (_parsed.length === 0) { return { ok: false, reason: 'AI 応答が空配列', subindex: 'EmptyArray' }; }
+  if (_parsed.length !== expectedCount) {
+    return {
+      ok: false,
+      reason: `応答要素数が不一致（期待 ${expectedCount} / 実際 ${_parsed.length}）`,
+      subindex: 'CountMismatch',
+    };
+  }
+  return { ok: true, parsed: _parsed };
+};
+
+/**
+ * チャンク全体を判定失敗として確定させる。
+ *
+ * 失敗理由の見出し・生応答・対象ファイル名をログへ出し、チャンク件数を `stats.error` へ加算して、
+ * 呼び出し元が返す `ChatlogError` を組み立てる。JSON パース失敗と空配列応答は扱いが同一のため、
+ * 分岐ごとに同じログ出力と集計を書き写さないようここへ寄せる。
+ *
+ * `kind` を `InvalidFormat`（非 `AiError`）に固定するのは、AI の応答そのものが壊れている失敗が
+ * 続行側であることを `isAbortingAiError` / `describeAbortReason` へ伝えるためである。
+ *
+ * @param chunkEntries - 失敗扱いにするチャンク内のエントリ
+ * @param stats - 集計カウンタ（`error` をチャンク件数分だけ加算する）
+ * @param rawResult - AI の生応答。先頭 200 文字をログと detail に載せる
+ * @param reason - 失敗理由の見出し（例: `'JSON パース失敗'`）
+ * @param subindex - 返す `ChatlogError` の subindex。呼び出し元が失敗種別を識別するのに使う
+ * @returns `ChatlogError('InvalidFormat', subindex, 'raw output: …')`
+ */
+const _failChunk = (
+  chunkEntries: ChatlogEntry[],
+  stats: FilterStats,
+  rawResult: string,
+  reason: string,
+  subindex: string,
+): ChatlogError => {
+  const _rawHead = `raw output: ${rawResult.slice(0, 200)}`;
+  logger.warn(`${LOGGER_TEXT.INDENT}${reason}。チャンク内ファイルをすべて error 扱い`);
+  logger.warn(`${LOGGER_TEXT.INDENT}${_rawHead}`);
+  chunkEntries.forEach((entry) => logger.warn(`${LOGGER_TEXT.INDENT}error扱い: ${entry.filename}`));
+  stats.error += chunkEntries.length;
+  return new ChatlogError('InvalidFormat', subindex, _rawHead);
+};
+
 // ─────────────────────────────────────────────
 // チャンク処理
 // ─────────────────────────────────────────────
@@ -95,39 +187,66 @@ const _buildFilterOutputContract = (): OutputContract => ({
 export const processChunk = async (
   chunkEntries: ChatlogEntry[],
   stats: FilterStats,
-  discardThreshold: number,
-  cache: ChatlogCache<CLEResult>,
-  ctl: AbortController,
-  maxBodyChars: number,
-  model?: string,
-  aiRunnerProvider: AiRunnerProvider = runAI,
+  options: ProcessChunkOptions,
 ): Promise<ChatlogError | undefined> => {
-  const batchPrompt = buildBatchPrompt(chunkEntries, maxBodyChars);
+  const { discardThreshold, cache, ctl, maxBodyChars, maxRetry = 0, model, aiRunnerProvider = runAI } = options;
 
-  let rawResult: string;
-  try {
-    rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
-      ...(model ? { model } : {}),
-      signal: ctl.signal,
-      outputContract: _buildFilterOutputContract(),
-    });
-  } catch (e) {
-    if (!(e instanceof ChatlogError)) { throw e; }
-    logger.warn(`${LOGGER_TEXT.INDENT}AI 実行失敗。チャンク内ファイルをすべて error 扱い`);
-    logger.warn(`${LOGGER_TEXT.INDENT}error: ${e.message}`);
-    chunkEntries.forEach((entry) => logger.warn(`${LOGGER_TEXT.INDENT}error扱い: ${entry.filename}`));
-    stats.error += chunkEntries.length;
-    if (isAbortingAiError(e)) { ctl.abort(); }
-    return e;
+  const batchPrompt = buildBatchPrompt(chunkEntries, maxBodyChars);
+  const _maxRetry = Math.min(maxRetry, _MAX_RETRY_LIMIT);
+
+  let rawResult = '';
+  let parsed: ClaudeResult[] | undefined;
+  let _lastFailure: _ChunkFailure | undefined;
+
+  for (let attempt = 0; attempt <= _maxRetry; attempt++) {
+    // AI 実行そのものの失敗（レートリミット・接続失敗・終了コード非 0 等）は再要求しない。
+    // 同じ要求を繰り返しても結果が変わらず、中断側エラーでは ctl.abort() を先に効かせる必要があるため。
+    // 再要求の対象は、応答の形が壊れているケースだけとする。llama 経路（_runViaHttp）は
+    // 出力契約の検証を自分で行い、不適合を throw で返すため、応答の形が壊れている失敗が
+    // ここにも届く。その 1 種だけは _validateResponse の失敗と同じ扱いで次の attempt へ進める。
+    try {
+      rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
+        ...(model ? { model } : {}),
+        signal: ctl.signal,
+        outputContract: _buildFilterOutputContract(),
+      });
+    } catch (e) {
+      if (!(e instanceof ChatlogError)) { throw e; }
+      if (isResponseFormatViolation(e)) {
+        // stats.error はここで加算しない。使い切ったときに _failChunk が 1 回だけ加算する
+        // （両方で加算すると試行回数分の多重計上になる）。
+        _lastFailure = {
+          reason: _RESPONSE_FORMAT_VIOLATION_REASON,
+          subindex: RESPONSE_FORMAT_VIOLATION_SUBINDEX,
+          rawResult: e.message,
+        };
+        logger.warn(
+          `${LOGGER_TEXT.INDENT}${_RESPONSE_FORMAT_VIOLATION_REASON} (attempt ${attempt + 1}/${_maxRetry + 1})`,
+        );
+        continue;
+      }
+      logger.warn(`${LOGGER_TEXT.INDENT}AI 実行失敗。チャンク内ファイルをすべて error 扱い`);
+      logger.warn(`${LOGGER_TEXT.INDENT}error: ${e.message}`);
+      chunkEntries.forEach((entry) => logger.warn(`${LOGGER_TEXT.INDENT}error扱い: ${entry.filename}`));
+      stats.error += chunkEntries.length;
+      if (isAbortingAiError(e)) { ctl.abort(); }
+      return e;
+    }
+
+    const _validated = _validateResponse(rawResult, chunkEntries.length);
+    if (_validated.ok) {
+      parsed = _validated.parsed;
+      break;
+    }
+
+    _lastFailure = { reason: _validated.reason, subindex: _validated.subindex, rawResult };
+    logger.warn(`${LOGGER_TEXT.INDENT}${_validated.reason} (attempt ${attempt + 1}/${_maxRetry + 1})`);
   }
 
-  const parsed = parseAiJsonArray<ClaudeResult>(rawResult);
-  if (!parsed) {
-    logger.warn(`${LOGGER_TEXT.INDENT}JSON パース失敗。チャンク内ファイルをすべて error 扱い`);
-    logger.warn(`${LOGGER_TEXT.INDENT}raw output: ${rawResult.slice(0, 200)}`);
-    chunkEntries.forEach((entry) => logger.warn(`${LOGGER_TEXT.INDENT}error扱い: ${entry.filename}`));
-    stats.error += chunkEntries.length;
-    return new ChatlogError('InvalidFormat', 'JsonParse', `raw output: ${rawResult.slice(0, 200)}`);
+  if (parsed === undefined) {
+    const _failure: _ChunkFailure = _lastFailure
+      ?? { reason: 'AI 応答が不正', subindex: 'InvalidResponse', rawResult };
+    return _failChunk(chunkEntries, stats, _failure.rawResult, _failure.reason, _failure.subindex);
   }
 
   for (const entry of chunkEntries) {

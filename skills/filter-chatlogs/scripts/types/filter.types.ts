@@ -6,7 +6,11 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+// classes
+import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 // types
+import type { AiRunnerProvider } from '../../../_cle-libs/types/providers.types.ts';
+import type { CLEResult } from './cache.types.ts';
 import type { FilterDecision } from './filter-decision.const.types.ts';
 
 // ─────────────────────────────────────────────
@@ -43,6 +47,8 @@ export interface FilterConfig {
   maxBodyChars: number;
   /** DISCARD 判定に必要な最低信頼度スコア。 */
   discardThreshold: number;
+  /** 応答の形が不正だったときにチャンクを再要求する最大回数（0=再要求なし、上限 10）。 */
+  maxRetry: number;
   /** claude CLI 判定に使用する AI モデル名（例: `sonnet`, `haiku`）。省略時は runAI 側のデフォルトを使用する。 */
   model?: string;
 }
@@ -93,4 +99,26 @@ export interface PrefilterFilesOptions extends FilterProcessOptions {
   minCharCount?: number;
   /** User ターン 1 件時の Assistant 応答最小文字数（デフォルト: `DEFAULT_CONFIG_VALUES.minAssistantChars`）。 */
   minAssistantChars?: number;
+}
+
+// ─────────────────────────────────────────────
+// processChunk オプション型
+// ─────────────────────────────────────────────
+
+/** `processChunk` のオプション引数。 */
+export interface ProcessChunkOptions {
+  /** DISCARD 判定に必要な最低信頼度スコア。 */
+  discardThreshold: number;
+  /** 判定結果の書き込み先キャッシュ（mark-then-sweep のマーク側）。 */
+  cache: ChatlogCache<CLEResult>;
+  /** 中断制御。中断側 AI エラーでは `abort()` を呼ぶ。 */
+  ctl: AbortController;
+  /** バッチプロンプトへ埋め込む 1 本分の本文の最大文字数。 */
+  maxBodyChars: number;
+  /** 応答の形が不正だったときにチャンクを再要求する回数（既定 0、上限 10）。 */
+  maxRetry?: number;
+  /** 判定に使用する AI モデル名。省略時は `runAI` 側の既定を使う。 */
+  model?: string;
+  /** AI 実行プロバイダ。既定は `runAI`。テストからの差し替え点。 */
+  aiRunnerProvider?: AiRunnerProvider;
 }
