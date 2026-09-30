@@ -10,7 +10,11 @@
 // classes
 import { ChatlogError } from '../../../../_cle-libs/classes/ChatlogError.class.ts';
 // functions
-import { isAbortingAiError } from '../../../../_cle-libs/libs/ai/abort-utils.ts';
+import {
+  isAbortingAiError,
+  isResponseFormatViolation,
+  RESPONSE_FORMAT_VIOLATION_SUBINDEX,
+} from '../../../../_cle-libs/libs/ai/abort-utils.ts';
 import { runAI } from '../../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
 import { parseAiJsonArray } from '../../../../_cle-libs/libs/text/json-utils.ts';
@@ -94,10 +98,27 @@ const _buildFilterOutputContract = (): OutputContract => ({
   },
 });
 
+/**
+ * 応答が出力契約に適合しなかったときの失敗理由の見出し。
+ *
+ * `_validateResponse` の `'JSON パース失敗'` / `'AI 応答が空配列'` と同じ粒度で揃える
+ * （どちらも「応答の形が壊れている」失敗で、再要求の対象になる）。
+ */
+const _RESPONSE_FORMAT_VIOLATION_REASON = '応答が出力契約に適合しない';
+
 /** `_validateResponse` の戻り値。形が壊れている場合は失敗理由と `ChatlogError` の subindex を持つ。 */
 type _ValidatedResponse =
   | { ok: true; parsed: ClaudeResult[] }
   | { ok: false; reason: string; subindex: string };
+
+/**
+ * 再要求ループで最後に観測した「応答の形が壊れている」失敗。
+ *
+ * 再要求を使い切ったときに `_failChunk` へそのまま渡す。`rawResult` を組に含めるのは、
+ * 応答形式違反が throw で届く経路では生応答が手元に残らず、例外メッセージを代わりに
+ * 載せる必要があるためである（`_validateResponse` 経由では従来どおり生応答を入れる）。
+ */
+type _ChunkFailure = { reason: string; subindex: string; rawResult: string };
 
 /**
  * AI の生応答をパースし、チャンク処理に使える形かどうかを検証する。
@@ -175,12 +196,14 @@ export const processChunk = async (
 
   let rawResult = '';
   let parsed: ClaudeResult[] | undefined;
-  let _lastFailure: { reason: string; subindex: string } | undefined;
+  let _lastFailure: _ChunkFailure | undefined;
 
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
     // AI 実行そのものの失敗（レートリミット・接続失敗・終了コード非 0 等）は再要求しない。
     // 同じ要求を繰り返しても結果が変わらず、中断側エラーでは ctl.abort() を先に効かせる必要があるため。
-    // 再要求の対象は、実行は成功したが応答の形が壊れているケースだけとする。
+    // 再要求の対象は、応答の形が壊れているケースだけとする。llama 経路（_runViaHttp）は
+    // 出力契約の検証を自分で行い、不適合を throw で返すため、応答の形が壊れている失敗が
+    // ここにも届く。その 1 種だけは _validateResponse の失敗と同じ扱いで次の attempt へ進める。
     try {
       rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
         ...(model ? { model } : {}),
@@ -189,6 +212,19 @@ export const processChunk = async (
       });
     } catch (e) {
       if (!(e instanceof ChatlogError)) { throw e; }
+      if (isResponseFormatViolation(e)) {
+        // stats.error はここで加算しない。使い切ったときに _failChunk が 1 回だけ加算する
+        // （両方で加算すると試行回数分の多重計上になる）。
+        _lastFailure = {
+          reason: _RESPONSE_FORMAT_VIOLATION_REASON,
+          subindex: RESPONSE_FORMAT_VIOLATION_SUBINDEX,
+          rawResult: e.message,
+        };
+        logger.warn(
+          `${LOGGER_TEXT.INDENT}${_RESPONSE_FORMAT_VIOLATION_REASON} (attempt ${attempt + 1}/${_maxRetry + 1})`,
+        );
+        continue;
+      }
       logger.warn(`${LOGGER_TEXT.INDENT}AI 実行失敗。チャンク内ファイルをすべて error 扱い`);
       logger.warn(`${LOGGER_TEXT.INDENT}error: ${e.message}`);
       chunkEntries.forEach((entry) => logger.warn(`${LOGGER_TEXT.INDENT}error扱い: ${entry.filename}`));
@@ -203,13 +239,14 @@ export const processChunk = async (
       break;
     }
 
-    _lastFailure = { reason: _validated.reason, subindex: _validated.subindex };
+    _lastFailure = { reason: _validated.reason, subindex: _validated.subindex, rawResult };
     logger.warn(`${LOGGER_TEXT.INDENT}${_validated.reason} (attempt ${attempt + 1}/${_maxRetry + 1})`);
   }
 
   if (parsed === undefined) {
-    const { reason, subindex } = _lastFailure ?? { reason: 'AI 応答が不正', subindex: 'InvalidResponse' };
-    return _failChunk(chunkEntries, stats, rawResult, reason, subindex);
+    const _failure: _ChunkFailure = _lastFailure
+      ?? { reason: 'AI 応答が不正', subindex: 'InvalidResponse', rawResult };
+    return _failChunk(chunkEntries, stats, _failure.rawResult, _failure.reason, _failure.subindex);
   }
 
   for (const entry of chunkEntries) {

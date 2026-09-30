@@ -176,6 +176,28 @@ const _makeSequencedRunner = (responses: readonly string[]): { runner: AiRunnerP
   return { runner, calls: () => _count };
 };
 
+/**
+ * 生応答と例外を混在させて順に返す `AiRunnerProvider` スタブと、その呼び出し回数を返すファクトリヘルパー。
+ *
+ * `items` を先頭から 1 回ずつ消費し、`string` なら resolve、`Error` なら reject する。
+ * 尽きたあとは最後の要素を繰り返す。`_makeSequencedRunner` では作れない
+ * 「1 回目は throw、2 回目は正常応答」の並びを組むために使う。
+ *
+ * @param items - 呼び出し順に返す生応答文字列、または reject する例外
+ * @returns `runner`（注入する provider）と `calls`（呼び出し回数を返す関数）
+ */
+const _makeMixedRunner = (
+  items: readonly (string | Error)[],
+): { runner: AiRunnerProvider; calls: () => number } => {
+  let _count = 0;
+  const runner: AiRunnerProvider = () => {
+    const _item = items[Math.min(_count, items.length - 1)];
+    _count++;
+    return _item instanceof Error ? Promise.reject(_item) : Promise.resolve(_item);
+  };
+  return { runner, calls: () => _count };
+};
+
 // ─── Tests
 
 /**
@@ -1509,8 +1531,14 @@ describe('processChunk — 空配列応答の扱い', () => {
  * - 要素数がチャンク件数と不一致（`length !== chunkEntries.length`）→ subindex `CountMismatch`
  *
  * ## リトライしないもの
- * - `aiRunnerProvider` が `ChatlogError` を throw する AI 実行失敗（従来どおり即 error 確定）
+ * - AI 実行そのものの失敗・中断側エラー（接続失敗 `BackendUnavailable` / レートリミット `RateLimit` /
+ *   終了コード非 0 `ExitFailure` / `ResponseFormatRejected` 等）。同じ要求を繰り返しても結果が変わらず、
+ *   中断側では `ctl.abort()` を先に効かせる必要があるため、従来どおり即 error 確定とする
  * - ファイル名不一致だが要素数は一致しているケース（従来どおり該当ファイルのみ「判定不能 skip」）
+ *
+ * `aiRunnerProvider` が throw する `ChatlogError` でも、`AiError/ResponseSchemaViolation`
+ * （llama 経路で `validateOutputContract` が応答形式違反を検出して投げるもの）は応答の形が壊れている
+ * ケースであり**リトライ対象**である。この経路の検証は `T-FL-PCK-18` が担当する。
  *
  * リトライを使い切った場合は `_failChunk` を 1 回だけ呼ぶため、`stats.error` はチャンク件数
  * ちょうどであり、試行回数分の多重加算は起きない。要素数不一致で使い切った場合も
@@ -1711,6 +1739,182 @@ describe('processChunk — 応答不正時の再要求（maxRetry）', () => {
 
       assertEquals(calls(), 11);
       assertEquals(stats.error, 1);
+    });
+  });
+});
+
+/**
+ * `aiRunnerProvider` が応答形式違反を throw する llama 経路で、`processChunk` が同じチャンクを
+ * 再要求することを検証するスイート。
+ *
+ * `--model llama/...` の経路では `runAI` → `_runViaHttp` が送信後に自分で `parseContractPayload` /
+ * `validateOutputContract` を呼び、不適合を `ChatlogError('AiError', 'ResponseSchemaViolation', ...)`
+ * として throw する。生応答が `processChunk` へ返らないため `_validateResponse` に到達せず、
+ * `T-FL-PCK-17` の再要求ロジックが素通しされていた（PR #493 レビュー指摘 / beads cle-dny7）。
+ *
+ * ## リトライ対象（throw されても応答の形が壊れているケース）
+ * - `ChatlogError('AiError', 'ResponseSchemaViolation', ...)` → `_validateResponse` の失敗と同じ扱い
+ *
+ * ## リトライしないもの（従来どおり即 error 確定 + 中断側は `ctl.abort()`）
+ * - `ResponseFormatRejected` / `BackendUnavailable` / `RateLimit` / `InvalidEndpoint`
+ *   （`isAbortingAiError` の中断側一覧）。名前が `ResponseSchemaViolation` と似ている
+ *   `ResponseFormatRejected` は扱いが逆であることに注意する
+ *
+ * 再要求を使い切った場合は既存の `_failChunk` 経路を 1 回だけ通るため、`stats.error` はチャンク件数
+ * ちょうどであり、試行回数分の多重加算は起きない。生応答が手元に無いため、`_failChunk` に渡すのは
+ * 例外メッセージであり、返る `ChatlogError` の detail にそれが載る。
+ *
+ * `maxRetry=0` のときに 1 回で確定することは `T-FL-PCK-17-05` と同趣旨のため、ここでは扱わない。
+ *
+ * テスト ID 範囲: T-FL-PCK-18
+ *
+ * @see processChunk
+ */
+describe('processChunk — llama 経路の応答形式違反の再要求', () => {
+  useDefaultGlobalConfig();
+
+  /** llama 経路の `validateOutputContract` が投げる応答形式違反（続行側 = リトライ対象）。 */
+  const _makeSchemaViolation = (): ChatlogError =>
+    new ChatlogError('AiError', 'ResponseSchemaViolation', 'response body is not valid JSON: Unexpected token');
+
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+  let ctl: AbortController;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+    ctl = new AbortController();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  /** 再要求によって判定が確定し、error にならずに済むケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FL-PCK-18-01: maxRetry=1、1 回目が応答形式違反 throw・2 回目が正常 → 判定が確定し error にならない', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      const { runner, calls } = _makeMixedRunner([
+        _makeSchemaViolation(),
+        JSON.stringify([{ file: 'a.md', decision: 'KEEP', confidence: 0.9, reason: 'valuable' }]),
+      ]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 2);
+      assertEquals(stats, { keep: 1, skip: 0, remove: 0, error: 0 });
+      assertEquals(result, undefined);
+      assertEquals(ctl.signal.aborted, false);
+    });
+  });
+
+  /** 再要求を使い切って失敗が確定するケース（多重加算・detail・cache 未書き込み）。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-FL-PCK-18-02: maxRetry=1 で応答形式違反が続く → 2 回要求し stats.error はチャンク件数ちょうど', async () => {
+      const entries = ['a.md', 'b.md'].map((name) =>
+        new ChatlogEntry(_TEMP_CONTENT, { filePath: `/fake/input/${name}` })
+      );
+      const { runner, calls } = _makeMixedRunner([_makeSchemaViolation()]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 2);
+      assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 2 });
+      assertEquals((result as ChatlogError).kind, 'InvalidFormat');
+      assertEquals((result as ChatlogError).subindex, 'ResponseSchemaViolation');
+      assertEquals(ctl.signal.aborted, false);
+    });
+
+    it('[Error] T-FL-PCK-18-03: 使い切った場合、_failChunk 経由の detail に例外メッセージが載る', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      const { runner } = _makeMixedRunner([_makeSchemaViolation()]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      // `_failChunk` は detail を `raw output: <生応答>` の形で組む。throw 経路では生応答が
+      // 手元に無いため、そこへ載るのは例外メッセージである。両方を見て `_failChunk` 経由を固定する。
+      const _message = (result as ChatlogError).message;
+      assertEquals(_message.includes('raw output: '), true);
+      assertEquals(_message.includes('response body is not valid JSON'), true);
+    });
+
+    it('[Error] T-FL-PCK-18-04: 使い切った場合、cache へ 1 件も書き込まれない', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      const { runner } = _makeMixedRunner([_makeSchemaViolation()]);
+
+      await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(cache.read('/fake/input/a.md'), {});
+    });
+  });
+
+  /** 中断側エラーは名前が似ていてもリトライ対象にならないことを固定するケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FL-PCK-18-05: ResponseFormatRejected は maxRetry=3 でも 1 回で確定し ctl.abort() が呼ばれる', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      const { runner, calls } = _makeMixedRunner([new ChatlogError('AiError', 'ResponseFormatRejected', 'rejected')]);
+
+      await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 3,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats.error, 1);
+      assertEquals(ctl.signal.aborted, true);
+    });
+
+    it('[Edge] T-FL-PCK-18-06: BackendUnavailable は maxRetry=3 でも 1 回で確定し ctl.abort() が呼ばれる', async () => {
+      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
+      const { runner, calls } = _makeMixedRunner([new ChatlogError('AiError', 'BackendUnavailable', 'connect failed')]);
+
+      await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 3,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats.error, 1);
+      assertEquals(ctl.signal.aborted, true);
     });
   });
 });
