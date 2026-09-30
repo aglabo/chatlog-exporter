@@ -17,6 +17,22 @@ import { parseAiJsonArray } from '../../json-utils.ts';
 // ─── Helpers
 import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.ts';
 
+// ─── Internal Helpers
+
+// constants
+
+/**
+ * コードフェンスで例示された空配列のあとに実配列が続く AI 応答。
+ * `allowEmpty` の有無で段階1 の短絡が切り替わることを対照させるため、T-LIB-J-22-03 と T-LIB-J-23-03 で共有する。
+ */
+const _FENCED_EMPTY_THEN_ARRAY = [
+  'Here is an example:',
+  '```json',
+  '[]',
+  '```',
+  'Actual: [{"a":1}]',
+].join('\n');
+
 // ─── Tests
 
 /**
@@ -24,7 +40,7 @@ import { assertNotNull, assertNull } from '../../../../__tests__/helpers/assert.
  *
  * 3段階フォールバック（直接パース / non-greedy / greedy）の各パスを網羅する。
  *
- * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-22
+ * テスト ID 範囲: T-LIB-J-01 〜 T-LIB-J-23
  *
  * @see parseAiJsonArray
  */
@@ -45,7 +61,6 @@ describe('parseAiJsonArray', () => {
         input: 'テキスト [{"a":3}] 後置テキスト',
         expected: [{ a: 3 }],
       },
-      { id: 'T-LIB-J-20-01', label: '空配列は空配列として成功を返す', input: '[]', expected: [] },
       {
         id: 'T-LIB-J-20-02',
         label: '非空配列は従来どおりそのまま返す',
@@ -62,6 +77,10 @@ describe('parseAiJsonArray', () => {
       it(`[Normal] ${id}: ${label}`, () => {
         assertEquals(parseAiJsonArray(input), expected);
       });
+    });
+
+    it('[Normal] T-LIB-J-23-01: { allowEmpty: true } を明示すると空配列を成功として返す', () => {
+      assertEquals(parseAiJsonArray('[]', { allowEmpty: true }), []);
     });
 
     it('[Normal] T-LIB-J-06: greedy マッチで複数オブジェクトを含む配列を返す', () => {
@@ -131,10 +150,11 @@ describe('parseAiJsonArray', () => {
     });
   });
 
-  /** null を返す異常ケース。無効入力・パース失敗を検証する。 */
+  /** null を返す異常ケース。無効入力・パース失敗に加え、既定では空配列も異常扱いになることを検証する。 */
   describe('When: 異常系', () => {
     [
       { id: 'T-LIB-J-04', label: '空文字列は null を返す', input: '' },
+      { id: 'T-LIB-J-20-01', label: '既定では空配列を受理せず null を返す', input: '[]' },
       { id: 'T-LIB-J-05', label: '配列を含まない文字列は null を返す', input: 'no array here' },
       { id: 'T-LIB-J-13', label: '[ で始まるが JSON.parse 失敗する場合は null を返す', input: '[invalid json' },
       { id: 'T-LIB-J-21-01', label: '閉じられていない JSON は null を返す', input: '[{"a":1' },
@@ -177,15 +197,26 @@ describe('parseAiJsonArray', () => {
       });
     });
 
-    it('[Edge] T-LIB-J-22-03: コードフェンス内の空配列で直接パース段が短絡する', () => {
-      const _raw = [
-        'Here is an example:',
-        '```json',
-        '[]',
-        '```',
-        'Actual: [{"a":1}]',
-      ].join('\n');
-      assertEquals(parseAiJsonArray(_raw), []);
+    it('[Edge] T-LIB-J-23-02: コードフェンスで包んだ空配列も { allowEmpty: true } なら段階1 が成功する', () => {
+      assertEquals(parseAiJsonArray('```json\n[]\n```', { allowEmpty: true }), []);
+    });
+
+    it('[Edge] T-LIB-J-22-03: 既定ではフェンス内の空配列で短絡せず段階2 が後続配列を救済する', () => {
+      assertEquals(parseAiJsonArray(_FENCED_EMPTY_THEN_ARRAY), [{ a: 1 }]);
+    });
+
+    it('[Edge] T-LIB-J-23-03: 同じ入力でも { allowEmpty: true } なら段階1 が短絡して空配列を返す', () => {
+      assertEquals(parseAiJsonArray(_FENCED_EMPTY_THEN_ARRAY, { allowEmpty: true }), []);
+    });
+
+    /**
+     * 段階2/3 への `allowEmpty` 非伝播を固定する唯一のテスト。
+     *
+     * 段階2/3 へ `allowEmpty` を渡す変異を入れると、このケースが `[]` を返して FAIL する
+     * (変異検証済み)。散文中の `[]` を配列応答と誤認しないための境界なので削除しない。
+     */
+    it('[Edge] T-LIB-J-23-04: 散文中の [] は { allowEmpty: true } でも null（段階2/3 へ非伝播）', () => {
+      assertNull(parseAiJsonArray('結果は [] です', { allowEmpty: true }));
     });
 
     it('[Edge] T-LIB-J-08: JSON 値内に "[...]" が含まれていても外側の配列がパースできる', () => {
