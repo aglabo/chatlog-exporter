@@ -6,7 +6,7 @@ description: >
   strip サブコマンドでは、AIを使わず本文先頭の定型部（TOPICS ASSIGNMENT RULES 等）を除去する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] [--max-body-chars N] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] [--chunk-size N] [--max-body-chars N] [--model MODEL] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
 allowed-tools: Bash, Glob
 ---
 
@@ -45,11 +45,20 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM` (例: `chatgpt 2026-03`) → 指定 agent・指定月
 - `--dry-run` → 削除せず対象ファイルを一覧表示 (判定は行わない。後述の注意を参照)
 - `--single-file` → 1 ファイルずつ判定 (chunkSize を 1 に固定)
+- `--chunk-size N` → 1 回の AI 呼び出しへまとめるファイル数 (1〜10)。
+  未指定時は `config.yaml` の `chunkSize` を使う。
+  優先順位は **CLI 引数 > `config.yaml` > 組み込み既定 (10)**。
+  本リポジトリが配布する `config.yaml` は **2** を設定しているため、
+  `/setup-chatlogs` で展開した既定環境での実効値は 2 になる。
+  `--single-file` を併用した場合は `--single-file` が優先され 1 に固定される
 - `--max-body-chars N` → バッチプロンプトへ埋め込む 1 本分の本文の最大文字数 (1〜100000)。
   未指定時は `config.yaml` の `maxBodyChars` を使う。
   優先順位は **CLI 引数 > `config.yaml` > 組み込み既定 (8000)**。
   本リポジトリが配布する `config.yaml` は **10000** を設定しているため、
   `/setup-chatlogs` で展開した既定環境での実効値は 10000 になる
+- `--model MODEL` → AI バックエンドのモデル名。未指定時は `config.yaml` の `model` を使う。
+  優先順位は **CLI 引数 > `config.yaml`**。
+  AI を呼ぶのは filter モードのみで、`strip` / `noise-filter` では効かない
 
 **noise-filter モードの引数解析** (`noise-filter` トークンを除いた残りの引数に適用):
 
@@ -311,7 +320,8 @@ strip キャッシュを削除してから実行する。内容ハッシュや m
 
 ## AI バックエンドの設定
 
-AI バックエンドは `model` で選ぶ。AI を呼ぶのは filter モードのみで、`strip` は AI を使わない。モデルは `config.yaml` の `model` で指定する。
+AI バックエンドは `model` で選ぶ。AI を呼ぶのは filter モードのみで、`strip` は AI を使わない。
+指定は `--model` が `config.yaml` の `model` より優先される。
 
 - `llama/<model>` (例: `llama/avalon`) → LAN 上の llama サーバへ HTTP で要求する。
   接続先は `config.yaml` の `llamaEndpoint` (例: `http://avalon:8080/`) で指定する。

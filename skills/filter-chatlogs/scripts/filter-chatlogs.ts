@@ -11,7 +11,8 @@
  *
  * 使い方:
  *   deno run --allow-read --allow-run --allow-write --allow-env filter-chatlogs.ts \
- *     [agent] [YYYY-MM] [--dry-run] [--single-file] [--input-dir DIR]
+ *     [agent] [YYYY-MM] [--dry-run] [--single-file] [--input-dir DIR] \
+ *     [--chunk-size N] [--max-body-chars N] [--model MODEL]
  */
 
 // ─────────────────────────────────────────────
