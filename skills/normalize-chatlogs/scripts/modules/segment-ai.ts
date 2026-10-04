@@ -92,7 +92,8 @@ const _addLineNumbers = (content: string): string => {
  *
  * Sends all inputs to Claude as a combined prompt and returns a Map from
  * filePath to its planned segment boundaries. Returns null for any filePath that the AI
- * did not return results for, or if the AI call fails entirely.
+ * did not return results for, or if the AI call fails entirely. An empty array response (`[]`)
+ * also yields null for every filePath, logged once per chunk with the first 200 chars of the raw output.
  *
  * Line numbers (`startLine`/`endLine`) refer to `entry.content` (frontmatter excluded),
  * not the raw file. Building the actual `content` from these boundaries is the caller's
@@ -152,10 +153,16 @@ export const segmentChatlogs = async (
     return _nullMap();
   }
 
-  const _parsed = parseAiJsonArray(_raw);
-  if (_parsed === null) {
+  // 空配列は JSON パース失敗・部分応答と区別してチャンク単位で 1 行だけ warn する。
+  // 戻り値は全件 null のままにし、phaseSegment が status: 'retry' を書いて次回再判定させる。
+  const _parsed = parseAiJsonArray(_raw, { allowEmpty: true });
+  if (_parsed === null || _parsed.length === 0) {
     const _paths = inputs.map((entry) => getBasename(entry.filePath!)).join(', ');
-    logger.warn(`segmentChatlogs: invalid JSON response — ${_paths}`);
+    logger.warn(
+      _parsed === null
+        ? `segmentChatlogs: invalid JSON response — ${_paths}`
+        : `segmentChatlogs: empty array response — ${_paths}: ${_raw.slice(0, 200)}`,
+    );
     return _nullMap();
   }
 
