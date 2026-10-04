@@ -126,6 +126,8 @@ T-06 が宣言する Test ID prefix（`T-SF-LAB`）にも従います。
 > `buildTypeCategoryOutputContract` のテストが加わり、対象が `setfm-type-category.ts` の公開関数全体に
 > 広がったためです。`T-SF-LAB-03-02` は改名後のファイルにあり、テストの移動はしていません。
 
+<!-- -->
+
 > 出典: beads `cle-eek`（closed 2026-09-07） / GitHub #440
 
 ---

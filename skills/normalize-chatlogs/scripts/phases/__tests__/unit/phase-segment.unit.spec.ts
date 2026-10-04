@@ -272,7 +272,7 @@ const _TIMEOUT_FILE_PATH = 'slow.md';
  * キャッシュ済みエントリのスキップ、未キャッシュエントリのチャンク分割・AI呼び出し・
  * キャッシュ書き込み、セグメント取得失敗時の `status: 'retry'` 記録と戻り値からの除外を検証する。
  *
- * テスト ID 範囲: T-PP-01-01 〜 T-PP-13-01、T-NC-PSG-01-01 〜 T-NC-PSG-06-02、
+ * テスト ID 範囲: T-PP-01-01 〜 T-PP-14-01、T-NC-PSG-01-01 〜 T-NC-PSG-06-02、
  * T-NC-PSC-01-01 〜 T-NC-PSC-02-05
  *
  * @see phaseSegment
@@ -441,6 +441,20 @@ describe('phaseSegment', () => {
       // assert
       assertEquals(result, []);
       assertEquals(cache.read(toCacheKey('partial.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+    });
+
+    it("[Error] T-PP-14-01: AI が空配列 [] を返したとき全エントリが戻り値から除外され status:'retry' が書かれる", async () => {
+      // arrange
+      const entries = [_makeEntry('empty-a.md', 'content'), _makeEntry('empty-b.md', 'content')];
+      mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(_makeAiResponse([]))));
+
+      // act
+      const result = await phaseSegment(entries, cache, _baseConfig, 1);
+
+      // assert
+      assertEquals(result, []);
+      assertEquals(cache.read(toCacheKey('empty-a.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+      assertEquals(cache.read(toCacheKey('empty-b.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
     });
 
     it('[Error] T-PP-08-01: 並列実行中に一方のチャンクが RateLimit で失敗したとき他方のチャンクの signal が abort される', async () => {

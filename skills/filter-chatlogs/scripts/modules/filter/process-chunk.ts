@@ -135,7 +135,7 @@ type _ChunkFailure = { reason: string; subindex: string; rawResult: string };
  * @returns 検証を通れば `{ ok: true, parsed }`、壊れていれば理由と subindex
  */
 const _validateResponse = (rawResult: string, expectedCount: number): _ValidatedResponse => {
-  const _parsed = parseAiJsonArray<ClaudeResult>(rawResult);
+  const _parsed = parseAiJsonArray<ClaudeResult>(rawResult, { allowEmpty: true });
   if (!_parsed) { return { ok: false, reason: 'JSON パース失敗', subindex: 'JsonParse' }; }
   if (_parsed.length === 0) { return { ok: false, reason: 'AI 応答が空配列', subindex: 'EmptyArray' }; }
   if (_parsed.length !== expectedCount) {

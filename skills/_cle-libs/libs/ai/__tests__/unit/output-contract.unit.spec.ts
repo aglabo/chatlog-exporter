@@ -1081,8 +1081,8 @@ describe('Given: envelope フィールド `items` が空配列である適合 js
         const _restored = restoreContractText(_CONTRACT_CLASSIFY, _payload);
         assertEquals(_restored, '[]');
         assertEquals(JSON.parse(_restored), []);
-        // 呼び出し元の既存パーサが空配列として解釈できること（パース失敗の `null` ではない）
-        assertEquals(parseAiJsonArray(_restored), []);
+        // `{ allowEmpty: true }` を明示した呼び出し元が空配列として解釈できること（パース失敗の `null` ではない）
+        assertEquals(parseAiJsonArray(_restored, { allowEmpty: true }), []);
       });
     });
   });

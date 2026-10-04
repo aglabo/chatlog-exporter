@@ -277,8 +277,8 @@ Step の順序と ID の順序は一致しません。評価は Step 欄の順�
 
 R-008 の「応答本文から `response_format` の拒否と判別できる」は、本文を JSON として parse でき、
 `error.message` が文字列で、かつ `JSON schema conversion failed` で始まることを指します（DR-33）。
-本文が JSON でない・`error.message` が無い・接頭辞が一致しない 400 は、判別できない 400 として
-R-003 に落ちます。条件の根拠は `measurements-response-format-rejection-2026-09-15.md` です。
+本文が JSON でない 400、`error.message` を持たない 400、接頭辞の一致しない 400 は、
+判別できない 400 として R-003 に落ちます。条件の根拠は `measurements-response-format-rejection-2026-09-15.md` です。
 
 **R-004 の「取り出せない」条件は次に限ります。本表が網羅の正であり、§5 Edge Cases は例示にとどまります。**
 

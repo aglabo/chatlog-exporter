@@ -175,7 +175,7 @@ llama-server --help | grep -E -- '--flash-attn|--cache-type-k|--cache-type-v|--n
   `--chat-template-kwargs` 形式へ戻して別途測定し直す）。
 - `-m`（モデルパス）、`--host` / `--port 8080`、vision 用の `--mmproj`（付いていれば）
 
-書き換え後の形（既存フラグは Phase A 3.1 の実測に合わせる）:
+書き換え後の形は次のとおり（既存フラグは Phase A 3.1 の実測に合わせる）。
 
 ```bash
 llama-server \

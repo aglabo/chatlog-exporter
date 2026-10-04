@@ -42,19 +42,19 @@ it('all cases pass', () => {
 
 ### provider 注入テストは「provider に何が渡されたか」を検証する
 
-fake / stub を注入するテストでは、戻り値の検証だけでなく **provider が受け取った引数を assert する。**
+fake / stub を注入するテストでは、戻り値の検証だけでなく **provider が受け取った引数を assert する**。
 引数を無視して固定値を返す fake は、実装が対象を取り違えても全ケース PASS になる。
 
-実例: `sweepBackups` の unit テストで fake glob が pattern 引数を無視していたため、実装の
+実例: `sweepBackups` の unit テストでは、fake glob が pattern 引数を無視していた。そのため、実装の
 `findFilesFlat` の ext を `.bak` → `.md` に変えても 16 ケース全部が PASS した。これは本関数の最悪の故障
 (対象ディレクトリの `.md` 本体を全削除する) が無検出になることを意味する。
 `_makeGlobSpy` で pattern を記録し `${dir}/*.bak` を検証する形にしたところ、`.md` 変異体で FAIL するようになった。
 
 ### Test Target は観測可能な振る舞いを持つ関数に限る
 
-commit 単位をそのまま Test Target に写像しない。型定義のみ・定数のみの変更は Error / Edge が立たず、
-埋め草の `it()` を書く羽目になる (どの Test Target も Normal / Error / Edge がゼロ件なら出力禁止という
-ハードゲートに引っかかる)。型・定数は**消費側の Target に畳む**。
+commit 単位をそのまま Test Target に写像しない。型定義のみ・定数のみの変更は Error / Edge が立たない。
+その結果、埋め草の `it()` を書く羽目になる (どの Test Target も Normal / Error / Edge がゼロ件なら出力禁止という
+ハードゲートに引っかかる)。型・定数は **消費側の Target に畳む**。
 ただし畳んでも実挙動のリグレッションテストは残す。
 カテゴリの件数確認は目視でなく `awk` 等で機械カウントする。
 
@@ -355,8 +355,8 @@ prefix 一覧を人手で維持する台帳は持たない。実体から導出�
 リポジトリ全体を走査するガードは `T-CTI-RP-01-01`。重複した ID を追加するとこのケースが落ちるので、
 通常は下記の手動実行は不要。
 
-検査ロジック自体の境界値は `scripts/__tests__/unit/check-test-ids.unit.spec.ts` に
-**恒久に**置いてある (`T-CTI-FD-01` 〜 `T-CTI-FD-05`)。検査を弱める変更を入れると、
+検査ロジック自体の境界値は `T-CTI-FD-01` 〜 `T-CTI-FD-05` が担う。
+置き場所は `scripts/__tests__/unit/check-test-ids.unit.spec.ts` で、**恒久に** 残してある。検査を弱める変更を入れると、
 リポジトリに重複がなくてもこれらが落ちる。
 
 手動で見る場合 (テストを回せないときや、報告された ID を追うとき) は以下を使う。
@@ -395,9 +395,10 @@ sort /tmp/test-ids-literal.txt /tmp/test-ids-table.txt | uniq -d
   後段の `grep -xE` で捨てられるため、件数を見ないと気づけない)
 
 手順 2) を省くと、テーブル駆動テストの ID は 1 件も検査されない。
-実例: `T-CLS-CF-41` が `ChatlogFrontmatter.unit.spec.ts` の it ラベルと
-`ChatlogFrontmatter.toFrontmatter.unit.spec.ts` の `_cases` の両方に割り当てられていたが、
-手順 1) だけでは検出できなかった (cle-ucl)。
+実例: `T-CLS-CF-41` が 2 箇所に割り当てられていた。
+1 つ目は `ChatlogFrontmatter.unit.spec.ts` の it ラベル。
+2 つ目は `ChatlogFrontmatter.toFrontmatter.unit.spec.ts` の `_cases`。
+この重複は手順 1) だけでは検出できなかった (cle-ucl)。
 
 エラーを `2>/dev/null` で握り潰すと「重複なし」と区別が付かなくなるため、
 標準エラー出力は捨てないこと。

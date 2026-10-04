@@ -242,7 +242,7 @@ const _makeSignalCaptureMock = (
  *
  * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
  * T-SCB-WL-01 〜 T-SCB-WL-04, T-SCB-NA-01 〜 T-SCB-NA-03, T-SCB-SP-01,
- * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-26, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-02
+ * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-26, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-06
  *
  * @see segmentChatlogs
  */
@@ -829,6 +829,83 @@ describe('segmentChatlogs', () => {
         assert(warnStub.calls[0].args[0].includes('empty segments returned for'));
       } finally {
         warnStub?.restore();
+      }
+    });
+
+    it('[Edge] T-NC-SIO-LOG-03: AI が空配列 [] を返したときチャンク単位で 1 行だけ "empty array response" と生出力を含む warn が出る', async () => {
+      // arrange
+      const inputs = [_makeEntry('a.md', 'content a'), _makeEntry('b.md', 'content b')];
+      const warnStub = stub(logger, 'warn');
+
+      try {
+        // act
+        await segmentChatlogs(inputs, { aiRunnerProvider: _resolvingRunner('[]') });
+
+        // assert
+        assertEquals(warnStub.calls.length, 1);
+        const _message = String(warnStub.calls[0].args[0]);
+        assert(_message.includes('empty array response'));
+        assert(_message.includes('[]'));
+        assertFalse(_message.includes('invalid JSON'));
+        assertFalse(_message.includes('no entry returned for'));
+      } finally {
+        warnStub.restore();
+      }
+    });
+
+    it('[Edge] T-NC-SIO-LOG-04: コードフェンス付きの空配列応答でも "empty array response" の warn が 1 行出る', async () => {
+      // arrange
+      const inputs = [_makeEntry('a.md', 'content a')];
+      const warnStub = stub(logger, 'warn');
+
+      try {
+        // act
+        await segmentChatlogs(inputs, { aiRunnerProvider: _resolvingRunner('```json\n[]\n```') });
+
+        // assert
+        assertEquals(warnStub.calls.length, 1);
+        assert(String(warnStub.calls[0].args[0]).includes('empty array response'));
+      } finally {
+        warnStub.restore();
+      }
+    });
+
+    it('[Edge] T-NC-SIO-LOG-05: AI が空配列 [] を返したとき全ファイルが null の Map を返す（下流で retry 扱い）', async () => {
+      // arrange
+      const inputs = [_makeEntry('a.md', 'content a'), _makeEntry('b.md', 'content b')];
+      const warnStub = stub(logger, 'warn');
+
+      try {
+        // act
+        const result = await segmentChatlogs(inputs, { aiRunnerProvider: _resolvingRunner('[]') });
+
+        // assert
+        assertEquals(result.size, 2);
+        assertNull(result.get('a.md'));
+        assertNull(result.get('b.md'));
+      } finally {
+        warnStub.restore();
+      }
+    });
+
+    it('[Edge] T-NC-SIO-LOG-06: 空配列応答の生出力が 200 文字を超えるとき warn には先頭 200 文字までが載る', async () => {
+      // arrange — '[' + 空白 298 個 + ']' の 300 文字。末尾の ']' が warn に載らないことで切り詰めを確認する
+      const raw = `[${' '.repeat(298)}]`;
+      const inputs = [_makeEntry('a.md', 'content a')];
+      const warnStub = stub(logger, 'warn');
+
+      try {
+        // act
+        await segmentChatlogs(inputs, { aiRunnerProvider: _resolvingRunner(raw) });
+
+        // assert
+        assertEquals(warnStub.calls.length, 1);
+        const _message = String(warnStub.calls[0].args[0]);
+        assert(_message.includes('empty array response'));
+        assert(_message.endsWith(raw.slice(0, 200)));
+        assertFalse(_message.includes(']'));
+      } finally {
+        warnStub.restore();
       }
     });
   });

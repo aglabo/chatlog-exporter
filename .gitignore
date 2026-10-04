@@ -43,7 +43,7 @@
 !**/Release-Note.md
 
 # deno
-!/deno.json
+!/deno.json?
 !/deno.lock
 
 ## .env

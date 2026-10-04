@@ -9,6 +9,8 @@ argument-hint: "[agent] [YYYY-MM] [--period YYYY-MM] [--input-dir DIR] [--model 
 allowed-tools: Bash, Glob
 ---
 
+<!-- markdownlint-disable line-length -->
+
 # classify-chatlogs スキル
 
 `chatlogs/originalLogs/<agent>/` 配下のフラットなチャットログをプロジェクト別サブディレクトリに分類する。
