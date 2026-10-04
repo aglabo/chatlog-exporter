@@ -15,7 +15,7 @@ set -euo pipefail
 # regenerated from these sources rather than edited by hand.
 readonly SYNC_ENTRIES=(
   ".config/chatlog-exporter|skills/setup-chatlogs/assets/.config/chatlog-exporter"
-  "deno.json|skills/setup-chatlogs/assets/deno.json"
+  "deno.jsonc|skills/setup-chatlogs/assets/deno.jsonc"
   "skills/_cle-libs|skills/setup-chatlogs/assets/_cle-libs"
 )
 
@@ -39,7 +39,7 @@ Regenerates the distributable copies under skills/setup-chatlogs/ from their
 sources:
 
   .config/chatlog-exporter/ -> skills/setup-chatlogs/assets/.config/chatlog-exporter/
-  deno.json                 -> skills/setup-chatlogs/assets/deno.json
+  deno.jsonc                 -> skills/setup-chatlogs/assets/deno.jsonc
   skills/_cle-libs/         -> skills/setup-chatlogs/assets/_cle-libs/
 
 __tests__ directories are excluded at every depth. Each destination is replaced
