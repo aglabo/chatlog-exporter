@@ -2,7 +2,7 @@
 title: "Decision Records: filter/filter"
 module: "filter/filter"
 status: Draft
-version: 1.6.0
+version: 1.6.1
 created: "2026-09-08"
 ---
 
@@ -224,8 +224,10 @@ DR-01 / DR-02 が前提としている「新しい KEEP 基準」とは本 DR �
 
 **Status**: Accepted
 
-**Context**: `parseAiJsonArray` は段 1（`_parseDirectArray`）で `allowEmpty = true` を渡すため、
-構文的に有効な `[]` を成功として返します（ai-backend DR-06 / DR-28）。llama / avalon はリテラル `[]` を
+**Context**: 本 DR の起票時点では、`parseAiJsonArray` は段 1（`_parseDirectArray`）で空配列を無条件に受理し、
+構文的に有効な `[]` を成功として返していました（ai-backend DR-06 / DR-28）。
+現在は gh-484（libs/text DR-01）で `allowEmpty` の既定が false になり、filter は `process-chunk.ts` で
+`{ allowEmpty: true }` を明示して同じ `[]` を受け取ります。llama / avalon はリテラル `[]` を
 返すことがあり、このとき `process-chunk.ts` の `if (!parsed)` を素通りし（`[]` は truthy）、
 続く `parsed.find()` が全件未ヒットになってチャンク全員が「判定不能 skip」へ落ちていました。
 生の応答はログに残らず `stats.error` も 0 のままで、サマリーは正常終了に見えます。
@@ -242,7 +244,9 @@ ai-backend DR-06 の Consequences は空配列受理について
 2. 返す `ChatlogError` の subindex は `JsonParse` と分けて `EmptyArray` とする。`kind` は
    `InvalidFormat`（非 `AiError`）を維持し、続行側であることを
    `isAbortingAiError` / `describeAbortReason` へ伝える
-3. 共通ライブラリ `parseAiJsonArray` は変更しない（gh-484）。空応答での再要求も本 DR の範囲外（`cle-74a.3`）
+3. 共通ライブラリ `parseAiJsonArray` は本 DR では変更しない。その後 gh-484（libs/text DR-01）で `allowEmpty` が公開され
+   既定が false になったため、filter は `{ allowEmpty: true }` を明示して空配列を受け取り、決定 1 / 2 の
+   `EmptyArray` 識別を保つ。空応答での再要求は本 DR の範囲外（`cle-74a.3`）
 4. 2 分岐で共通する「見出しログ / raw output ログ / 全件 error扱いログ / `stats.error` 加算」は
    内部ヘルパー `_failChunk` に寄せ、`slice(0, 200)` のリテラルを 1 箇所に保つ
 
@@ -488,14 +492,15 @@ AI 呼び出し回数の上限は DR-06 と同じ（最大 `maxRetry + 1` 倍）
 
 ## Change History
 
-| Date       | Version | Description                                                                                             |
-| ---------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| 2026-09-08 | 1.0.0   | 初版。closed 済み beads issue のバックポートとして DR-01 / DR-02 を記録（`cle-8s3` / `cle-er9` が出典） |
-| 2026-09-19 | 1.1.0   | DR-03 を追加。永続メモリー `filter-keep-discard-criterion` から移送                                     |
-| 2026-09-29 | 1.2.0   | DR-04 を追加。prefilter の到達不能な「会話本文が空」判定と死んだ `maxBodyChars` 引数の削除を記録        |
-| 2026-09-30 | 1.3.0   | DR-05 を追加。AI の空配列応答を filter 側でチャンク失敗として扱う決定を記録                             |
-| 2026-09-30 | 1.4.0   | DR-06 を追加。応答の形が壊れているときだけチャンクを再要求する決定を記録                                |
-| 2026-09-30 | 1.5.0   | DR-07 を追加。位置引数の上限を 6 個と定め、`processChunk` をオブジェクト引数へ畳む決定を記録            |
-| 2026-09-30 | 1.6.0   | DR-08 を追加。llama 経路の応答契約違反を実行失敗から切り離し再要求対象とする決定を記録                  |
+| Date       | Version | Description                                                                                                                            |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-08 | 1.0.0   | 初版。closed 済み beads issue のバックポートとして DR-01 / DR-02 を記録（`cle-8s3` / `cle-er9` が出典）                                |
+| 2026-09-19 | 1.1.0   | DR-03 を追加。永続メモリー `filter-keep-discard-criterion` から移送                                                                    |
+| 2026-09-29 | 1.2.0   | DR-04 を追加。prefilter の到達不能な「会話本文が空」判定と死んだ `maxBodyChars` 引数の削除を記録                                       |
+| 2026-09-30 | 1.3.0   | DR-05 を追加。AI の空配列応答を filter 側でチャンク失敗として扱う決定を記録                                                            |
+| 2026-09-30 | 1.4.0   | DR-06 を追加。応答の形が壊れているときだけチャンクを再要求する決定を記録                                                               |
+| 2026-09-30 | 1.5.0   | DR-07 を追加。位置引数の上限を 6 個と定め、`processChunk` をオブジェクト引数へ畳む決定を記録                                           |
+| 2026-09-30 | 1.6.0   | DR-08 を追加。llama 経路の応答契約違反を実行失敗から切り離し再要求対象とする決定を記録                                                 |
+| 2026-10-05 | 1.6.1   | DR-05 の Context と決定 3 を gh-484（libs/text DR-01）後の現状へ追随。filter が `{ allowEmpty: true }` を明示する形を記録（cle-jkn.5） |
 
 <!-- markdownlint-enable line-length -->

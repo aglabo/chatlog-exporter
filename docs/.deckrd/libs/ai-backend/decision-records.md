@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 3.13.0
+version: 4.0.0
 created: "2026-09-02"
 ---
 
@@ -17,42 +17,42 @@ created: "2026-09-02"
 
 ## Index
 
-| ID    | Decision                                                                    | 主な影響先                                                                     |
-| ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く | REQ-F-001 / transport                                                          |
-| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                 | REQ-C-002 / transport                                                          |
-| DR-03 | 失敗時は即座に throw する（fail-first）                                     | REQ-F-005, 006 / error-handling                                                |
-| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める          | REQ-F-003, 004 / structured                                                    |
-| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する   | REQ-F-008 / config-packaging                                                   |
-| DR-06 | 既知の周辺不具合を本スコープで併せて直す                                    | REQ-F-013, 014（DR-28 が適用段を確定）                                         |
-| DR-09 | 「OpenAI 互換」を実測ゲートで裏付ける                                       | REQ-F-016 / structured                                                         |
-| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                   | REQ-C-006, REQ-NF-001                                                          |
-| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める        | REQ-F-018 / structured                                                         |
-| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする  | REQ-F-019 / transport（DR-18 が supersede）                                    |
-| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                              | REQ-F-010 / config-packaging                                                   |
-| DR-14 | llama 経路の識別子解決規則（URL 正規化・スキーム・prefix 照合）を確定する   | REQ-F-015, 019 / transport                                                     |
-| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する          | REQ-F-006 / transport, error                                                   |
-| DR-16 | 失敗系分類の一覧を error-handling が単独で所有する                          | REQ-F-006 / error-handling（決定 3 は撤回）                                    |
-| DR-17 | llama 経路は既存の `timeoutMs` を共有し、経路別の設定キーを設けない         | REQ-F-007 / transport                                                          |
-| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける        | REQ-F-006, 019 / error-handling                                                |
-| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する          | REQ-F-003, 018 / structured                                                    |
-| DR-20 | llama 経路の可到達性を単一の commit に閉じ、Phase 6 を 2 巡に割る           | impl Phase 4〜6 / REQ-F-018                                                    |
-| DR-21 | 検証範囲を AC 単位で割り当て、commit ごとのテスト方針を impl が持つ         | impl 全 commit / AC-012, 020                                                   |
-| DR-22 | Phase 0 の実測を独立レポートに記録し、完了時に下流を再基準化する            | REQ-F-016 / structured, impl Phase 0                                           |
-| DR-23 | `llama/` の空モデル名をネットワークアクセス前に拒否する                     | REQ-F-014 / transport §4.1 Step 2                                              |
-| DR-24 | 可到達性の境界にネットワーク権限を含め、実測不合格時の着地範囲を確定する    | impl Phase 8〜9（DR-22 決定 4 を supersede）                                   |
-| DR-25 | 実測ゲートの合格線を全条件 100% とし、finish_reason を測定項目に加える      | REQ-F-016 / structured §4.2                                                    |
-| DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える             | REQ-F-006 / error-handling §4.1, structured R-008                              |
-| DR-27 | llama 経路の検証にキャンセルシグナルの受け渡しと契約指定の静的検査を加える  | REQ-F-007, 018 / AC-008, 013（DR-26 Non-Goal を一部引き取り）                  |
-| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する                | REQ-F-013 / structured-output R-004（DR-06 の適用段を確定）                    |
-| DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）                     |
-| DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）                           |
-| DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede）      |
-| DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter                   |
-| DR-33 | `response_format` 拒否の 400 を `error.message` の接頭辞で判別する          | error-handling R-008（DR-18 Open Question を解決）                             |
-| DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする    | config-packaging R-003 / DD-03 / AC-011（DR-13 の静的検査を補う）              |
-| DR-35 | 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く       | ドキュメント配置（DR-22 決定 1 の配置を supersede）                            |
-| DR-36 | 実行間で不変なプロンプト内容は system メッセージに置く                      | プロンプトテンプレート全般 / set-frontmatter（`cle-kju.6` の前提を supersede） |
+| ID    | Decision                                                                    | 主な影響先                                                                        |
+| ----- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| DR-01 | サーバ API 形式は OpenAI 互換 `/v1/chat/completions` とし、直接 HTTP で叩く | REQ-F-001 / transport                                                             |
+| DR-02 | 既存 5 バックエンドと独立な選択可能な追加バックエンドとする                 | REQ-C-002 / transport                                                             |
+| DR-03 | 失敗時は即座に throw する（fail-first）                                     | REQ-F-005, 006 / error-handling                                                   |
+| DR-04 | `response_format`（json_schema）による構造化出力をスコープに含める          | REQ-F-003, 004 / structured                                                       |
+| DR-05 | 接続設定は `config.yaml` の新キー + `model` の provider prefix で指定する   | REQ-F-008 / config-packaging                                                      |
+| DR-06 | 既知の周辺不具合を本スコープで併せて直す                                    | REQ-F-013, 014（DR-28 が適用段を確定、既定は libs/text DR-01）                    |
+| DR-09 | 「OpenAI 互換」を実測ゲートで裏付ける                                       | REQ-F-016 / structured                                                            |
+| DR-10 | llama 経路を `runAI` 本体から分離した内部境界に閉じ込める                   | REQ-C-006, REQ-NF-001                                                             |
+| DR-11 | YAML 出力を期待する呼び出し元も `response_format` の強制対象に含める        | REQ-F-018 / structured                                                            |
+| DR-12 | `llamaEndpoint` 未設定・空文字列をネットワークアクセス前の設定エラーとする  | REQ-F-019 / transport（DR-18 が supersede）                                       |
+| DR-13 | `--allow-net` は宛先を限定せず無制限に付与する                              | REQ-F-010 / config-packaging                                                      |
+| DR-14 | llama 経路の識別子解決規則（URL 正規化・スキーム・prefix 照合）を確定する   | REQ-F-015, 019 / transport                                                        |
+| DR-15 | リクエストボディを閉じた集合とし、切り詰め応答を失敗として分類する          | REQ-F-006 / transport, error                                                      |
+| DR-16 | 失敗系分類の一覧を error-handling が単独で所有する                          | REQ-F-006 / error-handling（決定 3 は撤回）                                       |
+| DR-17 | llama 経路は既存の `timeoutMs` を共有し、経路別の設定キーを設けない         | REQ-F-007 / transport                                                             |
+| DR-18 | 失敗分類の軸をバックエンド可用性とし、中断と続行を subindex で分ける        | REQ-F-006, 019 / error-handling                                                   |
+| DR-19 | 出力契約を呼び出し単位で明示し、`runAI` は文字列返却のまま復元する          | REQ-F-003, 018 / structured                                                       |
+| DR-20 | llama 経路の可到達性を単一の commit に閉じ、Phase 6 を 2 巡に割る           | impl Phase 4〜6 / REQ-F-018                                                       |
+| DR-21 | 検証範囲を AC 単位で割り当て、commit ごとのテスト方針を impl が持つ         | impl 全 commit / AC-012, 020                                                      |
+| DR-22 | Phase 0 の実測を独立レポートに記録し、完了時に下流を再基準化する            | REQ-F-016 / structured, impl Phase 0                                              |
+| DR-23 | `llama/` の空モデル名をネットワークアクセス前に拒否する                     | REQ-F-014 / transport §4.1 Step 2                                                 |
+| DR-24 | 可到達性の境界にネットワーク権限を含め、実測不合格時の着地範囲を確定する    | impl Phase 8〜9（DR-22 決定 4 を supersede）                                      |
+| DR-25 | 実測ゲートの合格線を全条件 100% とし、finish_reason を測定項目に加える      | REQ-F-016 / structured §4.2                                                       |
+| DR-26 | llama 経路の失敗分類に runtime 由来の失敗と非 JSON 応答を加える             | REQ-F-006 / error-handling §4.1, structured R-008                                 |
+| DR-27 | llama 経路の検証にキャンセルシグナルの受け渡しと契約指定の静的検査を加える  | REQ-F-007, 018 / AC-008, 013（DR-26 Non-Goal を一部引き取り）                     |
+| DR-28 | 直接パース段のコードフェンス除去経路にも空配列受理を適用する                | REQ-F-013 / structured-output R-004（決定 3 は libs/text DR-01 が一部 supersede） |
+| DR-29 | 続行側の失敗は「記録して skip」であり、フォールバック値の書き込みではない   | AC-023 / error-handling §3.2（DR-18 の続行側の意味を確定）                        |
+| DR-30 | sandbox バナーを RateLimit として分類しない                                 | `run-ai.ts` / error-handling（DR-18 の分類軸に整合）                              |
+| DR-31 | 実測ゲートのモデル差条件を測らず、対応対象を実測した 1 構成に限定する       | REQ-F-016 / structured §4.2（DR-25 決定 1・2 の条件集合を一部 supersede）         |
+| DR-32 | `topics` は空配列を「該当なし」として受理せず、非空を必須とする             | structured §4.3.1 #4 / #5「配列値の enum」 / set-frontmatter                      |
+| DR-33 | `response_format` 拒否の 400 を `error.message` の接頭辞で判別する          | error-handling R-008（DR-18 Open Question を解決）                                |
+| DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする    | config-packaging R-003 / DD-03 / AC-011（DR-13 の静的検査を補う）                 |
+| DR-35 | 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く       | ドキュメント配置（DR-22 決定 1 の配置を supersede）                               |
+| DR-36 | 実行間で不変なプロンプト内容は system メッセージに置く                      | プロンプトテンプレート全般 / set-frontmatter（`cle-kju.6` の前提を supersede）    |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -177,7 +177,7 @@ codex は「429 / 503 / 504 の一括 `RateLimit` が、設定不備・コンテ
 
 ## DR-06: 既知の周辺不具合を本スコープで併せて直す
 
-**Status**: Accepted
+**Status**: Accepted（空配列受理の既定は libs/text DR-01 が一部 supersede しました。受理は呼び出し元が `allowEmpty: true` を明示したときに限ります）
 
 **Context**: llama 導入と同じコード領域に、導入によって顕在化または悪化する既知の不具合が 2 件あります。
 
@@ -193,9 +193,12 @@ codex は「429 / 503 / 504 の一括 `RateLimit` が、設定不備・コンテ
 **Alternatives Considered**: 別 issue への分離は、いずれも llama 導入直後に顕在化する、
 または llama 導入そのものが悪化させる不具合であり、「壊した本人が直さない」状態になるため不採用。
 
-**Consequences**: 空配列受理は共有の配列パーサへの変更であり、既存 5 バックエンドの応答にも等しく波及します。
-既存 4 スキルの空配列時の処理が意図どおりかの確認を要します
+**Consequences**: 本 DR の起票時点では、空配列受理は共有の配列パーサへの無条件の変更であり、
+既存 5 バックエンドの応答にも等しく波及するものでした。既存 4 スキルの空配列時の処理が意図どおりかの確認を要しました
 （`specifications-structured-output.md` §5.1）。
+その後 gh-484（libs/text DR-01）で `parseAiJsonArray` の `allowEmpty` が公開され、既定が false になりました。
+現在は既定では空配列をパース失敗として扱い、空配列を受け取りたい呼び出し元（filter / classify / normalize）が
+`{ allowEmpty: true }` を明示し、自前で `length === 0` を検査して専用の理由・ログで区別します。
 `run-ai.ts:216` のメッセージ文言に依存する既存テストがあれば更新が必要になります。
 
 空配列受理をどの抽出段まで適用するかは本 DR が定めていません。段の限定は DR-28 が確定させます。
@@ -1109,7 +1112,8 @@ Commit 21 の Green 条件で捕らえられます。production の `runAI` 呼�
 
 ## DR-28: 直接パース段のコードフェンス除去経路にも空配列受理を適用する
 
-**Status**: Accepted（DR-06 が採用した空配列受理の適用段を確定させます）
+**Status**: Accepted（DR-06 が採用した空配列受理の適用段を確定させます。決定 1 / 2 は有効。
+決定 3 と Consequences の段 1 短絡は、libs/text DR-01 により `allowEmpty: true` 明示時に限られました）
 
 **Context**: DR-06 は `_tryParseNonEmptyArray`（現行の `_tryParseArray`）の `data.length > 0` 要求を外し、正当な空配列を
 パース成功として扱う決定を採りました。しかし共有の配列パーサは 3 段のフォールバックで構成され、
@@ -1135,7 +1139,10 @@ Commit 21 の Green 条件で捕らえられます。production の `runAI` 呼�
 2. 段 2・段 3 は空配列を受理しない現行の挙動を維持する。空配列受理は段 1 限定とする
 3. 決定 1 の帰結として、フェンス内が `[]` でフェンス外に実配列がある入力では段 2 の救済へ
    進まず、段 1 が `[]` を返す。これを「最初にパースできたものが勝つ」という既存方針の適用と
-   位置づけ、`T-LIB-J-22-03` で固定する
+   位置づけ、`T-LIB-J-22-03` で固定する。
+   その後 libs/text DR-01 で `allowEmpty` の既定が false になったため、この短絡は呼び出し元が
+   `allowEmpty: true` を明示したときだけ起きる（`T-LIB-J-23-03`）。既定では段 1 が失敗し、段 2 が
+   フェンス外の配列を救済する（`T-LIB-J-22-03` は既定時の救済を固定するよう書き換えられた）
 
 **Alternatives Considered**:
 
@@ -1151,11 +1158,12 @@ Commit 21 の Green 条件で捕らえられます。production の `runAI` 呼�
   （`T-LIB-J-22-01`）。`specifications-structured-output.md` §5 が R-004 と R-005 を
   区別した理由そのものを壊すため不採用
 
-**Consequences**: フェンス内が空配列でフェンス外に実配列がある応答では、段 2 の救済が
-働かなくなります。この形の入力は「例示として空配列を示し、その後に本体を書く」応答に
+**Consequences**: `allowEmpty: true` を明示した呼び出しでは、フェンス内が空配列でフェンス外に実配列がある応答に対して
+段 2 の救済が働きません。この形の入力は「例示として空配列を示し、その後に本体を書く」応答に
 あたりますが、モデルにそのような出力を求めていない以上、優先規則の一貫性を優先します。
-なお `specifications-structured-output.md` の R-004 本文は段の限定を持たないため、
-「空配列受理は段 1 限定」という限定は本 DR と `tasks.md` の T-01-03-02 / T-01-03-03 が保持します。
+既定（`allowEmpty` 省略）では段 1 が空配列を受理しないため、段 2 の救済が働きます（libs/text DR-01）。
+「空配列受理は段 1 限定」という限定は、`specifications-structured-output.md` v2.1.1 以降の R-004 本文が
+保持しています。v3.0.0 からは R-004 が `allowEmpty: true` の明示も条件に含めます。
 
 ---
 
@@ -1628,3 +1636,4 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 | 2026-09-29 | 3.12.0  | DR-35 を追加 (MINOR: 決定を追加)。作業記録をモジュール直下ではなく `docs/.deckrd/libs/<module>/workspaces/` に置くと確定し、DR-22 決定 1 の配置を supersede。改訂中の deckrd がメモ類を `workspaces/` に置く方針であることに合わせた。`implementation.md` §Phase 0 と `tasks/tasks.md` の完了判定チェックリストのパスを追随 (beads `cle-kju.3.3.3`)                                                                                                                    |
 | 2026-09-29 | 3.12.1  | DR-35 決定 2 を明確化 (PATCH: 明確化、決定内容の変更なし)。「規範文書から作業記録への参照は、このパスで張る」が、素のファイル名による引用まで完全パス化を要求するとも読めたため、完全パス参照と素のファイル名引用を書き分けた。PR #489 の 2 回目 Codex レビュー (P2) を受けたもので、実際の配置と参照は変えていない (beads `cle-kju.3.3.10`)                                                                                                                           |
 | 2026-09-29 | 3.13.0  | DR-36 を追加 (MINOR: 決定を追加)。`cle-kju.3.3` の実測 (`workspaces/measurements-context-limits-2026-09-29.md` §3.5) で、前方一致キャッシュの再利用が system メッセージ単位でしか効かないことが判明した。`cached_tokens` は system のトークン数ちょうどで止まる。これを受け、実行間で不変なプロンプト内容は `system` に置き、`user` には per-entry の可変値だけを置くと決めた。「可変値をテンプレート末尾へ移す」という `cle-kju.6` / T-06 の当初前提を supersede する |
+| 2026-10-05 | 4.0.0   | DR-06 / DR-28 を gh-484（libs/text DR-01）へ追随 (MAJOR: 採用済み方針の一部破棄)。共有の配列パーサの空配列受理が無条件から `allowEmpty: true` 明示時のみに改まったため、DR-06 の Status / Consequences と DR-28 の Status / 決定 3 / Consequences に一部 supersede を注記し、R-004 が段の限定を持たないとした記述を spec v2.1.1 以降の実態へ訂正。新 DR は立てず決定の本体は libs/text DR-01 に置く（`cle-jkn.6`）                                                     |

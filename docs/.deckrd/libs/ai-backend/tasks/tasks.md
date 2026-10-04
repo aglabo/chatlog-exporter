@@ -135,12 +135,12 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
 
 #### T-01-01: 直接パース段での空配列受理
 
-- [x] **T-01-01-01**: 構文的に有効な空配列 `"[]"` を成功結果として返す
-  - Target: `_tryParseArray`
-  - Test ID: `T-LIB-J-20-01`
-  - Rule: structured-output R-004 / REQ-F-013 / AC-003
-  - Scenario: Given 対象テキストが `"[]"` である, When `parseAiJsonArray` を直接パース段で呼ぶ
-  - Expected: Then 例外を投げず、空配列 `[]` を成功結果として返すこと
+- [x] **T-01-01-01**: 構文的に有効な空配列 `"[]"` は既定では受理せず、`allowEmpty: true` の明示時のみ成功結果として返す
+  - Target: `parseAiJsonArray`
+  - Test ID: `T-LIB-J-20-01`（既定）/ `T-LIB-J-23-01`（`allowEmpty: true` 明示）
+  - Rule: structured-output R-004 / REQ-F-013 / AC-003 / libs/text DR-01
+  - Scenario: Given 対象テキストが `"[]"` である, When `parseAiJsonArray` を呼ぶ
+  - Expected: Then 既定（`allowEmpty` 省略）では例外を投げず `null` を返すこと。`{ allowEmpty: true }` を明示した場合のみ、空配列 `[]` を成功結果として返すこと
 
 - [x] **T-01-01-02**: 非空配列は従来どおり成功として返す（回帰）
   - Target: `parseAiJsonArray`
@@ -178,12 +178,12 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Scenario: Given 括弧マッチによって抽出された対象テキストが空配列相当である, When 括弧マッチ段経由で `_tryParseArray` を呼ぶ
   - Expected: Then 直接パース段とは異なり、空配列はパース失敗のまま返ること（段全体を緩めていないことの確認）
 
-- [x] **T-01-03-03**: コードフェンス内が空配列の場合、直接パース段が短絡する
+- [x] **T-01-03-03**: コードフェンス内が空配列の場合、既定では段 2 が救済し、`allowEmpty: true` のときだけ直接パース段が短絡する
   - Target: `_parseDirectArray`（コードフェンス除去経路）
-  - Test ID: `T-LIB-J-22-03`
-  - Rule: structured-output R-004（直接パース段限定） / DR-06 / DR-28
+  - Test ID: `T-LIB-J-22-03`（既定）/ `T-LIB-J-23-03`（`allowEmpty: true` 明示）
+  - Rule: structured-output R-004（直接パース段限定） / DR-06 / DR-28 / libs/text DR-01
   - Scenario: Given コードフェンス内が `"[]"` で、フェンス外に実配列 `[{"a":1}]` が続くテキストである, When `parseAiJsonArray` を呼ぶ
-  - Expected: Then 段 2 の救済へ進まず、直接パース段が空配列を成功として返すこと（フェンス経路にも空配列受理を適用した決定の固定。根拠は DR-28）
+  - Expected: Then 既定では直接パース段が `null` を返し、段 2 の non-greedy マッチが `[{"a":1}]` を拾うこと。`{ allowEmpty: true }` を明示した場合は段 2 の救済へ進まず、直接パース段が空配列を成功として返すこと（フェンス経路にも空配列受理を適用する決定は DR-28、受理を opt-in にした決定は libs/text DR-01）
 
 ---
 
