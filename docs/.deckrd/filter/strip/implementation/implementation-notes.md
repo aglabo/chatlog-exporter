@@ -20,7 +20,7 @@ created: "2026-09-19"
 ## 1. `backupOldPath` に RenameProvider を後付けしない
 
 `backupOldPath` (`_cle-libs/libs/file-ops/backup-old-path.ts`) は `Deno.rename` を直接呼び、
-注入口は `GlobProvider` のみである。そのため戻り値や連番 (`.old-NN`) の挙動を検証するテストは
+注入口は `GlobProvider` のみです。そのため戻り値や連番 (`.old-NN`) の挙動を検証するテストは
 unit に置けない — fake glob で「ファイルが存在する」と偽ると `/fake/` に対して実リネームが走る。
 
 T-LIB-B-08 / 09 / 10 は `Deno.makeTempDir` を使う system に配置した。
@@ -57,7 +57,7 @@ DR-17 はこの区別に依拠して `backupToBak` のスキップ + `null` を�
 
 `classifyStrip` が返す `removedBytes` は除去範囲の行を `'\n'` で join した長さであり、
 最後の除去行の行末終端子を含まない (範囲の全文が終端子込みで 56 バイトなら 55 を返す)。
-一方 `removalStartLine` / `removalEndLine` は inclusive な行番号である。
+一方 `removalStartLine` / `removalEndLine` は inclusive な行番号です。
 
 書き込み側で `[removalStartLine, removalEndLine]` を inclusive に splice すると、
 報告した `removedBytes` より 1 バイト多く除去することになる。差分を暗黙に引き継がない。
@@ -69,8 +69,8 @@ R-002 (frontmatter 欠落判定) で `divideEntry()` を直接呼んではなら
 YAML 構文エラーで `ChatlogError('InvalidYaml', 'YamlSyntaxError')` を throw する (実測確認済み)。
 
 どちらも `isFileIoError` が false のため DR-21 決定 3 により再 throw され実行全体が中断する。
-1 件の壊れたファイルが全件の処理を止めるのは DD-03 (安全弁は個別ファイル単位で作用し
-実行全体を中断しない) 違反である。
+1 件の壊れたファイルが全件の処理を止めると、DD-03 (安全弁は個別ファイル単位で作用し
+実行全体を中断しない) に違反します。
 
 `hasFrontmatter` は両ケースとも false を返すので、壊れた frontmatter を「持たない」と同一視して
 error 計上・継続にできる。`divideEntry` を呼ぶのは **R-002 通過後** に限る。

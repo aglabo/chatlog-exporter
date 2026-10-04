@@ -1543,7 +1543,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Target: `エンドポイント受理判定関数`
   - Test ID: `T-LIB-AI-LEP-04-03`
   - Rule: transport R-006 / R-002
-  - Scenario: Given 先頭または末尾に空白を持つサーバ位置値（例: `http://host:8080/v1 `）, When 受理判定関数を呼ぶ
+  - Scenario: Given 先頭または末尾に空白を持つサーバ位置値（例: `http://host:8080/v1` + 末尾空白）, When 受理判定関数を呼ぶ
   - Expected: Then `ChatlogError(kind: AiError, subindex: InvalidEndpoint)` が throw されること
 
 - [x] **T-10-04-04**: userinfo の区切りのみを含むサーバ位置値を `InvalidEndpoint` として拒否する
@@ -2461,7 +2461,7 @@ Category Balance でも `[N/A]` として扱い、0 件のカテゴリとは区�
   - Test ID: `T-LIB-AI-LWR-02-01`
   - Rule: transport R-005 / §4.4 / AC-013
   - Scenario: Given 同一入力に対し、送信関数（`FetchProvider`）だけを差し替えた 2 経路, When リクエスト構築処理を比較する
-  - Expected: Then 両経路の送信関数が受け取るリクエスト（URL・メソッド・ヘッダー・ボディ。実行ごとに合成される `signal` は除く）が一致すること。注入なしの経路は `globalThis.fetch` を stub で置き換え、既定 `fetch` を実際に呼ぶ経路を作らない（実ネットワークへ接続しない）
+  - Expected: Then 両経路の送信関数が受け取るリクエスト（URL・メソッド・ヘッダ・ボディ。実行ごとに合成される `signal` は除く）が一致すること。注入なしの経路は `globalThis.fetch` を stub で置き換え、既定 `fetch` を実際に呼ぶ経路を作らない（実ネットワークへ接続しない）
 
 - [x] **T-15-02-02**: `FetchProvider` 注入あり・なしで同一の応答解釈処理を通る
   - Target: `_runViaHttp`

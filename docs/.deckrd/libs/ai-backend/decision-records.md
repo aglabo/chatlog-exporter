@@ -1234,7 +1234,7 @@ DR-18 決定 1（llama 経路の `kind` を一律 `AiError` とする）は維�
 `cache.status` が `REVIEW_FAILED` かつ既存の `type` / `category` を持つエントリでは、
 本決定の当初の実装（`judgeTypeAndCategory` が `Promise<void>`）では上の不変条件が成立せず、
 再判定シグナルが失われていました。`needsTypeCategoryAi()` が真を返して再判定へ進む一方、
-第 2 分岐は `entry.frontmatter` に触れずに `return` するため、`phase-type-category.ts` は
+第 2 分岐は `entry.frontmatter` を更新しないまま `return` するため、`phase-type-category.ts` は
 ディスク由来の旧値を読み、両方が truthy なので `cache.delete` ではなく
 `cache.write(status: TYPE_CATEGORY)` を実行していたためです。第 2 分岐が元から持っていた形で、
 本決定が持ち込んだ退行ではありません。
@@ -1301,7 +1301,7 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
 
 **Consequences**: 本方針の撤回により、sandbox 由来の RateLimit 分類は発生しなくなりました。
 これに連なっていた検証タスク（classify / normalize / filter の各 `processChunk` ・
-`segmentChatlogs` が sandbox バナーで re-throw することの確認）は**検証対象そのものが消滅**し、
+`segmentChatlogs` が sandbox バナーで re-throw することの確認）は **検証対象そのものが消滅** し、
 いずれも実装なしで close しています。
 
 真正の rate limit による中断は既存テスト `T-CL-PC-08` / `T-FL-PCK-10` / `T-SCB-02-03` が
@@ -1375,8 +1375,8 @@ sandbox バナーで re-throw されることを検証するタスクをそれ�
   再生成の機会が失われます。不採用
 - スキーマに `minItems: 1` を置いてサーバ側で強制する — R-002 / DR-04 が禁じる数量制約であり、
   入力が黙って破棄される既知の不具合を再び招きます。不採用
-- `topics` と `tags` をまとめて非空必須にする — `tags` には該当なしが正当に存在するため、
-  該当する語が無いログが恒常的に生成失敗になります。不採用
+- `topics` と `tags` をまとめて非空必須にする — `tags` では「該当なし」も正当な値のため、
+  該当する語の無いログが恒常的に生成失敗になります。不採用
 
 **Consequences**: 空の `topics` が確定する経路は閉じます。既存の `topics: []` のファイルは
 再生成の対象になり、`ChatlogCache` の初期化では未充足として分類されます。
@@ -1413,8 +1413,8 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 2. 判別に使うのは `error.message` の接頭辞のみとする。`error.type` は条件に含めない
 3. `response_format type must be one of` は判別条件に含めない。本コードベースから到達しない形を
    条件に加えても、それを殺すテストを production の経路から作れないため
-4. 本文が JSON でない・`error` や `error.message` が無い・接頭辞が一致しない 400 は、判別できない 400 として
-   従来どおり R-003（Step 6）の `ExitFailure`（続行側）へ落とす。判別関数は例外を投げない
+4. 本文が JSON でない 400、`error` や `error.message` を持たない 400、接頭辞の一致しない 400 は、
+   判別できない 400 として従来どおり R-003（Step 6）の `ExitFailure`（続行側）へ落とす。判別関数は例外を投げない
 5. 判別条件は DR-31 の対象構成（llama.cpp server `b10688-c589f0ed1`）で実測した文言に依存する。
    サーバのビルドを変えるときは、同レポート §4 の手順で文言を再確認する
 
@@ -1427,8 +1427,8 @@ llama の enum 制約下で Log category が `topics.dic` に無い場合、AI �
 - `response_format type must be one of` も含める（多重防御） — 到達しない分岐が増え、削除しても
   テストが落ちない。p2 の文言は `json_schema` を挙げないが同じビルドは `json_schema` を準拠として扱うため、
   文言そのものも当てにならない。不採用
-- 判別を見送り、すべての 400 を `ExitFailure` のままにする — スキーマ変換に失敗する契約は全呼び出しで
-  同じ結果になり、続行側では失敗を件数分記録し続ける。DR-18 の「後続もすべて同じ結果になる失敗は
+- 判別を見送り、すべての 400 を `ExitFailure` のままにする — スキーマ変換で失敗する契約は全呼び出しで
+  同じ結果となり、続行側では失敗を件数分記録し続ける。DR-18 の「後続もすべて同じ結果になる失敗は
   中断する」に反する。不採用
 
 **Consequences**: T-12-06-01 に着手でき、Phase 6（`cle-eft.2`）を完了できます。辞書から組んだ
@@ -1462,8 +1462,8 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 
 1. 結合短縮フラグ（`-` + 英字 2 文字以上、`=<値>` 付きを含む。例: `-NR` / `-RN` / `-RA` / `-RN=<host>` / `-RE`）を
    含む行は、ネットワーク権限を付与するかどうかを判定せず、期待値 `required` / `forbidden` のいずれでも不適合とする
-2. 単独の短縮フラグ（`-N` / `-A` / `-N=<host>` / `-R` など）と長形式フラグ（`--allow-net` / `--allow-net=<host>` /
-   `--allow-all`）の扱いは従来どおりとする
+2. 単独の短縮フラグ（`-N` / `-A` / `-N=<host>` / `-R` など）と長形式フラグ
+   （`--allow-net` / `--allow-net=<host>` / `--allow-all`）の扱いは従来どおりとする
 3. 検査対象行（`SKILL.md` の `deno run` 行・shebang 行）には結合短縮フラグを書かない。
    権限フラグは長形式または単独の短縮形で記述する
 4. `cle-eft.4.5` で導入した、結合短縮フラグの `=` より前に `N` / `A` を含むかの判定は削除する
@@ -1510,7 +1510,7 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 1. 実測レポートのような作業記録は、モジュール直下ではなく
    `docs/.deckrd/libs/<module>/workspaces/` に置く。DR-22 決定 1 のパスは
    `docs/.deckrd/libs/ai-backend/workspaces/measurements-response-format-<date>.md` と読み替える
-2. 規範文書から作業記録を**完全パスで**参照するときは、そのパスに `workspaces/` を含める。
+2. 規範文書から作業記録を **完全パスで** 参照するときは、そのパスに `workspaces/` を含める。
    `measurements-response-format-2026-09-12.md` のようにファイル名だけを挙げる引用は本決定の
    対象外とし、既存の書式のまま残す（ディレクトリを主張していないため、移動で不正にならない）。
    規範文書自体はモジュール直下に置いたままとする

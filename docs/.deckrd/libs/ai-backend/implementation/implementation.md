@@ -136,7 +136,7 @@ commit を持たない。
    `specifications-error-handling.md` §4.1 へ DR-26 の分類を反映する (仕様側の版上げを伴う)
 3. 本文書の frontmatter `based-on` と §1.2 Reference の版表記を、書き換え後の仕様の版へ更新する
 
-**不合格時の帰結** (DR-24 決定 3・4) — 実測は合格したため本項は発動しなかった: **Phase 1 (Commit 1・Commit 2) のみを着地させて
+**不合格時の帰結** (DR-24 決定 3・4) — 実測が合格したため本項は発動しなかった: **Phase 1 (Commit 1・Commit 2) のみを着地させて
 ブランチを閉じる。** Commit 3 以降はすべて llama バックエンドの存在を前提とするため破棄する。
 ネットワークを使う経路が存在しないため `--allow-net` の付与 (Commit 20) も行わない。Phase 3 の
 catch 拡張も、真を返す subindex を llama 経路しか throw しない以上、恒久的に偽となる分岐を
