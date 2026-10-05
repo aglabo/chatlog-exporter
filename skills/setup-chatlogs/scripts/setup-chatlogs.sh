@@ -19,7 +19,7 @@ set -euo pipefail
 # the destination column drops the prefix rather than mirroring it.
 readonly DEPLOY_ENTRIES=(
   "assets/.config/chatlog-exporter|.config/chatlog-exporter"
-  "assets/deno.json|deno.json"
+  "assets/deno.jsonc|deno.jsonc"
   "assets/_cle-libs|_cle-libs"
 )
 
@@ -221,7 +221,7 @@ shared scripts next to this skill. Run it from the directory you want the
 configuration deployed into:
 
   assets/.config/chatlog-exporter/ -> <current dir>/.config/chatlog-exporter/
-  assets/deno.json                 -> <current dir>/deno.json
+  assets/deno.jsonc                -> <current dir>/deno.jsonc
   assets/_cle-libs/                -> <skills dir>/_cle-libs/
 
 The shared library goes beside the skill, under the skills directory it is

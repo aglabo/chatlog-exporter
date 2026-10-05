@@ -1,4 +1,4 @@
-# src: ./scripts/__tests__/integration/setup-chatlogs.integration.spec.sh
+# src: ./skills/setup-chatlogs/scripts/__tests__/integration/setup-chatlogs.integration.spec.sh
 # @(#) : Integration tests for skills/setup-chatlogs/scripts/setup-chatlogs.sh
 #        対象: main
 #

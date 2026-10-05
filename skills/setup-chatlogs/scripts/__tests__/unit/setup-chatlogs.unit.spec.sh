@@ -1,4 +1,4 @@
-# src: ./scripts/__tests__/unit/setup-chatlogs.unit.spec.sh
+# src: ./skills/setup-chatlogs/scripts/__tests__/unit/setup-chatlogs.unit.spec.sh
 # @(#) : Unit tests for skills/setup-chatlogs/scripts/setup-chatlogs.sh
 #        対象: usage / parse_args / copy_entry / resolve_skill_root / resolve_target_dir /
 #              resolve_skills_dir / resolve_dest_base /
