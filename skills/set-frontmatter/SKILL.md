@@ -120,21 +120,21 @@ PATH_ARGS=()
 
 ```bash
 # INPUT_DIR のみ指定 (OUTPUT_DIR は --output-dir を省略してスクリプトのデフォルトに委ねる):
-deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
+deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
 
 # INPUT_DIR と OUTPUT_DIR 両方指定:
-deno run --config ./deno.json --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
+deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --output-dir "$OUTPUT_DIR" \
   $DRY_RUN_FLAG \
   $REVIEW_FLAG
 ```
 
-> `--config ./deno.json` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`
-> (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.json` は、その配下にない
+> `--config ./deno.jsonc` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`
+> (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.jsonc` は、その配下にない
 > モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
 INPUT_DIR 配下の Markdown はスクリプトが再帰的に走査するため、ディレクトリを列挙してループ実行する必要はない。
