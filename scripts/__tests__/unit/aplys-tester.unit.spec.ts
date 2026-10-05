@@ -356,6 +356,32 @@ describe('buildDenoArgs', () => {
       });
     });
   });
+
+  describe('Given: system タイプ、useAi=true', () => {
+    describe('When: buildDenoArgs(["system"], "**/__tests__", true) を呼び出す', () => {
+      describe('Then: T-AT-DA-UA-02 - --allow-net を含む', () => {
+        it('T-AT-DA-UA-02-01: --allow-net を含む', () => {
+          const result = buildDenoArgs(['system'], '**/__tests__', true);
+          assertEquals(result.includes('--allow-net'), true);
+        });
+      });
+    });
+  });
+
+  describe('Given: useAi=false', () => {
+    describe('When: buildDenoArgs を useAi なしで呼び出す', () => {
+      describe('Then: T-AT-DA-UA-03 - --allow-net を含まない', () => {
+        it('T-AT-DA-UA-03-01: unit タイプで --allow-net を含まない', () => {
+          const result = buildDenoArgs(['unit'], '**/__tests__');
+          assertEquals(result.includes('--allow-net'), false);
+        });
+        it('T-AT-DA-UA-03-02: system タイプで --allow-net を含まない', () => {
+          const result = buildDenoArgs(['system'], '**/__tests__');
+          assertEquals(result.includes('--allow-net'), false);
+        });
+      });
+    });
+  });
 });
 
 // ─────────────────────────────────────────────
