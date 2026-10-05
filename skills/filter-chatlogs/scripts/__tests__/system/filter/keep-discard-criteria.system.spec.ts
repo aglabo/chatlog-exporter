@@ -14,7 +14,7 @@ import { describe, it } from '@std/testing/bdd';
 import { parse as parseYaml } from '@std/yaml';
 
 // ─── Test target
-import { _SYSTEM_PROMPT } from '../../../modules/filter/process-chunk.ts';
+import { _SYSTEM_PROMPT, buildFilterOutputContract } from '../../../modules/filter/process-chunk.ts';
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
@@ -119,7 +119,7 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
 const _judgeFixture = async (inputPath: string): Promise<ClaudeResult> => {
   const _entry = new ChatlogEntry(await readTextFile(inputPath), { filePath: inputPath });
   const _prompt = buildBatchPrompt([_entry], _TEST_MAX_BODY_CHARS);
-  const _raw = await runAI(_SYSTEM_PROMPT, _prompt);
+  const _raw = await runAI(_SYSTEM_PROMPT, _prompt, { outputContract: buildFilterOutputContract() });
   const _parsed = parseAiJsonArray<ClaudeResult>(_raw);
   assert(
     _parsed !== null && _parsed.length > 0,
