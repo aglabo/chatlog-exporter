@@ -18,8 +18,10 @@ import { _SYSTEM_PROMPT, buildFilterOutputContract } from '../../../modules/filt
 
 // ─── Helpers
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // functions
 import { findFixtureDirs } from '../../../../../_cle-libs/__tests__/helpers/find-fixture-dirs.ts';
+import { isResponseFormatViolation } from '../../../../../_cle-libs/libs/ai/abort-utils.ts';
 import { runAI } from '../../../../../_cle-libs/libs/ai/run-ai.ts';
 import { readTextFile } from '../../../../../_cle-libs/libs/file-io/read-utils.ts';
 import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
@@ -109,9 +111,35 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
 };
 
 /**
+ * 判定 1 回分を実行し、応答の形が壊れていれば `undefined` を返す。
+ *
+ * 「壊れている」は本番 `processChunk` の再要求対象と同じ範囲に限る（filter DR-06 / DR-08）。
+ * パース失敗・空配列、および llama 経路が throw する出力契約違反がこれに当たる。
+ * それ以外の例外（接続失敗・タイムアウト等）は再要求せずそのまま投げる。
+ *
+ * @param prompt - `buildBatchPrompt` で組み立てたバッチプロンプト
+ * @returns 判定結果と生応答。形が壊れていれば `parsed` は `undefined`
+ */
+const _judgeOnce = async (prompt: string): Promise<{ parsed: ClaudeResult | undefined; raw: string }> => {
+  try {
+    const _raw = await runAI(_SYSTEM_PROMPT, prompt, { outputContract: buildFilterOutputContract() });
+    const _parsed = parseAiJsonArray<ClaudeResult>(_raw, { allowEmpty: true });
+    return { parsed: _parsed?.[0], raw: _raw };
+  } catch (e) {
+    if (!isResponseFormatViolation(e)) { throw e; }
+    return { parsed: undefined, raw: (e as Error).message };
+  }
+};
+
+/**
  * 1 件の fixture を実運用と同じ経路（`buildBatchPrompt` → `runAI` → `parseAiJsonArray`）で判定する。
  *
  * システムプロンプトは本体の `_SYSTEM_PROMPT` をそのまま使い、テスト側で再定義しない。
+ *
+ * 応答の形が壊れていたときは、本番 `processChunk` と同じく設定 `maxRetry` 回まで再要求する
+ * （filter DR-06 / DR-08。上限 10 は `_MAX_RETRY_LIMIT` と同値）。llama / avalon は
+ * `{"items": []}` を時々返し（filter DR-05）、本番では再要求で回復するため、1 回の空応答で
+ * 判定基準の検証を落とさない。
  *
  * @param inputPath - 判定対象 `input.md` の絶対パス
  * @returns 判定結果 1 件分の `ClaudeResult`
@@ -119,13 +147,15 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
 const _judgeFixture = async (inputPath: string): Promise<ClaudeResult> => {
   const _entry = new ChatlogEntry(await readTextFile(inputPath), { filePath: inputPath });
   const _prompt = buildBatchPrompt([_entry], _TEST_MAX_BODY_CHARS);
-  const _raw = await runAI(_SYSTEM_PROMPT, _prompt, { outputContract: buildFilterOutputContract() });
-  const _parsed = parseAiJsonArray<ClaudeResult>(_raw);
-  assert(
-    _parsed !== null && _parsed.length > 0,
-    `AI 応答から判定 JSON を取得できなかった: ${_raw}`,
-  );
-  return _parsed[0];
+  const _maxRetry = Math.min(GlobalConfig.getInstance().get('maxRetry') as number, 10);
+
+  const _judgeWithRetry = async (attempt: number): Promise<ClaudeResult> => {
+    const { parsed, raw } = await _judgeOnce(_prompt);
+    if (parsed !== undefined) { return parsed; }
+    assert(attempt < _maxRetry, `AI 応答から判定 JSON を取得できなかった (${attempt + 1} 回試行): ${raw}`);
+    return _judgeWithRetry(attempt + 1);
+  };
+  return _judgeWithRetry(0);
 };
 
 // ─── Tests
