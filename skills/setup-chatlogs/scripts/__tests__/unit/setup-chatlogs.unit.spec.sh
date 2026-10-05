@@ -96,10 +96,10 @@ Describe 'setup-chatlogs.sh'
       End
 
       It '[Normal] T-SC-CE-02: 単一ファイルをコピーする'
-        When call copy_entry "${skill_root}/assets/deno.json" "${repo}/deno.json" ''
+        When call copy_entry "${skill_root}/assets/deno.jsonc" "${repo}/deno.jsonc" ''
         The status should be success
         The output should include 'Copied'
-        The contents of file "${repo}/deno.json" should equal '{"tasks":{}}'
+        The contents of file "${repo}/deno.jsonc" should equal '{"tasks":{}}'
       End
 
       It '[Normal] T-SC-CE-06: 宛先の親ディレクトリが無くても作成する'
@@ -300,7 +300,7 @@ Describe 'setup-chatlogs.sh'
       End
 
       It '[Normal] T-SC-DB-02: assets/_cle-libs 以外 → 展開先ディレクトリを返す'
-        When call resolve_dest_base assets/deno.json /tmp/target /tmp/skills
+        When call resolve_dest_base assets/deno.jsonc /tmp/target /tmp/skills
         The status should be success
         The output should equal '/tmp/target'
       End
@@ -362,7 +362,7 @@ Describe 'setup-chatlogs.sh'
         The status should be success
         The output should include 'Copied'
         The path "${repo}/.config/chatlog-exporter/config.yaml" should be exist
-        The path "${repo}/deno.json" should be exist
+        The path "${repo}/deno.jsonc" should be exist
         The path "${repo}/.claude/skills/_cle-libs/libs/noop.ts" should be exist
       End
     End
@@ -383,17 +383,17 @@ Describe 'setup-chatlogs.sh'
         The status should be failure
         The stderr should include 'source not found'
         The path "${repo}/.config/chatlog-exporter" should not be exist
-        The path "${repo}/deno.json" should not be exist
+        The path "${repo}/deno.jsonc" should not be exist
       End
     End
 
     Describe 'When: エッジケース'
       It '[Edge] T-SC-RS-02: 既存の展開先はスキップし、残りは配置する'
-        BeforeCall 'echo keep >"${repo}/deno.json"'
+        BeforeCall 'echo keep >"${repo}/deno.jsonc"'
         When call run_setup "$skill_root" "$repo" "${repo}/.claude/skills" ''
         The status should be success
         The output should include 'Skipped (exists)'
-        The contents of file "${repo}/deno.json" should equal 'keep'
+        The contents of file "${repo}/deno.jsonc" should equal 'keep'
         The path "${repo}/.config/chatlog-exporter/config.yaml" should be exist
         The path "${repo}/.claude/skills/_cle-libs/libs/noop.ts" should be exist
       End
@@ -421,7 +421,7 @@ Describe 'setup-chatlogs.sh'
         The status should be success
         The output should include 'Copied'
         The path "${installed_repo}/.config/chatlog-exporter/config.yaml" should be exist
-        The path "${installed_repo}/deno.json" should be exist
+        The path "${installed_repo}/deno.jsonc" should be exist
         The path "${installed_repo}/.claude/skills/_cle-libs/libs/noop.ts" should be exist
       End
 
@@ -463,13 +463,13 @@ Describe 'setup-chatlogs.sh'
         The path "${home}/.claude/skills/_cle-libs/libs/noop.ts" should be exist
       End
 
-      It '[Normal] T-SC-RS-11: 設定と deno.json はプロジェクト側に配置される'
+      It '[Normal] T-SC-RS-11: 設定と deno.jsonc はプロジェクト側に配置される'
         # 共有ライブラリだけがスキル側で、プロジェクト固有の設定は cwd 基準のまま。
         When call run_setup "${home}/.claude/skills/setup-chatlogs" "$project" "${home}/.claude/skills" ''
         The status should be success
         The output should include 'Copied'
         The path "${project}/.config/chatlog-exporter/config.yaml" should be exist
-        The path "${project}/deno.json" should be exist
+        The path "${project}/deno.jsonc" should be exist
       End
     End
 
@@ -510,7 +510,7 @@ Describe 'setup-chatlogs.sh'
         # 拒否は --force 時のみ。force なしでは _cle-libs の展開先が symlink 経由で
         # 実在するため copy_entry が rm -rf に到達せずスキップし、配布物に含まれない
         # __tests__ が残る。保護されるものは RS-05 と同じで、手段がガードではなく
-        # スキップになる。.config と deno.json は不在なので配置され、全体は成功する。
+        # スキップになる。.config と deno.jsonc は不在なので配置され、全体は成功する。
         Skip if 'symlinks unsupported' no_symlink_support
         When call run_setup "${linked_repo}/skills/setup-chatlogs" "$linked_repo" "${linked_repo}/.claude/skills" ''
         The status should be success

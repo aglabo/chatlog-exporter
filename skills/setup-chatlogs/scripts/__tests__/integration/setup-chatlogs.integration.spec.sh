@@ -61,7 +61,7 @@ Describe 'setup-chatlogs.sh'
         When call run_main_in_project
         The status should be success
         The output should include 'Copied'
-        The path "${project}/deno.json" should be exist
+        The path "${project}/deno.jsonc" should be exist
       End
 
       It '[Normal] T-SC-MN-02: 実行ディレクトリ側の __tests__ は --force を止めない'
@@ -72,7 +72,7 @@ Describe 'setup-chatlogs.sh'
         When call run_main_in_project --force
         The status should be success
         The output should include 'Copied'
-        The path "${project}/deno.json" should be exist
+        The path "${project}/deno.jsonc" should be exist
       End
     End
   End
