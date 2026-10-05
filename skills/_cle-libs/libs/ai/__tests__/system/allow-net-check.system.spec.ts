@@ -38,7 +38,7 @@ const _SHEBANG_SKILL = 'classify-chatlogs';
 
 /** `normalize-chatlogs/SKILL.md` 75 行目の実行行。 */
 const _NORMALIZE_RUN_LINE =
-  'deno run --config ./deno.json --allow-read --allow-write --allow-env --allow-run --allow-net "$SCRIPT_PATH" {変換後の引数}';
+  'deno run --config ./deno.jsonc --allow-read --allow-write --allow-env --allow-run --allow-net "$SCRIPT_PATH" {変換後の引数}';
 
 /** shebang 行を持たないスクリプトの検査対象が SKILL.md 実行行のみであることを確認するエッジケースの Test ID。 */
 const _NO_SHEBANG_ID = 'T-LIB-AI-NET-07-01';
@@ -46,13 +46,13 @@ const _NO_SHEBANG_ID = 'T-LIB-AI-NET-07-01';
 /** SKILL.md の実行行がすべて期待表どおりに `--allow-net` を付与されていることを確認する正常系の Test ID。 */
 const _SKILL_MD_ID = 'T-LIB-AI-NET-01-01';
 
-/** `deno.json` の `test:module` タスク定義が `--allow-net` を含むことを確認する正常系の Test ID。 */
+/** `deno.jsonc` の `test:module` タスク定義が `--allow-net` を含むことを確認する正常系の Test ID。 */
 const _TEST_MODULE_ID = 'T-LIB-AI-NET-02-01';
 
 /** AI エントリスクリプトの shebang 行が期待表どおりに `--allow-net` を付与されていることを確認する正常系の Test ID。 */
 const _SHEBANG_ID = 'T-LIB-AI-NET-03-01';
 
-/** 検査対象のタスク名（`deno.json` の `tasks` キー）。 */
+/** 検査対象のタスク名（`deno.jsonc` の `tasks` キー）。 */
 const _TEST_MODULE_TASK = 'test:module';
 
 /** スクリプト引数を持たない行（説明文中の `deno run`）の分類キー。 */
@@ -153,7 +153,7 @@ const _conformingReport = (table: _ExpectationTable): _TableReport => ({
 });
 
 /**
- * リポジトリルートの `deno.json` から指定タスクを定義した行を読み出す。
+ * リポジトリルートの `deno.jsonc` から指定タスクを定義した行を読み出す。
  *
  * 検査関数は行文字列を受け取るため、JSON としてデコードせずテキストのまま渡す。
  *
@@ -161,7 +161,7 @@ const _conformingReport = (table: _ExpectationTable): _TableReport => ({
  * @returns タスクを定義した行（見つからなければ空文字列）
  */
 const _readDenoTask = async (taskName: string): Promise<string> =>
-  (await Deno.readTextFile(joinPath(_REPO_ROOT, 'deno.json')))
+  (await Deno.readTextFile(joinPath(_REPO_ROOT, 'deno.jsonc')))
     .split(/\r?\n/)
     .find((line) => line.trimStart().startsWith(`"${taskName}":`)) ?? '';
 
@@ -196,7 +196,7 @@ describe('allow-net-check', () => {
       assertEquals(_checkTable(_classified, _shebangCases), _conformingReport(_shebangCases));
     });
 
-    it(`[Normal] ${_TEST_MODULE_ID}: deno.json の ${_TEST_MODULE_TASK} タスク定義は --allow-net を含む`, async () => {
+    it(`[Normal] ${_TEST_MODULE_ID}: deno.jsonc の ${_TEST_MODULE_TASK} タスク定義は --allow-net を含む`, async () => {
       const _task = await _readDenoTask(_TEST_MODULE_TASK);
 
       assertObjectMatch(checkAllowNet(_task, 'required'), { excluded: false, conforming: true }, _task);
