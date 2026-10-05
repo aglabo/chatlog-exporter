@@ -23,6 +23,7 @@ import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
 
 // constants
 import { DEFAULT_AI_MODEL } from '../../../_cle-libs/constants/defaults.constants.ts';
+import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 
 // --- io ---
 import { logger } from '../../../_cle-libs/libs/io/logger.ts';
@@ -54,8 +55,14 @@ type _AiSegmentRange = {
  * segment の AI 応答に適用する出力契約（structured-output §4.3.1 #3）を組み立てる。
  * `segments` の要素は `title` / `summary` / `startLine` / `endLine` の 4 キーまで定義し、
  * 行番号は `integer` とする。
+ *
+ * `maxTokens` は暴走に対する安全弁で、1 ファイルあたりの上限にこの呼び出しに載せたファイル数を掛ける
+ * （ai-backend DR-37 実装時の決定 2）。1 ファイルあたりの上限は production 検証を通った応答の実測最大を
+ * 基準とする（同 決定 4）。
+ *
+ * @param fileCount - この呼び出しに載せたファイル数
  */
-const _buildSegmentOutputContract = (): OutputContract => ({
+const _buildSegmentOutputContract = (fileCount: number): OutputContract => ({
   contract: 'json-array',
   properties: {
     filePath: { type: 'string' },
@@ -72,6 +79,7 @@ const _buildSegmentOutputContract = (): OutputContract => ({
       },
     },
   },
+  maxTokens: LLAMA_MAX_TOKENS.SEGMENT_PER_FILE * fileCount,
 });
 
 /**
@@ -138,7 +146,7 @@ export const segmentChatlogs = async (
       model: options?.model ?? DEFAULT_AI_MODEL,
       ...(options?.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
       ...(options?.signal !== undefined ? { signal: options.signal } : {}),
-      outputContract: _buildSegmentOutputContract(),
+      outputContract: _buildSegmentOutputContract(inputs.length),
     });
   } catch (e) {
     if (isAbortingAiError(e)) {

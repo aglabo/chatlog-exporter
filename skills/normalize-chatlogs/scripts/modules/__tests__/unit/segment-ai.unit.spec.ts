@@ -57,6 +57,19 @@ const _throwingRunner = (e: unknown): AiRunnerProvider => () => Promise.reject(e
 const _resolvingRunner = (raw: string): AiRunnerProvider => () => Promise.resolve(raw);
 
 /**
+ * 受け取った `options` を `captured` へ積む `AiRunnerProvider` スタブを返す。
+ *
+ * @param captured - 呼び出しごとの `options` を蓄積する配列
+ * @param outcome  - 文字列なら生応答として resolve し、`Error` ならそれで reject する
+ */
+const _capturingRunner = (captured: RunAIOptions[], outcome: string | Error): AiRunnerProvider => {
+  return (_system, _user, options) => {
+    if (options !== undefined) { captured.push(options); }
+    return outcome instanceof Error ? Promise.reject(outcome) : Promise.resolve(outcome);
+  };
+};
+
+/**
  * `logger.warn` を stub した状態で `fn` を実行し、warn に渡されたメッセージ列を返す。
  *
  * stub の restore は `finally` で必ず行う。
@@ -968,42 +981,97 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
  *
  * `options.aiRunnerProvider` へ呼び出しオプションを捕捉するスタブを注入し、
  * structured-output §4.3.1 #3 の契約定義が `outputContract` として渡ることを検証する。
+ * `maxTokens` は 1 ファイルあたり 1280 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
+ * 期待値は定数を参照せず数値リテラルで書き、定数値の変更を検出できるようにする。
  *
- * テスト ID 範囲: T-NC-OCT-01-01
+ * テスト ID 範囲: T-NC-OCT-01-01 〜 T-NC-OCT-01-04
  *
  * @see segmentChatlogs
  */
 describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', () => {
-  it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約が渡る', async () => {
-    // arrange
-    const captured: RunAIOptions[] = [];
-    const runner: AiRunnerProvider = (_system, _user, options) => {
-      if (options !== undefined) { captured.push(options); }
-      return Promise.resolve('[]');
-    };
+  describe('When: 正常系', () => {
+    it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約と maxTokens 1280 が渡る', async () => {
+      // arrange
+      const captured: RunAIOptions[] = [];
 
-    // act
-    await segmentChatlogs([_makeEntry('/tmp/a.md', 'content a')], { model: 'sonnet', aiRunnerProvider: runner });
+      // act
+      await segmentChatlogs([_makeEntry('/tmp/a.md', 'content a')], {
+        model: 'sonnet',
+        aiRunnerProvider: _capturingRunner(captured, '[]'),
+      });
 
-    // assert
-    assertEquals(captured.length, 1);
-    assertEquals(captured[0].outputContract, {
-      contract: 'json-array',
-      properties: {
-        filePath: { type: 'string' },
-        segments: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              summary: { type: 'string' },
-              startLine: { type: 'integer' },
-              endLine: { type: 'integer' },
+      // assert
+      assertEquals(captured.length, 1);
+      assertEquals(captured[0].outputContract, {
+        contract: 'json-array',
+        properties: {
+          filePath: { type: 'string' },
+          segments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                summary: { type: 'string' },
+                startLine: { type: 'integer' },
+                endLine: { type: 'integer' },
+              },
             },
           },
         },
-      },
+        maxTokens: 1280,
+      });
+    });
+
+    it('[Normal] T-NC-OCT-01-02: 2 ファイルを載せた呼び出しでは maxTokens 2560 が渡る', async () => {
+      // arrange
+      const captured: RunAIOptions[] = [];
+      const inputs = [_makeEntry('/tmp/a.md', 'content a'), _makeEntry('/tmp/b.md', 'content b')];
+
+      // act
+      await segmentChatlogs(inputs, { model: 'sonnet', aiRunnerProvider: _capturingRunner(captured, '[]') });
+
+      // assert
+      assertEquals(captured.length, 1);
+      assertEquals(captured[0].outputContract?.maxTokens, 2560);
+    });
+  });
+
+  describe('When: 異常系', () => {
+    it('[Error] T-NC-OCT-01-03: AI 実行が Error で失敗しても呼び出し時の maxTokens は 3 ファイル分の 3840 で、全件 null の Map が返る', async () => {
+      // arrange
+      const captured: RunAIOptions[] = [];
+      const inputs = ['a', 'b', 'c'].map((name) => _makeEntry(`/tmp/${name}.md`, `content ${name}`));
+      let result: Awaited<ReturnType<typeof segmentChatlogs>> = new Map();
+
+      // act
+      await _captureWarnings(async () => {
+        result = await segmentChatlogs(inputs, { aiRunnerProvider: _capturingRunner(captured, new Error('boom')) });
+      });
+
+      // assert
+      assertEquals(captured.length, 1);
+      assertEquals(captured[0].outputContract?.maxTokens, 3840);
+      assertEquals(result.size, 3);
+      inputs.forEach((entry) => assertNull(result.get(entry.filePath!)));
+    });
+  });
+
+  describe('When: エッジケース', () => {
+    it('[Edge] T-NC-OCT-01-04: chunkSize 上限の 10 ファイルを載せた呼び出しでは maxTokens 12800 が渡る', async () => {
+      // arrange
+      const captured: RunAIOptions[] = [];
+      const inputs = Array.from(
+        { length: 10 },
+        (_, i) => _makeEntry(`/tmp/f${String(i + 1).padStart(2, '0')}.md`, `content ${i + 1}`),
+      );
+
+      // act
+      await segmentChatlogs(inputs, { model: 'sonnet', aiRunnerProvider: _capturingRunner(captured, '[]') });
+
+      // assert
+      assertEquals(captured.length, 1);
+      assertEquals(captured[0].outputContract?.maxTokens, 12800);
     });
   });
 });
