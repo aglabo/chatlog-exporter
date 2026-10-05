@@ -53,6 +53,41 @@ const _CONTRACT: OutputContract = {
   contract: 'yaml',
   properties: { title: { type: 'string' } },
   firstField: 'title',
+  maxTokens: 256,
+};
+
+/**
+ * 共通フィクスチャ: `maxTokens` 512 の yaml 契約（T-LIB-AI-LRQ-01-09）。
+ *
+ * `_JSON_ARRAY_CONTRACT_1536` と異なる値を持たせ、定数のハードコードでは両ケースを同時に満たせなくする。
+ */
+const _YAML_CONTRACT_512: OutputContract = {
+  contract: 'yaml',
+  properties: { title: { type: 'string' } },
+  firstField: 'title',
+  maxTokens: 512,
+};
+
+/**
+ * 共通フィクスチャ: `maxTokens` 1536 の json-array 契約（T-LIB-AI-LRQ-01-10）。
+ *
+ * `_YAML_CONTRACT_512` と異なる値を持たせ、定数のハードコードでは両ケースを同時に満たせなくする。
+ */
+const _JSON_ARRAY_CONTRACT_1536: OutputContract = {
+  contract: 'json-array',
+  properties: { filename: { type: 'string' }, decision: { type: 'string' } },
+  maxTokens: 1536,
+};
+
+/**
+ * 共通フィクスチャ: DR-37 の下限 256 を `maxTokens` に持つ line-prefixed 契約（T-LIB-AI-LRQ-01-11）。
+ *
+ * 下限値でも補正・クランプされず、契約値のまま載ることを確かめるために使う。
+ */
+const _LINE_PREFIXED_CONTRACT_256: OutputContract = {
+  contract: 'line-prefixed',
+  properties: { type: { type: 'string' } },
+  maxTokens: 256,
 };
 
 // functions
@@ -189,8 +224,11 @@ const _createRecordingFetchProvider = (): {
  * さらに transport R-008（§4.2）/ AC-021 / REQ-NF-003 に基づき、非 ASCII を含むプロンプトが
  * UTF-8 で往復して厳密に一致することを検証する。
  *
+ * さらに transport R-009 / DR-37 に基づき、`max_tokens` が出力契約の `maxTokens` のまま載ることを検証する。
+ *
  * テスト ID: T-LIB-AI-LRQ-01-01 / T-LIB-AI-LRQ-01-02 / T-LIB-AI-LRQ-01-03 / T-LIB-AI-LRQ-01-04 /
  *           T-LIB-AI-LRQ-01-05 / T-LIB-AI-LRQ-01-06 / T-LIB-AI-LRQ-01-07 / T-LIB-AI-LRQ-01-08 /
+ *           T-LIB-AI-LRQ-01-09 / T-LIB-AI-LRQ-01-10 / T-LIB-AI-LRQ-01-11 /
  *           T-LIB-AI-LRQ-02-01 / T-LIB-AI-LRQ-03-01
  *
  * @see buildLlamaRequest
@@ -207,16 +245,16 @@ describe('buildLlamaRequest', () => {
     assertEquals(_messages[1], { role: 'user', content: _USER });
   });
 
-  // 生成パラメータを 1 つでも足すとキー集合の完全一致が崩れ、このケースだけが落ちる（R-009 / DR-15）。
-  it('[Normal] T-LIB-AI-LRQ-01-02: body のキーが model / messages / stream / response_format の 4 つに限られる', () => {
+  // max_tokens 以外の生成パラメータを 1 つでも足す、または max_tokens を落とすとキー集合の完全一致が崩れ、
+  // このケースが落ちる（R-009 / DR-15 / DR-37）。
+  it('[Normal] T-LIB-AI-LRQ-01-02: body のキーが model / messages / stream / response_format / max_tokens の 5 つに限られる', () => {
     const _body = _bodyOf(
       buildLlamaRequest({ model: _MODEL, system: _SYSTEM, user: _USER, outputContract: _CONTRACT }),
     );
 
-    assertEquals(Object.keys(_body).sort(), ['messages', 'model', 'response_format', 'stream']);
+    assertEquals(Object.keys(_body).sort(), ['max_tokens', 'messages', 'model', 'response_format', 'stream']);
     assert(!('temperature' in _body), `temperature must be absent: ${Object.keys(_body).join(', ')}`);
     assert(!('top_p' in _body), `top_p must be absent: ${Object.keys(_body).join(', ')}`);
-    assert(!('max_tokens' in _body), `max_tokens must be absent: ${Object.keys(_body).join(', ')}`);
   });
 
   // 省略やサーバ既定への委任だと 'stream' がキーとして現れず、このケースだけが落ちる（R-009 / DR-15）。
@@ -266,7 +304,7 @@ describe('buildLlamaRequest', () => {
     assertEquals(_jsonSchema.strict, true);
   });
 
-  // 実装から `method: 'POST'` の行を削除する変異を当てると、他の 8 ケースは全て pass したまま
+  // 実装から `method: 'POST'` の行を削除する変異を当てると、他の 12 ケースは全て pass したまま
   // このケースだけが落ちる（変異を実際に適用して確認済み）。全リクエストが GET へ落ちる変異は
   // 他のどのケースも検知しない（transport R-001 / DR-01: OpenAI 互換 chat completions は POST）。
   it('[Normal] T-LIB-AI-LRQ-01-07: 構築結果の method が POST になる', () => {
@@ -290,6 +328,36 @@ describe('buildLlamaRequest', () => {
     );
 
     assertEquals(_body.model, _unresolvable);
+  });
+
+  // 01-10 と異なる値（512 / 1536）を使うため、定数のハードコードでは 01-09 / 01-10 を同時に満たせない（DR-37）。
+  // 実装の `max_tokens` を 256 固定にする変異・行を削除する変異のどちらでも落ちる（変異を実際に適用して確認済み）。
+  it('[Normal] T-LIB-AI-LRQ-01-09: body.max_tokens が出力契約の maxTokens と一致する（yaml）', () => {
+    const _body = _bodyOf(
+      buildLlamaRequest({ model: _MODEL, system: _SYSTEM, user: _USER, outputContract: _YAML_CONTRACT_512 }),
+    );
+
+    assertEquals(_body.max_tokens, 512);
+  });
+
+  // 01-09 と異なる値（1536 / 512）を使うため、定数のハードコードでは 01-09 / 01-10 を同時に満たせない（DR-37）。
+  // 実装の `max_tokens` を 256 固定にする変異・行を削除する変異のどちらでも落ちる（変異を実際に適用して確認済み）。
+  it('[Normal] T-LIB-AI-LRQ-01-10: body.max_tokens が出力契約の maxTokens と一致する（json-array）', () => {
+    const _body = _bodyOf(
+      buildLlamaRequest({ model: _MODEL, system: _SYSTEM, user: _USER, outputContract: _JSON_ARRAY_CONTRACT_1536 }),
+    );
+
+    assertEquals(_body.max_tokens, 1536);
+  });
+
+  // 下限値を補正・クランプせず、契約値のまま載せる（DR-37）。
+  // 実装から `max_tokens` の行を削除する変異で落ちる（変異を実際に適用して確認済み）。
+  it('[Edge] T-LIB-AI-LRQ-01-11: DR-37 の下限 256 を持つ line-prefixed 契約でも max_tokens が契約値のまま載る', () => {
+    const _body = _bodyOf(
+      buildLlamaRequest({ model: _MODEL, system: _SYSTEM, user: _USER, outputContract: _LINE_PREFIXED_CONTRACT_256 }),
+    );
+
+    assertEquals(_body.max_tokens, 256);
   });
 
   // 契約未指定を `response_format: {}` で通すと throw が起きず、このケースだけが落ちる（R-001 / DR-19）。

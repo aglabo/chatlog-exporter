@@ -166,7 +166,11 @@ const _abortAwareFetch = (
 
 // constants
 /** llama 経路へ渡す最小の出力契約。`buildLlamaRequest` は契約必須のため、fetch へ到達しうる Case はこれを渡す。 */
-const _MINIMAL_CONTRACT: OutputContract = { contract: 'line-prefixed', properties: { type: { type: 'string' } } };
+const _MINIMAL_CONTRACT: OutputContract = {
+  contract: 'line-prefixed',
+  properties: { type: { type: 'string' } },
+  maxTokens: 256,
+};
 
 /** llama 経路のモデル指定。 */
 const _LLAMA_MODEL = 'llama/qwen3-14b';
@@ -430,6 +434,7 @@ const _outputContractCases: { id: string; contract: OutputContract }[] = [
     contract: {
       contract: 'json-array',
       properties: { project: { type: 'string', values: ['a', 'b'], fallback: 'b' } },
+      maxTokens: 256,
     },
   },
   {
@@ -438,6 +443,7 @@ const _outputContractCases: { id: string; contract: OutputContract }[] = [
       contract: 'yaml',
       firstField: 'tags',
       properties: { tags: { type: 'array', items: { type: 'string', values: ['x'] } } },
+      maxTokens: 256,
     },
   },
   {
@@ -445,6 +451,7 @@ const _outputContractCases: { id: string; contract: OutputContract }[] = [
     contract: {
       contract: 'line-prefixed',
       properties: { decision: { type: 'string', values: ['keep'], fallback: 'keep' } },
+      maxTokens: 256,
     },
   },
 ];
