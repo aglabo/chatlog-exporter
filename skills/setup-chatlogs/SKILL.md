@@ -3,7 +3,7 @@ name: setup-chatlogs
 description: >
   chatlog-exporter の設定ファイルと共有ライブラリを展開する。
   /setup-chatlogs で呼び出す。
-  .config/chatlog-exporter/（設定・辞書・プロンプト）と deno.json を現在の
+  .config/chatlog-exporter/（設定・辞書・プロンプト）と deno.jsonc を現在の
   ディレクトリに、_cle-libs/（共有ライブラリ）をスキル自身の隣に配置し、
   export-chatlogs 等の各スキルが動作する状態にする。
 argument-hint: "[--force]"
@@ -18,7 +18,7 @@ chatlog-exporter の各スキル (`/export-chatlogs` 等) が依存する設定�
 
 ## 前提条件
 
-- **設定を展開したいディレクトリで実行すること。** `.config/chatlog-exporter/` と `deno.json` は
+- **設定を展開したいディレクトリで実行すること。** `.config/chatlog-exporter/` と `deno.jsonc` は
   カレントディレクトリを基準に配置される。git リポジトリである必要はなく、git コマンドも使わない。
 
 設定をカレントディレクトリ基準にするのは、展開後の共有ライブラリが実行時のカレントディレクトリから
@@ -61,7 +61,7 @@ skills ディレクトリ直下) に配置される。各スキルは `../../_cl
 (`cp` がリンク越しに書き込めないため)。実体のあるファイル・ディレクトリはこの対象にならない。
 
 **2. 意図しないサブディレクトリで実行すると設定がそこに展開される。**
-`.config/chatlog-exporter/` と `deno.json` はカレントディレクトリ基準になる。
+`.config/chatlog-exporter/` と `deno.jsonc` はカレントディレクトリ基準になる。
 そのためリポジトリのサブディレクトリで実行してもエラーにならず、その場所に作られてしまう。
 展開したいディレクトリ (通常はプロジェクトのルート) に移動してから実行すること。
 なお共有ライブラリはカレントディレクトリに依存しないため、この経路の影響を受けない。
@@ -125,11 +125,11 @@ bash "$SCRIPT_PATH" [--force]
 | 展開元 (スキル内)                  | 基準                     | 展開先                      |
 | ---------------------------------- | ------------------------ | --------------------------- |
 | `assets/.config/chatlog-exporter/` | カレントディレクトリ     | `.config/chatlog-exporter/` |
-| `assets/deno.json`                 | カレントディレクトリ     | `deno.json`                 |
+| `assets/deno.jsonc`                | カレントディレクトリ     | `deno.jsonc`                |
 | `_cle-libs/`                       | スキルの隣 (skills 直下) | `_cle-libs/`                |
 
 - `.config/chatlog-exporter/` — グローバル設定 `config.yaml`、分類辞書 `dics/`、AI プロンプト `prompts/`
-- `deno.json` — 各スキルが `deno run --config ./deno.json` で参照する Deno 設定ファイル。
+- `deno.jsonc` — 各スキルが `deno run --config ./deno.jsonc` で参照する Deno 設定ファイル。
   compilerOptions と、`@std/yaml` 等の bare specifier を使う import map の解決に必要
 - `_cle-libs/` — 各スキルが共有する型・定数・ライブラリ。各スキルの `../../_cle-libs/` import が
   そのまま解決するよう、スキルと同じ skills ディレクトリ直下に置く。

@@ -94,6 +94,8 @@ export function buildDenoArgs(targetTypes: ValidType[], baseGlob: string, useAi 
     '--allow-write',
     ...(needsRun ? ['--allow-run'] : []),
     ...(needsEnv ? ['--allow-env'] : []),
+    // 実 AI（llama 経路の HTTP fetch）を呼ぶのは useAi 時のみ
+    ...(useAi ? ['--allow-net'] : []),
     ...paths,
   ];
 }

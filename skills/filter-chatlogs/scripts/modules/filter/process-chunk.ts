@@ -84,7 +84,7 @@ const _MAX_RETRY_LIMIT = 10;
  * filter の AI 応答に適用する出力契約（structured-output §4.3.1 #2）を組み立てる。
  * `decision` の値域は `FILTER_DECISIONS` の wire 値で、キャッシュ用番兵 `EMPTY` は含めない。
  */
-const _buildFilterOutputContract = (): OutputContract => ({
+export const buildFilterOutputContract = (): OutputContract => ({
   contract: 'json-array',
   properties: {
     file: { type: 'string' },
@@ -208,7 +208,7 @@ export const processChunk = async (
       rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
         ...(model ? { model } : {}),
         signal: ctl.signal,
-        outputContract: _buildFilterOutputContract(),
+        outputContract: buildFilterOutputContract(),
       });
     } catch (e) {
       if (!(e instanceof ChatlogError)) { throw e; }

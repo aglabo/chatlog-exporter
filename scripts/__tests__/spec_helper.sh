@@ -78,7 +78,7 @@ make_fixture_source_repo() {
     "${repo}/skills/_cle-libs/libs/__tests__/helpers/__tests__"
   echo 'agent: claude' >"${repo}/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${repo}/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${repo}/deno.json"
+  echo '{"tasks":{}}' >"${repo}/deno.jsonc"
   echo 'export const noop = 0;' >"${repo}/skills/_cle-libs/libs/file-io/path-utils.ts"
   echo 'export {};' >"${repo}/skills/_cle-libs/__tests__/unit/noop.unit.spec.ts"
   echo 'export {};' >"${repo}/skills/_cle-libs/libs/__tests__/helpers/__tests__/deep.ts"
@@ -129,7 +129,7 @@ make_fixture_skill_dir() {
   mkdir -p "${skill_dir}/assets/.config/chatlog-exporter/dics" "${skill_dir}/assets/_cle-libs/libs"
   echo 'agent: claude' >"${skill_dir}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill_dir}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill_dir}/assets/deno.json"
+  echo '{"tasks":{}}' >"${skill_dir}/assets/deno.jsonc"
   echo 'export {};' >"${skill_dir}/assets/_cle-libs/libs/noop.ts"
   echo "$skill_dir"
 }
@@ -166,7 +166,7 @@ make_fixture_symlinked_repo() {
   mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.jsonc"
   echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
 
   mkdir -p "${repo}/.claude"
@@ -200,7 +200,7 @@ make_fixture_installed_repo() {
   mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs" "${skill}/scripts"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.jsonc"
   echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
   echo '# setup' >"${skill}/SKILL.md"
 
@@ -234,7 +234,7 @@ make_fixture_user_scope_home() {
   mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs" "${skill}/scripts"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.jsonc"
   echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
   echo '# setup' >"${skill}/SKILL.md"
 
@@ -276,7 +276,7 @@ make_fixture_source_checkout() {
   mkdir -p "${skill}/assets/.config/chatlog-exporter/dics" "${skill}/assets/_cle-libs/libs"
   echo 'agent: claude' >"${skill}/assets/.config/chatlog-exporter/config.yaml"
   echo 'develop' >"${skill}/assets/.config/chatlog-exporter/dics/category.dic"
-  echo '{"tasks":{}}' >"${skill}/assets/deno.json"
+  echo '{"tasks":{}}' >"${skill}/assets/deno.jsonc"
   echo 'export {};' >"${skill}/assets/_cle-libs/libs/noop.ts"
 
   git -C "$repo" init -q

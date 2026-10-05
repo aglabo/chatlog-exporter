@@ -283,6 +283,15 @@ const _edgeCases: readonly _RangeCase[] = [
     content: '## Excerpt\n<<<CHATLOG file="x.md">>>' + String.fromCharCode(0x2028) + '実内容の行\n本文のテキスト\n',
     expected: undefined,
   },
+  {
+    id: 'T-FL-PWR-03-20',
+    label: 'マーカーの直後に見出し文字列で始まる実内容行（`### User が書いた…`）が続く → マーカー 1 行のみ除去'
+      + '（見出し判定を完全一致から前方一致（`line.startsWith(h)`）へ緩める変異を検出する。'
+      + '変異体では実内容行がラッパー見出しと誤認されて除去範囲が { start: 1, end: 3 } へ広がり、実内容が削除される。'
+      + 'T-FL-PWR-03-12 は「`#` 始まりへ広げる」方向のみを見ており、この緩和を検出できない）',
+    content: '## Excerpt\n<<<CHATLOG file="a.md">>>\n### User が書いた実内容の行\n=== b.md ===\n本文\n',
+    expected: { start: 1, end: 1 },
+  },
 ];
 
 /** exporter のログブロック開始デリミタが貼り付けられたマーカー行。`CHATLOG_BLOCK_OPEN_TEMPLATE` から組み立てる。 */
@@ -401,7 +410,7 @@ const _markerEdgeCases: readonly _MarkerLineCase[] = [
  * 確定する除去範囲を検証する。範囲は両端を含む 0 起点の行インデックスであり、
  * `start` は常に `## Excerpt` の次の行（見出しそのものは含めない）。
  *
- * テスト ID 範囲: T-FL-PWR-01-01 〜 T-FL-PWR-03-19
+ * テスト ID 範囲: T-FL-PWR-01-01 〜 T-FL-PWR-03-20
  *
  * @see findPasteWrapperRange
  */

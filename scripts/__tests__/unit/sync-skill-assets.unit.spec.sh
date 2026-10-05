@@ -194,12 +194,12 @@ Describe 'sync-skill-assets.sh'
       It '[Normal] T-SSA-RR-01: サブディレクトリからでもリポジトリルートを返す'
         # cd 先に依存せず同じルートを返すことが、どこから実行しても動く根拠になる。
         # git は Windows で W:/Temp 形式、pwd は /w/temp 形式を返すため、
-        # 文字列ではなく deno.json の実在で同一ディレクトリかを判定する。
+        # 文字列ではなく deno.jsonc の実在で同一ディレクトリかを判定する。
         resolve_from_subdir() {
           cd "${repo}/skills" || return 1
           local root
           root="$(resolve_repo_root)" || return 1
-          [[ -f "${root}/deno.json" ]] || return 1
+          [[ -f "${root}/deno.jsonc" ]] || return 1
           echo "ok"
         }
         When call resolve_from_subdir
@@ -293,11 +293,11 @@ Describe 'sync-skill-assets.sh'
 
       It '[Edge] T-SSA-CT-07: 宛先がディレクトリでもファイル同期元を置ける'
         # run_check は 3 つの同期元を同じ一時パスに順に複製する。2 番目が
-        # deno.json（ファイル）なので、1 番目のディレクトリが残った宛先に
+        # deno.jsonc（ファイル）なので、1 番目のディレクトリが残った宛先に
         # ファイルを置く場面が必ず通る。ファイル単位更新は種類の違う宛先を
         # 上書きできないため、この差し替えが検査の成立条件になる。
         BeforeCall 'mkdir -p "${repo}/out/leftover"'
-        When call copy_tree "${repo}/deno.json" "${repo}/out"
+        When call copy_tree "${repo}/deno.jsonc" "${repo}/out"
         The status should be success
         The path "${repo}/out" should be file
         The contents of file "${repo}/out" should equal '{"tasks":{}}'
@@ -389,7 +389,7 @@ Describe 'sync-skill-assets.sh'
         The status should be success
         The output should include 'Synced'
         The path "${dist}/assets/.config/chatlog-exporter/config.yaml" should be exist
-        The path "${dist}/assets/deno.json" should be exist
+        The path "${dist}/assets/deno.jsonc" should be exist
         The path "${dist}/assets/_cle-libs/libs/file-io/path-utils.ts" should be exist
       End
 
@@ -452,7 +452,7 @@ Describe 'sync-skill-assets.sh'
 
     Describe 'When: 異常系'
       It '[Error] T-SSA-RC-02: 配布物の内容がソースと食い違う → 失敗する'
-        BeforeCall 'run_sync "$repo" >/dev/null; echo drift >"${dist}/assets/deno.json"'
+        BeforeCall 'run_sync "$repo" >/dev/null; echo drift >"${dist}/assets/deno.jsonc"'
         When call run_check "$repo"
         The status should be failure
         The stderr should include 'out of date'
@@ -480,9 +480,9 @@ Describe 'sync-skill-assets.sh'
         # 直して緑になる事故を防ぐ。
         check_preserves_drift() {
           run_sync "$repo" >/dev/null || return 1
-          echo drift >"${dist}/assets/deno.json"
+          echo drift >"${dist}/assets/deno.jsonc"
           run_check "$repo" >/dev/null 2>&1 || true
-          cat "${dist}/assets/deno.json"
+          cat "${dist}/assets/deno.jsonc"
         }
         When call check_preserves_drift
         The status should be success
@@ -586,12 +586,12 @@ Describe 'sync-skill-assets.sh'
           local before after
           run_sync "$repo" >/dev/null || return 1
           commit_fixture_repo "$repo" || return 1
-          echo drift >"${dist}/assets/deno.json"
+          echo drift >"${dist}/assets/deno.jsonc"
           before="$(git -C "$repo" status --porcelain)"
           run_check_head "$repo" >/dev/null 2>&1 || true
           after="$(git -C "$repo" status --porcelain)"
           [[ "$before" == "$after" ]] || return 1
-          cat "${dist}/assets/deno.json"
+          cat "${dist}/assets/deno.jsonc"
         }
         When call head_check_preserves_worktree
         The status should be success
@@ -677,13 +677,13 @@ Describe 'sync-skill-assets.sh'
       End
 
       It '[Error] T-SSA-RCS-04: A をステージし B が未ステージなら失敗する'
-        # 本件の存在理由そのもの（PR #413 の再現）。deno.json は "M " なので報告に
+        # 本件の存在理由そのもの（PR #413 の再現）。deno.jsonc は "M " なので報告に
         # 出してはならない。出るなら、ステージ済みの変更まで巻き込んでいる。
-        BeforeCall 'commit_fixture_repo "$repo"; echo "{\"tasks\":{\"x\":\"y\"}}" >"${repo}/deno.json"; git -C "$repo" add -- deno.json; echo "agent: codex" >"${repo}/.config/chatlog-exporter/config.yaml"'
+        BeforeCall 'commit_fixture_repo "$repo"; echo "{\"tasks\":{\"x\":\"y\"}}" >"${repo}/deno.jsonc"; git -C "$repo" add -- deno.jsonc; echo "agent: codex" >"${repo}/.config/chatlog-exporter/config.yaml"'
         When call run_check_staged "$repo"
         The status should be failure
         The stderr should include '.config/chatlog-exporter/config.yaml'
-        The stderr should not include 'deno.json'
+        The stderr should not include 'deno.jsonc'
       End
 
       It '[Error] T-SSA-RCS-05: 未ステージの削除があれば失敗する'
@@ -711,20 +711,20 @@ Describe 'sync-skill-assets.sh'
       It '[Error] T-SSA-RCS-07: ステージ済みの上にさらに未ステージ編集があれば失敗する'
         # porcelain "MM"。「そのソースがステージされているか」だけを見る実装はここを
         # 取り落とす。"M "（T-SSA-RCS-02）とは別の同値クラスである。
-        BeforeCall 'commit_fixture_repo "$repo"; echo "{\"tasks\":{\"v\":\"1\"}}" >"${repo}/deno.json"; git -C "$repo" add -- deno.json; echo "{\"tasks\":{\"v\":\"2\"}}" >"${repo}/deno.json"'
+        BeforeCall 'commit_fixture_repo "$repo"; echo "{\"tasks\":{\"v\":\"1\"}}" >"${repo}/deno.jsonc"; git -C "$repo" add -- deno.jsonc; echo "{\"tasks\":{\"v\":\"2\"}}" >"${repo}/deno.jsonc"'
         When call run_check_staged "$repo"
         The status should be failure
-        The stderr should include 'deno.json'
+        The stderr should include 'deno.jsonc'
       End
 
       It '[Error] T-SSA-RCS-08: 2 つのソースが未ステージなら両方を報告する'
         # 最初の 1 件で return 1 する実装を排除する。1 回の実行で全て直せなければ、
         # 利用者はコミットのたびに残りを 1 件ずつ知らされることになる。
-        BeforeCall 'commit_fixture_repo "$repo"; echo "agent: codex" >"${repo}/.config/chatlog-exporter/config.yaml"; echo "{\"tasks\":{\"x\":\"y\"}}" >"${repo}/deno.json"'
+        BeforeCall 'commit_fixture_repo "$repo"; echo "agent: codex" >"${repo}/.config/chatlog-exporter/config.yaml"; echo "{\"tasks\":{\"x\":\"y\"}}" >"${repo}/deno.jsonc"'
         When call run_check_staged "$repo"
         The status should be failure
         The stderr should include '.config/chatlog-exporter/config.yaml'
-        The stderr should include 'deno.json'
+        The stderr should include 'deno.jsonc'
       End
 
       It '[Error] T-SSA-RCS-14: __tests__ の内と外が両方未ステージなら外の分だけ報告して失敗する'

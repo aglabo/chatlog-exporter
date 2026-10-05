@@ -45,7 +45,7 @@ pre-commit:
     skill-assets-sync:
       glob:
         - ".config/chatlog-exporter/**"
-        - "deno.json"
+        - "deno.jsonc"
         - "skills/_cle-libs/**"
       run: bash ./scripts/sync-skill-assets.sh --check-staged && bash ./scripts/sync-skill-assets.sh && git add -- skills/setup-chatlogs/assets
 
