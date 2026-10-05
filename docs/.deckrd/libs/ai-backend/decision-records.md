@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 4.0.0
+version: 4.3.0
 created: "2026-09-02"
 ---
 
@@ -53,6 +53,7 @@ created: "2026-09-02"
 | DR-34 | `--allow-net` の静的検査で結合短縮フラグを期待値にかかわらず不適合とする    | config-packaging R-003 / DD-03 / AC-011（DR-13 の静的検査を補う）                 |
 | DR-35 | 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く       | ドキュメント配置（DR-22 決定 1 の配置を supersede）                               |
 | DR-36 | 実行間で不変なプロンプト内容は system メッセージに置く                      | プロンプトテンプレート全般 / set-frontmatter（`cle-kju.6` の前提を supersede）    |
+| DR-37 | `max_tokens` を出力契約ごとの安全弁として送り、`temperature` は送らない     | transport R-009 / 出力契約ごとの定数（DR-15 の `max_tokens` 部分を supersede）    |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -390,7 +391,7 @@ llama.cpp server / Ollama はいずれも `/v1` を持つ構成であり、同�
 
 ## DR-15: リクエストボディを閉じたフィールド集合とし、切り詰め応答を失敗として分類する
 
-**Status**: Accepted
+**Status**: Accepted（「生成パラメータは送らない」のうち `max_tokens` は DR-37 により supersede。`temperature` 等と切り詰め応答の分類は有効）
 
 **Context**: `specifications-transport.md` R-003 は `messages` の構成を、
 `specifications-structured-output.md` R-001 は `response_format` の有無を規定するが、
@@ -1592,6 +1593,88 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 
 ---
 
+## DR-37: `max_tokens` を出力契約ごとの安全弁として送り、`temperature` は送らない
+
+**Status**: Accepted（DR-15 の「生成パラメータは送らない」のうち `max_tokens` を supersede します。
+`temperature` / `top_p` 等は DR-15 のまま。実装は beads `cle-kju.3.3.6` の子 issue で行います）
+
+**Context**: `cle-kju.3.3` の入力上限実測で、filter `chunkSize: 2` × `maxBodyChars` 12000 の同一入力が
+生成 249〜749 tok と振れ、1 本が 180 秒ゲートを超えました。DR-15 がサーバ既定に委ねた
+`temperature`（1.0）と、送っていない `max_tokens` が原因と見て `cle-kju.3.3.6` で実測しました
+（`workspaces/measurements-generation-length-2026-10-06.md`）。
+
+- `temperature` を下げても生成長の幅は縮みません（filter × 8000 の幅は 1.0 で 74 tok、0.3 でも 74 tok）
+- 0.0 では filter × 12000 の 3 本すべて、0.3 でも 1 本が `max_tokens` 4096 まで生成し続けました。
+  判定対象外のファイル名を `items` に足し続ける取り違えで、greedy では決定的にループします
+- 対象サーバは `n_predict: -1`（無制限）です。クライアントが `timeoutMs` で打ち切ってもサーバ側の生成は
+  止まらず、`--parallel 1` の唯一のスロットを占有します。filter は `TimedOut` を再要求しないため次のチャンクへ
+  進みますが、次のリクエストは暴走の後ろに並んだまま計時され、連鎖的にタイムアウトしえます
+
+DR-15 の再検討トリガーは「`length` 打ち切りの常態化」でした。今回の根拠はそれとは別の「打ち切りが無いことに
+よる暴走とスロット占有」です。DR-15 が `max_tokens` を不採用とした理由は「送るべき値を決める根拠がなく、
+誤った値は正当な出力を切る」ことでした。この根拠は実測で埋まりました。
+
+**Decision**:
+
+1. llama 経路のリクエストに `max_tokens` を載せる。値は出力契約ごとの定数とし、`_cle-libs/constants/` に置く。
+   config のキーは設けない（出力長は契約で決まり、利用者が調整する値ではないため）
+2. 値は暴走に対する **安全弁** として決める。生成長を整える目的では使わない。目安は
+   「正常応答の実測最大の 1.5 倍を 256 単位で切り上げ、下限 256」とする。filter は 1 ファイルあたりの値に
+   `chunkSize` を掛ける
+3. `max_tokens` 到達は DR-15 のとおり `finish_reason` 非 `stop` → `ExitFailure` として扱い、分類は変えない
+4. `temperature` / `top_p` 等のサンプリングパラメータは引き続き送らない（DR-15 のまま）
+5. 実測していない契約（classify / normalize / review）の値は、実装時に同じ手順で測ってから決める
+
+**Alternatives Considered**:
+
+- `temperature` を下げて生成長を安定させる — 実測で幅が縮まず、0.3 以下では暴走を誘発した。不採用
+- `max_tokens` を config の単一キーにする — filter の出力長は `chunkSize` に比例し、type-category は 20 tok 程度と
+  契約間で 2 桁違う。単一の値では小さい契約の暴走を止められないか、filter の正当な出力を切る。不採用
+- 据え置く（DR-15 のまま）— 暴走 1 本がスロットを占有し、後続を連鎖的にタイムアウトさせる経路が残る。不採用
+- `maxBodyChars` を 12000 へ上げる余地として使う — 12000 のばらつきは要素過多に由来し、`max_tokens` は
+  それを早く失敗させるだけで判定を成功させない。上限の引き上げは本 DR の範囲外とする
+
+**Consequences**: リクエストボディのフィールド集合が 4 つから 5 つになり、transport R-009・
+`LlamaRequestBody` 型・`llama-request-builder.unit.spec.ts` の「`max_tokens` が無い」アサーションの改訂を伴います。
+暴走時の所要は上限で抑えられます（filter `chunkSize: 2` で約 1,536 tok ≒ 120 秒）。
+一方、正当な出力が将来の入力で上限を超えた場合は `ExitFailure` として現れます。
+DR-31 の構造化出力の準拠確認はサーバ既定の温度で行われており、温度を送らない本 DR はその前提を変えません。
+
+**実装時の決定（`cle-kju.3.3.6.1` で追記）**:
+
+決定 1 が実装に委ねた「値を契約へ紐付ける経路」と、決定 5 の未測定 3 契約の値を次のとおり確定しました。
+
+1. **経路**: `OutputContract` 型に必須フィールド `maxTokens` を持たせ、各スキルの契約ビルダーが
+   `_cle-libs/constants/llama-max-tokens.constants.ts` の定数から設定します。`buildLlamaRequest` は
+   `maxTokens` をそのまま `max_tokens` に載せ、補正しません。`runAI` のオプションで呼び出し元が渡す案は、
+   省略しても型が通り、安全弁が黙って外れるため採りませんでした
+2. **ファイル数への比例**: filter / classify / normalize は 1 ファイルあたりの値に、**その呼び出しに実際に載せた
+   ファイル数** を掛けます。決定 2 の「`chunkSize` を掛ける」は、最後のチャンクが `chunkSize` 未満のとき
+   上限を過大にするため、実ファイル数に読み替えます
+3. **値**（`workspaces/measurements-generation-length-2026-10-06.md` §3.5 / §4）:
+
+   | 出力契約      | `max_tokens`       |
+   | ------------- | ------------------ |
+   | filter        | 768 × ファイル数   |
+   | classify      | 256 × ファイル数   |
+   | normalize     | 1,280 × ファイル数 |
+   | meta          | 256                |
+   | type-category | 256                |
+   | review        | 512（下記 5）      |
+
+4. **normalize の基準**: 「正常応答」を production の検証を通った応答とし、`items` の要素過多を含めて測りました。
+   ファイル数ちょうどの応答だけを基準にした値（512 × ファイル数）では、実測で成功した 8 本のうち 4 本が
+   `ExitFailure` に変わります。決定 2 の「安全弁として決め、生成長を整える目的では使わない」に反するため採りませんでした
+5. **review の改訂（`cle-kju.3.3.6.1.1.1.1` で追記）**: 当初の 768 は、`errors` 配列の反復で生成が伸びた応答を
+   含む実測（最大 382 tok）によるものでした。`cle-kju.3.3.6.1.1.1` で `review.yaml` に `errors` の件数上限（5 件）と
+   同じ指摘の繰り返し禁止を入れた後は、40 本の正常応答が 101〜328 tok に収まり、暴走は 0 本でした。
+   同じ規則（328 × 1.5 = 492 を 256 単位で切り上げ）で **512** に下げます。
+   ただし `setup-chatlogs` は prompts ディレクトリを上書きしないため、旧 `review.yaml` を使い続ける環境では
+   正常応答が 512 を超えることがあります（旧プロンプトの実測で 19 本中 2 本、最大 671 tok）。その応答は `ExitFailure` になります。
+   **旧テンプレートの利用者は `review.yaml` を更新します**
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1637,3 +1720,6 @@ Deno が受理しない結合も付与として扱う過検出が残り、ホス
 | 2026-09-29 | 3.12.1  | DR-35 決定 2 を明確化 (PATCH: 明確化、決定内容の変更なし)。「規範文書から作業記録への参照は、このパスで張る」が、素のファイル名による引用まで完全パス化を要求するとも読めたため、完全パス参照と素のファイル名引用を書き分けた。PR #489 の 2 回目 Codex レビュー (P2) を受けたもので、実際の配置と参照は変えていない (beads `cle-kju.3.3.10`)                                                                                                                           |
 | 2026-09-29 | 3.13.0  | DR-36 を追加 (MINOR: 決定を追加)。`cle-kju.3.3` の実測 (`workspaces/measurements-context-limits-2026-09-29.md` §3.5) で、前方一致キャッシュの再利用が system メッセージ単位でしか効かないことが判明した。`cached_tokens` は system のトークン数ちょうどで止まる。これを受け、実行間で不変なプロンプト内容は `system` に置き、`user` には per-entry の可変値だけを置くと決めた。「可変値をテンプレート末尾へ移す」という `cle-kju.6` / T-06 の当初前提を supersede する |
 | 2026-10-05 | 4.0.0   | DR-06 / DR-28 を gh-484（libs/text DR-01）へ追随 (MAJOR: 採用済み方針の一部破棄)。共有の配列パーサの空配列受理が無条件から `allowEmpty: true` 明示時のみに改まったため、DR-06 の Status / Consequences と DR-28 の Status / 決定 3 / Consequences に一部 supersede を注記し、R-004 が段の限定を持たないとした記述を spec v2.1.1 以降の実態へ訂正。新 DR は立てず決定の本体は libs/text DR-01 に置く（`cle-jkn.6`）                                                     |
+| 2026-10-06 | 4.1.0   | DR-37 を追加 (MINOR: 決定を追加)。`cle-kju.3.3.6` の実測 (`workspaces/measurements-generation-length-2026-10-06.md`) で、`temperature` を下げても生成長の幅は縮まず 0.3 以下で暴走を誘発すること、サーバの `n_predict: -1` により暴走がスロットを占有し後続を連鎖的にタイムアウトさせうることを確認した。`max_tokens` を出力契約ごとの安全弁として送り、`temperature` は送らないと決めた。DR-15 の Status に `max_tokens` 部分の supersede を注記                      |
+| 2026-10-06 | 4.2.0   | DR-37 に「実装時の決定」を追記 (MINOR: 実装対象を確定させる決定)。`maxTokens` を `OutputContract` の必須フィールドとして持たせる経路、ファイル数比例の契約は実ファイル数を掛けること、classify / normalize / review を含む 6 契約の値、normalize の基準を production で valid な応答とすることを確定した（`cle-kju.3.3.6.1`）                                                                                                                                          |
+| 2026-10-06 | 4.3.0   | DR-37 の実装時の決定に 5 を追記 (MINOR: 実装対象の値を改める決定)。`review.yaml` に `errors` の件数上限と反復禁止を入れた後の実測（40 本、101〜328 tok、暴走 0）に合わせ、review の `max_tokens` を 768 → 512 に改めた。旧 `review.yaml` を使い続ける環境では正常応答が 512 を超えうるため、テンプレートの更新が必要と注記した（`cle-kju.3.3.6.1.1.1.1`）                                                                                                              |
