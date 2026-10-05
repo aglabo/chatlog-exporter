@@ -19,6 +19,7 @@ import { runAI } from '../../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../../_cle-libs/libs/io/logger.ts';
 import { parseAiJsonArray } from '../../../../_cle-libs/libs/text/json-utils.ts';
 // constants
+import { LLAMA_MAX_TOKENS } from '../../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 import { LOGGER_TEXT } from '../../../../_cle-libs/constants/logger.constants.ts';
 // types
 import type { ChatlogEntry } from '../../../../_cle-libs/classes/ChatlogEntry.class.ts';
@@ -83,8 +84,13 @@ const _MAX_RETRY_LIMIT = 10;
 /**
  * filter の AI 応答に適用する出力契約（structured-output §4.3.1 #2）を組み立てる。
  * `decision` の値域は `FILTER_DECISIONS` の wire 値で、キャッシュ用番兵 `EMPTY` は含めない。
+ *
+ * `maxTokens` は暴走に対する安全弁で、1 ファイルあたりの上限 `LLAMA_MAX_TOKENS.FILTER_PER_FILE` に
+ * その呼び出しへ実際に載せたファイル数を掛けた値とする（ai-backend DR-37。`chunkSize` ではない）。
+ *
+ * @param fileCount - この契約で判定を依頼するファイル数（プロンプトに載せたチャンクの件数）
  */
-export const buildFilterOutputContract = (): OutputContract => ({
+export const buildFilterOutputContract = (fileCount: number): OutputContract => ({
   contract: 'json-array',
   properties: {
     file: { type: 'string' },
@@ -96,6 +102,7 @@ export const buildFilterOutputContract = (): OutputContract => ({
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: LLAMA_MAX_TOKENS.FILTER_PER_FILE * fileCount,
 });
 
 /**
@@ -106,9 +113,14 @@ export const buildFilterOutputContract = (): OutputContract => ({
  */
 const _RESPONSE_FORMAT_VIOLATION_REASON = '応答が出力契約に適合しない';
 
-/** `_validateResponse` の戻り値。形が壊れている場合は失敗理由と `ChatlogError` の subindex を持つ。 */
+/**
+ * `_validateResponse` の戻り値。
+ *
+ * 検証を通った場合の `results` は期待ファイル名と同じ順・同じ長さで、各ファイルに対応する判定を持つ。
+ * 形が壊れている場合は失敗理由と `ChatlogError` の subindex を持つ。
+ */
 type _ValidatedResponse =
-  | { ok: true; parsed: ClaudeResult[] }
+  | { ok: true; results: ClaudeResult[] }
   | { ok: false; reason: string; subindex: string };
 
 /**
@@ -123,29 +135,52 @@ type _ChunkFailure = { reason: string; subindex: string; rawResult: string };
 /**
  * AI の生応答をパースし、チャンク処理に使える形かどうかを検証する。
  *
- * 「応答の形が壊れている」3 ケース（パース失敗・空配列・要素数不一致）を区別して返す。
+ * 「応答の形が壊れている」4 ケース（パース失敗・空配列・ファイルの欠落・判定の食い違い）を区別して返す。
  * 呼び出し元はこの区別を使って再要求するかどうかを決め、使い切ったときは
  * `subindex` をそのまま `ChatlogError` に載せる。
  *
- * 要素数の一致だけを見て、ファイル名の一致は見ない。件数が合ったうえでの名前違いは
- * 従来どおり該当ファイル単位の「判定不能 skip」で扱う（チャンク全体の失敗にしない）。
+ * 要素数ではなくファイル名で照合する（DR-09）。期待ファイル名ごとに `file` が一致する要素を集め、
+ * 1 つも無いファイルがあれば `MissingFile`、一致する要素の `decision` が食い違えば `ConflictingDecision` とする。
+ * 期待ファイル名に無い `file` を持つ余剰要素は無視し、`decision` が一致する重複は先頭の 1 件を採用する。
  *
  * @param rawResult - AI の生応答
- * @param expectedCount - 応答に期待する要素数（チャンク内のファイル数）
- * @returns 検証を通れば `{ ok: true, parsed }`、壊れていれば理由と subindex
+ * @param expectedFilenames - 応答に判定を期待するファイル名（チャンク内のファイル名）
+ * @returns 検証を通れば `{ ok: true, results }`（`expectedFilenames` と同順の判定）、壊れていれば理由と subindex
  */
-const _validateResponse = (rawResult: string, expectedCount: number): _ValidatedResponse => {
+const _validateResponse = (
+  rawResult: string,
+  expectedFilenames: readonly (string | undefined)[],
+): _ValidatedResponse => {
   const _parsed = parseAiJsonArray<ClaudeResult>(rawResult, { allowEmpty: true });
   if (!_parsed) { return { ok: false, reason: 'JSON パース失敗', subindex: 'JsonParse' }; }
   if (_parsed.length === 0) { return { ok: false, reason: 'AI 応答が空配列', subindex: 'EmptyArray' }; }
-  if (_parsed.length !== expectedCount) {
+
+  const _matches = expectedFilenames.map((filename) => ({
+    filename,
+    results: _parsed.filter((r) => r.file === filename),
+  }));
+
+  const _missing = _matches.filter((m) => m.results.length === 0).map((m) => m.filename);
+  if (_missing.length > 0) {
     return {
       ok: false,
-      reason: `応答要素数が不一致（期待 ${expectedCount} / 実際 ${_parsed.length}）`,
-      subindex: 'CountMismatch',
+      reason: `応答に判定が無いファイルがある（${_missing.join(', ')}）`,
+      subindex: 'MissingFile',
     };
   }
-  return { ok: true, parsed: _parsed };
+
+  const _conflicting = _matches
+    .filter((m) => new Set(m.results.map((r) => r.decision)).size > 1)
+    .map((m) => m.filename);
+  if (_conflicting.length > 0) {
+    return {
+      ok: false,
+      reason: `同一ファイルの判定が食い違う（${_conflicting.join(', ')}）`,
+      subindex: 'ConflictingDecision',
+    };
+  }
+
+  return { ok: true, results: _matches.map((m) => m.results[0]) };
 };
 
 /**
@@ -195,7 +230,7 @@ export const processChunk = async (
   const _maxRetry = Math.min(maxRetry, _MAX_RETRY_LIMIT);
 
   let rawResult = '';
-  let parsed: ClaudeResult[] | undefined;
+  let results: ClaudeResult[] | undefined;
   let _lastFailure: _ChunkFailure | undefined;
 
   for (let attempt = 0; attempt <= _maxRetry; attempt++) {
@@ -208,7 +243,7 @@ export const processChunk = async (
       rawResult = await aiRunnerProvider(_SYSTEM_PROMPT, batchPrompt, {
         ...(model ? { model } : {}),
         signal: ctl.signal,
-        outputContract: buildFilterOutputContract(),
+        outputContract: buildFilterOutputContract(chunkEntries.length),
       });
     } catch (e) {
       if (!(e instanceof ChatlogError)) { throw e; }
@@ -233,9 +268,9 @@ export const processChunk = async (
       return e;
     }
 
-    const _validated = _validateResponse(rawResult, chunkEntries.length);
+    const _validated = _validateResponse(rawResult, chunkEntries.map((entry) => entry.filename));
     if (_validated.ok) {
-      parsed = _validated.parsed;
+      results = _validated.results;
       break;
     }
 
@@ -243,23 +278,16 @@ export const processChunk = async (
     logger.warn(`${LOGGER_TEXT.INDENT}${_validated.reason} (attempt ${attempt + 1}/${_maxRetry + 1})`);
   }
 
-  if (parsed === undefined) {
+  if (results === undefined) {
     const _failure: _ChunkFailure = _lastFailure
       ?? { reason: 'AI 応答が不正', subindex: 'InvalidResponse', rawResult };
     return _failChunk(chunkEntries, stats, _failure.rawResult, _failure.reason, _failure.subindex);
   }
 
-  for (const entry of chunkEntries) {
+  // _validateResponse がチャンク内の全ファイルの判定をそろえて返すため、判定が欠けるファイルは無い。
+  for (const [index, entry] of chunkEntries.entries()) {
     const { filename } = entry;
-    const result = parsed.find((r) => r.file === filename);
-
-    if (!result) {
-      logger.info(`${LOGGER_TEXT.INDENT}判定不能: ${filename} - skipped`);
-      stats.skip++;
-      continue;
-    }
-
-    const { decision, confidence, reason } = result;
+    const { decision, confidence, reason } = results[index];
     const isConfirmedDiscard = decision === FILTER_DECISIONS.DISCARD && confidence >= discardThreshold;
     const isGreyZoneDiscard = decision === FILTER_DECISIONS.DISCARD && confidence < discardThreshold;
 
