@@ -13,6 +13,7 @@
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_cle-libs/constants/defaults.constants.ts';
+import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { isAbortingAiError } from '../../../_cle-libs/libs/ai/abort-utils.ts';
 import { isFatalAiError } from '../../../_cle-libs/libs/ai/rate-limit-utils.ts';
@@ -60,6 +61,7 @@ const _typeCategoryValues = (dics: Dics): { typeValues: string[]; categoryValues
  * type・category 判定の AI 応答に適用する出力契約（structured-output §4.3.1 #6）を組み立てる。
  * 値域は `_typeCategoryValues` で導出し、フォールバック値は
  * `DEFAULT_FALLBACK_TYPE` / `DEFAULT_FALLBACK_CATEGORY` とする。
+ * 生成トークン上限は辞書に依存しない固定値 `LLAMA_MAX_TOKENS.TYPE_CATEGORY` とする（ai-backend DR-37）。
  */
 export const buildTypeCategoryOutputContract = (dics: Dics): OutputContract => {
   const { typeValues, categoryValues } = _typeCategoryValues(dics);
@@ -69,6 +71,7 @@ export const buildTypeCategoryOutputContract = (dics: Dics): OutputContract => {
       type: { type: 'string', values: typeValues, fallback: DEFAULT_FALLBACK_TYPE },
       category: { type: 'string', values: categoryValues, fallback: DEFAULT_FALLBACK_CATEGORY },
     },
+    maxTokens: LLAMA_MAX_TOKENS.TYPE_CATEGORY,
   };
 };
 

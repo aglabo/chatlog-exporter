@@ -103,6 +103,21 @@ const _legacyReviewPrompts: Prompts = {
 };
 
 /**
+ * `user` 節が `${result_yaml}` だけの Prompts。描画後の user がそのまま `result_yaml` の値になる。
+ *
+ * `_mockPrompts` の `{{result_yaml}}` は `renderPrompt` の置換対象ではないため、`result_yaml` の検証には使えない。
+ */
+const _resultYamlPrompts: Prompts = {
+  categoryPrompts: new Map(),
+  prompts: new Map([
+    ['review', { system: 'You are reviewer.', user: '${result_yaml}' }],
+  ]),
+};
+
+/** `result_yaml` 検証用の AI 応答。pass を返し、リトライを発生させない。 */
+const _PASS_RESPONSE = 'validity: pass\nerrors: []\n';
+
+/**
  * `Deno.Command` に渡された `opts.signal` をキャプチャする成功モック。
  *
  * `runAI` は内部タイムアウト用 signal を `AbortSignal.any()` で合成して渡すため、
@@ -227,6 +242,56 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
   return entry;
 };
 
+/**
+ * title / date / type / category / session_id / project / slug / topics / tags をすべて持つ `ChatlogEntry` を生成する。
+ *
+ * `result_yaml` が title / topics / tags 以外のフィールドを運ばないことを検証するため、
+ * frontmatter の全フィールドに値を持たせる。
+ *
+ * @returns 全フィールドを持つ `ChatlogEntry`
+ */
+const _makeFullFrontmatterEntry = (): ChatlogEntry => {
+  const entry = new ChatlogEntry(
+    [
+      '---',
+      'title: Full Title',
+      'date: 2026-10-06',
+      'type: research',
+      'category: development',
+      'session_id: sess-full',
+      'project: chatlog-exporter',
+      'slug: full-title',
+      '---',
+      '',
+      '# テスト\n本文',
+    ].join('\n'),
+    { filePath: '/tmp/test-full.md' },
+  );
+  entry.frontmatter.set('topics', ['ai']);
+  entry.frontmatter.set('tags', ['typescript']);
+  return entry;
+};
+
+/**
+ * `_resultYamlPrompts` で `reviewFrontmatter` を実行し、`aiRunnerProvider` が受け取った `user` を返す。
+ *
+ * @param entry - レビュー対象の `ChatlogEntry`
+ * @returns provider が受け取った user プロンプト（= 描画された `result_yaml`）
+ * @throws provider が呼ばれなかったとき
+ */
+const _captureResultYaml = async (entry: ChatlogEntry): Promise<string> => {
+  let captured: string | undefined;
+  const _runner = (_system: string, user: string): Promise<string> => {
+    captured = user;
+    return Promise.resolve(_PASS_RESPONSE);
+  };
+  await reviewFrontmatter(entry, _mockDics, _resultYamlPrompts, 0, 'sonnet', undefined, _runner);
+  if (captured === undefined) {
+    throw new Error('reviewFrontmatter が aiRunnerProvider へ user を渡していない');
+  }
+  return captured;
+};
+
 // ─── Tests
 
 /**
@@ -234,7 +299,7 @@ const _makeChatlogEntry = (overrides: Record<string, string> = {}): ChatlogEntry
  *
  * AI 出力に応じた validity 判定・errors 抽出・frontmatter 更新・リトライを検証する。
  *
- * テスト ID 範囲: T-SF-RV-01 〜 T-SF-RV-10
+ * テスト ID 範囲: T-SF-RV-01 〜 T-SF-RV-21
  *
  * @see reviewFrontmatter
  */
@@ -672,6 +737,41 @@ describe('reviewFrontmatter', () => {
       assert(_user.includes('tags: typescript,deno'), `tags_list が user へ描画されていない: ${_user}`);
     });
   });
+
+  /**
+   * `${result_yaml}` に描画される値を検証するケース（cle-kju.3.3.6.1.1）。
+   *
+   * `review.yaml` の user 節は `---` / `type:` / `category:` を明示行で持つため、`result_yaml` は
+   * `title` / `topics` / `tags` の YAML 本文と閉じ区切り `---` だけを運ぶ。
+   * frontmatter 全体（開き `---` と type / category / date 等）を流し込むと、
+   * type / category が重複しブロックが途中で閉じる。
+   */
+  describe('When: result_yaml を描画する', () => {
+    it('[Normal] T-SF-RV-21-01: 全フィールドを持つ entry → result_yaml は title / topics / tags の本文 + 閉じ区切りだけになる', async () => {
+      const _user = await _captureResultYaml(_makeFullFrontmatterEntry());
+
+      assertEquals(_user, 'title: "Full Title"\ntopics:\n  - "ai"\ntags:\n  - "typescript"\n---\n');
+    });
+
+    it('[Edge] T-SF-RV-21-02: 全フィールドを持つ entry → result_yaml は type / category / date / session_id / project / slug の行を含まず、`---` で始まらない', async () => {
+      const _user = await _captureResultYaml(_makeFullFrontmatterEntry());
+
+      const _leaked = ['type', 'category', 'date', 'session_id', 'project', 'slug']
+        .filter((key) => _user.split('\n').some((line) => line.startsWith(`${key}:`)));
+      assertEquals({ leaked: _leaked, startsWithDelimiter: _user.startsWith('---') }, {
+        leaked: [],
+        startsWithDelimiter: false,
+      });
+    });
+
+    it('[Edge] T-SF-RV-21-03: topics / tags を持たない entry → result_yaml は title 行 + 閉じ区切りだけになる', async () => {
+      const _entry = _makeChatlogEntry({ title: 'Only Title' });
+
+      const _user = await _captureResultYaml(_entry);
+
+      assertEquals(_user, 'title: "Only Title"\n---\n');
+    });
+  });
 });
 
 /**
@@ -687,7 +787,7 @@ describe('reviewFrontmatter — 出力契約（outputContract）', () => {
   useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
-    it('[Normal] T-SF-OCT-02-01: options に #5 yaml 契約（firstField validity、corrected_frontmatter 入れ子 object）が渡り pass を返す', async () => {
+    it('[Normal] T-SF-OCT-02-01: options に #5 yaml 契約（firstField validity、corrected_frontmatter 入れ子 object、maxTokens 512）が渡り pass を返す', async () => {
       let captured: RunAIOptions | undefined;
       const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
         captured = options;
@@ -721,6 +821,7 @@ describe('reviewFrontmatter — 出力契約（outputContract）', () => {
             },
           },
         },
+        maxTokens: 512,
       });
       assertEquals(_result, { validity: 'pass', errors: [] });
     });
@@ -757,11 +858,11 @@ describe('reviewFrontmatter — 出力契約（outputContract）', () => {
 });
 
 /**
- * `buildReviewOutputContract` が辞書から組み立てる出力契約（structured-output §4.3.1 #5）の値域を検証するスイート。
+ * `buildReviewOutputContract` が辞書から組み立てる出力契約（structured-output §4.3.1 #5）の値域と、辞書に依存しない `maxTokens` を検証するスイート。
  *
  * 組み立てた契約を `assertOutputContractValues` に通し、起動時の設定エラー検出と tags 空要素の除去を確認する。
  *
- * テスト ID 範囲: T-SF-OCT-08
+ * テスト ID 範囲: T-SF-OCT-08-01 〜 T-SF-OCT-08-05
  *
  * @see buildReviewOutputContract
  */
@@ -800,6 +901,12 @@ describe('buildReviewOutputContract', () => {
         _error.message.startsWith('AI Error: corrected_frontmatter.category: フォールバック値 "development"'),
         _error.message,
       );
+    });
+
+    it('[Error] T-SF-OCT-08-05: category が bugfix のみ（値域違反の辞書）→ maxTokens は辞書に依存せず 512', () => {
+      const _contract = buildReviewOutputContract(_makeDics('bugfix', 'typescript,deno'));
+
+      assertEquals(_contract.maxTokens, 512);
     });
   });
 

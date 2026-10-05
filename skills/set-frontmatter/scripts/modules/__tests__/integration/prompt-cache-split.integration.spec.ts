@@ -154,7 +154,7 @@ const _REVIEW_FIXED_ANCHORS: readonly string[] = [
 /**
  * `review.yaml` のエントリごとに値が変わるプレースホルダのセンチネル群。
  *
- * 3 つとも entry の frontmatter 由来（`${result_yaml}` は `toFrontmatter()` の出力）。
+ * 3 つとも entry の frontmatter 由来（`${result_yaml}` は `title` / `topics` / `tags` の YAML 本文 + 閉じ区切り）。
  * 1 つでも system に混ざると system prompt がエントリごとに別物になり、
  * prefix キャッシュの再利用が完全に消える（DR-36）。
  */
@@ -168,8 +168,11 @@ const _REVIEW_PER_ENTRY_MARKERS: readonly string[] = [_MARK.resultType, _MARK.re
  * `^\d{4}-\d{2}-\d{2}-review-the-following-frontmatter-against` で前方一致を見る行であり、
  * **user の 1 行目から動かしてはならない。**
  *
- * 末尾の `title:` / `type:` / `category:` の 3 行は `${result_yaml}`（`toFrontmatter()` の出力）由来で、
- * その上の `type:` / `category:` の明示行と値が重複する（既存の重複。`_REVIEW_EXPECTED_COUNTS` 参照）。
+ * `type:` / `category:` はテンプレートの明示行だけが出力し、各 1 回しか現れない。
+ * その後ろの `title:` 行と閉じ区切り `---` は `${result_yaml}` 由来で、`result_yaml` は
+ * `title` / `topics` / `tags` の YAML 本文と閉じ区切りだけを運ぶ（開き `---` は持たない）。
+ * そのため user 全体が `---` で始まり `---` で閉じる 1 ブロックになる（cle-kju.3.3.6.1.1）。
+ * 本エントリは `topics` / `tags` を持たないため、それらの行は現れない。
  *
  * `_META_EXPECTED_USER` と同じく、テンプレートの逐語コピーではなく実際の描画結果から採取し、
  * `${...}` の補間を避けるため文字列連結で組み立てる。
@@ -180,10 +183,7 @@ const _REVIEW_EXPECTED_USER: string = [
   '---',
   'type: ' + _MARK.resultType,
   'category: ' + _MARK.resultCategory,
-  '---',
   'title: "' + _MARK.resultYaml + '"',
-  'type: "' + _MARK.resultType + '"',
-  'category: "' + _MARK.resultCategory + '"',
   '---',
   '',
 ].join('\n');
@@ -191,18 +191,16 @@ const _REVIEW_EXPECTED_USER: string = [
 /**
  * `review` プロンプト全体（system + user）での各マーカーの期待出現回数。
  *
- * 固定部アンカーはすべて 1 回。`${result_type}` / `${result_category}` だけは **2 回**現れる。
- * これは user の末尾が `type: ${result_type}` の明示行と `${result_yaml}`
- * （`toFrontmatter()` の出力。`---` で囲んだブロックに type / category を再度含む）の
- * 両方を持つためで、**仕様ではなく役割分離以前からある既存の重複**である。
- * 2 を期待値として固定するのは意図的な pin（現状を動かさないための固定）であり、
- * 重複そのものの解消は本タスクの範囲外で別 issue として扱う。
- * 期待値を表として持つことで、「両 role への重複」「どちらからも欠落」をズレとして検出する。
+ * 全マーカーがちょうど 1 回。`${result_type}` / `${result_category}` は明示行
+ * `type: ${result_type}` / `category: ${result_category}` にだけ現れ、`${result_yaml}` は
+ * `title` / `topics` / `tags` だけを運ぶため type / category を再度含まない（cle-kju.3.3.6.1.1）。
+ * 期待値を表として持つことで、「両 role への重複」「result_yaml 経由の再出現」「どちらからも欠落」を
+ * ズレとして検出する。
  */
 const _REVIEW_EXPECTED_COUNTS: readonly _MarkerCount[] = [
   ..._REVIEW_FIXED_ANCHORS.map((marker) => ({ marker, count: 1 })),
-  { marker: _MARK.resultType, count: 2 },
-  { marker: _MARK.resultCategory, count: 2 },
+  { marker: _MARK.resultType, count: 1 },
+  { marker: _MARK.resultCategory, count: 1 },
   { marker: _MARK.resultYaml, count: 1 },
 ];
 
@@ -381,7 +379,7 @@ const _makeReviewDics = (): Dics => ({
  * `type` / `category` / `title` にセンチネル値を持つ `ChatlogEntry` を組み立てる。
  *
  * `reviewFrontmatter` が読む `frontmatter.get('type')` / `get('category')` /
- * `toFrontmatter()` の 3 箇所すべてがセンチネル値を含む。
+ * `result_yaml`（`title` / `topics` / `tags`）の 3 箇所すべてがセンチネル値を含む。
  * `title` をセンチネルにするのは、`${result_yaml}` の流し込み先を
  * `${result_type}` / `${result_category}` と区別して識別するため。
  *

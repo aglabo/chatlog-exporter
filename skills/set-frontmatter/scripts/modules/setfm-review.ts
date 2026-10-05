@@ -12,10 +12,14 @@
 // ─── Shared scripts
 import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import type { ChatlogFrontmatter } from '../../../_cle-libs/classes/ChatlogFrontmatter.class.ts';
+import { FRONTMATTER_DELIMITER } from '../../../_cle-libs/constants/common.constants.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_cle-libs/constants/defaults.constants.ts';
+import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../_cle-libs/libs/io/logger.ts';
-import { extractYaml } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
+import { extractYaml, reorderFrontmatterEntries } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
+import { stringifyFrontmatter } from '../../../_cle-libs/libs/text/yaml-utils.ts';
 // types
 import type { FrontmatterFields } from '../../../_cle-libs/types/frontmatter.types.ts';
 import type { OutputContract } from '../../../_cle-libs/types/json-schema.types.ts';
@@ -38,6 +42,7 @@ import type { ReviewResult } from '../types/phase.types.ts';
  * `topics` / `tags` は配列要素の enum としてフォールバック値を持たない。`topics` は非空必須、`tags` は該当なしを空配列で表す。
  * `tags` は空辞書を空値域として許容するため空要素を除去する。`category` も空要素を除去し、
  * 空辞書（空値域）を起動時の設定エラーとして `assertOutputContractValues` に検出させる。
+ * 生成トークン上限は辞書に依存しない固定値 `LLAMA_MAX_TOKENS.REVIEW` とする（ai-backend DR-37）。
  */
 export const buildReviewOutputContract = (dics: Dics): OutputContract => ({
   contract: 'yaml',
@@ -60,6 +65,7 @@ export const buildReviewOutputContract = (dics: Dics): OutputContract => ({
       },
     },
   },
+  maxTokens: LLAMA_MAX_TOKENS.REVIEW,
 });
 
 /**
@@ -93,6 +99,31 @@ const _buildReviewInvariantVars = (dics: Dics): Record<string, string> => ({
 const _buildReviewSystemPrompt = (systemTemplate: string, dics: Dics): string =>
   renderPrompt(systemTemplate, _buildReviewInvariantVars(dics));
 
+/** `${result_yaml}` に載せるフィールドと出力順。 */
+const _REVIEW_RESULT_YAML_FIELDS = ['title', 'topics', 'tags'];
+
+/**
+ * `${result_yaml}` に埋め込む YAML 断片を組み立てる。
+ *
+ * テンプレート `review.yaml` は開始の `---` と `type` / `category` 行を自前で書くため、
+ * `result_yaml` は `title` / `topics` / `tags` と終了デリミタだけを持つ。
+ * フロントマター全体を渡すと `type` / `category` が重複し、ブロックが途中で閉じて
+ * review 要求 10 件中 2 件で生成が止まらなくなった（cle-kju.3.3.6.1.1）。
+ * テンプレート自体は変えないため、旧テンプレートでもそのまま動く。
+ *
+ * @param frontmatter - レビュー対象エントリのフロントマター
+ * @returns `title` / `topics` / `tags`（欠落は省略）と終了デリミタからなる YAML 断片
+ */
+const _buildReviewResultYaml = (frontmatter: ChatlogFrontmatter): string => {
+  const _fields = Object.fromEntries(
+    _REVIEW_RESULT_YAML_FIELDS
+      .map((key) => [key, frontmatter.get(key)] as const)
+      .filter((pair): pair is readonly [string, string | string[]] => pair[1] !== undefined),
+  );
+  return stringifyFrontmatter(reorderFrontmatterEntries(_fields, _REVIEW_RESULT_YAML_FIELDS))
+    + FRONTMATTER_DELIMITER + '\n';
+};
+
 export const reviewFrontmatter = async (
   entry: ChatlogEntry,
   dics: Dics,
@@ -113,7 +144,7 @@ export const reviewFrontmatter = async (
     ..._buildReviewInvariantVars(dics),
     result_type: (entry.frontmatter.get('type') as string) ?? '',
     result_category: (entry.frontmatter.get('category') as string) ?? '',
-    result_yaml: entry.frontmatter.toFrontmatter(),
+    result_yaml: _buildReviewResultYaml(entry.frontmatter),
   });
 
   const _outputContract = buildReviewOutputContract(dics);

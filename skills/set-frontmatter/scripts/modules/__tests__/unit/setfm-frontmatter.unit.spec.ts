@@ -663,7 +663,7 @@ describe('generateFrontmatter — 出力契約（outputContract）', () => {
   useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
-    it('[Normal] T-SF-OCT-01-01: options に #4 yaml 契約（firstField title、topics / tags 要素 enum）が渡り true を返す', async () => {
+    it('[Normal] T-SF-OCT-01-01: options に #4 yaml 契約（firstField title、topics / tags 要素 enum、maxTokens 256）が渡り true を返す', async () => {
       let captured: RunAIOptions | undefined;
       const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
         captured = options;
@@ -689,6 +689,7 @@ describe('generateFrontmatter — 出力契約（outputContract）', () => {
           topics: { type: 'array', items: { type: 'string', values: ['ai', 'tooling'] } },
           tags: { type: 'array', items: { type: 'string', values: ['typescript', 'deno'] } },
         },
+        maxTokens: 256,
       });
       assertEquals(_result, true);
     });
@@ -726,9 +727,9 @@ describe('generateFrontmatter — 出力契約（outputContract）', () => {
 });
 
 /**
- * `buildFrontmatterOutputContract` が辞書から `topics` / `tags` の値域を導出することを検証するスイート。
+ * `buildFrontmatterOutputContract` が辞書から `topics` / `tags` の値域を導出し、`maxTokens` は辞書に依存しない固定値とすることを検証するスイート。
  *
- * テスト ID 範囲: T-SF-OCT-07
+ * テスト ID 範囲: T-SF-OCT-07-01 〜 T-SF-OCT-07-04
  *
  * @see buildFrontmatterOutputContract
  */
@@ -752,6 +753,12 @@ describe('buildFrontmatterOutputContract', () => {
 
       assertEquals(_contract.properties.tags, { type: 'array', items: { type: 'string', values: [] } });
       assertOutputContractValues(_contract);
+    });
+
+    it("[Edge] T-SF-OCT-07-04: tags: ''（空辞書）→ maxTokens は辞書に依存せず 256", () => {
+      const _contract = buildFrontmatterOutputContract({ ..._contractDics, tags: '' });
+
+      assertEquals(_contract.maxTokens, 256);
     });
 
     it("[Edge] T-SF-OCT-07-03: tags: 'typescript,,deno,'（途中・末尾の空要素）→ tags の値域が ['typescript', 'deno'] になる", () => {
