@@ -28,6 +28,7 @@ import type {
   ProjectDicEntry,
 } from '../types/classify.types.ts';
 // constants
+import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
@@ -91,8 +92,12 @@ Base your decision on: title, category, topics, tags.`;
 /**
  * classify の AI 応答に適用する出力契約（structured-output §4.3.1 #1）を組み立てる。
  * `project` の値域は辞書 `projects` のキー集合、フォールバックは `FALLBACK_PROJECT`。
+ * `maxTokens` は暴走に対する安全弁で、1 ファイルあたりの上限にファイル数を掛ける（ai-backend DR-37）。
+ *
+ * @param projects - プロジェクト辞書。キー集合を `project` の値域にする
+ * @param fileCount - この呼び出しに実際に載せたファイル数（`chunkSize` ではない。DR-37 実装時の決定 2）
  */
-const _buildClassifyOutputContract = (projects: ProjectDicEntry): OutputContract => ({
+const _buildClassifyOutputContract = (projects: ProjectDicEntry, fileCount: number): OutputContract => ({
   contract: 'json-array',
   properties: {
     file: { type: 'string' },
@@ -100,6 +105,7 @@ const _buildClassifyOutputContract = (projects: ProjectDicEntry): OutputContract
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: LLAMA_MAX_TOKENS.CLASSIFY_PER_FILE * fileCount,
 });
 
 /** チャンク全件に `action: ERROR` を `cache` へ書き込み、処理した filePath 一覧を返す。 */
@@ -165,7 +171,7 @@ export const processChunk = async (
     rawResult = await aiRunnerProvider(_systemPrompt, _batchPrompt, {
       model,
       signal: ctl.signal,
-      outputContract: _buildClassifyOutputContract(projects),
+      outputContract: _buildClassifyOutputContract(projects, chunkMetas.length),
     });
   } catch (e) {
     if (isAbortingAiError(e) || ctl.signal.aborted) {

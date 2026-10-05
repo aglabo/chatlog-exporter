@@ -81,6 +81,21 @@ const _FENCED_EMPTY_ARRAY = ['```json', '[]', '```'].join('\n');
 /** 与えられた生文字列をそのまま返す `AiRunnerProvider` スタブ。 */
 const _rawRunner = (raw: string): AiRunnerProvider => () => Promise.resolve(raw);
 
+/**
+ * 呼び出しごとの `options` を `captured` に積み、`respond` の結果を返す `AiRunnerProvider` スタブ。
+ *
+ * @param captured - 受け取った `options` の蓄積先
+ * @param respond - 応答を返す関数。省略時は空配列応答 `'[]'` を返す
+ */
+const _makeCapturingRunner = (
+  captured: (RunAIOptions | undefined)[],
+  respond: () => Promise<string> = () => Promise.resolve('[]'),
+): AiRunnerProvider =>
+(_system, _user, options) => {
+  captured.push(options);
+  return respond();
+};
+
 // ─── Tests
 
 /**
@@ -535,7 +550,7 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
  *
  * 出力契約違反（`ResponseSchemaViolation`）が続行側として扱われることも検証する。
  *
- * テスト ID 範囲: T-CL-OCT-01 〜 T-CL-OCT-02
+ * テスト ID 範囲: T-CL-OCT-01 〜 T-CL-OCT-03
  *
  * @see processChunk
  */
@@ -553,7 +568,7 @@ describe('processChunk — 出力契約（outputContract）', () => {
       loggerStub.restore();
     });
 
-    it('[Normal] T-CL-OCT-01-01: options に #1 json-array 契約が渡り、model / signal も従来どおり渡る', async () => {
+    it('[Normal] T-CL-OCT-01-01: options に #1 json-array 契約 (maxTokens 256) が渡り、model / signal も従来どおり渡る', async () => {
       const metas = [_makeClassifyChatlogEntry('a.md')];
       const projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
       const ctl = new AbortController();
@@ -573,6 +588,7 @@ describe('processChunk — 出力契約（outputContract）', () => {
           confidence: { type: 'number' },
           reason: { type: 'string' },
         },
+        maxTokens: 256,
       });
       assertEquals(captured?.model, 'sonnet');
       assertStrictEquals(captured?.signal, ctl.signal);
@@ -605,6 +621,76 @@ describe('processChunk — 出力契約（outputContract）', () => {
       assertEquals(cache.read('/tmp/input/a.md').action, CLASSIFY_ACTIONS.ERROR);
       assertEquals(cache.read('/tmp/input/b.md').action, CLASSIFY_ACTIONS.ERROR);
       assertEquals(ctl.signal.aborted, false);
+    });
+  });
+
+  /**
+   * `outputContract.maxTokens` がチャンクに載せたファイル数に比例することを検証する（ai-backend DR-37）。
+   * 期待値は定数を参照せず数値リテラルで書く（定数値の変更を検出するため）。
+   */
+  describe('When: チャンクのファイル数に応じた maxTokens で aiRunnerProvider を呼び出す', () => {
+    const _projects: ProjectDicEntry = { app1: {}, app2: {}, misc: {} };
+    let loggerStub: LoggerStub;
+    let cache: ChatlogCache<ClassifyCache>;
+
+    beforeEach(async () => {
+      loggerStub = makeLoggerStub();
+      cache = await _makeEmptyClassifyCache();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+    });
+
+    it('[Normal] T-CL-OCT-03-01: 2 ファイル → maxTokens 512', async () => {
+      const metas = [_makeClassifyChatlogEntry('a.md'), _makeClassifyChatlogEntry('b.md')];
+      const captured: (RunAIOptions | undefined)[] = [];
+
+      await processChunk(metas, _projects, 'sonnet', cache, new AbortController(), _makeCapturingRunner(captured));
+
+      assertEquals(captured.map((o) => o?.outputContract?.maxTokens), [512]);
+    });
+
+    it('[Error] T-CL-OCT-03-02: 3 ファイル・runner が Error(boom) → maxTokens 768 で呼ばれ、3 件とも action: ERROR', async () => {
+      const metas = ['a.md', 'b.md', 'c.md'].map((name) => _makeClassifyChatlogEntry(name));
+      const captured: (RunAIOptions | undefined)[] = [];
+      const runner = _makeCapturingRunner(captured, () => Promise.reject(new Error('boom')));
+
+      await processChunk(metas, _projects, 'sonnet', cache, new AbortController(), runner);
+
+      assertEquals(captured.map((o) => o?.outputContract?.maxTokens), [768]);
+      assertEquals(
+        metas.map((m) => cache.read(m.filePath!).action),
+        [CLASSIFY_ACTIONS.ERROR, CLASSIFY_ACTIONS.ERROR, CLASSIFY_ACTIONS.ERROR],
+      );
+    });
+
+    it('[Edge] T-CL-OCT-03-03: chunkSize 上限の 10 ファイル → maxTokens 2560', async () => {
+      const metas = Array.from(
+        { length: 10 },
+        (_, i) => _makeClassifyChatlogEntry(`f${String(i + 1).padStart(2, '0')}.md`),
+      );
+      const captured: (RunAIOptions | undefined)[] = [];
+
+      await processChunk(metas, _projects, 'sonnet', cache, new AbortController(), _makeCapturingRunner(captured));
+
+      assertEquals(captured.map((o) => o?.outputContract?.maxTokens), [2560]);
+    });
+
+    it('[Edge] T-CL-OCT-03-04: 0 ファイル → runner は呼ばれず（maxTokens 0 の要求を出さない）戻り値は []', async () => {
+      const captured: (RunAIOptions | undefined)[] = [];
+
+      const result = await processChunk(
+        [],
+        _projects,
+        'sonnet',
+        cache,
+        new AbortController(),
+        _makeCapturingRunner(captured),
+      );
+
+      assertEquals(result, []);
+      assertEquals(captured.length, 0);
     });
   });
 });
