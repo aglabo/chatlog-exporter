@@ -92,11 +92,13 @@ export const DEFAULT_MAX_BATCH_CHARS = 20000;
  * 既定 8000 の根拠: 設定可能化より前に filter-chatlogs がハードコードしていた本文上限と同値にしてある。
  * 設定可能にしても既定のままなら振る舞いは変わらない。**この組み込み既定は実測値ではない。**
  *
- * 実運用値は `.config/chatlog-exporter/config.yaml` の `maxBodyChars: 10000`（2026-09-29 に
- * avalon で実測して決定）。組み込み既定を動かすと config を置かない利用者の振る舞いが変わるため、
- * 実測値の反映先は config だけとし、ここは 8000 に据え置く。
+ * 配布する `.config/chatlog-exporter/config.yaml` の `maxBodyChars` もこの既定と同じ 8000 にしてある。
+ * 2026-09-29 に時間ゲートの実測で config を 10000 へ上げたが、2026-10-05 の判定品質の実測
+ * （`cle-kju.3.3.5`、レポート §5.3）で 8000 へ戻した。10000 は KEEP/DISCARD 判定を改善せず
+ * （人手確認で改善 1 件・悪化 3 件）、応答要素数不一致による ERR が 60 件中 22〜24 件から 39 件へ増えた。
+ * error 率の対策（`cle-kju.3.3.12`）が済んだら再測する。
  *
- * 10000 の根拠（`measurements-context-limits-2026-09-29.md`）:
+ * 時間ゲート上の上限は 10000（品質上の理由で採っていない。`measurements-context-limits-2026-09-29.md`）:
  * 合格線は 1 リクエスト <= 180 秒（`timeoutMs: 300_000` に対し 120 秒の余裕。`maxRetry: 2` =
  * 最大 3 試行なので余裕は 1 試行あたりで確保する）。`chunkSize: 2` との積がそのままプロンプト長になる。
  *
