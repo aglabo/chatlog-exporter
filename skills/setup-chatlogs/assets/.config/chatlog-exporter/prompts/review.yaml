@@ -35,7 +35,6 @@ system: |
   WHEN  domain appears more than once in topics → flag as error
   WHEN  aspect violates group constraint → flag as error
   WHEN  type–aspect alignment is broken → flag as error:
-        type=decision    requires "decision" aspect
         type=incident    requires "behavior" or "validation"
         type=execution   requires "behavior" as an aspect (not a second domain entry)
           valid:   [development, behavior]

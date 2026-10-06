@@ -54,7 +54,6 @@ system: |
         architecture = "design occurred" only. Design target type (API/CLI) belongs in tags.
 
   ### Type–aspect alignment (required)
-  WHEN  type is "decision"  → MUST include "decision" aspect
   WHEN  type is "incident"  → MUST include "behavior" or "validation"
   WHEN  type is "execution" → MUST include "behavior"
 
