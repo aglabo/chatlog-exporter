@@ -106,11 +106,24 @@ export type OutputItemFieldSpec =
  * `const _never: never = contract` は本型自身のメンバにしか効かない）。
  */
 export type OutputContract =
-  | { contract: Exclude<OutputContractTag, 'yaml'>; properties: Record<string, OutputFieldSpec> }
+  | {
+    contract: Exclude<OutputContractTag, 'yaml'>;
+    properties: Record<string, OutputFieldSpec>;
+    /**
+     * llama 経路のリクエストに `max_tokens` として載せる上限値。
+     * 暴走に対する安全弁であり、生成長を整える目的では使わない（transport R-009 / DR-37）。
+     */
+    maxTokens: number;
+  }
   | {
     contract: Extract<OutputContractTag, 'yaml'>;
     properties: Record<string, OutputFieldSpec>;
     firstField: string;
+    /**
+     * llama 経路のリクエストに `max_tokens` として載せる上限値。
+     * 暴走に対する安全弁であり、生成長を整える目的では使わない（transport R-009 / DR-37）。
+     */
+    maxTokens: number;
   };
 
 // ─────────────────────────────────────────────

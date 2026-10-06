@@ -54,8 +54,8 @@ allowed-tools: Bash, Glob
 - `--max-body-chars N` → バッチプロンプトへ埋め込む 1 本分の本文の最大文字数 (1〜100000)。
   未指定時は `config.yaml` の `maxBodyChars` を使う。
   優先順位は **CLI 引数 > `config.yaml` > 組み込み既定 (8000)**。
-  本リポジトリが配布する `config.yaml` は **10000** を設定しているため、
-  `/setup-chatlogs` で展開した既定環境での実効値は 10000 になる
+  本リポジトリが配布する `config.yaml` も組み込み既定と同じ **8000** を設定しているため、
+  `/setup-chatlogs` で展開した既定環境での実効値は 8000 になる
 - `--model MODEL` → AI バックエンドのモデル名。未指定時は `config.yaml` の `model` を使う。
   優先順位は **CLI 引数 > `config.yaml`**。
   AI を呼ぶのは filter モードのみで、`strip` / `noise-filter` では効かない
@@ -194,7 +194,8 @@ deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-en
    - DISCARD かつ confidence >= `discardThreshold` (既定 0.7、`config.yaml` で変更可) → 削除対象として記録
    - DISCARD だが confidence が閾値未満 → 判定を保留し、次回実行時に再判定する
    - AI 応答の形が壊れている → 同じチャンクを `maxRetry` (既定 2、`config.yaml` で変更可) 回まで再要求する。
-     壊れていると見なすのは JSON パース失敗 / 空配列 / 要素数がチャンク件数と不一致 / 出力契約への不適合。
+     壊れていると見なすのは JSON パース失敗 / 空配列 / チャンク内のファイルの判定が欠けている /
+     同じファイルの判定が食い違う / 出力契約への不適合。チャンクに無いファイル名の要素は無視する。
      使い切ったらチャンク全件を `error` に計上し、生出力をログへ出す (判定は次回実行へ持ち越す)
    - AI 実行そのものの失敗 (接続失敗 / レートリミット / 終了コード非 0) は再要求しない。
      中断すべきエラーではその場で残りのチャンクを打ち切る

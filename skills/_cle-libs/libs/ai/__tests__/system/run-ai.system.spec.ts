@@ -31,6 +31,7 @@ const _CLAUDE_MODEL = 'haiku';
 const _REPLY_CONTRACT: OutputContract = {
   contract: 'line-prefixed',
   properties: { reply: { type: 'string' } },
+  maxTokens: 256,
 };
 
 // llama 経路は設定ファイル（.config/chatlog-exporter/config.yaml）の model / llamaEndpoint を使う

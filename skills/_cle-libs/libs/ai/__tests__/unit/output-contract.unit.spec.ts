@@ -46,6 +46,7 @@ const _CONTRACT_CLASSIFY: OutputContract = {
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: 256,
 };
 
 /** §4.3.1 #1 に適合する envelope 要素 1 件。復元後の配列要素と等値比較する。 */
@@ -75,6 +76,7 @@ const _CONTRACT_SEGMENT: OutputContract = {
       },
     },
   },
+  maxTokens: 256,
 };
 
 /** `dics/topics.dic` 相当の値域。配列要素 enum のためフォールバック値を持たない。 */
@@ -97,6 +99,7 @@ const _CONTRACT_FRONTMATTER: OutputContract = {
     topics: { type: 'array', items: { type: 'string', values: _TOPIC_VALUES } },
     tags: { type: 'array', items: { type: 'string', values: _TAG_VALUES } },
   },
+  maxTokens: 256,
 };
 
 /** §4.3.1 #4 に適合する応答ペイロード。root object がそのまま YAML 化される。 */
@@ -136,6 +139,7 @@ const _CONTRACT_REVIEW: OutputContract = {
       },
     },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -150,12 +154,14 @@ const _CONTRACT_TYPE_CATEGORY: OutputContract = {
     type: { type: 'string', values: _TYPE_VALUES, fallback: 'research' },
     category: { type: 'string', values: _CATEGORY_VALUES, fallback: 'development' },
   },
+  maxTokens: 256,
 };
 
 /** boolean 型の直下キー `flag` だけを持つ line-prefixed 契約定義。§4.3.1 の契約に boolean が無いため型分岐の検証用に置く。 */
 const _CONTRACT_BOOLEAN: OutputContract = {
   contract: 'line-prefixed',
   properties: { flag: { type: 'boolean' } },
+  maxTokens: 256,
 };
 
 /** §4.3.1 #6 に適合する応答ペイロード。契約定義のキー順に行へ展開される。 */
@@ -801,6 +807,7 @@ describe('Given: 起点キーが先頭でないキー順の適合 yaml 契約応
             title: { type: 'string' },
             tags: { type: 'array', items: { type: 'string', values: _TAG_VALUES } },
           },
+          maxTokens: 256,
         };
         assertNotEquals(
           Object.keys(_contract.properties)[0],

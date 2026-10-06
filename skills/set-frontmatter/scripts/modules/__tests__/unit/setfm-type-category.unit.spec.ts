@@ -776,7 +776,7 @@ describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
   useDefaultGlobalConfig();
 
   describe('When: aiRunnerProvider を呼び出す', () => {
-    it('[Normal] T-SF-OCT-03-01: options に #6 line-prefixed 契約（type / category の enum と fallback）が渡る', async () => {
+    it('[Normal] T-SF-OCT-03-01: options に #6 line-prefixed 契約（type / category の enum と fallback、maxTokens 256）が渡る', async () => {
       let captured: RunAIOptions | undefined;
       const _runner = (_system: string, _user: string, options?: RunAIOptions): Promise<string> => {
         captured = options;
@@ -799,6 +799,7 @@ describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
           type: { type: 'string', values: ['research', 'execution', 'discussion'], fallback: 'research' },
           category: { type: 'string', values: ['development', 'tooling', 'ai'], fallback: 'development' },
         },
+        maxTokens: 256,
       });
     });
   });
@@ -835,7 +836,7 @@ describe('judgeTypeAndCategory — 出力契約（outputContract）', () => {
  * `Dics` から type / category 判定の出力契約（structured-output §4.3.1 #6）を組み立てることを検証する。
  * 値域は `judgeTypeAndCategory` の照合と同じ導出（typeEntries のキー / category の `,` 分割）を使う。
  *
- * テスト ID 範囲: T-SF-OCT-09-01 〜 T-SF-OCT-09-02
+ * テスト ID 範囲: T-SF-OCT-09-01 〜 T-SF-OCT-09-03
  *
  * @see buildTypeCategoryOutputContract
  */
@@ -844,7 +845,7 @@ describe('buildTypeCategoryOutputContract', () => {
 
   /** 辞書に type / category の値が揃っている正常ケース。 */
   describe('When: 正常系', () => {
-    it("[Normal] T-SF-OCT-09-01: typeEntries キー ['research','idea'] と category 'development,bugfix' → #6 line-prefixed 契約", () => {
+    it("[Normal] T-SF-OCT-09-01: typeEntries キー ['research','idea'] と category 'development,bugfix' → #6 line-prefixed 契約（maxTokens 256）", () => {
       const _dics: Dics = {
         ..._makeDics([_makeTypeEntry({ key: 'research' }), _makeTypeEntry({ key: 'idea' })]),
         category: 'development,bugfix',
@@ -856,6 +857,7 @@ describe('buildTypeCategoryOutputContract', () => {
           type: { type: 'string', values: ['research', 'idea'], fallback: 'research' },
           category: { type: 'string', values: ['development', 'bugfix'], fallback: 'development' },
         },
+        maxTokens: 256,
       });
     });
   });
@@ -870,6 +872,12 @@ describe('buildTypeCategoryOutputContract', () => {
         values: [],
         fallback: 'development',
       });
+    });
+
+    it("[Edge] T-SF-OCT-09-03: category ''（空辞書）→ maxTokens は辞書に依存せず 256", () => {
+      const _dics: Dics = { ..._makeDics(), category: '' };
+
+      assertEquals(buildTypeCategoryOutputContract(_dics).maxTokens, 256);
     });
   });
 });

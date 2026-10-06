@@ -13,6 +13,7 @@
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 import { DEFAULT_FALLBACK_CATEGORY, DEFAULT_FALLBACK_TYPE } from '../../../_cle-libs/constants/defaults.constants.ts';
+import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
 import { runAI } from '../../../_cle-libs/libs/ai/run-ai.ts';
 import { logger } from '../../../_cle-libs/libs/io/logger.ts';
 import { extractYaml, hasFrontmatterFields } from '../../../_cle-libs/libs/text/frontmatter-utils.ts';
@@ -35,6 +36,7 @@ import type { Dics, Prompts } from '../types/dics.types.ts';
  * フロントマター生成の AI 応答に適用する出力契約（structured-output §4.3.1 #4）を組み立てる。
  * `topics` / `tags` は配列要素の enum であり、フォールバック値を持たない。`topics` は非空必須、`tags` は該当なしを空配列で表す。
  * `tags` 辞書の空要素（空辞書・連続 / 末尾カンマ）は値域に含めない。
+ * 生成トークン上限は辞書に依存しない固定値 `LLAMA_MAX_TOKENS.FRONTMATTER` とする（ai-backend DR-37）。
  *
  * @param dics - 値域の導出元辞書（`topicEntries` のキー、`tags` のカンマ区切り文字列）
  * @returns `generateFrontmatter` が `aiRunnerProvider` へ渡す出力契約
@@ -47,6 +49,7 @@ export const buildFrontmatterOutputContract = (dics: Dics): OutputContract => ({
     topics: { type: 'array', items: { type: 'string', values: dics.topicEntries.map((e) => e.key) } },
     tags: { type: 'array', items: { type: 'string', values: dics.tags.split(',').filter(Boolean) } },
   },
+  maxTokens: LLAMA_MAX_TOKENS.FRONTMATTER,
 });
 
 /**

@@ -67,6 +67,14 @@ system: |
   Must be from: ${tags_list}
   Avoid redundancy between topics and tags.
 
+  ## errors
+  MUST  list at most 5 entries
+  MUST  report each violation exactly once — never repeat or rephrase a violation already listed
+  MUST  keep each entry to one short sentence: the field, the offending value, and the broken rule
+  NOT   writing reasoning, rule quotations, or "OK" checks in errors
+  WHEN  several values break the same rule → combine them into one entry
+  WHEN  every distinct violation is listed → close the list and continue with corrected_frontmatter
+
   ## corrected_frontmatter
   Always return every field.
   For fields you do not change, copy the current value exactly as given below.
@@ -75,7 +83,7 @@ system: |
   Output schema:
   validity: pass or fail
   errors:
-    - string  # list violations; empty list if pass
+    - string  # at most 5 distinct violations, no repeats; empty list if pass
   corrected_frontmatter:
     type: string
     category: string

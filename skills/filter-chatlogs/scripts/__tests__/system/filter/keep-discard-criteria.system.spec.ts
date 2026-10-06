@@ -122,7 +122,7 @@ const _loadFixtureInfos = async (rootDir: string): Promise<FixtureInfo[]> => {
  */
 const _judgeOnce = async (prompt: string): Promise<{ parsed: ClaudeResult | undefined; raw: string }> => {
   try {
-    const _raw = await runAI(_SYSTEM_PROMPT, prompt, { outputContract: buildFilterOutputContract() });
+    const _raw = await runAI(_SYSTEM_PROMPT, prompt, { outputContract: buildFilterOutputContract(1) });
     const _parsed = parseAiJsonArray<ClaudeResult>(_raw, { allowEmpty: true });
     return { parsed: _parsed?.[0], raw: _raw };
   } catch (e) {

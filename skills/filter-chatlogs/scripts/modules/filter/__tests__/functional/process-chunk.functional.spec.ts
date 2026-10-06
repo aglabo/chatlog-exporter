@@ -11,7 +11,7 @@
 import { assertEquals, assertRejects, assertStrictEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 // stub
-import { stub } from '@std/testing/mock';
+import { spy, stub } from '@std/testing/mock';
 // types
 import type { Stub } from '@std/testing/mock';
 
@@ -198,6 +198,35 @@ const _makeMixedRunner = (
   return { runner, calls: () => _count };
 };
 
+/**
+ * 受け取った `options` を呼び出しごとに記録する `AiRunnerProvider` スタブのファクトリヘルパー。
+ *
+ * 毎回 `outcome` を返す（`string` なら resolve、`Error` なら reject）。再要求を含む全呼び出しの
+ * `options` を `captured` に呼び出し順で積むため、各試行で provider に何が渡されたかを検証できる。
+ *
+ * @param outcome - 毎回返す生応答文字列、または reject する例外
+ * @returns `runner`（注入する provider）と `captured`（呼び出し順の `options`）
+ */
+const _makeCapturingRunner = (
+  outcome: string | Error,
+): { runner: AiRunnerProvider; captured: RunAIOptions[] } => {
+  const captured: RunAIOptions[] = [];
+  const runner: AiRunnerProvider = (_system, _user, options) => {
+    captured.push(options ?? {});
+    return outcome instanceof Error ? Promise.reject(outcome) : Promise.resolve(outcome);
+  };
+  return { runner, captured };
+};
+
+/**
+ * `T-FL-OCT` で使うファイル名から `ChatlogEntry` の配列を作る。
+ *
+ * @param names - `/fake/input/` 直下に置くファイル名
+ * @returns ファイル名ごとの `ChatlogEntry`（本文は `_TEMP_CONTENT`）
+ */
+const _makeEntries = (names: readonly string[]): ChatlogEntry[] =>
+  names.map((name) => new ChatlogEntry(_TEMP_CONTENT, { filePath: `/fake/input/${name}` }));
+
 // ─── Tests
 
 /**
@@ -210,12 +239,12 @@ const _makeMixedRunner = (
  * ## 判定ルール
  * - `decision === 'DISCARD'` かつ `confidence >= DEFAULT_CONFIG_VALUES.discardThreshold` → cache に `decision: DISCARD` を書き込む（削除はしない）
  * - `confidence < DEFAULT_CONFIG_VALUES.discardThreshold` → DISCARD 判定でも未確定のグレーゾーンのため cache には `decision: EMPTY` を書き込み、stats.skip に計上（未確定のため次回再判定される。confidence/reason は元の値を保持）
- * - ファイル名不一致 → 判定不能として stats.skip に計上（cache へは書き込まず、次回再判定される）
- * - 応答の形が壊れている（JSON パース失敗 / 空配列 / 要素数がチャンク件数と不一致）→ `maxRetry` 回まで同じチャンクを再要求し、使い切ったら全件 `stats.error` に計上して `ChatlogError` を返す（cache へは書き込まない）。subindex は順に `JsonParse` / `EmptyArray` / `CountMismatch`
+ * - 応答の妥当性は要素数ではなく「チャンク内の全ファイル名がそろっているか」で判定する。余剰ファイル名の要素は無視し、decision が一致する重複は最初の 1 件を採用する
+ * - 応答の形が壊れている（JSON パース失敗 / 空配列 / チャンク内のファイル名の欠落 / 同一ファイル名で decision が食い違う）→ `maxRetry` 回まで同じチャンクを再要求し、使い切ったら全件 `stats.error` に計上して `ChatlogError` を返す（cache へは書き込まない）。subindex は順に `JsonParse` / `EmptyArray` / `MissingFile` / `ConflictingDecision`
  * - CLI エラー（`ChatlogError`）→ 再要求せず全件 `stats.error` に計上し `ChatlogError` を返す。RateLimit の場合は `ctl.abort()` を呼ぶ
  * - 非 `ChatlogError`（CLI バイナリ不在等）→ 握りつぶさず throw する
  *
- * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-17
+ * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-20
  *
  * @see processChunk
  */
@@ -844,14 +873,15 @@ describe('processChunk', () => {
   /**
    * 対象ファイルと異なるファイル名を含む結果を返すモックの前提条件グループ。
    *
-   * ファイル名不一致の場合は判定不能として該当ファイルを stats.skip に計上することを検証する。
+   * ファイル名不一致の場合は応答の形が壊れているとみなし、再要求を使い切って（既定 maxRetry=0 では 1 回で）
+   * 該当ファイルを stats.error に計上することを検証する（判定不能 skip にはしない）。
    */
   describe('Given: 対象ファイルと異なるファイル名の結果を返す Claude モック', () => {
     /** processChunk([file], stats) を呼び出すとき。 */
     describe('When: processChunk([file], stats) を呼び出す', () => {
-      /** 判定不能として stats.skip が増えることを検証する。 */
-      describe('Then: T-FL-PCK-07 - 判定不能で stats.skip が増える', () => {
-        it('T-FL-PCK-07-01: ファイル名不一致 → stats.skip が 1 になる', async () => {
+      /** 再要求を使い切って stats.error が増え、stats.skip は増えないことを検証する。 */
+      describe('Then: T-FL-PCK-07 - 再要求を使い切って error になる', () => {
+        it('T-FL-PCK-07-01: ファイル名不一致 → stats.error が 1 になり stats.skip は 0 のまま', async () => {
           const filePath = await _createTempFile('h.md');
           const entry = new ChatlogEntry(_TEMP_CONTENT, { filePath });
           // 対象は h.md だが結果は other.md
@@ -874,7 +904,8 @@ describe('processChunk', () => {
           });
           errStub.restore();
 
-          assertEquals(stats.skip, 1);
+          assertEquals(stats.error, 1);
+          assertEquals(stats.skip, 0);
           assertEquals(stats.keep, 0);
         });
       });
@@ -1141,38 +1172,34 @@ describe('processChunk — llama 中断側判定（isAbortingAiError）', () => 
  * `processChunk` が `aiRunnerProvider` へ出力契約（structured-output §4.3.1 #2）を渡すことを検証するスイート。
  *
  * `options` を捕捉するスタブを注入し、`options.outputContract` を契約定義と丸ごと比較する。
+ * `maxTokens` は 1 ファイルあたり 768 × チャンクに載せたファイル数で渡ることを検証する（ai-backend DR-37）。
  *
- * テスト ID 範囲: T-FL-OCT-01
+ * テスト ID 範囲: T-FL-OCT-01 〜 T-FL-OCT-02
  *
  * @see processChunk
  */
 describe('processChunk — 出力契約（outputContract）', () => {
   useDefaultGlobalConfig();
 
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
   describe('When: aiRunnerProvider を呼び出す', () => {
-    let errStub: Stub;
-    let stats: FilterStats;
-    let cache: ChatlogCache<CLEResult>;
+    it('[Normal] T-FL-OCT-01-01: options に #2 json-array 契約が maxTokens 768 で渡る', async () => {
+      const { runner, captured } = _makeCapturingRunner('[]');
 
-    beforeEach(async () => {
-      errStub = stub(console, 'error', () => {});
-      stats = { keep: 0, skip: 0, remove: 0, error: 0 };
-      cache = await _makeEmptyCache();
-    });
-
-    afterEach(() => {
-      errStub.restore();
-    });
-
-    it('[Normal] T-FL-OCT-01-01: options に #2 json-array 契約が渡る', async () => {
-      const entries = [new ChatlogEntry(_TEMP_CONTENT, { filePath: '/fake/input/a.md' })];
-      let captured: RunAIOptions | undefined;
-      const runner: AiRunnerProvider = (_system, _user, options) => {
-        captured = options;
-        return Promise.resolve('[]');
-      };
-
-      await processChunk(entries, stats, {
+      await processChunk(_makeEntries(['a.md']), stats, {
         discardThreshold: 0.7,
         cache,
         ctl: new AbortController(),
@@ -1181,7 +1208,7 @@ describe('processChunk — 出力契約（outputContract）', () => {
         aiRunnerProvider: runner,
       });
 
-      assertEquals(captured?.outputContract, {
+      assertEquals(captured[0].outputContract, {
         contract: 'json-array',
         properties: {
           file: { type: 'string' },
@@ -1189,7 +1216,59 @@ describe('processChunk — 出力契約（outputContract）', () => {
           confidence: { type: 'number' },
           reason: { type: 'string' },
         },
+        maxTokens: 768,
       });
+    });
+
+    it('[Normal] T-FL-OCT-02-01: 2 ファイルのチャンク → maxTokens 1536', async () => {
+      const { runner, captured } = _makeCapturingRunner('[]');
+
+      await processChunk(_makeEntries(['a.md', 'b.md']), stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl: new AbortController(),
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(captured[0].outputContract?.maxTokens, 1536);
+    });
+  });
+
+  describe('When: 出力契約違反で再要求する', () => {
+    it('[Error] T-FL-OCT-02-02: 2 ファイル・maxRetry 1・2 回とも ResponseSchemaViolation → 2 回とも maxTokens 1536', async () => {
+      const { runner, captured } = _makeCapturingRunner(
+        new ChatlogError('AiError', 'ResponseSchemaViolation', 'response violates output contract'),
+      );
+
+      await processChunk(_makeEntries(['a.md', 'b.md']), stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl: new AbortController(),
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(captured.map((options) => options.outputContract?.maxTokens), [1536, 1536]);
+      assertEquals(stats.error, 2);
+    });
+  });
+
+  describe('When: chunkSize 上限（10 件）のチャンクを渡す', () => {
+    it('[Edge] T-FL-OCT-02-03: 10 ファイルのチャンク → maxTokens 7680', async () => {
+      const { runner, captured } = _makeCapturingRunner('[]');
+      const _names = Array.from({ length: 10 }, (_, i) => `f${String(i + 1).padStart(2, '0')}.md`);
+
+      await processChunk(_makeEntries(_names), stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl: new AbortController(),
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(captured[0].outputContract?.maxTokens, 7680);
     });
   });
 });
@@ -1528,20 +1607,25 @@ describe('processChunk — 空配列応答の扱い', () => {
  * ## リトライ対象（応答の形が壊れているケースのみ）
  * - `parseAiJsonArray` が falsy → subindex `JsonParse`
  * - 配列が空（`length === 0`）→ subindex `EmptyArray`
- * - 要素数がチャンク件数と不一致（`length !== chunkEntries.length`）→ subindex `CountMismatch`
+ * - チャンク内のいずれかのファイル名を持つ要素が 1 つも無い → subindex `MissingFile`
+ * - 同じファイル名の要素が複数あり `decision` が食い違う → subindex `ConflictingDecision`
+ *
+ * 要素数は見ない。チャンクに無いファイル名の要素（余剰）は無視し（cache に書かず集計にも数えない）、
+ * 同じファイル名で `decision` が一致する重複は最初の 1 件を採用する。ファイル名の照合は `T-FL-PCK-19` が担当する。
  *
  * ## リトライしないもの
  * - AI 実行そのものの失敗・中断側エラー（接続失敗 `BackendUnavailable` / レートリミット `RateLimit` /
  *   終了コード非 0 `ExitFailure` / `ResponseFormatRejected` 等）。同じ要求を繰り返しても結果が変わらず、
  *   中断側では `ctl.abort()` を先に効かせる必要があるため、従来どおり即 error 確定とする
- * - ファイル名不一致だが要素数は一致しているケース（従来どおり該当ファイルのみ「判定不能 skip」）
+ *
+ * ファイル名の欠落は要素数が一致していても再要求の対象であり、「判定不能 skip」の経路は無い。
  *
  * `aiRunnerProvider` が throw する `ChatlogError` でも、`AiError/ResponseSchemaViolation`
  * （llama 経路で `validateOutputContract` が応答形式違反を検出して投げるもの）は応答の形が壊れている
  * ケースであり**リトライ対象**である。この経路の検証は `T-FL-PCK-18` が担当する。
  *
  * リトライを使い切った場合は `_failChunk` を 1 回だけ呼ぶため、`stats.error` はチャンク件数
- * ちょうどであり、試行回数分の多重加算は起きない。要素数不一致で使い切った場合も
+ * ちょうどであり、試行回数分の多重加算は起きない。ファイル名の欠落で使い切った場合も
  * 部分一致分を採用せず（cache へ書かず）チャンク全件を error にする。
  * 試行回数の上限は 10（`maxRetry` をこれ以上に設定してもクランプされる）。
  *
@@ -1639,7 +1723,7 @@ describe('processChunk — 応答不正時の再要求（maxRetry）', () => {
 
   /** 再要求を使い切って失敗が確定するケースと、そもそもリトライしないケース。 */
   describe('When: 異常系', () => {
-    it('[Error] T-FL-PCK-17-03: maxRetry=2 で要素数不一致が続く → 3 回要求し全件 error・subindex=CountMismatch', async () => {
+    it('[Error] T-FL-PCK-17-03: maxRetry=2 でファイル名の欠落が続く → 3 回要求し全件 error・subindex=MissingFile', async () => {
       const entries = ['a.md', 'b.md'].map((name) =>
         new ChatlogEntry(_TEMP_CONTENT, { filePath: `/fake/input/${name}` })
       );
@@ -1659,7 +1743,7 @@ describe('processChunk — 応答不正時の再要求（maxRetry）', () => {
       assertEquals(calls(), 3);
       assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 2 });
       assertEquals((result as ChatlogError).kind, 'InvalidFormat');
-      assertEquals((result as ChatlogError).subindex, 'CountMismatch');
+      assertEquals((result as ChatlogError).subindex, 'MissingFile');
       assertEquals(cache.read('/fake/input/a.md'), {});
     });
 
@@ -1915,6 +1999,256 @@ describe('processChunk — llama 経路の応答形式違反の再要求', () =>
       assertEquals(calls(), 1);
       assertEquals(stats.error, 1);
       assertEquals(ctl.signal.aborted, true);
+    });
+  });
+});
+
+/**
+ * AI 応答の妥当性を、要素数ではなく「チャンク内の全ファイル名がそろっているか」で判定することを検証するスイート。
+ *
+ * 要素数だけを見る判定では、件数は合うがファイル名が違う応答を受理して該当ファイルを「判定不能 skip」に落とし、
+ * 逆に余剰要素や同一判定の重複を含むだけの応答を `CountMismatch` で全件 error にしていた（beads cle-kju.3.3.12）。
+ *
+ * ## 判定ルール
+ * - チャンク内のいずれかのファイル名を持つ要素が 1 つも無い → 再要求の対象。使い切ったら全件 error、subindex `MissingFile`
+ * - 同じファイル名の要素が複数あり `decision` が食い違う → 再要求の対象。使い切ったら全件 error、subindex `ConflictingDecision`
+ * - チャンクに無いファイル名の要素（余剰）は無視する。cache に書かず、集計にも数えない
+ * - 同じファイル名で `decision` が一致する重複要素は最初の 1 件を採用する（1 ファイル 1 回だけ集計する）
+ * - 使い切った場合は部分一致分を採用しない（cache へ 1 件も書かない）
+ *
+ * テスト ID 範囲: T-FL-PCK-19
+ *
+ * @see processChunk
+ */
+describe('processChunk — 応答のファイル名照合', () => {
+  useDefaultGlobalConfig();
+
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+  let ctl: AbortController;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+    ctl = new AbortController();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  /**
+   * `/fake/input/<name>` を filePath に持つ `ChatlogEntry` の配列を生成する。
+   *
+   * @param names - チャンクに含めるファイル名（例: `['a.md', 'b.md']`）
+   * @returns 与えた順の `ChatlogEntry` 配列
+   */
+  const _makeEntries = (names: readonly string[]): ChatlogEntry[] =>
+    names.map((name) => new ChatlogEntry(_TEMP_CONTENT, { filePath: `/fake/input/${name}` }));
+
+  /**
+   * KEEP（confidence=0.9）の判定結果要素を生成する。
+   *
+   * @param file - 要素の `file` に入れるファイル名
+   * @returns 判定結果要素
+   */
+  const _keep = (file: string): Record<string, unknown> => ({
+    file,
+    decision: FILTER_DECISIONS.KEEP,
+    confidence: 0.9,
+    reason: 'valuable',
+  });
+
+  /** ファイル名の照合で判定が確定するケース（余剰の無視・一致する重複の採用・欠落後の再要求）。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-FL-PCK-19-01: a.md / b.md に余剰 other.md を含む 3 要素 → 1 回で確定し other.md は cache に書かない', async () => {
+      const entries = _makeEntries(['a.md', 'b.md']);
+      const { runner, calls } = _makeSequencedRunner([
+        JSON.stringify([_keep('a.md'), _keep('b.md'), _keep('other.md')]),
+      ]);
+      const writeSpy = spy(cache, 'write');
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 2,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats, { keep: 2, skip: 0, remove: 0, error: 0 });
+      assertEquals(result, undefined);
+      assertEquals(writeSpy.calls.map((c) => c.args[0]), ['/fake/input/a.md', '/fake/input/b.md']);
+    });
+
+    it('[Normal] T-FL-PCK-19-02: a.md に decision が同じ重複要素 2 つ → 1 回で確定し keep は 1', async () => {
+      const entries = _makeEntries(['a.md']);
+      const { runner, calls } = _makeSequencedRunner([JSON.stringify([_keep('a.md'), _keep('a.md')])]);
+      const writeSpy = spy(cache, 'write');
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 2,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats, { keep: 1, skip: 0, remove: 0, error: 0 });
+      assertEquals(result, undefined);
+      assertEquals(writeSpy.calls.length, 1);
+    });
+
+    it('[Normal] T-FL-PCK-19-03: maxRetry=1、1 回目は b.md が欠落・2 回目は a / b / 余剰 → 2 回で確定し keep 2', async () => {
+      const entries = _makeEntries(['a.md', 'b.md']);
+      const { runner, calls } = _makeSequencedRunner([
+        JSON.stringify([_keep('a.md'), _keep('other.md')]),
+        JSON.stringify([_keep('a.md'), _keep('b.md'), _keep('other.md')]),
+      ]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 1,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 2);
+      assertEquals(stats, { keep: 2, skip: 0, remove: 0, error: 0 });
+      assertEquals(result, undefined);
+    });
+  });
+
+  /** 再要求を使い切って全件 error が確定するケース（名前違い・decision の食い違い）。 */
+  describe('When: 異常系', () => {
+    it('[Error] T-FL-PCK-19-04: maxRetry=0、h.md に対し件数は一致するが名前違いの other.md → error 1・subindex=MissingFile', async () => {
+      const entries = _makeEntries(['h.md']);
+      const { runner, calls } = _makeSequencedRunner([
+        JSON.stringify([{ file: 'other.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' }]),
+      ]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 0,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
+      assertEquals((result as ChatlogError).kind, 'InvalidFormat');
+      assertEquals((result as ChatlogError).subindex, 'MissingFile');
+      assertEquals(cache.read('/fake/input/h.md'), {});
+    });
+
+    it('[Error] T-FL-PCK-19-05: maxRetry=2、a.md に KEEP と DISCARD の食い違う要素 → 3 回要求し subindex=ConflictingDecision', async () => {
+      const entries = _makeEntries(['a.md']);
+      const { runner, calls } = _makeSequencedRunner([
+        JSON.stringify([
+          _keep('a.md'),
+          { file: 'a.md', decision: FILTER_DECISIONS.DISCARD, confidence: 0.9, reason: 'trivial' },
+        ]),
+      ]);
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 2,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 3);
+      assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 1 });
+      assertEquals((result as ChatlogError).kind, 'InvalidFormat');
+      assertEquals((result as ChatlogError).subindex, 'ConflictingDecision');
+      assertEquals(cache.read('/fake/input/a.md'), {});
+    });
+  });
+
+  /** 一部のファイルだけ判定がそろった応答を部分採用しないことを固定するケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FL-PCK-19-06: maxRetry=0、a.md / b.md に対し a.md だけの応答 → error 2・subindex=MissingFile・a.md も cache に書かない', async () => {
+      const entries = _makeEntries(['a.md', 'b.md']);
+      const { runner, calls } = _makeSequencedRunner([JSON.stringify([_keep('a.md')])]);
+      const writeSpy = spy(cache, 'write');
+
+      const result = await processChunk(entries, stats, {
+        discardThreshold: 0.7,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        maxRetry: 0,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 1);
+      assertEquals(stats, { keep: 0, skip: 0, remove: 0, error: 2 });
+      assertEquals((result as ChatlogError).kind, 'InvalidFormat');
+      assertEquals((result as ChatlogError).subindex, 'MissingFile');
+      assertEquals(writeSpy.calls.length, 0);
+    });
+  });
+});
+
+/**
+ * 空のチャンク（`chunkEntries` が空配列）を渡したときの `processChunk` の扱いを検証するスイート。
+ *
+ * 判定対象が 1 件も無いチャンクで AI を呼ぶと、出力契約の `maxTokens` が 0・user プロンプトも空のまま
+ * 要求が飛び、応答検証に失敗して `ChatlogError` を返してしまう。空チャンクは AI を呼ばずに
+ * 何もせず `undefined` を返し、`stats` も変更しない。
+ *
+ * テスト ID 範囲: T-FL-PCK-20
+ *
+ * @see processChunk
+ */
+describe('processChunk — 空チャンクの扱い', () => {
+  useDefaultGlobalConfig();
+
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+  let ctl: AbortController;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+    ctl = new AbortController();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  /** 判定対象が 0 件という境界値。AI 呼び出し自体を行わないことを検証する。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FL-PCK-20-01: chunkEntries=[] → aiRunnerProvider を 1 回も呼ばず undefined を返し stats は不変', async () => {
+      const { runner, calls } = _makeSequencedRunner([JSON.stringify([])]);
+      const _before = { ...stats };
+
+      const result = await processChunk([], stats, {
+        discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold as number,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 0);
+      assertEquals(result, undefined);
+      assertEquals(stats, _before);
     });
   });
 });

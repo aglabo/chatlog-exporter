@@ -38,8 +38,8 @@ export type LlamaRequestParams = {
 /**
  * llama chat completions へ送るリクエストボディ。
  *
- * 送るフィールドはこの 4 つに限り、`temperature` / `top_p` / `max_tokens` 等の
- * 生成パラメータは載せずサーバ既定に委ねる（transport R-009 / DR-15）。
+ * 送るフィールドはこの 5 つに限り、`temperature` / `top_p` 等の
+ * 生成パラメータは載せずサーバ既定に委ねる（transport R-009 / DR-15 / DR-37）。
  */
 export type LlamaRequestBody = {
   /** provider prefix を除いたモデル識別子。 */
@@ -50,4 +50,6 @@ export type LlamaRequestBody = {
   stream: boolean;
   /** 出力契約から構築する構造化出力の指定。 */
   response_format: Record<string, unknown>;
+  /** 生成トークン数の安全弁。出力契約の `maxTokens` をそのまま載せる（DR-37）。 */
+  max_tokens: number;
 };

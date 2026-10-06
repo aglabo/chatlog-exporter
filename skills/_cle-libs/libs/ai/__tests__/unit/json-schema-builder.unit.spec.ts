@@ -164,6 +164,7 @@ const CLASSIFY_CONTRACT: OutputContract = {
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: 256,
 };
 
 /** `projects.dic` のプロジェクト名相当の値域。フォールバック値 `misc` を値域の一部として含む。 */
@@ -193,6 +194,7 @@ const CLASSIFY_ENUM_CONTRACT: OutputContract = {
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -211,6 +213,7 @@ const PROCESS_CHUNK_CONTRACT: OutputContract = {
     confidence: { type: 'number' },
     reason: { type: 'string' },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -227,6 +230,7 @@ const SETFM_FRONTMATTER_CONTRACT: OutputContract = {
     topics: { type: 'array', items: { type: 'string' } },
     tags: { type: 'array', items: { type: 'string' } },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -252,6 +256,7 @@ const SETFM_REVIEW_CONTRACT: OutputContract = {
       },
     },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -266,6 +271,7 @@ const SETFM_TYPE_CATEGORY_CONTRACT: OutputContract = {
     type: { type: 'string' },
     category: { type: 'string' },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -282,6 +288,7 @@ const SETFM_TYPE_CATEGORY_ENUM_CONTRACT: OutputContract = {
     type: { type: 'string', values: TYPE_VALUES, fallback: 'research' },
     category: { type: 'string', values: CATEGORY_VALUES, fallback: 'development' },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -299,6 +306,7 @@ const SETFM_FRONTMATTER_ENUM_CONTRACT: OutputContract = {
     topics: { type: 'array', items: { type: 'string', values: TOPIC_VALUES } },
     tags: { type: 'array', items: { type: 'string', values: TAG_VALUES } },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -326,6 +334,7 @@ const SEGMENT_AI_CONTRACT: OutputContract = {
       },
     },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -351,6 +360,7 @@ const SETFM_REVIEW_ENUM_CONTRACT: OutputContract = {
       },
     },
   },
+  maxTokens: 256,
 };
 
 /** 実辞書のどのキーとも重ならない合成値域。辞書の実内容への依存を検出するために使う。 */
@@ -368,6 +378,7 @@ const SYNTHETIC_ENUM_CONTRACT: OutputContract = {
   properties: {
     type: { type: 'string', values: SYNTHETIC_TYPE_VALUES, fallback: 'alpha' },
   },
+  maxTokens: 256,
 };
 
 /**
@@ -380,6 +391,7 @@ const INVALID_FALLBACK_CONTRACT: OutputContract = {
   properties: {
     type: { type: 'string', values: SYNTHETIC_TYPE_VALUES, fallback: 'gamma' },
   },
+  maxTokens: 256,
 };
 
 /** T-08-06 で走査する契約ケース。expected は到達可能な object ノードの総数。 */
@@ -523,7 +535,39 @@ const _EMPTY_TOPICS_CONTRACT: OutputContract = {
     title: { type: 'string' },
     topics: { type: 'array', items: { type: 'string', values: [] } },
   },
+  maxTokens: 256,
 };
+
+/** T-LIB-AI-JSB-13-01 で使う、`maxTokens` を持つ最小の yaml 契約。 */
+const _YAML_MAX_TOKENS_CONTRACT: OutputContract = {
+  contract: 'yaml',
+  properties: { title: { type: 'string' } },
+  firstField: 'title',
+  maxTokens: 256,
+};
+
+/** T-LIB-AI-JSB-13-02 で使う、`maxTokens` を持つ最小の json-array 契約（envelope を持つ経路）。 */
+const _JSON_ARRAY_MAX_TOKENS_CONTRACT: OutputContract = {
+  contract: 'json-array',
+  properties: { filename: { type: 'string' } },
+  maxTokens: 256,
+};
+
+/**
+ * T-LIB-AI-JSB-13 で検証する、契約メタ情報 `maxTokens` が schema に漏れないことを確かめるケース。
+ *
+ * `tag` は規約のカテゴリ接頭辞（13-01 / 13-02 は正常系、13-03 は入れ子 object のエッジケース）。
+ */
+const _NO_MAX_TOKENS_LEAK_CASES: { tag: string; id: string; label: string; contract: OutputContract }[] = [
+  { tag: 'Normal', id: 'T-LIB-AI-JSB-13-01', label: 'yaml 契約', contract: _YAML_MAX_TOKENS_CONTRACT },
+  { tag: 'Normal', id: 'T-LIB-AI-JSB-13-02', label: 'json-array 契約', contract: _JSON_ARRAY_MAX_TOKENS_CONTRACT },
+  {
+    tag: 'Edge',
+    id: 'T-LIB-AI-JSB-13-03',
+    label: '入れ子 object を含む #5 setfm-review 契約',
+    contract: SETFM_REVIEW_ENUM_CONTRACT,
+  },
+];
 
 // ─── Tests
 
@@ -713,6 +757,7 @@ describe('buildJsonSchema', () => {
           title: { type: 'string' },
           tags: { type: 'array', items: { type: 'string', values: ['', 'deno'] } },
         },
+        maxTokens: 256,
       };
       // 分類根拠は T-LIB-AI-JSB-04-04 と同じ（DR-18 決定 1 / DR-26）
       const _error = assertThrows(() => buildJsonSchema(_contract), ChatlogError, 'tags[]');
@@ -843,6 +888,26 @@ describe('buildJsonSchema', () => {
       assertArrayIncludes(_enumOf(_schema.properties.category), ['development']);
     });
   });
+
+  /**
+   * 契約メタ情報の非漏出テスト。
+   *
+   * `maxTokens` はリクエスト側（`body.max_tokens`）に載せる値であり、schema の要素ではない
+   * （transport R-009 / DR-37）。どの深さにも `maxTokens` が現れないことを検証する。
+   *
+   * テスト ID 範囲: T-LIB-AI-JSB-13-01 〜 T-LIB-AI-JSB-13-03
+   *
+   * 変異確認: `buildJsonSchema` の戻り値に `maxTokens: contract.maxTokens` を混入させると 3 件とも RED になる。
+   */
+  describe('契約メタ情報の非漏出', () => {
+    for (const { tag, id, label, contract } of _NO_MAX_TOKENS_LEAK_CASES) {
+      it(`[${tag}] ${id}: ${label}の schema に maxTokens が現れない`, () => {
+        const _serialized = JSON.stringify(buildJsonSchema(contract));
+
+        assert(!_serialized.includes('maxTokens'), `maxTokens leaked into schema: ${_serialized}`);
+      });
+    }
+  });
 });
 
 /**
@@ -887,6 +952,7 @@ describe('assertOutputContractValues', () => {
             properties: { type: { type: 'string', values: ['research', 'design'], fallback: 'implementation' } },
           },
         },
+        maxTokens: 256,
       };
       const _message = _assertValuesViolation(_contract);
 
@@ -902,6 +968,7 @@ describe('assertOutputContractValues', () => {
           title: { type: 'string' },
           tags: { type: 'array', items: { type: 'string', values: ['', 'deno'] } },
         },
+        maxTokens: 256,
       };
       const _message = _assertValuesViolation(_contract);
 
@@ -913,6 +980,7 @@ describe('assertOutputContractValues', () => {
       const _contract: OutputContract = {
         contract: 'line-prefixed',
         properties: { type: { type: 'string', values: [], fallback: 'research' } },
+        maxTokens: 256,
       };
       const _message = _assertValuesViolation(_contract);
 
@@ -930,6 +998,7 @@ describe('assertOutputContractValues', () => {
             items: { type: 'object', properties: { kind: { type: 'string', values: ['a'], fallback: 'z' } } },
           },
         },
+        maxTokens: 256,
       };
       const _message = _assertValuesViolation(_contract);
 
@@ -940,7 +1009,7 @@ describe('assertOutputContractValues', () => {
 
     it('[Error] T-LIB-AI-JSB-11-06: 空値域・空文字列・フォールバック値域外の 3 理由で detail が互いに異なる', () => {
       const _messages = _THREE_REASON_TYPE_SPECS.map((spec) =>
-        _assertValuesViolation({ contract: 'line-prefixed', properties: { type: spec } })
+        _assertValuesViolation({ contract: 'line-prefixed', properties: { type: spec }, maxTokens: 256 })
       );
 
       assertEquals(new Set(_messages).size, 3);
@@ -953,6 +1022,7 @@ describe('assertOutputContractValues', () => {
       const _contract: OutputContract = {
         contract: 'line-prefixed',
         properties: { category: { type: 'string', values: [''], fallback: 'development' } },
+        maxTokens: 256,
       };
       const _message = _assertValuesViolation(_contract);
 

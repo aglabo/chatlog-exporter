@@ -33,7 +33,7 @@ minCharCount: 1000 # Minimum content length
 minAssistantChars: 300 # Minimum assistant response length (when userTurns=1)
 # Measured on avalon 2026-09-29. See docs/.deckrd/libs/ai-backend/workspaces/measurements-context-limits-2026-09-29.md
 maxContentLength: 10000 # Maximum content length. Gate: cold meta 111.1s (<= 180s), corpus 1.49x of 4000
-maxBodyChars: 10000 # Maximum body length embedded per chatlog in a batch prompt. Gate: cold 136.2s worst of 3
+maxBodyChars: 8000 # Maximum body length embedded per chatlog in a batch prompt. 10000 passed the time gate but raised ERR 23 -> 39 with no judgement gain (2026-10-05, cle-kju.3.3.5)
 
 # DISCARD threshold (filter-chatlog)
 discardThreshold: 0.7 # Remove DISCARD entries with confidence >= this value

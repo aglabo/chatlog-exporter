@@ -129,17 +129,20 @@ const _buildResponseFormat = (contract: OutputContract): Record<string, unknown>
  * llama chat completions へ送るリクエストを構築する。
  *
  * 構築のみを行い、送信は行わない（`FetchProvider` を受け取らない）。
+ * `max_tokens` には出力契約の `maxTokens` をそのまま載せる（DR-37。補正・クランプは行わない）。
  *
  * @param params - モデル指定・system / user テキスト・出力契約
  * @returns `FetchProvider` にそのまま渡せる `RequestInit`
  * @throws {ChatlogError} 出力契約が指定されていない場合
  */
 export const buildLlamaRequest = (params: LlamaRequestParams): RequestInit => {
+  const _contract = _requireOutputContract(params.outputContract);
   const _body: LlamaRequestBody = {
     model: _resolveModelId(params.model),
     messages: _buildMessages(params.system, params.user),
     stream: _STREAM_DISABLED,
-    response_format: _buildResponseFormat(_requireOutputContract(params.outputContract)),
+    response_format: _buildResponseFormat(_contract),
+    max_tokens: _contract.maxTokens,
   };
 
   return {
