@@ -8,9 +8,9 @@
 # 判定優先順位（この順序で確認すること）:
 #   STEP 1: incident signal が実際に発生して行動を引き起こしたか？ → incident（無条件）
 #   STEP 2: 成果物が文書・仕様・記事・プロンプト文面か？          → writing
-#   STEP 3: コード/設定変更が主目的か（文書除く・incident修正除く）→ execution
+#   STEP 3: コード/設定変更、またはツール・コマンドの実行・操作が主目的か（文書除く・incident修正除く）→ execution
 #   STEP 4: 将来の実装に影響する明示的・不可逆な決定があるか？    → discussion
-#   STEP 5: 理解・比較が主目的で実装も明示的決定もないか？        → research
+#   STEP 5: 理解・比較が主目的で実装・ツール実行も明示的決定もないか？ → research
 #
 # incident signal（これが1つでもあればSTEP 1で確定）:
 #   - エラーメッセージ・スタックトレース・CI失敗が会話の起点
@@ -23,21 +23,24 @@
 #   続いても、ログの「起点」はincidentのまま変わらない。
 
 execution:
-  def: A log where the primary purpose was implementing or modifying code, scripts, or configuration — not triggered by an error
-  desc: ファイル変更（コード・設定・スクリプト）が主目的の実作業ログ。成果物はコミットされたファイル変更。
+  def: A log where the primary purpose was hands-on work — implementing or modifying code, scripts, or configuration, or actually running and operating tools or commands — not triggered by an error
+  desc: 手を動かした実作業ログ。ファイル変更（コード・設定・スクリプト）か、ツール・CLI・コマンドを実際に実行・操作して作業を進めたことが主目的。成果物はファイル変更、またはツール実行の結果。
   rules:
     when:
       - 実装・変更が主目的であり、エラー・障害が起点ではない
       - 既存機能の追加・拡張・リファクタリングを行った（incident なし）
       - テストを実装・修正した（incident なし）
+      - ツール・CLI・コマンドを実際に実行・操作して作業を進めた（試しながら使い方を覚えた場合も含む。incident なし）
     not:
       - エラー・障害が会話の起点（→ incident が優先・無条件）
-      - ファイル変更がない計画・方針確定（→ discussion）
+      - ファイル変更もツール実行もない計画・方針確定（→ discussion）
       - 文書・記事の作成が主体（→ writing）
+      - ツールの使い方・仕様を尋ねて理解しただけで、実際には実行していない（→ research）
     where:
       - incident との境界：起点がエラー・障害であれば execution ではなく incident（ファイル変更の有無は無関係）
       - discussion との境界：ファイル変更を伴う実装があれば execution（計画・方針のみなら discussion）
-  structure: 指示 → 実装 → 確認
+      - research との境界：ツールを実際に走らせて作業を進めたら execution、使い方を調べて理解しただけなら research
+  structure: 指示 → 実装・実行 → 確認
 
 incident:
   def: A log where an error, failure, or unexpected behavior was the starting point — this type dominates regardless of what follows
@@ -77,16 +80,17 @@ discussion:
   structure: 課題 → 検討 → 決定
 
 research:
-  def: A log where the primary purpose is information gathering, comparison, or conceptual understanding — with no explicit decision and no implementation
-  desc: 調査・質問・情報収集・概念理解が主体。明示的な決定も実装もない。
+  def: A log where the primary purpose is information gathering, comparison, or conceptual understanding — with no explicit decision, no implementation, and no hands-on tool runs
+  desc: 調査・質問・情報収集・概念理解が主体。明示的な決定も実装もツールの実行もない。
   rules:
     when:
       - 調査・理解が主目的であり、明示的な決定も実装もない
       - 技術・ツール・概念の調査・比較検討が主目的
-      - 実装を伴わない質問・回答・議論
+      - 実装もツール実行も伴わない質問・回答・議論（ツールの使い方を尋ねただけの場合を含む）
       - ドキュメント・記事を読んで理解した
     not:
       - 調査後にコードを実装した（→ execution）
+      - ツール・コマンドを実際に実行・操作して作業を進めた（→ execution）
       - 調査結果をもとに設計判断が明示的に確定した（→ discussion）
       - エラーが起点の原因調査（→ incident）
     where:

@@ -1,6 +1,6 @@
 // src: scripts/modules/setfm-assets-loader.ts
 // @(#): set-frontmatter assets/ 配下の静的アセット（辞書・プロンプト）読み込みモジュール
-//       対象: loadDics / loadPrompts / resolveDicsDir
+//       対象: loadDics / loadPrompts / resolveDicsDir / findLegacyPlaceholders
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -22,6 +22,9 @@ import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../_cle-libs/classes/GlobalConfig.class.ts';
 
 // ─── Local
+import { extractPlaceholders } from '../libs/template-utils.ts';
+// constants
+import { PROMPT_INVARIANT_VARS } from '../constants/prompt-template.constants.ts';
 // types
 import type { DicEntry, DicRules, Dics, Prompts, PromptTemplate } from '../types/dics.types.ts';
 
@@ -79,6 +82,47 @@ const _loadPromptTemplate = (raw: string, name: string): PromptTemplate => {
     logger.warn(`プロンプトテンプレート "${name}" に system/user キーがありません`);
   }
   return { system, user };
+};
+
+/**
+ * user 節に固定部プレースホルダが残る旧形式テンプレートを検出する。
+ *
+ * 対象は `PROMPT_INVARIANT_VARS` に載っているテンプレート（`meta` / `review`）だけで、
+ * 各テンプレートの `user` から固定部プレースホルダを初出順で拾う。
+ * DR-36 以降の新形式では固定部は `system` にしか無いため、結果は空になる。
+ *
+ * @param templates - テンプレート名 → `PromptTemplate`（`loadPrompts().prompts`）
+ * @returns 旧形式と判定したテンプレート名 → user 節に残る固定部プレースホルダ名（初出順）。
+ *          該当なし・テンプレート欠落のものはエントリを持たない
+ */
+export const findLegacyPlaceholders = (templates: Map<string, PromptTemplate>): Map<string, string[]> =>
+  new Map(
+    Object.entries(PROMPT_INVARIANT_VARS)
+      .map(([name, invariants]): [string, string[]] => [
+        name,
+        extractPlaceholders(templates.get(name)?.user ?? '')
+          .filter((varName) => (invariants as readonly string[]).includes(varName)),
+      ])
+      .filter(([, found]) => found.length > 0),
+  );
+
+/**
+ * 旧形式テンプレートごとに 1 回ずつ、更新を促す warn を出す。
+ *
+ * 旧形式でも描画は成功する（`cle-kju.6.5`）が、prefix キャッシュが効かないため黙って遅くなる。
+ * 処理は止めない。
+ *
+ * @param templates - テンプレート名 → `PromptTemplate`（`loadPrompts().prompts`）
+ */
+const _warnLegacyTemplates = (templates: Map<string, PromptTemplate>): void => {
+  findLegacyPlaceholders(templates).forEach((found, name) => {
+    const _vars = found.map((varName) => `\${${varName}}`).join(', ');
+    logger.warn(
+      `プロンプトテンプレート "${name}" は旧形式です: user 節に ${_vars} が残っており、プロンプトキャッシュが効きません。`
+        + '/setup-chatlogs --force で更新してください'
+        + '（.config/chatlog-exporter 全体を上書きするため、ローカルの編集は事前に退避してください）',
+    );
+  });
 };
 
 /**
@@ -154,6 +198,7 @@ export const loadPrompts = async (promptsDir: string): Promise<Prompts> => {
     ['meta', _loadPromptTemplate(metaPromptRaw, 'meta')],
     ['review', _loadPromptTemplate(reviewPromptRaw, 'review')],
   ]);
+  _warnLegacyTemplates(_prompts);
 
   return {
     categoryPrompts: _categoryPrompts,

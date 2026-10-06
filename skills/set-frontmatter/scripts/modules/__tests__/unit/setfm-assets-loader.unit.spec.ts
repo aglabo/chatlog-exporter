@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/unit/setfm-assets-loader.unit.spec.ts
 // @(#): loadDics / loadPrompts のユニットテスト
-//       対象: loadDics, loadPrompts, resolveDicsDir
+//       対象: loadDics, loadPrompts, resolveDicsDir, findLegacyPlaceholders
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,16 +10,23 @@
 // cspell:words setfm
 
 // ─── BDD modules
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
+// types
+import type { Stub } from '@std/testing/mock';
 
 // ─── Test target
-import { loadDics, loadPrompts, resolveDicsDir } from '../../setfm-assets-loader.ts';
+import { findLegacyPlaceholders, loadDics, loadPrompts, resolveDicsDir } from '../../setfm-assets-loader.ts';
 
 // ─── Helpers
 import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 // constants
 import { DEFAULT_CONFIG_DIR } from '../../../../../_cle-libs/constants/defaults.constants.ts';
+// types
+import type { PromptTemplate } from '../../../types/dics.types.ts';
 
 // ─── Internal Helpers
 
@@ -79,7 +86,126 @@ system: "You review frontmatter."
 user: "Review this frontmatter: {{body}}"
 `;
 
+/** テンプレート: 固定部プレースホルダが user 節に残る旧形式の meta.yaml の内容。 */
+const _LEGACY_META_YAML = `\
+system: "You extract metadata."
+user: "Topics: \${topic_list} Tags: \${tags_list} Body: \${body}"
+`;
+
+/** テンプレート: 固定部プレースホルダを system 節で描画する新形式の meta.yaml の内容。 */
+const _NEW_META_YAML = `\
+system: "Topics: \${topic_list} Tags: \${tags_list}"
+user: "Body: \${body}"
+`;
+
+/** テンプレート: 固定部プレースホルダを system 節で描画する新形式の review.yaml の内容。 */
+const _NEW_REVIEW_YAML = `\
+system: "\${type_dics} \${topic_list} \${category_list} \${tags_list}"
+user: "Review: \${result_yaml}"
+`;
+
+/** 旧形式テンプレート警告の識別文字列。他の warn（ファイル欠落等）と区別するために使う。 */
+const _LEGACY_WARN_MARKER = '旧形式';
+
+// types
+/** `findLegacyPlaceholders` のテーブル駆動ケース。 */
+interface _LegacyCase {
+  /** テスト ID。 */
+  id: string;
+  /** ケースの説明。 */
+  label: string;
+  /** 入力テンプレート（テンプレート名 → `{ system, user }`）。 */
+  templates: Record<string, PromptTemplate>;
+  /** 期待結果（テンプレート名 → 検出した変数名の初出順リスト）。 */
+  expected: Record<string, string[]>;
+}
+
+// constants (cases)
+/** 旧形式・新形式テンプレートを渡す正常ケース。 */
+const _normalCases: readonly _LegacyCase[] = [
+  {
+    id: 'T-SF-LP-01-01',
+    label: '旧 meta（user に topic_list / tags_list / body）→ meta: [topic_list, tags_list]',
+    templates: { meta: { system: 'sys', user: '${topic_list} ${tags_list} ${body}' } },
+    expected: { meta: ['topic_list', 'tags_list'] },
+  },
+  {
+    id: 'T-SF-LP-01-02',
+    label: '旧 review（user に固定部 4 本と result_yaml）→ review: 4 本',
+    templates: {
+      review: { system: 'sys', user: '${type_dics} ${topic_list} ${category_list} ${tags_list} ${result_yaml}' },
+    },
+    expected: { review: ['type_dics', 'topic_list', 'category_list', 'tags_list'] },
+  },
+  {
+    id: 'T-SF-LP-01-03',
+    label: '新形式 meta / review（固定部は system のみ）→ 空',
+    templates: {
+      meta: { system: '${topic_list} ${tags_list}', user: '${log_type} ${log_category} ${body}' },
+      review: {
+        system: '${type_dics} ${topic_list} ${category_list} ${tags_list}',
+        user: '${result_type} ${result_category} ${result_yaml}',
+      },
+    },
+    expected: {},
+  },
+];
+
+/** 空・欠落・対象外テンプレートなど境界のケース。 */
+const _edgeCases: readonly _LegacyCase[] = [
+  {
+    id: 'T-SF-LP-02-01',
+    label: '空テンプレート { system: "", user: "" } → 空',
+    templates: { meta: { system: '', user: '' }, review: { system: '', user: '' } },
+    expected: {},
+  },
+  {
+    id: 'T-SF-LP-02-02',
+    label: '固定部は system のみで user は ${body} だけ → エントリなし',
+    templates: { meta: { system: '${topic_list}', user: '${body}' } },
+    expected: {},
+  },
+  {
+    id: 'T-SF-LP-02-03',
+    label: 'meta / review を含まない Map → 空',
+    templates: { category: { system: 'sys', user: '${body}' } },
+    expected: {},
+  },
+  {
+    id: 'T-SF-LP-02-04',
+    label: '対象外テンプレート type の user に ${topic_list} → 無視される',
+    templates: { type: { system: 'sys', user: '${topic_list} ${body}' } },
+    expected: {},
+  },
+  {
+    id: 'T-SF-LP-02-05',
+    label: 'user での出現順が tags_list → topic_list → その順で返る',
+    templates: { meta: { system: 'sys', user: '${tags_list} ${body} ${topic_list} ${tags_list}' } },
+    expected: { meta: ['tags_list', 'topic_list'] },
+  },
+];
+
 // functions
+/**
+ * テーブルケースの `Record` を `findLegacyPlaceholders` の入力 `Map` に変換する。
+ *
+ * @param templates - テンプレート名 → `PromptTemplate`
+ * @returns `loadPrompts().prompts` と同形の `Map`
+ */
+const _toTemplateMap = (templates: Record<string, PromptTemplate>): Map<string, PromptTemplate> =>
+  new Map(Object.entries(templates));
+
+/**
+ * `logger.warn` スタブの呼び出しのうち、旧形式テンプレート警告だけを文字列で取り出す。
+ *
+ * @param warnStub - `logger.warn` のスタブ
+ * @returns 旧形式警告メッセージの配列
+ */
+const _legacyWarnings = (warnStub: Stub<typeof logger>): string[] =>
+  warnStub.calls
+    .map((call) => String(call.args[0]))
+    .filter((message) => message.includes(_LEGACY_WARN_MARKER));
+
 /**
  * 指定ディレクトリへファイルを書き込む。
  *
@@ -126,7 +252,7 @@ const _writePromptFiles = async (dir: string): Promise<void> => {
  *
  * 実ファイルシステムを使い一時ディレクトリで検証する。
  *
- * テスト ID 範囲: T-SF-AL-01 〜 T-SF-AL-04
+ * テスト ID 範囲: T-SF-AL-01 〜 T-SF-AL-08
  *
  * @see loadDics
  * @see loadPrompts
@@ -304,5 +430,96 @@ describe('setfm-assets-loader', () => {
         });
       });
     });
+
+    /**
+     * 固定部プレースホルダが user 節に残る旧形式テンプレートの警告（`cle-kju.6.6`）。
+     *
+     * 旧形式でも描画は成功するが prefix キャッシュが効かないため、読み込み時に warn し処理は続ける。
+     */
+    describe('When: 旧形式テンプレートを読み込む', () => {
+      let promptsDir: string;
+      let warnStub: Stub<typeof logger>;
+
+      beforeEach(async () => {
+        promptsDir = `${tempDir}/prompts-legacy`;
+        await Deno.mkdir(promptsDir);
+        warnStub = stub(logger, 'warn');
+      });
+
+      afterEach(() => {
+        warnStub.restore();
+      });
+
+      it('[Normal] T-SF-AL-08-01: 旧形式 meta.yaml → "meta" / ${topic_list} / /setup-chatlogs --force を含む warn が 1 回', async () => {
+        await _writePromptFiles(promptsDir);
+        await _writeFile(promptsDir, 'meta.yaml', _LEGACY_META_YAML);
+
+        await loadPrompts(promptsDir);
+
+        const _warnings = _legacyWarnings(warnStub);
+        assertEquals(_warnings.length, 1);
+        assertStringIncludes(_warnings[0], '"meta"');
+        assertStringIncludes(_warnings[0], '${topic_list}, ${tags_list}');
+        assertStringIncludes(_warnings[0], '/setup-chatlogs --force');
+      });
+
+      it('[Normal] T-SF-AL-08-02: 新形式 meta.yaml / review.yaml → 旧形式の warn は出ない', async () => {
+        await _writePromptFiles(promptsDir);
+        await Promise.all([
+          _writeFile(promptsDir, 'meta.yaml', _NEW_META_YAML),
+          _writeFile(promptsDir, 'review.yaml', _NEW_REVIEW_YAML),
+        ]);
+
+        await loadPrompts(promptsDir);
+
+        assertEquals(_legacyWarnings(warnStub), []);
+      });
+
+      it('[Edge] T-SF-AL-08-03: 旧形式 meta.yaml → throw せず meta テンプレートをそのまま返す', async () => {
+        await _writePromptFiles(promptsDir);
+        await _writeFile(promptsDir, 'meta.yaml', _LEGACY_META_YAML);
+
+        const result = await loadPrompts(promptsDir);
+
+        assertEquals(result.prompts.get('meta'), {
+          system: 'You extract metadata.',
+          user: 'Topics: ${topic_list} Tags: ${tags_list} Body: ${body}',
+        });
+      });
+    });
+  });
+});
+
+/**
+ * `findLegacyPlaceholders` のユニットテストスイート。
+ *
+ * `meta` / `review` テンプレートの user 節に残った固定部プレースホルダ（DR-36 で system へ移したもの）を
+ * テンプレートごとに初出順で列挙することを検証する。純関数のためファイル I/O を伴わない。
+ *
+ * テスト ID 範囲: T-SF-LP-01-01 〜 T-SF-LP-02-05
+ *
+ * @see findLegacyPlaceholders
+ */
+describe('findLegacyPlaceholders', () => {
+  /** 旧形式・新形式テンプレートを渡す正常ケース。 */
+  describe('When: 正常系', () => {
+    for (const { id, label, templates, expected } of _normalCases) {
+      it(`[Normal] ${id}: ${label}`, () => {
+        const result = findLegacyPlaceholders(_toTemplateMap(templates));
+
+        assertEquals(Object.fromEntries(result), expected);
+      });
+    }
+  });
+
+  /** 空・欠落・対象外テンプレートなど境界のケース。 */
+  describe('When: エッジケース', () => {
+    for (const { id, label, templates, expected } of _edgeCases) {
+      it(`[Edge] ${id}: ${label}`, () => {
+        const result = findLegacyPlaceholders(_toTemplateMap(templates));
+
+        assertEquals(Object.fromEntries(result), expected);
+      });
+    }
   });
 });

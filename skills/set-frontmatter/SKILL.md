@@ -233,6 +233,21 @@ AI を呼び出す前に実行全体を中断する。`--dry-run` / `--no-review
 中断時は `Invalid Format: <辞書ディレクトリ>/category.dic: category: 値域が空です` のように、
 原因となった辞書ファイルを示すエラーが出る。`tags.dic` / `topics.dic` は存在しない・空でも処理を続ける。
 
+## 旧形式プロンプトテンプレートの警告
+
+`meta.yaml` / `review.yaml` の辞書由来プレースホルダ (`${topic_list}` / `${tags_list}` 等) は、
+プロンプトキャッシュを効かせるため `system` 節で描画する。`setup-chatlogs` は既存の
+`.config/chatlog-exporter/` を上書きしないため、スキルだけ更新した環境には、これらが `user` 節に残る旧形式が残りうる。
+
+旧形式でも処理は失敗しないが、キャッシュが効かず遅いまま動く。そのため起動時に次の警告を出す。
+
+```text
+プロンプトテンプレート "meta" は旧形式です: user 節に ${topic_list}, ${tags_list} が残っており、プロンプトキャッシュが効きません。...
+```
+
+警告が出たら `/setup-chatlogs --force` でテンプレートを更新するよう案内する。
+`--force` は `.config/chatlog-exporter/` 全体を上書きするため、辞書やプロンプトのローカル編集は事前に退避する。
+
 ## AI バックエンドの設定
 
 AI バックエンドは `model` で選ぶ。指定は `--model` が `config.yaml` の `model` より優先される。

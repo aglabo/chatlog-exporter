@@ -36,9 +36,8 @@
 #           Lint通過・修正確認・テスト成功など「正しさの確認」が伴う場合は behavior ではなく validation を選ぶ。
 #           behavior は「どう動くか」の観察・調査であり、「正しいかの確認」は validation。
 #   RULE 10: type と aspect を整合させること。
-#           - type: decision → decision を含む
 #           - type: incident → behavior または validation を含む
-#           - type: execution → behavior を含む
+#           - type: execution でツール・コマンドの実行・操作が主体 → behavior を優先する（必須ではない）
 #
 # 判定チェック:
 #   Q1: domain は category と一致しているか？  → 必ず YES にする
@@ -210,7 +209,6 @@ decision:
     when:
       - 技術選定・アプローチ選択・方針確定を行った
       - トレードオフを検討して決定した
-      - type: decision のログには必ず付与する（RULE 10）
     while:
       - 将来の実装・運用に影響する不可逆な決定が明示されている状態
     not:
@@ -260,7 +258,7 @@ behavior:
       - コードの実行動作・挙動を観察・診断した
       - エラー・バグの症状や原因を調査した（修正確認は含まない）
     while:
-      - type: incident または execution のログで付与する（RULE 10）
+      - type: incident のログ、またはツール実行が主体の execution ログで付与する（RULE 10）
     not:
       - 構造・設計の変更が主目的（→ architecture）
       - Lint通過・修正確認・テスト成功など正しさの確認が主（→ validation）

@@ -76,17 +76,24 @@ const _REGEXP_ONLY_FILENAME_PATTERNS: RegExp[] = [
  */
 export const CONDITIONAL_FILENAME_PATTERNS: ConditionalFilenamePattern[] = [
   // set-frontmatter のメタデータ生成プロンプト由来ログ。
-  // 本文に meta.yaml の定型部見出しが行として存在することを追加条件とする。
+  // 本文に meta.yaml の定型部見出し行（旧形式）、または指示行 → 空行 → `Log type:` → `Log category:` の
+  // 連続行（DR-36 で定型部が system へ移った後も user 側に残る構造）があることを追加条件とする。
+  // LF 前提。CRLF の本文は一致せず保持側に倒れる。
   {
     filename: /^\d{4}-\d{2}-\d{2}-generate-metadata-for-the-following-eng/,
-    body: new RegExp(`^${STRIP_TEMPLATE_MARKER}$`, 'm'),
+    body: new RegExp(
+      `^${STRIP_TEMPLATE_MARKER}$|^Generate metadata for the following engineering log\\.\\n\\nLog type: .*\\nLog category: `,
+      'm',
+    ),
   },
 
   // frontmatter レビュープロンプト由来ログ。
-  // 本文に review.yaml の RULE 見出しが行として存在することを追加条件とする。
+  // 本文に review.yaml の RULE 見出し行（旧形式）、または指示行 → 空行 → `---` → `type:` → `category:` の
+  // 連続行（DR-36 で RULE が system へ移った後も user 側に残る構造）があることを追加条件とする。
+  // 指示行は review.yaml の user 側テンプレートの固定文に限る。LF 前提。CRLF の本文は一致せず保持側に倒れる。
   {
     filename: /^\d{4}-\d{2}-\d{2}-review-the-following-frontmatter-against/,
-    body: /^## RULE 0\b/m,
+    body: /^## RULE 0\b|^Review the following frontmatter against the rules above:\n\n---\ntype: .*\ncategory: /m,
   },
 
   // 二重日付形式（エクスポート日 + 元セッション日）を持つ exporter 内部セッションログ。

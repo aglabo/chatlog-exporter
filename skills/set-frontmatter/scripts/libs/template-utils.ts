@@ -1,6 +1,6 @@
 // src: scripts/libs/template-utils.ts
 // @(#): set-frontmatter テンプレートユーティリティ
-//       対象: renderPrompt
+//       対象: renderPrompt, extractPlaceholders
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -11,6 +11,18 @@
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
 
 // ─────────────────────────────────────────────
+// テンプレート変数パターン
+// ─────────────────────────────────────────────
+
+/**
+ * テンプレート変数 `${name}` にマッチするパターン。キャプチャ 1 が `name`。
+ *
+ * `/g` の RegExp は `lastIndex` を持つが、`String.prototype.replace` は開始時に 0 へ戻し、
+ * `String.prototype.matchAll` は内部で複製して走査するため、共有しても呼び出し間で状態は漏れない。
+ */
+const _PLACEHOLDER_PATTERN = /\$\{([^}]+)\}/g;
+
+// ─────────────────────────────────────────────
 // テンプレート変数置換
 // ─────────────────────────────────────────────
 
@@ -19,7 +31,7 @@ import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
  * varname が [a-z_]+ 以外の場合はエラー終了（インジェクション防止）。
  */
 export const renderPrompt = (template: string, vars: Record<string, string>): string => {
-  return template.replace(/\$\{([^}]+)\}/g, (_match, name: string) => {
+  return template.replace(_PLACEHOLDER_PATTERN, (_match, name: string) => {
     if (!/^[a-z_]+$/.test(name)) {
       throw new ChatlogError('InvalidArgs', 'InvalidSyntax', `不正な変数名 "${name}" — 英小文字と "_" のみ使用可能`);
     }
@@ -28,4 +40,16 @@ export const renderPrompt = (template: string, vars: Record<string, string>): st
     }
     return vars[name];
   });
+};
+
+// ─────────────────────────────────────────────
+// テンプレート変数抽出
+// ─────────────────────────────────────────────
+
+/**
+ * テンプレート内の ${varname} の varname を、初出順・重複なしで列挙する。
+ * 変数名の検証は行わない（`${}` の中身をそのまま返す）。
+ */
+export const extractPlaceholders = (template: string): string[] => {
+  return [...new Set([...template.matchAll(_PLACEHOLDER_PATTERN)].map((match) => match[1]))];
 };

@@ -103,6 +103,137 @@ const _REVIEW_LIKE_USER_BODY = [
   'ルールの優先順位を明示すると精度が上がります。',
 ].join('\n');
 
+/** DR-36 後のメタデータ生成プロンプト由来ログのファイル名。 */
+const _METADATA_FILENAME_DR36 = '2026-10-06-generate-metadata-for-the-following-engineering-lo-3f9a1c7e2b4d.md';
+
+/** DR-36 後の frontmatter レビュープロンプト由来ログのファイル名。 */
+const _REVIEW_FILENAME_DR36 = '2026-10-06-review-the-following-frontmatter-against-the-rules-ab-8e2d4b6a1c0f.md';
+
+/** DR-36 後のメタデータ生成プロンプト本文。定型部は system 側へ移り、指示行 + Log type / Log category 行が残る。 */
+const _METADATA_PROMPT_BODY_DR36 = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log.',
+  '',
+  'Log type: log',
+  'Log category: development',
+  '',
+  'filter の prefilter を修正した。',
+].join('\n');
+
+/** DR-36 後の frontmatter レビュープロンプト本文。RULE 見出しは system 側へ移り、指示行 + frontmatter ブロックが残る。 */
+const _REVIEW_PROMPT_BODY_DR36 = [
+  '## User',
+  '',
+  'Review the following frontmatter against the rules above:',
+  '',
+  '---',
+  'type: log',
+  'category: development',
+  'title: prefilter の本文条件を広げる',
+  '---',
+].join('\n');
+
+/** メタ生成の指示行だけを打ったユーザー会話の本文。Log type / Log category 行を持たない。 */
+const _METADATA_INSTRUCTION_ONLY_BODY = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log.',
+  '',
+  'このログの要点を 3 行でまとめてください。',
+].join('\n');
+
+/** レビューの指示行だけを打ったユーザー会話の本文。--- / type / category ブロックを持たない。 */
+const _REVIEW_INSTRUCTION_ONLY_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against the rules above:',
+  '',
+  'title と category の整合だけ見てほしい。',
+].join('\n');
+
+/** 指示行と Log type / Log category 行の間に別の段落を挟んだユーザー会話の本文。 */
+const _METADATA_SEPARATED_LOG_BODY = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log.',
+  '',
+  'ログ本文を貼ります。',
+  '',
+  'Log type: log',
+  'Log category: development',
+].join('\n');
+
+/** 指示行と --- / type / category ブロックの間に別の段落を挟んだユーザー会話の本文。 */
+const _REVIEW_SEPARATED_FM_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against the rules above:',
+  '',
+  '次のブロックです。',
+  '',
+  '---',
+  'type: log',
+  'category: development',
+  '---',
+].join('\n');
+
+/** 指示行の against 以降がリポジトリのスキーマを指すユーザー依頼の本文。frontmatter ブロックの構造は DR-36 と同形。 */
+const _REVIEW_AGAINST_SCHEMA_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against the repository schema:',
+  '',
+  '---',
+  'type: log',
+  'category: development',
+  'title: "x"',
+  '---',
+].join('\n');
+
+/** メタ生成の指示行 + Log type 行の直後に Log category 行を持たないユーザー会話の本文。 */
+const _METADATA_NO_LOG_CATEGORY_BODY = [
+  '## User',
+  '',
+  'Generate metadata for the following engineering log.',
+  '',
+  'Log type: log',
+  'category は未定なので提案してほしい。',
+].join('\n');
+
+/** レビューの指示行 + --- / type 行の直後に category 行を持たないユーザー会話の本文。 */
+const _REVIEW_NO_CATEGORY_BODY = [
+  '## User',
+  '',
+  'Review the following frontmatter against the rules above:',
+  '',
+  '---',
+  'type: log',
+  'title: "x"',
+  '---',
+].join('\n');
+
+/** メタ生成の指示文が行頭ではなく別の文に続いて現れるユーザー会話の本文。 */
+const _METADATA_PREFIXED_INSTRUCTION_BODY = [
+  '## User',
+  '',
+  'メモ: Generate metadata for the following engineering log.',
+  '',
+  'Log type: log',
+  'Log category: development',
+].join('\n');
+
+/** レビューの指示文が行頭ではなく別の文に続いて現れるユーザー会話の本文。 */
+const _REVIEW_PREFIXED_INSTRUCTION_BODY = [
+  '## User',
+  '',
+  'メモ: Review the following frontmatter against the rules above:',
+  '',
+  '---',
+  'type: log',
+  'category: development',
+].join('\n');
+
 // ─── Tests
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +245,7 @@ const _REVIEW_LIKE_USER_BODY = [
  *
  * ファイル名パターン一致・不一致・大文字小文字無視・reason 文字列を検証する。
  *
- * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-12
+ * テスト ID 範囲: T-PF-CF-01 〜 T-PF-CF-13
  *
  * @see checkFilename
  */
@@ -268,6 +399,18 @@ describe('checkFilename', () => {
 
       assertNotNull(result);
     });
+
+    it('[Normal] T-PF-CF-13-01: メタ生成ファイル名 + DR-36 後の指示行/Log type/Log category → null でない', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _METADATA_PROMPT_BODY_DR36);
+
+      assertNotNull(result);
+    });
+
+    it('[Normal] T-PF-CF-13-02: レビューファイル名 + DR-36 後の指示行/---/type/category → null でない', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_PROMPT_BODY_DR36);
+
+      assertNotNull(result);
+    });
   });
 
   /** 大文字小文字を区別しない検証ケース。 */
@@ -397,6 +540,72 @@ describe('checkFilename', () => {
 
     it('[Edge] T-PF-CF-07-02: 日付なしで前後にハイフンがある名前 → null（誤除外しない）', () => {
       const result = checkFilename('notes-recommended-plugins-list.md');
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-03: メタ生成ファイル名 + 指示行のみ（Log type/Log category なし） → null（誤除外しない）', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _METADATA_INSTRUCTION_ONLY_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-04: レビューファイル名 + 指示行のみ（---/type/category なし） → null（誤除外しない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_INSTRUCTION_ONLY_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-05: メタ生成ファイル名 + Log type/Log category が指示行と非連続 → null（誤除外しない）', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _METADATA_SEPARATED_LOG_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-06: メタ生成ファイル名 + レビュー側の DR-36 本文 → null（構造を取り違えない）', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _REVIEW_PROMPT_BODY_DR36);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-07: レビューファイル名 + ---/type/category が指示行と非連続 → null（誤除外しない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_SEPARATED_FM_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-08: レビューファイル名 + 指示行の against 以降が "the repository schema:" → null（ユーザー依頼を誤除外しない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_AGAINST_SCHEMA_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-09: メタ生成ファイル名 + 指示行/Log type の後に Log category 行なし → null（誤除外しない）', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _METADATA_NO_LOG_CATEGORY_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-10: レビューファイル名 + 指示行/---/type の後に category 行なし → null（誤除外しない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_NO_CATEGORY_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-11: メタ生成ファイル名 + 指示文が行頭でない（"メモ: " 前置） → null（誤除外しない）', () => {
+      const result = checkFilename(_METADATA_FILENAME_DR36, _METADATA_PREFIXED_INSTRUCTION_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-12: レビューファイル名 + 指示文が行頭でない（"メモ: " 前置） → null（誤除外しない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _REVIEW_PREFIXED_INSTRUCTION_BODY);
+
+      assertNull(result);
+    });
+
+    it('[Edge] T-PF-CF-13-13: レビューファイル名 + メタ生成側の DR-36 本文 → null（構造を取り違えない）', () => {
+      const result = checkFilename(_REVIEW_FILENAME_DR36, _METADATA_PROMPT_BODY_DR36);
 
       assertNull(result);
     });
