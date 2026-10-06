@@ -244,7 +244,7 @@ const _makeEntries = (names: readonly string[]): ChatlogEntry[] =>
  * - CLI エラー（`ChatlogError`）→ 再要求せず全件 `stats.error` に計上し `ChatlogError` を返す。RateLimit の場合は `ctl.abort()` を呼ぶ
  * - 非 `ChatlogError`（CLI バイナリ不在等）→ 握りつぶさず throw する
  *
- * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-19
+ * テスト ID 範囲: T-FL-PCK-01 〜 T-FL-PCK-20
  *
  * @see processChunk
  */
@@ -2198,6 +2198,57 @@ describe('processChunk — 応答のファイル名照合', () => {
       assertEquals((result as ChatlogError).kind, 'InvalidFormat');
       assertEquals((result as ChatlogError).subindex, 'MissingFile');
       assertEquals(writeSpy.calls.length, 0);
+    });
+  });
+});
+
+/**
+ * 空のチャンク（`chunkEntries` が空配列）を渡したときの `processChunk` の扱いを検証するスイート。
+ *
+ * 判定対象が 1 件も無いチャンクで AI を呼ぶと、出力契約の `maxTokens` が 0・user プロンプトも空のまま
+ * 要求が飛び、応答検証に失敗して `ChatlogError` を返してしまう。空チャンクは AI を呼ばずに
+ * 何もせず `undefined` を返し、`stats` も変更しない。
+ *
+ * テスト ID 範囲: T-FL-PCK-20
+ *
+ * @see processChunk
+ */
+describe('processChunk — 空チャンクの扱い', () => {
+  useDefaultGlobalConfig();
+
+  let errStub: Stub;
+  let stats: FilterStats;
+  let cache: ChatlogCache<CLEResult>;
+  let ctl: AbortController;
+
+  beforeEach(async () => {
+    errStub = stub(console, 'error', () => {});
+    stats = { keep: 0, skip: 0, remove: 0, error: 0 };
+    cache = await _makeEmptyCache();
+    ctl = new AbortController();
+  });
+
+  afterEach(() => {
+    errStub.restore();
+  });
+
+  /** 判定対象が 0 件という境界値。AI 呼び出し自体を行わないことを検証する。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-FL-PCK-20-01: chunkEntries=[] → aiRunnerProvider を 1 回も呼ばず undefined を返し stats は不変', async () => {
+      const { runner, calls } = _makeSequencedRunner([JSON.stringify([])]);
+      const _before = { ...stats };
+
+      const result = await processChunk([], stats, {
+        discardThreshold: DEFAULT_CONFIG_VALUES.discardThreshold as number,
+        cache,
+        ctl,
+        maxBodyChars: DEFAULT_CONFIG_VALUES.maxBodyChars as number,
+        aiRunnerProvider: runner,
+      });
+
+      assertEquals(calls(), 0);
+      assertEquals(result, undefined);
+      assertEquals(stats, _before);
     });
   });
 });

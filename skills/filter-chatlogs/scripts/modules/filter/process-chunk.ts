@@ -226,6 +226,9 @@ export const processChunk = async (
 ): Promise<ChatlogError | undefined> => {
   const { discardThreshold, cache, ctl, maxBodyChars, maxRetry = 0, model, aiRunnerProvider = runAI } = options;
 
+  // 判定対象 0 件だと出力契約の maxTokens が 0・プロンプトも空になり要求が成立しないため、AI を呼ばずに返す
+  if (chunkEntries.length === 0) { return undefined; }
+
   const batchPrompt = buildBatchPrompt(chunkEntries, maxBodyChars);
   const _maxRetry = Math.min(maxRetry, _MAX_RETRY_LIMIT);
 
