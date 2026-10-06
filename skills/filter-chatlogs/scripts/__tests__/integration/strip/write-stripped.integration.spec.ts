@@ -249,6 +249,23 @@ const _HEAD_REMOVAL_END = _STRIPPED_SOURCE.split('\n').indexOf(STRIP_BOUNDARY_HE
 const _HEAD_SHIFTED_START = _STRIPPED_FRONTMATTER_LINES + 1;
 
 /**
+ * `_STRIPPED_SOURCE` から R-008 の除去範囲（index `_STRIPPED_FRONTMATTER_LINES`〜`_HEAD_REMOVAL_END`、
+ * 5〜10）を取り除き、frontmatter の直後に `## Summary` を置いた原文。
+ *
+ * ファイル全体基準の行インデックス（実測値。`frontmatterLines` は `5` のまま、総行数 10）:
+ *
+ * 0-4 = frontmatter / **5 = `## Summary`** / 6 = 空行 / 7-8 = 実内容 / 9 = 末尾の空行
+ *
+ * 空範囲 `start = 5` / `end = 4` を当てると、開始辺 `start === fmLines` は `5 === 5`、終了辺
+ * `lines[end + 1] === '## Summary'` は `lines[5]` で成立し、**head の両辺が成立したまま除去範囲が空**
+ * （`end === start - 1`）になる。この組を弾けるのは共通の順序検査 `_end < _start` だけである
+ * （`T-FL-STW-07-10`）。
+ */
+const _SUMMARY_FIRST_SOURCE = _STRIPPED_SOURCE.split('\n')
+  .filter((_line, index) => index < _STRIPPED_FRONTMATTER_LINES || index > _HEAD_REMOVAL_END)
+  .join('\n');
+
+/**
  * `_PASTE_SOURCE` の `## Excerpt` 直後の空行（index 11）を取り除き、前置き区間を
  * 貼り付けマーカー 1 行だけにした原文。
  *
@@ -297,6 +314,45 @@ const _PASTE_TAIL_MARKER_SOURCE = _PASTE_SOURCE.split('\n')
 const _PASTE_TAIL_STRIPPED_EXPECTED = _PASTE_TAIL_MARKER_SOURCE.split('\n')
   .filter((_line, index) => index < _PASTE_REMOVAL_START || index > _PASTE_REMOVAL_END)
   .join('\n');
+
+/**
+ * `_STRIPPED_SOURCE` の `## Summary` 行を `## Summary of the day` へその場で置換した原文。
+ *
+ * 1 行を 1 行へ置き換えるだけで**行数を変えない**ため、`head` の開始辺（`start === fmLines`）と
+ * 順序検査は成立したまま、終了辺の見出しだけが「前方一致はするが行全体は一致しない」形になる。
+ * 終了辺を前方一致へ緩める変異（M-H8: `(lines[end + 1] ?? '').startsWith(STRIP_BOUNDARY_HEADING)`）を
+ * kill する（`T-FL-STW-07-11`）。行全体一致の比較は、判定後に見出しが編集されたことを捕まえるためにある（DR-42）。
+ */
+const _SUMMARY_SUFFIXED_SOURCE = _STRIPPED_SOURCE.replace(
+  `${STRIP_BOUNDARY_HEADING}\n`,
+  `${STRIP_BOUNDARY_HEADING} of the day\n`,
+);
+
+/**
+ * `_STRIPPED_SOURCE` の `## Summary` 行を ` ## Summary`（先頭に半角空白 1 個）へその場で置換した原文。
+ *
+ * 行数を変えないため、壊れるのは `head` の終了辺**だけ**である。先頭に空白があるので前方一致
+ * （M-H8）では弾けず、終了辺を trim 比較へ緩める変異（M-H9: `lines[end + 1]?.trim() === STRIP_BOUNDARY_HEADING`）
+ * だけが通してしまう組になる（`T-FL-STW-07-12`）。行全体一致の比較は、判定後に見出しが編集されたことを
+ * 捕まえるためにある（DR-42）。
+ */
+const _SUMMARY_INDENTED_SOURCE = _STRIPPED_SOURCE.replace(
+  `${STRIP_BOUNDARY_HEADING}\n`,
+  ` ${STRIP_BOUNDARY_HEADING}\n`,
+);
+
+/**
+ * `_PASTE_SOURCE` の `## Excerpt` 行を `## Excerpt of the day` へその場で置換した原文。
+ *
+ * 行数を変えないため、index 12 は貼り付けマーカー行のままで終了辺は成立し続け、開始辺の見出しだけが
+ * 「前方一致はするが行全体は一致しない」形になる。開始辺を前方一致へ緩める変異
+ * （M-P1: `(lines[start - 1] ?? '').startsWith(STRIP_EXCERPT_HEADING)`）を kill する（`T-FL-STW-07-13`）。
+ * 行全体一致の比較は、判定後に見出しが編集されたことを捕まえるためにある（DR-42）。
+ */
+const _EXCERPT_SUFFIXED_SOURCE = _PASTE_SOURCE.replace(
+  `${STRIP_EXCERPT_HEADING}\n`,
+  `${STRIP_EXCERPT_HEADING} of the day\n`,
+);
 
 // types
 
@@ -478,7 +534,7 @@ afterEach(async () => {
  * R-009 の書き込み順序（1) tmp へ書き出す → 2) 元を `.bak` へ退避 → 3) tmp を本体名へ移動）を
  * 分割不能な 1 単位として検証する。実 tmp ディレクトリ上で実際の FS 操作を行う。
  *
- * テスト ID 範囲: T-FL-STW-01-01 〜 T-FL-STW-07-09
+ * テスト ID 範囲: T-FL-STW-01-01 〜 T-FL-STW-07-13
  *
  * @see writeStripped
  */
@@ -1050,11 +1106,15 @@ describe('writeStripped', () => {
    *
    * ここでは次の各項を単独で固定する。
    *
-   * - 共通の順序検査 `_end < _start`（`T-FL-STW-07-01`。下限側は `T-FL-STW-07-06` が `start === end` で固定）
+   * - 共通の順序検査 `_end < _start` を 3 点で固定する。逆転（`end < start - 1`）を弾くことは
+   *   `T-FL-STW-07-01`、空範囲 `end === start - 1` を弾くこと（下限境界）は `T-FL-STW-07-10` が固定する。
+   *   `T-FL-STW-07-06` は `start === end` が**通る**ことだけを固定する（`<=` へ強める変異の検出）
    * - `head` アンカーの開始辺 `start === fmLines` の**両方向**（`start < fmLines` は `T-FL-STW-07-02`、
    *   `start > fmLines` は `T-FL-STW-07-09`。等値を包含へ弱める変異は後者だけが検出できる）
    * - `paste` アンカーの開始辺 `lines[start - 1] === '## Excerpt'` の**位置依存性**（`T-FL-STW-07-03`）
    * - `paste` アンカーの終了辺 `isPasteMarkerLine(lines[end])` の**位置依存性**（`T-FL-STW-07-04`）
+   * - `head` 終了辺と `paste` 開始辺の**行全体一致**（前方一致・trim 緩和の検出。
+   *   `T-FL-STW-07-11` / `07-12` / `07-13`）
    * - `none` が恒偽であること（`T-FL-STW-07-05`。`head` 整合な範囲で固定する）
    * - 境界寸法の除去範囲がガードを通過すること（`T-FL-STW-07-06` / `T-FL-STW-07-07`）
    * - 範囲外 index でも throw せず不整合として扱うこと（`T-FL-STW-07-08`）
@@ -1222,6 +1282,81 @@ describe('writeStripped', () => {
         assertEquals(error.subindex, 'StaleDecision');
         assertEquals(await Deno.readTextFile(filePath), _STRIPPED_SOURCE);
         assertFalse(await fileExists(bakPath));
+      });
+
+      it('[Error] T-FL-STW-07-10: head の両辺が成立したまま除去範囲が空（end === start - 1）だと StaleDecision を返し何も記録しない', async () => {
+        const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        // 素の判定が head で、除去開始行が frontmatter 行数と一致することが本ケースの前提
+        assertEquals(decision.removalKind, STRIP_REMOVAL_KINDS.HEAD);
+        assertEquals(decision.removalStartLine, _STRIPPED_FRONTMATTER_LINES);
+        // frontmatter 直後（index 5）が `## Summary` の内容へ差し替え、空範囲 `start = 5` / `end = 4` を渡す。
+        // 開始辺 `start === fmLines`（5 === 5）も終了辺 `lines[end + 1]` = `lines[5]` = `## Summary` も成立し、
+        // この組を弾けるのは共通の順序検査 `_end < _start` だけである
+        await Deno.writeTextFile(filePath, _SUMMARY_FIRST_SOURCE);
+        const _empty = _withRemovalRange(decision, _STRIPPED_FRONTMATTER_LINES, _STRIPPED_FRONTMATTER_LINES - 1);
+
+        const error = await writeStripped(filePath, _empty, cache);
+
+        // 順序検査を `_end < _start - 1` へ緩めると `splice(5, 0)` が無言の 0 行 strip になり、本体の
+        // 書き直し・`.bak` 作成・`stripped` 記録まで進む。以後 R-003 が永久に done を返す。
+        // 逆転を扱う `T-FL-STW-07-01` とは別に、順序検査の下限境界を本ケースで固定する
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _SUMMARY_FIRST_SOURCE);
+        assertFalse(await fileExists(bakPath));
+        assertEquals(cache.read(filePath).status, undefined);
+      });
+
+      it('[Error] T-FL-STW-07-11: head の終了辺が `## Summary` の前方一致にとどまると StaleDecision を返し何も記録しない', async () => {
+        const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        // 判定の確定後に境界見出しだけが編集された状況を再現する。開始辺と順序検査は成立したままである
+        await Deno.writeTextFile(filePath, _SUMMARY_SUFFIXED_SOURCE);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        // 終了辺を前方一致（M-H8）へ緩めると `## Summary of the day` を境界と誤認し、
+        // 編集後の内容に対して古い判定のまま除去・退避・`stripped` 記録まで進む
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _SUMMARY_SUFFIXED_SOURCE);
+        assertFalse(await fileExists(bakPath));
+        assertEquals(cache.read(filePath).status, undefined);
+      });
+
+      it('[Error] T-FL-STW-07-12: head の終了辺の `## Summary` に先頭空白が付くと StaleDecision を返し何も記録しない', async () => {
+        const { filePath, bakPath } = await _setup('sample.md', _STRIPPED_SOURCE);
+        const decision = await _classifyFresh(filePath);
+        // 判定の確定後に境界見出しだけが字下げされた状況を再現する。開始辺と順序検査は成立したままである
+        await Deno.writeTextFile(filePath, _SUMMARY_INDENTED_SOURCE);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        // 終了辺を trim 比較（M-H9）へ緩めると字下げされた行を境界と誤認し、除去・退避・記録まで進む。
+        // 先頭空白のため前方一致（M-H8）では通らず、trim 緩和は本ケースだけが検出する
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _SUMMARY_INDENTED_SOURCE);
+        assertFalse(await fileExists(bakPath));
+        assertEquals(cache.read(filePath).status, undefined);
+      });
+
+      it('[Error] T-FL-STW-07-13: paste の開始辺が `## Excerpt` の前方一致にとどまると StaleDecision を返し何も記録しない', async () => {
+        const { filePath, bakPath, decision } = await _setupPasteFixture();
+        // 判定の確定後に `## Excerpt` 見出しだけが編集された状況を再現する。終了辺は成立したままである
+        await Deno.writeTextFile(filePath, _EXCERPT_SUFFIXED_SOURCE);
+
+        const error = await writeStripped(filePath, decision, cache);
+
+        // 開始辺を前方一致（M-P1）へ緩めると `## Excerpt of the day` を開始辺と誤認し、
+        // 編集後の内容に対して古い判定のまま除去・退避・`stripped` 記録まで進む。
+        // 見出しそのものを壊す `T-FL-STW-06-05` は前方一致でも弾かれるため、この緩和を検出できない
+        assert(error instanceof ChatlogError);
+        assertEquals(error.subindex, 'StaleDecision');
+        assertEquals(await Deno.readTextFile(filePath), _EXCERPT_SUFFIXED_SOURCE);
+        assertFalse(await fileExists(bakPath));
+        assertEquals(cache.read(filePath).status, undefined);
       });
     });
 
