@@ -2,7 +2,7 @@
 title: "Decision Records: libs/ai-backend"
 module: "libs/ai-backend"
 status: Draft
-version: 4.3.0
+version: 4.4.0
 created: "2026-09-02"
 ---
 
@@ -54,6 +54,7 @@ created: "2026-09-02"
 | DR-35 | 作業記録はモジュール直下ではなく `workspaces/` サブディレクトリに置く       | ドキュメント配置（DR-22 決定 1 の配置を supersede）                               |
 | DR-36 | 実行間で不変なプロンプト内容は system メッセージに置く                      | プロンプトテンプレート全般 / set-frontmatter（`cle-kju.6` の前提を supersede）    |
 | DR-37 | `max_tokens` を出力契約ごとの安全弁として送り、`temperature` は送らない     | transport R-009 / 出力契約ごとの定数（DR-15 の `max_tokens` 部分を supersede）    |
+| DR-38 | codex 経路は system prompt を stdin 末尾へ Markdown 見出し付きで連結する    | `run-ai.ts` / codex 経路（DR-36 の codex に関する記述を補う）                     |
 
 DR-07 / DR-08 は v2.0.0 で削除しました（末尾「削除した Decision Records」を参照）。
 削除した ID は再利用しません。
@@ -1675,6 +1676,43 @@ DR-31 の構造化出力の準拠確認はサーバ既定の温度で行われ�
 
 ---
 
+## DR-38: codex 経路は system prompt を stdin 末尾へ Markdown 見出し付きで連結する
+
+**Status**: Accepted（beads `cle-14an` / gh-503）
+
+**Context**: `run-ai.ts` の `_buildCommand` は codex に `--append-system-prompt <system>` を渡していましたが、
+`codex exec`（codex-cli 0.160.0）にこのオプションは無く、clap が `unexpected argument` で exit 2 を返します。
+#233 以来 codex 経路は必ず失敗しており、T-LIB-AI-RA-03 / 05 がその誤った引数列を期待値として固定していたため、
+テストは緑のままでした。`codex exec` には system prompt 専用のフラグがありません。
+`-c developer_instructions=<TOML 値>` は設定キーとして存在しますが、値が TOML として解釈されるため引用が必要です。
+
+**Decision**:
+
+1. codex の args は `exec --skip-git-repo-check --model <model>` とし、PROMPT 引数を渡しません（codex は stdin を読みます）
+2. system prompt は stdin の **末尾** に、区切り線と見出し `## System Prompt` を付けて連結します
+   （`<user>\n\n---\n\n## System Prompt\n\n<system>`）。組み立ては `_composeStdinInput` が担い、
+   `_CommandSpec.systemPromptOnStdin: 'append-markdown'` を持つ spec にだけ適用します
+3. 他のバックエンドの stdin は従来どおりです（args 渡しは user のみ、それ以外は system を前置）
+4. 実 CLI の受理を、API を叩かない `codex <args> --help` プローブで検証します。未知のオプションがあると clap が
+   exit 2 を返すため、引数列の固定だけでは見えなかった本不具合を検出できます。codex が PATH に無い環境では ignore します。
+   加えて `RUN_AI=1` 時は codex 経路の実呼び出しも検証します
+
+**Alternatives Considered**:
+
+- `-c developer_instructions=<JSON.stringify(system)>`: developer ロールを保てますが、値が TOML として解釈され、
+  lone surrogate や DEL など JSON と TOML の文字列表現の差で黙って生文字列へ落ちる経路が残るため採りませんでした
+- stdin 先頭への前置（既存の汎用経路）: 実装は最小ですが、利用者の判断で末尾連結を採りました
+
+**Consequences**: codex 経路では system prompt が user メッセージ本文の一部になり、system ロールとしては扱われません。
+DR-36 の「`--system-prompt` / `--append-system-prompt` を使う経路では残らない可能性」という記述のうち、
+codex は本文に残る側（stdin 連結）に当たります。`--help` プローブは CLI の引数受理だけを見ており、
+`-c` で渡す設定キー名の正しさや応答内容は検証しません。
+また、user 本文（チャットログ）が自前の `---` や `## System Prompt` 見出しを含む場合、system prompt との境界は
+見出しだけでは一意に区別できません。境界の曖昧さが判定品質に影響すると分かった時点で、`-c developer_instructions` 経路への
+切り替えを再検討します。
+
+---
+
 ## 削除した Decision Records
 
 | ID    | 旧タイトル                                                          | 削除理由                                    |
@@ -1723,3 +1761,4 @@ DR-31 の構造化出力の準拠確認はサーバ既定の温度で行われ�
 | 2026-10-06 | 4.1.0   | DR-37 を追加 (MINOR: 決定を追加)。`cle-kju.3.3.6` の実測 (`workspaces/measurements-generation-length-2026-10-06.md`) で、`temperature` を下げても生成長の幅は縮まず 0.3 以下で暴走を誘発すること、サーバの `n_predict: -1` により暴走がスロットを占有し後続を連鎖的にタイムアウトさせうることを確認した。`max_tokens` を出力契約ごとの安全弁として送り、`temperature` は送らないと決めた。DR-15 の Status に `max_tokens` 部分の supersede を注記                      |
 | 2026-10-06 | 4.2.0   | DR-37 に「実装時の決定」を追記 (MINOR: 実装対象を確定させる決定)。`maxTokens` を `OutputContract` の必須フィールドとして持たせる経路、ファイル数比例の契約は実ファイル数を掛けること、classify / normalize / review を含む 6 契約の値、normalize の基準を production で valid な応答とすることを確定した（`cle-kju.3.3.6.1`）                                                                                                                                          |
 | 2026-10-06 | 4.3.0   | DR-37 の実装時の決定に 5 を追記 (MINOR: 実装対象の値を改める決定)。`review.yaml` に `errors` の件数上限と反復禁止を入れた後の実測（40 本、101〜328 tok、暴走 0）に合わせ、review の `max_tokens` を 768 → 512 に改めた。旧 `review.yaml` を使い続ける環境では正常応答が 512 を超えうるため、テンプレートの更新が必要と注記した（`cle-kju.3.3.6.1.1.1.1`）                                                                                                              |
+| 2026-10-07 | 4.4.0   | DR-38 を追加 (MINOR: 決定を追加)。codex exec に存在しない `--append-system-prompt` を渡して codex 経路が必ず失敗していた不具合（gh-503）を受け、system prompt を stdin 末尾へ `## System Prompt` 見出し付きで連結すると確定した。実 CLI の引数受理を `--help` プローブで検証する（`cle-14an`）                                                                                                                                                                         |
