@@ -29,10 +29,19 @@ import { AI_BACKEND_COMMAND_MAP, AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '
 // re-export（後方互換: 既存の import 元を維持する）
 export type { RunAIOptions };
 
-type _CommandSpec = { command: AiBackendCommand; args: string[]; hasSystemPromptWithArgs: boolean };
+type _CommandSpec = {
+  command: AiBackendCommand;
+  args: string[];
+  hasSystemPromptWithArgs: boolean;
+  /** system prompt を args でなく stdin 末尾に Markdown 見出し付きで渡すバックエンドのみ持つ（codex）。 */
+  systemPromptOnStdin?: 'append-markdown';
+};
 
 /** レートリミット検出パターン。CLI は文言を stdout / stderr のいずれにも出しうる。`i` フラグのみ（`g` を付けると `.test()` がステートフルになる）。 */
 const _RATE_LIMIT_PATTERN = /rate.?limit|429|usage limit|spend limit/i;
+
+/** `systemPromptOnStdin: 'append-markdown'` で stdin 末尾へ追記する system prompt の見出し行。 */
+const _SYSTEM_PROMPT_HEADING = '## System Prompt';
 
 // ─── Functions
 
@@ -73,12 +82,11 @@ export const _buildCommand = (model: string, systemPrompt: string): _CommandSpec
         args: [
           'exec',
           '--skip-git-repo-check',
-          '--append-system-prompt',
-          systemPrompt,
           '--model',
           _parsed.model,
         ],
-        hasSystemPromptWithArgs: true,
+        hasSystemPromptWithArgs: false,
+        systemPromptOnStdin: 'append-markdown',
       };
     case 'copilot':
       return {
@@ -216,6 +224,31 @@ export const buildValidModelsMessage = (
 };
 
 /**
+ * CLI の stdin へ書き込む本文を組み立てる。
+ *
+ * - `hasSystemPromptWithArgs` が true: system prompt は args で渡し済みのため userPrompt のみ
+ *   （`systemPromptOnStdin` より優先し、system prompt の二重送信を防ぐ）
+ * - `systemPromptOnStdin` が `'append-markdown'`: userPrompt の後ろに区切り線と見出し付きで system prompt を追記
+ * - それ以外: system prompt を userPrompt の前に置く
+ *
+ * exported for testing — internal use only (do not rely on outside tests)
+ *
+ * @param spec - `_buildCommand` が生成したコマンド仕様
+ * @param systemPrompt - システムプロンプト
+ * @param userPrompt - ユーザープロンプト
+ * @returns stdin へ書き込む本文
+ */
+export const _composeStdinInput = (spec: _CommandSpec, systemPrompt: string, userPrompt: string): string => {
+  if (spec.hasSystemPromptWithArgs) {
+    return userPrompt;
+  }
+  if (spec.systemPromptOnStdin === 'append-markdown') {
+    return `${userPrompt}\n\n---\n\n${_SYSTEM_PROMPT_HEADING}\n\n${systemPrompt}`;
+  }
+  return `${systemPrompt}\n\n${userPrompt}`;
+};
+
+/**
  * CLI 経路でサブプロセスを起動し、標準出力を解釈して結果文字列を返す。
  *
  * 経路依存の中段。コマンド構築・起動・stdout の解釈のみを担い、
@@ -225,7 +258,7 @@ export const buildValidModelsMessage = (
  * `exported for testing` の export とは異なり、モジュール外へは公開しない。
  *
  * @param spec - `_buildCommand` が生成したコマンド仕様
- * @param systemPrompt - システムプロンプト（args に載らない CLI では stdin へ前置する）
+ * @param systemPrompt - システムプロンプト（args に載らない CLI では `_composeStdinInput` が stdin へ前置 / 追記する）
  * @param userPrompt - ユーザープロンプト（stdin へ書き込む）
  * @param _signal - 前段で合成済みの中断シグナル
  * @returns 成功時の結果文字列
@@ -245,10 +278,7 @@ const _runViaCli = async (
   });
   const _process = _cmd.spawn();
   const _writer = _process.stdin.getWriter();
-  const _input = spec.hasSystemPromptWithArgs ? userPrompt : `${systemPrompt}
-
-${userPrompt}`;
-  await _writer.write(new TextEncoder().encode(_input));
+  await _writer.write(new TextEncoder().encode(_composeStdinInput(spec, systemPrompt, userPrompt)));
   await _writer.close();
   const _output = await _process.output();
   const _stdout = new TextDecoder().decode(_output.stdout).trim();

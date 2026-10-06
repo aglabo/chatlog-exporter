@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
 import { stub } from '@std/testing/mock';
 
 // ─── Test target
-import { _buildCommand, buildValidModelsMessage, runAI } from '../../run-ai.ts';
+import { _buildCommand, _composeStdinInput, buildValidModelsMessage, runAI } from '../../run-ai.ts';
 import type { RunAIOptions } from '../../run-ai.ts';
 
 // ─── Helpers
@@ -32,7 +32,7 @@ import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 import { isAbortingAiError } from '../../abort-utils.ts';
 // types
-import type { CommandMockHandle } from '../../../../__tests__/helpers/deno-command-mock.ts';
+import type { CommandMockHandle, StdinCapture } from '../../../../__tests__/helpers/deno-command-mock.ts';
 import {
   installCommandMock,
   makeCountingMock,
@@ -52,6 +52,8 @@ import { AI_MODEL_TO_PROVIDER_MAP, AI_PROVIDERS } from '../../../../types/ai.con
 
 // types
 type CommandSpec = { command: string; args: string[]; hasSystemPromptWithArgs: boolean };
+/** `_composeStdinInput` へ渡すコマンド仕様。実装側の `_CommandSpec` は export されないため戻り値型から取る。 */
+type _ComposeSpec = ReturnType<typeof _buildCommand>;
 
 // functions
 /**
@@ -423,6 +425,32 @@ const _listedProviders = (message: string): string[] =>
   message.split(' (or <provider>/<model> with provider: ')[1].replace(/\)$/, '').split(', ');
 
 /**
+ * `_composeStdinInput` の分岐ごとの正常ケース (RA-63〜65)。
+ *
+ * 入力プロンプトは共通 (`sys` / `user`) で、spec の指定だけが異なる。
+ */
+const _composeStdinCases: { id: string; desc: string; spec: _ComposeSpec; expected: string }[] = [
+  {
+    id: 'T-LIB-AI-RA-63',
+    desc: 'hasSystemPromptWithArgs=true → userPrompt のみ',
+    spec: { command: 'claude', args: [], hasSystemPromptWithArgs: true },
+    expected: 'user',
+  },
+  {
+    id: 'T-LIB-AI-RA-64',
+    desc: 'systemPromptOnStdin=append-markdown → userPrompt の後ろに見出し付きで systemPrompt を追記',
+    spec: { command: 'codex', args: [], hasSystemPromptWithArgs: false, systemPromptOnStdin: 'append-markdown' },
+    expected: 'user\n\n---\n\n## System Prompt\n\nsys',
+  },
+  {
+    id: 'T-LIB-AI-RA-65',
+    desc: 'hasSystemPromptWithArgs=false かつ systemPromptOnStdin 無し → systemPrompt を前置',
+    spec: { command: 'codex', args: [], hasSystemPromptWithArgs: false },
+    expected: 'sys\n\nuser',
+  },
+];
+
+/**
  * `RunAIOptions.outputContract` の型受け入れケース。
  *
  * 契約タグは復元先の文字列表現を選ぶだけなので、同じタグでも契約定義は呼び出し元ごとに異なる
@@ -573,9 +601,9 @@ afterEach(() => {
 /**
  * `_buildCommand` 関数のユニットテストスイート。
  *
- * モデル名から CLI コマンド・引数・hasSystemPromptWithArgs フラグを正しく生成することを検証する。
+ * モデル名から CLI コマンド・引数・hasSystemPromptWithArgs フラグ・systemPromptOnStdin 指定を正しく生成することを検証する。
  *
- * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05, T-LIB-AI-RA-58 〜 T-LIB-AI-RA-59
+ * テスト ID 範囲: T-LIB-AI-RA-02 〜 T-LIB-AI-RA-05, T-LIB-AI-RA-58 〜 T-LIB-AI-RA-59, T-LIB-AI-RA-62
  *
  * @see _buildCommand
  */
@@ -590,11 +618,14 @@ describe('_buildCommand', () => {
       assertEquals(result.hasSystemPromptWithArgs, true);
     });
 
-    it('[Normal] T-LIB-AI-RA-03: model=gpt-5 → command=codex, args=[exec,--skip-git-repo-check,--append-system-prompt,sys,--model,gpt-5]', () => {
+    it('[Normal] T-LIB-AI-RA-03: model=gpt-5 → command=codex, args=[exec,--skip-git-repo-check,--model,gpt-5], hasSystemPromptWithArgs=false, systemPromptOnStdin=append-markdown', () => {
       const result = _buildCommand('gpt-5', 'sys');
-      assertEquals(result.command, 'codex');
-      assertEquals(result.args, ['exec', '--skip-git-repo-check', '--append-system-prompt', 'sys', '--model', 'gpt-5']);
-      assertEquals(result.hasSystemPromptWithArgs, true);
+      assertEquals(result, {
+        command: 'codex',
+        args: ['exec', '--skip-git-repo-check', '--model', 'gpt-5'],
+        hasSystemPromptWithArgs: false,
+        systemPromptOnStdin: 'append-markdown',
+      });
     });
 
     it('[Normal] T-LIB-AI-RA-04: model=copilot/gpt-4 → command=copilot, args=[--disable-builtin-mcps,--model,gpt-4,--prompt,sys]', () => {
@@ -604,11 +635,14 @@ describe('_buildCommand', () => {
       assertEquals(result.hasSystemPromptWithArgs, true);
     });
 
-    it('[Normal] T-LIB-AI-RA-05: model=openai/gpt-4 → command=codex, args=[exec,--skip-git-repo-check,--append-system-prompt,sys,--model,gpt-4]', () => {
+    it('[Normal] T-LIB-AI-RA-05: model=openai/gpt-4 → command=codex, args=[exec,--skip-git-repo-check,--model,gpt-4], hasSystemPromptWithArgs=false, systemPromptOnStdin=append-markdown', () => {
       const result = _buildCommand('openai/gpt-4', 'sys');
-      assertEquals(result.command, 'codex');
-      assertEquals(result.args, ['exec', '--skip-git-repo-check', '--append-system-prompt', 'sys', '--model', 'gpt-4']);
-      assertEquals(result.hasSystemPromptWithArgs, true);
+      assertEquals(result, {
+        command: 'codex',
+        args: ['exec', '--skip-git-repo-check', '--model', 'gpt-4'],
+        hasSystemPromptWithArgs: false,
+        systemPromptOnStdin: 'append-markdown',
+      });
     });
 
     it('[Normal] T-LIB-AI-RA-07: model=google/gemini → command=agy, args=[--model,gemini,--print,sys]', () => {
@@ -653,6 +687,14 @@ describe('_buildCommand', () => {
     });
   });
 
+  /** stdin 追記指定は codex 分岐だけが持ち、他バックエンドはキーごと持たないことを検証するケース。 */
+  describe('When: エッジケース（systemPromptOnStdin の有無）', () => {
+    it('[Edge] T-LIB-AI-RA-62: model=sonnet → systemPromptOnStdin キーが存在しない', () => {
+      const result = _buildCommand('sonnet', 'sys');
+      assertEquals('systemPromptOnStdin' in result, false);
+    });
+  });
+
   /** CLI バックエンドを持たないモデル名で ChatlogError を投げる異常ケース。 */
   describe('When: 異常系', () => {
     it('[Error] T-LIB-AI-RA-58: model=llama/x (HTTP 経路) → ChatlogError(UnknownModel) subindex=InvalidModel', () => {
@@ -665,6 +707,39 @@ describe('_buildCommand', () => {
       const _err = assertThrows(() => _buildCommand('invalid-model', 'sys'), ChatlogError);
       assertEquals(_err.kind, 'UnknownModel');
       assertEquals(_err.subindex, 'InvalidModel');
+    });
+  });
+});
+
+/**
+ * `_composeStdinInput` 関数のユニットテストスイート。
+ *
+ * コマンド仕様に応じて CLI の stdin へ書き込む本文（system / user プロンプトの合成）を組み立てることを検証する。
+ *
+ * テスト ID 範囲: T-LIB-AI-RA-63 〜 T-LIB-AI-RA-66
+ *
+ * @see _composeStdinInput
+ */
+describe('_composeStdinInput', () => {
+  /** spec の指定ごとに stdin 本文の組み立て方が切り替わる正常ケース。 */
+  describe('When: 正常系', () => {
+    for (const { id, desc, spec, expected } of _composeStdinCases) {
+      it(`[Normal] ${id}: ${desc}`, () => {
+        assertEquals(_composeStdinInput(spec, 'sys', 'user'), expected);
+      });
+    }
+  });
+
+  /** 分岐の優先順位を検証するケース。system prompt を args と stdin へ二重送信しないこと。 */
+  describe('When: エッジケース（分岐の優先順位）', () => {
+    it('[Edge] T-LIB-AI-RA-66: hasSystemPromptWithArgs=true かつ systemPromptOnStdin=append-markdown → userPrompt のみ', () => {
+      const _spec: _ComposeSpec = {
+        command: 'codex',
+        args: [],
+        hasSystemPromptWithArgs: true,
+        systemPromptOnStdin: 'append-markdown',
+      };
+      assertEquals(_composeStdinInput(_spec, 'sys', 'user'), 'user');
     });
   });
 });
@@ -1808,6 +1883,60 @@ describe('runAI', () => {
           Deno.Command = _origCommand;
         }
       });
+    });
+  });
+});
+
+/**
+ * `runAI` の CLI 経路で `Deno.Command` に渡る args / stdin のユニットテストスイート。
+ *
+ * codex exec は `--append-system-prompt` を持たないため、system prompt は stdin 末尾へ
+ * Markdown 見出し付きで追記する。args に載せる経路（claude）は stdin へ system を重ねない。
+ *
+ * テスト ID 範囲: T-LIB-AI-RA-67 〜 T-LIB-AI-RA-69
+ *
+ * @see runAI
+ */
+describe('runAI — CLI 経路の args / stdin', () => {
+  let commandHandle: CommandMockHandle;
+
+  afterEach(() => {
+    commandHandle?.restore();
+  });
+
+  /** codex 経路で args / stdin が codex exec の仕様どおりに組み立てられるケース。 */
+  describe('When: 正常系（codex 経路）', () => {
+    it('[Normal] T-LIB-AI-RA-67: runAI — model=gpt-5 → args = exec --skip-git-repo-check --model gpt-5（--append-system-prompt を含まない）', async () => {
+      const _capturedArgs: { value: string[] } = { value: [] };
+      commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok'), _capturedArgs));
+
+      await runAI('sys', 'user', { model: 'gpt-5' });
+
+      assertEquals(_capturedArgs.value, ['exec', '--skip-git-repo-check', '--model', 'gpt-5']);
+      assertFalse(_capturedArgs.value.includes('--append-system-prompt'));
+    });
+
+    it('[Normal] T-LIB-AI-RA-68: runAI — model=gpt-5 → stdin = user → 区切り線 → "## System Prompt" → sys の順', async () => {
+      const _capturedStdin: StdinCapture = { value: [] };
+      commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('ok'), undefined, _capturedStdin));
+
+      await runAI('sys', 'user', { model: 'gpt-5' });
+
+      assertEquals(_capturedStdin.value.join(''), 'user\n\n---\n\n## System Prompt\n\nsys');
+    });
+  });
+
+  /** 対照: system prompt を args に載せる経路（claude）は stdin に system を重ねないケース。 */
+  describe('When: FN確認（args に system prompt を載せる経路）', () => {
+    it('[FN] T-LIB-AI-RA-69: runAI — model=sonnet → stdin は userPrompt のみ', async () => {
+      const _capturedStdin: StdinCapture = { value: [] };
+      commandHandle = installCommandMock(
+        makeSuccessMock(new TextEncoder().encode('{"result":"ok"}'), undefined, _capturedStdin),
+      );
+
+      await runAI('sys', 'user', { model: 'sonnet' });
+
+      assertEquals(_capturedStdin.value.join(''), 'user');
     });
   });
 });
