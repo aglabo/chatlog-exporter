@@ -53,9 +53,9 @@ system: |
   WHERE architecture is used:
         architecture = "design occurred" only. Design target type (API/CLI) belongs in tags.
 
-  ### Type–aspect alignment (required)
+  ### Type–aspect alignment
   WHEN  type is "incident"  → MUST include "behavior" or "validation"
-  WHEN  type is "execution" → MUST include "behavior"
+  WHEN  type is "execution" and running or operating tools/commands was the main work → PREFER "behavior" (not required)
 
   ### Available aspects (domain is already fixed — choose aspects only from this list)
   ${topic_list}
