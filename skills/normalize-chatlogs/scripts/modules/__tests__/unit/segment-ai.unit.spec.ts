@@ -984,7 +984,7 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
  * `maxTokens` は 1 ファイルあたり 1280 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
  * 期待値は定数を参照せず数値リテラルで書き、定数値の変更を検出できるようにする。
  *
- * テスト ID 範囲: T-NC-OCT-01-01 〜 T-NC-OCT-01-04
+ * テスト ID 範囲: T-NC-OCT-01-01 〜 T-NC-OCT-01-05
  *
  * @see segmentChatlogs
  */
@@ -1072,6 +1072,22 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
       // assert
       assertEquals(captured.length, 1);
       assertEquals(captured[0].outputContract?.maxTokens, 12800);
+    });
+
+    it('[Edge] T-NC-OCT-01-05: inputs が空配列のとき AI を一度も呼ばず空の Map を返す', async () => {
+      // arrange — 呼び出し回数を数える runner（maxTokens 0 の要求を出さないことを確認する）
+      let callCount = 0;
+      const countingRunner: AiRunnerProvider = () => {
+        callCount++;
+        return Promise.resolve('[]');
+      };
+
+      // act
+      const result = await segmentChatlogs([], { aiRunnerProvider: countingRunner });
+
+      // assert
+      assertEquals(callCount, 0);
+      assertEquals(result.size, 0);
     });
   });
 });

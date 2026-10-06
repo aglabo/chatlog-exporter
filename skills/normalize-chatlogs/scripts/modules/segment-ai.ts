@@ -107,6 +107,8 @@ const _addLineNumbers = (content: string): string => {
  * not the raw file. Building the actual `content` from these boundaries is the caller's
  * responsibility (see {@link phaseWrite}).
  *
+ * An empty `inputs` array returns an empty Map without calling the AI.
+ *
  * @param inputs   - Array of `ChatlogEntry` to segment
  * @param options  - Optional AI options (model, timeoutMs, signal, aiRunnerProvider)
  * @returns Map from filePath to SegmentPlan[] or null
@@ -115,6 +117,9 @@ export const segmentChatlogs = async (
   inputs: ChatlogEntry[],
   options?: { model?: string; timeoutMs?: number; signal?: AbortSignal; aiRunnerProvider?: AiRunnerProvider },
 ): Promise<Map<string, SegmentPlan[] | null>> => {
+  // 入力 0 件だと出力契約の maxTokens が 0 になり要求が成立しないため、AI を呼ばずに返す
+  if (inputs.length === 0) { return new Map(); }
+
   const _nullMap = (): Map<string, SegmentPlan[] | null> => {
     const m = new Map<string, SegmentPlan[] | null>();
     for (const entry of inputs) { m.set(entry.filePath!, null); }
