@@ -26,6 +26,7 @@ import type { AiRunnerProvider } from '../../../_cle-libs/types/providers.types.
 import { formatDicEntries } from '../libs/dic-format-utils.ts';
 import { renderPrompt } from '../libs/template-utils.ts';
 // types
+import type { MetaInvariantVar } from '../constants/prompt-template.constants.ts';
 import type { Dics, Prompts } from '../types/dics.types.ts';
 
 // ─────────────────────────────────────────────
@@ -61,7 +62,7 @@ export const buildFrontmatterOutputContract = (dics: Dics): OutputContract => ({
  * @param dics - `${topic_list}` / `${tags_list}` の導出元辞書
  * @returns 固定部プレースホルダの変数マップ
  */
-const _buildMetaInvariantVars = (dics: Dics): Record<string, string> => ({
+const _buildMetaInvariantVars = (dics: Dics): Record<MetaInvariantVar, string> => ({
   topic_list: formatDicEntries(dics.topicEntries),
   tags_list: dics.tags,
 });
@@ -99,6 +100,7 @@ export const generateFrontmatter = async (
   // スキルだけ更新した環境には旧テンプレートが残り、渡さないと `renderPrompt` が NotDefined で throw する。
   // `renderPrompt` はテンプレートに出現した変数しか引かないため、新テンプレートでの描画結果は変わらない
   // （PR #490 の Codex レビュー指摘 / `cle-kju.6.5`）。
+  // 旧テンプレートであることは `loadPrompts` が読み込み時に検出して warn する（`cle-kju.6.6`）。
   const user = renderPrompt(tmpl.user, {
     ..._buildMetaInvariantVars(dics),
     log_type: type,

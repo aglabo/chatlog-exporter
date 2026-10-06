@@ -1,6 +1,6 @@
 // src: scripts/modules/__tests__/integration/prompt-cache-split.integration.spec.ts
 // @(#): meta.yaml / review.yaml の固定部が system、可変値が user に分かれていることの統合テスト
-//       対象: generateFrontmatter, reviewFrontmatter（実 .config/chatlog-exporter/prompts を loadPrompts で読み込む）
+//       対象: generateFrontmatter, reviewFrontmatter, findLegacyPlaceholders（実 .config/chatlog-exporter/prompts を loadPrompts で読み込む）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -17,7 +17,7 @@ import { describe, it } from '@std/testing/bdd';
 import { generateFrontmatter } from '../../setfm-frontmatter.ts';
 import { reviewFrontmatter } from '../../setfm-review.ts';
 // functions
-import { loadPrompts } from '../../setfm-assets-loader.ts';
+import { findLegacyPlaceholders, loadPrompts } from '../../setfm-assets-loader.ts';
 
 // ─── Helpers
 import { useDefaultGlobalConfig } from '../../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
@@ -531,11 +531,12 @@ const _assertMarkerCounts = (captured: _Captured, expected: readonly _MarkerCoun
  * provider が受け取った system / user 文字列に対して assert する
  * （`docs/rules/testing-conventions.md`「provider 注入テストは provider に何が渡されたかを検証する」）。
  *
- * テスト ID 範囲: T-SF-PCI-01-01 〜 T-SF-PCI-02-01, T-SF-RCI-01-01 〜 T-SF-RCI-02-01
+ * テスト ID 範囲: T-SF-PCI-01-01 〜 T-SF-PCI-02-01, T-SF-RCI-01-01 〜 T-SF-RCI-02-01, T-SF-LPI-01-01
  *
  * @see generateFrontmatter
  * @see reviewFrontmatter
  * @see loadPrompts
+ * @see findLegacyPlaceholders
  */
 describe('generateFrontmatter / reviewFrontmatter — プロンプトの role 分割', () => {
   useDefaultGlobalConfig();
@@ -625,6 +626,20 @@ describe('generateFrontmatter / reviewFrontmatter — プロンプトの role �
           });
         });
       });
+    });
+  });
+
+  /**
+   * 同梱プロンプトが旧形式判定に掛からないことのガード（`cle-kju.6.6`）。
+   *
+   * `loadPrompts` は user 節に固定部プレースホルダが残るテンプレートを旧形式として warn する。
+   * 同梱テンプレートが判定に掛かると、正しく配置した環境でも毎回 warn が出るため、ここで固定する。
+   */
+  describe('findLegacyPlaceholders', () => {
+    it('[Normal] T-SF-LPI-01-01: 実 meta.yaml / review.yaml → 旧形式プレースホルダは 1 件も検出されない', async () => {
+      const _prompts = (await loadPrompts(_PROMPTS_DIR)).prompts;
+
+      assertEquals(findLegacyPlaceholders(_prompts), new Map<string, string[]>());
     });
   });
 });
