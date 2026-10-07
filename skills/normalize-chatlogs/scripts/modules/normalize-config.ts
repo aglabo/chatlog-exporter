@@ -26,22 +26,22 @@ import { DEFAULT_NORMALIZE_CONFIG } from '../constants/normalize.constants.ts';
 /**
  * `buildConfig` が受け付ける CLI オプションのスキーマ。
  *
- * `batchSize` / `maxBatchChars` は CLI 側でも範囲検査する。`min` / `max` は
- * `DEFAULT_CONFIG_SCHEMA`（`_cle-libs/constants/config-schema.constants.ts`）の同名フィールドと
- * 一致させる。`maxBatchChars` の `min` は 0（`0 = 無制限` の明示指定を弾かない）。
+ * 整数オプション 4 つ（`concurrency` / `batchSize` / `maxBatchChars` / `timeoutMs`）は
+ * すべて CLI 側でも範囲検査する。`min` / `max` は `DEFAULT_CONFIG_SCHEMA`
+ * （`_cle-libs/constants/config-schema.constants.ts`）の同名フィールドと一致させる。
+ * - `maxBatchChars` の `min` は 0（`0 = 無制限` の明示指定を弾かない）。
+ * - `timeoutMs` の `min` は 0（`0 = タイムアウトなし` の明示指定を弾かない）。
  *
  * CLI 側に範囲検査が必要な理由: `GlobalConfig._assertInRange` は `parseYaml` 経由でしか走らず、
  * **CLI の値を見ない**。CLI 側に `min` / `max` が無いと、範囲外の値が無検査で通る。
- *
- * `--concurrency` / `--timeout-ms` はまだ `min` / `max` を持たない。別 issue `cle-kju.11` で扱う。
  */
 const _SCHEMA: ArgSchema<NormalizeConfig> = [
   { option: '--agent', field: 'agent', type: 'agent' },
   { option: '--period', field: 'period', type: 'period' },
-  { option: '--concurrency', field: 'concurrency', type: 'integer' },
+  { option: '--concurrency', field: 'concurrency', type: 'integer', min: 1, max: 10 },
   { option: '--batch-size', field: 'batchSize', type: 'integer', min: 1, max: 10 },
   { option: '--max-batch-chars', field: 'maxBatchChars', type: 'integer', min: 0, max: 1000000 },
-  { option: '--timeout-ms', field: 'timeoutMs', type: 'integer' },
+  { option: '--timeout-ms', field: 'timeoutMs', type: 'integer', min: 0, max: 600000 },
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--fail-fast', field: 'failFast', type: 'flag' },
   { option: '--single-file', field: 'singleFile', type: 'flag' },

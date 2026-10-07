@@ -44,7 +44,7 @@ const _makeGlobalConfig = async (yaml = ''): Promise<GlobalConfig> => {
  *
  * CLI 引数・GlobalConfig から完全な SetfmConfig を構築することを検証する。
  *
- * テスト ID 範囲: T-SF-BC-01 〜 T-SF-BC-15
+ * テスト ID 範囲: T-SF-BC-01 〜 T-SF-BC-17
  *
  * @see buildConfig
  */
@@ -335,10 +335,10 @@ describe('buildConfig', () => {
    * `concurrency` の解決ロジックテスト。
    *
    * 優先順位: CLI `--concurrency` > GlobalConfig.concurrency
-   * 範囲検証（1 以上）はスキーマの `min: 1` に委譲する。
+   * 範囲検証（1〜10）はスキーマの `min: 1` / `max: 10` に委譲する。
    */
   describe('When: concurrency の解決', () => {
-    /** 正常系: CLI値とGlobalConfig値の優先順位テスト。 */
+    /** 正常系: CLI値とGlobalConfig値の優先順位、および境界値（1 / 10）の受理テスト。 */
     describe('When: 正常系', () => {
       it('[Normal] T-SF-BC-10-01: --concurrency 4, gc=8 → config.concurrency=4 (CLI wins)', async () => {
         await _makeGlobalConfig('concurrency: 8');
@@ -356,9 +356,14 @@ describe('buildConfig', () => {
         const result = buildConfig(['--output-dir', '/target', '--concurrency', '1']);
         assertEquals(result.concurrency, 1);
       });
+
+      it('[Edge] T-SF-BC-17-02: --concurrency 10 → config.concurrency=10', () => {
+        const result = buildConfig(['--output-dir', '/target', '--concurrency', '10']);
+        assertEquals(result.concurrency, 10);
+      });
     });
 
-    /** 異常系: 0・負数は ChatlogError(InvalidArgs) を throw する。 */
+    /** 異常系: 範囲外（0 以下・11 以上）と非数値は ChatlogError(InvalidArgs) を throw する。 */
     describe('When: 異常系', () => {
       it('[Error] T-SF-BC-10-03: --concurrency 0 → ChatlogError(InvalidArgs)', () => {
         assertThrows(
@@ -372,6 +377,14 @@ describe('buildConfig', () => {
           () => buildConfig(['--output-dir', '/target', '--concurrency', 'abc']),
           ChatlogError,
         );
+      });
+
+      it('[Error] T-SF-BC-17-01: --concurrency 11 → ChatlogError(InvalidArgs/OutOfRange)', () => {
+        const _error = assertThrows(
+          () => buildConfig(['--output-dir', '/target', '--concurrency', '11']),
+          ChatlogError,
+        );
+        assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'OutOfRange']);
       });
     });
   });

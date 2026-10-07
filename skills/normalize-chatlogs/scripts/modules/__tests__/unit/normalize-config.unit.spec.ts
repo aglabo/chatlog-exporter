@@ -313,6 +313,10 @@ describe('buildConfig', () => {
         { id: 'T-NC-BC-20-04', args: ['--max-batch-chars', '-1'] },
         // 上限の 1 つ外側。`max` が 1 でも緩むと素通りするため、`max: 1000000` の値そのものを固定する
         { id: 'T-NC-BC-20-05', args: ['--max-batch-chars', '1000001'] },
+        { id: 'T-NC-BC-20-06', args: ['--concurrency', '11'] },
+        { id: 'T-NC-BC-20-07', args: ['--concurrency', '-1'] },
+        { id: 'T-NC-BC-20-08', args: ['--timeout-ms', '-1'] },
+        { id: 'T-NC-BC-20-09', args: ['--timeout-ms', '600001'] },
       ] as const;
       for (const { id, args } of _outOfRangeCases) {
         it(`[Error] ${id}: ${args.join(' ')} → ChatlogError(InvalidArgs/OutOfRange) がスローされる`, () => {
@@ -354,8 +358,9 @@ describe('buildConfig', () => {
       });
     });
 
-    it('[Edge] T-NC-BC-14-01: --concurrency 0 → concurrency が 0 になる（最小境界値）', () => {
-      assertEquals(buildConfig(['--concurrency', '0']).concurrency, 0);
+    it('[Error] T-NC-BC-14-01: --concurrency 0 → ChatlogError(InvalidArgs/OutOfRange) がスローされる', () => {
+      const _error = assertThrows(() => buildConfig(['--concurrency', '0']), ChatlogError);
+      assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'OutOfRange']);
     });
 
     it('[Edge] T-NC-BC-15-01: 同じオプションを 2 回渡したとき後の値が採用される', () => {
@@ -398,6 +403,10 @@ describe('buildConfig', () => {
         { id: 'T-NC-BC-22-01', args: ['--batch-size', '1'], field: 'batchSize', expected: 1 },
         { id: 'T-NC-BC-22-02', args: ['--batch-size', '10'], field: 'batchSize', expected: 10 },
         { id: 'T-NC-BC-22-03', args: ['--max-batch-chars', '1000000'], field: 'maxBatchChars', expected: 1000000 },
+        { id: 'T-NC-BC-22-04', args: ['--concurrency', '1'], field: 'concurrency', expected: 1 },
+        { id: 'T-NC-BC-22-05', args: ['--concurrency', '10'], field: 'concurrency', expected: 10 },
+        { id: 'T-NC-BC-22-06', args: ['--timeout-ms', '0'], field: 'timeoutMs', expected: 0 },
+        { id: 'T-NC-BC-22-07', args: ['--timeout-ms', '600000'], field: 'timeoutMs', expected: 600000 },
       ] as const;
       for (const { id, args, field, expected } of _cliBoundaryCases) {
         it(`[Edge] ${id}: ${args.join(' ')} → ${field} が境界値 ${expected} のまま通る`, () => {
