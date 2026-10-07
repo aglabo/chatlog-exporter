@@ -146,8 +146,11 @@ const _classify = async (
  * classify-chatlogs スクリプトのエントリポイント。
  * - `--config` で指定された YAML を GlobalConfig に読み込み、model/chunkSize/concurrency のデフォルト値を解決する。
  * - 例外は catch せずそのまま呼び出し元に伝播する。
+ *
+ * @param argv - CLI 引数（省略時は `Deno.args`）
+ * @returns 終了コード（分類対象 0 件・通常完了とも 0）
  */
-export const main = async (argv?: string[]): Promise<void> => {
+export const main = async (argv?: string[]): Promise<number> => {
   const _config = buildConfig(argv ?? Deno.args);
 
   const _originalLogsDir = await _resolveInputDir(_config);
@@ -156,7 +159,7 @@ export const main = async (argv?: string[]): Promise<void> => {
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0, skip: 0 };
 
   const _collected = await _collectFilesAndCache(_originalLogsDir);
-  if (_collected === null) { return; }
+  if (_collected === null) { return 0; }
   const { filePaths: _filePaths, cache: _cache } = _collected;
 
   const _partition = await _classify(_filePaths, _cache, _config, projects, stats);
@@ -175,6 +178,14 @@ export const main = async (argv?: string[]): Promise<void> => {
   logger.info(
     `\n完了${drySuffix}: moved=${stats.moved} movedByAI=${stats.movedByAI} error=${stats.error} remaining=${stats.remaining} skip=${stats.skip}`,
   );
+  return 0;
 };
 
-if (import.meta.main) { await main(); }
+if (import.meta.main) {
+  try {
+    Deno.exit(await main());
+  } catch (e) {
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
+  }
+}
