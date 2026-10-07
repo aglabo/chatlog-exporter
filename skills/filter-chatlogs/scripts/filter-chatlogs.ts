@@ -88,7 +88,15 @@ export const buildConfig = (
 // メイン
 // ─────────────────────────────────────────────
 
-export const main = async (args?: string[]): Promise<void> => {
+/**
+ * filter-chatlogs のメイン処理。
+ *
+ * 異常は `throw` で呼び出し元へ伝え、`Deno.exit()` は呼ばない（終了はエントリポイントで行う）。
+ *
+ * @param args - CLI 引数。省略時は `Deno.args`
+ * @returns 終了コード。正常完了で 0（個別ファイルの error 計上があっても 0）
+ */
+export const main = async (args?: string[]): Promise<number> => {
   const _config = buildConfig(args ?? Deno.args);
 
   const _searchDir = resolveChatlogsDir({
@@ -199,9 +207,15 @@ export const main = async (args?: string[]): Promise<void> => {
   logger.info(
     `\n完了${drySuffix}: total=${allFiles.length} keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
   );
+  return 0;
 };
 
 // --- main routine ---
 if (import.meta.main) {
-  await main(Deno.args);
+  try {
+    Deno.exit(await main());
+  } catch (e) {
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
+  }
 }

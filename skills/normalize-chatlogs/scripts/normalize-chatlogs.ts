@@ -54,8 +54,9 @@ import { processFiles } from './modules/process-files.ts';
  *
  * @param argv   - CLI argument array; defaults to `Deno.args` when omitted
  * @param hashFn - Optional hash generator for output file names (injectable for testing)
+ * @returns Process exit code (`0` on success). Errors are thrown, never handled with `Deno.exit()`
  */
-export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void> => {
+export const main = async (argv?: string[], hashFn?: HashProvider): Promise<number> => {
   const config = buildConfig(argv ?? Deno.args, DEFAULT_NORMALIZE_CONFIG);
   const inputDir = resolveChatlogsDir({
     chatlogsDir: config.chatlogsDir,
@@ -79,8 +80,14 @@ export const main = async (argv?: string[], hashFn?: HashProvider): Promise<void
   const stats = initStats();
   await processFiles(inputDir, outputBase, config, stats, hashFn);
   reportStats(stats);
+  return 0;
 };
 
 if (import.meta.main) {
-  await main();
+  try {
+    Deno.exit(await main());
+  } catch (e) {
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
+  }
 }

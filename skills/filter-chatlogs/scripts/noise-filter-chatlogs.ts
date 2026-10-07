@@ -59,7 +59,7 @@ import { prefilterFiles } from './modules/prefilter.ts';
 // メイン
 // ─────────────────────────────────────────────
 
-export const main = async (args: string[] = Deno.args): Promise<void> => {
+export const main = async (args: string[] = Deno.args): Promise<number> => {
   const { agent, period, chatlogsDir, inputDir, dryRun, minCharCount, minAssistantChars, concurrency } = buildConfig(
     args,
   );
@@ -106,16 +106,14 @@ export const main = async (args: string[] = Deno.args): Promise<void> => {
   logger.info(
     `\n完了${suffix}: keep=${stats.keep} skip=${stats.skip} remove=${stats.remove} error=${stats.error}`,
   );
+  return 0;
 };
 
 if (import.meta.main) {
   try {
-    await main();
+    Deno.exit(await main());
   } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
   }
 }
