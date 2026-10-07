@@ -17,6 +17,8 @@ import { main } from '../../set-frontmatter.ts';
 import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
+import { dirExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { joinPath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { makeDicsDir } from '../helpers/setfm-e2e-helpers.ts';
 // types
 import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
@@ -30,14 +32,15 @@ import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-
  * `--input-dir` を省略したとき、`chatlogsDir/normalizeLogs/<agent>` が
  * `resolveChatlogsDir` により算出され、そのディレクトリ配下のファイルが処理されることを検証する。
  *
- * テスト ID 範囲: T-SF-E2E-12-01
+ * テスト ID 範囲: T-SF-E2E-12-01 〜 T-SF-E2E-12-02
  */
 describe('main - --input-dir 未指定（デフォルト絞り込み）', () => {
   describe('Given: chatlogsDir/normalizeLogs/claude 配下に .md ファイルを配置し --input-dir を省略', () => {
-    describe('When: main(["claude", "--output-dir", outDir, ...]) を呼び出す（GlobalConfig.chatlogsDir で注入）', () => {
+    describe('When: main(["claude", "--output-dir", outDir, "--cache-dir", cacheDir, ...]) を呼び出す（GlobalConfig.chatlogsDir で注入）', () => {
       describe('Then: T-SF-E2E-12 - chatlogsDir/normalizeLogs/claude 配下のファイルが処理される', () => {
         let chatlogsDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -49,6 +52,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           await Deno.writeTextFile(`${agentDir}/test.md`, '# テスト\n本文テキスト');
 
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
 
           GlobalConfig.resetInstance();
@@ -69,6 +73,7 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           GlobalConfig.resetInstance();
           await Deno.remove(chatlogsDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
@@ -77,6 +82,8 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
             'claude',
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -84,6 +91,22 @@ describe('main - --input-dir 未指定（デフォルト絞り込み）', () => 
           ]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('メタ読み込み: 1件')), true);
+        });
+
+        it('[Normal] T-SF-E2E-12-02: cacheDir 配下に fm-cache が作成される', async () => {
+          await main([
+            'claude',
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(await dirExists(joinPath(cacheDir, 'fm-cache')), true);
         });
       });
     });

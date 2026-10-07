@@ -105,16 +105,17 @@ describe('main - yaml 生成失敗', () => {
  *
  * `--dry-run` を付けると Phase 2.1 の runAI がスキップされ再現しないため、必ず除外する。
  *
- * テスト ID 範囲: T-SF-E2E-13-01
+ * テスト ID 範囲: T-SF-E2E-13-01 〜 T-SF-E2E-13-02
  */
 describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
   useDefaultGlobalConfig();
 
   describe('Given: Phase 2.1 の runAI が rate limit 応答を返すモック', () => {
-    describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--no-review", "--dics", ...]) を呼び出す', () => {
+    describe('When: main(["--input-dir", dir, "--output-dir", outDir, "--cache-dir", cacheDir, "--no-review", "--dics", ...]) を呼び出す', () => {
       describe('Then: T-SF-E2E-13 - main が ChatlogError(AiError/RateLimit) で reject する', () => {
         let inputDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -122,6 +123,7 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
         beforeEach(async () => {
           inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
           commandHandle = installCommandMock(makeRateLimitMock());
           loggerStub = makeLoggerStub();
@@ -132,6 +134,7 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
           loggerStub.restore();
           await Deno.remove(inputDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           // dicsDir は baseDir/dics なので親ディレクトリを削除
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
@@ -144,6 +147,8 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
                 inputDir,
                 '--output-dir',
                 outputDir,
+                '--cache-dir',
+                cacheDir,
                 '--no-review',
                 '--dics',
                 dicsDir,
@@ -152,6 +157,26 @@ describe('main - rate limit 貫通 (T-SF-E2E-13)', () => {
           ) as ChatlogError;
           assertEquals(_err.kind, 'AiError');
           assertEquals(_err.subindex, 'RateLimit');
+        });
+
+        it('[Error] T-SF-E2E-13-02: reject 後に cacheDir 配下に fm-cache が作成されている', async () => {
+          await assertRejects(
+            () =>
+              main([
+                '--input-dir',
+                inputDir,
+                '--output-dir',
+                outputDir,
+                '--cache-dir',
+                cacheDir,
+                '--no-review',
+                '--dics',
+                dicsDir,
+              ]),
+            ChatlogError,
+          );
+
+          assertEquals(await dirExists(joinPath(cacheDir, 'fm-cache')), true);
         });
       });
     });
@@ -611,7 +636,7 @@ describe('main - 起動時の出力契約検査 (T-SF-E2E-20〜22)', () => {
       await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
     });
 
-    const _runMain = (inputDir: string, extraArgs: string[] = []): Promise<void> =>
+    const _runMain = (inputDir: string, extraArgs: string[] = []): Promise<number> =>
       main([
         '--input-dir',
         inputDir,

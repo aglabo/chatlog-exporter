@@ -18,6 +18,8 @@ import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__
 import { useDefaultGlobalConfig } from '../../../../_cle-libs/__tests__/helpers/global-config-setup.ts';
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { readTextFile } from '../../../../_cle-libs/libs/file-io/read-utils.ts';
+import { dirExists } from '../../../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { joinPath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import {
   makeCacheDir,
   makeDicsDir,
@@ -675,13 +677,14 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
    * `--dry-run` 実行時は Phase 4 の FAIL 判定をスキップし、
    * `FAIL (yaml空)` のエラーログが出力されないことを検証する。
    *
-   * テスト ID 範囲: T-SF-E2E-DR-05-01 〜 T-SF-E2E-DR-05-02
+   * テスト ID 範囲: T-SF-E2E-DR-05-01 〜 T-SF-E2E-DR-05-03
    */
   describe('Given: Claude CLI が空レスポンスを返し --dry-run フラグがある', () => {
-    describe('When: main([--input-dir, --output-dir, --dry-run, --no-review, --dics]) を呼び出す', () => {
+    describe('When: main([--input-dir, --output-dir, --cache-dir, --dry-run, --no-review, --dics]) を呼び出す', () => {
       describe('Then: T-SF-E2E-DR-05 - FAIL(yaml空) ログが出ない', () => {
         let inputDir: string;
         let outputDir: string;
+        let cacheDir: string;
         let dicsDir: string;
         let commandHandle: CommandMockHandle;
         let loggerStub: LoggerStub;
@@ -689,6 +692,7 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
         beforeEach(async () => {
           inputDir = await makeTargetDir();
           outputDir = await Deno.makeTempDir();
+          cacheDir = await Deno.makeTempDir();
           dicsDir = await makeDicsDir();
           // 全フェーズで空文字を返す（status が空になる条件）
           commandHandle = installCommandMock(
@@ -702,6 +706,7 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
           loggerStub.restore();
           await Deno.remove(inputDir, { recursive: true }).catch(() => {});
           await Deno.remove(outputDir, { recursive: true }).catch(() => {});
+          await Deno.remove(cacheDir, { recursive: true }).catch(() => {});
           await Deno.remove(dicsDir.replace(/[/\\]dics$/, ''), { recursive: true }).catch(() => {});
         });
 
@@ -711,6 +716,8 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -726,6 +733,8 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
             inputDir,
             '--output-dir',
             outputDir,
+            '--cache-dir',
+            cacheDir,
             '--dry-run',
             '--no-review',
             '--dics',
@@ -733,6 +742,23 @@ describe('main - dry-run FAIL抑制 (T-SF-E2E-DR-05)', () => {
           ]);
 
           assertEquals(loggerStub.infoLogs.some((l) => l.includes('fail=0')), true);
+        });
+
+        it('[Normal] T-SF-E2E-DR-05-03: cacheDir 配下に fm-cache が作成される', async () => {
+          await main([
+            '--input-dir',
+            inputDir,
+            '--output-dir',
+            outputDir,
+            '--cache-dir',
+            cacheDir,
+            '--dry-run',
+            '--no-review',
+            '--dics',
+            dicsDir,
+          ]);
+
+          assertEquals(await dirExists(joinPath(cacheDir, 'fm-cache')), true);
         });
       });
     });

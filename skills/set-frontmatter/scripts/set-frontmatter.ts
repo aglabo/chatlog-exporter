@@ -117,7 +117,15 @@ const _countByStatus = (
 // メイン
 // ─────────────────────────────────────────────
 
-export const main = async (args: string[]): Promise<void> => {
+/**
+ * set-frontmatter のメイン処理。対象ファイルへ AI 生成フロントマターを付加する。
+ *
+ * `Deno.exit()` は呼ばず、異常は `ChatlogError` を throw して呼び出し元へ伝える。
+ *
+ * @param args - CLI 引数
+ * @returns 終了コード（対象ファイル 0 件の早期 return・通常完了ともに `0`）
+ */
+export const main = async (args: string[]): Promise<number> => {
   const _config = buildConfig(args);
   const _globalConfig = GlobalConfig.getInstance();
   const _inputDir = resolveChatlogsDir({
@@ -158,7 +166,7 @@ export const main = async (args: string[]): Promise<void> => {
   logger.info(`メタ読み込み: ${entries.length}件（スキップ: ${stats.skip}件）`);
   if (entries.length === 0) {
     logger.info('対象ファイルなし');
-    return;
+    return 0;
   }
 
   // Phase 1.2: エントリ3分割（written / reviewed / generate）
@@ -247,10 +255,17 @@ export const main = async (args: string[]): Promise<void> => {
         + `(total=${_allEntries.length})`,
     );
   }
+
+  return 0;
 };
 
 if (import.meta.main) {
-  await main(Deno.args);
+  try {
+    Deno.exit(await main(Deno.args));
+  } catch (e) {
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
+  }
 }
 
 // ─── Test exports (テスト専用・本番コードから import 禁止)
