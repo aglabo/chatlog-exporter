@@ -442,7 +442,7 @@ const _assertAcceptedRange = (config: StripConfig): void => {
 export const main = async (
   argv?: string[],
   deps: StripMainDeps = _DEFAULT_DEPS,
-): Promise<void> => {
+): Promise<number> => {
   const _config = buildConfig(argv ?? Deno.args);
 
   // Phase 0: 受理ゲート。列挙・キャッシュ初期化を含む一切の I/O より前に評価する（R-001）
@@ -495,7 +495,7 @@ export const main = async (
         `orphan recovery failed (${_recoverStats.error}): 復帰またはキャッシュ削除に失敗しました`,
       );
     }
-    return;
+    return 0;
   }
 
   // Phase 1: 列挙。classify-chatlogs がログをプロジェクト別サブディレクトリへ移動するため、
@@ -531,6 +531,7 @@ export const main = async (
 
   // Phase 7: サマリー報告（REQ-F-006）
   _reportSummary(_stats, _config.dryRun);
+  return 0;
 };
 
 // ─────────────────────────────────────────────
@@ -542,12 +543,9 @@ export { _logDecisionDetail, _processFiles, _processOrphanErrors };
 
 if (import.meta.main) {
   try {
-    await main();
+    Deno.exit(await main());
   } catch (e) {
-    if (e instanceof ChatlogError) {
-      logger.error(e.message);
-      Deno.exit(1);
-    }
-    throw e;
+    logger.error(e instanceof Error ? e.message : String(e));
+    Deno.exit(1);
   }
 }

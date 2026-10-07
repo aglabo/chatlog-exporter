@@ -419,7 +419,8 @@ let loggerStub: LoggerStub;
  * サマリー（REQ-F-006）を実 FS 上で検証する。
  *
  * テスト ID 範囲: T-FL-SEP-01-01 〜 T-FL-SEP-04-09、T-FL-SEP-07-01 〜 T-FL-SEP-07-02、
- * T-FL-SEP-08-01 〜 T-FL-SEP-08-03、T-FL-SEP-09-01 〜 T-FL-SEP-09-05、T-FL-SBS-*-B（T-07 繰り越し）
+ * T-FL-SEP-08-01 〜 T-FL-SEP-08-03、T-FL-SEP-09-01 〜 T-FL-SEP-09-05、T-FL-SEP-10-01 〜 T-FL-SEP-10-02、
+ * T-FL-SBS-*-B（T-07 繰り越し）
  *
  * @see main
  */
@@ -1318,6 +1319,40 @@ describe('main (strip-chatlogs)', () => {
         assertEquals(_counts.total, 1);
         assertEquals(_counts.stripped, 1);
         assertEquals(_counts.error, 0);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+    });
+  });
+
+  /**
+   * main() の戻り値（正常終了）。
+   *
+   * エントリポイントは `Deno.exit(await main())` で戻り値をそのまま終了コードにする。
+   * 正常に完了した実行が `0` を返さないと、成功した実行が非 0 で終了してしまう。
+   * 通常モードと復帰専用モードは別の経路で main() を抜けるため、両方を検証する。
+   */
+  describe('main の戻り値', () => {
+    /** 受理され、error 0 件で完了する起動。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-FL-SEP-10-01: 通常モードの正常終了で 0 を返す', async () => {
+        const { tempDir } = await _setup({ 'strip.md': _STRIPPABLE });
+
+        // 戻り値の型が void のままでも型検査で spec 全体が止まらないよう、unknown で受けて実行時に検証する
+        const _result: unknown = await main(_acceptedArgs(), _makeCacheDeps().deps);
+
+        assertEquals(_result, 0);
+
+        await Deno.remove(tempDir, { recursive: true });
+      });
+
+      it('[Normal] T-FL-SEP-10-02: --recover-orphans の正常終了で 0 を返す', async () => {
+        const { tempDir } = await _setup({ 'orphan.md.bak': _PASSTHROUGH });
+        const { rename } = _makeRenameSpy();
+
+        const _result: unknown = await main(_acceptedArgs('--recover-orphans'), { ..._makeCacheDeps().deps, rename });
+
+        assertEquals(_result, 0);
 
         await Deno.remove(tempDir, { recursive: true });
       });

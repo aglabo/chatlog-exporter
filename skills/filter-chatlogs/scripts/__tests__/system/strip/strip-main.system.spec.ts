@@ -1,5 +1,5 @@
 // src: scripts/__tests__/system/strip/strip-main.system.spec.ts
-// @(#): strip-chatlogs の受理ゲート判定が終了コードへ反映されることの検証（実プロセス起動）
+// @(#): strip-chatlogs の受理ゲート判定・想定外の例外が終了コードへ反映されることの検証（実プロセス起動）
 //       対象: strip-chatlogs.ts のエントリポイント（import.meta.main ブロック）
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -30,6 +30,15 @@ const _TARGET = ['claude', '2026-03'];
 /** 出力先の override として与えるパス。ゲートが列挙より前に拒否するため実在する必要はない。 */
 const _OUTPUT_DIR = './safe-copy';
 
+/** 本番起動と同じ権限。`_runStrip` が権限を指定されなかったときに使う。 */
+const _DEFAULT_PERMISSIONS = ['--allow-read', '--allow-write', '--allow-env'];
+
+/**
+ * 読み取り権限を外した権限。設定ファイルの読み込み（`GlobalConfig.loadConfigFile`）が
+ * `Deno.errors.NotCapable`（`ChatlogError` ではない）を throw し、main() から非 `ChatlogError` が出る。
+ */
+const _NO_READ_PERMISSIONS = ['--allow-write', '--allow-env'];
+
 // types
 
 /** サブプロセス実行の結果。終了コードと stderr を併せて観測する。 */
@@ -39,6 +48,30 @@ interface _RunResult {
   /** プロセスの stderr 出力（デコード済み）。 */
   stderr: string;
 }
+
+/**
+ * 読み取り権限なしの起動（非 `ChatlogError` が main() から出る）で観測する出力の検証表。
+ * 1 回の起動結果を 1 観点ずつ検証し、どの観点が崩れたかを ID で特定できるようにする。
+ */
+const _unexpectedErrorCases: { id: string; label: string; check: (result: _RunResult) => void }[] = [
+  {
+    id: 'T-FL-SEP-02-04-05',
+    label: '終了コード 1 で終了する',
+    check: ({ code, stderr }: _RunResult) => assertEquals(code, 1, `stderr:\n${stderr}`),
+  },
+  {
+    id: 'T-FL-SEP-02-04-06',
+    label: 'stderr に "Uncaught" を含まない',
+    check: ({ stderr }: _RunResult) =>
+      assertEquals(stderr.includes('Uncaught'), false, `stderr contains Uncaught:\n${stderr}`),
+  },
+  {
+    id: 'T-FL-SEP-02-04-07',
+    label: 'stderr に行頭 "    at " のスタック行を含まない',
+    check: ({ stderr }: _RunResult) =>
+      assertEquals(/^ {4}at /m.test(stderr), false, `stderr contains stack trace:\n${stderr}`),
+  },
+];
 
 // functions
 
@@ -51,11 +84,12 @@ interface _RunResult {
  * 区別するため（コードだけの検証は偽陽性になりうる）。
  *
  * @param args - `strip-chatlogs.ts` へ渡す CLI 引数
+ * @param permissions - `deno run` に渡す権限フラグ（省略時は本番起動と同じ権限）
  * @returns 終了コードと stderr 出力
  */
-const _runStrip = async (args: string[]): Promise<_RunResult> => {
+const _runStrip = async (args: string[], permissions: string[] = _DEFAULT_PERMISSIONS): Promise<_RunResult> => {
   const _cmd = new Deno.Command(Deno.execPath(), {
-    args: ['run', '--allow-read', '--allow-write', '--allow-env', _SCRIPT_PATH, ...args],
+    args: ['run', ...permissions, _SCRIPT_PATH, ...args],
     stdout: 'null',
     stderr: 'piped',
   });
@@ -90,6 +124,9 @@ const _makeSandbox = async (): Promise<{ tempDir: string; configFile: string; in
  * 受理ゲート（R-001）が `ChatlogError` を送出したとき、`import.meta.main` ブロックが
  * これを捕捉して成功以外の終了コードでプロセスを終了させることを検証する（DR-20）。
  * 受理される起動が成功の終了コードで終わることも併せて検証する。
+ *
+ * 想定外の例外（`ChatlogError` 以外）も、スタックトレース無しの整形済みメッセージで
+ * 終了コード 1 になることを検証する。
  *
  * テスト ID 範囲: T-FL-SEP-02-04
  *
@@ -143,6 +180,30 @@ describe('strip-chatlogs (system)', () => {
         assertNotEquals(code, 0);
         assertStringIncludes(stderr, 'strip は出力ディレクトリの指定を受理しません');
       });
+    });
+  });
+
+  /**
+   * main() から `ChatlogError` 以外の例外が出たときのエントリポイントの整形。
+   *
+   * エントリポイントが `ChatlogError` 以外を再 throw すると、Deno が "Uncaught" と
+   * スタックトレースを stderr に出す。利用者向けの出力としては内部の呼び出し経路が露出し、
+   * 失敗原因（権限不足など）が読み取りにくくなる。
+   */
+  describe('想定外の例外の終了コード', () => {
+    /** 読み取り権限を外して起動し、設定ファイルの読み込みで NotCapable が出るケース。 */
+    describe('When: 異常系', () => {
+      for (const { id, label, check } of _unexpectedErrorCases) {
+        it(`[Error] ${id}: 読み取り権限なしの起動 → ${label}`, async () => {
+          const { tempDir, configFile, inputDir } = await _makeSandbox();
+
+          // 読み取り権限が無いため `--config` の読み込みが Deno.errors.NotCapable を throw する
+          const _result = await _runStrip(['--config', configFile, '--input-dir', inputDir], _NO_READ_PERMISSIONS);
+
+          await Deno.remove(tempDir, { recursive: true });
+          check(_result);
+        });
+      }
     });
   });
 });
