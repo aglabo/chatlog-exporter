@@ -1,5 +1,5 @@
 // src: scripts/testing/mutate-tester.ts
-// @(#): 変異テストの CLI エントリポイント (引数解析・監査の実行)
+// @(#): 変異テストの CLI エントリ (引数解析)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -19,7 +19,6 @@ import {
   DEFAULT_LOCK_PATH,
   DEFAULT_TIMEOUT_SEC,
   DENO_CONFIG_PATH,
-  EXIT_CODE_FAILURE,
   EXIT_CODE_INTERRUPTED,
   INVALID_TIMEOUT_MESSAGE,
   MAX_TIMEOUT_SEC,
@@ -40,13 +39,7 @@ import { decideExitCode, formatReport } from './mutation/report.ts';
 import { resolveTargets } from './mutation/resolve-targets.ts';
 import { runDenoTest } from './mutation/run-deno-test.ts';
 import { runMutants } from './mutation/run-mutants.ts';
-import {
-  acquireLockEnsuringDir,
-  detectDrift,
-  hashSources,
-  releaseLock,
-  sweepArtifacts,
-} from './mutation/run-safety.ts';
+import { acquireLock, detectDrift, hashSources, releaseLock, sweepArtifacts } from './mutation/run-safety.ts';
 import type {
   AllowlistMatch,
   BaselineResult,
@@ -435,10 +428,8 @@ const _assertRepoRootCwd = (dir: string): void => {
 /**
  * 変異テストの監査を規定の順序で実行する (index DD-01 / REQ-C-003)。
  *
- * 引数 → 作業ディレクトリの検査 → 対象解決 → 許容リスト → ロックの親ディレクトリ作成 → ロック取得 →
- * SIGINT 登録 → 掃除 → ハッシュ → ベースライン → 生成 → 変異体の実行 → 照合 → drift → レポート →
- * ロック解放 → SIGINT 解除の順に進む。
- * ロックの親ディレクトリだけはロック取得より前に作る (execution R-201 の例外 / OQ-2)。
+ * 引数 → 作業ディレクトリの検査 → 対象解決 → 許容リスト → ロック取得 → SIGINT 登録 → 掃除 → ハッシュ →
+ * ベースライン → 生成 → 変異体の実行 → 照合 → drift → レポート → ロック解放 → SIGINT 解除の順に進む。
  * ロック取得後はどの経路 (SIGINT の登録・解除の失敗を含む) でもロックを解放する。
  * 掃除またはハッシュ記録を終えた時点で SIGINT を受けていれば、以降の工程 (ハッシュ記録・ベースライン) へ進まず
  * 判定 0 件の中断レポートを書き出し、中断の終了コードを返す (execution R-227)。
@@ -460,7 +451,7 @@ export const main = async (argv?: string[], deps: Partial<MainDeps> = {}): Promi
   const {
     resolveTargets: _resolveTargets = resolveTargets,
     loadAllowlist: _loadAllowlist = loadAllowlist,
-    acquireLock: _acquireLock = acquireLockEnsuringDir,
+    acquireLock: _acquireLock = acquireLock,
     releaseLock: _releaseLock = releaseLock,
     sweepArtifacts: _sweepArtifacts = sweepArtifacts,
     hashSources: _hashSources = hashSources,
@@ -518,12 +509,3 @@ export const main = async (argv?: string[], deps: Partial<MainDeps> = {}): Promi
     _unregister?.();
   }
 };
-
-if (import.meta.main) {
-  try {
-    Deno.exit(await main());
-  } catch (e) {
-    logger.error(e instanceof Error ? e.message : String(e));
-    Deno.exit(EXIT_CODE_FAILURE);
-  }
-}
