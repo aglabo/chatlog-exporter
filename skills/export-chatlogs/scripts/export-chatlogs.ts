@@ -136,11 +136,12 @@ export const runExport: RunExportProvider = async (config) => {
  *
  * @param argv CLI 引数の配列。省略時は `Deno.args` を使用
  * @param runExportFn エージェント振り分けを実行する関数。省略時は `runExport`
+ * @returns 終了コード。処理完了時は常に `0` (`errorCount > 0` でも `0`)
  */
 export const main = async (
   argv?: string[],
   runExportFn: RunExportProvider = runExport,
-): Promise<void> => {
+): Promise<number> => {
   const config = buildConfig(argv ?? Deno.args);
   const { agent, period, exportDir } = config;
 
@@ -158,11 +159,12 @@ export const main = async (
     `\n完了: ${total} 件処理 (出力: ${result.exportedCount} / スキップ: ${result.skippedCount} / エラー: ${result.errorCount}) `,
   );
   logger.info(`出力先: ${exportDir}/${agent}/`);
+  return 0;
 };
 
 if (import.meta.main) {
   try {
-    await main();
+    Deno.exit(await main());
   } catch (e) {
     logger.error(e instanceof Error ? e.message : String(e));
     Deno.exit(1);
