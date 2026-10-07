@@ -26,7 +26,7 @@ const _SCHEMA: ArgSchema<SetfmConfig> = [
   { option: '--dics', field: 'dicsDir', type: 'directory' },
   { option: '--prompts', field: 'promptsDir', type: 'directory' },
   { option: '--review', field: 'review', type: 'flag' },
-  { option: '--concurrency', field: 'concurrency', type: 'integer', min: 1 },
+  { option: '--concurrency', field: 'concurrency', type: 'integer', min: 1, max: 10 },
   { option: '--cache-dir', field: 'cacheDir', type: 'string' },
 ];
 
@@ -46,7 +46,7 @@ const _DEFAULT_SETFM_CONFIG: SetfmConfig = {
  * - outputDir: 絶対パスならそのまま使用、相対パスなら `joinPath(chatlogsDir, outputDir)`、
  *   未指定なら `joinPath(chatlogsDir, 'outputLogs')` に解決する。
  * - dicsDir/promptsDir/cacheDir はパス解決を行わず、値をそのまま透過する。
- * - concurrency の範囲検証（1 以上）は `_SCHEMA` の `min: 1` に委譲する。
+ * - concurrency の範囲検証（1〜10）は `_SCHEMA` の `min: 1` / `max: 10` に委譲する。
  */
 export const buildConfig = (
   args: string[],
