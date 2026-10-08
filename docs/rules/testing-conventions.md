@@ -35,10 +35,51 @@ it('all cases pass', () => {
 
 ループで生成される `it` にも、テスト ID と入出力値をラベルに埋め込む (4 章参照) 。
 
-### fixtures は Internal Helpers に定義する
+### fixtures の配置
 
-テストケース配列を `it` の中やファイルトップレベルに直書きしない。
-`_cases` / `_fixtures` / `_errorCases` として Internal Helpers (2 章グループ 4) に置く。
+共通規約 (`deckrd-rule-testing-guidelines.md` §3「テストデータの定義場所」) に対する
+chatlog-exporter 固有の差分を定める。
+
+#### 別ファイルに置く場合
+
+複数の spec ファイルから参照する fixture、またはファイル形式そのものが入力になるデータ
+(Markdown・YAML 等) は、spec と別ファイルにする。
+置き場所は既存の配置に従う (`<module>/__tests__/fixtures/`、共通ヘルパーは `skills/_cle-libs/__tests__/helpers/`)。
+
+#### spec と同じファイルに置く場合
+
+次の優先順で配置する。上の位置に置けるなら、下には置かない。
+
+1. **使用する `describe` の中** — 1 つの `describe` からしか参照しないケース配列は、
+   その `describe` の中、ループの直前に `const` で置く
+2. **Internal Helpers** — 複数の `describe` から参照する配列、ケースの型、ヘルパー関数・fake は
+   Internal Helpers (2 章グループ 4) に置く
+
+```typescript
+// Good — 1 つの describe でしか使わない配列は、その describe の中に置く
+describe('When: 正常系', () => {
+  const _cases: _Case[] = [
+    { id: 'T-XX-YY-01', input: 'a', expected: 'A' },
+  ];
+
+  for (const { id, input, expected } of _cases) {
+    it(`[Normal] ${id}: ${input} → ${expected}`, () => {
+      assertEquals(fn(input), expected);
+    });
+  }
+});
+```
+
+どちらの位置でも次は変わらない。
+
+- 名前に `_` プレフィックスを付ける (`_cases` / `_fixtures` / `_errorCases` 等)
+- `it` の中や、Internal Helpers 外のファイルトップレベルに直書きしない
+
+ID 重複検査 (4-3 の手順 2) は `'T-...'` リテラルを拾うため、配列の位置に依存しない。
+既存 spec は一括で移さず、そのファイルを変更するときに合わせて移す。
+
+根拠: 2026-10-09 の `classify-outcome.unit.spec.ts` で、ケース配列と使用箇所が 200 行以上離れ、
+対応関係を JSDoc で補っていた。
 
 ### provider 注入テストは「provider に何が渡されたか」を検証する
 
@@ -157,6 +198,7 @@ async function _writeJsonl(filePath: string, lines: unknown[]): Promise<void> { 
 ```
 
 不要なサブグループは省略してよい。Internal Helpers が一切不要なテストではグループ自体を省略してよい。
+1 つの `describe` でしか使わないケース配列はここに置かず、その `describe` の中に置く (基本原則「fixtures の配置」)。
 
 ### グループ 5: Tests
 
@@ -324,16 +366,17 @@ JSDoc から他ファイルのテスト ID を参照するのは構わない (�
 
 prefix の第 1 セグメントはスキル、第 2 セグメント以降はテスト対象を表す。
 
-| 名前空間  | 対象                             |
-| --------- | -------------------------------- |
-| `T-LIB-*` | `_cle-libs/libs/`                |
-| `T-CLS-*` | `_cle-libs/classes/`             |
-| `T-EC-*`  | `export-chatlogs`                |
-| `T-CL-*`  | `classify-chatlogs`              |
-| `T-FL-*`  | `filter-chatlogs`                |
-| `T-PF-*`  | `filter-chatlogs` / noise-filter |
-| `T-NC-*`  | `normalize-chatlogs`             |
-| `T-SF-*`  | `set-frontmatter`                |
+| 名前空間  | 対象                                             |
+| --------- | ------------------------------------------------ |
+| `T-LIB-*` | `_cle-libs/libs/`                                |
+| `T-CLS-*` | `_cle-libs/classes/`                             |
+| `T-EC-*`  | `export-chatlogs`                                |
+| `T-CL-*`  | `classify-chatlogs`                              |
+| `T-FL-*`  | `filter-chatlogs`                                |
+| `T-PF-*`  | `filter-chatlogs` / noise-filter                 |
+| `T-NC-*`  | `normalize-chatlogs`                             |
+| `T-SF-*`  | `set-frontmatter`                                |
+| `T-MUT-*` | `scripts/testing/mutation/` (変異テストハーネス) |
 
 対象を表すセグメントは **テスト対象の関数・クラス単位** で決める。ファイル単位ではない
 (1 ファイルが複数の関数を検証する場合、関数ごとに prefix を分ける) 。
