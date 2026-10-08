@@ -6,6 +6,20 @@ deckrd の `deckrd-rule-coding-guidelines.md` が正とする
 本ファイルは TypeScript / Deno 固有の適用例と、共通規約に無い chatlog-exporter 独自の規約を示す
 （引数の個数の上限は共通規約に定めが無く、本ファイルが正とする）。
 
+## 文字コードは UTF-8（BOM なし）
+
+リポジトリ内のテキスト・コードはすべて UTF-8 で、BOM を含めない。
+コード・テスト・ドキュメント・設定・辞書・プロンプト・fixture のどれにも例外は無い。
+
+- 新規ファイルを BOM 付きで作らない。BOM 付きのファイルを見つけたら除去する
+- 処理系の仕様（行・桁の数え方、行テキストの取り出し）は BOM の無い入力を前提に定めてよい。
+  BOM 付きの入力に対する振る舞いを仕様やテストで作り込まない
+
+根拠: 2026-10-09 の mutation tasks（`docs/.deckrd/testing/mutation/tasks/tasks.md`）の差分監査で、
+`generateMutants` は BOM を桁と行テキストに含め、`applyMutant` は BOM を飛ばして数えるという
+食い違いが見つかった。BOM の扱いを部品ごとに決めると同じ種類の食い違いが繰り返し生じるため、
+入力から BOM を排除する方針に一本化した。
+
 ## インラインロジック禁止
 
 ```typescript
