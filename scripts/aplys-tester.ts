@@ -38,7 +38,7 @@ const _SPECIAL_GLOB_TABLE = {
 } as const;
 
 // スキルモジュール: 短縮名 → フルモジュール名
-const _SKILL_MODULES = {
+export const SKILL_MODULES = {
   'classify': 'classify-chatlogs',
   'export': 'export-chatlogs',
   'filter': 'filter-chatlogs',
@@ -46,13 +46,13 @@ const _SKILL_MODULES = {
   'set': 'set-frontmatter',
 } as const;
 
-type _SkillAlias = keyof typeof _SKILL_MODULES;
+type _SkillAlias = keyof typeof SKILL_MODULES;
 type _SpecialModuleKey = keyof typeof _SPECIAL_GLOB_TABLE;
 
 export const MODULE_GLOB_TABLE: Record<_SpecialModuleKey | _SkillAlias, string> = {
   ..._SPECIAL_GLOB_TABLE,
   ...Object.fromEntries(
-    Object.entries(_SKILL_MODULES).map(([alias, full]) => [alias, `**/${full}/**/__tests__`]),
+    Object.entries(SKILL_MODULES).map(([alias, full]) => [alias, `**/${full}/**/__tests__`]),
   ),
 } as Record<_SpecialModuleKey | _SkillAlias, string>;
 
@@ -63,7 +63,7 @@ export type ValidType = typeof VALID_TYPES[number];
 
 export const VALID_MODULES: readonly ValidModule[] = [
   ...(Object.keys(_SPECIAL_GLOB_TABLE).filter((k) => k !== 'all') as ValidModule[]),
-  ...(Object.keys(_SKILL_MODULES) as _SkillAlias[]),
+  ...(Object.keys(SKILL_MODULES) as _SkillAlias[]),
 ];
 
 export type TesterConfig = {
