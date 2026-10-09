@@ -84,7 +84,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 39      | done        |
 | T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done        |
 | T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | done        |
-| T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | in progress |
+| T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | done        |
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | pending     |
 | T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | pending     |
 | T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | pending     |
@@ -1727,14 +1727,14 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
   - Scenario: Given 生成された変異体 M と、M の全属性を写した別オブジェクトの survived 判定、M に一致するエントリ 1 件がある, When `matchAllowlist` を呼ぶ
   - Expected: Then 例外を投げず、当該判定の変異体が `allowed` に含まれること
 
-- [ ] **T-05-10-07**: 生成された変異体と `line` だけが異なる判定の変異体はエラーにする
+- [x] **T-05-10-07**: 生成された変異体と `line` だけが異なる判定の変異体はエラーにする
   - Target: `matchAllowlist`
   - Test ID: `T-MUT-AL-19-07`
   - Rule: implementation Commit 7（前提の判定は全属性の値の一致）
   - Scenario: Given 生成された変異体 M と、M の `line` だけを 1 増やした変異体の survived 判定がある, When `matchAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げること（`line` を照合キーに使わないことを理由に一致とみなさないこと）
 
-- [ ] **T-05-10-08**: 生成された変異体と `column` だけが異なる判定の変異体はエラーにする
+- [x] **T-05-10-08**: 生成された変異体と `column` だけが異なる判定の変異体はエラーにする
   - Target: `matchAllowlist`
   - Test ID: `T-MUT-AL-19-08`
   - Rule: implementation Commit 7（前提の判定は全属性の値の一致）
