@@ -86,7 +86,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | done    |
 | T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | done    |
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | done    |
-| T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | pending |
+| T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | done    |
 | T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | pending |
 | T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | pending |
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending |
@@ -2010,56 +2010,56 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-01: `--strict` なしは監査が成立すれば 0
 
-- [ ] **T-07-01-01**: 未許容の生存があっても既定では 0 を返す
+- [x] **T-07-01-01**: 未許容の生存があっても既定では 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-01`
   - Rule: report-cli R-616 / DR-03 / REQ-F-013 / AC-015 / Edge report-cli-11
   - Scenario: Given drift なしで未許容の生存 1 件を持つ summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-02**: 古いエントリがあっても既定では 0 を返す
+- [x] **T-07-01-02**: 古いエントリがあっても既定では 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-02`
   - Rule: report-cli R-616 / report-cli DD-04 / allowlist DD-07 / Edge report-cli-17
   - Scenario: Given 古いエントリ 1 件だけを持ち、他に問題の無い summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-03**: 全件 timeout でも既定では 0 を返す
+- [x] **T-07-01-03**: 全件 timeout でも既定では 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-03`
   - Rule: report-cli R-616 / REQ-F-013 / Edge report-cli-14 / Edge index-2
   - Scenario: Given 判定が timeout 2 件だけの summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-04**: 全件 error でも既定では 0 を返す
+- [x] **T-07-01-04**: 全件 error でも既定では 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-04`
   - Rule: report-cli R-616 / REQ-F-013 / Edge index-2
   - Scenario: Given 判定が error 2 件だけの summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-05**: 全件 compile-error でも既定では 0 を返す
+- [x] **T-07-01-05**: 全件 compile-error でも既定では 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-05`
   - Rule: report-cli R-616 / DR-02 / REQ-F-013
   - Scenario: Given 判定が compile-error 2 件だけの summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-06**: 残骸があっても 0 を返す
+- [x] **T-07-01-06**: 残骸があっても 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-06`
   - Rule: report-cli R-616 / report-cli DD-07 / execution DD-05 / Edge report-cli-20
   - Scenario: Given 残骸 1 件を持ち、他に問題の無い summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-07**: 差し替えの警告対象のファイルがあっても 0 を返す
+- [x] **T-07-01-07**: 差し替えの警告対象のファイルがあっても 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-07`
   - Rule: report-cli R-616 / report-cli DD-08 / Edge report-cli-21
   - Scenario: Given 有効な判定がすべて survived のファイルを持ち、他に問題の無い summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-01-08**: 変異体 0 件は既定で 0 を返す
+- [x] **T-07-01-08**: 変異体 0 件は既定で 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-10-08`
   - Rule: report-cli R-616 / REQ-F-018 / AC-021 / Edge report-cli-8
@@ -2068,14 +2068,14 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-02: `--strict` を通過する
 
-- [ ] **T-07-02-01**: すべての生存が許容済みなら `--strict` でも 0 を返す
+- [x] **T-07-02-01**: すべての生存が許容済みなら `--strict` でも 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-11-01`
   - Rule: report-cli R-620 / Edge report-cli-13
   - Scenario: Given 許容済みの生存 2 件・未許容 0 件・古いエントリ 0 件の summary がある, When `strict = true` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-02-02**: killed だけで問題が無ければ `--strict` でも 0 を返す
+- [x] **T-07-02-02**: killed だけで問題が無ければ `--strict` でも 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-11-02`
   - Rule: report-cli R-620
@@ -2086,21 +2086,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-03: 中断は 130 が最優先
 
-- [ ] **T-07-03-01**: 中断されたら 130 を返す
+- [x] **T-07-03-01**: 中断されたら 130 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-12-01`
   - Rule: report-cli R-614 / report-cli DD-06 / report-cli DD-09 / REQ-F-013 / AC-023
   - Scenario: Given 中断ありで、他に問題の無い summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 130 を返すこと
 
-- [ ] **T-07-03-02**: 中断と drift が重なっても 130 を返す
+- [x] **T-07-03-02**: 中断と drift が重なっても 130 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-12-02`
   - Rule: report-cli R-614 / report-cli R-615 / Edge report-cli-23
   - Scenario: Given 中断ありかつ drift 1 件を持つ summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 1 ではなく 130 を返すこと
 
-- [ ] **T-07-03-03**: `--strict` の失敗条件と重なっても中断は 130 を返す
+- [x] **T-07-03-03**: `--strict` の失敗条件と重なっても中断は 130 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-12-03`
   - Rule: report-cli R-614 / report-cli R-617
@@ -2109,21 +2109,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-04: 監査が成立しない
 
-- [ ] **T-07-04-01**: drift があれば既定でも非 0 を返す
+- [x] **T-07-04-01**: drift があれば既定でも非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-13-01`
   - Rule: report-cli R-615 / REQ-F-008 / REQ-F-013 / Edge report-cli-19
   - Scenario: Given 中断なしで drift 1 件を持つ summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 1 を返すこと
 
-- [ ] **T-07-04-02**: 監査単位の失敗があれば既定でも非 0 を返す
+- [x] **T-07-04-02**: 監査単位の失敗があれば既定でも非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-13-02`
   - Rule: report-cli R-615 / execution DD-14 / REQ-F-013 (f)
   - Scenario: Given 中断なし・drift なしで、監査単位の失敗（残骸掃除の削除失敗）を持つ summary がある, When `strict = false` で `decideExitCode` を呼ぶ
   - Expected: Then 1 を返すこと
 
-- [ ] **T-07-04-03**: drift は `--strict` の判定より先に非 0 で確定する
+- [x] **T-07-04-03**: drift は `--strict` の判定より先に非 0 で確定する
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-13-03`
   - Rule: report-cli R-615 / report-cli 4.3（最初に該当した規則で決まる）
@@ -2132,7 +2132,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-05: `--strict` と未許容の生存
 
-- [ ] **T-07-05-01**: `--strict` では未許容の生存 1 件で非 0 を返す
+- [x] **T-07-05-01**: `--strict` では未許容の生存 1 件で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-14-01`
   - Rule: report-cli R-617 / DR-03 / REQ-F-014 / AC-016 / Edge report-cli-12
@@ -2141,21 +2141,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-06: `--strict` と有効な判定 0 件
 
-- [ ] **T-07-06-01**: `--strict` では全件 timeout で非 0 を返す
+- [x] **T-07-06-01**: `--strict` では全件 timeout で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-15-01`
   - Rule: report-cli R-618 / report-cli DD-05 / DR-08 / REQ-F-014 / AC-020 / Edge report-cli-15 / Edge index-2
   - Scenario: Given drift なしで、判定が timeout 2 件だけの summary がある, When `strict = true` で `decideExitCode` を呼ぶ
   - Expected: Then 1 を返すこと
 
-- [ ] **T-07-06-02**: `--strict` では全件 error で非 0 を返す
+- [x] **T-07-06-02**: `--strict` では全件 error で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-15-02`
   - Rule: report-cli R-618 / REQ-F-014 / AC-020 / Edge report-cli-15 / Edge index-2
   - Scenario: Given drift なしで、判定が error 2 件だけの summary がある, When `strict = true` で `decideExitCode` を呼ぶ
   - Expected: Then 1 を返すこと
 
-- [ ] **T-07-06-03**: `--strict` では全件 compile-error で非 0 を返す
+- [x] **T-07-06-03**: `--strict` では全件 compile-error で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-15-03`
   - Rule: report-cli R-618 / DR-02 / Edge report-cli-16
@@ -2164,7 +2164,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-07: `--strict` と古いエントリ
 
-- [ ] **T-07-07-01**: `--strict` では古いエントリ 1 件で非 0 を返す
+- [x] **T-07-07-01**: `--strict` では古いエントリ 1 件で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-16-01`
   - Rule: report-cli R-619 / report-cli DD-04 / allowlist DD-07 / REQ-F-014 / AC-022 / Edge report-cli-18
@@ -2175,14 +2175,14 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-08: 変異体 0 件と `--strict`
 
-- [ ] **T-07-08-01**: 変異体 0 件では `--strict` でも有効な判定 0 件を失敗にしない
+- [x] **T-07-08-01**: 変異体 0 件では `--strict` でも有効な判定 0 件を失敗にしない
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-17-01`
   - Rule: report-cli R-618（変異体 1 件以上が前提） / report-cli R-620 / REQ-F-018 / Edge report-cli-9
   - Scenario: Given `generatedCount` が 0 で、古いエントリ・drift の無い summary がある, When `strict = true` で `decideExitCode` を呼ぶ
   - Expected: Then 0 を返すこと
 
-- [ ] **T-07-08-02**: 変異体 0 件で許容リストにエントリが残っていれば `--strict` で非 0 を返す
+- [x] **T-07-08-02**: 変異体 0 件で許容リストにエントリが残っていれば `--strict` で非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-17-02`
   - Rule: report-cli R-619 / REQ-F-018 / REQ-F-014 / Edge report-cli-10
@@ -2191,7 +2191,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-09: 有効な判定の最小値
 
-- [ ] **T-07-09-01**: 有効な判定が 1 件あれば `--strict` の有効判定 0 件条件に該当しない
+- [x] **T-07-09-01**: 有効な判定が 1 件あれば `--strict` の有効判定 0 件条件に該当しない
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-18-01`
   - Rule: report-cli R-618 / report-cli DD-05
@@ -2200,14 +2200,14 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-07-10: 終了コードの値とレポートとの一貫性
 
-- [ ] **T-07-10-01**: `--strict` の失敗は 130 ではない非 0 を返す
+- [x] **T-07-10-01**: `--strict` の失敗は 130 ではない非 0 を返す
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-19-01`
   - Rule: report-cli R-615 / report-cli DD-09（130 は中断のみ）
   - Scenario: Given 中断なしで未許容の生存 1 件を持つ summary がある, When `strict = true` で `decideExitCode` を呼ぶ
   - Expected: Then 戻り値が 0 でも 130 でもないこと
 
-- [ ] **T-07-10-02**: レポートの未許容の生存件数と `--strict` の終了コードが一貫する
+- [x] **T-07-10-02**: レポートの未許容の生存件数と `--strict` の終了コードが一貫する
   - Target: `decideExitCode`
   - Test ID: `T-MUT-RP-19-02`
   - Rule: report-cli §2.3（終了コードはレポートの数値と一貫する） / report-cli R-617 / implementation Commit 9
