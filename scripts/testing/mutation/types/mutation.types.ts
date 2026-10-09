@@ -98,6 +98,22 @@ export type AllowlistMatch = {
   stale: AllowlistEntry[];
 };
 
+/** `formatReport` の入力。1 回の変異テスト実行の結果をまとめたもの。 */
+export type MutationRunReport = {
+  /** 生成した変異体の件数 (中断時も生成時点の件数)。 */
+  generatedCount: number;
+  /** 判定済みの変異体の結果の列。 */
+  results: MutantResult[];
+  /** `matchAllowlist` の結果。`formatReport` は表示するだけで照合をやり直さない。 */
+  match: AllowlistMatch;
+  /** 実行前後で内容が変わった元ソースのパス。 */
+  drift: string[];
+  /** 後始末で削除できなかったファイルのパス。 */
+  leftovers: string[];
+  /** SIGINT で中断したか。 */
+  interrupted: boolean;
+};
+
 /** 変異前のベースライン実行の結果 (DR-08)。`interrupted` は中断で、`failed` とは区別する。 */
 export type BaselineResult =
   | { kind: 'ok' }
