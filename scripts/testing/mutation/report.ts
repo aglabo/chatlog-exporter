@@ -7,6 +7,9 @@
 // https://opensource.org/licenses/MIT
 
 import {
+  EXIT_CODE_FAILURE,
+  EXIT_CODE_INTERRUPTED,
+  EXIT_CODE_OK,
   MUTANT_STATUSES,
   REPORT_HEADING_DRIFT,
   REPORT_HEADING_INTERRUPTED,
@@ -263,4 +266,56 @@ export const formatReport = (summary: MutationRunReport): string => {
     ..._ineffectiveLines(summary.results),
     ..._leftoverLines(summary.leftovers),
   ].join('\n');
+};
+
+/**
+ * 監査が成立しなかったかを返す。drift または監査単位の失敗 (execution DD-14) があれば成立しない (R-615)。
+ *
+ * @param summary - 変異テスト実行の要約
+ * @returns drift または監査単位の失敗が 1 件以上あれば true
+ */
+const _isAuditBroken = (summary: MutationRunReport): boolean =>
+  summary.drift.length > 0 || summary.auditFailures.length > 0;
+
+/**
+ * `--strict` の検査に掛かるかを返す。未許容の生存 (R-617)、変異体が 1 件以上あるのに有効な判定が 0 件 (R-618)、
+ * 古い許容エントリ (R-619) のいずれかがあれば掛かる。
+ *
+ * @param summary - 変異テスト実行の要約
+ * @returns `--strict` の検査に掛かれば true
+ */
+const _failsStrictCheck = (summary: MutationRunReport): boolean =>
+  summary.match.unallowed.length > 0
+  || (summary.generatedCount > 0 && _effectiveCountOf(summary) === 0)
+  || summary.match.stale.length > 0;
+
+/**
+ * 変異テスト実行の要約と `--strict` の有無から、プロセスの終了コードを決める (report-cli 4.3)。
+ * I/O・時刻・乱数を使わない純粋関数。
+ *
+ * 次の順に評価し、最初に該当した規則で終了コードが決まる。
+ *
+ * 1. 中断した → `EXIT_CODE_INTERRUPTED` (R-614)
+ * 2. drift または監査単位の失敗がある → `EXIT_CODE_FAILURE` (R-615)
+ * 3. `--strict` なし → `EXIT_CODE_OK` (R-616)
+ * 4. `--strict` で未許容の生存がある → `EXIT_CODE_FAILURE` (R-617)
+ * 5. `--strict` で変異体が 1 件以上あるのに有効な判定が 0 件 → `EXIT_CODE_FAILURE` (R-618)
+ * 6. `--strict` で古い許容エントリがある → `EXIT_CODE_FAILURE` (R-619)
+ * 7. いずれにも該当しない → `EXIT_CODE_OK` (R-620)
+ *
+ * @param summary - 変異テスト実行の要約
+ * @param strict - `--strict` を指定したか
+ * @returns 終了コード
+ */
+export const decideExitCode = (summary: MutationRunReport, strict: boolean): number => {
+  if (summary.interrupted) {
+    return EXIT_CODE_INTERRUPTED;
+  }
+  if (_isAuditBroken(summary)) {
+    return EXIT_CODE_FAILURE;
+  }
+  if (!strict) {
+    return EXIT_CODE_OK;
+  }
+  return _failsStrictCheck(summary) ? EXIT_CODE_FAILURE : EXIT_CODE_OK;
 };

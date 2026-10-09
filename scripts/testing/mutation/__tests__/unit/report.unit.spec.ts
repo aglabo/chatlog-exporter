@@ -1,6 +1,6 @@
 // src: scripts/testing/mutation/__tests__/unit/report.unit.spec.ts
 // @(#): report のユニットテスト
-//       対象: formatReport
+//       対象: formatReport, decideExitCode
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -10,13 +10,20 @@
 // cspell:words unallowed
 
 // ─── BDD modules
-import { assertArrayIncludes, assertEquals } from '@std/assert';
+import { assertArrayIncludes, assertEquals, assertNotEquals } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { formatReport } from '../../report.ts';
+import { decideExitCode, formatReport } from '../../report.ts';
 
 // ─── Helpers
+// constants
+import {
+  EXIT_CODE_FAILURE,
+  EXIT_CODE_INTERRUPTED,
+  EXIT_CODE_OK,
+  REPORT_HEADING_UNALLOWED,
+} from '../../constants/mutation.constants.ts';
 // types
 import type { MutationRunReport } from '../../report.ts';
 import type { AllowlistEntry, Mutant, MutantResult, MutantStatus } from '../../types/mutation.types.ts';
@@ -45,6 +52,13 @@ const _BASE_ENTRY: AllowlistEntry = {
   occurrence: 1,
   reason: '境界値が等しいとき両分岐の結果が同じ',
 };
+
+// types
+/** `decideExitCode` のテーブル駆動ケース (テスト ID・ラベルの説明・渡す要約)。 */
+type _ExitCodeCase = { id: string; title: string; summary: MutationRunReport };
+
+/** `--strict` の有無を合わせて渡す `decideExitCode` のテーブル駆動ケース。 */
+type _StrictExitCodeCase = _ExitCodeCase & { strict: boolean };
 
 // functions
 /**
@@ -82,7 +96,7 @@ function _makeResult(status: MutantStatus, mutant: Partial<Mutant> = {}): Mutant
  * 属性を上書きした実行結果の要約を作る。`generatedCount` は上書きしない限り `results.length` になる。
  *
  * @param overrides - 上書きする属性
- * @returns `formatReport` に渡す実行結果の要約
+ * @returns `formatReport` / `decideExitCode` に渡す実行結果の要約
  */
 function _makeReport(overrides: Partial<MutationRunReport> = {}): MutationRunReport {
   const _results = overrides.results ?? [];
@@ -93,6 +107,7 @@ function _makeReport(overrides: Partial<MutationRunReport> = {}): MutationRunRep
     drift: [],
     leftovers: [],
     interrupted: false,
+    auditFailures: [],
     ...overrides,
   };
 }
@@ -661,6 +676,341 @@ describe('formatReport', () => {
         const _survivedIndex = _lines.indexOf('survived: 2');
 
         assertEquals(_lines.slice(_survivedIndex, _survivedIndex + 3), ['survived: 2', '許容済み: 2', '未許容: 0']);
+      });
+    });
+  });
+});
+
+/**
+ * `decideExitCode` のユニットテストスイート。
+ *
+ * 変異テスト実行の要約と `--strict` の有無から終了コードを決めることを確認する (report-cli 4.3)。
+ *
+ * テスト ID 範囲: T-MUT-RP-10-01 〜 T-MUT-RP-19-02
+ *
+ * @see decideExitCode
+ */
+describe('decideExitCode', () => {
+  /**
+   * `--strict` なしの終了コード (report-cli 4.3)。
+   *
+   * 監査が成立すれば、未許容の生存・古いエントリ・有効な判定の欠如があっても 0 を返すことを検証する。
+   */
+  describe('--strict なし', () => {
+    /** 監査が成立する要約を渡す正常ケース。 */
+    describe('When: 正常系', () => {
+      const _cases: _ExitCodeCase[] = [
+        {
+          id: 'T-MUT-RP-10-01',
+          title: '未許容の生存 1 件',
+          summary: _makeReport({
+            results: [_makeResult('survived')],
+            match: { allowed: [], unallowed: [_makeMutant()], stale: [] },
+          }),
+        },
+        {
+          id: 'T-MUT-RP-10-02',
+          title: '古いエントリ 1 件',
+          summary: _makeReport({
+            results: [_makeResult('killed')],
+            match: { allowed: [], unallowed: [], stale: [_makeEntry()] },
+          }),
+        },
+        {
+          id: 'T-MUT-RP-10-03',
+          title: '全件 timeout',
+          summary: _makeReport({ results: [_makeResult('timeout'), _makeResult('timeout', { line: 13 })] }),
+        },
+        {
+          id: 'T-MUT-RP-10-04',
+          title: '全件 error',
+          summary: _makeReport({ results: [_makeResult('error'), _makeResult('error', { line: 13 })] }),
+        },
+        {
+          id: 'T-MUT-RP-10-05',
+          title: '全件 compile-error',
+          summary: _makeReport({ results: [_makeResult('compile-error'), _makeResult('compile-error', { line: 13 })] }),
+        },
+        {
+          id: 'T-MUT-RP-10-06',
+          title: '残骸 1 件',
+          summary: _makeReport({ results: [_makeResult('killed')], leftovers: ['temp/mutation/a.mutant-1.ts'] }),
+        },
+        {
+          id: 'T-MUT-RP-10-07',
+          title: '差し替えの警告対象 (許容済みの survived だけ) のファイル',
+          summary: _makeReport({
+            results: [_makeResult('survived')],
+            match: { allowed: [_makeMutant()], unallowed: [], stale: [] },
+          }),
+        },
+        {
+          id: 'T-MUT-RP-10-08',
+          title: '変異体 0 件',
+          summary: _makeReport({ generatedCount: 0, results: [] }),
+        },
+      ];
+
+      for (const { id, title, summary } of _cases) {
+        it(`[Normal] ${id}: ${title}・strict なし → ${EXIT_CODE_OK}`, () => {
+          assertEquals(decideExitCode(summary, false), EXIT_CODE_OK);
+        });
+      }
+    });
+  });
+
+  /**
+   * `--strict` ありの終了コード (report-cli 4.3)。
+   *
+   * 未許容の生存・古いエントリ・有効な判定の欠如が無ければ、`--strict` でも 0 を返すことを検証する。
+   */
+  describe('--strict', () => {
+    /** `--strict` の検査を通過する要約を渡す正常ケース。 */
+    describe('When: 正常系', () => {
+      const _cases: _ExitCodeCase[] = [
+        {
+          id: 'T-MUT-RP-11-01',
+          title: 'すべての生存が許容済み',
+          summary: _makeReport({
+            results: [_makeResult('survived'), _makeResult('survived', { line: 13 })],
+            match: { allowed: [_makeMutant(), _makeMutant({ line: 13 })], unallowed: [], stale: [] },
+          }),
+        },
+        {
+          id: 'T-MUT-RP-11-02',
+          title: 'killed だけで問題が無い',
+          summary: _makeReport({
+            results: [_makeResult('killed'), _makeResult('killed', { line: 13 }), _makeResult('killed', { line: 14 })],
+          }),
+        },
+      ];
+
+      for (const { id, title, summary } of _cases) {
+        it(`[Normal] ${id}: ${title}・strict → ${EXIT_CODE_OK}`, () => {
+          assertEquals(decideExitCode(summary, true), EXIT_CODE_OK);
+        });
+      }
+    });
+  });
+
+  /**
+   * 中断時の終了コード (report-cli 4.3)。
+   *
+   * 中断は他のどの失敗条件よりも先に評価され、`--strict` の有無にかかわらず 130 を返すことを検証する。
+   */
+  describe('中断', () => {
+    /** 中断した要約を渡す異常ケース。 */
+    describe('When: 異常系', () => {
+      const _cases: _StrictExitCodeCase[] = [
+        {
+          id: 'T-MUT-RP-12-01',
+          title: '中断',
+          summary: _makeReport({ results: [_makeResult('killed')], interrupted: true }),
+          strict: false,
+        },
+        {
+          id: 'T-MUT-RP-12-02',
+          title: '中断と drift が重なる',
+          summary: _makeReport({
+            results: [_makeResult('killed')],
+            interrupted: true,
+            drift: ['skills/_cle-libs/libs/a.ts'],
+          }),
+          strict: false,
+        },
+        {
+          id: 'T-MUT-RP-12-03',
+          title: '中断と未許容の生存が重なる',
+          summary: _makeReport({
+            results: [_makeResult('survived')],
+            match: { allowed: [], unallowed: [_makeMutant()], stale: [] },
+            interrupted: true,
+          }),
+          strict: true,
+        },
+      ];
+
+      for (const { id, title, summary, strict } of _cases) {
+        it(`[Error] ${id}: ${title}・${strict ? 'strict' : 'strict なし'} → ${EXIT_CODE_INTERRUPTED}`, () => {
+          assertEquals(decideExitCode(summary, strict), EXIT_CODE_INTERRUPTED);
+        });
+      }
+    });
+  });
+
+  /**
+   * 監査が成立しないときの終了コード (report-cli 4.3)。
+   *
+   * drift・監査単位の失敗は `--strict` の判定より先に評価され、`--strict` の有無にかかわらず 1 を返すことを検証する。
+   */
+  describe('監査不成立', () => {
+    /** 監査が成立しない要約を渡す異常ケース。 */
+    describe('When: 異常系', () => {
+      /** `--strict` の有無だけを変えて渡す、drift のある要約。 */
+      const _driftSummary = _makeReport({ results: [_makeResult('killed')], drift: ['skills/_cle-libs/libs/a.ts'] });
+
+      const _cases: _StrictExitCodeCase[] = [
+        {
+          id: 'T-MUT-RP-13-01',
+          title: 'drift 1 件',
+          summary: _driftSummary,
+          strict: false,
+        },
+        {
+          id: 'T-MUT-RP-13-02',
+          title: '監査単位の失敗 (残骸掃除の削除失敗) 1 件',
+          summary: _makeReport({
+            results: [_makeResult('killed')],
+            auditFailures: ['残骸掃除で temp/mutation/a.mutant-1.ts を削除できなかった'],
+          }),
+          strict: false,
+        },
+        {
+          id: 'T-MUT-RP-13-03',
+          title: 'drift 1 件',
+          summary: _driftSummary,
+          strict: true,
+        },
+      ];
+
+      for (const { id, title, summary, strict } of _cases) {
+        it(`[Error] ${id}: ${title}・${strict ? 'strict' : 'strict なし'} → ${EXIT_CODE_FAILURE}`, () => {
+          assertEquals(decideExitCode(summary, strict), EXIT_CODE_FAILURE);
+        });
+      }
+    });
+  });
+
+  /**
+   * `--strict` の検査に落ちるときの終了コード (report-cli 4.3)。
+   *
+   * 監査が成立していても、`--strict` の検査に掛かる要約では 1 を返すことを検証する。
+   */
+  describe('--strict の失敗', () => {
+    /** `--strict` の検査に掛かる要約を渡す異常ケース。 */
+    describe('When: 異常系', () => {
+      /** 2 件の変異体がどちらも `status` と判定された要約を作る (有効でない判定だけの要約に使う)。 */
+      const _reportOfAll = (status: MutantStatus): MutationRunReport =>
+        _makeReport({ results: [_makeResult(status), _makeResult(status, { line: 13 })] });
+
+      const _cases: _ExitCodeCase[] = [
+        {
+          id: 'T-MUT-RP-14-01',
+          title: '未許容の生存 1 件',
+          summary: _makeReport({
+            results: [_makeResult('survived')],
+            match: { allowed: [], unallowed: [_makeMutant()], stale: [] },
+          }),
+        },
+        {
+          id: 'T-MUT-RP-15-01',
+          title: '全件 timeout で有効な判定が 0 件',
+          summary: _reportOfAll('timeout'),
+        },
+        {
+          id: 'T-MUT-RP-15-02',
+          title: '全件 error で有効な判定が 0 件',
+          summary: _reportOfAll('error'),
+        },
+        {
+          id: 'T-MUT-RP-15-03',
+          title: '全件 compile-error で有効な判定が 0 件',
+          summary: _reportOfAll('compile-error'),
+        },
+        {
+          id: 'T-MUT-RP-16-01',
+          title: '古いエントリ 1 件',
+          summary: _makeReport({
+            results: [_makeResult('killed')],
+            match: { allowed: [], unallowed: [], stale: [_makeEntry()] },
+          }),
+        },
+      ];
+
+      for (const { id, title, summary } of _cases) {
+        it(`[Error] ${id}: ${title}・strict → ${EXIT_CODE_FAILURE}`, () => {
+          assertEquals(decideExitCode(summary, true), EXIT_CODE_FAILURE);
+        });
+      }
+    });
+  });
+
+  /**
+   * 変異体 0 件のときの `--strict` の終了コード (report-cli 4.3)。
+   *
+   * 有効な判定 0 件の失敗は変異体が 1 件以上あるときだけ掛かり、古いエントリの検査は変異体 0 件でも掛かることを検証する。
+   */
+  describe('変異体 0 件', () => {
+    /** 変異体を 1 件も生成しなかった要約を渡すエッジケース。 */
+    describe('When: エッジケース', () => {
+      it(`[Edge] T-MUT-RP-17-01: 変異体 0 件・strict → ${EXIT_CODE_OK}`, () => {
+        const _summary = _makeReport({ generatedCount: 0, results: [] });
+
+        assertEquals(decideExitCode(_summary, true), EXIT_CODE_OK);
+      });
+
+      it(`[Edge] T-MUT-RP-17-02: 変異体 0 件で古いエントリ 2 件・strict → ${EXIT_CODE_FAILURE}`, () => {
+        const _summary = _makeReport({
+          generatedCount: 0,
+          results: [],
+          match: { allowed: [], unallowed: [], stale: [_makeEntry(), _makeEntry({ occurrence: 2 })] },
+        });
+
+        assertEquals(decideExitCode(_summary, true), EXIT_CODE_FAILURE);
+      });
+    });
+  });
+
+  /**
+   * 有効な判定の最小値での `--strict` の終了コード (report-cli 4.3)。
+   *
+   * 有効な判定 (killed + survived) が 1 件あれば、timeout が多数でも有効な判定 0 件の失敗に該当しないことを検証する。
+   */
+  describe('有効な判定の最小値', () => {
+    /** 有効な判定がちょうど 1 件の要約を渡すエッジケース。 */
+    describe('When: エッジケース', () => {
+      it(`[Edge] T-MUT-RP-18-01: killed 1・timeout 3 (有効な判定 1 件)・strict → ${EXIT_CODE_OK}`, () => {
+        const _summary = _makeReport({
+          results: [
+            _makeResult('killed'),
+            _makeResult('timeout', { line: 13 }),
+            _makeResult('timeout', { line: 14 }),
+            _makeResult('timeout', { line: 15 }),
+          ],
+        });
+
+        assertEquals(decideExitCode(_summary, true), EXIT_CODE_OK);
+      });
+    });
+  });
+
+  /**
+   * 終了コードの値とレポートとの一貫性 (report-cli R-615 / R-617 / DD-09 / §2.3)。
+   *
+   * `--strict` の失敗が中断の 130 と区別できる非 0 であること、
+   * および同じ要約から作ったレポートと終了コードが食い違わないことを検証する。
+   */
+  describe('終了コードの値とレポートとの一貫性', () => {
+    /** 未許容の生存 1 件を持つ、中断していない要約を渡す FN確認ケース。 */
+    describe('When: FN確認（未許容の生存 1 件・strict）', () => {
+      /** 中断せず、未許容の生存を 1 件持つ要約。 */
+      const _summary = _makeReport({
+        results: [_makeResult('survived')],
+        match: { allowed: [], unallowed: [_makeMutant()], stale: [] },
+      });
+
+      it('[FN] T-MUT-RP-19-01: 未許容の生存 1 件・strict → 0 でも 130 でもない非 0', () => {
+        const _exitCode = decideExitCode(_summary, true);
+
+        assertNotEquals(_exitCode, EXIT_CODE_OK);
+        assertNotEquals(_exitCode, EXIT_CODE_INTERRUPTED);
+      });
+
+      it('[FN] T-MUT-RP-19-02: 同じ要約で formatReport と strict の decideExitCode → 未許容の生存の一覧が 1 件で、終了コードが非 0', () => {
+        const _section = _sectionOf(formatReport(_summary), REPORT_HEADING_UNALLOWED);
+
+        assertEquals(_section.length, 1);
+        assertNotEquals(decideExitCode(_summary, true), EXIT_CODE_OK);
       });
     });
   });

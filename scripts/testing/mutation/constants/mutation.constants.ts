@@ -60,3 +60,12 @@ export const REPORT_RATE_UNDEFINED = '算出不能';
 
 /** 報告で生成件数が 0 のときに件数行の前に出す行 (R-606 / Edge report-cli-8)。中断で判定済みが 0 件なだけのときは出さない。 */
 export const REPORT_NO_MUTANTS = '変異体 0 件';
+
+/** 終了コード: 監査が成立し、失敗の条件に当たらない (report-cli 4.3)。 */
+export const EXIT_CODE_OK = 0;
+
+/** 終了コード: 監査が成立しない、または `--strict` の失敗条件に当たる (report-cli 4.3)。 */
+export const EXIT_CODE_FAILURE = 1;
+
+/** 終了コード: SIGINT で中断した (report-cli 4.3。128 + SIGINT の 2)。 */
+export const EXIT_CODE_INTERRUPTED = 130;

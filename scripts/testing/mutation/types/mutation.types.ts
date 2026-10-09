@@ -112,6 +112,8 @@ export type MutationRunReport = {
   leftovers: string[];
   /** SIGINT で中断したか。 */
   interrupted: boolean;
+  /** 監査単位の失敗 (DD-14) の理由。 */
+  auditFailures: string[];
 };
 
 /** 変異前のベースライン実行の結果 (DR-08)。`interrupted` は中断で、`failed` とは区別する。 */
