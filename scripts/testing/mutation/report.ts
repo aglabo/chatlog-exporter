@@ -11,6 +11,7 @@ import {
   EXIT_CODE_INTERRUPTED,
   EXIT_CODE_OK,
   MUTANT_STATUSES,
+  REPORT_COUNT_UNIT,
   REPORT_HEADING_DRIFT,
   REPORT_HEADING_INTERRUPTED,
   REPORT_HEADING_LEFTOVERS,
@@ -24,8 +25,10 @@ import {
   REPORT_NO_MUTANTS,
   REPORT_RATE_UNDEFINED,
   REPORT_REPLACE_ARROW,
+  REPORT_WARNING_ALL_SURVIVED,
   REPORT_WARNING_INEFFECTIVE,
   REPORT_WARNING_LEFTOVERS,
+  REPORT_WARNING_PREFIX,
 } from './constants/mutation.constants.ts';
 
 import type { AllowlistEntry, Mutant, MutantResult, MutantStatus, MutationRunReport } from './types/mutation.types.ts';
@@ -169,7 +172,7 @@ const _compareMutantPosition = (left: Mutant, right: Mutant): number =>
  * @returns 見出しと項目の行
  */
 const _listLines = (heading: string, items: readonly string[]): string[] => [
-  `${heading} (${items.length} 件):`,
+  `${heading} (${items.length} ${REPORT_COUNT_UNIT}):`,
   ...items.map((item) => `${REPORT_INDENT}${item}`),
 ];
 
@@ -221,7 +224,7 @@ const _effectiveResultsByFile = (results: readonly MutantResult[]): [string, Mut
 const _ineffectiveLines = (results: readonly MutantResult[]): string[] => {
   const _warnings = _effectiveResultsByFile(results)
     .filter(([, fileResults]) => fileResults.every((result) => result.status === 'survived'))
-    .map(([file]) => `警告: ${file} は有効な判定がすべて survived です（${REPORT_WARNING_INEFFECTIVE}）`);
+    .map(([file]) => `${REPORT_WARNING_PREFIX}${file} ${REPORT_WARNING_ALL_SURVIVED}（${REPORT_WARNING_INEFFECTIVE}）`);
   return _warnings.length > 0 ? ['', ..._warnings] : [];
 };
 
@@ -263,8 +266,8 @@ export const formatReport = (summary: MutationRunReport): string => {
     ),
     ..._sectionLines(REPORT_HEADING_STALE, summary.match.stale.map(_staleEntryLine)),
     ..._sectionLines(REPORT_HEADING_DRIFT, summary.drift),
-    ..._ineffectiveLines(summary.results),
     ..._leftoverLines(summary.leftovers),
+    ..._ineffectiveLines(summary.results),
   ].join('\n');
 };
 

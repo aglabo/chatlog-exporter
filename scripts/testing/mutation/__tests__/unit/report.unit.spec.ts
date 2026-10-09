@@ -53,6 +53,39 @@ const _BASE_ENTRY: AllowlistEntry = {
   reason: '境界値が等しいとき両分岐の結果が同じ',
 };
 
+/** 全セクション入りの要約で、許容済みの survived (a.ts:5:1)。 */
+const _FULL_REPORT_ALLOWED: MutantResult = _makeResult('survived', { file: 'a.ts', line: 5, column: 1 });
+
+/** 全セクション入りの要約で、未許容の survived。並べ替えの経路を通すため位置の降順に置く。 */
+const _FULL_REPORT_UNALLOWED: MutantResult[] = [
+  _makeResult('survived', { file: 'b.ts', line: 3, column: 5 }),
+  _makeResult('survived', { file: 'a.ts', line: 3, column: 4 }),
+];
+
+/**
+ * 全セクション (5 種の判定・許容済み・未許容・古いエントリ・drift・残骸・中断・差し替えの警告) を通す要約。
+ * a.ts は有効な判定がすべて survived (差し替えの警告)、b.ts は killed を含む。
+ */
+const _FULL_REPORT: MutationRunReport = _makeReport({
+  generatedCount: 10,
+  results: [
+    _makeResult('killed', { file: 'b.ts', line: 1, column: 1 }),
+    _FULL_REPORT_ALLOWED,
+    ..._FULL_REPORT_UNALLOWED,
+    _makeResult('timeout', { file: 'b.ts', line: 7 }),
+    _makeResult('error', { file: 'b.ts', line: 8 }),
+    _makeResult('compile-error', { file: 'b.ts', line: 9 }),
+  ],
+  match: {
+    allowed: [_FULL_REPORT_ALLOWED.mutant],
+    unallowed: _FULL_REPORT_UNALLOWED.map((result) => result.mutant),
+    stale: [_makeEntry()],
+  },
+  drift: ['a.ts'],
+  leftovers: ['a.mutation-001.ts'],
+  interrupted: true,
+});
+
 // types
 /** `decideExitCode` のテーブル駆動ケース (テスト ID・ラベルの説明・渡す要約)。 */
 type _ExitCodeCase = { id: string; title: string; summary: MutationRunReport };
@@ -140,6 +173,71 @@ function _sectionOf(output: string, heading: string): string[] {
   return _endIndex < 0 ? _rest : _rest.slice(0, _endIndex);
 }
 
+/**
+ * 出力から、指定した接頭辞で始まる行を取り出す (`kill 率` / `有効判定率` の率の行など)。
+ *
+ * @param output - `formatReport` の出力
+ * @param prefix - 行の接頭辞 (例: `有効判定率`)
+ * @returns 前後の空白を除いた、接頭辞で始まる行の列
+ */
+function _linesStartingWith(output: string, prefix: string): string[] {
+  return _linesOf(output).filter((line) => line.startsWith(prefix));
+}
+
+/**
+ * 出力から、差し替えが効いていない可能性の警告の行を取り出す。`file` を渡すと、そのファイルを含む行に絞る。
+ *
+ * @param output - `formatReport` の出力
+ * @param file - 絞り込むファイルのパス (省略時は絞り込まない)
+ * @returns 前後の空白を除いた警告の行の列
+ */
+function _warningLines(output: string, file?: string): string[] {
+  return _linesOf(output).filter((line) =>
+    line.includes('差し替えが効いていない可能性') && (file === undefined || line.includes(file))
+  );
+}
+
+/**
+ * 文字列 (1 行または出力全体) に含まれていない断片を取り出す。すべて含まれていれば空配列になる。
+ *
+ * @param line - 検査する文字列
+ * @param fragments - 行に含まれるべき断片
+ * @returns 行に含まれていない断片の列
+ */
+function _missingFragments(line: string, fragments: string[]): string[] {
+  return fragments.filter((fragment) => !line.includes(fragment));
+}
+
+/**
+ * 一覧が空のセクションが省略されず、見出し `<heading> (0 件):` がちょうど 1 行出て、項目行が無いことを検証する。
+ *
+ * @param output - `formatReport` の出力
+ * @param heading - セクションの見出し (件数を除いた前方部分。例: `未許容の生存`)
+ */
+function _assertEmptySection(output: string, heading: string): void {
+  assertEquals(_linesOf(output).filter((line) => line === `${heading} (0 件):`).length, 1);
+  assertEquals(_sectionOf(output, heading), []);
+}
+
+/**
+ * 出力に 0 除算の結果 (`NaN` / `Infinity`) が含まれないことを検証する。
+ *
+ * @param output - `formatReport` の出力
+ */
+function _assertNoNonFiniteNumber(output: string): void {
+  assertEquals(['NaN', 'Infinity'].filter((token) => output.includes(token)), []);
+}
+
+/**
+ * 変異体を 1 件も判定していない (`generatedCount: 0`・`results: []`) 要約を基に、属性を上書きした要約を作る。
+ *
+ * @param overrides - 上書きする属性
+ * @returns `formatReport` に渡す実行結果の要約
+ */
+function _makeZeroMutantReport(overrides: Partial<MutationRunReport> = {}): MutationRunReport {
+  return _makeReport({ generatedCount: 0, results: [], ...overrides });
+}
+
 // ─── Tests
 
 /**
@@ -163,9 +261,7 @@ describe('formatReport', () => {
         const _summary = _makeReport({
           generatedCount: 8,
           results: [
-            _makeResult('killed', { line: 3 }),
-            _makeResult('killed', { line: 4 }),
-            _makeResult('killed', { line: 5 }),
+            ...[3, 4, 5].map((line) => _makeResult('killed', { line })),
             ..._survived,
             _makeResult('timeout', { line: 6 }),
             _makeResult('error', { line: 7 }),
@@ -213,9 +309,7 @@ describe('formatReport', () => {
       it('[Normal] T-MUT-RP-02-01: killed 3・survived 1 → kill 率 75.0% の行が出る', () => {
         const _summary = _makeReport({
           results: [
-            _makeResult('killed', { line: 1 }),
-            _makeResult('killed', { line: 2 }),
-            _makeResult('killed', { line: 3 }),
+            ...[1, 2, 3].map((line) => _makeResult('killed', { line })),
             _makeResult('survived', { line: 4 }),
           ],
         });
@@ -225,19 +319,18 @@ describe('formatReport', () => {
         assertArrayIncludes(_lines, ['kill 率: 75.0%']);
       });
 
-      it('[Normal] T-MUT-RP-02-02: 生成 8 件・killed 3・survived 1・timeout 4 (中断なし) → 有効判定率 50.0% の行が出る', () => {
+      it('[Normal] T-MUT-RP-02-02: 生成 8 件・killed 3・survived 1・timeout 2 (判定済み 6 件、中断なし) → 分母は生成件数で、有効判定率 50.0% の行が出る', () => {
+        // 生成件数と判定済み件数を違えて、分母を判定済み件数で取る誤り (66.7%) を検出する
         const _summary = _makeReport({
           generatedCount: 8,
           results: [
             ...[1, 2, 3].map((line) => _makeResult('killed', { line })),
             _makeResult('survived', { line: 4 }),
-            ...[5, 6, 7, 8].map((line) => _makeResult('timeout', { line })),
+            ...[5, 6].map((line) => _makeResult('timeout', { line })),
           ],
         });
 
-        const _lines = _linesOf(formatReport(_summary));
-
-        assertEquals(_lines.filter((line) => line.startsWith('有効判定率')), ['有効判定率: 50.0%']);
+        assertEquals(_linesStartingWith(formatReport(_summary), '有効判定率'), ['有効判定率: 50.0%']);
       });
 
       it('[Normal] T-MUT-RP-02-03: killed 1・compile-error 1 → kill 率 100.0% で、compile-error 1 件は別に数えられる', () => {
@@ -245,10 +338,10 @@ describe('formatReport', () => {
           results: [_makeResult('killed', { line: 1 }), _makeResult('compile-error', { line: 2 })],
         });
 
-        const _lines = _linesOf(formatReport(_summary));
+        const _output = formatReport(_summary);
 
-        assertEquals(_lines.filter((line) => line.startsWith('kill 率')), ['kill 率: 100.0%']);
-        assertArrayIncludes(_lines, ['compile-error: 1']);
+        assertEquals(_linesStartingWith(_output, 'kill 率'), ['kill 率: 100.0%']);
+        assertArrayIncludes(_linesOf(_output), ['compile-error: 1']);
       });
     });
   });
@@ -268,10 +361,8 @@ describe('formatReport', () => {
 
         const _section = _sectionOf(formatReport(_summary), '未許容の生存');
 
-        const _fragments = ['skills/_cle-libs/libs/a.ts:12', 'relational', '>', '>='];
-
         assertEquals(_section.length, 1);
-        assertEquals(_fragments.filter((fragment) => !_section[0].includes(fragment)), []);
+        assertEquals(_missingFragments(_section[0], ['skills/_cle-libs/libs/a.ts:12', 'relational', '>', '>=']), []);
       });
 
       it('[Normal] T-MUT-RP-03-02: a.ts 12 行目の許容済み 1 件・未許容 0 件 → 未許容の生存の一覧に a.ts:12 が出ない', () => {
@@ -285,7 +376,7 @@ describe('formatReport', () => {
         const _section = _sectionOf(_output, '未許容の生存');
 
         // 見出しが無いと _sectionOf は空配列を返し、検証が空振りする。見出しの存在を先に固定する
-        assertEquals(_linesOf(_output).filter((line) => line.startsWith('未許容の生存 (')).length, 1);
+        assertEquals(_linesStartingWith(_output, '未許容の生存 (').length, 1);
         assertEquals(_section.filter((line) => line.includes('skills/_cle-libs/libs/a.ts:12')), []);
       });
 
@@ -314,10 +405,8 @@ describe('formatReport', () => {
 
         const _section = _sectionOf(formatReport(_summary), '古い許容エントリ');
 
-        const _fragments = ['skills/_cle-libs/libs/a.ts', 'if (a > b) {'];
-
         assertEquals(_section.length, 1);
-        assertEquals(_fragments.filter((fragment) => !_section[0].includes(fragment)), []);
+        assertEquals(_missingFragments(_section[0], ['skills/_cle-libs/libs/a.ts', 'if (a > b) {']), []);
       });
 
       it('[Normal] T-MUT-RP-03-05: drift に a.ts 1 件 → drift の一覧に skills/_cle-libs/libs/a.ts が出る', () => {
@@ -345,7 +434,7 @@ describe('formatReport', () => {
         const _output = formatReport(_summary);
 
         assertEquals(_sectionOf(_output, '残骸'), ['skills/_cle-libs/libs/a.mutation-003.ts']);
-        assertEquals(_linesOf(_output).filter((line) => line.startsWith('警告: ')).length, 1);
+        assertEquals(_linesStartingWith(_output, '警告: ').length, 1);
       });
 
       it('[Error] T-MUT-RP-04-02: a.ts の判定が survived 3 件だけ → a.ts について差し替えが効いていない可能性の警告がある', () => {
@@ -353,11 +442,7 @@ describe('formatReport', () => {
           results: [1, 2, 3].map((line) => _makeResult('survived', { file: 'a.ts', line })),
         });
 
-        const _warnings = _linesOf(formatReport(_summary)).filter((line) =>
-          line.includes('a.ts') && line.includes('差し替えが効いていない可能性')
-        );
-
-        assertEquals(_warnings.length, 1);
+        assertEquals(_warningLines(formatReport(_summary), 'a.ts').length, 1);
       });
 
       it('[Error] T-MUT-RP-04-03: 中断あり・生成 5 件・killed 1・survived 1 → 出力の 1 行目が 中断（途中結果） の見出しになる', () => {
@@ -380,11 +465,7 @@ describe('formatReport', () => {
           ],
         });
 
-        const _warnings = _linesOf(formatReport(_summary)).filter((line) =>
-          line.includes('a.ts') && line.includes('差し替えが効いていない可能性')
-        );
-
-        assertEquals(_warnings.length, 1);
+        assertEquals(_warningLines(formatReport(_summary), 'a.ts').length, 1);
       });
 
       it('[Error] T-MUT-RP-04-05: a.ts の判定が survived 2 件・b.ts の判定が killed 1 件・survived 1 件 → 差し替えが効いていない可能性の警告は a.ts だけに出る', () => {
@@ -400,11 +481,25 @@ describe('formatReport', () => {
           ],
         });
 
-        const _warnings = _linesOf(formatReport(_summary)).filter((line) =>
-          line.includes('差し替えが効いていない可能性')
-        );
+        const _warnings = _warningLines(formatReport(_summary));
 
         assertEquals(_warnings.map((line) => [_fileA, _fileB].filter((file) => line.includes(file))), [[_fileA]]);
+      });
+
+      it('[Error] T-MUT-RP-04-06: leftovers 1 件と a.ts の判定が survived だけ → 残骸のセクションが差し替えの警告より前に出る (R-612 → R-613)', () => {
+        const _summary = _makeReport({
+          results: [1, 2].map((line) => _makeResult('survived', { file: 'a.ts', line })),
+          leftovers: ['skills/_cle-libs/libs/a.mutation-001.ts'],
+        });
+
+        const _output = formatReport(_summary);
+        const _lines = _linesOf(_output);
+        const _leftoverIndex = _lines.indexOf(_linesStartingWith(_output, '残骸 (')[0]);
+        const _ineffectiveIndex = _lines.indexOf(_warningLines(_output)[0]);
+
+        // 両方のセクションが出ていることを先に固定し、見つからない (-1) 場合の順序比較の空振りを防ぐ
+        assertEquals([_leftoverIndex >= 0, _ineffectiveIndex >= 0], [true, true]);
+        assertEquals(_leftoverIndex < _ineffectiveIndex, true);
       });
     });
   });
@@ -420,9 +515,9 @@ describe('formatReport', () => {
       it('[Edge] T-MUT-RP-05-01: killed 1 件・未許容 0 件 → 未許容の生存のセクションが省略されず、見出しに 0 件と出る', () => {
         const _summary = _makeReport({ results: [_makeResult('killed')] });
 
-        const _lines = _linesOf(formatReport(_summary));
+        const _output = formatReport(_summary);
 
-        assertEquals(_lines.filter((line) => line === '未許容の生存 (0 件):').length, 1);
+        _assertEmptySection(_output, '未許容の生存');
       });
 
       it('[Edge] T-MUT-RP-05-02: killed 1 件・古いエントリ 0 件 → 古いエントリのセクションが省略されず、見出しに 0 件と出る', () => {
@@ -431,17 +526,17 @@ describe('formatReport', () => {
           match: { allowed: [], unallowed: [], stale: [] },
         });
 
-        const _lines = _linesOf(formatReport(_summary));
+        const _output = formatReport(_summary);
 
-        assertEquals(_lines.filter((line) => line === '古い許容エントリ (0 件):').length, 1);
+        _assertEmptySection(_output, '古い許容エントリ');
       });
 
       it('[Edge] T-MUT-RP-05-03: killed 1 件・drift 0 件 → drift のセクションが省略されず、見出しに 0 件と出る', () => {
         const _summary = _makeReport({ results: [_makeResult('killed')], drift: [] });
 
-        const _lines = _linesOf(formatReport(_summary));
+        const _output = formatReport(_summary);
 
-        assertEquals(_lines.filter((line) => line === 'drift (0 件):').length, 1);
+        _assertEmptySection(_output, 'drift');
       });
     });
   });
@@ -458,10 +553,10 @@ describe('formatReport', () => {
         // killed のみにして、同じ `警告:` で始まる差し替えの警告 (R-613) が出ない入力にする
         const _summary = _makeReport({ results: [_makeResult('killed')], leftovers: [] });
 
-        const _lines = _linesOf(formatReport(_summary));
+        const _output = formatReport(_summary);
 
-        assertEquals(_lines.filter((line) => line.startsWith('残骸 (')), []);
-        assertEquals(_lines.filter((line) => line.includes('削除できなかったファイルがあります')), []);
+        assertEquals(_linesStartingWith(_output, '残骸 ('), []);
+        assertEquals(_linesOf(_output).filter((line) => line.includes('削除できなかったファイルがあります')), []);
       });
 
       it('[Edge] T-MUT-RP-06-02: a.ts の判定が timeout 2 件だけ → 有効な判定が 0 件なので a.ts について差し替えの警告が出ない', () => {
@@ -469,11 +564,7 @@ describe('formatReport', () => {
           results: [1, 2].map((line) => _makeResult('timeout', { file: 'a.ts', line })),
         });
 
-        const _warnings = _linesOf(formatReport(_summary)).filter((line) =>
-          line.includes('a.ts') && line.includes('差し替えが効いていない可能性')
-        );
-
-        assertEquals(_warnings, []);
+        assertEquals(_warningLines(formatReport(_summary), 'a.ts'), []);
       });
 
       it('[Edge] T-MUT-RP-06-03: a.ts の判定が killed 1 件・survived 2 件 → killed を含むので a.ts について差し替えの警告が出ない', () => {
@@ -484,11 +575,7 @@ describe('formatReport', () => {
           ],
         });
 
-        const _warnings = _linesOf(formatReport(_summary)).filter((line) =>
-          line.includes('a.ts') && line.includes('差し替えが効いていない可能性')
-        );
-
-        assertEquals(_warnings, []);
+        assertEquals(_warningLines(formatReport(_summary), 'a.ts'), []);
       });
     });
   });
@@ -508,24 +595,26 @@ describe('formatReport', () => {
 
         const _output = formatReport(_summary);
 
-        assertEquals(_linesOf(_output).filter((line) => line.startsWith('kill 率')), ['kill 率: 算出不能']);
-        assertEquals(['NaN', 'Infinity'].filter((token) => _output.includes(token)), []);
+        assertEquals(_linesStartingWith(_output, 'kill 率'), ['kill 率: 算出不能']);
+        _assertNoNonFiniteNumber(_output);
       });
 
-      it('[Edge] T-MUT-RP-07-02: 生成 0 件・中断なし → 有効判定率の分母が 0 でも、出力に NaN も Infinity も無い', () => {
-        const _summary = _makeReport({ generatedCount: 0, results: [], interrupted: false });
+      it('[Edge] T-MUT-RP-07-02: 生成 0 件・中断なし → 有効判定率の分母が 0 なので、有効判定率は 算出不能 と出て、出力に NaN も Infinity も無い', () => {
+        const _summary = _makeZeroMutantReport({ interrupted: false });
 
         const _output = formatReport(_summary);
 
-        assertEquals(['NaN', 'Infinity'].filter((token) => _output.includes(token)), []);
+        assertEquals(_linesStartingWith(_output, '有効判定率'), ['有効判定率: 算出不能']);
+        _assertNoNonFiniteNumber(_output);
       });
 
-      it('[Edge] T-MUT-RP-07-03: 生成 5 件・中断あり・判定済み 0 件 → 有効判定率の分母が 0 でも、出力に NaN も Infinity も無い', () => {
-        const _summary = _makeReport({ generatedCount: 5, results: [], interrupted: true });
+      it('[Edge] T-MUT-RP-07-03: 生成 5 件・中断あり・判定済み 0 件 → 有効判定率の分母が 0 なので、有効判定率は 算出不能 と出て、出力に NaN も Infinity も無い', () => {
+        const _summary = _makeZeroMutantReport({ generatedCount: 5, interrupted: true });
 
         const _output = formatReport(_summary);
 
-        assertEquals(['NaN', 'Infinity'].filter((token) => _output.includes(token)), []);
+        assertEquals(_linesStartingWith(_output, '有効判定率'), ['有効判定率: 算出不能']);
+        _assertNoNonFiniteNumber(_output);
       });
     });
   });
@@ -539,7 +628,7 @@ describe('formatReport', () => {
     /** 生成件数が 0 の境界ケース。 */
     describe('When: エッジケース', () => {
       it('[Edge] T-MUT-RP-08-01: 生成 0 件・中断なし → 変異体 0 件 と出て、5 種の判定の件数がすべて 0 と出る', () => {
-        const _summary = _makeReport({ generatedCount: 0, results: [], interrupted: false });
+        const _summary = _makeZeroMutantReport({ interrupted: false });
 
         const _lines = _linesOf(formatReport(_summary));
 
@@ -548,11 +637,11 @@ describe('formatReport', () => {
       });
 
       it('[Edge] T-MUT-RP-08-02: 生成 5 件・中断あり・判定済み 0 件 → 変異体 0 件 と出ず、中断（途中結果） の見出しが出る', () => {
-        const _summary = _makeReport({ generatedCount: 5, results: [], interrupted: true });
+        const _summary = _makeZeroMutantReport({ generatedCount: 5, interrupted: true });
 
         const _lines = _linesOf(formatReport(_summary));
 
-        assertEquals(_lines.filter((line) => line === '変異体 0 件').length, 0);
+        assertEquals(_lines.filter((line) => line === '変異体 0 件'), []);
         assertArrayIncludes(_lines, ['中断（途中結果）']);
       });
 
@@ -561,11 +650,7 @@ describe('formatReport', () => {
           _makeEntry({ lineText: 'if (a > b) {' }),
           _makeEntry({ lineText: 'return x === 0;', op: 'equality', before: '===', after: '!==' }),
         ];
-        const _summary = _makeReport({
-          generatedCount: 0,
-          results: [],
-          match: { allowed: [], unallowed: [], stale: _stale },
-        });
+        const _summary = _makeZeroMutantReport({ match: { allowed: [], unallowed: [], stale: _stale } });
 
         const _output = formatReport(_summary);
         const _section = _sectionOf(_output, '古い許容エントリ');
@@ -576,7 +661,7 @@ describe('formatReport', () => {
       });
 
       it('[Edge] T-MUT-RP-08-04: 生成 0 件・drift 1 件 → 変異体 0 件 と出て、drift の一覧に skills/_cle-libs/libs/a.ts が出る', () => {
-        const _summary = _makeReport({ generatedCount: 0, results: [], drift: ['skills/_cle-libs/libs/a.ts'] });
+        const _summary = _makeZeroMutantReport({ drift: ['skills/_cle-libs/libs/a.ts'] });
 
         const _output = formatReport(_summary);
 
@@ -585,11 +670,7 @@ describe('formatReport', () => {
       });
 
       it('[Edge] T-MUT-RP-08-05: 生成 0 件・残骸 1 件 → 変異体 0 件 と出て、残骸の一覧に skills/_cle-libs/libs/a.mutation-001.ts が出る', () => {
-        const _summary = _makeReport({
-          generatedCount: 0,
-          results: [],
-          leftovers: ['skills/_cle-libs/libs/a.mutation-001.ts'],
-        });
+        const _summary = _makeZeroMutantReport({ leftovers: ['skills/_cle-libs/libs/a.mutation-001.ts'] });
 
         const _output = formatReport(_summary);
 
@@ -616,48 +697,18 @@ describe('formatReport', () => {
           interrupted: true,
         });
 
-        const _lines = _linesOf(formatReport(_summary));
-
-        assertEquals(_lines.filter((line) => line.startsWith('有効判定率')), ['有効判定率: 50.0%']);
+        assertEquals(_linesStartingWith(formatReport(_summary), '有効判定率'), ['有効判定率: 50.0%']);
       });
 
       it('[Edge] T-MUT-RP-09-02: 全セクション入りの同じ summary で 2 回呼ぶ → 2 回の戻り値が完全に一致し、summary は変更されない', () => {
-        // a.ts は有効な判定がすべて survived (差し替えの警告)、b.ts は killed を含む
-        const _allowed = _makeResult('survived', { file: 'a.ts', line: 5, column: 1 });
-        const _unallowed = [
-          _makeResult('survived', { file: 'b.ts', line: 3, column: 5 }),
-          _makeResult('survived', { file: 'a.ts', line: 3, column: 4 }),
-        ];
-        const _summary = _makeReport({
-          generatedCount: 10,
-          results: [
-            _makeResult('killed', { file: 'b.ts', line: 1, column: 1 }),
-            _allowed,
-            ..._unallowed,
-            _makeResult('timeout', { file: 'b.ts', line: 7 }),
-            _makeResult('error', { file: 'b.ts', line: 8 }),
-            _makeResult('compile-error', { file: 'b.ts', line: 9 }),
-          ],
-          // unallowed は位置の降順に置き、並べ替えの経路を通す
-          match: {
-            allowed: [_allowed.mutant],
-            unallowed: _unallowed.map((result) => result.mutant),
-            stale: [_makeEntry()],
-          },
-          drift: ['a.ts'],
-          leftovers: ['a.mutation-001.ts'],
-          interrupted: true,
-        });
+        const _summary = _FULL_REPORT;
         const _snapshot = structuredClone(_summary);
 
         const _first = formatReport(_summary);
         const _second = formatReport(_summary);
 
         // 入力が条件付きのセクション (中断・差し替えの警告・残骸) まで実際に通ることを先に固定する
-        assertEquals(
-          ['中断（途中結果）', '差し替えが効いていない可能性', '残骸 ('].filter((token) => !_first.includes(token)),
-          [],
-        );
+        assertEquals(_missingFragments(_first, ['中断（途中結果）', '差し替えが効いていない可能性', '残骸 (']), []);
         assertEquals(_second, _first);
         assertEquals(_summary, _snapshot);
       });

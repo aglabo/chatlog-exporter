@@ -43,6 +43,9 @@ export const REPORT_HEADING_DRIFT = 'drift';
 /** 報告で変異体の置換前と置換後の字句の間に置く区切り (R-609)。 */
 export const REPORT_REPLACE_ARROW = '→';
 
+/** 報告で一覧の見出しに添える件数の単位 (R-609 / R-610 / R-611 / R-612)。`<見出し> (<n> 件):` と出す。 */
+export const REPORT_COUNT_UNIT = '件';
+
 /** 報告で残骸 (後始末で削除できなかったファイル) の一覧に付ける見出し (R-612)。件数を添えて `残骸 (<n> 件):` と出す。 */
 export const REPORT_HEADING_LEFTOVERS = '残骸';
 
@@ -51,6 +54,12 @@ export const REPORT_WARNING_LEFTOVERS = '警告: 削除できなかったファ�
 
 /** 報告で有効な判定 (killed + survived) がすべて survived のファイルに添える警告の文言 (R-613 / DD-08)。 */
 export const REPORT_WARNING_INEFFECTIVE = '差し替えが効いていない可能性';
+
+/** 報告で差し替えが効いていない可能性の警告の行頭に付ける接頭辞 (R-613 / DD-08)。 */
+export const REPORT_WARNING_PREFIX = '警告: ';
+
+/** 報告で有効な判定 (killed + survived) がすべて survived のファイルの名前の後に続ける文言 (R-613 / DD-08)。 */
+export const REPORT_WARNING_ALL_SURVIVED = 'は有効な判定がすべて survived です';
 
 /** 報告で SIGINT による中断時に出力の先頭行に出す見出し (R-605 / DD-06)。判定済みの分だけの途中結果であることを示す。 */
 export const REPORT_HEADING_INTERRUPTED = '中断（途中結果）';
