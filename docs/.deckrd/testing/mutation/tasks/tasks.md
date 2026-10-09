@@ -82,7 +82,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | ------------------------------------------------------------------------------------- | ------ | ----- | --------- | ------- | ----------- |
 | T-01: `resolveTargets` / `isMutationArtifact`                                         | 3      | 1     | 13        | 46      | done        |
 | T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 40      | done        |
-| T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | in progress |
+| T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done        |
 | T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | in progress |
 | T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | in progress |
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | pending     |
