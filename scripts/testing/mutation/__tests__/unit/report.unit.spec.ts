@@ -787,8 +787,6 @@ describe('formatReport', () => {
  *
  * 変異テスト実行の要約と `--strict` の有無から終了コードを決めることを確認する (report-cli 4.3)。
  *
- * テスト ID 範囲: T-MUT-RP-10-01 〜 T-MUT-RP-19-02
- *
  * @see decideExitCode
  */
 describe('decideExitCode', () => {
@@ -1113,6 +1111,47 @@ describe('decideExitCode', () => {
         assertEquals(_section.length, 1);
         assertNotEquals(decideExitCode(_summary, true), EXIT_CODE_OK);
       });
+    });
+  });
+
+  /**
+   * 終了コードの数値そのもの (report-cli R-614 / R-615 / R-616 / DD-09)。
+   *
+   * 他のケースは期待値を定数経由で比べるため、定数の値が誤っていても検出できない。
+   * 中断は SIGINT の慣例値 130、監査不成立は 1、成功は 0 であることを数値リテラルで固定する。
+   */
+  describe('終了コードの数値', () => {
+    /** 終了コードを数値リテラルと比べる FN確認ケース。 */
+    describe('When: FN確認（strict なし）', () => {
+      const _cases: (_StrictExitCodeCase & { expected: number })[] = [
+        {
+          id: 'T-MUT-RP-21-01',
+          title: '中断 (killed 1 件)',
+          summary: _makeReport({ results: [_makeResult('killed')], interrupted: true }),
+          strict: false,
+          expected: 130,
+        },
+        {
+          id: 'T-MUT-RP-21-02',
+          title: 'drift 1 件',
+          summary: _makeReport({ results: [_makeResult('killed')], drift: ['skills/_cle-libs/libs/a.ts'] }),
+          strict: false,
+          expected: 1,
+        },
+        {
+          id: 'T-MUT-RP-21-03',
+          title: 'killed 1 件だけ',
+          summary: _makeReport({ results: [_makeResult('killed')] }),
+          strict: false,
+          expected: 0,
+        },
+      ];
+
+      for (const { id, title, summary, strict, expected } of _cases) {
+        it(`[FN] ${id}: ${title}・strict なし → ${expected}`, () => {
+          assertEquals(decideExitCode(summary, strict), expected);
+        });
+      }
     });
   });
 });
