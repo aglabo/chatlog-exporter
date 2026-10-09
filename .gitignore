@@ -150,3 +150,9 @@
 # allow all gitignore
 !**/.gitignore
 
+## mutation testing artifacts (REQ-C-005)
+# must stay after the allowlist re-includes (!/scripts/**/*.ts, !skills/**)
+*.mutation-*.ts
+*.mutation-*.tsx
+deno.mutation-*.json
+temp/mutation.lock
