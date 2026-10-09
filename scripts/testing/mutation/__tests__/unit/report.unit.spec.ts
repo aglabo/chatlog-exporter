@@ -730,6 +730,56 @@ describe('formatReport', () => {
       });
     });
   });
+
+  /**
+   * 監査の失敗 (report-cli R-621 / DD-10)。
+   *
+   * レポートを出す段階で判明した監査単位の失敗の理由を、drift の直後・残骸より前に「監査の失敗」として列挙し、
+   * 0 件ならセクションを出さないことを検証する。
+   */
+  describe('監査の失敗', () => {
+    /** 監査単位の失敗が 1 件以上ある要約を渡すケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RP-20-01: auditFailures 1 件・killed 1 件 → 監査の失敗の見出しが 1 行出て、一覧にその理由が出る', () => {
+        const _summary = _makeReport({
+          results: [_makeResult('killed')],
+          auditFailures: ['ハッシュ取得で skills/_cle-libs/libs/a.ts を読めなかった'],
+        });
+
+        const _output = formatReport(_summary);
+
+        assertEquals(_linesOf(_output).filter((line) => line === '監査の失敗 (1 件):').length, 1);
+        assertEquals(_sectionOf(_output, '監査の失敗'), ['ハッシュ取得で skills/_cle-libs/libs/a.ts を読めなかった']);
+      });
+
+      it('[Error] T-MUT-RP-20-02: auditFailures 1 件・drift 1 件・leftovers 1 件 → 見出しが drift・監査の失敗・残骸の順に並ぶ', () => {
+        const _summary = _makeReport({
+          results: [_makeResult('killed')],
+          drift: ['skills/_cle-libs/libs/a.ts'],
+          leftovers: ['skills/_cle-libs/libs/a.mutation-001.ts'],
+          auditFailures: ['ハッシュ取得で skills/_cle-libs/libs/a.ts を読めなかった'],
+        });
+
+        const _lines = _linesOf(formatReport(_summary));
+        const _headingIndexes = ['drift (', '監査の失敗 (', '残骸 ('].map((prefix) =>
+          _lines.findIndex((line) => line.startsWith(prefix))
+        );
+
+        // 3 つの見出しが出ていることを先に固定し、見つからない (-1) 場合の順序比較の空振りを防ぐ
+        assertEquals(_headingIndexes.map((index) => index >= 0), [true, true, true]);
+        assertEquals(_headingIndexes[0] < _headingIndexes[1] && _headingIndexes[1] < _headingIndexes[2], true);
+      });
+    });
+
+    /** 監査単位の失敗が 0 件の境界ケース。 */
+    describe('When: エッジケース', () => {
+      it('[Edge] T-MUT-RP-20-03: auditFailures 0 件・killed 1 件 → 監査の失敗のセクションが出ない', () => {
+        const _summary = _makeReport({ results: [_makeResult('killed')], auditFailures: [] });
+
+        assertEquals(_linesStartingWith(formatReport(_summary), '監査の失敗 ('), []);
+      });
+    });
+  });
 });
 
 /**

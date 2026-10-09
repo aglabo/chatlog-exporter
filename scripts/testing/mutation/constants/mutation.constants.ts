@@ -40,6 +40,9 @@ export const REPORT_HEADING_STALE = '古い許容エントリ';
 /** 報告で drift (実行前後で内容が変わった元ソースファイル) の一覧に付ける見出し (R-611)。件数を添えて `drift (<n> 件):` と出す。 */
 export const REPORT_HEADING_DRIFT = 'drift';
 
+/** 報告で監査単位の失敗の理由の一覧に付ける見出し (R-621 / DD-10)。件数を添えて `監査の失敗 (<n> 件):` と出す。 */
+export const REPORT_HEADING_AUDIT_FAILURES = '監査の失敗';
+
 /** 報告で変異体の置換前と置換後の字句の間に置く区切り (R-609)。 */
 export const REPORT_REPLACE_ARROW = '→';
 

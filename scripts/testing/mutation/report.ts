@@ -12,6 +12,7 @@ import {
   EXIT_CODE_OK,
   MUTANT_STATUSES,
   REPORT_COUNT_UNIT,
+  REPORT_HEADING_AUDIT_FAILURES,
   REPORT_HEADING_DRIFT,
   REPORT_HEADING_INTERRUPTED,
   REPORT_HEADING_LEFTOVERS,
@@ -186,6 +187,16 @@ const _listLines = (heading: string, items: readonly string[]): string[] => [
 const _sectionLines = (heading: string, items: readonly string[]): string[] => ['', ..._listLines(heading, items)];
 
 /**
+ * 監査の失敗のセクションを作る。空行・`監査の失敗 (<n> 件):` の行・字下げした理由の行の順に並べる。
+ * 監査単位の失敗が無ければセクションを出さない (R-621 / DD-10)。
+ *
+ * @param auditFailures - 監査単位の失敗の理由
+ * @returns セクションの行。監査単位の失敗が無ければ空配列
+ */
+const _auditFailureLines = (auditFailures: readonly string[]): string[] =>
+  auditFailures.length > 0 ? _sectionLines(REPORT_HEADING_AUDIT_FAILURES, auditFailures) : [];
+
+/**
  * 残骸のセクションを作る。空行・警告の行・`残骸 (<n> 件):` の行・字下げしたパスの行の順に並べる。
  * 残骸が無ければセクションを出さない (R-612 / DD-07)。
  *
@@ -247,7 +258,7 @@ const _interruptedLines = (interrupted: boolean): string[] => interrupted ? [REP
 const _noMutantLines = (generatedCount: number): string[] => generatedCount === 0 ? [REPORT_NO_MUTANTS] : [];
 
 /**
- * 1 回の変異テスト実行の要約を、人が読む報告の文字列に整形する (report-cli R-605 / R-606 / R-607 / R-608 / R-609 / R-610 / R-611 / R-612 / R-613)。
+ * 1 回の変異テスト実行の要約を、人が読む報告の文字列に整形する (report-cli R-605 / R-606 / R-607 / R-608 / R-609 / R-610 / R-611 / R-612 / R-613 / R-621)。
  * I/O・時刻・乱数を使わない純粋関数。
  *
  * @param summary - 変異テスト実行の要約
@@ -266,6 +277,7 @@ export const formatReport = (summary: MutationRunReport): string => {
     ),
     ..._sectionLines(REPORT_HEADING_STALE, summary.match.stale.map(_staleEntryLine)),
     ..._sectionLines(REPORT_HEADING_DRIFT, summary.drift),
+    ..._auditFailureLines(summary.auditFailures),
     ..._leftoverLines(summary.leftovers),
     ..._ineffectiveLines(summary.results),
   ].join('\n');
