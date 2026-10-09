@@ -83,7 +83,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-01: `resolveTargets` / `isMutationArtifact`                                         | 3      | 1     | 13        | 46      | done        |
 | T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 39      | done        |
 | T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done        |
-| T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | in progress |
+| T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | done        |
 | T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | in progress |
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | pending     |
 | T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | pending     |
@@ -1092,7 +1092,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
   - Scenario: Given `op: negation`、`before: "!"`、`after: ""` の正しいエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then 読み込みエラーにならず、`after` が空文字列のエントリを返すこと
 
-- [ ] **T-04-02-03**: 他モジュールの許容リストがあっても、指定モジュールのファイルだけを読む
+- [x] **T-04-02-03**: 他モジュールの許容リストがあっても、指定モジュールのファイルだけを読む
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-02-03`
   - Rule: allowlist §3.1（置き場所はモジュールごとに 1 ファイル。他モジュールのエントリは参照しない） / implementation Commit 6（`allowlist/<module>.yaml` を読む）
@@ -1296,42 +1296,42 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
   - Scenario: Given `file: C:/x/a.ts` のエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `file` がリポジトリルート相対でない旨を含むこと
 
-- [ ] **T-04-05-16**: `after` が数値のエントリは読み込みエラーになる
+- [x] **T-04-05-16**: `after` が数値のエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-16`
   - Rule: allowlist R-504 / implementation §3.4 #2（`after` は空文字を許す文字列）
   - Scenario: Given `after: 1`（数値）のエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `after` が文字列でない旨を含むこと
 
-- [ ] **T-04-05-17**: `after` が YAML の null のエントリは読み込みエラーになる
+- [x] **T-04-05-17**: `after` が YAML の null のエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-17`
   - Rule: allowlist R-504 / implementation §3.4 #2（`after` は空文字を許す文字列。null は空文字ではない）
   - Scenario: Given `after:`（値なし = null）のエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `after` を含むこと（空文字列の `after` として受理しないこと）
 
-- [ ] **T-04-05-18**: `lineText` が欠けているエントリは読み込みエラーになる
+- [x] **T-04-05-18**: `lineText` が欠けているエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-18`
   - Rule: allowlist R-504 / implementation §3.4 #2
   - Scenario: Given `lineText` キーを持たないエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `lineText` の欠落を含むこと
 
-- [ ] **T-04-05-19**: `op` が欠けているエントリは読み込みエラーになる
+- [x] **T-04-05-19**: `op` が欠けているエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-19`
   - Rule: allowlist R-504 / implementation §3.4 #2
   - Scenario: Given `op` キーを持たないエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `op` の欠落を含むこと
 
-- [ ] **T-04-05-20**: `before` が欠けているエントリは読み込みエラーになる
+- [x] **T-04-05-20**: `before` が欠けているエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-20`
   - Rule: allowlist R-504 / implementation §3.4 #2
   - Scenario: Given `before` キーを持たないエントリ 1 件の YAML がある, When `loadAllowlist` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、`error.message` に `before` の欠落を含むこと
 
-- [ ] **T-04-05-21**: `occurrence` が欠けているエントリは読み込みエラーになる
+- [x] **T-04-05-21**: `occurrence` が欠けているエントリは読み込みエラーになる
   - Target: `loadAllowlist`
   - Test ID: `T-MUT-AL-05-21`
   - Rule: allowlist R-504 / allowlist DD-03 / implementation §3.4 #2
