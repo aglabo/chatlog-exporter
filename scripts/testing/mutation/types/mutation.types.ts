@@ -56,6 +56,35 @@ export type TestRunOptions = {
 /** `deno test` の起動を担う注入可能な提供元 (REQ-NF-002)。 */
 export type TestRunnerProvider = (args: string[], options: TestRunOptions) => Promise<TestRunOutcome>;
 
+/**
+ * 起動した `deno` 子プロセスのうち、テスト実行が使う部分。
+ *
+ * `Deno.ChildProcess` (stdout / stderr を `piped` で起動したもの) はこの型に代入できる。
+ * テストでは実プロセスを起動せず、この形のスタブを返す。
+ */
+export type DenoChildProcess = {
+  /** 標準出力のバイト列ストリーム。 */
+  stdout: ReadableStream<Uint8Array>;
+  /** 標準エラーのバイト列ストリーム。 */
+  stderr: ReadableStream<Uint8Array>;
+  /** 子プロセスの終了を待つ。解決値は終了コードを持つ。 */
+  status: Promise<{ code: number }>;
+  /** 子プロセスへシグナルを送って終了させる。 */
+  kill: (signal?: Deno.Signal) => void;
+};
+
+/**
+ * コマンド名と起動引数を受け取って子プロセスを起動する注入可能な提供元 (REQ-NF-002)。
+ * `runDenoTest` はコマンド名に `'deno'` を渡す。
+ */
+export type DenoSpawnProvider = (cmd: string, args: string[]) => DenoChildProcess;
+
+/** `runDenoTest` の引数。`TestRunOptions` に子プロセスの起動元の注入を加える。 */
+export type RunDenoTestOptions = TestRunOptions & {
+  /** 子プロセスの起動元。省略時は実際の `deno` を起動する。 */
+  spawn?: DenoSpawnProvider;
+};
+
 /** 変異体 1 件とその判定。 */
 export type MutantResult = {
   /** 判定した変異体。 */
