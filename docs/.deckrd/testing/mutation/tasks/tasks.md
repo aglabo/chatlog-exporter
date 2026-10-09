@@ -81,7 +81,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | Test Target                                                                           | Commit | Phase | Scenarios | Cases   | Status      |
 | ------------------------------------------------------------------------------------- | ------ | ----- | --------- | ------- | ----------- |
 | T-01: `resolveTargets` / `isMutationArtifact`                                         | 3      | 1     | 13        | 46      | done        |
-| T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 40      | done        |
+| T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 39      | done        |
 | T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done        |
 | T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | in progress |
 | T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | in progress |
@@ -94,9 +94,9 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending     |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending     |
 | T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending     |
-| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 6         | 9       | pending     |
-| T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 7         | 9       | pending     |
-| **合計**                                                                              | —      | —     | **177**   | **486** | —           |
+| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending     |
+| T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending     |
+| **合計**                                                                              | —      | —     | **175**   | **481** | —           |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -3917,7 +3917,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 ## T-15: `runMutants` integration（実 `deno test` での差し替え検証）
 
-> Commit: 18 / 配置ファイル: `scripts/testing/mutation/run-mutants.ts`（検証対象。新規コードは fixture のみ）/ テストファイル: `scripts/testing/mutation/__tests__/integration/run-mutants.integration.spec.ts` / Phase: 3 / Test ID prefix: `T-MUT-MTI`（グループ番号 01〜09。本 Target は 01〜06 を使用）
+> Commit: 18 / 配置ファイル: `scripts/testing/mutation/run-mutants.ts`（検証対象。新規コードは fixture のみ）/ テストファイル: `scripts/testing/mutation/__tests__/integration/run-mutants.integration.spec.ts` / Phase: 3 / Test ID prefix: `T-MUT-MTI`（グループ番号 01〜09。本 Target は 01〜05 を使用）
 > fixture: 一時ディレクトリに、小さなソース `target.ts`・それを import するテスト・元の設定 (`deno.json`、`@std/assert` を解決する `imports` を持つ) を置く。
 > 変異体は `generateMutants` で生成し、既定の `TestRunnerProvider` (`runDenoTest`) で実行する。実行時間を抑えるため、変異体は各シナリオ 1〜2 件に絞る。
 
@@ -3999,7 +3999,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 > Commit: —（実装済み、テスト追補のみ）/ 配置ファイル: `scripts/testing/mutation/generate-mutants.ts` /
 > テストファイル: `scripts/testing/mutation/__tests__/unit/generate-mutants.unit.spec.ts` /
-> Phase: 1 / Test ID prefix: `T-MUT-GM`（既存の 3 段 ID `T-MUT-GM-01-SS-CC` を継ぎ、シナリオ番号 SS は 25〜31 を使用）
+> Phase: 1 / Test ID prefix: `T-MUT-GM`（既存の 3 段 ID `T-MUT-GM-01-SS-CC` を継ぎ、シナリオ番号 SS は 25〜30 を使用）
 > 既存の `T-MUT-GM-01-01-01`〜`T-MUT-GM-01-24-07` で未検証の分だけを足す。各タスクの入力は既存テストに無いことを確認済み。
 > 既存のテーブル駆動 (`_runCases`) に載る形 (入力 1 件 → `Mutant` の位置・字句の配列) を基本とする。
 
@@ -4076,72 +4076,72 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 ### Coverage Check (T-01〜T-03)
 
-| Source             | 内容 (短縮)                                        | Task ID(s)                                                                                                             |
-| ------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| generation R-101   | モジュール配下の TS / TSX を候補にする             | T-01-01-01〜06, T-01-02-01〜02, T-01-09-01〜02                                                                         |
-| generation R-102   | テスト・spec・types・constants を除外              | T-01-06-01〜07                                                                                                         |
-| generation R-103   | 変異体・一時設定の命名に一致するものを除外         | T-01-05-01〜04, T-01-07-01〜04, T-01-08-01〜04                                                                         |
-| generation R-104   | 判定用テストは当該モジュールの unit のみ           | T-01-03-01〜07, T-01-11-01, T-01-12-01〜03, T-01-13-01〜02                                                             |
-| generation R-105   | 集合を昇順で返す                                   | T-01-04-01〜03                                                                                                         |
-| generation R-106   | コメント内は変異体を生成しない（閉じないコメント） | T-16-03-01（他は既存 `T-MUT-GM-*`）                                                                                    |
-| generation R-110   | オペレータの適用箇所ごとに 1 件                    | T-16-04-01, T-16-05-01〜02（他は既存 `T-MUT-GM-*`）                                                                    |
-| generation R-112   | 行・桁の昇順、同一入力で同一の列                   | T-16-01-01（他は既存 `T-MUT-GM-*`）                                                                                    |
-| generation DD-01   | 6 つのモジュール名                                 | T-01-01-01〜06                                                                                                         |
-| generation DD-02   | unit テストのみ                                    | T-01-03-01〜03                                                                                                         |
-| generation DD-03   | テスト・型・定数ファイルの除外                     | T-01-06-01〜07                                                                                                         |
-| generation DD-05   | TSX を TS と同様に扱う                             | T-01-02-02（対象解決）, T-16-02-01（生成）                                                                             |
-| generation DD-06   | 残骸をソース集合に含めない                         | T-01-07-01〜04                                                                                                         |
-| generation DD-07   | 決定的な順序                                       | T-01-04-01〜03（対象解決）, T-16-01-01（生成）                                                                         |
-| generation DR-01   | 別ファイル方式のため残骸を除外                     | T-01-07-01                                                                                                             |
-| Edge generation-1  | ソースが残らないモジュール                         | T-01-10-01                                                                                                             |
-| Edge generation-2  | unit テストが無い                                  | T-01-11-01                                                                                                             |
-| Edge generation-3  | 前回の残骸が配下にある                             | T-01-07-01〜04                                                                                                         |
-| Edge generation-11 | `__tests__/`・spec・types・constants               | T-01-06-01〜07                                                                                                         |
-| Edge generation-12 | `.tsx` を TS と同じ字句規則で扱う                  | T-16-02-01                                                                                                             |
-| Edge generation-13 | CRLF の位置・行テキスト                            | 既存 `T-MUT-GM-01-14-03`, `T-MUT-GM-01-20-09`                                                                          |
-| Edge generation-14 | 同一行に同じ字句が複数ある                         | T-02-10-01（生成側は既存 `T-MUT-GM-01-07-01`）                                                                         |
-| Edge generation-15 | 同一の入力を 2 回生成する                          | T-16-01-01                                                                                                             |
-| Edge generation-16 | 数値リテラル全体を 1 字句として n+1                | T-02-19-01〜02（生成側は既存 `T-MUT-GM-01-21-01〜07`）                                                                 |
-| Edge generation-17 | 指数表記は変異体 0 件                              | 既存 `T-MUT-GM-01-21-08〜09`                                                                                           |
-| Edge generation-18 | 非 ASCII 識別子                                    | 既存 `T-MUT-GM-01-22-01〜05`                                                                                           |
-| Edge generation-19 | 文字列・テンプレート・後置 `++` `--` の後の `/`    | T-16-04-01（他は既存 `T-MUT-GM-01-23-01〜04`）                                                                         |
-| Edge generation-20 | 行継続する文字列リテラル                           | 既存 `T-MUT-GM-01-23-05〜07`                                                                                           |
-| Edge generation-21 | 式の先頭位置の `<`                                 | 既存 `T-MUT-GM-01-24-01〜07`                                                                                           |
-| Edge generation-22 | リテラル型も変異体を生成する                       | T-16-05-01〜02, T-15-03-01                                                                                             |
-| Edge generation-23 | 空白なしの比較 `a<b`                               | 既存 `T-MUT-GM-01-12-05`                                                                                               |
-| Edge generation-24 | 桁は 1 始まりの UTF-16 コード単位                  | T-02-18-01, T-16-06-01                                                                                                 |
-| execution R-214    | 位置不一致は error                                 | T-02-06-01〜03                                                                                                         |
-| execution R-215    | 命名どおり別ファイル・改行と UTF-8 を保持          | T-02-01-01〜02, T-02-02-01〜02, T-02-07-01〜03, T-02-10-01, T-02-18-01, T-02-19-01〜02（書き出しそのものは Commit 14） |
-| execution R-216    | 全キーを保ち imports を 1 件足す                   | T-02-03-01, T-02-04-01〜04, T-02-11-01, T-02-12-01                                                                     |
-| execution R-220    | 終了 0 は survived                                 | T-03-03-01, T-03-10-02, T-03-13-01                                                                                     |
-| execution R-221    | 型検査失敗は compile-error                         | T-03-03-02, T-03-07-01, T-03-08-01〜02, T-03-09-01, T-03-10-01, T-03-11-01, T-03-12-01, T-03-13-01                     |
-| execution R-222    | 要約行で失敗を確認できれば killed                  | T-03-02-01〜03, T-03-03-03, T-03-05-03, T-03-08-01, T-03-09-02, T-03-14-01〜02                                         |
-| execution R-223    | timeout                                            | T-03-03-04                                                                                                             |
-| execution R-224    | 確認できない非 0・error は error                   | T-03-03-05, T-03-05-01〜03, T-03-08-02                                                                                 |
-| execution DD-01    | 変異体・一時設定の命名                             | T-01-05-01〜04, T-01-08-01〜04, T-02-02-01〜02, T-02-03-01, T-02-05-01〜02, T-02-08-01, T-02-09-01〜03                 |
-| execution DD-02    | 全キー保持 + imports 1 件、`--import-map` 不使用   | T-02-04-01〜03, T-02-11-01, T-02-12-01（`--import-map` 不使用は T-12-03-07）                                           |
-| execution DD-03    | ANSI 除去 + stdout/stderr 連結 + 行頭判定          | T-03-01-01, T-03-06-01, T-03-07-01, T-03-09-01〜02, T-03-11-01, T-03-12-01                                             |
-| execution DD-06    | 要約行の件数抽出（要約行が無ければ未検出）         | T-03-02-01, T-03-02-03, T-03-04-01, T-03-14-01〜02（0 件判定そのものは Commit 13）                                     |
-| execution DD-09    | 位置不一致は error、テストを起動しない             | T-02-06-01〜03（起動しないことは Commit 14）                                                                           |
-| execution DD-12    | killed は要約行で失敗を確認できた場合のみ          | T-03-03-03, T-03-05-01〜03                                                                                             |
-| DR-01              | 一時設定の imports で差し替え                      | T-02-04-01, T-02-05-01〜02                                                                                             |
-| DR-02              | compile-error を killed から分ける                 | T-03-03-02, T-03-10-01                                                                                                 |
-| REQ-C-005          | 変異体・一時設定・ロックを `.gitignore` で除外     | T-02-17-01〜04                                                                                                         |
-| Edge execution-1   | 置換前の字句が指定位置に無い                       | T-02-06-01                                                                                                             |
-| Edge execution-2   | CRLF                                               | T-02-07-01                                                                                                             |
-| Edge execution-3   | `.tsx`                                             | T-02-08-01, T-01-05-02                                                                                                 |
-| Edge execution-4   | 番号が 1000 以上                                   | T-02-09-02〜03, T-01-05-03                                                                                             |
-| Edge execution-5   | 変異による型エラー                                 | T-03-03-02, T-03-07-01                                                                                                 |
-| Edge execution-6   | ANSI エスケープ                                    | T-03-01-01, T-03-07-01                                                                                                 |
-| Edge execution-7   | 行頭以外の `Type checking failed`                  | T-03-08-01〜02                                                                                                         |
-| Edge execution-8   | 非 0 で出力が空                                    | T-03-05-01                                                                                                             |
-| Edge execution-9   | 制限時間超過（判定部分）                           | T-03-03-04（強制終了は Commit 10）                                                                                     |
-| Edge execution-14  | 似た名前のファイル（命名判定の部分）               | T-01-08-01（掃除の振る舞いは Commit 12）                                                                               |
-| Edge execution-15  | 前回の残骸（対象解決での除外の部分）               | T-01-07-01〜04（掃除は Commit 12）                                                                                     |
-| Edge execution-27  | 起動設定の誤り・依存解決の失敗                     | T-03-05-02                                                                                                             |
+| Source             | 内容 (短縮)                                        | Task ID(s)                                                                                                                     |
+| ------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| generation R-101   | モジュール配下の TS / TSX を候補にする             | T-01-01-01〜06, T-01-02-01〜02, T-01-09-01〜02                                                                                 |
+| generation R-102   | テスト・spec・types・constants を除外              | T-01-06-01〜07                                                                                                                 |
+| generation R-103   | 変異体・一時設定の命名に一致するものを除外         | T-01-05-01〜04, T-01-07-01〜04, T-01-08-01〜04                                                                                 |
+| generation R-104   | 判定用テストは当該モジュールの unit のみ           | T-01-03-01〜07, T-01-11-01, T-01-12-01〜03, T-01-13-01〜02                                                                     |
+| generation R-105   | 集合を昇順で返す                                   | T-01-04-01〜03                                                                                                                 |
+| generation R-106   | コメント内は変異体を生成しない（閉じないコメント） | T-16-03-01（他は既存 `T-MUT-GM-*`）                                                                                            |
+| generation R-110   | オペレータの適用箇所ごとに 1 件                    | T-16-04-01, T-16-05-01〜02（他は既存 `T-MUT-GM-*`）                                                                            |
+| generation R-112   | 行・桁の昇順、同一入力で同一の列                   | T-16-01-01（他は既存 `T-MUT-GM-*`）                                                                                            |
+| generation DD-01   | 6 つのモジュール名                                 | T-01-01-01〜06                                                                                                                 |
+| generation DD-02   | unit テストのみ                                    | T-01-03-01〜03                                                                                                                 |
+| generation DD-03   | テスト・型・定数ファイルの除外                     | T-01-06-01〜07                                                                                                                 |
+| generation DD-05   | TSX を TS と同様に扱う                             | T-01-02-02（対象解決）, T-16-02-01（生成）                                                                                     |
+| generation DD-06   | 残骸をソース集合に含めない                         | T-01-07-01〜04                                                                                                                 |
+| generation DD-07   | 決定的な順序                                       | T-01-04-01〜03（対象解決）, T-16-01-01（生成）                                                                                 |
+| generation DR-01   | 別ファイル方式のため残骸を除外                     | T-01-07-01                                                                                                                     |
+| Edge generation-1  | ソースが残らないモジュール                         | T-01-10-01                                                                                                                     |
+| Edge generation-2  | unit テストが無い                                  | T-01-11-01                                                                                                                     |
+| Edge generation-3  | 前回の残骸が配下にある                             | T-01-07-01〜04                                                                                                                 |
+| Edge generation-11 | `__tests__/`・spec・types・constants               | T-01-06-01〜07                                                                                                                 |
+| Edge generation-12 | `.tsx` を TS と同じ字句規則で扱う                  | T-16-02-01                                                                                                                     |
+| Edge generation-13 | CRLF の位置・行テキスト                            | 既存 `T-MUT-GM-01-14-03`, `T-MUT-GM-01-20-09`                                                                                  |
+| Edge generation-14 | 同一行に同じ字句が複数ある                         | T-02-10-01（生成側は既存 `T-MUT-GM-01-07-01`）                                                                                 |
+| Edge generation-15 | 同一の入力を 2 回生成する                          | T-16-01-01                                                                                                                     |
+| Edge generation-16 | 数値リテラル全体を 1 字句として n+1                | T-02-19-01〜02（生成側は既存 `T-MUT-GM-01-21-01〜07`）                                                                         |
+| Edge generation-17 | 指数表記は変異体 0 件                              | 既存 `T-MUT-GM-01-21-08〜09`                                                                                                   |
+| Edge generation-18 | 非 ASCII 識別子                                    | 既存 `T-MUT-GM-01-22-01〜05`                                                                                                   |
+| Edge generation-19 | 文字列・テンプレート・後置 `++` `--` の後の `/`    | T-16-04-01（他は既存 `T-MUT-GM-01-23-01〜04`）                                                                                 |
+| Edge generation-20 | 行継続する文字列リテラル                           | 既存 `T-MUT-GM-01-23-05〜07`                                                                                                   |
+| Edge generation-21 | 式の先頭位置の `<`                                 | 既存 `T-MUT-GM-01-24-01〜07`                                                                                                   |
+| Edge generation-22 | リテラル型も変異体を生成する                       | T-16-05-01〜02, T-15-03-01                                                                                                     |
+| Edge generation-23 | 空白なしの比較 `a<b`                               | 既存 `T-MUT-GM-01-12-05`                                                                                                       |
+| Edge generation-24 | 桁は 1 始まりの UTF-16 コード単位                  | T-02-18-01, T-16-06-01                                                                                                         |
+| execution R-214    | 位置不一致は error                                 | T-02-06-01〜03                                                                                                                 |
+| execution R-215    | 命名どおり別ファイル・改行と UTF-8 を保持          | T-02-01-01〜02, T-02-02-01〜02, T-02-07-01, T-02-07-03, T-02-10-01, T-02-18-01, T-02-19-01〜02（書き出しそのものは Commit 14） |
+| execution R-216    | 全キーを保ち imports を 1 件足す                   | T-02-03-01, T-02-04-01〜04, T-02-11-01, T-02-12-01                                                                             |
+| execution R-220    | 終了 0 は survived                                 | T-03-03-01, T-03-10-02, T-03-13-01                                                                                             |
+| execution R-221    | 型検査失敗は compile-error                         | T-03-03-02, T-03-07-01, T-03-08-01〜02, T-03-09-01, T-03-10-01, T-03-11-01, T-03-12-01, T-03-13-01                             |
+| execution R-222    | 要約行で失敗を確認できれば killed                  | T-03-02-01〜03, T-03-03-03, T-03-05-03, T-03-08-01, T-03-09-02, T-03-14-01〜02                                                 |
+| execution R-223    | timeout                                            | T-03-03-04                                                                                                                     |
+| execution R-224    | 確認できない非 0・error は error                   | T-03-03-05, T-03-05-01〜03, T-03-08-02                                                                                         |
+| execution DD-01    | 変異体・一時設定の命名                             | T-01-05-01〜04, T-01-08-01〜04, T-02-02-01〜02, T-02-03-01, T-02-05-01〜02, T-02-08-01, T-02-09-01〜03                         |
+| execution DD-02    | 全キー保持 + imports 1 件、`--import-map` 不使用   | T-02-04-01〜03, T-02-11-01, T-02-12-01（`--import-map` 不使用は T-12-03-07）                                                   |
+| execution DD-03    | ANSI 除去 + stdout/stderr 連結 + 行頭判定          | T-03-01-01, T-03-06-01, T-03-07-01, T-03-09-01〜02, T-03-11-01, T-03-12-01                                                     |
+| execution DD-06    | 要約行の件数抽出（要約行が無ければ未検出）         | T-03-02-01, T-03-02-03, T-03-04-01, T-03-14-01〜02（0 件判定そのものは Commit 13）                                             |
+| execution DD-09    | 位置不一致は error、テストを起動しない             | T-02-06-01〜03（起動しないことは Commit 14）                                                                                   |
+| execution DD-12    | killed は要約行で失敗を確認できた場合のみ          | T-03-03-03, T-03-05-01〜03                                                                                                     |
+| DR-01              | 一時設定の imports で差し替え                      | T-02-04-01, T-02-05-01〜02                                                                                                     |
+| DR-02              | compile-error を killed から分ける                 | T-03-03-02, T-03-10-01                                                                                                         |
+| REQ-C-005          | 変異体・一時設定・ロックを `.gitignore` で除外     | T-02-17-01〜04                                                                                                                 |
+| Edge execution-1   | 置換前の字句が指定位置に無い                       | T-02-06-01                                                                                                                     |
+| Edge execution-2   | CRLF                                               | T-02-07-01                                                                                                                     |
+| Edge execution-3   | `.tsx`                                             | T-02-08-01, T-01-05-02                                                                                                         |
+| Edge execution-4   | 番号が 1000 以上                                   | T-02-09-02〜03, T-01-05-03                                                                                                     |
+| Edge execution-5   | 変異による型エラー                                 | T-03-03-02, T-03-07-01                                                                                                         |
+| Edge execution-6   | ANSI エスケープ                                    | T-03-01-01, T-03-07-01                                                                                                         |
+| Edge execution-7   | 行頭以外の `Type checking failed`                  | T-03-08-01〜02                                                                                                                 |
+| Edge execution-8   | 非 0 で出力が空                                    | T-03-05-01                                                                                                                     |
+| Edge execution-9   | 制限時間超過（判定部分）                           | T-03-03-04（強制終了は Commit 10）                                                                                             |
+| Edge execution-14  | 似た名前のファイル（命名判定の部分）               | T-01-08-01（掃除の振る舞いは Commit 12）                                                                                       |
+| Edge execution-15  | 前回の残骸（対象解決での除外の部分）               | T-01-07-01〜04（掃除は Commit 12）                                                                                             |
+| Edge execution-27  | 起動設定の誤り・依存解決の失敗                     | T-03-05-02                                                                                                                     |
 
 > 範囲外: generation R-106〜R-112・DD-04・Edge generation-4〜10, 12, 13, 15〜24 は実装済みの `generateMutants`（既存の `T-MUT-GM-*`、Commit 1 で改称）が担い、
-> 既存テストで未検証の分（DD-05・DD-07・閉じないコメント・Edge generation-12, 13, 15, 19, 22, 24）は T-16 で追補する。
+> 既存テストで未検証の分（DD-05・DD-07・閉じないコメント・Edge generation-12, 15, 19, 22, 24）は T-16 で追補する。
 > Edge generation-14 は T-02-10-01 が担う（生成側は既存 `T-MUT-GM-01-07-01`）。
 
 ### Coverage Check (T-04〜T-07)
@@ -4506,7 +4506,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 | Test Target | Normal  | Error   | Edge    | Cases   | 判定  |
 | ----------- | ------- | ------- | ------- | ------- | ----- |
 | T-01        | 22      | [N/A]   | 24      | 46      | [N/A] |
-| T-02        | 17      | 7       | 16      | 40      | [OK]  |
+| T-02        | 17      | 7       | 15      | 39      | [OK]  |
 | T-03        | 9       | 4       | 17      | 30      | [OK]  |
 | T-04        | 4       | 37      | 8       | 49      | [OK]  |
 | T-05        | 8       | 4       | 27      | 39      | [OK]  |
@@ -4519,9 +4519,9 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 | T-12        | 14      | 12      | 11      | 37      | [OK]  |
 | T-13        | 9       | 17      | 5       | 31      | [OK]  |
 | T-14        | 10      | 24      | 32      | 66      | [OK]  |
-| T-15        | 4       | 1       | 4       | 9       | [OK]  |
-| T-16        | 2       | 1       | 6       | 9       | [OK]  |
-| **合計**    | **143** | **144** | **199** | **486** | —     |
+| T-15        | 4       | 1       | 3       | 8       | [OK]  |
+| T-16        | 2       | 1       | 4       | 7       | [OK]  |
+| **合計**    | **143** | **144** | **194** | **481** | —     |
 
 > **[N/A] T-01** — 対象解決は失敗する経路を持たない。モジュール名は report-cli R-602 で検査済みのものしか渡されず、
 > 空の集合もエラーにしない (generation §3.2)。空集合はエッジケースに分類した。
