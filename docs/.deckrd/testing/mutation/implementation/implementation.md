@@ -2,7 +2,7 @@
 title: "Implementation Plan: mutation testing harness"
 based-on: specifications-index.md v1.2.0
 status: Draft
-version: 1.6.0
+version: 1.7.0
 created: "2026-10-07"
 ---
 
@@ -185,13 +185,13 @@ C3 / C4 / C5 は C2 の型にのみ依存し、互いに独立である。C14 �
 
 #### Commit 8: `feat(mutation): format mutation report`
 
-**参照**: REQ-F-011、REQ-F-018、DD-02 (report-cli)、DD-05、DD-07、DD-08、`specifications-report-cli.md` R-605〜R-613
+**参照**: REQ-F-011、REQ-F-018、DD-02 (report-cli)、DD-05、DD-07、DD-08、`specifications-report-cli.md` R-605〜R-613、R-621
 
 **変更**:
 
 - `report.ts` に `formatReport(summary): string` を純関数として追加する。標準出力に出すテキストのみを返す
 - 内容: 中断の見出し (R-605)、変異体 0 件の明示 (R-606)、判定ごとの件数と survived の許容済み / 未許容の内訳 (R-607)、kill 率 killed ÷ (killed + survived) または「算出不能」と有効判定率 (R-608)
-- 未許容の生存の一覧 (ファイル・行・桁の昇順)、古いエントリ、drift (R-609〜R-611)。残骸は存在するときだけセクションを出す (R-612)。有効判定がすべて survived のファイルの警告 (R-613)
+- 未許容の生存の一覧 (ファイル・行・桁の昇順)、古いエントリ、drift (R-609〜R-611)。監査単位の失敗 (`auditFailures`) は存在するときだけ drift の直後にセクションを出す (R-621)。残骸は存在するときだけセクションを出す (R-612)。有効判定がすべて survived のファイルの警告 (R-613)
 - `summary` の入力型 `MutationRunReport` を `types/mutation.types.ts` に追加する。入力は生成件数 (`generatedCount`) と判定の列 (判定済み件数) を別に持つ
 - 「変異体 0 件」(R-606) は生成件数が 0 のときだけ出す。中断で判定済みが 0 件でも、生成件数が 1 以上なら R-606 にしない
 - 有効判定率 (R-608) の分母「変異体の総数」は、通常は生成件数とする。中断時は R-605 (判定済みの変異体だけで構成する) に従い、判定済み件数とする
@@ -518,6 +518,7 @@ bdd-cycle ルールに従い、Commit 16 の前後で production の import を 
 | R-618 | `--strict` で有効判定 0 件なら非 0         | C9      |
 | R-619 | `--strict` で古いエントリがあれば非 0      | C9      |
 | R-620 | 上記のいずれにも該当しなければ 0           | C9      |
+| R-621 | 監査単位の失敗の列挙                       | C8      |
 
 ---
 
@@ -570,3 +571,4 @@ bdd-cycle ルールに従い、Commit 16 の前後で production の import を 
 | 2026-10-09 | 1.4.0   | 3.4 #5 に明示的な null 文書の扱い (R-502 の読み込みエラー) と空文書の判定方法を追加 (cle-kju.17.2.1)                                                                                                                                                                                                                                                                                                                    |
 | 2026-10-09 | 1.5.0   | Commit 7 に `matchAllowlist` の前提 (判定の変異体は生成された変異体に含まれる。違反は `ChatlogError`) を追加 (cle-kju.17.2.2)                                                                                                                                                                                                                                                                                           |
 | 2026-10-09 | 1.6.0   | UTF-8（BOM なし）規約 (coding-guidelines.md) に従い、BOM 付きのソースの扱いを仕様から外す。BOM の無い入力を前提とする (cle-kju.17.1.2)                                                                                                                                                                                                                                                                                  |
+| 2026-10-09 | 1.7.0   | Commit 8 に監査単位の失敗の列挙 (report-cli R-621 / DD-10) を追加し、トレーサビリティ表に R-621 を加える (cle-kju.17.4.2)                                                                                                                                                                                                                                                                                               |
