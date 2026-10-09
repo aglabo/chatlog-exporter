@@ -87,7 +87,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | done    |
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | done    |
 | T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | done    |
-| T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | pending |
+| T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | done    |
 | T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | pending |
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending |
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending |
@@ -2226,14 +2226,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-01: 子プロセスが終了したときの結果の捕捉
 
-- [ ] **T-08-01-01**: 終了コード 0 の子プロセスは終了コードと標準出力・標準エラーを保持した `exited` になる
+- [x] **T-08-01-01**: 終了コード 0 の子プロセスは終了コードと標準出力・標準エラーを保持した `exited` になる
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-01-01`
   - Rule: execution R-217 / REQ-NF-002
   - Scenario: Given 終了コード 0・標準出力 `"ok | 1 passed"`・標準エラー `""` で終わる子プロセスのスタブ, When `runDenoTest` を呼ぶ
   - Expected: Then `{ kind: 'exited', code: 0, stdout: "ok | 1 passed", stderr: "" }` 相当の結果を返すこと
 
-- [ ] **T-08-01-02**: 非 0 終了でも標準出力と標準エラーを捨てずに返す
+- [x] **T-08-01-02**: 非 0 終了でも標準出力と標準エラーを捨てずに返す
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-01-02`
   - Rule: execution R-217 / execution DD-03
@@ -2242,7 +2242,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-02: 起動引数の受け渡し
 
-- [ ] **T-08-02-01**: 渡した引数がそのまま `deno` の起動引数になる
+- [x] **T-08-02-01**: 渡した引数がそのまま `deno` の起動引数になる
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-02-01`
   - Rule: execution R-217 / REQ-NF-002
@@ -2253,7 +2253,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-03: 子プロセスの起動失敗
 
-- [ ] **T-08-03-01**: 起動時の例外は投げ直さず `error` として返す
+- [x] **T-08-03-01**: 起動時の例外は投げ直さず `error` として返す
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-03-01`
   - Rule: execution R-219
@@ -2262,7 +2262,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-04: 制限時間の超過（unit）
 
-- [ ] **T-08-04-01**: 制限時間内に終わらない子プロセスは強制終了され `timeout` になる
+- [x] **T-08-04-01**: 制限時間内に終わらない子プロセスは強制終了され `timeout` になる
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-04-01`
   - Rule: execution R-218 / execution DD-04 / REQ-NF-003
@@ -2271,7 +2271,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-05: 実 `deno` の制限時間超過（integration）
 
-- [ ] **T-08-05-01**: 実際の `deno test` が制限時間を超えると、直接の子プロセスが終了させられて `timeout` が返る
+- [x] **T-08-05-01**: 実際の `deno test` が制限時間を超えると、直接の子プロセスが終了させられて `timeout` が返る
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RDI-01-01`
   - Rule: execution R-218 / execution DD-04 / REQ-NF-003
@@ -2282,35 +2282,35 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-06: 終了・中止の境界と出力の加工
 
-- [ ] **T-08-06-01**: 制限時間内に終了した場合は `kill` を送らず、タイマーを残さない
+- [x] **T-08-06-01**: 制限時間内に終了した場合は `kill` を送らず、タイマーを残さない
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-05-01`
   - Rule: execution R-217 / execution R-218
   - Scenario: Given 即座に終了コード 0 で終わる子プロセスのスタブと `timeoutMs: 60000`, When `runDenoTest` を呼ぶ
   - Expected: Then `kill` が送られず、テストのリソース検査（タイマーの残留）で失敗しないこと
 
-- [ ] **T-08-06-02**: 実行中に `signal` が中止されると、直接の子プロセスに `kill` を送って待機を終える
+- [x] **T-08-06-02**: 実行中に `signal` が中止されると、直接の子プロセスに `kill` を送って待機を終える
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-05-02`
   - Rule: execution R-227 / implementation Commit 10
   - Scenario: Given `kill` されるまで終了しない子プロセスのスタブ、`timeoutMs: 60000`、実行開始後に中止する `AbortController`, When `runDenoTest` を呼ぶ
   - Expected: Then 制限時間を待たずに結果が返り、スタブの子プロセスに `kill` が送られていること
 
-- [ ] **T-08-06-03**: ANSI エスケープを含む出力は除去せずそのまま返す
+- [x] **T-08-06-03**: ANSI エスケープを含む出力は除去せずそのまま返す
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-05-03`
   - Rule: execution R-217 / execution DD-03（ANSI の除去は判定側の責務）
   - Scenario: Given 標準エラーに `"\x1b[0m\x1b[1m\x1b[31merror\x1b[0m: Type checking failed."` を出して終了コード 1 で終わる子プロセスのスタブ, When `runDenoTest` を呼ぶ
   - Expected: Then `stderr` がエスケープを含んだ入力と完全一致すること
 
-- [ ] **T-08-06-04**: 呼び出し前に中止済みの `signal` でも、制限時間を待たずに結果を返す
+- [x] **T-08-06-04**: 呼び出し前に中止済みの `signal` でも、制限時間を待たずに結果を返す
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-05-04`
   - Rule: execution R-227 / implementation Commit 10
   - Scenario: Given 呼び出し前に中止済みの `AbortController` の `signal`、`kill` されるまで終了しない子プロセスのスタブ、`timeoutMs: 60000`, When `runDenoTest` を呼ぶ
   - Expected: Then 例外を投げず、制限時間（60000ms）を待たずに結果が返ること（終了しない子プロセスを残したまま待ち続けないこと）
 
-- [ ] **T-08-06-05**: 強制終了と自然終了が競合しても例外を投げず、1 つの種類の結果を返す
+- [x] **T-08-06-05**: 強制終了と自然終了が競合しても例外を投げず、1 つの種類の結果を返す
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RD-05-05`
   - Rule: execution R-218 / execution R-219 / execution DD-04
@@ -2319,7 +2319,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-08-07: パイプの容量を超える出力（integration）
 
-- [ ] **T-08-07-01**: パイプの容量を超える標準出力・標準エラーを、詰まらずに全量捕捉する
+- [x] **T-08-07-01**: パイプの容量を超える標準出力・標準エラーを、詰まらずに全量捕捉する
   - Target: `runDenoTest`
   - Test ID: `T-MUT-RDI-02-01`
   - Rule: execution R-217 / execution DD-03（出力を捨てずに取得する）
