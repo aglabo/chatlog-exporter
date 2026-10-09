@@ -132,26 +132,34 @@ const _checkReason = (value: unknown): string[] => {
 };
 
 /**
- * `occurrence` を検証する。1 以上の整数だけを受け付ける (allowlist R-504 / DD-03)。
+ * `occurrence` を検証する。欠落と 1 以上の整数以外の値を不正とする (allowlist R-504 / DD-03)。
  *
  * @param value - `occurrence` の値
  * @returns 不正の説明 (正しければ空配列)
  */
-const _checkOccurrence = (value: unknown): string[] =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 1
+const _checkOccurrence = (value: unknown): string[] => {
+  if (value === undefined) {
+    return ['occurrence が無い'];
+  }
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1
     ? []
     : [`occurrence が 1 以上の整数でない: ${_formatValue(value)}`];
+};
 
 /**
- * `op` を検証する。`MutationOp` の値だけを受け付ける (allowlist R-504)。
+ * `op` を検証する。欠落と `MutationOp` 以外の値を不正とする (allowlist R-504 / impl §3.4 #2)。
  *
  * @param value - `op` の値
  * @returns 不正の説明 (正しければ空配列)
  */
-const _checkOp = (value: unknown): string[] =>
-  _MUTATION_OPS.includes(value as MutationOp)
+const _checkOp = (value: unknown): string[] => {
+  if (value === undefined) {
+    return ['op が無い'];
+  }
+  return _MUTATION_OPS.includes(value as MutationOp)
     ? []
     : [`op が MutationOp に無い: ${_formatValue(value)} (許可値: ${_MUTATION_OPS.join(', ')})`];
+};
 
 /**
  * 値がマッピング (`null` でも配列でもないオブジェクト) かを判定する。

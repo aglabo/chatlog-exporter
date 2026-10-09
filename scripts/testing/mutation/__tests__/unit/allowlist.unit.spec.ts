@@ -266,6 +266,36 @@ const _attributeErrorCases: readonly _EntryErrorCase[] = [
     entry: _makeEntry({ file: 'C:/x/a.ts' }),
     expected: '1 件目: file が / 区切りのリポジトリルート相対パスでない',
   },
+  {
+    id: 'T-MUT-AL-05-16',
+    input: 'after: 1 (数値) のエントリ 1 件',
+    entry: _makeEntry({ after: 1 }),
+    expected: '1 件目: after が文字列でない: 1',
+  },
+  {
+    id: 'T-MUT-AL-05-18',
+    input: 'lineText キーを持たないエントリ 1 件',
+    entry: _makeEntry({}, 'lineText'),
+    expected: '1 件目: lineText が無い',
+  },
+  {
+    id: 'T-MUT-AL-05-19',
+    input: 'op キーを持たないエントリ 1 件',
+    entry: _makeEntry({}, 'op'),
+    expected: '1 件目: op が無い',
+  },
+  {
+    id: 'T-MUT-AL-05-20',
+    input: 'before キーを持たないエントリ 1 件',
+    entry: _makeEntry({}, 'before'),
+    expected: '1 件目: before が無い',
+  },
+  {
+    id: 'T-MUT-AL-05-21',
+    input: 'occurrence キーを持たないエントリ 1 件',
+    entry: _makeEntry({}, 'occurrence'),
+    expected: '1 件目: occurrence が無い',
+  },
 ];
 
 /** 明示的な null 文書 (allowlist R-502 / impl §3.4 #5: 免除は内容なし・コメントのみ)。 */
@@ -395,6 +425,18 @@ describe('loadAllowlist', () => {
 
         assertEquals(_result.map((entry) => entry.after), ['']);
       });
+
+      it('[Normal] T-MUT-AL-02-03: libs.yaml と classify.yaml がある → loadAllowlist("libs") は libs.yaml のエントリ 1 件だけ', async () => {
+        await Deno.writeTextFile(join(tempDir, 'libs.yaml'), stringifyYaml([_VALID_ENTRY]));
+        await Deno.writeTextFile(
+          join(tempDir, 'classify.yaml'),
+          stringifyYaml([_makeEntry({ file: 'skills/classify-chatlogs/scripts/b.ts' })]),
+        );
+
+        const _result = await loadAllowlist('libs', { allowlistDir: tempDir });
+
+        assertEquals(_result, [_VALID_ENTRY]);
+      });
     });
   });
 
@@ -493,6 +535,17 @@ describe('loadAllowlist', () => {
 
         assertStringIncludes(_error.message, '1 件目: エントリがマッピングでない');
         assertEquals(_error.message.includes('1 件目: file が無い'), false);
+      });
+
+      it('[Error] T-MUT-AL-05-17: after: (値なし = null) のエントリ 1 件 → ChatlogError (after が文字列でない: null)', async () => {
+        await _writeAllowlist(
+          tempDir,
+          "- file: skills/_cle-libs/libs/a.ts\n  lineText: 'if (a > b) {'\n  op: relational\n  before: '>'\n  after:\n  occurrence: 1\n  reason: 'a === b に到達しない'\n",
+        );
+
+        const _error = await _loadError(tempDir);
+
+        assertStringIncludes(_error.message, '1 件目: after が文字列でない: null');
       });
     });
   });
