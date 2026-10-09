@@ -78,25 +78,25 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 ## Task Summary
 
-| Test Target                                                                           | Commit | Phase | Scenarios | Cases   | Status      |
-| ------------------------------------------------------------------------------------- | ------ | ----- | --------- | ------- | ----------- |
-| T-01: `resolveTargets` / `isMutationArtifact`                                         | 3      | 1     | 13        | 46      | done        |
-| T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 39      | done        |
-| T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done        |
-| T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | done        |
-| T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | done        |
-| T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | pending     |
-| T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | pending     |
-| T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | pending     |
-| T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | pending     |
-| T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending     |
-| T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending     |
-| T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending     |
-| T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending     |
-| T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending     |
-| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending     |
-| T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending     |
-| **合計**                                                                              | —      | —     | **175**   | **481** | —           |
+| Test Target                                                                           | Commit | Phase | Scenarios | Cases   | Status  |
+| ------------------------------------------------------------------------------------- | ------ | ----- | --------- | ------- | ------- |
+| T-01: `resolveTargets` / `isMutationArtifact`                                         | 3      | 1     | 13        | 46      | done    |
+| T-02: `applyMutant` / `toMutantPath` / `toMutationConfigPath` / `buildMutationConfig` | 4      | 1     | 19        | 39      | done    |
+| T-03: `stripAnsi` / `parseSummary` / `classifyOutcome`                                | 5      | 1     | 16        | 30      | done    |
+| T-04: `loadAllowlist`                                                                 | 6      | 1     | 9         | 49      | done    |
+| T-05: `matchAllowlist`                                                                | 7      | 1     | 10        | 39      | done    |
+| T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | done    |
+| T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | pending |
+| T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | pending |
+| T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | pending |
+| T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending |
+| T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending |
+| T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending |
+| T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending |
+| T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending |
+| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending |
+| T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending |
+| **合計**                                                                              | —      | —     | **175**   | **481** | —       |
 
 <!-- Status may be: pending | in progress | done -->
 
@@ -1753,14 +1753,14 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-01: 判定ごとの件数
 
-- [ ] **T-06-01-01**: 5 種の判定の件数を別々に出す
+- [x] **T-06-01-01**: 5 種の判定の件数を別々に出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-01-01`
   - Rule: report-cli R-607 / DR-02 / REQ-F-011
   - Scenario: Given killed 3・survived 2・timeout 1・error 1・compile-error 1 の判定を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に killed 3、survived 2、timeout 1、error 1、compile-error 1 の件数がそれぞれ含まれること
 
-- [ ] **T-06-01-02**: survived を許容済みと未許容の内訳に分けて出す
+- [x] **T-06-01-02**: survived を許容済みと未許容の内訳に分けて出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-01-02`
   - Rule: report-cli R-607 / DR-04
@@ -1769,21 +1769,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-02: kill 率と有効判定率
 
-- [ ] **T-06-02-01**: kill 率を killed ÷ (killed + survived) の百分率で出す
+- [x] **T-06-02-01**: kill 率を killed ÷ (killed + survived) の百分率で出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-02-01`
   - Rule: report-cli R-608 / report-cli DD-05
   - Scenario: Given killed 3・survived 1 の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の kill 率が 75% であること
 
-- [ ] **T-06-02-02**: 有効判定率を (killed + survived) ÷ 生成件数の百分率で出す
+- [x] **T-06-02-02**: 有効判定率を (killed + survived) ÷ 生成件数の百分率で出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-02-02`
   - Rule: report-cli R-608 / report-cli DD-05 / implementation Commit 8（通常時の分母は生成件数）
   - Scenario: Given `generatedCount` 8 で、killed 3・survived 1・timeout 4 の判定を持つ中断なしの summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の有効判定率が 50% であること
 
-- [ ] **T-06-02-03**: compile-error は kill 率の分母に含めない
+- [x] **T-06-02-03**: compile-error は kill 率の分母に含めない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-02-03`
   - Rule: report-cli R-608 / DR-02 / report-cli DD-05 / Edge report-cli-22
@@ -1792,35 +1792,35 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-03: 一覧の出力
 
-- [ ] **T-06-03-01**: 未許容の生存を file:line・オペレータ・置換前後の字句つきで出す
+- [x] **T-06-03-01**: 未許容の生存を file:line・オペレータ・置換前後の字句つきで出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-03-01`
   - Rule: report-cli R-609 / REQ-F-011 / AC-013 / Edge report-cli-11
   - Scenario: Given `skills/_cle-libs/libs/a.ts` の 12 行目で `>` を `>=` にした未許容の生存 1 件を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の未許容の生存の一覧に `skills/_cle-libs/libs/a.ts:12`、`relational`、`>`、`>=` が含まれること
 
-- [ ] **T-06-03-02**: 許容済みの生存は未許容の一覧に出さない
+- [x] **T-06-03-02**: 許容済みの生存は未許容の一覧に出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-03-02`
   - Rule: report-cli R-609（許容済みは R-607 の内訳でのみ示す）
   - Scenario: Given 許容済みの生存 1 件だけを持ち、未許容の生存が 0 件の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 未許容の生存の一覧に当該変異体の file:line が含まれないこと
 
-- [ ] **T-06-03-03**: 未許容の生存をファイル・行・桁の昇順に並べる
+- [x] **T-06-03-03**: 未許容の生存をファイル・行・桁の昇順に並べる
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-03-03`
   - Rule: report-cli R-609
   - Scenario: Given 未許容の生存 `b.ts:3:5`・`a.ts:10:2`・`a.ts:3:9`・`a.ts:3:4` をこの順で持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 一覧が `a.ts:3:4`、`a.ts:3:9`、`a.ts:10:2`、`b.ts:3:5` の順に並ぶこと
 
-- [ ] **T-06-03-04**: 古い許容エントリを列挙する
+- [x] **T-06-03-04**: 古い許容エントリを列挙する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-03-04`
   - Rule: report-cli R-610 / DR-04 / REQ-F-010 / Edge report-cli-17
   - Scenario: Given 古いエントリ 1 件を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の古いエントリの一覧に当該エントリの `file` と `lineText` が含まれること
 
-- [ ] **T-06-03-05**: drift したファイルを列挙する
+- [x] **T-06-03-05**: drift したファイルを列挙する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-03-05`
   - Rule: report-cli R-611 / REQ-F-008 / Edge report-cli-19
@@ -1831,35 +1831,35 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-04: 実行上の異常の報告
 
-- [ ] **T-06-04-01**: 削除できなかったファイルを残骸として列挙し警告する
+- [x] **T-06-04-01**: 削除できなかったファイルを残骸として列挙し警告する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-04-01`
   - Rule: report-cli R-612 / report-cli DD-07 / execution DD-05 / Edge report-cli-20
   - Scenario: Given 残骸として `skills/_cle-libs/libs/a.mutation-003.ts` を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に残骸のセクションと警告があり、`a.mutation-003.ts` が列挙されること
 
-- [ ] **T-06-04-02**: 有効な判定がすべて survived のファイルに「差し替えが効いていない可能性」を警告する
+- [x] **T-06-04-02**: 有効な判定がすべて survived のファイルに「差し替えが効いていない可能性」を警告する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-04-02`
   - Rule: report-cli R-613 / report-cli DD-08 / Edge report-cli-21
   - Scenario: Given `a.ts` の判定が survived 3 件だけである summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に `a.ts` についての差し替えが効いていない可能性の警告が含まれること
 
-- [ ] **T-06-04-03**: 中断時はレポートの先頭に途中結果である旨を明示する
+- [x] **T-06-04-03**: 中断時はレポートの先頭に途中結果である旨を明示する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-04-03`
   - Rule: report-cli R-605 / report-cli DD-06 / Edge report-cli-23
   - Scenario: Given 中断ありで、判定済みの変異体 2 件を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の先頭が「中断（途中結果）」の見出しであること
 
-- [ ] **T-06-04-04**: survived 2 件と timeout 1 件のファイルにも差し替えの警告を出す
+- [x] **T-06-04-04**: survived 2 件と timeout 1 件のファイルにも差し替えの警告を出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-04-04`
   - Rule: report-cli R-613（有効な判定だけで判断する） / report-cli DD-05 / Edge report-cli-21
   - Scenario: Given `a.ts` の判定が survived 2 件・timeout 1 件である summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に `a.ts` についての差し替えが効いていない可能性の警告が含まれること（timeout を有効な判定に数えないこと）
 
-- [ ] **T-06-04-05**: 2 ファイルのうち有効な判定がすべて survived のファイルだけを警告する
+- [x] **T-06-04-05**: 2 ファイルのうち有効な判定がすべて survived のファイルだけを警告する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-04-05`
   - Rule: report-cli R-613（ファイルごとに判断する） / Edge report-cli-21
@@ -1870,21 +1870,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-05: 0 件の明示
 
-- [ ] **T-06-05-01**: 未許容の生存が 0 件なら 0 件と明示する
+- [x] **T-06-05-01**: 未許容の生存が 0 件なら 0 件と明示する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-05-01`
   - Rule: report-cli R-609
   - Scenario: Given 未許容の生存が 0 件の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 未許容の生存のセクションが省略されず、0 件と明示されること
 
-- [ ] **T-06-05-02**: 古いエントリが 0 件なら 0 件と明示する
+- [x] **T-06-05-02**: 古いエントリが 0 件なら 0 件と明示する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-05-02`
   - Rule: report-cli R-610
   - Scenario: Given 古いエントリが 0 件の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 古いエントリのセクションが省略されず、0 件と明示されること
 
-- [ ] **T-06-05-03**: drift が 0 件なら 0 件と明示する
+- [x] **T-06-05-03**: drift が 0 件なら 0 件と明示する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-05-03`
   - Rule: report-cli R-611
@@ -1893,21 +1893,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-06: 出さないセクション・警告
 
-- [ ] **T-06-06-01**: 残骸が無ければ残骸のセクションを出さない
+- [x] **T-06-06-01**: 残骸が無ければ残骸のセクションを出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-06-01`
   - Rule: report-cli R-612
   - Scenario: Given 残骸が 0 件の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に残骸のセクションも警告も含まれないこと
 
-- [ ] **T-06-06-02**: 有効な判定が 0 件のファイルには差し替えの警告を出さない
+- [x] **T-06-06-02**: 有効な判定が 0 件のファイルには差し替えの警告を出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-06-02`
   - Rule: report-cli R-613
   - Scenario: Given `a.ts` の判定が timeout 2 件だけである summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に `a.ts` についての差し替えの警告が含まれないこと
 
-- [ ] **T-06-06-03**: killed を含むファイルには差し替えの警告を出さない
+- [x] **T-06-06-03**: killed を含むファイルには差し替えの警告を出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-06-03`
   - Rule: report-cli R-613
@@ -1916,21 +1916,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-07: kill 率の算出不能
 
-- [ ] **T-06-07-01**: killed + survived が 0 件なら kill 率を「算出不能」と出す
+- [x] **T-06-07-01**: killed + survived が 0 件なら kill 率を「算出不能」と出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-07-01`
   - Rule: report-cli R-608 / Edge report-cli-14 / Edge report-cli-27
   - Scenario: Given timeout 2 件だけの判定を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の kill 率が「算出不能」であり、0 除算による `NaN` や `Infinity` を含まないこと
 
-- [ ] **T-06-07-02**: 生成件数 0 で有効判定率の分母が 0 でも `NaN` や `Infinity` を出さない
+- [x] **T-06-07-02**: 生成件数 0 で有効判定率の分母が 0 でも `NaN` や `Infinity` を出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-07-02`
   - Rule: report-cli R-608 / report-cli R-606 / implementation Commit 8（通常時の分母は生成件数）
   - Scenario: Given `generatedCount` が 0 で中断なしの summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に `NaN` と `Infinity` のどちらも含まれないこと
 
-- [ ] **T-06-07-03**: 中断で判定済み 0 件のとき有効判定率の分母が 0 でも `NaN` や `Infinity` を出さない
+- [x] **T-06-07-03**: 中断で判定済み 0 件のとき有効判定率の分母が 0 でも `NaN` や `Infinity` を出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-07-03`
   - Rule: report-cli R-608 / report-cli R-605 / implementation Commit 8（中断時の分母は判定済み件数）
@@ -1939,35 +1939,35 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-08: 変異体 0 件
 
-- [ ] **T-06-08-01**: 生成件数 0 なら「変異体 0 件」を明示し、件数を 0 として出す
+- [x] **T-06-08-01**: 生成件数 0 なら「変異体 0 件」を明示し、件数を 0 として出す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-08-01`
   - Rule: report-cli R-606 / REQ-F-018 / AC-021 / Edge report-cli-8
   - Scenario: Given `generatedCount` が 0 で中断なしの summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に「変異体 0 件」が含まれ、5 種の判定の件数がすべて 0 と出ること
 
-- [ ] **T-06-08-02**: 中断で判定済みが 0 件でも、生成件数が 1 以上なら「変異体 0 件」と出さない
+- [x] **T-06-08-02**: 中断で判定済みが 0 件でも、生成件数が 1 以上なら「変異体 0 件」と出さない
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-08-02`
   - Rule: report-cli R-606 / report-cli R-605 / implementation Commit 8
   - Scenario: Given `generatedCount` 5 で、中断ありかつ判定済み 0 件の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に「変異体 0 件」が含まれず、中断の見出しが含まれること
 
-- [ ] **T-06-08-03**: 変異体 0 件でも古いエントリは通常どおり列挙する
+- [x] **T-06-08-03**: 変異体 0 件でも古いエントリは通常どおり列挙する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-08-03`
   - Rule: report-cli R-606 / report-cli R-610 / Edge report-cli-10
   - Scenario: Given `generatedCount` が 0 で、古いエントリ 2 件を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に「変異体 0 件」と古いエントリ 2 件の一覧の両方が含まれること
 
-- [ ] **T-06-08-04**: 変異体 0 件でも drift は通常どおり列挙する
+- [x] **T-06-08-04**: 変異体 0 件でも drift は通常どおり列挙する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-08-04`
   - Rule: report-cli R-606（drift は通常どおり出す） / report-cli R-611
   - Scenario: Given `generatedCount` が 0 で、drift として `skills/_cle-libs/libs/a.ts` 1 件を持つ summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力に「変異体 0 件」と、drift の一覧の `skills/_cle-libs/libs/a.ts` の両方が含まれること
 
-- [ ] **T-06-08-05**: 変異体 0 件でも残骸は通常どおり列挙する
+- [x] **T-06-08-05**: 変異体 0 件でも残骸は通常どおり列挙する
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-08-05`
   - Rule: report-cli R-606（残骸は通常どおり出す） / report-cli R-612
@@ -1976,21 +1976,21 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 #### T-06-09: 分母・決定性・重複一致
 
-- [ ] **T-06-09-01**: 中断時の有効判定率の分母は判定済み件数とする
+- [x] **T-06-09-01**: 中断時の有効判定率の分母は判定済み件数とする
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-09-01`
   - Rule: report-cli R-608 / report-cli R-605 / implementation Commit 8
   - Scenario: Given `generatedCount` 10 で、中断ありかつ判定済み 4 件（killed 1・survived 1・timeout 2）の summary がある, When `formatReport` を呼ぶ
   - Expected: Then 出力の有効判定率が 50%（2 ÷ 4）であり、20%（2 ÷ 10）でないこと
 
-- [ ] **T-06-09-02**: 同一の入力からは同一のテキストを返す
+- [x] **T-06-09-02**: 同一の入力からは同一のテキストを返す
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-09-02`
   - Rule: report-cli §2.2（入力が同じなら出力も同じ） / REQ-NF-002
   - Scenario: Given すべてのセクションを含む summary を 1 つ用意する, When 同じ summary で `formatReport` を 2 回呼ぶ
   - Expected: Then 2 回の戻り値が完全に一致すること
 
-- [ ] **T-06-09-03**: 1 エントリに一致した同テキスト行の 2 件を許容済みとして 2 件数える
+- [x] **T-06-09-03**: 1 エントリに一致した同テキスト行の 2 件を許容済みとして 2 件数える
   - Target: `formatReport`
   - Test ID: `T-MUT-RP-09-03`
   - Rule: report-cli R-607 / DR-04 / allowlist DD-02 / Edge report-cli-28
