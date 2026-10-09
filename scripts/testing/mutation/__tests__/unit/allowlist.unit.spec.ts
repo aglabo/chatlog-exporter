@@ -668,7 +668,7 @@ describe('loadAllowlist', () => {
  *
  * survived の変異体を許容リストと照合し、許容済み・未許容の生存と古いエントリに振り分けることを確認する。
  *
- * テスト ID 範囲: T-MUT-AL-10-01 〜 T-MUT-AL-19-06
+ * テスト ID 範囲: T-MUT-AL-10-01 〜 T-MUT-AL-19-08
  *
  * @see matchAllowlist
  */
@@ -1045,6 +1045,24 @@ describe('matchAllowlist', () => {
       const _result = matchAllowlist([_BASE_MUTANT], [_makeResult(_copy, 'survived')], [_BASE_ENTRY]);
 
       assertEquals(_result.allowed, [_copy]);
+    });
+
+    it('[Error] T-MUT-AL-19-07: 生成は M だけ + 判定に M の line だけを 1 増やした変異体の survived → ChatlogError', () => {
+      const _shifted = _makeMutant({ line: _BASE_MUTANT.line + 1 });
+
+      assertThrows(
+        () => matchAllowlist([_BASE_MUTANT], [_makeResult(_shifted, 'survived')], [_BASE_ENTRY]),
+        ChatlogError,
+      );
+    });
+
+    it('[Error] T-MUT-AL-19-08: 生成は M だけ + 判定に M の column だけを 1 増やした変異体の survived → ChatlogError', () => {
+      const _shifted = _makeMutant({ column: _BASE_MUTANT.column + 1 });
+
+      assertThrows(
+        () => matchAllowlist([_BASE_MUTANT], [_makeResult(_shifted, 'survived')], [_BASE_ENTRY]),
+        ChatlogError,
+      );
     });
   });
 });
