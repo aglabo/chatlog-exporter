@@ -92,7 +92,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | done    |
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | done    |
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | done    |
-| T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending |
+| T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | done    |
 | T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending |
 | T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending |
 | T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending |
@@ -3156,42 +3156,42 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-01: 許可されたモジュール名の受理
 
-- [ ] **T-13-01-01**: `libs` を受理する
+- [x] **T-13-01-01**: `libs` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-01`
   - Rule: report-cli R-604 / report-cli DD-01 / index DD-06 / REQ-F-012
   - Scenario: Given argv が `['libs']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then 例外を投げず、`module` が `'libs'` であること
 
-- [ ] **T-13-01-02**: `classify` を受理する
+- [x] **T-13-01-02**: `classify` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-02`
   - Rule: report-cli R-604 / report-cli DD-01
   - Scenario: Given argv が `['classify']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `module` が `'classify'` であること
 
-- [ ] **T-13-01-03**: `export` を受理する
+- [x] **T-13-01-03**: `export` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-03`
   - Rule: report-cli R-604 / report-cli DD-01
   - Scenario: Given argv が `['export']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `module` が `'export'` であること
 
-- [ ] **T-13-01-04**: `filter` を受理する
+- [x] **T-13-01-04**: `filter` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-04`
   - Rule: report-cli R-604 / report-cli DD-01
   - Scenario: Given argv が `['filter']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `module` が `'filter'` であること
 
-- [ ] **T-13-01-05**: `normalize` を受理する
+- [x] **T-13-01-05**: `normalize` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-05`
   - Rule: report-cli R-604 / report-cli DD-01
   - Scenario: Given argv が `['normalize']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `module` が `'normalize'` であること
 
-- [ ] **T-13-01-06**: `set` を受理する
+- [x] **T-13-01-06**: `set` を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-01-06`
   - Rule: report-cli R-604 / report-cli DD-01
@@ -3200,14 +3200,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-02: `--strict` の確定
 
-- [ ] **T-13-02-01**: `--strict` を指定すると `strict` が true になる
+- [x] **T-13-02-01**: `--strict` を指定すると `strict` が true になる
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-02-01`
   - Rule: report-cli R-604 / DR-03
   - Scenario: Given argv が `['libs', '--strict']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `strict` が `true` であること
 
-- [ ] **T-13-02-02**: `--strict` と `--timeout` を同時に指定すると両方を確定する
+- [x] **T-13-02-02**: `--strict` と `--timeout` を同時に指定すると両方を確定する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-02-02`
   - Rule: report-cli R-604
@@ -3216,7 +3216,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-03: `--timeout` の正の整数の受理
 
-- [ ] **T-13-03-01**: `--timeout 30` を秒数 30 として受理する
+- [x] **T-13-03-01**: `--timeout 30` を秒数 30 として受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-03-01`
   - Rule: report-cli R-604 / report-cli DD-03 / REQ-NF-003
@@ -3227,21 +3227,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-04: モジュール名の欠落
 
-- [ ] **T-13-04-01**: 引数が空なら引数エラー
+- [x] **T-13-04-01**: 引数が空なら引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-04-01`
   - Rule: report-cli R-601 / Edge report-cli-1 / REQ-F-012
   - Scenario: Given argv が `[]` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-04-02**: フラグだけでモジュール名が無ければ引数エラー
+- [x] **T-13-04-02**: フラグだけでモジュール名が無ければ引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-04-02`
   - Rule: report-cli R-601
   - Scenario: Given argv が `['--strict']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること (`--strict` をモジュール名と誤認しない)
 
-- [ ] **T-13-04-03**: モジュール名の欠落のエラーは許可値の一覧を含む
+- [x] **T-13-04-03**: モジュール名の欠落のエラーは許可値の一覧を含む
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-04-03`
   - Rule: report-cli R-601 / report-cli 4.1（引数エラーの理由と許可値の一覧） / Edge report-cli-1
@@ -3250,49 +3250,49 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-05: 許可値以外のモジュール名
 
-- [ ] **T-13-05-01**: 存在しないモジュール名は引数エラー
+- [x] **T-13-05-01**: 存在しないモジュール名は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-01`
   - Rule: report-cli R-602 / Edge report-cli-2 / AC-014
   - Scenario: Given argv が `['unknown']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-05-02**: `all` は引数エラー
+- [x] **T-13-05-02**: `all` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-02`
   - Rule: report-cli R-602 / report-cli DD-01 / Edge report-cli-3
   - Scenario: Given argv が `['all']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-05-03**: `classes` は引数エラー
+- [x] **T-13-05-03**: `classes` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-03`
   - Rule: report-cli R-602 / report-cli DD-01 / Edge report-cli-3
   - Scenario: Given argv が `['classes']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-05-04**: `scripts` は引数エラー
+- [x] **T-13-05-04**: `scripts` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-04`
   - Rule: report-cli R-602 / report-cli DD-01 (v1.1.0)
   - Scenario: Given argv が `['scripts']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること (`aplys-tester` では有効な短縮名でも変異対象にしない)
 
-- [ ] **T-13-05-05**: スキルのディレクトリ名は引数エラー
+- [x] **T-13-05-05**: スキルのディレクトリ名は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-05`
   - Rule: report-cli R-602 / Edge report-cli-4
   - Scenario: Given argv が `['normalize-chatlogs']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-05-06**: モジュール名のエラーは許可値の一覧を含む
+- [x] **T-13-05-06**: モジュール名のエラーは許可値の一覧を含む
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-06`
   - Rule: report-cli 4.1 (引数エラーの理由と許可値の一覧)
   - Scenario: Given argv が `['unknown']` である, When `parseMutateArgs` を呼んで投げられた `ChatlogError` を捕捉する
   - Expected: Then `error.message` に `libs`・`classify`・`export`・`filter`・`normalize`・`set` の 6 件がすべて含まれること
 
-- [ ] **T-13-05-07**: 共通ライブラリのディレクトリ名 `_cle-libs` は引数エラー
+- [x] **T-13-05-07**: 共通ライブラリのディレクトリ名 `_cle-libs` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-05-07`
   - Rule: report-cli R-602 / report-cli DD-01 / Edge report-cli-4
@@ -3301,49 +3301,49 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-06: `--timeout` の不正値
 
-- [ ] **T-13-06-01**: `--timeout 0` は引数エラー
+- [x] **T-13-06-01**: `--timeout 0` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-01`
   - Rule: report-cli R-603 / report-cli DD-03 / Edge report-cli-5 / AC-024
   - Scenario: Given argv が `['libs', '--timeout', '0']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-06-02**: 負数は引数エラー
+- [x] **T-13-06-02**: 負数は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-02`
   - Rule: report-cli R-603 / Edge report-cli-5
   - Scenario: Given argv が `['libs', '--timeout', '-5']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-06-03**: 小数は引数エラー
+- [x] **T-13-06-03**: 小数は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-03`
   - Rule: report-cli R-603 / Edge report-cli-5
   - Scenario: Given argv が `['libs', '--timeout', '1.5']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること (切り捨てて 1 として受理しない)
 
-- [ ] **T-13-06-04**: 数字以外は引数エラー
+- [x] **T-13-06-04**: 数字以外は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-04`
   - Rule: report-cli R-603 / Edge report-cli-5
   - Scenario: Given argv が `['libs', '--timeout', 'abc']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-06-05**: 数字の後ろに文字が続く値は引数エラー
+- [x] **T-13-06-05**: 数字の後ろに文字が続く値は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-05`
   - Rule: report-cli R-603 (数字以外を含む)
   - Scenario: Given argv が `['libs', '--timeout', '30s']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること (`parseInt` の前方一致で 30 として受理しない)
 
-- [ ] **T-13-06-06**: 値の無い `--timeout` は引数エラー
+- [x] **T-13-06-06**: 値の無い `--timeout` は引数エラー
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-06`
   - Rule: report-cli R-603 / Edge report-cli-6
   - Scenario: Given argv が `['libs', '--timeout']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-13-06-07**: `--timeout` のエラーは不正な引数名を含む
+- [x] **T-13-06-07**: `--timeout` のエラーは不正な引数名を含む
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-06-07`
   - Rule: report-cli 4.1 (どの引数がなぜ不正か)
@@ -3354,21 +3354,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-07: 省略時の既定値
 
-- [ ] **T-13-07-01**: `--timeout` 省略時は 120 秒
+- [x] **T-13-07-01**: `--timeout` 省略時は 120 秒
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-07-01`
   - Rule: report-cli R-604 / report-cli DD-03 / Edge report-cli-7 / REQ-NF-003
   - Scenario: Given argv が `['libs']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `timeoutSec` が `120` であること
 
-- [ ] **T-13-07-02**: `--strict` 省略時は false
+- [x] **T-13-07-02**: `--strict` 省略時は false
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-07-02`
   - Rule: report-cli R-604 / DR-03
   - Scenario: Given argv が `['libs']` である, When `parseMutateArgs` を呼ぶ
   - Expected: Then `strict` が `false` であること
 
-- [ ] **T-13-07-03**: 最小の正の整数 1 を受理する
+- [x] **T-13-07-03**: 最小の正の整数 1 を受理する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-07-03`
   - Rule: report-cli R-603 / report-cli DD-03 (境界値 min)
@@ -3377,14 +3377,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-13-08: 規則の評価順
 
-- [ ] **T-13-08-01**: モジュール名の欠落は `--timeout` の不正より先に判定する
+- [x] **T-13-08-01**: モジュール名の欠落は `--timeout` の不正より先に判定する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-08-01`
   - Rule: report-cli 4.1 (Step 順の評価、R-601 → R-603)
   - Scenario: Given argv が `['--timeout', '0']` である, When `parseMutateArgs` を呼んで投げられた `ChatlogError` を捕捉する
   - Expected: Then `error.message` がモジュール名の欠落を理由とし、`--timeout` の不正を理由としないこと
 
-- [ ] **T-13-08-02**: 許可値以外のモジュール名は `--timeout` の不正より先に判定する
+- [x] **T-13-08-02**: 許可値以外のモジュール名は `--timeout` の不正より先に判定する
   - Target: `parseMutateArgs`
   - Test ID: `T-MUT-MT-08-02`
   - Rule: report-cli 4.1 (Step 順の評価、R-602 → R-603)
