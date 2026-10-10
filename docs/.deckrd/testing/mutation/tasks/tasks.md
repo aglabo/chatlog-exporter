@@ -88,7 +88,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-06: `formatReport`                                                                  | 8      | 1     | 9         | 32      | done    |
 | T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | done    |
 | T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | done    |
-| T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | pending |
+| T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | done    |
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending |
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending |
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending |
@@ -2338,21 +2338,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-01: ロックが無い状態での取得
 
-- [ ] **T-09-01-01**: ロックが存在しなければロックファイルを作成して取得に成功する
+- [x] **T-09-01-01**: ロックが存在しなければロックファイルを作成して取得に成功する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-01-01`
   - Rule: execution R-201 / execution R-203 / REQ-F-017
   - Scenario: Given ロックのパスにファイルが存在しない一時ディレクトリ, When `acquireLock(path)` を呼ぶ
   - Expected: Then 例外を投げず、`path` にロックファイルが作成されていること
 
-- [ ] **T-09-01-02**: ロックに PID・作成時刻・ランダム ID を記録する
+- [x] **T-09-01-02**: ロックに PID・作成時刻・ランダム ID を記録する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-01-02`
   - Rule: execution R-203 / execution DD-07
   - Scenario: Given ロックが存在しない一時ディレクトリ, When `acquireLock(path)` を呼んでロックファイルを読む
   - Expected: Then 記録の PID が `Deno.pid` と一致し、作成時刻が日時として解釈でき、ランダム ID が空でない文字列であること
 
-- [ ] **T-09-01-03**: ランダム ID は実行ごとに異なる
+- [x] **T-09-01-03**: ランダム ID は実行ごとに異なる
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-01-03`
   - Rule: execution DD-07 / execution DD-13
@@ -2361,7 +2361,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-02: 自分のロックの解放
 
-- [ ] **T-09-02-01**: 記録のランダム ID が自分のものと一致すればロックを削除する
+- [x] **T-09-02-01**: 記録のランダム ID が自分のものと一致すればロックを削除する
   - Target: `releaseLock`
   - Test ID: `T-MUT-RS-02-01`
   - Rule: execution R-213 / execution DD-13
@@ -2372,21 +2372,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-03: 既存のロックがある場合の中止
 
-- [ ] **T-09-03-01**: 有効な記録を持つロックが既にあれば取得に失敗する
+- [x] **T-09-03-01**: 有効な記録を持つロックが既にあれば取得に失敗する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-03-01`
   - Rule: execution R-202 / REQ-F-017 / AC-019 / DR-09
   - Scenario: Given 別の実行が作成した、PID・作成時刻・ランダム ID を持つロックファイル, When `acquireLock(path)` を呼ぶ
   - Expected: Then `ChatlogError` を投げること
 
-- [ ] **T-09-03-02**: 取得に失敗しても既存のロックを書き換えも削除もしない
+- [x] **T-09-03-02**: 取得に失敗しても既存のロックを書き換えも削除もしない
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-03-02`
   - Rule: execution R-202 / execution R-213（取得できなかったロックには触れない）
   - Scenario: Given 別の実行が作成したロックファイル, When `acquireLock(path)` を呼んで失敗させる
   - Expected: Then ロックファイルが存在し、その内容が呼び出し前とバイト単位で同一であること
 
-- [ ] **T-09-03-03**: 中止時に、ロックのパス・記録された PID と作成時刻・削除の案内を標準エラー出力へ出す
+- [x] **T-09-03-03**: 中止時に、ロックのパス・記録された PID と作成時刻・削除の案内を標準エラー出力へ出す
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-03-03`
   - Rule: execution R-202 / execution DD-07
@@ -2395,7 +2395,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-04: ランダム ID が一致しないロックの解放
 
-- [ ] **T-09-04-01**: 記録のランダム ID が別の値ならロックを削除しない
+- [x] **T-09-04-01**: 記録のランダム ID が別の値ならロックを削除しない
   - Target: `releaseLock`
   - Test ID: `T-MUT-RS-04-01`
   - Rule: execution R-213 / execution DD-13
@@ -2404,7 +2404,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-05: 解放の失敗
 
-- [ ] **T-09-05-01**: ロックの削除に失敗しても例外を投げず、警告だけを出す
+- [x] **T-09-05-01**: ロックの削除に失敗しても例外を投げず、警告だけを出す
   - Target: `releaseLock`
   - Test ID: `T-MUT-RS-05-01`
   - Rule: execution DD-14 / execution R-213
@@ -2415,35 +2415,35 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-06: 記録の可読性・保持者の生死を問わない中止
 
-- [ ] **T-09-06-01**: 空のロックファイルでも取得に失敗する
+- [x] **T-09-06-01**: 空のロックファイルでも取得に失敗する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-06-01`
   - Rule: execution R-202 / execution DD-07 / Edge execution-23
   - Scenario: Given 内容が空のロックファイル, When `acquireLock(path)` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、ロックファイルが残っていること
 
-- [ ] **T-09-06-02**: JSON として解釈できないロックファイルでも取得に失敗する
+- [x] **T-09-06-02**: JSON として解釈できないロックファイルでも取得に失敗する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-06-02`
   - Rule: execution R-202 / execution DD-07 / Edge execution-23
   - Scenario: Given 内容が `"{broken"` のロックファイル, When `acquireLock(path)` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、ロックファイルが残っていること
 
-- [ ] **T-09-06-03**: 記録された PID のプロセスが存在しなくても取得に失敗する（引き継がない）
+- [x] **T-09-06-03**: 記録された PID のプロセスが存在しなくても取得に失敗する（引き継がない）
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-06-03`
   - Rule: execution R-202 / execution DD-07 / Edge execution-22
   - Scenario: Given 実在しない PID（例: `999999999`）を記録したロックファイル, When `acquireLock(path)` を呼ぶ
   - Expected: Then `ChatlogError` を投げ、ロックファイルの内容が変わっていないこと
 
-- [ ] **T-09-06-04**: 記録を読み取れない場合は、読み取れた範囲（パスと削除の案内）だけを出す
+- [x] **T-09-06-04**: 記録を読み取れない場合は、読み取れた範囲（パスと削除の案内）だけを出す
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-06-04`
   - Rule: execution R-202 / execution DD-07
   - Scenario: Given 内容が空のロックファイル, When `acquireLock(path)` を呼んで失敗させる
   - Expected: Then 標準エラー出力にロックのパスと削除の案内が含まれ、処理が記録の解釈失敗で別の例外に変わらないこと
 
-- [ ] **T-09-06-05**: 記録の一部だけ読み取れる場合は、読み取れた PID を出して中止する
+- [x] **T-09-06-05**: 記録の一部だけ読み取れる場合は、読み取れた PID を出して中止する
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-06-05`
   - Rule: execution R-202 / execution DD-07（読み取れた範囲）/ Edge execution-23
@@ -2452,7 +2452,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-07: 取得失敗時の副作用の不在
 
-- [ ] **T-09-07-01**: 取得に失敗したとき、ロック以外のファイルを作成も削除もしない
+- [x] **T-09-07-01**: 取得に失敗したとき、ロック以外のファイルを作成も削除もしない
   - Target: `acquireLock`
   - Test ID: `T-MUT-RS-07-01`
   - Rule: execution R-201 / REQ-F-017 / AC-019 / Edge execution-21
@@ -2461,7 +2461,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-08: 解放時に記録が壊れている
 
-- [ ] **T-09-08-01**: 解放時にロックの記録を読み取れなければ削除せず、警告だけを出す
+- [x] **T-09-08-01**: 解放時にロックの記録を読み取れなければ削除せず、警告だけを出す
   - Target: `releaseLock`
   - Test ID: `T-MUT-RS-08-01`
   - Rule: execution DD-13 / execution DD-14
@@ -2470,7 +2470,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-09-09: 解放時にロックが既に無い
 
-- [ ] **T-09-09-01**: ロックファイルが既に無くても、解放は例外を投げずロックを作り直さない
+- [x] **T-09-09-01**: ロックファイルが既に無くても、解放は例外を投げずロックを作り直さない
   - Target: `releaseLock`
   - Test ID: `T-MUT-RS-09-01`
   - Rule: execution DD-14 / execution DD-13 / execution R-213
