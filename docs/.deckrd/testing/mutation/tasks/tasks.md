@@ -89,7 +89,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-07: `decideExitCode`                                                                | 9      | 1     | 10        | 26      | done    |
 | T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | done    |
 | T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | done    |
-| T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | pending |
+| T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | done    |
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending |
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending |
@@ -2481,7 +2481,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 ## T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`（残骸掃除と drift 検査）
 
-> Commit: 12 / 配置ファイル: `scripts/testing/mutation/run-safety.ts` / テストファイル: `scripts/testing/mutation/__tests__/unit/run-safety.unit.spec.ts` / Phase: 2 / Test ID prefix: `T-MUT-RS`（グループ番号 10〜19）
+> Commit: 12 / 配置ファイル: `scripts/testing/mutation/run-safety.ts` / テストファイル: `scripts/testing/mutation/__tests__/unit/run-safety-artifacts.unit.spec.ts`（ケース数を抑えるため T-09 の spec と分ける。2026-10-10 ユーザー決定）/ Phase: 2 / Test ID prefix: `T-MUT-RS`（グループ番号 10〜19）
 
 命名の判定は Commit 3 の判定関数を再利用する（判定関数自体の網羅は T-01 / T-02 の担当）。ここでは掃除・削除の振る舞いだけを検証する。
 
@@ -2489,42 +2489,42 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-01: 命名規則に一致する残骸の削除
 
-- [ ] **T-10-01-01**: 変異体ファイル `foo.mutation-001.ts` を削除する
+- [x] **T-10-01-01**: 変異体ファイル `foo.mutation-001.ts` を削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-01`
   - Rule: execution R-205 / REQ-F-007 / AC-008
   - Scenario: Given `foo.mutation-001.ts` を含む一時ディレクトリ, When そのディレクトリを渡して `sweepArtifacts` を呼ぶ
   - Expected: Then `foo.mutation-001.ts` が存在しないこと
 
-- [ ] **T-10-01-02**: 一時設定 `deno.mutation-001.json` を削除する
+- [x] **T-10-01-02**: 一時設定 `deno.mutation-001.json` を削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-02`
   - Rule: execution R-205 / REQ-F-007 / AC-008
   - Scenario: Given `deno.mutation-001.json` を含む一時ディレクトリ, When そのディレクトリを渡して `sweepArtifacts` を呼ぶ
   - Expected: Then `deno.mutation-001.json` が存在しないこと
 
-- [ ] **T-10-01-03**: `.tsx` の変異体ファイルを削除する
+- [x] **T-10-01-03**: `.tsx` の変異体ファイルを削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-03`
   - Rule: execution R-205 / execution DD-01 / REQ-C-005 / Edge execution-3
   - Scenario: Given `view.mutation-001.tsx` を含む一時ディレクトリ, When そのディレクトリを渡して `sweepArtifacts` を呼ぶ
   - Expected: Then `view.mutation-001.tsx` が存在しないこと
 
-- [ ] **T-10-01-04**: 番号が 1000 以上の変異体ファイルを削除する
+- [x] **T-10-01-04**: 番号が 1000 以上の変異体ファイルを削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-04`
   - Rule: execution R-205 / execution DD-01 / Edge execution-4
   - Scenario: Given `foo.mutation-1000.ts` を含む一時ディレクトリ, When そのディレクトリを渡して `sweepArtifacts` を呼ぶ
   - Expected: Then `foo.mutation-1000.ts` が存在しないこと
 
-- [ ] **T-10-01-05**: 渡したディレクトリの下位ディレクトリにある残骸も削除する
+- [x] **T-10-01-05**: 渡したディレクトリの下位ディレクトリにある残骸も削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-05`
   - Rule: execution R-205 / REQ-F-007 / Edge execution-15
   - Scenario: Given `sub/deep/foo.mutation-001.ts` を含む一時ディレクトリ, When その一時ディレクトリ（`sub/` の親）を渡して `sweepArtifacts` を呼ぶ
   - Expected: Then `sub/deep/foo.mutation-001.ts` が存在しないこと
 
-- [ ] **T-10-01-06**: 複数のディレクトリを渡すと、それぞれの残骸を削除する
+- [x] **T-10-01-06**: 複数のディレクトリを渡すと、それぞれの残骸を削除する
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-10-06`
   - Rule: execution R-205 / REQ-F-007 / Edge execution-15
@@ -2533,14 +2533,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-02: ソースの内容ハッシュ
 
-- [ ] **T-10-02-01**: 同じ内容のファイルは何度取っても同じハッシュになる
+- [x] **T-10-02-01**: 同じ内容のファイルは何度取っても同じハッシュになる
   - Target: `hashSources`
   - Test ID: `T-MUT-RS-11-01`
   - Rule: execution R-206 / implementation Commit 12（`generateHash` を使わない）
   - Scenario: Given 内容を変えないソースファイル 1 件, When `hashSources` を 2 回呼ぶ
   - Expected: Then 2 回の結果でそのファイルのハッシュが一致すること
 
-- [ ] **T-10-02-02**: ハッシュは内容の SHA-256 全 64 桁である
+- [x] **T-10-02-02**: ハッシュは内容の SHA-256 全 64 桁である
   - Target: `hashSources`
   - Test ID: `T-MUT-RS-11-02`
   - Rule: execution R-206 / implementation §3.2（`sessionHash(content, 64)`）
@@ -2549,21 +2549,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-03: drift の突合
 
-- [ ] **T-10-03-01**: 内容が変わっていなければ drift は 0 件である
+- [x] **T-10-03-01**: 内容が変わっていなければ drift は 0 件である
   - Target: `detectDrift`
   - Test ID: `T-MUT-RS-12-01`
   - Rule: execution R-212 / REQ-NF-001
   - Scenario: Given 同じファイル集合・同じ内容から取った 2 つのハッシュ記録, When `detectDrift(before, after)` を呼ぶ
   - Expected: Then 空の一覧を返すこと
 
-- [ ] **T-10-03-02**: 内容が変わったファイルを drift として返す
+- [x] **T-10-03-02**: 内容が変わったファイルを drift として返す
   - Target: `detectDrift`
   - Test ID: `T-MUT-RS-12-02`
   - Rule: execution R-212 / REQ-F-008 / AC-009 / Edge execution-16
   - Scenario: Given `target.ts` と `other.ts` のハッシュ記録を取った後、`target.ts` の内容だけを書き換えて再取得した記録, When `detectDrift(before, after)` を呼ぶ
   - Expected: Then `target.ts` だけを含む一覧を返すこと
 
-- [ ] **T-10-03-03**: drift の一覧は記録の作成順によらず同じ順序で返る
+- [x] **T-10-03-03**: drift の一覧は記録の作成順によらず同じ順序で返る
   - Target: `detectDrift`
   - Test ID: `T-MUT-RS-12-03`
   - Rule: execution R-212 / report-cli R-611 / report-cli §2.2（入力が同じなら出力も同じ）
@@ -2572,14 +2572,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-04: 後始末の削除
 
-- [ ] **T-10-04-01**: 全件削除できれば空の一覧を返す
+- [x] **T-10-04-01**: 全件削除できれば空の一覧を返す
   - Target: `removeArtifacts`
   - Test ID: `T-MUT-RS-13-01`
   - Rule: execution R-225 / REQ-F-006
   - Scenario: Given 存在する変異体ファイルと一時設定の 2 パス, When `removeArtifacts` を呼ぶ
   - Expected: Then 戻り値が空配列で、2 ファイルとも存在しないこと
 
-- [ ] **T-10-04-02**: 書き出されなかったパスは残骸として返さない
+- [x] **T-10-04-02**: 書き出されなかったパスは残骸として返さない
   - Target: `removeArtifacts`
   - Test ID: `T-MUT-RS-13-02`
   - Rule: execution R-226 / execution DD-05 / implementation Commit 12
@@ -2590,14 +2590,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-05: 後始末の削除失敗
 
-- [ ] **T-10-05-01**: 削除できないパスは例外にせず戻り値で返す
+- [x] **T-10-05-01**: 削除できないパスは例外にせず戻り値で返す
   - Target: `removeArtifacts`
   - Test ID: `T-MUT-RS-14-01`
   - Rule: execution R-226 / execution DD-05 / Edge execution-13
   - Scenario: Given 削除できないパス 1 件（同名の空でないディレクトリ）, When `removeArtifacts` を呼ぶ
   - Expected: Then 例外を投げず、そのパスだけを含む配列を返すこと
 
-- [ ] **T-10-05-02**: 一部が削除できなくても、残りのパスは削除する
+- [x] **T-10-05-02**: 一部が削除できなくても、残りのパスは削除する
   - Target: `removeArtifacts`
   - Test ID: `T-MUT-RS-14-02`
   - Rule: execution R-225 / execution R-226 / execution DD-05
@@ -2606,7 +2606,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-06: 起動時の掃除の削除失敗
 
-- [ ] **T-10-06-01**: 命名規則に一致するが削除できないファイルは、例外にせず戻り値で返す
+- [x] **T-10-06-01**: 命名規則に一致するが削除できないファイルは、例外にせず戻り値で返す
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-15-01`
   - Rule: execution R-205 / execution DD-14（中止の判断は main。implementation Commit 12）
@@ -2617,21 +2617,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-07: 命名規則に一致しないファイルの保持
 
-- [ ] **T-10-07-01**: 似た名前の `foo.mutation.ts` は削除しない
+- [x] **T-10-07-01**: 似た名前の `foo.mutation.ts` は削除しない
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-16-01`
   - Rule: execution R-205 / REQ-F-007 / AC-008 / Edge execution-14
   - Scenario: Given `foo.mutation.ts` を含む一時ディレクトリ, When `sweepArtifacts` を呼ぶ
   - Expected: Then `foo.mutation.ts` が内容を保って存在すること
 
-- [ ] **T-10-07-02**: 元のソース `foo.ts` は削除しない
+- [x] **T-10-07-02**: 元のソース `foo.ts` は削除しない
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-16-02`
   - Rule: execution R-205 / AC-008
   - Scenario: Given `foo.ts` を含む一時ディレクトリ, When `sweepArtifacts` を呼ぶ
   - Expected: Then `foo.ts` が内容を保って存在すること
 
-- [ ] **T-10-07-03**: 元の設定 `deno.jsonc` は削除しない
+- [x] **T-10-07-03**: 元の設定 `deno.jsonc` は削除しない
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-16-03`
   - Rule: execution R-205 / REQ-NF-001
@@ -2640,16 +2640,16 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-08: 削除されたソース
 
-- [ ] **T-10-08-01**: 実行後に存在しなくなったファイルも drift として返す
-  - Target: `detectDrift`
+- [x] **T-10-08-01**: 実行後に存在しなくなったソースは、ハッシュの再取得で `ChatlogError` を投げる（drift として返さない）
+  - Target: `hashSources`
   - Test ID: `T-MUT-RS-17-01`
-  - Rule: execution R-212 / REQ-F-008
-  - Scenario: Given `target.ts` を含む記録を取った後、`target.ts` を削除して再取得した記録, When `detectDrift(before, after)` を呼ぶ
-  - Expected: Then `target.ts` を含む一覧を返すこと
+  - Rule: execution R-206 / execution R-212 / execution DD-14（OQ-1 の決定 2026-10-10: ソースが無いときはエラーで中止する）
+  - Scenario: Given `target.ts` を含むファイル集合でハッシュを記録した後、`target.ts` を削除したもの, When 同じファイル集合を渡して `hashSources` を呼ぶ
+  - Expected: Then `ChatlogError` を投げ、`error.message` に `target.ts` のパスを含むこと
 
 #### T-10-09: 改行コードだけの変化
 
-- [ ] **T-10-09-01**: 改行コードだけが変わった場合も drift として検出する
+- [x] **T-10-09-01**: 改行コードだけが変わった場合も drift として検出する
   - Target: `hashSources`
   - Test ID: `T-MUT-RS-18-01`
   - Rule: execution R-206 / execution R-212 / REQ-NF-004
@@ -2658,7 +2658,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-10-10: 掃除対象が無い
 
-- [ ] **T-10-10-01**: 命名規則に一致するファイルが無ければ何も削除せず空の一覧を返す
+- [x] **T-10-10-01**: 命名規則に一致するファイルが無ければ何も削除せず空の一覧を返す
   - Target: `sweepArtifacts`
   - Test ID: `T-MUT-RS-19-01`
   - Rule: execution R-205
@@ -4304,7 +4304,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 | R-203 | T-09-01-01, T-09-01-02                                                                                     |
 | R-204 | → T-14 (Commit 16)                                                                                         |
 | R-205 | T-10-01-01〜06, T-10-06-01, T-10-07-01〜03, T-10-10-01 / ロック取得後に呼ぶ順序は → T-14                   |
-| R-206 | T-10-02-01, T-10-02-02, T-10-09-01                                                                         |
+| R-206 | T-10-02-01, T-10-02-02, T-10-08-01, T-10-09-01                                                             |
 | R-207 | T-11-02-01, T-11-02-03                                                                                     |
 | R-208 | T-11-03-01〜05, T-11-04-01〜04, T-11-08-01 / 中止の経路（drift 検査を含む）は → T-14 (Commit 16)           |
 | R-209 | T-11-01-01, T-11-07-01 / 逐次実行へ進む結線は → T-14 (Commit 16)                                           |
@@ -4535,7 +4535,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 | #    | 内容                                                                                                            | 影響する Test Target | beads           |
 | ---- | --------------------------------------------------------------------------------------------------------------- | -------------------- | --------------- |
-| OQ-1 | ソースが欠落したときの `hashSources`: drift とする (T-10-08-01) か、大きく失敗する (execution DD-14) か         | T-10                 | `cle-kju.17.11` |
+| OQ-1 | 解決済み (2026-10-10): ソースが欠落したら `hashSources` は `ChatlogError` を投げて中止する。T-10-08-01 を改訂   | T-10                 | `cle-kju.17.11` |
 | OQ-2 | ロック前に `temp/` が無いとき、作成してよいか (execution R-201「ロック前に何も作らない」)                       | T-09                 | `cle-kju.17.12` |
 | OQ-3 | allowlist の `before: ""` をエラーにするか (§3.1 が空文字を許すのは `after` だけ)                               | T-04                 | `cle-kju.17.13` |
 | OQ-4 | ベースライン中断で `generatedCount` が 0 のとき、中断見出しの横に「変異体 0 件」(report-cli R-606) を出すか     | T-06 / T-14          | `cle-kju.17.14` |
