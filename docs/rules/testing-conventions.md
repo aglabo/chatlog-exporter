@@ -269,7 +269,7 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
 
 | 階層                | ラベル形式                                                   | JSDoc 種別 | 記載内容                                                    |
 | ------------------- | ------------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
-| TOP (クラス/関数名) | `'ClassName'` / `'functionName'`                             | 複数行     | 対象の責務・テスト ID 範囲・`@see`                          |
+| TOP (クラス/関数名) | `'ClassName'` / `'functionName'`                             | 複数行     | 対象の責務・`@see`                                          |
 | 機能種別            | `'methodName'` / `'featureName'`                             | 複数行     | 機能の責務・検証するシナリオの概要                          |
 | 分類                | `'When: 正常系'` / `'When: 異常系'` / `'When: エッジケース'` | 1行        | 分類の意味 (省略可)                                         |
 | ケース              | `it(...)`                                                    | —          | `[Normal]` / `[Error]` / `[Edge]` prefix + テスト ID + 説明 |
@@ -284,6 +284,9 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
 
 分類が 1 種類しかない場合は `When:` ブロックを省略して `it` を直接置いてよい。
 
+割り当てたテスト ID の範囲は JSDoc やコメントに書かない（`deckrd-rule-testing-guidelines.md` の 8 章）。
+書いた範囲は更新されなくなり、実体と静かに乖離する。
+
 ##### TOP レベルの例
 
 ```typescript
@@ -291,8 +294,6 @@ const _existsStat = (_path: string) => Promise.resolve({ isFile: true } as Deno.
  * `GlobalConfig` クラスのユニットテストスイート。
  *
  * シングルトン取得・値参照・YAML パース・ファイル読み込みを検証する。
- *
- * テスト ID 範囲: T-CLS-GC-01 〜 T-CLS-GC-67
  *
  * @see GlobalConfig
  */
