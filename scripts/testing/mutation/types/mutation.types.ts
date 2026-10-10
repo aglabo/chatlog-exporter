@@ -145,6 +145,30 @@ export type MutationRunReport = {
   auditFailures: string[];
 };
 
+/** `runMutants` のオプション。 */
+export type RunMutantsOptions = {
+  /** 元の設定 (`deno.jsonc`) のパス。一時設定はこれと同じディレクトリに置く。 */
+  configPath: string;
+  /** `deno` に渡す引数。先頭 (サブコマンド) の直後に `--config <一時設定>` を差し込む。 */
+  testArgs: string[];
+  /** 変異体 1 件あたりの実行の制限時間 (ミリ秒)。 */
+  timeoutMs: number;
+  /** テストを 1 回実行する provider。省略時は `runDenoTest`。 */
+  testRunner?: TestRunnerProvider;
+  /** 中断信号。 */
+  signal?: AbortSignal;
+};
+
+/** `runMutants` の結果。 */
+export type RunMutantsResult = {
+  /** 変異体ごとの判定 (入力順)。 */
+  results: MutantResult[];
+  /** 後始末で削除できなかったファイルのパス。 */
+  leftovers: string[];
+  /** 中断信号で途中終了したか。 */
+  interrupted: boolean;
+};
+
 /** 変異前のベースライン実行の結果 (DR-08)。`interrupted` は中断で、`failed` とは区別する。 */
 export type BaselineResult =
   | { kind: 'ok' }

@@ -31,6 +31,9 @@ export const LOCK_CREATED_AT_LABEL = '記録された作成時刻: ';
 /** 実行ロックを解放できなかったときの警告の接頭辞 (execution R-213 / DD-14)。後ろにロックファイルのパスと失敗の理由を続ける。 */
 export const LOCK_RELEASE_WARNING = '実行ロックを解放できませんでした: ';
 
+/** 変異体ファイル・一時設定を削除できなかったときの警告の接頭辞 (execution R-226 / DD-05)。後ろに削除できなかったパスを続ける。 */
+export const LEFTOVER_WARNING = '変異体の後始末でファイルを削除できませんでした: ';
+
 /** ハッシュを取るソースファイルが存在しないときの例外の詳細の接頭辞 (execution R-212 / DD-14)。後ろにソースファイルのパスを続ける。 */
 export const SOURCE_NOT_FOUND_MESSAGE = 'ハッシュを取るソースファイルが存在しません: ';
 
