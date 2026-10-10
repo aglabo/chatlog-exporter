@@ -91,7 +91,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | done    |
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | done    |
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | done    |
-| T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending |
+| T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | done    |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending |
 | T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending |
 | T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending |
@@ -2839,7 +2839,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 ## T-12: `runMutants`（逐次実行と後始末の保証）
 
-> Commit: 14 / 配置ファイル: `scripts/testing/mutation/run-mutants.ts` / テストファイル: `scripts/testing/mutation/__tests__/unit/run-mutants.unit.spec.ts` / Phase: 2 / Test ID prefix: `T-MUT-RM`（グループ番号 01〜17）
+> Commit: 14 / 配置ファイル: `scripts/testing/mutation/run-mutants.ts` / テストファイル: `scripts/testing/mutation/__tests__/unit/run-mutants.unit.spec.ts`（T-12-01〜04・06・07・10〜13）と `scripts/testing/mutation/__tests__/unit/run-mutants-staging.unit.spec.ts`（T-12-05・08・09・14〜17。書き出しと後始末の失敗・改行コード・JSONC）。ケース数を抑えるため 2 ファイルに分ける（2026-10-10 ユーザー決定）/ Phase: 2 / Test ID prefix: `T-MUT-RM`（グループ番号 01〜17）
 
 `testRunner` には結果を固定した `TestRunnerProvider` のスタブを注入し、ソースと設定は一時ディレクトリに置く。判定規則（R-220〜R-224）の網羅は T-03（`classifyOutcome`）、ステージングの網羅は T-02（`applyMutant` ほか）の担当であり、ここでは結線と後始末だけを検証する。
 
@@ -2847,21 +2847,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-01: runner の結果から判定を記録する
 
-- [ ] **T-12-01-01**: テストの失敗を示す終了は killed として記録する
+- [x] **T-12-01-01**: テストの失敗を示す終了は killed として記録する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-01-01`
   - Rule: execution R-222 / REQ-F-004 / AC-004
   - Scenario: Given 変異体 1 件と、`exited { code: 1, stdout: "FAILED | 0 passed | 1 failed" }` を返す runner, When `runMutants` を呼ぶ
   - Expected: Then `results` が 1 件で、その判定が `killed` であること
 
-- [ ] **T-12-01-02**: runner の `timeout` は timeout として記録する
+- [x] **T-12-01-02**: runner の `timeout` は timeout として記録する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-01-02`
   - Rule: execution R-223 / REQ-F-004
   - Scenario: Given 変異体 1 件と、`{ kind: 'timeout' }` を返す runner, When `runMutants` を呼ぶ
   - Expected: Then `results` の判定が `timeout` であること
 
-- [ ] **T-12-01-03**: 型検査の失敗を示す終了は compile-error として記録する
+- [x] **T-12-01-03**: 型検査の失敗を示す終了は compile-error として記録する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-01-03`
   - Rule: execution R-221 / execution DD-03 / REQ-F-004
@@ -2870,14 +2870,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-02: 逐次実行
 
-- [ ] **T-12-02-01**: 前の変異体の後始末が終わってから次の変異体のテストを起動する
+- [x] **T-12-02-01**: 前の変異体の後始末が終わってから次の変異体のテストを起動する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-02-01`
   - Rule: execution R-210 / DR-05 / REQ-NF-005
   - Scenario: Given 同じファイルの変異体 3 件と、呼ばれるたびに直前の番号の変異体ファイルの有無を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then 2 回目・3 回目の呼び出し時点で、直前の番号の変異体ファイルと一時設定がどちらも存在しないこと
 
-- [ ] **T-12-02-02**: 判定は入力の変異体の順に並ぶ
+- [x] **T-12-02-02**: 判定は入力の変異体の順に並ぶ
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-02-02`
   - Rule: execution R-210
@@ -2886,49 +2886,49 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-03: ステージングと起動の結線
 
-- [ ] **T-12-03-01**: テスト起動時点で、変異を適用した別ファイルが元ファイルの隣にある
+- [x] **T-12-03-01**: テスト起動時点で、変異を適用した別ファイルが元ファイルの隣にある
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-01`
   - Rule: execution R-215 / REQ-F-003 / AC-003
   - Scenario: Given `target.ts` の `n > 0` を `n >= 0` にする変異体 1 件と、呼ばれた時点のファイルを読む runner, When `runMutants` を呼ぶ
   - Expected: Then 呼び出し時点で `target.mutation-001.ts` が `target.ts` と同じディレクトリにあり、`n >= 0` を含むこと
 
-- [ ] **T-12-03-02**: 一時設定を書き出し、その設定を `--config` で指定してテストを起動する
+- [x] **T-12-03-02**: 一時設定を書き出し、その設定を `--config` で指定してテストを起動する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-02`
   - Rule: execution R-216 / execution R-217 / execution DD-02 / REQ-C-002
   - Scenario: Given 変異体 1 件、`configPath` に置いた元の設定、呼ばれた時点の引数と設定ファイルを記録する runner, When `runMutants` を呼ぶ
   - Expected: Then runner の引数に `--config` と `deno.mutation-001.json` のパスが含まれ、そのファイルの `imports` に元ファイルの file URL から変異体の file URL への対応があること
 
-- [ ] **T-12-03-03**: テスト実行中も元ファイルの内容は変わらない
+- [x] **T-12-03-03**: テスト実行中も元ファイルの内容は変わらない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-03`
   - Rule: execution R-215 / REQ-F-003 / REQ-NF-001 / AC-003
   - Scenario: Given 変異体 1 件と、呼ばれた時点で元ファイル `target.ts` を読む runner, When `runMutants` を呼ぶ
   - Expected: Then 呼び出し時点と実行後の `target.ts` の内容が、実行前とバイト単位で同一であること
 
-- [ ] **T-12-03-04**: 制限時間を runner へ渡す
+- [x] **T-12-03-04**: 制限時間を runner へ渡す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-04`
   - Rule: execution R-217 / REQ-NF-003
   - Scenario: Given `timeoutMs: 30000` と呼び出し内容を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then runner が受け取った `timeoutMs` が 30000 であること
 
-- [ ] **T-12-03-05**: `signal` を runner へそのまま渡す
+- [x] **T-12-03-05**: `signal` を runner へそのまま渡す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-05`
   - Rule: execution R-227 / implementation Commit 14
   - Scenario: Given 変異体 1 件、`AbortController` の `signal`、呼び出し内容を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then runner が受け取った `signal` が渡したものと同一であること
 
-- [ ] **T-12-03-06**: `testArgs` を変えずに、同じ順序で runner へ渡す
+- [x] **T-12-03-06**: `testArgs` を変えずに、同じ順序で runner へ渡す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-06`
   - Rule: execution R-217 / REQ-NF-002
   - Scenario: Given 変異体 1 件、`testArgs: ['test', '--allow-read', 'a.unit.spec.ts', 'b.unit.spec.ts']`、呼び出し内容を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then runner の引数に `testArgs` の各要素が変更されずに含まれ、その相対順序が入力と同じであること
 
-- [ ] **T-12-03-07**: runner の引数に `--import-map` を含めない
+- [x] **T-12-03-07**: runner の引数に `--import-map` を含めない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-03-07`
   - Rule: execution DD-02 / DR-01 / REQ-C-002
@@ -2937,14 +2937,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-04: 正常終了時の後始末
 
-- [ ] **T-12-04-01**: 変異体の処理が終わると変異体ファイルと一時設定を削除する
+- [x] **T-12-04-01**: 変異体の処理が終わると変異体ファイルと一時設定を削除する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-04-01`
   - Rule: execution R-225 / REQ-F-006
   - Scenario: Given 変異体 1 件と、survived に当たる結果を返す runner, When `runMutants` を呼ぶ
   - Expected: Then 実行後に `target.mutation-001.ts` と `deno.mutation-001.json` がどちらも存在しないこと
 
-- [ ] **T-12-04-02**: 削除がすべて成功すれば `leftovers` は空で、`interrupted` は false である
+- [x] **T-12-04-02**: 削除がすべて成功すれば `leftovers` は空で、`interrupted` は false である
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-04-02`
   - Rule: execution R-225 / execution DD-05
@@ -2955,14 +2955,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-05: 置換前の字句が指定位置に無い
 
-- [ ] **T-12-05-01**: 位置が一致しない変異体は error とし、テストを起動しない
+- [x] **T-12-05-01**: 位置が一致しない変異体は error とし、テストを起動しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-05-01`
   - Rule: execution R-214 / execution DD-09 / Edge execution-1
   - Scenario: Given `before` が `">"` なのに指定の行・桁が `"<"` を指す変異体 1 件と呼び出し回数を数える runner, When `runMutants` を呼ぶ
   - Expected: Then 判定が `error` で、runner の呼び出し回数が 0 で、変異体ファイルと一時設定が残っていないこと
 
-- [ ] **T-12-05-02**: 位置不一致で書き出さなかった変異体は `leftovers` に現れない
+- [x] **T-12-05-02**: 位置不一致で書き出さなかった変異体は `leftovers` に現れない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-05-02`
   - Rule: execution R-226 / execution DD-05 / implementation Commit 12 / implementation Commit 14
@@ -2971,14 +2971,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-06: 変異体単位の失敗の後も続行する
 
-- [ ] **T-12-06-01**: 2 件目の起動失敗の後も 3 件目を実行する
+- [x] **T-12-06-01**: 2 件目の起動失敗の後も 3 件目を実行する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-06-01`
   - Rule: execution R-211 / REQ-F-005 / AC-006 / Edge execution-10
   - Scenario: Given 変異体 3 件と、2 回目だけ `{ kind: 'error' }`、他は survived に当たる結果を返す runner, When `runMutants` を呼ぶ
   - Expected: Then runner が 3 回呼ばれ、判定が `survived`・`error`・`survived` の順であること
 
-- [ ] **T-12-06-02**: 2 件目の timeout の後も 3 件目を実行する
+- [x] **T-12-06-02**: 2 件目の timeout の後も 3 件目を実行する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-06-02`
   - Rule: execution R-211 / REQ-F-005
@@ -2987,14 +2987,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-07: runner が例外を投げる
 
-- [ ] **T-12-07-01**: runner が例外を投げても変異体ファイルと一時設定を削除する
+- [x] **T-12-07-01**: runner が例外を投げても変異体ファイルと一時設定を削除する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-07-01`
   - Rule: execution R-225 / REQ-F-006 / AC-007 / Edge execution-12
   - Scenario: Given 変異体 1 件と、例外を投げる runner, When `runMutants` を呼ぶ
   - Expected: Then 実行後に `target.mutation-001.ts` と `deno.mutation-001.json` がどちらも存在しないこと
 
-- [ ] **T-12-07-02**: runner の例外は当該変異体の error として記録し、次の変異体へ進む
+- [x] **T-12-07-02**: runner の例外は当該変異体の error として記録し、次の変異体へ進む
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-07-02`
   - Rule: execution R-219 / execution R-211 / Edge execution-12
@@ -3003,7 +3003,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-08: 変異体ファイルの書き出し失敗
 
-- [ ] **T-12-08-01**: 変異体ファイルを書き出せなければ error とし、テストを起動しない
+- [x] **T-12-08-01**: 変異体ファイルを書き出せなければ error とし、テストを起動しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-08-01`
   - Rule: execution R-219 / REQ-F-004 / Edge execution-10
@@ -3012,14 +3012,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-09: 後始末の削除失敗
 
-- [ ] **T-12-09-01**: 削除できなかったファイルを `leftovers` に集め、実行は続ける
+- [x] **T-12-09-01**: 削除できなかったファイルを `leftovers` に集め、実行は続ける
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-09-01`
   - Rule: execution R-226 / execution DD-05 / REQ-F-006 / Edge execution-13
   - Scenario: Given 変異体 2 件と、1 回目の呼び出し中に `target.mutation-001.ts` を同名の空でないディレクトリへ置き換える runner, When `runMutants` を呼ぶ
   - Expected: Then `leftovers` に `target.mutation-001.ts` のパスが含まれ、runner が 2 回呼ばれていること
 
-- [ ] **T-12-09-02**: 削除できなかったファイルがあれば警告を出す
+- [x] **T-12-09-02**: 削除できなかったファイルがあれば警告を出す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-09-02`
   - Rule: execution R-226 / execution DD-05
@@ -3028,14 +3028,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-14: 前回の残骸と同名の通常ファイルがある
 
-- [ ] **T-12-14-01**: 書き出し先に同名の変異体ファイルが既にあれば error とし、テストを起動しない
+- [x] **T-12-14-01**: 書き出し先に同名の変異体ファイルが既にあれば error とし、テストを起動しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-14-01`
   - Rule: execution R-219 / implementation §3.4（execution OQ #3: 衝突は error 扱い）
   - Scenario: Given `target.ts` の隣に通常ファイル `target.mutation-001.ts`（内容 `"stale"`）が既にある状態と、変異体 1 件と呼び出し回数を数える runner, When `runMutants` を呼ぶ
   - Expected: Then 判定が `error` で、runner の呼び出し回数が 0 であること
 
-- [ ] **T-12-14-02**: 書き出し先に同名の一時設定が既にあれば error とし、テストを起動しない
+- [x] **T-12-14-02**: 書き出し先に同名の一時設定が既にあれば error とし、テストを起動しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-14-02`
   - Rule: execution R-219 / implementation §3.4（execution OQ #3: 衝突は error 扱い）
@@ -3044,7 +3044,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-15: 一時設定の書き出し失敗
 
-- [ ] **T-12-15-01**: 一時設定を書き出せなければ error とし、テストを起動せず変異体ファイルを削除する
+- [x] **T-12-15-01**: 一時設定を書き出せなければ error とし、テストを起動せず変異体ファイルを削除する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-15-01`
   - Rule: execution R-219 / execution R-225 / REQ-F-006
@@ -3055,28 +3055,28 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-10: 実行中の中断
 
-- [ ] **T-12-10-01**: 実行中の変異体の判定は記録せず、`interrupted` を true にする
+- [x] **T-12-10-01**: 実行中の変異体の判定は記録せず、`interrupted` を true にする
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-10-01`
   - Rule: execution R-227 / Edge execution-24
   - Scenario: Given 変異体 3 件と、2 回目の呼び出し中に `AbortController` を中止する runner, When `runMutants` を呼ぶ
   - Expected: Then `interrupted` が `true` で、`results` が 1 件目の判定だけであること
 
-- [ ] **T-12-10-02**: 中断後は新しい変異体を開始しない
+- [x] **T-12-10-02**: 中断後は新しい変異体を開始しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-10-02`
   - Rule: execution R-227 / Edge execution-24
   - Scenario: Given 変異体 3 件と、2 回目の呼び出し中に `AbortController` を中止する runner, When `runMutants` を呼ぶ
   - Expected: Then runner の呼び出し回数が 2 であること
 
-- [ ] **T-12-10-03**: 中断された変異体の変異体ファイルと一時設定も削除する
+- [x] **T-12-10-03**: 中断された変異体の変異体ファイルと一時設定も削除する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-10-03`
   - Rule: execution R-227 / execution R-225 / execution DD-08
   - Scenario: Given 変異体 3 件と、2 回目の呼び出し中に `AbortController` を中止する runner, When `runMutants` を呼ぶ
   - Expected: Then 実行後に `target.mutation-002.ts` と `deno.mutation-002.json` がどちらも存在しないこと
 
-- [ ] **T-12-10-04**: 開始前に中止済みの `signal` なら 1 件もテストを起動しない
+- [x] **T-12-10-04**: 開始前に中止済みの `signal` なら 1 件もテストを起動しない
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-10-04`
   - Rule: execution R-227
@@ -3085,7 +3085,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-11: 全件が error / timeout
 
-- [ ] **T-12-11-01**: 全変異体が timeout でも全件の判定を記録して完了する
+- [x] **T-12-11-01**: 全変異体が timeout でも全件の判定を記録して完了する
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-11-01`
   - Rule: execution R-211 / REQ-F-005 / Edge execution-11
@@ -3094,7 +3094,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-12: 変異体 0 件
 
-- [ ] **T-12-12-01**: 変異体が 0 件なら runner を呼ばずに空の結果を返す
+- [x] **T-12-12-01**: 変異体が 0 件なら runner を呼ばずに空の結果を返す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-12-01`
   - Rule: execution R-210 / REQ-F-018
@@ -3103,21 +3103,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-13: 変異体の番号付け
 
-- [ ] **T-12-13-01**: 2 件目の変異体は番号 002 の名前で書き出す
+- [x] **T-12-13-01**: 2 件目の変異体は番号 002 の名前で書き出す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-13-01`
   - Rule: execution R-215 / execution DD-01
   - Scenario: Given 同じファイルの変異体 2 件と、呼ばれた時点のファイル一覧を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then 2 回目の呼び出し時点で `target.mutation-002.ts` と `deno.mutation-002.json` が存在すること
 
-- [ ] **T-12-13-02**: 複数のソースファイルにまたがる変異体では、各一時設定が自分の元ファイルだけを差し替える
+- [x] **T-12-13-02**: 複数のソースファイルにまたがる変異体では、各一時設定が自分の元ファイルだけを差し替える
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-13-02`
   - Rule: execution R-216 / execution DD-02 / execution DD-01
   - Scenario: Given `a.ts` の変異体 1 件と `b.ts` の変異体 1 件をこの順に並べた列と、呼ばれた時点の一時設定を記録する runner, When `runMutants` を呼ぶ
   - Expected: Then 1 回目の一時設定の `imports` に足された対応が `a.ts` → `a.mutation-001.ts` の 1 件だけで、2 回目は `b.ts` → `b.mutation-002.ts` の 1 件だけであること
 
-- [ ] **T-12-13-03**: 複数のソースファイルにまたがっても番号は列全体で一意に振る
+- [x] **T-12-13-03**: 複数のソースファイルにまたがっても番号は列全体で一意に振る
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-13-03`
   - Rule: execution DD-01 / execution R-215 / execution R-216
@@ -3126,7 +3126,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-16: 書き出しで改行コードを保つ
 
-- [ ] **T-12-16-01**: CRLF のソースから書き出した変異体ファイルは CRLF をバイト単位で保つ
+- [x] **T-12-16-01**: CRLF のソースから書き出した変異体ファイルは CRLF をバイト単位で保つ
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-16-01`
   - Rule: execution R-215 / REQ-NF-004 / Edge execution-2 / implementation §3.2（`writeTextFile` を使わない）
@@ -3135,7 +3135,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-12-17: JSONC の元の設定
 
-- [ ] **T-12-17-01**: コメントと末尾カンマを含む `deno.jsonc` を読み、全キーを保った一時設定を書き出す
+- [x] **T-12-17-01**: コメントと末尾カンマを含む `deno.jsonc` を読み、全キーを保った一時設定を書き出す
   - Target: `runMutants`
   - Test ID: `T-MUT-RM-17-01`
   - Rule: execution R-216 / execution DD-02 / REQ-C-001（`@std/jsonc`）/ implementation Commit 4
