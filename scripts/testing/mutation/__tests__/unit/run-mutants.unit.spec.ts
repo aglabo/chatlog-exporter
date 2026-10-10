@@ -23,6 +23,7 @@ import type {
   Mutant,
   MutantStatus,
   RunMutantsOptions,
+  TestArgs,
   TestRunnerProvider,
   TestRunOptions,
   TestRunOutcome,
@@ -207,6 +208,19 @@ const _makeObservingRunnerStub =
     calls.push({ args: [...args], options, observed: observe() });
     return Promise.resolve(_SURVIVED);
   };
+
+/**
+ * 呼び出しごとに呼び出し時点の `observe()` の値を記録してから、`Error('spawn failed')` で reject する
+ * runner スタブを作る。実プロセスは起動しない。
+ *
+ * @param observed - 呼び出しごとに観測結果を足す先
+ * @param observe - 呼び出し時点で評価する観測関数
+ * @returns `TestRunnerProvider` 互換のスタブ
+ */
+const _makeObservingThrowingRunnerStub = <T>(observed: T[], observe: () => T): TestRunnerProvider => () => {
+  observed.push(observe());
+  return Promise.reject(new Error('spawn failed'));
+};
 
 /**
  * `dir` の `target.ts` 1 行目の `>` を置き換える変異体を作る。
@@ -418,8 +432,8 @@ describe('runMutants', () => {
         assertStrictEquals(_calls[0].options.signal, _ctl.signal);
       });
 
-      it('[Normal] T-MUT-RM-03-06: testArgs 4 要素 → --config とその値を除いた runner の引数が testArgs と同一・同順', async () => {
-        const _testArgs = ['test', '--allow-read', 'a.unit.spec.ts', 'b.unit.spec.ts'];
+      it('[Normal] T-MUT-RM-03-06: testArgs 4 要素 → runner の引数は先頭の test の直後に --config deno.mutation-001.json を挟み、残りは testArgs と同順', async () => {
+        const _testArgs: TestArgs = ['test', '--allow-read', 'a.unit.spec.ts', 'b.unit.spec.ts'];
         const _calls: _RunnerCall[] = [];
 
         await runMutants(
@@ -427,11 +441,9 @@ describe('runMutants', () => {
           _opts(dir, { testArgs: [..._testArgs], testRunner: _makeRecordingRunnerStub(_calls) }),
         );
 
-        assertEquals(_calls.length, 1);
-        const { args } = _calls[0];
-        const _configAt = args.indexOf('--config');
-        const _withoutConfig = args.filter((_, i) => i !== _configAt && i !== _configAt + 1);
-        assertEquals(_withoutConfig, _testArgs);
+        assertEquals(_calls.map((c) => c.args), [
+          ['test', '--config', join(dir, 'deno.mutation-001.json'), '--allow-read', 'a.unit.spec.ts', 'b.unit.spec.ts'],
+        ]);
       });
 
       it('[Normal] T-MUT-RM-03-07: 1 件 → runner の引数に --import-map で始まる要素が無い', async () => {
@@ -508,14 +520,18 @@ describe('runMutants', () => {
   describe('runner が例外を投げる', () => {
     /** runner の呼び出しが reject するケース。 */
     describe('When: 異常系', () => {
-      it("[Error] T-MUT-RM-07-01: Error('spawn failed') → 実行後に target.mutation-001.ts と deno.mutation-001.json が無い", async () => {
-        // reject の扱いは本ケースの検証対象外のため握りつぶし、後始末の結果だけを見る
+      it("[Error] T-MUT-RM-07-01: Error('spawn failed') → 呼び出しは 1 回 / 呼び出し時点で target.mutation-001.ts と deno.mutation-001.json が存在し、実行後は無い", async () => {
+        const _observed: _ArtifactPresence[] = [];
+
         await runMutants(
           [_m(dir)],
-          _opts(dir, { testRunner: _makeFirstCallThrowingRunnerStub(_SURVIVED) }),
-        ).catch(() => {});
+          _opts(dir, { testRunner: _makeObservingThrowingRunnerStub(_observed, () => _artifactsExist(dir, 1)) }),
+        );
 
-        assertEquals(_artifactsExist(dir, 1), _NO_ARTIFACTS);
+        assertEquals(
+          { observed: _observed, after: _artifactsExist(dir, 1) },
+          { observed: [{ mutantExists: true, configExists: true }], after: _NO_ARTIFACTS },
+        );
       });
 
       it("[Error] T-MUT-RM-07-02: 1 回目だけ Error('spawn failed') → reject せず、判定が error / survived", async () => {
@@ -676,6 +692,21 @@ describe('runMutants', () => {
           join(dir, 'deno.mutation-001.json'),
           join(dir, 'deno.mutation-002.json'),
         ]);
+      });
+    });
+  });
+
+  /**
+   * テスト引数はサブコマンドを含む 1 要素以上の並びに限り、空の並びは型検査で弾く (execution R-217)。
+   */
+  describe('テスト引数の型', () => {
+    /** サブコマンドの無い空のテスト引数を渡す異常ケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RM-20-01: testArgs: [] → 型エラー (deno check が検出する。runMutants は呼ばない)', () => {
+        // @ts-expect-error -- testArgs は 1 要素以上 (先頭がサブコマンド) でなければならない
+        const _options: RunMutantsOptions = { configPath: 'deno.jsonc', testArgs: [], timeoutMs: 30000 };
+
+        assertEquals(_options.testArgs.length, 0);
       });
     });
   });

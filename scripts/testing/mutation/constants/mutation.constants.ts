@@ -8,6 +8,7 @@
 
 import { fromFileUrl, join } from '@std/path';
 
+import type { ArgSchema, DefaultArgFields } from '../../../../skills/_cle-libs/types/args-schema.types.ts';
 import { VALID_MODULES } from '../../../aplys-tester.ts';
 import type { MutantStatus, MutateModule } from '../types/mutation.types.ts';
 
@@ -143,14 +144,45 @@ export const MUTATE_MODULES_NOTE = `許可値: ${MUTATE_MODULES.join(', ')}`;
 /** `--timeout` 省略時の、変異体 1 件あたりのテストの制限時間 (秒) (report-cli R-604)。 */
 export const DEFAULT_TIMEOUT_SEC = 120;
 
+/**
+ * `--timeout` に指定できる上限 (秒) (report-cli DD-03 / R-603)。
+ *
+ * ミリ秒換算でタイマーの上限 (2^31-1 ms) を超えた値は約 1 ms に丸められ、全変異体が即 timeout になる。
+ * これを防ぎ、1 実行に 1 時間を超える値を誤指定とみなすため 3600 秒で打ち切る (user 決定 2026-10-11)。
+ */
+export const MAX_TIMEOUT_SEC = 3600;
+
 /** 位置引数のモジュール名が無いときの例外の詳細 (report-cli R-601)。 */
 export const MISSING_MODULE_MESSAGE = 'モジュール名を指定してください';
 
 /** 許可値以外のモジュール名を渡されたときの例外の詳細の接頭辞 (report-cli R-602)。後ろにモジュール名を続ける。 */
 export const UNKNOWN_MODULE_MESSAGE = '不明なモジュール名: ';
 
-/** `--timeout` の値が正の整数でないときの例外の詳細の接頭辞 (report-cli R-603)。後ろに渡された値を続ける。 */
-export const INVALID_TIMEOUT_MESSAGE = '--timeout には正の整数 (秒) を指定してください: ';
+/** `--timeout` の値が欠落しているか 1〜`MAX_TIMEOUT_SEC` の整数でないときの例外の詳細の接頭辞 (report-cli R-603)。後ろに渡された値を続ける。 */
+export const INVALID_TIMEOUT_MESSAGE = `--timeout には 1〜${MAX_TIMEOUT_SEC} の整数 (秒) を指定してください: `;
+
+/**
+ * 共有の引数解析 (`parseOptions`) が既定で受け付けるが、mutate-tester は定義しないオプション (report-cli DD-11 / R-622)。
+ *
+ * `parseOptions` の既定スキーマのうちオプション形式のものと同じ並び。値を取るか (`flag` 以外か) の判定にも使う。
+ */
+export const MUTATE_UNSUPPORTED_OPTIONS: ArgSchema<DefaultArgFields> = [
+  { option: '--config', field: 'configFile', type: 'string' },
+  { option: '--dry-run', field: 'dryRun', type: 'flag' },
+  { option: '--input-dir', field: 'inputDir', type: 'directory' },
+  { option: '--output-dir', field: 'outputDir', type: 'directory' },
+  { option: '--model', field: 'model', type: 'string' },
+];
+
+/** mutate-tester が定義しないオプションを渡されたときの例外の詳細の接頭辞 (report-cli R-622)。後ろにオプション名を続ける。 */
+export const UNSUPPORTED_OPTION_MESSAGE = 'mutate-tester では使えないオプションです: ';
+
+/**
+ * 作業ディレクトリがリポジトリルートでないときの例外の詳細の接頭辞 (index R-001 / DD-09)。
+ *
+ * 後ろに実際の作業ディレクトリと、期待するリポジトリルート (`REPO_ROOT`) を続ける。
+ */
+export const WRONG_WORKING_DIRECTORY_MESSAGE = 'リポジトリルートで実行してください: ';
 
 /** 変異テストが読み込む元の設定 (`deno.jsonc`) のパス。一時設定はこれと同じディレクトリに置く (execution R-215)。 */
 export const DENO_CONFIG_PATH = join(REPO_ROOT, 'deno.jsonc');

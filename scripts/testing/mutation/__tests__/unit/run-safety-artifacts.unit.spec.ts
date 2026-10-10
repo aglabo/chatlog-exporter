@@ -8,8 +8,10 @@
 // https://opensource.org/licenses/MIT
 
 // ─── BDD modules
-import { assert, assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertRejects, assertStrictEquals, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { detectDrift, hashSources, removeArtifacts, sweepArtifacts } from '../../run-safety.ts';
@@ -153,6 +155,27 @@ describe('sweepArtifacts', () => {
         _assertRemoved(_topLevel);
         assert(existsSync(_nested), `${_nested} が削除されている`);
       });
+
+      it('[Normal] T-MUT-RS-10-08: 一致ディレクトリ foo.mutation-001.ts/ の中に bar.mutation-002.ts だけを置いて sweep → [] を返し、ファイルとディレクトリの両方が存在しない', async () => {
+        const _dir = join(tempDir, 'foo.mutation-001.ts');
+        const _file = await _writeFixture(join(_dir, 'bar.mutation-002.ts'), _ARTIFACT_CONTENT);
+
+        const _failed = await sweepArtifacts([tempDir]);
+
+        assertEquals(_failed, []);
+        [_file, _dir].forEach(_assertRemoved);
+      });
+
+      it('[Normal] T-MUT-RS-10-09: 一致ディレクトリ outer.mutation-001.ts/ の中に空の一致ディレクトリ inner.mutation-002.ts/ を置いて sweep → [] を返し、両方が存在しない', async () => {
+        const _outer = join(tempDir, 'outer.mutation-001.ts');
+        const _inner = join(_outer, 'inner.mutation-002.ts');
+        await ensureDir(_inner);
+
+        const _failed = await sweepArtifacts([tempDir]);
+
+        assertEquals(_failed, []);
+        [_inner, _outer].forEach(_assertRemoved);
+      });
     });
   });
 
@@ -168,6 +191,12 @@ describe('sweepArtifacts', () => {
         const _failed = await sweepArtifacts([tempDir]);
 
         assertEquals(_failed, [_blocked]);
+      });
+
+      it('[Error] T-MUT-RS-15-02: 存在しないディレクトリ missing/ を sweep → Deno.errors.NotFound で reject する', async () => {
+        const _missing = join(tempDir, 'missing');
+
+        await assertRejects(() => sweepArtifacts([_missing]), Deno.errors.NotFound);
       });
     });
   });
@@ -335,14 +364,29 @@ describe('hashSources', () => {
   describe('削除されたソース', () => {
     /** ハッシュ記録後に消えたソースを再取得するエッジケース。drift として返さずエラーで中止する。 */
     describe('When: エッジケース', () => {
-      it('[Edge] T-MUT-RS-17-01: 記録後に target.ts を削除して再取得 → ChatlogError を投げ message に target のパスを含む', async () => {
+      it('[Edge] T-MUT-RS-17-01: 記録後に target.ts を削除して再取得 → ChatlogError(FileDirNotFound / NotFound) を投げ message に target のパスを含む', async () => {
         const _target = await _writeFixture(join(tempDir, 'target.ts'), _SOURCE_CONTENT);
         await hashSources([_target]);
         await Deno.remove(_target);
 
         const _err = await assertRejects(() => hashSources([_target]), ChatlogError);
 
+        assertEquals(_err.kind, 'FileDirNotFound');
+        assertEquals(_err.subindex, 'NotFound');
         assertStringIncludes(_err.message, _target);
+      });
+    });
+
+    /** ソースの読み取りが NotFound 以外で失敗する異常ケース。ChatlogError に変換せず元の例外をそのまま送出する。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RS-17-02: Deno.readTextFile が PermissionDenied を投げる → 投げた例外と同一のオブジェクトで reject し、ChatlogError ではない', async () => {
+        const _injected = new Deno.errors.PermissionDenied('injected');
+        using _readStub = stub(Deno, 'readTextFile', () => Promise.reject(_injected));
+
+        const _err = await assertRejects(() => hashSources([join(tempDir, 'src.ts')]));
+
+        assertStrictEquals(_err, _injected);
+        assert(!(_err instanceof ChatlogError), 'wrapped in ChatlogError');
       });
     });
   });
@@ -412,17 +456,22 @@ describe('detectDrift', () => {
         assertEquals(detectDrift(_before, _after), [_target]);
       });
 
-      it('[Normal] T-MUT-RS-12-03: after を c.ts・b.ts・a.ts の順に作成して突合 → a.ts・b.ts・c.ts 順の after と同じ昇順 [a, b, c] を返す', () => {
+      it('[Normal] T-MUT-RS-12-03: before・after とも c.ts・b.ts・a.ts の挿入順で全件のハッシュが異なる記録を突合 → 昇順 [a, b, c] を返す', () => {
         const [_a, _b, _c] = ['a.ts', 'b.ts', 'c.ts'].map((name) => join(tempDir, name));
         // キーの挿入順そのものが検証対象のため、hashSources ではなくリテラルで記録を組み、挿入順を固定する
-        const _before = { [_a]: 'h-a1', [_b]: 'h-b1', [_c]: 'h-c1' };
-        const _afterSorted = { [_a]: 'h-a2', [_b]: 'h-b2', [_c]: 'h-c2' };
-        const _afterReversed = { [_c]: 'h-c2', [_b]: 'h-b2', [_a]: 'h-a2' };
+        const _before = { [_c]: 'h-c1', [_b]: 'h-b1', [_a]: 'h-a1' };
+        const _after = { [_c]: 'h-c2', [_b]: 'h-b2', [_a]: 'h-a2' };
 
-        const _result = detectDrift(_before, _afterReversed);
+        assertEquals(detectDrift(_before, _after), [_a, _b, _c]);
+      });
 
-        assertEquals(_result, detectDrift(_before, _afterSorted));
-        assertEquals(_result, [_a, _b, _c]);
+      it('[Normal] T-MUT-RS-12-04: before に a.ts があり after に a.ts のキーが無い記録を突合 → [a.ts] を返す', () => {
+        const _a = join(tempDir, 'a.ts');
+        // after にキーが無い状態を作るため、hashSources ではなくリテラルで記録を組む
+        const _before = { [_a]: 'h-a1' };
+        const _after = {};
+
+        assertEquals(detectDrift(_before, _after), [_a]);
       });
     });
   });

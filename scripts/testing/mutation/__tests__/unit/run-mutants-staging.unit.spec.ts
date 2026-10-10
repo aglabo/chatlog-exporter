@@ -10,6 +10,8 @@
 // ─── BDD modules
 import { assertEquals } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { runMutants } from '../../run-mutants.ts';
@@ -49,6 +51,9 @@ const _MUTANT_001 = 'target.mutation-001.ts';
 
 /** 1 件目の一時設定の名前。 */
 const _CONFIG_001 = 'deno.mutation-001.json';
+
+/** JSONC として解析できない (閉じ括弧の無い) 元の設定 `deno.jsonc` の中身。 */
+const _BROKEN_CONFIG = '{ "imports": ';
 
 // types
 /** runner の 1 回の呼び出しで受け取った引数。 */
@@ -147,6 +152,23 @@ const _makeCapturingRunnerStub = <T>(captured: T[], capture: () => Promise<T>): 
 };
 
 /**
+ * `Deno.readTextFile` をスタブし、呼ばれるたびに `ctl` を中止してから元の実装に読み取りを委ねる。
+ * ステージングの I/O (元ファイルの読み取り) の最中に実際に中止されたことを再現するために使う。
+ * `abort()` は 2 回目以降は何もしないため、中止が起きるのは最初の読み取りの時点だけになる。
+ * 中断信号の参照回数に依存しないため、ステージング前の中止確認が増えても中止の時点は変わらない。
+ *
+ * @param ctl - 読み取りの時点で中止する `AbortController`
+ * @returns `using` で解除するスタブ
+ */
+const _stubReadTextFileAborting = (ctl: AbortController) => {
+  const _readTextFile = Deno.readTextFile;
+  return stub(Deno, 'readTextFile', (path: string | URL, options?: Deno.ReadFileOptions) => {
+    ctl.abort();
+    return _readTextFile(path, options);
+  });
+};
+
+/**
  * logger をスタブした状態で処理を実行し、終了後 (例外時も) にスタブを解除する。
  *
  * @param action - logger 出力を捕捉したい処理
@@ -199,7 +221,7 @@ const _opts = (dir: string, extra: Partial<RunMutantsOptions> = {}): RunMutantsO
  * `runMutants` のステージング失敗系のユニットテストスイート。
  *
  * 変異体ファイル・一時設定を用意できない変異体を `error` として記録し、テストを起動しないことを検証する
- * (execution R-214 / R-215 / R-216 / R-225)。
+ * (execution R-214 / R-215 / R-216 / R-219 / R-225 / R-227)。
  *
  * @see runMutants
  */
@@ -404,6 +426,96 @@ describe('runMutants', () => {
           tasks: { test: 'deno test' },
         }]);
       });
+    });
+  });
+
+  /**
+   * ソース・元の設定の読み取りや元の設定の解析に失敗した変異体は `error` とし、
+   * reject せずに後続の変異体へ進む (execution R-219 / R-225)。
+   */
+  describe('ソース・元の設定の読み取り失敗', () => {
+    /** 変異体の元ファイル、または元の設定を読めない・解析できない異常ケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RM-18-01: 1 件目の mutant.file が存在しないパス → reject せず、判定が error / survived / runner の呼び出しは 2 件目の deno.mutation-002.json での 1 回だけ', async () => {
+        const _calls: _RunnerCall[] = [];
+
+        const _result = await runMutants(
+          [{ ..._m(dir), file: join(dir, 'missing.ts') }, _m(dir, '<')],
+          _opts(dir, { testRunner: _makeRecordingRunnerStub(_calls) }),
+        );
+
+        assertEquals(_result.results.map((r) => r.status), ['error', 'survived']);
+        assertEquals(_calls.map((c) => c.args), [[
+          'test',
+          '--config',
+          join(dir, 'deno.mutation-002.json'),
+          '--allow-read',
+        ]]);
+      });
+
+      it('[Error] T-MUT-RM-18-02: deno.jsonc が JSONC として解析できない → reject せず、判定は error / runner の呼び出しは 0 回 / target.mutation-001.ts と deno.mutation-001.json が無い', async () => {
+        await Deno.writeTextFile(join(dir, 'deno.jsonc'), _BROKEN_CONFIG);
+        const _calls: _RunnerCall[] = [];
+
+        const _result = await runMutants([_m(dir)], _opts(dir, { testRunner: _makeRecordingRunnerStub(_calls) }));
+
+        assertEquals(_result.results.map((r) => r.status), ['error']);
+        assertEquals(_calls.length, 0);
+        assertEquals(existsSync(join(dir, _MUTANT_001)), false);
+        assertEquals(existsSync(join(dir, _CONFIG_001)), false);
+      });
+
+      it('[Error] T-MUT-RM-18-03: configPath が存在しない / 2 件 → reject せず、判定が error / error / leftovers は [] / runner の呼び出しは 0 回 / 両変異体の変異体ファイル・一時設定が無い', async () => {
+        const _calls: _RunnerCall[] = [];
+
+        const _result = await runMutants(
+          [_m(dir), _m(dir, '<')],
+          _opts(dir, { configPath: join(dir, 'missing.jsonc'), testRunner: _makeRecordingRunnerStub(_calls) }),
+        );
+
+        assertEquals(
+          { statuses: _result.results.map((r) => r.status), leftovers: _result.leftovers, calls: _calls.length },
+          { statuses: ['error', 'error'], leftovers: [], calls: 0 },
+        );
+        const _artifacts = [_MUTANT_001, _CONFIG_001, 'target.mutation-002.ts', 'deno.mutation-002.json'];
+        assertEquals(_artifacts.filter((name) => existsSync(join(dir, name))), []);
+      });
+    });
+  });
+
+  /**
+   * ステージングの途中で中止されたら、その変異体の判定を記録せず中断を報告する (execution R-227)。
+   */
+  describe('ステージング中の中断', () => {
+    /** 元ファイルの読み取り (ステージングの I/O) 中に中止され、かつ一時設定の書き出しが既存ファイルと衝突するエッジケース。 */
+    describe('When: エッジケース', () => {
+      const _cases: { id: string; label: string; afters: string[] }[] = [
+        { id: 'T-MUT-RM-19-01', label: '2 件', afters: ['>=', '<'] },
+        { id: 'T-MUT-RM-19-02', label: '1 件 (最後の変異体)', afters: ['>='] },
+      ];
+
+      for (const { id, label, afters } of _cases) {
+        it(`[Edge] ${id}: ${label} / 1 件目の元ファイルの読み取り中に abort + 既存の deno.mutation-001.json → interrupted は true / 判定は [] / runner の呼び出しは 0 回 / 作成した target.mutation-001.ts は無く、既存の deno.mutation-001.json は "{}" のまま残る`, async () => {
+          await Deno.writeTextFile(join(dir, _CONFIG_001), '{}');
+          const _calls: _RunnerCall[] = [];
+          const _ctl = new AbortController();
+
+          const _result = await (async () => {
+            using _readStub = _stubReadTextFileAborting(_ctl);
+            return await runMutants(
+              afters.map((after) => _m(dir, after)),
+              _opts(dir, { signal: _ctl.signal, testRunner: _makeRecordingRunnerStub(_calls) }),
+            );
+          })();
+
+          assertEquals(
+            { interrupted: _result.interrupted, results: _result.results, calls: _calls.length },
+            { interrupted: true, results: [], calls: 0 },
+          );
+          assertEquals(existsSync(join(dir, _MUTANT_001)), false);
+          assertEquals(await _readTextOrNull(join(dir, _CONFIG_001)), '{}');
+        });
+      }
     });
   });
 });

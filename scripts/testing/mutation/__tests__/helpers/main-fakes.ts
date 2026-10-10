@@ -8,7 +8,7 @@
 // https://opensource.org/licenses/MIT
 
 import { makeLoggerStub } from '../../../../../skills/_cle-libs/__tests__/helpers/logger-stub.ts';
-import { REPORT_HEADING_DRIFT, REPORT_HEADING_LEFTOVERS } from '../../constants/mutation.constants.ts';
+import { REPO_ROOT, REPORT_HEADING_DRIFT, REPORT_HEADING_LEFTOVERS } from '../../constants/mutation.constants.ts';
 
 // types
 import type { LoggerStub } from '../../../../../skills/_cle-libs/__tests__/helpers/logger-stub.ts';
@@ -46,7 +46,7 @@ export const FAKE_SOURCE_TEXT = 'export const a = 1 < 2;\n';
 export type MainFakes = {
   /** 記録付きの fake を揃えた依存の一式。 */
   deps: MainDeps;
-  /** 各 fake が呼ばれた順に積む依存名 (`readSource` は積まない)。 */
+  /** 各 fake が呼ばれた順に積む依存名 (`readSource`・`cwd` は積まない)。 */
   calls: string[];
   /** `signals.onInterrupt` に登録された handler を呼んで SIGINT を再現する (未登録なら何もしない)。 */
   sigint: () => void;
@@ -197,6 +197,7 @@ const _defaultDeps = (store: { handler?: () => void }): MainDeps => ({
       };
     },
   },
+  cwd: () => REPO_ROOT,
 });
 
 /**
@@ -215,7 +216,7 @@ const _recorded = <A extends unknown[], R>(name: string, calls: string[], fn: (.
 /**
  * `main` に注入する記録付きの fake 一式を作る。
  *
- * `overrides` で差し替えた依存も記録の対象になる (`readSource` を除く)。
+ * `overrides` で差し替えた依存も記録の対象になる (`readSource`・`cwd` を除く)。
  *
  * @param overrides - 既定の fake から差し替える依存
  * @returns 依存の一式・呼び出し記録・SIGINT の再現関数
@@ -238,6 +239,7 @@ export const makeMainDeps = (overrides: Partial<MainDeps> = {}): MainFakes => {
     readSource: _base.readSource,
     writeReport: _recorded('writeReport', _calls, _base.writeReport),
     signals: { onInterrupt: _recorded('signals.onInterrupt', _calls, _base.signals.onInterrupt) },
+    cwd: _base.cwd,
   };
   return { deps: _deps, calls: _calls, sigint: () => _store.handler?.() };
 };

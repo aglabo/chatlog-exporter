@@ -12,7 +12,7 @@ import { basename, dirname, join, resolve, toFileUrl } from '@std/path';
 import { logger } from '../../../skills/_cle-libs/libs/io/logger.ts';
 import { classifyOutcome } from './classify-outcome.ts';
 import { LEFTOVER_WARNING } from './constants/mutation.constants.ts';
-import { runDenoTest } from './run-deno-test.ts';
+import { runDenoTest, runTestSafely } from './run-deno-test.ts';
 import { removeArtifacts } from './run-safety.ts';
 import { applyMutant, buildMutationConfig, toMutantPath, toMutationConfigPath } from './stage-mutant.ts';
 
@@ -23,9 +23,6 @@ import type {
   MutantStatus,
   RunMutantsOptions,
   RunMutantsResult,
-  TestRunnerProvider,
-  TestRunOptions,
-  TestRunOutcome,
 } from './types/mutation.types.ts';
 
 export type { RunMutantsOptions, RunMutantsResult } from './types/mutation.types.ts';
@@ -84,35 +81,57 @@ const _writeTempConfig = async (
 };
 
 /**
- * runner を呼び、例外を `{ kind: 'error' }` の結果に変換する (execution R-219)。
- * 1 件の変異体の起動失敗で変異体の並び全体を止めないため、reject させない。
+ * 判定を中断信号と突き合わせる (execution R-227)。中止済みなら判定を捨てて `null` を返す。
+ * ステージングの失敗と runner の実行結果の両方で、中断の確認をここに一本化する。
  *
- * @param runner - テストを実行する runner
- * @param args - runner に渡す引数
- * @param options - 制限時間・中断信号
- * @returns テスト実行結果 (例外時は `{ kind: 'error', message }`)
+ * @param signal - 中断信号
+ * @param status - 中止されていなければ記録する判定
+ * @returns 中止済みなら `null`、それ以外は `status`
  */
-const _runSafely = async (
-  runner: TestRunnerProvider,
-  args: string[],
-  options: TestRunOptions,
-): Promise<TestRunOutcome> => {
+const _unlessAborted = (signal: AbortSignal | undefined, status: MutantStatus): MutantStatus | null =>
+  signal?.aborted ? null : status;
+
+/**
+ * ソースを読んで変異を適用し、変異体ファイルと一時設定を書き出す (execution R-215 / R-216 / R-219)。
+ * ソース・元の設定の読み取りや元の設定の解析の例外も含め、ステージングの失敗はすべて `null` に変換する。
+ * 失敗までに作成したファイルは `created` に記録済みで、呼び出し側の後始末が削除する (execution R-225)。
+ *
+ * @param mutant - ステージングする変異体
+ * @param index - 1 始まりの変異体番号
+ * @param configPath - 元の設定のパス
+ * @param created - 後始末の対象として作成したパスを記録する先
+ * @returns 一時設定のパス。ステージングに失敗したら `null`
+ */
+const _stage = async (
+  mutant: Mutant,
+  index: number,
+  configPath: string,
+  created: string[],
+): Promise<string | null> => {
   try {
-    return await runner(args, options);
-  } catch (e) {
-    return { kind: 'error', message: e instanceof Error ? e.message : String(e) };
+    const _applied = applyMutant(await Deno.readTextFile(mutant.file), mutant);
+    if (!_applied.ok) {
+      return null;
+    }
+    const _mutantPath = toMutantPath(mutant.file, index);
+    if (!await _tryWriteNewFile(_mutantPath, _applied.source, created)) {
+      return null;
+    }
+    return await _writeTempConfig(configPath, mutant, _mutantPath, index, created);
+  } catch {
+    return null;
   }
 };
 
 /**
  * 変異体ファイルと一時設定をステージングし、runner でテストを 1 回実行して判定する
- * (execution R-215 / R-216 / R-217 / R-222)。
+ * (execution R-215 / R-216 / R-217 / R-219 / R-222)。ステージングに失敗した変異体は `error` とする。
  *
  * @param mutant - 実行する変異体
  * @param index - 1 始まりの変異体番号
  * @param options - 実行オプション
  * @param created - 後始末の対象として作成したパスを記録する先
- * @returns 変異体の判定。runner の実行中に中止された場合は判定を捨てて `null` (execution R-227)
+ * @returns 変異体の判定。ステージング中または runner の実行中に中止された場合は判定を捨てて `null` (execution R-227)
  */
 const _stageAndRun = async (
   mutant: Mutant,
@@ -121,21 +140,14 @@ const _stageAndRun = async (
   created: string[],
 ): Promise<MutantStatus | null> => {
   const { configPath, testArgs, timeoutMs, signal, testRunner = runDenoTest } = options;
-  const _applied = applyMutant(await Deno.readTextFile(mutant.file), mutant);
-  if (!_applied.ok) {
-    return 'error';
-  }
-  const _mutantPath = toMutantPath(mutant.file, index);
-  if (!await _tryWriteNewFile(_mutantPath, _applied.source, created)) {
-    return 'error';
-  }
-  const _tempConfigPath = await _writeTempConfig(configPath, mutant, _mutantPath, index, created);
+  const _tempConfigPath = await _stage(mutant, index, configPath, created);
   if (_tempConfigPath === null) {
-    return 'error';
+    return _unlessAborted(signal, 'error');
   }
-  const _args = [testArgs[0], '--config', _tempConfigPath, ...testArgs.slice(1)];
-  const _outcome = await _runSafely(testRunner, _args, { timeoutMs, signal });
-  return signal?.aborted ? null : classifyOutcome(_outcome);
+  const [_subcommand, ..._restArgs] = testArgs;
+  const _args = [_subcommand, '--config', _tempConfigPath, ..._restArgs];
+  const _outcome = await runTestSafely(testRunner, _args, { timeoutMs, signal });
+  return _unlessAborted(signal, classifyOutcome(_outcome));
 };
 
 /**

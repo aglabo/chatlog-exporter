@@ -14,18 +14,21 @@ import {
   BASELINE_REASON_TIMEOUT,
   BASELINE_REASON_ZERO_PASSED,
 } from './constants/mutation.constants.ts';
+import { runTestSafely } from './run-deno-test.ts';
 
 import type { BaselineResult, TestRunnerProvider, TestRunOptions, TestRunOutcome } from './types/mutation.types.ts';
 
 /**
  * 終了コード 0 で終わったベースラインの実行から、要約行で判定を導く (execution R-209 / DD-06)。
- * stdout と stderr を改行で連結し、ANSI エスケープを除いた要約行から passed 件数を読む。
+ * ANSI エスケープを除いた標準出力だけを解釈して要約行から passed 件数を読み、標準エラーは解釈しない (DD-06)。
+ * 標準エラーに要約行と同じ形の行があっても偽の `ok` にしないため (deno の要約行は標準出力に出る)。
+ * 変異体の判定 (classify-outcome, DD-12) は標準出力と標準エラーの連結のままとする。
  *
  * @param outcome - 終了コード 0 の `exited` のテスト実行結果
- * @returns 要約行が無ければ `failed`、passed が 1 件以上なら `ok`、0 件なら `failed`
+ * @returns 標準出力に要約行が無ければ `failed`、passed が 1 件以上なら `ok`、0 件なら `failed`
  */
 const _classifyBySummary = (outcome: Extract<TestRunOutcome, { kind: 'exited' }>): BaselineResult => {
-  const _summary = parseSummary(stripAnsi([outcome.stdout, outcome.stderr].join('\n')));
+  const _summary = parseSummary(stripAnsi(outcome.stdout));
   if (_summary === undefined) {
     return { kind: 'failed', reason: BASELINE_REASON_NO_SUMMARY };
   }
@@ -62,26 +65,6 @@ const _classifyBaseline = (outcome: TestRunOutcome): BaselineResult => {
 };
 
 /**
- * runner を 1 回呼び、例外は投げ直さずに起動失敗 (`error`) の結果へ変換する (execution R-208 / DD-10)。
- *
- * @param runner - テストを 1 回実行する provider
- * @param args - `deno` に渡す引数 (変更せずに渡す)
- * @param options - 実行の制限時間と中断信号 (変更せずに渡す)
- * @returns runner が返したテスト実行結果。例外時はそのメッセージを持つ `error`
- */
-const _runSafely = async (
-  runner: TestRunnerProvider,
-  args: string[],
-  options: TestRunOptions,
-): Promise<TestRunOutcome> => {
-  try {
-    return await runner(args, options);
-  } catch (e) {
-    return { kind: 'error', message: e instanceof Error ? e.message : String(e) };
-  }
-};
-
-/**
  * 変異体を流す前に、元のコードのままテストを 1 回実行し、続行できるかを判定する
  * (execution R-208 / R-209 / R-227 / REQ-F-016 / DR-08)。runner の例外は reject せず `failed` とする。
  * 呼び出し前に中断信号が中止済みなら runner を呼ばずに、runner の完了後に中止されていれば
@@ -100,6 +83,6 @@ export const runBaseline = async (
   if (options.signal?.aborted) {
     return { kind: 'interrupted' };
   }
-  const _outcome = await _runSafely(runner, args, options);
+  const _outcome = await runTestSafely(runner, args, options);
   return options.signal?.aborted ? { kind: 'interrupted' } : _classifyBaseline(_outcome);
 };

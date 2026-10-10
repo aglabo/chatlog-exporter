@@ -10,10 +10,17 @@
 // ─── BDD modules
 import { assert, assertEquals, assertNotEquals, assertRejects, assertStringIncludes } from '@std/assert';
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+// stub
+import { assertSpyCallArgs, assertSpyCalls, stub } from '@std/testing/mock';
 
 // ─── Test target
 import { ChatlogError } from '../../../../../skills/_cle-libs/classes/ChatlogError.class.ts';
-import { LOCK_DELETE_GUIDANCE } from '../../constants/mutation.constants.ts';
+import {
+  LOCK_CREATED_AT_LABEL,
+  LOCK_DELETE_GUIDANCE,
+  LOCK_HELD_MESSAGE,
+  LOCK_PID_LABEL,
+} from '../../constants/mutation.constants.ts';
 import { acquireLock, releaseLock } from '../../run-safety.ts';
 import type { LockRecord } from '../../types/mutation.types.ts';
 
@@ -77,6 +84,17 @@ async function _withLoggerStub(action: () => Promise<unknown>): Promise<LoggerSt
 function _assertErrorLogIncludes(loggerStub: LoggerStub, expected: string[]): void {
   const _errorOutput = loggerStub.errorLogs.join('\n');
   expected.forEach((text) => assertStringIncludes(_errorOutput, text));
+}
+
+/**
+ * 捕捉した error 出力が、指定した文字列をどれも含まないことを検証する。
+ *
+ * @param loggerStub - error 出力を捕捉した `LoggerStub`
+ * @param unexpected - error 出力に含まれてはならない文字列の並び
+ */
+function _assertErrorLogExcludes(loggerStub: LoggerStub, unexpected: string[]): void {
+  const _errorOutput = loggerStub.errorLogs.join('\n');
+  unexpected.forEach((text) => assert(!_errorOutput.includes(text), `error output must not include: ${text}`));
 }
 
 // ─── Tests
@@ -146,8 +164,14 @@ describe('acquireLock', () => {
         await _writeForeignLock(lockPath);
       });
 
-      it('[Error] T-MUT-RS-03-01: 有効な記録を持つ他実行のロックがある → ChatlogError で reject する', async () => {
-        await _withLoggerStub(() => assertRejects(() => acquireLock(lockPath), ChatlogError));
+      it('[Error] T-MUT-RS-03-01: 有効な記録を持つ他実行のロックがある → ChatlogError(ParallelExecutionError / LockHeld) で reject する', async () => {
+        let _error: ChatlogError | undefined;
+        await _withLoggerStub(async () => {
+          _error = await assertRejects(() => acquireLock(lockPath), ChatlogError);
+        });
+
+        assertEquals(_error?.kind, 'ParallelExecutionError');
+        assertEquals(_error?.subindex, 'LockHeld');
       });
 
       it('[Error] T-MUT-RS-03-02: 他実行のロックがある → 取得に失敗してもロックファイルをバイト単位で保持する', async () => {
@@ -163,6 +187,25 @@ describe('acquireLock', () => {
         const _loggerStub = await _withLoggerStub(() => assertRejects(() => acquireLock(lockPath), ChatlogError));
 
         _assertErrorLogIncludes(_loggerStub, [lockPath, '4242', '2026-10-08T00:00:00Z', LOCK_DELETE_GUIDANCE]);
+      });
+    });
+  });
+
+  /**
+   * ロックの作成自体の失敗 (execution R-201 / R-202)。
+   */
+  describe('ロックの作成自体の失敗', () => {
+    /** ロックパスの親ディレクトリが存在せず、既存ロックとは別の理由で作成に失敗する異常ケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RS-03-04: 親ディレクトリが無い → Deno.errors.NotFound で reject し、ロック保持の報告を出さない', async () => {
+        const _missingPath = join(tempDir, 'missing-dir', _LOCK_FILE_NAME);
+
+        // ChatlogError に変換されていれば型不一致として失敗する
+        const _loggerStub = await _withLoggerStub(() =>
+          assertRejects(() => acquireLock(_missingPath), Deno.errors.NotFound)
+        );
+
+        _assertErrorLogExcludes(_loggerStub, [LOCK_HELD_MESSAGE]);
       });
     });
   });
@@ -188,19 +231,27 @@ describe('acquireLock', () => {
       },
     ];
 
-    /** 記録の全部または一部が読めないロックファイルと、error 出力に含まれるべきパス以外の項目。 */
-    const _partialOutputCases: { id: string; label: string; content: string; expectedFields: string[] }[] = [
+    /** 記録の全部または一部が読めないロックファイルと、error 出力に含まれるべきパス以外の項目・含まれてはならない項目名。 */
+    const _partialOutputCases: {
+      id: string;
+      label: string;
+      content: string;
+      expectedFields: string[];
+      absentLabels: string[];
+    }[] = [
       {
         id: 'T-MUT-RS-06-04',
         label: '空のロックファイル → パスと削除案内',
         content: '',
         expectedFields: [LOCK_DELETE_GUIDANCE],
+        absentLabels: [LOCK_PID_LABEL, LOCK_CREATED_AT_LABEL],
       },
       {
         id: 'T-MUT-RS-06-05',
         label: '作成時刻キーの無い記録 → パス・PID・削除案内',
         content: JSON.stringify(_partialRecord),
         expectedFields: ['4242', LOCK_DELETE_GUIDANCE],
+        absentLabels: [LOCK_CREATED_AT_LABEL],
       },
     ];
 
@@ -217,14 +268,15 @@ describe('acquireLock', () => {
         });
       }
 
-      for (const { id, label, content, expectedFields } of _partialOutputCases) {
-        it(`[Edge] ${id}: ${label}を error 出力し、ChatlogError で reject する`, async () => {
+      for (const { id, label, content, expectedFields, absentLabels } of _partialOutputCases) {
+        it(`[Edge] ${id}: ${label}を error 出力し (読めない項目の行は出さず)、ChatlogError で reject する`, async () => {
           await Deno.writeTextFile(lockPath, content);
 
           // 記録の解析失敗が別の例外に変わっていれば、ここで型不一致として失敗する
           const _loggerStub = await _withLoggerStub(() => assertRejects(() => acquireLock(lockPath), ChatlogError));
 
           _assertErrorLogIncludes(_loggerStub, [lockPath, ...expectedFields]);
+          _assertErrorLogExcludes(_loggerStub, absentLabels);
         });
       }
     });
@@ -334,6 +386,28 @@ describe('releaseLock', () => {
 
         assertEquals(_loggerStub.warnLogs.length, 1);
       });
+
+      it('[Error] T-MUT-RS-05-02: 記録は読めるが削除だけが失敗する → 例外を投げず warn をちょうど 1 件出し、ロックを残す', async () => {
+        const _token = await acquireLock(lockPath);
+        // 記録の読み取りは通し、Deno.remove だけを失敗させる
+        const _removeStub = stub(
+          Deno,
+          'remove',
+          () => Promise.reject(new Deno.errors.PermissionDenied('remove denied')),
+        );
+        let _loggerStub: LoggerStub;
+        try {
+          // 例外が出れば releaseLock の await がテストを失敗させる
+          _loggerStub = await _withLoggerStub(() => releaseLock(_token));
+        } finally {
+          _removeStub.restore();
+        }
+
+        assertEquals(_loggerStub.warnLogs.length, 1);
+        assertSpyCalls(_removeStub, 1);
+        assertSpyCallArgs(_removeStub, 0, [_token.path]);
+        assert((await Deno.stat(lockPath)).isFile);
+      });
     });
   });
 
@@ -351,7 +425,7 @@ describe('releaseLock', () => {
 
         // 削除されていれば readTextFile が NotFound で失敗する
         assertEquals(await Deno.readTextFile(lockPath), '{broken');
-        assert(_loggerStub.warnLogs.length >= 1);
+        assertEquals(_loggerStub.warnLogs.length, 1);
       });
     });
   });

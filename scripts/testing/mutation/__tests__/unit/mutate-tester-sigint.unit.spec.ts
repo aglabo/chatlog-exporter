@@ -656,5 +656,49 @@ describe('main', () => {
         assertStrictEquals(_outcome, expected);
       });
     }
+
+    it('[Edge] T-MUT-MT-31-01: signals.onInterrupt が例外を投げる → releaseLock を 1 回呼び、onInterrupt の例外と同一のインスタンスで reject する', async () => {
+      const _thrown = new Error('addSignalListener failed');
+      const { deps: _deps, calls: _calls } = makeMainDeps({
+        signals: {
+          onInterrupt: () => {
+            throw _thrown;
+          },
+        },
+      });
+
+      const _error = await assertRejects(() => main(['libs'], _deps));
+
+      assertEquals(_countsOf(_calls, ['releaseLock']), { releaseLock: 1 }, `calls: ${_calls.join(', ')}`);
+      assertStrictEquals(_error, _thrown);
+    });
+
+    it('[Edge] T-MUT-MT-31-02: signals.onInterrupt が呼ぶと例外を投げる解除関数を返す → 結果を捕捉した後、releaseLock を 1 回呼んでいる', async () => {
+      const { deps: _deps, calls: _calls } = makeMainDeps({
+        signals: {
+          onInterrupt: () => () => {
+            throw new Error('removeSignalListener failed');
+          },
+        },
+      });
+
+      await outcomeOf(main(['libs'], _deps));
+
+      assertEquals(_countsOf(_calls, ['releaseLock']), { releaseLock: 1 }, `calls: ${_calls.join(', ')}`);
+    });
+
+    it('[Edge] T-MUT-MT-31-03: すべての fake が成功し、解除関数が呼び出しを記録する → 呼び出し記録で releaseLock が解除関数より前にある', async () => {
+      const _fakes: MainFakes = makeMainDeps({
+        signals: { onInterrupt: () => () => void _fakes.calls.push('signals.unregister') },
+      });
+
+      await main(['libs'], _fakes.deps);
+
+      const _calls = _fakes.calls;
+      assert(
+        _indexOf(_calls, 'releaseLock') < _indexOf(_calls, 'signals.unregister'),
+        `calls: ${_calls.join(', ')}`,
+      );
+    });
   });
 });

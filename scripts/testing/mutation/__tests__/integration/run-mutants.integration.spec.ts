@@ -27,8 +27,12 @@ import type { Mutant, MutantStatus, RunMutantsResult } from '../../types/mutatio
 /** `runMutants` に渡す変異体 1 件あたりの制限時間 (ミリ秒)。子プロセスの起動と型検査に十分な長さにする。 */
 const _TIMEOUT_MS = 60_000;
 
-/** fixture の `deno.json`。`@std/assert` をリポジトリと同じ版に解決させる。 */
-const _FIXTURE_CONFIG = JSON.stringify({ imports: { '@std/assert': 'jsr:@std/assert@^1.0.19' } }, null, 2) + '\n';
+/**
+ * fixture の `deno.json`。`@std/assert` をリポジトリの `deno.lock` が解決する版 (1.0.19) に固定する。
+ * 範囲指定では解決される版が揺れ、キャッシュに無い版は変異体 1 件あたりの制限時間 (`_TIMEOUT_MS`) 内に
+ * ネットワークから取得することになるため。
+ */
+const _FIXTURE_CONFIG = JSON.stringify({ imports: { '@std/assert': 'jsr:@std/assert@1.0.19' } }, null, 2) + '\n';
 
 /** 変異対象のソース。1 行目の `isPositive` だけがテストから呼ばれ、2 行目の `isLarge` はどのテストも触れない。 */
 const _POSITIVE_SOURCE =
@@ -178,50 +182,6 @@ const _listArtifacts = async (dir: string): Promise<string[]> =>
     .filter((name) => _ARTIFACT_PATTERN.test(name))
     .sort();
 
-// cases
-/** 差し替え検証のケース。`_POSITIVE_SOURCE` の指定行にある `>` → `>=` の変異体を実行し、期待する状態を示す。 */
-const _swapCases: { id: string; input: string; line: number; expected: MutantStatus }[] = [
-  {
-    id: 'T-MUT-MTI-01-01',
-    input: 'isPositive の `>` → `>=` を isPositive(0) のテストで実行',
-    line: 1,
-    expected: 'killed',
-  },
-  { id: 'T-MUT-MTI-01-02', input: 'テストが呼ばない isLarge の `>` → `>=` を実行', line: 2, expected: 'survived' },
-];
-
-/**
- * 移植性のケース。fixture の書き方 (改行コード・置き場所) だけを変え、isPositive の `>` → `>=` を実行する。
- * `precondition` は fixture がそのケースの条件を本当に満たしていることを、実行前に確かめる。
- */
-const _portabilityCases: {
-  id: string;
-  input: string;
-  spec: _FixtureSpec;
-  precondition: (fixture: _Fixture, mutant: Mutant) => void;
-  expected: MutantStatus;
-}[] = [
-  {
-    id: 'T-MUT-MTI-04-01',
-    input: 'CRLF の target.ts で isPositive の `>` → `>=` を実行',
-    spec: { source: _POSITIVE_SOURCE_CRLF },
-    precondition: (fixture, mutant) => {
-      assert(fixture.source.includes('\r\n'), 'precondition: the source must use CRLF line endings');
-      assert(!mutant.lineText.endsWith('\r'), 'precondition: lineText must not keep a trailing CR');
-    },
-    expected: 'killed',
-  },
-  {
-    id: 'T-MUT-MTI-04-02',
-    input: '空白を含むディレクトリの target.ts で isPositive の `>` → `>=` を実行',
-    spec: { dirName: 'dir with space' },
-    precondition: (fixture) => {
-      assert(fixture.dir.includes(' '), 'precondition: the fixture directory path must contain a space');
-    },
-    expected: 'killed',
-  },
-];
-
 // ─── Tests
 
 /**
@@ -254,6 +214,17 @@ describe('runMutants', () => {
    * @see AC-004
    */
   describe('When: 差し替えた変異体をテストが読む', () => {
+    /** 差し替え検証のケース。`_POSITIVE_SOURCE` の指定行にある `>` → `>=` の変異体を実行し、期待する状態を示す。 */
+    const _swapCases: { id: string; input: string; line: number; expected: MutantStatus }[] = [
+      {
+        id: 'T-MUT-MTI-01-01',
+        input: 'isPositive の `>` → `>=` を isPositive(0) のテストで実行',
+        line: 1,
+        expected: 'killed',
+      },
+      { id: 'T-MUT-MTI-01-02', input: 'テストが呼ばない isLarge の `>` → `>=` を実行', line: 2, expected: 'survived' },
+    ];
+
     for (const { id, input, line, expected } of _swapCases) {
       it(`[Normal] ${id}: ${input} → ${expected}`, async () => {
         const _fixture = await _writeFixture(tempDir);
@@ -286,7 +257,7 @@ describe('runMutants', () => {
       const _before = await hashSources([_fixture.targetPath]);
 
       const _result = await _runFixtureMutants(_fixture, _mutants);
-      assertEquals(_result.results.length, 1, 'precondition: the mutant must have run');
+      _assertSingleStatus(_result, 'killed');
       const _after = await hashSources([_fixture.targetPath]);
 
       assertEquals(detectDrift(_before, _after), []);
@@ -297,7 +268,7 @@ describe('runMutants', () => {
       const _mutants = _selectMutant(_fixture, (m) => m.op === 'relational' && m.line === 1);
 
       const _result = await _runFixtureMutants(_fixture, _mutants);
-      assertEquals(_result.results.length, 1, 'precondition: the mutant must have run');
+      _assertSingleStatus(_result, 'killed');
 
       assertEquals(await _listArtifacts(_fixture.dir), []);
       assertEquals(_result.leftovers, []);
@@ -331,6 +302,38 @@ describe('runMutants', () => {
    * @see REQ-NF-004
    */
   describe('When: 改行コードや置き場所が異なる fixture で変異体を実行する', () => {
+    /**
+     * 移植性のケース。fixture の書き方 (改行コード・置き場所) だけを変え、isPositive の `>` → `>=` を実行する。
+     * `precondition` は fixture がそのケースの条件を本当に満たしていることを、実行前に確かめる。
+     */
+    const _portabilityCases: {
+      id: string;
+      input: string;
+      spec: _FixtureSpec;
+      precondition: (fixture: _Fixture, mutant: Mutant) => void;
+      expected: MutantStatus;
+    }[] = [
+      {
+        id: 'T-MUT-MTI-04-01',
+        input: 'CRLF の target.ts で isPositive の `>` → `>=` を実行',
+        spec: { source: _POSITIVE_SOURCE_CRLF },
+        precondition: (fixture, mutant) => {
+          assert(fixture.source.includes('\r\n'), 'precondition: the source must use CRLF line endings');
+          assert(!mutant.lineText.endsWith('\r'), 'precondition: lineText must not keep a trailing CR');
+        },
+        expected: 'killed',
+      },
+      {
+        id: 'T-MUT-MTI-04-02',
+        input: '空白を含むディレクトリの target.ts で isPositive の `>` → `>=` を実行',
+        spec: { dirName: 'dir with space' },
+        precondition: (fixture) => {
+          assert(fixture.dir.includes(' '), 'precondition: the fixture directory path must contain a space');
+        },
+        expected: 'killed',
+      },
+    ];
+
     for (const { id, input, spec, precondition, expected } of _portabilityCases) {
       it(`[Edge] ${id}: ${input} → ${expected}`, async () => {
         const _fixture = await _writeFixture(tempDir, spec);

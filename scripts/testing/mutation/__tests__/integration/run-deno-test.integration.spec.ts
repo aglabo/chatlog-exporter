@@ -49,7 +49,7 @@ const _OUTPUT_SIZE = 1_048_576;
 const _LARGE_OUTPUT_TIMEOUT_MS = 30_000;
 
 /**
- * 標準出力・標準エラーへ各 `_OUTPUT_SIZE` 文字を書き切って終了コード 0 で終わるスクリプトの内容。
+ * 標準エラー・標準出力の順に各 `_OUTPUT_SIZE` 文字を書き切って終了コード 0 で終わるスクリプトの内容。
  * `write` は一部しか書かないことがあるため、書けたバイト数だけ進めて書き切るまで繰り返す。
  */
 const _LARGE_OUTPUT_SOURCE = `const writeAll = async (stream, data) => {
@@ -59,8 +59,8 @@ const _LARGE_OUTPUT_SOURCE = `const writeAll = async (stream, data) => {
   }
 };
 const payload = new TextEncoder().encode('x'.repeat(${_OUTPUT_SIZE}));
-await writeAll(Deno.stdout, payload);
 await writeAll(Deno.stderr, payload);
+await writeAll(Deno.stdout, payload);
 `;
 
 // functions

@@ -6,12 +6,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { dirname, join } from '@std/path';
+import { dirname, join, resolve } from '@std/path';
 
 import { ChatlogError } from '../../skills/_cle-libs/classes/ChatlogError.class.ts';
 import { logger } from '../../skills/_cle-libs/libs/io/logger.ts';
 import { parseOptions } from '../../skills/_cle-libs/libs/io/parse-args.ts';
-import type { ArgSchema, ArgValue } from '../../skills/_cle-libs/types/args-schema.types.ts';
+import type { ArgSchema, ParsedArgs } from '../../skills/_cle-libs/types/args-schema.types.ts';
 import { loadAllowlist, matchAllowlist } from './mutation/allowlist.ts';
 import { runBaseline } from './mutation/baseline.ts';
 import {
@@ -21,14 +21,18 @@ import {
   DENO_CONFIG_PATH,
   EXIT_CODE_INTERRUPTED,
   INVALID_TIMEOUT_MESSAGE,
+  MAX_TIMEOUT_SEC,
   MISSING_MODULE_MESSAGE,
   MUTATE_MODULES,
   MUTATE_MODULES_NOTE,
+  MUTATE_UNSUPPORTED_OPTIONS,
   MUTATION_TEST_PERMISSIONS,
   REPO_ROOT,
   REPORT_WRITE_FAILURE_MESSAGE,
   SWEEP_FAILURE_MESSAGE,
   UNKNOWN_MODULE_MESSAGE,
+  UNSUPPORTED_OPTION_MESSAGE,
+  WRONG_WORKING_DIRECTORY_MESSAGE,
 } from './mutation/constants/mutation.constants.ts';
 import { generateMutants } from './mutation/generate-mutants.ts';
 import { decideExitCode, formatReport } from './mutation/report.ts';
@@ -46,6 +50,7 @@ import type {
   MutationRunReport,
   RunMutantsResult,
   SignalsProvider,
+  TestArgs,
 } from './mutation/types/mutation.types.ts';
 
 export type { MainDeps, MutateArgs } from './mutation/types/mutation.types.ts';
@@ -54,15 +59,76 @@ export type { MainDeps, MutateArgs } from './mutation/types/mutation.types.ts';
 type _MutateOptionFields = {
   /** `--strict` の指定有無。 */
   strict: boolean;
-  /** `--timeout` の生の値。整数の検査は `parseOptions` に任せず自前で行う (`integer` 型は `30s` を受理するため)。 */
+  /**
+   * `--timeout` の生の値。スキーマに載せるのは `parseOptions` に受理させるためで、
+   * 値の検査は `_scanArg` で拾った値に対して自前で行う (`integer` 型は `30s` を受理するため)。
+   */
   timeout: string;
 };
+
+/** `--timeout` のオプション名。 */
+const _TIMEOUT_OPTION = '--timeout';
 
 /** mutate-tester のオプションのスキーマ。 */
 const _MUTATE_ARG_SCHEMA: ArgSchema<_MutateOptionFields> = [
   { option: '--strict', field: 'strict', type: 'flag' },
-  { option: '--timeout', field: 'timeout', type: 'string' },
+  { option: _TIMEOUT_OPTION, field: 'timeout', type: 'string' },
 ];
+
+/** 次の引数を値として消費するオプション名 (`parseOptions` が値を取る `flag` 以外のオプション)。 */
+const _VALUE_OPTIONS: readonly string[] = [..._MUTATE_ARG_SCHEMA, ...MUTATE_UNSUPPORTED_OPTIONS]
+  .filter((entry) => entry.type !== 'flag')
+  .map((entry) => entry.option);
+
+/**
+ * モジュール名と `--timeout` を `parseOptions` より先に判定するための、引数の緩い走査の状態 (report-cli DD-11)。
+ *
+ * 未知のオプションや値の欠落があっても例外を投げずに走査を続ける。
+ */
+type _ArgScan = {
+  /** `--` で始まらない引数 (オプションの値として消費したものを除く)。出現順。 */
+  positionals: readonly string[];
+  /**
+   * `--timeout` の生の値。指定が無ければ `undefined`、値が欠落していれば空文字列。
+   *
+   * 複数指定では走査は最後の値を残すが、`parseOptions` は最初の不正な値 (空の値など) で止まる。
+   * どちらで判定しても結果は `InvalidArgs` の例外になる。オプションの重複指定の扱いは report-cli の Open Question #5。
+   */
+  timeout: string | undefined;
+  /** 直前のオプションが次の引数を値として消費するとき、そのオプション名。 */
+  pendingOption: string | undefined;
+};
+
+/** 引数の緩い走査の初期状態。 */
+const _EMPTY_SCAN: _ArgScan = { positionals: [], timeout: undefined, pendingOption: undefined };
+
+/**
+ * 引数 1 件を緩く走査して状態を進める。値の消費は `parseOptions` と同じ規則に従う。
+ *
+ * @param scan - 直前までの走査の状態
+ * @param arg - 走査する引数
+ * @returns 引数を反映した走査の状態
+ */
+const _scanArg = (scan: _ArgScan, arg: string): _ArgScan => {
+  if (scan.pendingOption !== undefined) {
+    return {
+      ...scan,
+      pendingOption: undefined,
+      timeout: scan.pendingOption === _TIMEOUT_OPTION ? arg : scan.timeout,
+    };
+  }
+  if (!arg.startsWith('--')) {
+    return { ...scan, positionals: [...scan.positionals, arg] };
+  }
+  const _eqIdx = arg.indexOf('=');
+  const _hasValue = _eqIdx !== -1;
+  const _name = _hasValue ? arg.slice(0, _eqIdx) : arg;
+  return {
+    ...scan,
+    timeout: _name === _TIMEOUT_OPTION ? arg.slice(_name.length + 1) : scan.timeout,
+    pendingOption: !_hasValue && _VALUE_OPTIONS.includes(_name) ? _name : undefined,
+  };
+};
 
 /**
  * 値が変異テストの許可するモジュール名かを判定する。
@@ -102,43 +168,71 @@ const _toMutateModule = (value: string | undefined): MutateModule => {
 const _DIGITS_ONLY = /^[0-9]+$/;
 
 /**
- * `--timeout` の生の値が正の整数かを判定する。
+ * `--timeout` の生の値が受理できる秒数かを判定する (report-cli DD-03)。
+ *
+ * 数字だけの並びに限ることで `Number()` の指数・16 進・符号・小数表記を退け、上限で桁数の大きい値も退けるため、
+ * 受理する値は常に安全な整数になる。
  *
  * @param raw - `--timeout` の生の値
- * @returns 数字だけで構成され、かつ 0 より大きいとき `true`
+ * @returns 数字だけで構成され、かつ 1 以上 `MAX_TIMEOUT_SEC` 以下のとき `true`
  */
-const _isPositiveInteger = (raw: string): boolean => _DIGITS_ONLY.test(raw) && Number(raw) > 0;
+const _isTimeoutInRange = (raw: string): boolean => {
+  const _n = Number(raw);
+  return _DIGITS_ONLY.test(raw) && _n >= 1 && _n <= MAX_TIMEOUT_SEC;
+};
 
 /**
  * `--timeout` の値を検証して秒数に変換する。
  *
- * @param value - `--timeout` の生の値 (スキーマ上は文字列。省略時は `undefined`)
+ * @param raw - `--timeout` の生の値 (省略時は `undefined`、値の欠落は空文字列)
  * @returns 制限時間 (秒)。省略時は既定値
- * @throws {ChatlogError} 正の整数でないとき (`InvalidArgs` / `InvalidTimeout`)
+ * @throws {ChatlogError} 値が欠落しているか 1〜`MAX_TIMEOUT_SEC` の整数でないとき (`InvalidArgs` / `InvalidTimeout`)
  */
-const _toTimeoutSec = (value: ArgValue | undefined): number => {
-  if (value === undefined) {
+const _toTimeoutSec = (raw: string | undefined): number => {
+  if (raw === undefined) {
     return DEFAULT_TIMEOUT_SEC;
   }
-  const _raw = String(value);
-  if (!_isPositiveInteger(_raw)) {
-    throw new ChatlogError('InvalidArgs', 'InvalidTimeout', `${INVALID_TIMEOUT_MESSAGE}${_raw}`);
+  if (!_isTimeoutInRange(raw)) {
+    throw new ChatlogError('InvalidArgs', 'InvalidTimeout', `${INVALID_TIMEOUT_MESSAGE}${raw}`);
   }
-  return Number(_raw);
+  return Number(raw);
+};
+
+/**
+ * 共有の引数解析が既定で受け付けるが mutate-tester が定義しないオプションを拒否する (report-cli R-622)。
+ *
+ * 値の有無ではなくフィールドの存在で判定するため、否定形 (`--no-dry-run`) で `false` が入った場合も拒否する。
+ *
+ * @param config - `parseOptions` が返した設定
+ * @throws {ChatlogError} 定義しないオプションが指定されていたとき (`InvalidArgs` / `UnknownOption`)
+ */
+const _rejectUnsupportedOptions = (config: ParsedArgs): void => {
+  const _unsupported = MUTATE_UNSUPPORTED_OPTIONS.find((entry) => entry.field in config);
+  if (_unsupported !== undefined) {
+    throw new ChatlogError('InvalidArgs', 'UnknownOption', `${UNSUPPORTED_OPTION_MESSAGE}${_unsupported.option}`);
+  }
 };
 
 /**
  * mutate-tester の CLI 引数から実行条件を確定する (report-cli R-604)。
  *
+ * 規則は R-601 → R-602 → R-603 → R-622 の順に判定する。引数の並び・値の欠落・未知のオプションに関わらず
+ * この順を守るため、モジュール名と `--timeout` は例外を投げない緩い走査で拾い、`parseOptions` より先に検査する (DD-11)。
+ *
  * @param argv - CLI 引数 (`<module> [--strict] [--timeout <sec>]`)
  * @returns 対象モジュール・`--strict`・制限時間
- * @throws {ChatlogError} 引数が不正なとき (`InvalidArgs`)
+ * @throws {ChatlogError} モジュール名が欠落しているとき (`InvalidArgs` / `MissingModule`。R-601)
+ * @throws {ChatlogError} モジュール名が許可リストに無いとき (`InvalidArgs` / `UnknownModule`。R-602)
+ * @throws {ChatlogError} `--timeout` の値が欠落しているか 1〜`MAX_TIMEOUT_SEC` の整数でないとき (`InvalidArgs` / `InvalidTimeout`。R-603)
+ * @throws {ChatlogError} 本 CLI が定義しないオプションが指定されたとき (`InvalidArgs`。R-622)
  */
 export const parseMutateArgs = (argv: string[]): MutateArgs => {
-  const { config: _config, positionals: _positionals } = parseOptions<_MutateOptionFields>(argv, _MUTATE_ARG_SCHEMA);
-  // モジュールの検査 (R-601 / R-602) を `--timeout` の検査 (R-603) より先に行う
-  const _module = _toMutateModule(_positionals[0]);
-  const _timeoutSec = _toTimeoutSec(_config.timeout);
+  const _scan = argv.reduce(_scanArg, _EMPTY_SCAN);
+  const _module = _toMutateModule(_scan.positionals[0]);
+  const _timeoutSec = _toTimeoutSec(_scan.timeout);
+  // R-622: 未知のオプションと既定スキーマの値の不正は parseOptions が投げ、受理された既定スキーマのオプションはここで拒否する
+  const { config: _config } = parseOptions<_MutateOptionFields>(argv, _MUTATE_ARG_SCHEMA);
+  _rejectUnsupportedOptions(_config);
   return { module: _module, strict: _config.strict === true, timeoutSec: _timeoutSec };
 };
 
@@ -314,10 +408,29 @@ const _reportedEarlyInterrupt = async (signal: AbortSignal, writeReport: MainDep
 };
 
 /**
+ * 作業ディレクトリがリポジトリルートであることを確かめる (index R-001 / DD-09)。
+ *
+ * `resolve` で正規化して比べるため、末尾の区切り文字の有無は区別しない。
+ *
+ * @param dir - 作業ディレクトリ
+ * @throws {ChatlogError} リポジトリルートでないとき (`InvalidPath` / `WrongWorkingDirectory`)
+ */
+const _assertRepoRootCwd = (dir: string): void => {
+  if (resolve(dir) !== resolve(REPO_ROOT)) {
+    throw new ChatlogError(
+      'InvalidPath',
+      'WrongWorkingDirectory',
+      `${WRONG_WORKING_DIRECTORY_MESSAGE}${dir} (期待: ${REPO_ROOT})`,
+    );
+  }
+};
+
+/**
  * 変異テストの監査を規定の順序で実行する (index DD-01 / REQ-C-003)。
  *
- * 引数 → 対象解決 → 許容リスト → ロック取得 → SIGINT 登録 → 掃除 → ハッシュ → ベースライン → 生成 →
- * 変異体の実行 → 照合 → drift → レポート → ロック解放の順に進む。ロック取得後はどの経路でもロックを解放する。
+ * 引数 → 作業ディレクトリの検査 → 対象解決 → 許容リスト → ロック取得 → SIGINT 登録 → 掃除 → ハッシュ →
+ * ベースライン → 生成 → 変異体の実行 → 照合 → drift → レポート → ロック解放 → SIGINT 解除の順に進む。
+ * ロック取得後はどの経路 (SIGINT の登録・解除の失敗を含む) でもロックを解放する。
  * 掃除またはハッシュ記録を終えた時点で SIGINT を受けていれば、以降の工程 (ハッシュ記録・ベースライン) へ進まず
  * 判定 0 件の中断レポートを書き出し、中断の終了コードを返す (execution R-227)。
  * ベースラインが SIGINT で中断した (`interrupted`) ときは失敗として扱わず、drift 検査の結果を載せた
@@ -329,6 +442,7 @@ const _reportedEarlyInterrupt = async (signal: AbortSignal, writeReport: MainDep
  * @param deps - 差し替える依存 (省略した依存は production 実装)
  * @returns 終了コード
  * @throws {ChatlogError} 引数・許容リスト・ロックの取得が不正なとき
+ * @throws {ChatlogError} 作業ディレクトリがリポジトリルートでないとき (`InvalidPath` / `WrongWorkingDirectory`。何も実行しない)
  * @throws {ChatlogError} 起動時の残骸掃除で削除できなかったファイルがあるとき (監査単位の失敗。ロックは解放する)
  * @throws {ChatlogError} ベースラインが失敗したとき (監査単位の失敗。drift を標準エラー出力へ列挙し、ロックは解放する)
  * @throws {ChatlogError} レポートを書き出せなかったとき (監査単位の失敗。ロックは解放する)
@@ -348,14 +462,17 @@ export const main = async (argv?: string[], deps: Partial<MainDeps> = {}): Promi
     readSource: _readSource = _readRepoSource,
     writeReport: _writeReport = _writeStdout,
     signals: _signals = _denoSignals,
+    cwd: _cwd = Deno.cwd,
   } = deps;
   const _args = parseMutateArgs(argv ?? Deno.args);
+  _assertRepoRootCwd(_cwd());
   const _targets = await _resolveTargets(_args.module);
   const _entries = await _loadAllowlist(_args.module);
   const _token = await _acquireLock(DEFAULT_LOCK_PATH);
   const _ctl = new AbortController();
-  const _unregister = _signals.onInterrupt(() => _ctl.abort());
+  let _unregister: (() => void) | undefined;
   try {
+    _unregister = _signals.onInterrupt(() => _ctl.abort());
     _assertSwept(
       await _sweepArtifacts(_sweepDirsOf(_targets.sources), { shallowDirs: [dirname(DENO_CONFIG_PATH)] }),
     );
@@ -367,7 +484,7 @@ export const main = async (argv?: string[], deps: Partial<MainDeps> = {}): Promi
       return EXIT_CODE_INTERRUPTED;
     }
     const _timeoutMs = _args.timeoutSec * 1000;
-    const _testArgs = ['test', ...MUTATION_TEST_PERMISSIONS, ..._targets.tests];
+    const _testArgs: TestArgs = ['test', ...MUTATION_TEST_PERMISSIONS, ..._targets.tests];
     const _checkDrift = async (): Promise<string[]> => detectDrift(_hashesBefore, await _hashSources(_targets.sources));
     const _baseline = await _runBaseline(runDenoTest, _testArgs, { timeoutMs: _timeoutMs, signal: _ctl.signal });
     if (_baseline.kind === 'interrupted') {
@@ -388,7 +505,7 @@ export const main = async (argv?: string[], deps: Partial<MainDeps> = {}): Promi
     await _writeReportOrFail(_writeReport, formatReport(_report));
     return decideExitCode(_report, _args.strict);
   } finally {
-    _unregister();
     await _releaseLock(_token);
+    _unregister?.();
   }
 };

@@ -9,6 +9,7 @@
 
 // ─── BDD modules
 import {
+  assert,
   assertEquals,
   assertFalse,
   assertNotEquals,
@@ -17,6 +18,8 @@ import {
   assertStringIncludes,
 } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
+// stub
+import { stub } from '@std/testing/mock';
 
 // ─── Test target
 import { main } from '../../../mutate-tester.ts';
@@ -25,13 +28,18 @@ import { main } from '../../../mutate-tester.ts';
 import { dirname, join } from '@std/path';
 import { ChatlogError } from '../../../../../skills/_cle-libs/classes/ChatlogError.class.ts';
 import {
+  BASELINE_ABORT_DRIFT_MESSAGE,
   BASELINE_REASON_NONZERO_EXIT,
   DENO_CONFIG_PATH,
+  EXIT_CODE_FAILURE,
+  MUTATION_TEST_PERMISSIONS,
   REPO_ROOT,
   REPORT_NO_MUTANTS,
   REPORT_WRITE_FAILURE_MESSAGE,
+  WRONG_WORKING_DIRECTORY_MESSAGE,
 } from '../../constants/mutation.constants.ts';
 import { formatReport } from '../../report.ts';
+import { runDenoTest } from '../../run-deno-test.ts';
 import {
   driftingHashSources,
   driftSection,
@@ -44,7 +52,14 @@ import {
 } from '../helpers/main-fakes.ts';
 
 // types
-import type { AllowlistEntry, MainDeps, Mutant, MutantResult } from '../../types/mutation.types.ts';
+import type {
+  AllowlistEntry,
+  MainDeps,
+  Mutant,
+  MutantResult,
+  RunMutantsOptions,
+  TestRunnerProvider,
+} from '../../types/mutation.types.ts';
 
 // ─── Internal Helpers
 
@@ -134,13 +149,12 @@ describe('main', () => {
       assertEquals(_code, 0);
     });
 
-    it('[Normal] T-MUT-MT-10-04: survived 1 件・未許容・--strict あり → 0 でも 130 でもない値を返す', async () => {
+    it('[Normal] T-MUT-MT-10-04: survived 1 件・未許容・--strict あり → EXIT_CODE_FAILURE (1) を返す', async () => {
       const { deps: _deps } = makeMainDeps(_survivedUnallowed);
 
-      const _outcome = await outcomeOf(main(['libs', '--strict'], _deps));
+      const _code = await main(['libs', '--strict'], _deps);
 
-      assertNotEquals(_outcome, 0);
-      assertNotEquals(_outcome, 130);
+      assertEquals(_code, EXIT_CODE_FAILURE);
     });
 
     it('[Normal] T-MUT-MT-10-05: --timeout 30 → runBaseline と runMutants の timeoutMs がどちらも 30000', async () => {
@@ -236,6 +250,94 @@ describe('main', () => {
 
       const _focus = _calls.filter((name) => name === 'runBaseline' || name === 'generateMutants');
       assertEquals(_focus, ['runBaseline', 'generateMutants']);
+    });
+
+    /** `runBaseline` と `runMutants` が受け取った引数の記録。 */
+    type _RunnerArgs = {
+      /** `runBaseline` が受け取ったテストの起動関数とテスト引数 (呼び出しごと)。 */
+      baseline: [TestRunnerProvider, string[]][];
+      /** `runMutants` が受け取ったオプション (呼び出しごと)。 */
+      mutants: RunMutantsOptions[];
+    };
+
+    /**
+     * `runBaseline` と `runMutants` が受け取った引数を記録し、既定の fake に委譲する依存を作る。
+     *
+     * 記録配列を持つため、テストごとに新しく作る (テスト間で共有しない)。
+     *
+     * @param overrides - 既定の fake から追加で差し替える依存
+     * @returns 記録付きの依存の一式と引数の記録
+     */
+    const _recordingRunners = (overrides: Partial<MainDeps> = {}): { deps: MainDeps; args: _RunnerArgs } => {
+      const _args: _RunnerArgs = { baseline: [], mutants: [] };
+      const { deps: _base } = makeMainDeps();
+      const { deps: _deps } = makeMainDeps({
+        ...overrides,
+        runBaseline: (runner, args, options) => {
+          _args.baseline.push([runner, [...args]]);
+          return _base.runBaseline(runner, args, options);
+        },
+        runMutants: (mutants, options) => {
+          _args.mutants.push(options);
+          return _base.runMutants(mutants, options);
+        },
+      });
+      return { deps: _deps, args: _args };
+    };
+
+    it('[Normal] T-MUT-MT-32-01: 全 fake 成功 → runBaseline の第 1 引数が production の runDenoTest と同一の関数', async () => {
+      const { deps: _deps, args: _args } = _recordingRunners();
+
+      await main(['libs'], _deps);
+
+      assertEquals(_args.baseline.length, 1);
+      assertStrictEquals(_args.baseline[0][0], runDenoTest);
+    });
+
+    it('[Normal] T-MUT-MT-32-02: resolveTargets がテスト 2 件を返す → runBaseline のテスト引数が [test, ...MUTATION_TEST_PERMISSIONS, テスト 1, テスト 2]', async () => {
+      const _tests = ['libs/__tests__/unit/a.unit.spec.ts', 'libs/__tests__/unit/b.unit.spec.ts'];
+      const { deps: _deps, args: _args } = _recordingRunners({
+        resolveTargets: () => Promise.resolve({ sources: ['libs/a.ts'], tests: [..._tests] }),
+      });
+
+      await main(['libs'], _deps);
+
+      assertEquals(_args.baseline.map(([, args]) => args), [['test', ...MUTATION_TEST_PERMISSIONS, ..._tests]]);
+    });
+
+    it('[Normal] T-MUT-MT-32-03: 変異体 1 件を生成 → runMutants の configPath が DENO_CONFIG_PATH', async () => {
+      const { deps: _deps, args: _args } = _recordingRunners();
+
+      await main(['libs'], _deps);
+
+      assertEquals(_args.mutants.map((options) => options.configPath), [DENO_CONFIG_PATH]);
+    });
+
+    it('[Normal] T-MUT-MT-32-04: 変異体 1 件を生成 → runMutants の testArgs が runBaseline のテスト引数と一致する', async () => {
+      const { deps: _deps, args: _args } = _recordingRunners();
+
+      await main(['libs'], _deps);
+
+      assertEquals(_args.baseline.length, 1);
+      assertEquals(_args.mutants.map((options) => [...options.testArgs]), [_args.baseline[0][1]]);
+    });
+
+    it('[Normal] T-MUT-MT-30-02: cwd が REPO_ROOT → acquireLock を 1 回呼び 0 を返す', async () => {
+      const { deps: _deps, calls: _calls } = makeMainDeps({ cwd: () => REPO_ROOT });
+
+      const _code = await main(['libs'], _deps);
+
+      assertEquals(_calls.filter((name) => name === 'acquireLock'), ['acquireLock']);
+      assertEquals(_code, 0);
+    });
+
+    it('[Normal] T-MUT-MT-30-03: cwd が REPO_ROOT から末尾の区切り文字を除いた文字列 → 同じ作業ディレクトリとみなし 0 を返す', async () => {
+      const _trimmed = REPO_ROOT.replace(/[\\/]+$/, '');
+      const { deps: _deps } = makeMainDeps({ cwd: () => _trimmed });
+
+      const _code = await main(['libs'], _deps);
+
+      assertEquals(_code, 0);
     });
   });
 
@@ -335,13 +437,13 @@ describe('main', () => {
       sweepArtifacts: () => Promise.resolve(['libs/a.mutation-001.ts']),
     };
 
-    it('[Error] T-MUT-MT-15-01: sweepArtifacts が削除できなかったパス 1 件を返す → 0 でも 130 でもない結果になる', async () => {
+    it('[Error] T-MUT-MT-15-01: sweepArtifacts が削除できなかったパス 1 件を返す → FailFast / SweepFailed の ChatlogError で reject し、message にそのパスを含む', async () => {
       const { deps: _deps } = makeMainDeps(_sweepFailure);
 
-      const _outcome = await outcomeOf(main(['libs'], _deps));
+      const _error = await assertRejects(() => main(['libs'], _deps), ChatlogError);
 
-      assertNotEquals(_outcome, 0);
-      assertNotEquals(_outcome, 130);
+      assertEquals({ kind: _error.kind, subindex: _error.subindex }, { kind: 'FailFast', subindex: 'SweepFailed' });
+      assertStringIncludes(_error.message, 'libs/a.mutation-001.ts');
     });
 
     it('[Error] T-MUT-MT-15-03: sweepArtifacts が削除できなかったパス 1 件を返す → 中止後も hashSources・runBaseline を呼ばない', async () => {
@@ -360,13 +462,13 @@ describe('main', () => {
       hashSources: _throwing(new ChatlogError('FileDirNotFound', 'SourceNotFound', 'libs/a.ts')),
     };
 
-    it('[Error] T-MUT-MT-16-01: 1 回目の hashSources が ChatlogError を投げる → 0 でも 130 でもない結果になり、runBaseline を呼ばない', async () => {
-      const { deps: _deps, calls: _calls } = makeMainDeps(_hashFailure);
+    it('[Error] T-MUT-MT-16-01: 1 回目の hashSources が ChatlogError を投げる → その例外と同一のインスタンスで reject し、runBaseline を呼ばない', async () => {
+      const _thrown = new ChatlogError('FileDirNotFound', 'SourceNotFound', 'libs/a.ts');
+      const { deps: _deps, calls: _calls } = makeMainDeps({ hashSources: _throwing(_thrown) });
 
-      const _outcome = await outcomeOf(main(['libs'], _deps));
+      const _error = await assertRejects(() => main(['libs'], _deps));
 
-      assertNotEquals(_outcome, 0);
-      assertNotEquals(_outcome, 130);
+      assertStrictEquals(_error, _thrown);
       assertFalse(_calls.includes('runBaseline'));
     });
 
@@ -410,16 +512,16 @@ describe('main', () => {
       });
     }
 
-    it('[Error] T-MUT-MT-18-02: runBaseline が failed { reason } を返す → 0 でも 130 でもない結果になる', async () => {
+    it('[Error] T-MUT-MT-18-02: runBaseline が failed { reason } を返す → FailFast / BaselineFailed の ChatlogError で reject し、message に reason を含む', async () => {
       const { deps: _deps } = makeMainDeps(_baselineFailure);
 
-      const _outcome = await outcomeOf(main(['libs'], _deps));
+      const _error = await assertRejects(() => main(['libs'], _deps), ChatlogError);
 
-      assertNotEquals(_outcome, 0);
-      assertNotEquals(_outcome, 130);
+      assertEquals({ kind: _error.kind, subindex: _error.subindex }, { kind: 'FailFast', subindex: 'BaselineFailed' });
+      assertStringIncludes(_error.message, BASELINE_REASON_NONZERO_EXIT);
     });
 
-    it('[Error] T-MUT-MT-18-04: runBaseline が failed・2 回目の hashSources で 1 件の内容が変わる → hashSources を 2 回呼び、そのパスを標準エラー出力へ列挙する', async () => {
+    it('[Error] T-MUT-MT-18-04: runBaseline が failed・2 回目の hashSources で 1 件の内容が変わる → hashSources を 2 回呼び、logger.error に BASELINE_ABORT_DRIFT_MESSAGE とそのパスを含む 1 行を出す', async () => {
       const { deps: _deps, calls: _calls } = makeMainDeps({
         ..._baselineFailure,
         hashSources: driftingHashSources(),
@@ -427,16 +529,17 @@ describe('main', () => {
       const { loggerStub: _loggerStub } = await withLoggerStub(() => outcomeOf(main(['libs'], _deps)));
 
       assertEquals(_calls.filter((name) => name === 'hashSources'), ['hashSources', 'hashSources']);
-      assertStringIncludes([..._loggerStub.errorLogs, ..._loggerStub.warnLogs].join('\n'), 'libs/a.ts');
+      const _driftLines = _loggerStub.errorLogs.filter((line) => line.includes(BASELINE_ABORT_DRIFT_MESSAGE));
+      assertEquals(_driftLines.length, 1, `errorLogs: ${_loggerStub.errorLogs.join('\n')}`);
+      assertStringIncludes(_driftLines[0], 'libs/a.ts');
     });
 
-    it('[Error] T-MUT-MT-19-01: 全工程成功・2 回目の hashSources で 1 件の内容が変わる・--strict なし → 0 でも 130 でもない値を返す', async () => {
+    it('[Error] T-MUT-MT-19-01: 全工程成功・2 回目の hashSources で 1 件の内容が変わる・--strict なし → EXIT_CODE_FAILURE (1) を返す', async () => {
       const { deps: _deps } = makeMainDeps({ hashSources: driftingHashSources() });
 
-      const _outcome = await outcomeOf(main(['libs'], _deps));
+      const _code = await main(['libs'], _deps);
 
-      assertNotEquals(_outcome, 0);
-      assertNotEquals(_outcome, 130);
+      assertEquals(_code, EXIT_CODE_FAILURE);
     });
 
     it('[Error] T-MUT-MT-19-02: 全工程成功・2 回目の hashSources で libs/a.ts の内容が変わる → writeReport の drift 見出しの直下に libs/a.ts を 1 件だけ並べる', async () => {
@@ -468,6 +571,69 @@ describe('main', () => {
         assertEquals(_calls.filter((name) => name === 'releaseLock'), ['releaseLock']);
       });
     }
+
+    /** リポジトリルートの親ディレクトリ (リポジトリルートではない作業ディレクトリ)。 */
+    const _parentOfRoot = dirname(REPO_ROOT);
+
+    it('[Error] T-MUT-MT-30-01: cwd がリポジトリルートの親 → InvalidPath / WrongWorkingDirectory の ChatlogError で reject し、メッセージに注入した作業ディレクトリを含め、resolveTargets・loadAllowlist・acquireLock を呼ばない', async () => {
+      const { deps: _deps, calls: _calls } = makeMainDeps({ cwd: () => _parentOfRoot });
+
+      const _error = await assertRejects(() => main(['libs'], _deps), ChatlogError);
+
+      assertEquals(
+        { kind: _error.kind, subindex: _error.subindex },
+        { kind: 'InvalidPath', subindex: 'WrongWorkingDirectory' },
+      );
+      // _parentOfRoot は REPO_ROOT の部分文字列のため、前後を固定して注入値そのものを検証する
+      assertStringIncludes(_error.message, `${WRONG_WORKING_DIRECTORY_MESSAGE}${_parentOfRoot} (期待:`);
+      const _skipped = ['resolveTargets', 'loadAllowlist', 'acquireLock'];
+      assertEquals(_calls.filter((name) => _skipped.includes(name)), []);
+    });
+
+    it('[Error] T-MUT-MT-30-04: cwd がリポジトリルートの親・argv が [] → 作業ディレクトリより引数を先に判定し MissingModule の ChatlogError で reject する', async () => {
+      const { deps: _deps } = makeMainDeps({ cwd: () => _parentOfRoot });
+
+      const _error = await assertRejects(() => main([], _deps), ChatlogError);
+
+      assertEquals(_error.subindex, 'MissingModule');
+    });
+
+    it(
+      '[Error] T-MUT-MT-30-05: cwd が REPO_ROOT のドライブ文字の大文字小文字だけを反転した文字列 → InvalidPath / WrongWorkingDirectory の ChatlogError で reject し、acquireLock を呼ばない',
+      { ignore: !/^[A-Za-z]:/.test(REPO_ROOT) },
+      async () => {
+        const _drive = REPO_ROOT[0];
+        const _flippedDrive = _drive === _drive.toUpperCase() ? _drive.toLowerCase() : _drive.toUpperCase();
+        const _flipped = `${_flippedDrive}${REPO_ROOT.slice(1)}`;
+        const { deps: _deps, calls: _calls } = makeMainDeps({ cwd: () => _flipped });
+
+        const _error = await assertRejects(() => main(['libs'], _deps), ChatlogError);
+
+        assertEquals(
+          { kind: _error.kind, subindex: _error.subindex },
+          { kind: 'InvalidPath', subindex: 'WrongWorkingDirectory' },
+        );
+        assertEquals(_calls.filter((name) => name === 'acquireLock'), []);
+      },
+    );
+
+    it('[Error] T-MUT-MT-30-06: cwd を注入しない deps・Deno.cwd がリポジトリルートの親 → 既定の Deno.cwd を作業ディレクトリとして使い、InvalidPath / WrongWorkingDirectory の ChatlogError で reject し、acquireLock を呼ばない', async () => {
+      const { deps: _deps, calls: _calls } = makeMainDeps();
+      const { cwd: _omitted, ..._rest } = _deps;
+      const _cwdStub = stub(Deno, 'cwd', () => _parentOfRoot);
+      try {
+        const _error = await assertRejects(() => main(['libs'], _rest), ChatlogError);
+
+        assertEquals(
+          { kind: _error.kind, subindex: _error.subindex },
+          { kind: 'InvalidPath', subindex: 'WrongWorkingDirectory' },
+        );
+        assert(_cwdStub.calls.length >= 1);
+        assertEquals(_calls.filter((name) => name === 'acquireLock'), []);
+      } finally {
+        _cwdStub.restore();
+      }
+    });
   });
 
   /** コードレビューの指摘から追加した検証。 */

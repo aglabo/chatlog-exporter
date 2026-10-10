@@ -6,7 +6,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { walk } from 'jsr:@std/fs@^1.0.24';
+import { walk, type WalkEntry } from 'jsr:@std/fs@^1.0.24';
 import { basename } from 'jsr:@std/path@^1.1.6';
 import { ChatlogError } from '../../../skills/_cle-libs/classes/ChatlogError.class.ts';
 import { sessionHash } from '../../../skills/_cle-libs/libs/io/hash.ts';
@@ -101,6 +101,10 @@ const _readLockId = async (path: string): Promise<string> => {
 /**
  * token の ID と記録の ID が一致するときだけ、ロックファイルを削除する (非再帰)。
  *
+ * 既知の制限: 記録の読み取りと削除は別の手順で、不可分ではない。その間に利用者がロックを削除し、
+ * 別の実行が作り直すと、その実行のロックを消しうる。Deno には ID を比較して削除する不可分な操作が無いため、
+ * この競合は受け入れる (DD-13)。
+ *
  * @param token - `acquireLock` が返したロックの持ち主の証明
  * @throws 記録の読み取り・解析・削除に失敗したとき (呼び出し元の `releaseLock` が警告に変える)
  */
@@ -115,6 +119,7 @@ const _removeOwnLock = async (token: LockToken): Promise<void> => {
  *
  * ロックファイルに記録されたランダム ID が token の ID と一致する場合だけ、ロックファイルを削除する (非再帰)。
  * 記録の読み取り・削除に失敗しても例外を投げず、警告を 1 件だけ標準エラー出力へ出す。
+ * 読み取りと削除の間の競合は防げない (`_removeOwnLock` の既知の制限を参照)。
  *
  * @param token - `acquireLock` が返したロックの持ち主の証明
  */
@@ -157,38 +162,71 @@ export const removeArtifacts = async (paths: string[]): Promise<string[]> => {
 };
 
 /**
- * 1 ディレクトリ配下を探索し、名前が変異体・一時設定の命名に一致するエントリのパスを集める。
+ * 1 ディレクトリ配下を探索し、名前が変異体・一時設定の命名に一致するエントリを集める。
  *
  * 削除できない残骸を報告できるよう、命名に一致するディレクトリも候補に含める。
  *
  * @param dir - 探索するディレクトリ
  * @param maxDepth - 探索する深さ (省略時は無制限の再帰、`1` で直下のエントリだけ)
- * @returns 命名に一致したエントリのパスの並び
+ * @returns 命名に一致したエントリの並び
+ * @throws ディレクトリを探索できないとき (存在しない等) は `walk` の例外
  */
-const _collectArtifacts = async (dir: string, maxDepth: number = Infinity): Promise<string[]> => {
+const _collectArtifacts = async (dir: string, maxDepth: number = Infinity): Promise<WalkEntry[]> => {
   const _entries = await Array.fromAsync(walk(dir, { maxDepth }));
-  return _entries.map((entry) => entry.path).filter((path) => isMutationArtifact(basename(path)));
+  return _entries.filter((entry) => isMutationArtifact(basename(entry.path)));
 };
+
+/**
+ * 命名に一致したディレクトリを、深い順 (子孫が祖先より先) に 1 件ずつ削除する。
+ *
+ * 並列に削除すると、祖先の削除が子孫の削除より先に走ったときだけ祖先が空でなく失敗する。
+ * 削除の成否が実行タイミングに依存しないよう、path 長の降順に逐次で削除する。
+ *
+ * @param paths - 削除するディレクトリのパスの並び
+ * @returns 削除できなかったパスの並び (全件削除できたときは空)
+ */
+const _removeArtifactDirs = (paths: string[]): Promise<string[]> =>
+  paths.toSorted((a, b) => b.length - a.length).reduce<Promise<string[]>>(
+    async (failedPromise, path) => {
+      const _failed = await failedPromise;
+      const _result = await _removeArtifact(path);
+      return _result === null ? _failed : [..._failed, _result];
+    },
+    Promise.resolve([]),
+  );
 
 /**
  * 前回の実行が残した変異体ファイル・一時設定を掃除する (execution R-205 / REQ-F-007 / AC-008)。
  *
  * `dirs` の各ディレクトリは再帰的に、`options.shallowDirs` の各ディレクトリは直下のエントリだけを探索し、
- * 名前が `isMutationArtifact` に一致するエントリだけを `removeArtifacts` で削除する。
+ * 名前が `isMutationArtifact` に一致するエントリだけを削除する。
  * `shallowDirs` は `deno.jsonc` の隣に書かれる一時設定の掃除に使う (配下のソースまでは辿らない)。
- * 例外は投げない。中止するかの判断は呼び出し元が行う (DD-14)。
+ *
+ * 一致したファイルを先に `removeArtifacts` で並列に削除し、その後で一致したディレクトリを
+ * 深い順 (子孫が祖先より先) に 1 件ずつ削除する。ディレクトリまで並列に削除すると、
+ * 中身が残っているうちに祖先の削除が走ることがあり、削除の成否が実行タイミングに依存するため。
+ *
+ * 探索できないディレクトリ (存在しない等) があると `walk` の例外で reject する
+ * (呼び出し元 main が DD-14 に従い中止する)。削除の失敗は例外にせず戻り値で返す。
  *
  * @param dirs - 再帰的に探索するディレクトリの並び
  * @param options - 追加の探索先 (`shallowDirs`: 直下だけを探索するディレクトリの並び)
- * @returns 削除できなかったパスの並び (全件削除できたときは空)
+ * @returns 削除できなかったパスの並び (ファイルの失敗、ディレクトリの失敗の順。全件削除できたときは空)
+ * @throws 探索できないディレクトリがあるときは `walk` の例外
  */
 export const sweepArtifacts = async (dirs: string[], options: SweepOptions = {}): Promise<string[]> => {
   const { shallowDirs = [] } = options;
-  const _candidates = await Promise.all([
+  const _candidates = (await Promise.all([
     ...dirs.map((dir) => _collectArtifacts(dir)),
     ...shallowDirs.map((dir) => _collectArtifacts(dir, 1)),
-  ]);
-  return await removeArtifacts(_candidates.flat());
+  ])).flat();
+  const _fileFailures = await removeArtifacts(
+    _candidates.filter((entry) => !entry.isDirectory).map((entry) => entry.path),
+  );
+  const _dirFailures = await _removeArtifactDirs(
+    _candidates.filter((entry) => entry.isDirectory).map((entry) => entry.path),
+  );
+  return [..._fileFailures, ..._dirFailures];
 };
 
 /**

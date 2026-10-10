@@ -15,6 +15,13 @@ import { describe, it } from '@std/testing/bdd';
 import { runBaseline } from '../../baseline.ts';
 
 // ─── Helpers
+// constants
+import {
+  BASELINE_REASON_NO_SUMMARY,
+  BASELINE_REASON_NONZERO_EXIT,
+  BASELINE_REASON_TIMEOUT,
+  BASELINE_REASON_ZERO_PASSED,
+} from '../../constants/mutation.constants.ts';
 // types
 import type { TestRunnerProvider, TestRunOptions, TestRunOutcome } from '../../types/mutation.types.ts';
 
@@ -44,6 +51,12 @@ type _FailedCase = {
   title: string;
   /** runner が返すテスト実行結果。 */
   outcome: TestRunOutcome;
+};
+
+/** ベースラインが `failed` になり、理由が定数と一致するテスト実行結果のテーブル駆動ケース。 */
+type _ReasonCase = _FailedCase & {
+  /** `failed` の判定が持つべき理由。 */
+  reason: string;
 };
 
 // functions
@@ -84,6 +97,30 @@ const _makeRecordingRunnerStub = (
 const _makeAbortingRunnerStub = (ctl: AbortController, outcome: TestRunOutcome): TestRunnerProvider => () => {
   ctl.abort();
   return Promise.resolve(outcome);
+};
+
+/**
+ * 呼び出されると `ctl` を中止してから、`Error(message)` で reject する runner スタブを作る。
+ * 実行中に中断され、runner 自身も失敗した状況を再現する。実プロセスは起動しない。
+ *
+ * @param ctl - 呼び出し時に中止する AbortController
+ * @param message - reject する Error のメッセージ
+ * @returns `TestRunnerProvider` 互換のスタブ
+ */
+const _makeAbortingRejectRunnerStub = (ctl: AbortController, message: string): TestRunnerProvider => () => {
+  ctl.abort();
+  return Promise.reject(new Error(message));
+};
+
+/**
+ * 呼び出されると Promise を返さずに同期的に `Error(message)` を投げる runner スタブを作る。
+ * 実プロセスは起動しない。
+ *
+ * @param message - 投げる Error のメッセージ
+ * @returns `TestRunnerProvider` 互換のスタブ
+ */
+const _makeSyncThrowingRunnerStub = (message: string): TestRunnerProvider => () => {
+  throw new Error(message);
 };
 
 /**
@@ -229,29 +266,36 @@ describe('runBaseline', () => {
         assertStringIncludes(_reason, 'deno not found');
       });
 
-      const _cases: _FailedCase[] = [
+      const _cases: _ReasonCase[] = [
         {
           id: 'T-MUT-BL-04-02',
           title: '制限時間超過 (timeout)',
           outcome: { kind: 'timeout' },
+          reason: BASELINE_REASON_TIMEOUT,
         },
         {
           id: 'T-MUT-BL-04-03',
           title: 'passed 0 件 (exit 0 + "0 passed")',
           outcome: { kind: 'exited', code: 0, stdout: 'ok | 0 passed | 0 failed', stderr: '' },
+          reason: BASELINE_REASON_ZERO_PASSED,
         },
         {
           id: 'T-MUT-BL-04-04',
           title: '要約行なし (exit 0 + 空出力)',
           outcome: { kind: 'exited', code: 0, stdout: '', stderr: '' },
+          reason: BASELINE_REASON_NO_SUMMARY,
+        },
+        {
+          id: 'T-MUT-BL-04-05',
+          title: '非 0 終了 (exit 1 + FAILED | 2 passed | 1 failed)',
+          outcome: { kind: 'exited', code: 1, stdout: 'FAILED | 2 passed | 1 failed', stderr: '' },
+          reason: BASELINE_REASON_NONZERO_EXIT,
         },
       ];
 
-      for (const { id, title, outcome } of _cases) {
-        it(`[Error] ${id}: ${title} → reason が空でない`, async () => {
-          const _reason = await _runFailedReason(outcome);
-
-          assert(_reason.length > 0, `reason は空でないべき (実際: ${JSON.stringify(_reason)})`);
+      for (const { id, title, outcome, reason } of _cases) {
+        it(`[Error] ${id}: ${title} → reason が ${reason}`, async () => {
+          assertEquals(await _runFailedReason(outcome), reason);
         });
       }
     });
@@ -289,6 +333,38 @@ describe('runBaseline', () => {
           ..._DEFAULT_OPTIONS,
           signal: _ctl.signal,
         });
+
+        assertEquals(_result, { kind: 'interrupted' });
+      });
+
+      it('[Edge] T-MUT-BL-05-05: 呼び出し前に abort 済み + 呼び出しを記録する runner → interrupted かつ runner を呼ばない', async () => {
+        const _ctl = new AbortController();
+        _ctl.abort();
+        const _calls: _RunnerCall[] = [];
+
+        const _result = await runBaseline(_makeRecordingRunnerStub(_calls), ['test'], {
+          ..._DEFAULT_OPTIONS,
+          signal: _ctl.signal,
+        });
+
+        assertEquals(_result, { kind: 'interrupted' });
+        assertEquals(_calls.length, 0);
+      });
+
+      it('[Edge] T-MUT-BL-05-06: 呼び出し中に abort + timeout → failed ではなく interrupted', async () => {
+        const _ctl = new AbortController();
+        const _runner = _makeAbortingRunnerStub(_ctl, { kind: 'timeout' });
+
+        const _result = await runBaseline(_runner, ['test'], { ..._DEFAULT_OPTIONS, signal: _ctl.signal });
+
+        assertEquals(_result, { kind: 'interrupted' });
+      });
+
+      it('[Edge] T-MUT-BL-05-07: 呼び出し中に abort + runner が reject → reject せず interrupted', async () => {
+        const _ctl = new AbortController();
+        const _runner = _makeAbortingRejectRunnerStub(_ctl, 'aborted boom');
+
+        const _result = await runBaseline(_runner, ['test'], { ..._DEFAULT_OPTIONS, signal: _ctl.signal });
 
         assertEquals(_result, { kind: 'interrupted' });
       });
@@ -343,11 +419,48 @@ describe('runBaseline', () => {
   describe('runner が例外を投げる', () => {
     /** 呼び出し時に例外を投げる runner を渡す異常ケース。 */
     describe('When: 異常系', () => {
-      it('[Error] T-MUT-BL-08-01: runner が Error("spawn failed") を投げる → reject せず failed', async () => {
+      it('[Error] T-MUT-BL-08-01: runner が Error("spawn failed") で reject → reject せず failed、reason に spawn failed を含む', async () => {
         const _result = await runBaseline(_makeThrowingRunnerStub(), ['test'], _DEFAULT_OPTIONS);
 
-        assertEquals(_result.kind, 'failed');
+        assert(_result.kind === 'failed', `kind は failed であるべき (実際: ${_result.kind})`);
+        assertStringIncludes(_result.reason, 'spawn failed');
       });
+
+      it('[Error] T-MUT-BL-08-02: runner が同期的に Error("sync boom") を投げる → reject せず failed、reason に sync boom を含む', async () => {
+        const _result = await runBaseline(_makeSyncThrowingRunnerStub('sync boom'), ['test'], _DEFAULT_OPTIONS);
+
+        assert(_result.kind === 'failed', `kind は failed であるべき (実際: ${_result.kind})`);
+        assertStringIncludes(_result.reason, 'sync boom');
+      });
+    });
+  });
+
+  /**
+   * 要約行は標準出力だけから読み、標準エラーにある要約行と同じ形の行は解釈しない (execution DD-06)。
+   */
+  describe('標準エラーの要約行を解釈しない', () => {
+    /** 標準エラーに passed 1 件以上の要約行と同じ形の行を返す runner を渡す境界ケース。 */
+    describe('When: エッジケース', () => {
+      const _cases: _ReasonCase[] = [
+        {
+          id: 'T-MUT-BL-09-01',
+          title: 'stdout ok | 0 passed | 0 failed / stderr ok | 3 passed | 0 failed',
+          outcome: { kind: 'exited', code: 0, stdout: 'ok | 0 passed | 0 failed', stderr: 'ok | 3 passed | 0 failed' },
+          reason: BASELINE_REASON_ZERO_PASSED,
+        },
+        {
+          id: 'T-MUT-BL-09-02',
+          title: 'stdout 空 / stderr ok | 3 passed | 0 failed',
+          outcome: { kind: 'exited', code: 0, stdout: '', stderr: 'ok | 3 passed | 0 failed' },
+          reason: BASELINE_REASON_NO_SUMMARY,
+        },
+      ];
+
+      for (const { id, title, outcome, reason } of _cases) {
+        it(`[Edge] ${id}: ${title} → failed (reason: ${reason})`, async () => {
+          assertEquals(await _runWithOutcome(outcome), { kind: 'failed', reason });
+        });
+      }
     });
   });
 });

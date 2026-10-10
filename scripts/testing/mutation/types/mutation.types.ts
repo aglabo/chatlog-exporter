@@ -145,12 +145,18 @@ export type MutationRunReport = {
   auditFailures: string[];
 };
 
+/** `deno test` のサブコマンドを先頭に持つテスト引数。1 要素以上を型で保証する。 */
+export type TestArgs = [string, ...string[]];
+
 /** `runMutants` のオプション。 */
 export type RunMutantsOptions = {
   /** 元の設定 (`deno.jsonc`) のパス。一時設定はこれと同じディレクトリに置く。 */
   configPath: string;
-  /** `deno` に渡す引数。先頭 (サブコマンド) の直後に `--config <一時設定>` を差し込む。 */
-  testArgs: string[];
+  /**
+   * `deno` に渡す引数。先頭はサブコマンドで、1 要素以上を型で保証する (execution R-217)。
+   * 先頭 (サブコマンド) の直後に `--config <一時設定>` を差し込む。
+   */
+  testArgs: TestArgs;
   /** 変異体 1 件あたりの実行の制限時間 (ミリ秒)。 */
   timeoutMs: number;
   /** テストを 1 回実行する provider。省略時は `runDenoTest`。 */
@@ -315,4 +321,6 @@ export type MainDeps = {
   writeReport: (text: string) => void | Promise<void>;
   /** SIGINT の受信の登録元。 */
   signals: SignalsProvider;
+  /** 作業ディレクトリを返す (index DD-09)。既定は `Deno.cwd`。 */
+  cwd: () => string;
 };
