@@ -71,7 +71,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 
 - 命名判定関数の名前は `isMutationArtifact(fileName)` と置いた (implementation に名前が無い)
 - `resolveTargets` / `loadAllowlist` / `runDenoTest` は、unit テストのために探索ルート・読み込みルート・spawn の注入点を要する。形は実装時に決める
-- `main` の依存注入は T-14 の blockquote の `MainDeps` 案による。**ユーザー確認待ち**
+- `main` の依存注入は T-14 の blockquote の `MainDeps` 案による（2026-10-10 ユーザー決定で確定）
 - 非 0 の終了コードは 130 以外すべて 1 とした (report-cli DD-09)
 
 ---
@@ -93,7 +93,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | done    |
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | done    |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | done    |
-| T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending |
+| T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | done    |
 | T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending |
 | T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending |
 | **合計**                                                                              | —      | —     | **175**   | **481** | —       |
@@ -3396,9 +3396,9 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 ## T-14: `main`（監査の順序制御と SIGINT）
 
 > Commit: 16 / 配置ファイル: `scripts/testing/mutate-tester.ts` /
-> テストファイル: `scripts/testing/mutation/__tests__/unit/mutate-tester.unit.spec.ts` / Phase: 3 /
+> テストファイル: `scripts/testing/mutation/__tests__/unit/mutate-tester-main.unit.spec.ts`（T-14-10〜19）と `scripts/testing/mutation/__tests__/unit/mutate-tester-sigint.unit.spec.ts`（T-14-20〜28。SIGINT と後始末）。fake 一式は `scripts/testing/mutation/__tests__/helpers/main-fakes.ts` に置いて共有する。ケース数を抑えるため 2 ファイルに分ける（2026-10-10 ユーザー決定）/ Phase: 3 /
 > Test ID prefix: `T-MUT-MT`（グループ番号 10〜29。本 Target は 10〜28 を使用）
-> 注入（**判断事項。ユーザー確認待ち**）: impl v1.5.0 は `main(argv?): Promise<number>` の依存の渡し方を定めていない。本タスクは次の最小形を前提とする。
+> 注入（2026-10-10 ユーザー決定で下記の形に確定）: impl v1.5.0 は `main(argv?): Promise<number>` の依存の渡し方を定めていない。本タスクは次の最小形を前提とする。
 > `main(argv?: string[], deps: Partial<MainDeps> = {}): Promise<number>`。`MainDeps` は `scripts/testing/mutation/types/mutation.types.ts` に置き、既定値は分割代入で production 実装を与える (coding-guidelines のオブジェクト引数規約)。
 > `MainDeps` = `{ resolveTargets, loadAllowlist, acquireLock, releaseLock, sweepArtifacts, hashSources, runBaseline, generateMutants, runMutants, matchAllowlist, readSource, writeReport, signals }`。
 > `writeReport(text)` は標準出力への書き出し、`signals` は `{ onInterrupt(handler): () => void }` (`Deno.addSignalListener('SIGINT', …)` の薄い包み。戻り値で登録解除) とする。
@@ -3411,42 +3411,42 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-10: 全工程が成功する監査
 
-- [ ] **T-14-10-01**: 工程が規定の順序で呼ばれる
+- [x] **T-14-10-01**: 工程が規定の順序で呼ばれる
   - Target: `main`
   - Test ID: `T-MUT-MT-10-01`
   - Rule: index R-001〜R-013 / index DD-01 / execution R-205 / execution R-209 / execution R-213 / REQ-C-006
   - Scenario: Given すべての fake が成功し変異体 1 件を生成する deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then 呼び出し記録が `resolveTargets` → `loadAllowlist` → `acquireLock` → `signals.onInterrupt` → `sweepArtifacts` → `hashSources` → `runBaseline` → `generateMutants` → `runMutants` → `matchAllowlist` → `hashSources` → `writeReport` → `releaseLock` の順であること
 
-- [ ] **T-14-10-02**: レポートを標準出力へ 1 回書き出す
+- [x] **T-14-10-02**: レポートを標準出力へ 1 回書き出す
   - Target: `main`
   - Test ID: `T-MUT-MT-10-02`
   - Rule: index R-012 / report-cli DD-02
   - Scenario: Given すべての fake が成功し、`runMutants` が killed 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then `writeReport` が 1 回だけ呼ばれ、その引数が同じ入力に対する `formatReport` の出力と一致すること
 
-- [ ] **T-14-10-03**: 既定では未許容の生存があっても 0 を返す
+- [x] **T-14-10-03**: 既定では未許容の生存があっても 0 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-10-03`
   - Rule: index R-013 / DR-03 / AC-015
   - Scenario: Given `runMutants` が survived 1 件を返し、`matchAllowlist` がそれを未許容とする deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then `0` を返すこと
 
-- [ ] **T-14-10-04**: `--strict` が終了コードの決定に渡る
+- [x] **T-14-10-04**: `--strict` が終了コードの決定に渡る
   - Target: `main`
   - Test ID: `T-MUT-MT-10-04`
   - Rule: index R-013 / DR-03 / AC-016
   - Scenario: Given `runMutants` が survived 1 件を返し、`matchAllowlist` がそれを未許容とする deps と argv `['libs', '--strict']` がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない値を返すこと
 
-- [ ] **T-14-10-05**: 制限時間をベースラインと変異体の実行に同じ値で渡す
+- [x] **T-14-10-05**: 制限時間をベースラインと変異体の実行に同じ値で渡す
   - Target: `main`
   - Test ID: `T-MUT-MT-10-05`
   - Rule: execution DD-10 / report-cli R-604 / REQ-NF-003
   - Scenario: Given すべての fake が成功する deps と argv `['libs', '--timeout', '30']` がある, When `main` を呼ぶ
   - Expected: Then `runBaseline` と `runMutants` に渡された制限時間がどちらも 30000 ミリ秒であること
 
-- [ ] **T-14-10-06**: 対象ソース全件の変異体を `runMutants` に渡す
+- [x] **T-14-10-06**: 対象ソース全件の変異体を `runMutants` に渡す
   - Target: `main`
   - Test ID: `T-MUT-MT-10-06`
   - Rule: index R-008 / index R-009
@@ -3455,28 +3455,28 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-11: 変異体 0 件の監査
 
-- [ ] **T-14-11-01**: 変異体 0 件なら `runMutants` を呼ばない
+- [x] **T-14-11-01**: 変異体 0 件なら `runMutants` を呼ばない
   - Target: `main`
   - Test ID: `T-MUT-MT-11-01`
   - Rule: index R-008 / Edge index-1 / REQ-F-018
   - Scenario: Given `generateMutants` が全ソースで空配列を返す deps がある, When `main` を呼ぶ
   - Expected: Then `runMutants` が呼ばれないこと
 
-- [ ] **T-14-11-02**: 変異体 0 件をレポートし 0 を返す
+- [x] **T-14-11-02**: 変異体 0 件をレポートし 0 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-11-02`
   - Rule: index R-008 / report-cli R-606 / Edge report-cli-8 / AC-021
   - Scenario: Given `generateMutants` が全ソースで空配列を返し、許容リストが空の deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then `writeReport` の引数に変異体 0 件の明示が含まれ、`0` を返すこと
 
-- [ ] **T-14-11-03**: 変異体 0 件でも許容リストの照合 (古いエントリの抽出) を行う
+- [x] **T-14-11-03**: 変異体 0 件でも許容リストの照合 (古いエントリの抽出) を行う
   - Target: `main`
   - Test ID: `T-MUT-MT-11-03`
   - Rule: index R-008 / allowlist R-509
   - Scenario: Given `generateMutants` が空配列を返し、`loadAllowlist` がエントリ 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then `matchAllowlist` が空の変異体列とそのエントリ 1 件で呼ばれること
 
-- [ ] **T-14-11-04**: 変異体 0 件の監査でもベースラインを実行する
+- [x] **T-14-11-04**: 変異体 0 件の監査でもベースラインを実行する
   - Target: `main`
   - Test ID: `T-MUT-MT-11-04`
   - Rule: index R-007 / index R-008 / implementation Commit 16（変異体 0 件でもベースラインを実行する）
@@ -3487,21 +3487,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-12: 引数エラー
 
-- [ ] **T-14-12-01**: 不明なモジュール名では `ChatlogError` で reject する
+- [x] **T-14-12-01**: 不明なモジュール名では `ChatlogError` で reject する
   - Target: `main`
   - Test ID: `T-MUT-MT-12-01`
   - Rule: index R-001 / report-cli R-602 / AC-014 / REQ-C-003
   - Scenario: Given argv `['unknown']` と記録付きの deps がある, When `main` を呼ぶ
   - Expected: Then `main` が `ChatlogError` で reject すること (`Deno.exit` を呼ばない)
 
-- [ ] **T-14-12-02**: 不明なモジュール名ではどの依存も呼ばない
+- [x] **T-14-12-02**: 不明なモジュール名ではどの依存も呼ばない
   - Target: `main`
   - Test ID: `T-MUT-MT-12-02`
   - Rule: index R-001 / execution R-201 / AC-014
   - Scenario: Given argv `['unknown']` と記録付きの deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then 呼び出し記録が空であること (`resolveTargets`・`acquireLock`・`sweepArtifacts` を含め何も呼ばれない)
 
-- [ ] **T-14-12-03**: `--timeout 0` ではどの依存も呼ばない
+- [x] **T-14-12-03**: `--timeout 0` ではどの依存も呼ばない
   - Target: `main`
   - Test ID: `T-MUT-MT-12-03`
   - Rule: index R-001 / report-cli R-603 / AC-024
@@ -3510,21 +3510,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-13: 許容リストの不正
 
-- [ ] **T-14-13-01**: 許容リストのエラーをそのまま伝える
+- [x] **T-14-13-01**: 許容リストのエラーをそのまま伝える
   - Target: `main`
   - Test ID: `T-MUT-MT-13-01`
   - Rule: index R-003 / allowlist R-505 / Edge report-cli-24 / AC-011
   - Scenario: Given `loadAllowlist` が全エラーを列挙した `ChatlogError` を投げる deps がある, When `main` を呼ぶ
   - Expected: Then `main` が同じ `ChatlogError` で reject し、`error.message` が `loadAllowlist` の列挙を含むこと
 
-- [ ] **T-14-13-02**: 許容リストの検証はロック取得より先で、ロック競合より優先する
+- [x] **T-14-13-02**: 許容リストの検証はロック取得より先で、ロック競合より優先する
   - Target: `main`
   - Test ID: `T-MUT-MT-13-02`
   - Rule: index R-003 / index R-004 / index DD-02 / Edge index-3
   - Scenario: Given `loadAllowlist` が `ChatlogError` を投げ、`acquireLock` も失敗するよう設定した deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then `acquireLock`・`sweepArtifacts` が呼ばれず、reject の理由が許容リストのエラーであること
 
-- [ ] **T-14-13-03**: 許容リストの不正で中止したらレポートを構成しない
+- [x] **T-14-13-03**: 許容リストの不正で中止したらレポートを構成しない
   - Target: `main`
   - Test ID: `T-MUT-MT-13-03`
   - Rule: report-cli §3.2（実行前の中止はレポートを構成しない） / report-cli 4.3 / Edge report-cli-24
@@ -3533,28 +3533,28 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-14: ロックの取得失敗
 
-- [ ] **T-14-14-01**: ロックの取得失敗で非 0 になる
+- [x] **T-14-14-01**: ロックの取得失敗で非 0 になる
   - Target: `main`
   - Test ID: `T-MUT-MT-14-01`
   - Rule: index R-004 / execution R-202 / DR-09 / Edge index-7 / Edge execution-15 (前半: ロックが残っていれば中止) / Edge execution-22 / Edge report-cli-26
   - Scenario: Given 前回の強制終了で残ったロックを想定し、`acquireLock` が `ChatlogError` を投げる deps がある, When `main` を呼ぶ
   - Expected: Then `main` が `ChatlogError` で reject すること
 
-- [ ] **T-14-14-02**: ロックの取得失敗では何も削除せず実行もしない
+- [x] **T-14-14-02**: ロックの取得失敗では何も削除せず実行もしない
   - Target: `main`
   - Test ID: `T-MUT-MT-14-02`
   - Rule: index R-004 / execution R-201 / REQ-F-017 / Edge execution-21 / AC-019
   - Scenario: Given 別のハーネスが実行中であることを想定し、`acquireLock` が `ChatlogError` を投げる deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then `sweepArtifacts`・`hashSources`・`runBaseline`・`runMutants` がいずれも呼ばれないこと
 
-- [ ] **T-14-14-03**: 取得できなかったロックは解放しない
+- [x] **T-14-14-03**: 取得できなかったロックは解放しない
   - Target: `main`
   - Test ID: `T-MUT-MT-14-03`
   - Rule: execution R-213 / execution DD-13
   - Scenario: Given `acquireLock` が `ChatlogError` を投げる deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then `releaseLock` が呼ばれないこと
 
-- [ ] **T-14-14-04**: ロックの取得失敗で中止したらレポートを構成しない
+- [x] **T-14-14-04**: ロックの取得失敗で中止したらレポートを構成しない
   - Target: `main`
   - Test ID: `T-MUT-MT-14-04`
   - Rule: report-cli §3.2（実行前の中止はレポートを構成しない） / report-cli 4.3 / Edge report-cli-26
@@ -3563,21 +3563,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-15: 残骸掃除の失敗
 
-- [ ] **T-14-15-01**: 削除できなかった残骸があれば非 0 で中止する
+- [x] **T-14-15-01**: 削除できなかった残骸があれば非 0 で中止する
   - Target: `main`
   - Test ID: `T-MUT-MT-15-01`
   - Rule: execution DD-14 / Edge execution-28 / report-cli R-615
   - Scenario: Given `sweepArtifacts` が削除に失敗したパス 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない結果 (非 0 の return または reject) になること
 
-- [ ] **T-14-15-02**: 掃除で中止してもロックを解放する
+- [x] **T-14-15-02**: 掃除で中止してもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-15-02`
   - Rule: execution DD-14 / index 補足規則 (あらゆる経路で解放)
   - Scenario: Given `sweepArtifacts` が削除に失敗したパス 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then `releaseLock` が 1 回呼ばれること
 
-- [ ] **T-14-15-03**: 掃除で中止したらハッシュ取得もベースラインも行わない
+- [x] **T-14-15-03**: 掃除で中止したらハッシュ取得もベースラインも行わない
   - Target: `main`
   - Test ID: `T-MUT-MT-15-03`
   - Rule: execution DD-14 / index R-005
@@ -3586,14 +3586,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-16: ハッシュ取得の失敗
 
-- [ ] **T-14-16-01**: ハッシュ取得の失敗で非 0 で中止する
+- [x] **T-14-16-01**: ハッシュ取得の失敗で非 0 で中止する
   - Target: `main`
   - Test ID: `T-MUT-MT-16-01`
   - Rule: execution DD-14 / Edge execution-28 / report-cli R-615
   - Scenario: Given 1 回目の `hashSources` が例外を投げる deps がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない結果になり、`runBaseline` が呼ばれないこと
 
-- [ ] **T-14-16-02**: ハッシュ取得で中止してもロックを解放する
+- [x] **T-14-16-02**: ハッシュ取得で中止してもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-16-02`
   - Rule: execution DD-14
@@ -3602,14 +3602,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-17: レポート出力の失敗
 
-- [ ] **T-14-17-01**: レポート出力の失敗で非 0 になる
+- [x] **T-14-17-01**: レポート出力の失敗で非 0 になる
   - Target: `main`
   - Test ID: `T-MUT-MT-17-01`
   - Rule: execution DD-14 / Edge execution-28 / report-cli R-615
   - Scenario: Given `writeReport` が例外を投げ、他の fake が成功する deps がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない結果になること
 
-- [ ] **T-14-17-02**: レポート出力で失敗してもロックを解放する
+- [x] **T-14-17-02**: レポート出力で失敗してもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-17-02`
   - Rule: execution DD-14
@@ -3618,35 +3618,35 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-18: ベースラインの失敗
 
-- [ ] **T-14-18-01**: ベースラインが失敗したら変異体を生成も実行もしない
+- [x] **T-14-18-01**: ベースラインが失敗したら変異体を生成も実行もしない
   - Target: `main`
   - Test ID: `T-MUT-MT-18-01`
   - Rule: index R-007 / execution R-208 / DR-08 / Edge index-4 / Edge execution-18 / AC-017 / AC-018
   - Scenario: Given `runBaseline` が `failed { reason }` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `generateMutants` と `runMutants` が呼ばれないこと
 
-- [ ] **T-14-18-02**: ベースラインの失敗で非 0 を返す
+- [x] **T-14-18-02**: ベースラインの失敗で非 0 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-18-02`
   - Rule: index R-007 / report-cli R-615 / Edge report-cli-25
   - Scenario: Given `runBaseline` が `failed { reason }` を返す deps がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない結果になること
 
-- [ ] **T-14-18-03**: ベースラインで中止してもロックを解放する
+- [x] **T-14-18-03**: ベースラインで中止してもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-18-03`
   - Rule: index R-007 / index 補足規則
   - Scenario: Given `runBaseline` が `failed { reason }` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `releaseLock` が 1 回呼ばれること
 
-- [ ] **T-14-18-04**: ベースラインで中止する場合も drift 検査を行い、drift を標準エラー出力へ列挙する
+- [x] **T-14-18-04**: ベースラインで中止する場合も drift 検査を行い、drift を標準エラー出力へ列挙する
   - Target: `main`
   - Test ID: `T-MUT-MT-18-04`
   - Rule: execution R-208 / index 補足規則 (R-007 中止時の drift) / Edge execution-29
   - Scenario: Given `runBaseline` が `failed { reason }` を返し、2 回目の `hashSources` が 1 件のソースについて異なるハッシュを返す deps がある, When `main` を呼ぶ
   - Expected: Then `hashSources` が 2 回呼ばれ、標準エラー出力 (logger) にそのソースのパスが出ること
 
-- [ ] **T-14-18-05**: ベースラインで中止したらレポートを構成しない
+- [x] **T-14-18-05**: ベースラインで中止したらレポートを構成しない
   - Target: `main`
   - Test ID: `T-MUT-MT-18-05`
   - Rule: report-cli 3.2 (実行前の中止はレポートを構成しない) / report-cli 4.3
@@ -3655,14 +3655,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-19: drift の検出
 
-- [ ] **T-14-19-01**: 全変異体の処理後に drift があれば非 0 を返す
+- [x] **T-14-19-01**: 全変異体の処理後に drift があれば非 0 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-19-01`
   - Rule: index R-011 / execution R-212 / report-cli R-615 / Edge index-10 / Edge execution-16 / AC-009
   - Scenario: Given すべての工程が成功し、2 回目の `hashSources` が 1 件のソースについて異なるハッシュを返す deps と argv `['libs']` (`--strict` なし) がある, When `main` を呼ぶ
   - Expected: Then 0 でも 130 でもない値を返すこと
 
-- [ ] **T-14-19-02**: drift のファイルをレポートに渡す
+- [x] **T-14-19-02**: drift のファイルをレポートに渡す
   - Target: `main`
   - Test ID: `T-MUT-MT-19-02`
   - Rule: index R-011 / report-cli R-611
@@ -3673,42 +3673,42 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-20: ハッシュ記録の完了前に SIGINT を受ける
 
-- [ ] **T-14-20-01**: ハッシュ記録中の SIGINT で 130 を返す
+- [x] **T-14-20-01**: ハッシュ記録中の SIGINT で 130 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-20-01`
   - Rule: execution R-227 / index R-014 / index DD-04 / Edge index-6 / Edge execution-30
   - Scenario: Given 1 回目の `hashSources` の実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then `130` を返すこと
 
-- [ ] **T-14-20-02**: ハッシュ記録中の SIGINT では進行中のハッシュ記録を終え、ベースラインへ進まない
+- [x] **T-14-20-02**: ハッシュ記録中の SIGINT では進行中のハッシュ記録を終え、ベースラインへ進まない
   - Target: `main`
   - Test ID: `T-MUT-MT-20-02`
   - Rule: execution R-227
   - Scenario: Given 1 回目の `hashSources` の実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then `hashSources` が最後まで完了 (resolve) し、`runBaseline` が呼ばれないこと
 
-- [ ] **T-14-20-03**: ハッシュ記録中の SIGINT では drift 検査を省く
+- [x] **T-14-20-03**: ハッシュ記録中の SIGINT では drift 検査を省く
   - Target: `main`
   - Test ID: `T-MUT-MT-20-03`
   - Rule: execution R-227 / index DD-04
   - Scenario: Given 1 回目の `hashSources` の実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then `hashSources` の呼び出しが 1 回だけであること
 
-- [ ] **T-14-20-04**: ハッシュ記録中の SIGINT でも中断の事実をレポートする
+- [x] **T-14-20-04**: ハッシュ記録中の SIGINT でも中断の事実をレポートする
   - Target: `main`
   - Test ID: `T-MUT-MT-20-04`
   - Rule: execution R-227 / report-cli R-605
   - Scenario: Given 1 回目の `hashSources` の実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then `writeReport` の引数に中断 (途中結果) の明示が含まれること
 
-- [ ] **T-14-20-05**: ハッシュ記録中の SIGINT でもロックを解放する
+- [x] **T-14-20-05**: ハッシュ記録中の SIGINT でもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-20-05`
   - Rule: execution R-227 / index 補足規則
   - Scenario: Given 1 回目の `hashSources` の実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then `releaseLock` が 1 回呼ばれること
 
-- [ ] **T-14-20-06**: 掃除中の SIGINT では掃除を終えてから中断する
+- [x] **T-14-20-06**: 掃除中の SIGINT では掃除を終えてから中断する
   - Target: `main`
   - Test ID: `T-MUT-MT-20-06`
   - Rule: execution R-227 / Edge execution-30
@@ -3717,42 +3717,42 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-21: ベースラインの実行中に SIGINT を受ける
 
-- [ ] **T-14-21-01**: ベースラインの `interrupted` は失敗ではなく 130 として扱う
+- [x] **T-14-21-01**: ベースラインの `interrupted` は失敗ではなく 130 として扱う
   - Target: `main`
   - Test ID: `T-MUT-MT-21-01`
   - Rule: execution R-227 / execution R-228 / report-cli R-614 / report-cli DD-06
   - Scenario: Given `runBaseline` の実行中に SIGINT の handler を呼び、`runBaseline` が `interrupted` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `130` を返すこと
 
-- [ ] **T-14-21-02**: ベースラインへ渡した中止信号が SIGINT で中止される
+- [x] **T-14-21-02**: ベースラインへ渡した中止信号が SIGINT で中止される
   - Target: `main`
   - Test ID: `T-MUT-MT-21-02`
   - Rule: execution R-227
   - Scenario: Given `runBaseline` の fake が受け取った `signal` を保持し、実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then 保持した `signal.aborted` が `true` であること
 
-- [ ] **T-14-21-03**: ベースライン中の中断では変異体を実行しない
+- [x] **T-14-21-03**: ベースライン中の中断では変異体を実行しない
   - Target: `main`
   - Test ID: `T-MUT-MT-21-03`
   - Rule: execution R-227
   - Scenario: Given `runBaseline` が `interrupted` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `generateMutants` と `runMutants` が呼ばれないこと
 
-- [ ] **T-14-21-04**: ベースライン中の中断では drift 検査を行う
+- [x] **T-14-21-04**: ベースライン中の中断では drift 検査を行う
   - Target: `main`
   - Test ID: `T-MUT-MT-21-04`
   - Rule: execution R-228 / REQ-F-008
   - Scenario: Given `runBaseline` が `interrupted` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `hashSources` が 2 回呼ばれること
 
-- [ ] **T-14-21-05**: ベースライン中の中断では判定 0 件の中断レポートを出す
+- [x] **T-14-21-05**: ベースライン中の中断では判定 0 件の中断レポートを出す
   - Target: `main`
   - Test ID: `T-MUT-MT-21-05`
   - Rule: execution R-228 / report-cli R-605
   - Scenario: Given `runBaseline` が `interrupted` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `writeReport` が 1 回呼ばれ、その引数に中断の明示が含まれること
 
-- [ ] **T-14-21-06**: ベースライン中の中断でもロックを解放する
+- [x] **T-14-21-06**: ベースライン中の中断でもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-21-06`
   - Rule: execution R-228 / index R-014
@@ -3761,56 +3761,56 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-22: 変異体の実行中に SIGINT を受ける
 
-- [ ] **T-14-22-01**: 変異体の実行中の SIGINT で 130 を返す
+- [x] **T-14-22-01**: 変異体の実行中の SIGINT で 130 を返す
   - Target: `main`
   - Test ID: `T-MUT-MT-22-01`
   - Rule: index R-014 / execution R-228 / report-cli R-614 / Edge index-5 / Edge execution-24 / Edge report-cli-23 / AC-023
   - Scenario: Given `runMutants` の実行中に SIGINT の handler を呼び、`runMutants` が `interrupted: true` と判定 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then `130` を返すこと
 
-- [ ] **T-14-22-02**: `runMutants` へ渡した中止信号が SIGINT で中止される
+- [x] **T-14-22-02**: `runMutants` へ渡した中止信号が SIGINT で中止される
   - Target: `main`
   - Test ID: `T-MUT-MT-22-02`
   - Rule: execution R-227
   - Scenario: Given `runMutants` の fake が受け取った `signal` を保持し、実行中に SIGINT の handler を呼ぶ deps がある, When `main` を呼ぶ
   - Expected: Then 保持した `signal.aborted` が `true` であること
 
-- [ ] **T-14-22-03**: 変異体の実行中の中断でも drift 検査を行う
+- [x] **T-14-22-03**: 変異体の実行中の中断でも drift 検査を行う
   - Target: `main`
   - Test ID: `T-MUT-MT-22-03`
   - Rule: execution R-228 / execution R-212 / Edge execution-17 / REQ-F-008
   - Scenario: Given `runMutants` が `interrupted: true` を返し、2 回目の `hashSources` が 1 件のソースについて異なるハッシュを返す deps がある, When `main` を呼ぶ
   - Expected: Then `writeReport` の引数にそのソースが drift として含まれること
 
-- [ ] **T-14-22-04**: 中断のレポートはそこまでの判定で構成する
+- [x] **T-14-22-04**: 中断のレポートはそこまでの判定で構成する
   - Target: `main`
   - Test ID: `T-MUT-MT-22-04`
   - Rule: execution R-228 / report-cli R-605
   - Scenario: Given `runMutants` が `interrupted: true` と killed 1 件の判定を返す deps がある, When `main` を呼ぶ
   - Expected: Then `writeReport` の引数に中断の明示と killed 1 件が含まれること
 
-- [ ] **T-14-22-05**: 変異体の実行中の中断でもロックを解放する
+- [x] **T-14-22-05**: 変異体の実行中の中断でもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-22-05`
   - Rule: execution R-228 / index R-014
   - Scenario: Given `runMutants` が `interrupted: true` を返す deps がある, When `main` を呼ぶ
   - Expected: Then `releaseLock` が 1 回呼ばれ、それが `writeReport` の後であること
 
-- [ ] **T-14-22-06**: 中断と drift が重なっても 130 を優先する
+- [x] **T-14-22-06**: 中断と drift が重なっても 130 を優先する
   - Target: `main`
   - Test ID: `T-MUT-MT-22-06`
   - Rule: report-cli R-614 / report-cli DD-06 / Edge report-cli-23
   - Scenario: Given `runMutants` が `interrupted: true` を返し、2 回目の `hashSources` が異なるハッシュを返す deps がある, When `main` を呼ぶ
   - Expected: Then `130` を返すこと
 
-- [ ] **T-14-22-07**: 中断後の照合には判定の有無を問わず生成された全変異体を渡す
+- [x] **T-14-22-07**: 中断後の照合には判定の有無を問わず生成された全変異体を渡す
   - Target: `main`
   - Test ID: `T-MUT-MT-22-07`
   - Rule: allowlist R-509 / allowlist DD-06 / Edge allowlist-18 / implementation Commit 7（存在確認は生成された全変異体が対象）
   - Scenario: Given `generateMutants` が変異体 3 件を返し、`runMutants` の実行中に SIGINT の handler を呼んで `runMutants` が `interrupted: true` と判定 1 件を返す deps がある, When `main` を呼ぶ
   - Expected: Then `matchAllowlist` に渡された変異体列が生成された 3 件すべてであること（判定済みの 1 件に絞らないこと）
 
-- [ ] **T-14-22-08**: 中断のレポートにも古いエントリを列挙する
+- [x] **T-14-22-08**: 中断のレポートにも古いエントリを列挙する
   - Target: `main`
   - Test ID: `T-MUT-MT-22-08`
   - Rule: allowlist R-509 / allowlist R-510 / report-cli R-605 / report-cli R-610 / Edge allowlist-18
@@ -3819,14 +3819,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-23: SIGINT の受信開始の時期
 
-- [ ] **T-14-23-01**: SIGINT の受信はロック取得の後に始める
+- [x] **T-14-23-01**: SIGINT の受信はロック取得の後に始める
   - Target: `main`
   - Test ID: `T-MUT-MT-23-01`
   - Rule: execution R-204 / index R-014
   - Scenario: Given すべての fake が成功する deps がある, When `main` を呼ぶ
   - Expected: Then 呼び出し記録で `signals.onInterrupt` が `acquireLock` より後、`sweepArtifacts` より前にあること
 
-- [ ] **T-14-23-02**: ロックを取得できなければ SIGINT の受信を始めない
+- [x] **T-14-23-02**: ロックを取得できなければ SIGINT の受信を始めない
   - Target: `main`
   - Test ID: `T-MUT-MT-23-02`
   - Rule: execution R-204 / Edge execution-26
@@ -3835,7 +3835,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-24: 後始末中の追加の SIGINT
 
-- [ ] **T-14-24-01**: 2 回目の SIGINT でも drift 検査とロック解放を省略しない
+- [x] **T-14-24-01**: 2 回目の SIGINT でも drift 検査とロック解放を省略しない
   - Target: `main`
   - Test ID: `T-MUT-MT-24-01`
   - Rule: execution DD-08 / execution R-228 / Edge execution-25
@@ -3844,14 +3844,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-25: ロック解放の失敗
 
-- [ ] **T-14-25-01**: ロック解放の失敗は終了コードを変えない
+- [x] **T-14-25-01**: ロック解放の失敗は終了コードを変えない
   - Target: `main`
   - Test ID: `T-MUT-MT-25-01`
   - Rule: execution DD-14 / execution DD-13
   - Scenario: Given すべての工程が成功し、`releaseLock` が解放失敗 (警告のみ) を報告する deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then `0` を返すこと
 
-- [ ] **T-14-25-02**: ロック解放の失敗を標準エラー出力へ警告する
+- [x] **T-14-25-02**: ロック解放の失敗を標準エラー出力へ警告する
   - Target: `main`
   - Test ID: `T-MUT-MT-25-02`
   - Rule: execution DD-14（解放の失敗は警告のみ） / report-cli §2.2（警告は標準エラー出力）
@@ -3860,14 +3860,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-26: 後始末の残骸
 
-- [ ] **T-14-26-01**: 残骸があっても終了コードは変えない
+- [x] **T-14-26-01**: 残骸があっても終了コードは変えない
   - Target: `main`
   - Test ID: `T-MUT-MT-26-01`
   - Rule: index DD-05 / execution DD-05 / Edge index-8 / report-cli R-616
   - Scenario: Given `runMutants` が `leftovers` に 1 件を返し、他は問題の無い deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then `0` を返すこと
 
-- [ ] **T-14-26-02**: 残骸をレポートに渡す
+- [x] **T-14-26-02**: 残骸をレポートに渡す
   - Target: `main`
   - Test ID: `T-MUT-MT-26-02`
   - Rule: index R-012 / report-cli R-612
@@ -3876,14 +3876,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-27: 想定外の例外でもロックを解放する
 
-- [ ] **T-14-27-01**: `runMutants` が例外を投げてもロックを解放する
+- [x] **T-14-27-01**: `runMutants` が例外を投げてもロックを解放する
   - Target: `main`
   - Test ID: `T-MUT-MT-27-01`
   - Rule: index 補足規則 (例外を含むあらゆる経路で解放) / index DD-03
   - Scenario: Given `runMutants` が想定外の例外を投げる deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then `releaseLock` が 1 回呼ばれること
 
-- [ ] **T-14-27-02**: `runMutants` の例外は `main` の reject として伝わる
+- [x] **T-14-27-02**: `runMutants` の例外は `main` の reject として伝わる
   - Target: `main`
   - Test ID: `T-MUT-MT-27-02`
   - Rule: REQ-C-003 / index DD-03
@@ -3892,21 +3892,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-14-28: SIGINT の受信の登録解除
 
-- [ ] **T-14-28-01**: 正常終了で SIGINT の受信を解除する
+- [x] **T-14-28-01**: 正常終了で SIGINT の受信を解除する
   - Target: `main`
   - Test ID: `T-MUT-MT-28-01`
   - Rule: T-14 blockquote の `MainDeps` 案（`signals.onInterrupt` の戻り値で登録解除） / execution R-204
   - Scenario: Given すべての fake が成功し、`signals.onInterrupt` が記録付きの解除関数を返す deps と argv `['libs']` がある, When `main` を呼ぶ
   - Expected: Then 解除関数が 1 回呼ばれ、`main` が `0` を返すこと
 
-- [ ] **T-14-28-02**: 想定外の例外で中止しても SIGINT の受信を解除する
+- [x] **T-14-28-02**: 想定外の例外で中止しても SIGINT の受信を解除する
   - Target: `main`
   - Test ID: `T-MUT-MT-28-02`
   - Rule: T-14 blockquote の `MainDeps` 案（`signals.onInterrupt` の戻り値で登録解除）
   - Scenario: Given `runMutants` が想定外の例外を投げ、`signals.onInterrupt` が記録付きの解除関数を返す deps がある, When `main` を呼んで reject を捕捉する
   - Expected: Then 解除関数が 1 回呼ばれること
 
-- [ ] **T-14-28-03**: 中断で終了しても SIGINT の受信を解除する
+- [x] **T-14-28-03**: 中断で終了しても SIGINT の受信を解除する
   - Target: `main`
   - Test ID: `T-MUT-MT-28-03`
   - Rule: T-14 blockquote の `MainDeps` 案（`signals.onInterrupt` の戻り値で登録解除） / execution R-228
