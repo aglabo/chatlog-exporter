@@ -35,6 +35,16 @@ export const LOCK_RELEASE_WARNING = '実行ロックを解放できませんで�
 /** 変異体ファイル・一時設定を削除できなかったときの警告の接頭辞 (execution R-226 / DD-05)。後ろに削除できなかったパスを続ける。 */
 export const LEFTOVER_WARNING = '変異体の後始末でファイルを削除できませんでした: ';
 
+/** 起動時の残骸掃除で削除できなかったファイルがあるときの監査単位の失敗の理由の接頭辞 (execution DD-14)。後ろに削除できなかったパスを続ける。 */
+export const SWEEP_FAILURE_MESSAGE = '起動時の残骸掃除でファイルを削除できませんでした: ';
+
+/** レポートを書き出せなかったときの監査単位の失敗の理由の接頭辞 (execution DD-14 / report-cli R-615)。後ろに失敗の理由を続ける。 */
+export const REPORT_WRITE_FAILURE_MESSAGE = 'レポートを書き出せませんでした: ';
+
+/** ベースラインの失敗で監査を中止するときに、実行前後で内容が変わった元ソース (drift) を標準エラー出力へ列挙する見出し (execution R-208)。後ろに drift のパスを続ける。 */
+export const BASELINE_ABORT_DRIFT_MESSAGE =
+  'ベースラインの失敗で中止しました。実行前後で内容が変わったソースがあります: ';
+
 /** ハッシュを取るソースファイルが存在しないときの例外の詳細の接頭辞 (execution R-212 / DD-14)。後ろにソースファイルのパスを続ける。 */
 export const SOURCE_NOT_FOUND_MESSAGE = 'ハッシュを取るソースファイルが存在しません: ';
 
@@ -141,3 +151,9 @@ export const UNKNOWN_MODULE_MESSAGE = '不明なモジュール名: ';
 
 /** `--timeout` の値が正の整数でないときの例外の詳細の接頭辞 (report-cli R-603)。後ろに渡された値を続ける。 */
 export const INVALID_TIMEOUT_MESSAGE = '--timeout には正の整数 (秒) を指定してください: ';
+
+/** 変異テストが読み込む元の設定 (`deno.jsonc`) のパス。一時設定はこれと同じディレクトリに置く (execution R-215)。 */
+export const DENO_CONFIG_PATH = join(REPO_ROOT, 'deno.jsonc');
+
+/** ベースラインと変異体の `deno test` に付ける権限フラグ (unit テストの実行権限に合わせる)。 */
+export const MUTATION_TEST_PERMISSIONS: readonly string[] = ['--allow-read', '--allow-write', '--allow-env'];

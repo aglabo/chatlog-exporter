@@ -20,9 +20,9 @@ import {
   SOURCE_NOT_FOUND_MESSAGE,
 } from './constants/mutation.constants.ts';
 import { isMutationArtifact } from './resolve-targets.ts';
-import type { LockRecord, LockToken, SourceHashes } from './types/mutation.types.ts';
+import type { LockRecord, LockToken, SourceHashes, SweepOptions } from './types/mutation.types.ts';
 
-export type { LockRecord, LockToken, SourceHashes } from './types/mutation.types.ts';
+export type { LockRecord, LockToken, SourceHashes, SweepOptions } from './types/mutation.types.ts';
 
 /**
  * 実行ロックを取得する (execution R-201 / R-202 / R-203 / REQ-F-017)。
@@ -157,29 +157,37 @@ export const removeArtifacts = async (paths: string[]): Promise<string[]> => {
 };
 
 /**
- * 1 ディレクトリ配下を再帰的に探索し、名前が変異体・一時設定の命名に一致するエントリのパスを集める。
+ * 1 ディレクトリ配下を探索し、名前が変異体・一時設定の命名に一致するエントリのパスを集める。
  *
  * 削除できない残骸を報告できるよう、命名に一致するディレクトリも候補に含める。
  *
  * @param dir - 探索するディレクトリ
+ * @param maxDepth - 探索する深さ (省略時は無制限の再帰、`1` で直下のエントリだけ)
  * @returns 命名に一致したエントリのパスの並び
  */
-const _collectArtifacts = async (dir: string): Promise<string[]> => {
-  const _entries = await Array.fromAsync(walk(dir));
+const _collectArtifacts = async (dir: string, maxDepth: number = Infinity): Promise<string[]> => {
+  const _entries = await Array.fromAsync(walk(dir, { maxDepth }));
   return _entries.map((entry) => entry.path).filter((path) => isMutationArtifact(basename(path)));
 };
 
 /**
  * 前回の実行が残した変異体ファイル・一時設定を掃除する (execution R-205 / REQ-F-007 / AC-008)。
  *
- * 各ディレクトリを再帰的に探索し、名前が `isMutationArtifact` に一致するエントリだけを `removeArtifacts` で削除する。
+ * `dirs` の各ディレクトリは再帰的に、`options.shallowDirs` の各ディレクトリは直下のエントリだけを探索し、
+ * 名前が `isMutationArtifact` に一致するエントリだけを `removeArtifacts` で削除する。
+ * `shallowDirs` は `deno.jsonc` の隣に書かれる一時設定の掃除に使う (配下のソースまでは辿らない)。
  * 例外は投げない。中止するかの判断は呼び出し元が行う (DD-14)。
  *
- * @param dirs - 探索するディレクトリの並び
+ * @param dirs - 再帰的に探索するディレクトリの並び
+ * @param options - 追加の探索先 (`shallowDirs`: 直下だけを探索するディレクトリの並び)
  * @returns 削除できなかったパスの並び (全件削除できたときは空)
  */
-export const sweepArtifacts = async (dirs: string[]): Promise<string[]> => {
-  const _candidates = await Promise.all(dirs.map(_collectArtifacts));
+export const sweepArtifacts = async (dirs: string[], options: SweepOptions = {}): Promise<string[]> => {
+  const { shallowDirs = [] } = options;
+  const _candidates = await Promise.all([
+    ...dirs.map((dir) => _collectArtifacts(dir)),
+    ...shallowDirs.map((dir) => _collectArtifacts(dir, 1)),
+  ]);
   return await removeArtifacts(_candidates.flat());
 };
 

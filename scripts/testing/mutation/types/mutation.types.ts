@@ -260,3 +260,59 @@ export type LockToken = {
  * キーはソースファイルのパス、値はその内容の決定的なハッシュ。実行前後の比較でソースの書き換えを検出する。
  */
 export type SourceHashes = Record<string, string>;
+
+/** `sweepArtifacts` の追加の探索先 (execution R-205)。 */
+export type SweepOptions = {
+  /** 直下のエントリだけを探索するディレクトリの並び (一時設定を置く `deno.jsonc` のディレクトリなど)。 */
+  shallowDirs?: string[];
+};
+
+/** SIGINT の受信を登録する提供元。`Deno.addSignalListener('SIGINT', …)` の薄い包み (execution R-227)。 */
+export type SignalsProvider = {
+  /**
+   * SIGINT の handler を登録する。
+   *
+   * @param handler - SIGINT を受けたときに呼ぶ関数
+   * @returns 登録を解除する関数
+   */
+  onInterrupt: (handler: () => void) => () => void;
+};
+
+/**
+ * `main` が監査の各工程で呼ぶ依存の一式 (REQ-NF-002)。
+ *
+ * 純関数の `formatReport` / `decideExitCode` / `detectDrift` は含めない。
+ * `main` は省略された依存を production 実装で補う。
+ */
+export type MainDeps = {
+  /** モジュールのソース集合とテスト集合を解決する。 */
+  resolveTargets: (module: MutateModule, options?: ResolveTargetsOptions) => Promise<ResolvedTargets>;
+  /** 許容リストを読み込み検証する。不正なら `ChatlogError` を投げる。 */
+  loadAllowlist: (module: string, options?: LoadAllowlistOptions) => Promise<AllowlistEntry[]>;
+  /** 実行ロックを取得する。保持されていれば `ChatlogError` を投げる。 */
+  acquireLock: (path: string) => Promise<LockToken>;
+  /** 実行ロックを解放する。失敗は警告のみで例外を投げない。 */
+  releaseLock: (token: LockToken) => Promise<void>;
+  /** 前回の残骸を掃除し、削除できなかったパスを返す。 */
+  sweepArtifacts: (dirs: string[], options?: SweepOptions) => Promise<string[]>;
+  /** ソースファイルの内容ハッシュを取る。 */
+  hashSources: (files: string[]) => Promise<SourceHashes>;
+  /** 変異前のベースラインを実行する。 */
+  runBaseline: (runner: TestRunnerProvider, args: string[], options: TestRunOptions) => Promise<BaselineResult>;
+  /** ソース 1 件から変異体を生成する。 */
+  generateMutants: (source: string, filePath: string) => Mutant[];
+  /** 変異体を逐次実行して判定する。 */
+  runMutants: (mutants: Mutant[], options: RunMutantsOptions) => Promise<RunMutantsResult>;
+  /** 生存変異体を許容リストと照合する。 */
+  matchAllowlist: (
+    mutants: readonly Mutant[],
+    results: readonly MutantResult[],
+    entries: readonly AllowlistEntry[],
+  ) => AllowlistMatch;
+  /** ソースファイル (リポジトリルート相対) の内容を読む。 */
+  readSource: (path: string) => Promise<string>;
+  /** レポートを標準出力へ書き出す。 */
+  writeReport: (text: string) => void | Promise<void>;
+  /** SIGINT の受信の登録元。 */
+  signals: SignalsProvider;
+};

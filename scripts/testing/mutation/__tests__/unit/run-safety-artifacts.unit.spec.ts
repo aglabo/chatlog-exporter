@@ -142,6 +142,17 @@ describe('sweepArtifacts', () => {
 
         _artifacts.forEach(_assertRemoved);
       });
+
+      it('[Normal] T-MUT-RS-10-07: 直下の deno.mutation-001.json と sub/foo.mutation-001.ts を置いて shallowDirs に指定して sweep → [] を返し、直下だけ削除して sub の残骸は残す', async () => {
+        const _topLevel = await _writeFixture(join(tempDir, 'deno.mutation-001.json'), '{}');
+        const _nested = await _writeFixture(join(tempDir, 'sub', 'foo.mutation-001.ts'), _ARTIFACT_CONTENT);
+
+        const _failures = await sweepArtifacts([], { shallowDirs: [tempDir] });
+
+        assertEquals(_failures, []);
+        _assertRemoved(_topLevel);
+        assert(existsSync(_nested), `${_nested} が削除されている`);
+      });
     });
   });
 
