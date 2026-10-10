@@ -90,7 +90,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-08: `runDenoTest`                                                                   | 10     | 2     | 7         | 12      | done    |
 | T-09: `acquireLock` / `releaseLock`                                                   | 11     | 2     | 9         | 17      | done    |
 | T-10: `sweepArtifacts` / `hashSources` / `detectDrift` / `removeArtifacts`            | 12     | 2     | 10        | 22      | done    |
-| T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | pending |
+| T-11: `runBaseline`                                                                   | 13     | 2     | 8         | 20      | done    |
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | pending |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | pending |
 | T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | pending |
@@ -2677,7 +2677,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-01: ベースラインの成功
 
-- [ ] **T-11-01-01**: 終了コード 0 で passed が 1 件以上なら `ok` になる
+- [x] **T-11-01-01**: 終了コード 0 で passed が 1 件以上なら `ok` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-01-01`
   - Rule: execution R-209 / REQ-F-016 / DR-08
@@ -2686,21 +2686,21 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-02: runner への受け渡し
 
-- [ ] **T-11-02-01**: 引数を変えずに runner へ渡す（元の設定のまま実行する）
+- [x] **T-11-02-01**: 引数を変えずに runner へ渡す（元の設定のまま実行する）
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-02-01`
   - Rule: execution R-207 / execution DD-10
   - Scenario: Given 引数 `['test', 'a.unit.spec.ts']` と呼び出し内容を記録する runner, When `runBaseline(runner, args, opts)` を呼ぶ
   - Expected: Then runner が受け取った引数が入力と一致し、一時設定（`--config deno.mutation-*`）を含まないこと
 
-- [ ] **T-11-02-02**: 制限時間を変えずに runner へ渡す
+- [x] **T-11-02-02**: 制限時間を変えずに runner へ渡す
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-02-02`
   - Rule: execution DD-10 / REQ-NF-003
   - Scenario: Given `timeoutMs: 120000` と呼び出し内容を記録する runner, When `runBaseline` を呼ぶ
   - Expected: Then runner が受け取った `timeoutMs` が 120000 であること
 
-- [ ] **T-11-02-03**: runner を 1 回だけ呼ぶ
+- [x] **T-11-02-03**: runner を 1 回だけ呼ぶ
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-02-03`
   - Rule: execution R-207
@@ -2711,35 +2711,35 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-03: ベースラインの失敗
 
-- [ ] **T-11-03-01**: 元ソースでテストが失敗すれば `failed` になる
+- [x] **T-11-03-01**: 元ソースでテストが失敗すれば `failed` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-03-01`
   - Rule: execution R-208 / REQ-F-016 / AC-017 / Edge execution-18
   - Scenario: Given `exited { code: 1, stdout: "FAILED | 2 passed | 1 failed" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `{ kind: 'failed' }` を返すこと
 
-- [ ] **T-11-03-02**: 制限時間超過は `failed` になる
+- [x] **T-11-03-02**: 制限時間超過は `failed` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-03-02`
   - Rule: execution R-208 / execution DD-10 / Edge execution-20
   - Scenario: Given `{ kind: 'timeout' }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `{ kind: 'failed' }` を返すこと
 
-- [ ] **T-11-03-03**: 起動失敗は `failed` になる
+- [x] **T-11-03-03**: 起動失敗は `failed` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-03-03`
   - Rule: execution R-208 / execution DD-10 / Edge execution-20
   - Scenario: Given `{ kind: 'error', message: "deno not found" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `{ kind: 'failed' }` を返すこと
 
-- [ ] **T-11-03-04**: 終了コード 0 でも passed が 0 件なら `failed` になる
+- [x] **T-11-03-04**: 終了コード 0 でも passed が 0 件なら `failed` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-03-04`
   - Rule: execution R-208 / execution DD-06 / AC-018
   - Scenario: Given `exited { code: 0, stdout: "ok | 0 passed | 0 failed" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `{ kind: 'failed' }` を返すこと
 
-- [ ] **T-11-03-05**: 終了コード 0 でも要約行が無ければ `failed` になる
+- [x] **T-11-03-05**: 終了コード 0 でも要約行が無ければ `failed` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-03-05`
   - Rule: execution R-208 / execution DD-06 / Edge execution-19
@@ -2748,28 +2748,28 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-04: 失敗理由の記録
 
-- [ ] **T-11-04-01**: 起動失敗の `failed` は、起動失敗のメッセージを理由に含む
+- [x] **T-11-04-01**: 起動失敗の `failed` は、起動失敗のメッセージを理由に含む
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-04-01`
   - Rule: execution R-208 / REQ-F-013 (d)
   - Scenario: Given `{ kind: 'error', message: "deno not found" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `failed` の `reason` に `"deno not found"` が含まれること
 
-- [ ] **T-11-04-02**: 制限時間超過の `failed` は理由を持つ
+- [x] **T-11-04-02**: 制限時間超過の `failed` は理由を持つ
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-04-02`
   - Rule: execution R-208 / execution DD-10 / implementation Commit 13（`failed { reason }`）
   - Scenario: Given `{ kind: 'timeout' }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `failed` の `reason` が空でない文字列であること
 
-- [ ] **T-11-04-03**: passed 0 件の `failed` は理由を持つ
+- [x] **T-11-04-03**: passed 0 件の `failed` は理由を持つ
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-04-03`
   - Rule: execution R-208 / execution DD-06 / implementation Commit 13（`failed { reason }`）
   - Scenario: Given `exited { code: 0, stdout: "ok | 0 passed | 0 failed" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `failed` の `reason` が空でない文字列であること
 
-- [ ] **T-11-04-04**: 要約行が無い `failed` は理由を持つ
+- [x] **T-11-04-04**: 要約行が無い `failed` は理由を持つ
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-04-04`
   - Rule: execution R-208 / execution DD-06 / implementation Commit 13（`failed { reason }`）
@@ -2778,7 +2778,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-08: runner が例外を投げる
 
-- [ ] **T-11-08-01**: runner の例外は投げ直さず `failed` とする
+- [x] **T-11-08-01**: runner の例外は投げ直さず `failed` とする
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-08-01`
   - Rule: execution R-208（起動失敗）/ execution DD-10
@@ -2789,28 +2789,28 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-05: ベースライン実行中の中断
 
-- [ ] **T-11-05-01**: 実行中に `signal` が中止されたら `failed` ではなく `interrupted` を返す
+- [x] **T-11-05-01**: 実行中に `signal` が中止されたら `failed` ではなく `interrupted` を返す
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-05-01`
   - Rule: execution R-227 / implementation Commit 13
   - Scenario: Given 呼び出し中に `AbortController` を中止してから `exited { code: 1, stdout: "" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `{ kind: 'interrupted' }` を返すこと
 
-- [ ] **T-11-05-02**: `signal` を runner へそのまま渡す
+- [x] **T-11-05-02**: `signal` を runner へそのまま渡す
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-05-02`
   - Rule: execution R-227 / implementation Commit 13
   - Scenario: Given `AbortController` の `signal` と呼び出し内容を記録する runner, When `runBaseline` を呼ぶ
   - Expected: Then runner が受け取った `signal` が渡したものと同一であること
 
-- [ ] **T-11-05-03**: 中止された後に runner が成功相当の結果を返しても `interrupted` を返す
+- [x] **T-11-05-03**: 中止された後に runner が成功相当の結果を返しても `interrupted` を返す
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-05-03`
   - Rule: execution R-227 / implementation Commit 13
   - Scenario: Given 呼び出し中に `AbortController` を中止してから `exited { code: 0, stdout: "ok | 3 passed | 0 failed" }` を返す runner, When `runBaseline` を呼ぶ
   - Expected: Then `ok` ではなく `{ kind: 'interrupted' }` を返すこと
 
-- [ ] **T-11-05-04**: 呼び出し前に中止済みの `signal` なら `interrupted` を返す
+- [x] **T-11-05-04**: 呼び出し前に中止済みの `signal` なら `interrupted` を返す
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-05-04`
   - Rule: execution R-227 / execution R-228（中断は 130 の経路へ進む）
@@ -2819,7 +2819,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-06: ANSI 付きの要約行
 
-- [ ] **T-11-06-01**: ANSI エスケープで装飾された要約行でも passed 件数を読み取る
+- [x] **T-11-06-01**: ANSI エスケープで装飾された要約行でも passed 件数を読み取る
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-06-01`
   - Rule: execution DD-06 / Edge execution-6
@@ -2828,7 +2828,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-11-07: passed 件数の下限
 
-- [ ] **T-11-07-01**: passed がちょうど 1 件なら `ok` になる
+- [x] **T-11-07-01**: passed がちょうど 1 件なら `ok` になる
   - Target: `runBaseline`
   - Test ID: `T-MUT-BL-07-01`
   - Rule: execution R-209 / execution DD-06
