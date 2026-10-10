@@ -197,3 +197,25 @@ export type TestSummary = {
   /** 失敗したテストの件数。 */
   failed: number;
 };
+
+/**
+ * 実行ロックのファイルに JSON で書く記録 (execution R-203 / DD-07)。
+ *
+ * 既存ロックの報告と、解放時の持ち主の照合に使う。
+ */
+export type LockRecord = {
+  /** ロックを取得したプロセスの PID。 */
+  pid: number;
+  /** ロックを作成した時刻 (ISO 8601)。 */
+  createdAt: string;
+  /** 実行ごとに生成するランダム ID。解放時に自分のロックかを照合する。 */
+  id: string;
+};
+
+/** `acquireLock` が返し、`releaseLock` に渡すロックの持ち主の証明。 */
+export type LockToken = {
+  /** ロックファイルのパス。 */
+  path: string;
+  /** この実行が記録したランダム ID (`LockRecord.id` と同じ値)。 */
+  id: string;
+};

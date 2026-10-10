@@ -6,12 +6,30 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { fromFileUrl } from '@std/path';
+import { fromFileUrl, join } from '@std/path';
 
 import type { MutantStatus } from '../types/mutation.types.ts';
 
 /** `scripts/testing/mutation/constants/` から見たリポジトリルート。元の設定 `deno.jsonc` が置かれる。 */
 export const REPO_ROOT = fromFileUrl(new URL('../../../../', import.meta.url));
+
+/** 実行ロックのファイルの既定パス (execution R-201)。リポジトリルート配下の `temp/mutation.lock`。 */
+export const DEFAULT_LOCK_PATH = join(REPO_ROOT, 'temp', 'mutation.lock');
+
+/** 実行ロックが既に存在して取得できないときの例外の詳細の接頭辞 (execution R-202 / DR-09)。後ろにロックファイルのパスを続ける。 */
+export const LOCK_HELD_MESSAGE = '別の変異テストの実行がロックを保持しています: ';
+
+/** 実行ロックを取得できずに中止したとき、利用者へ出すロック削除の案内 (execution R-202 / DD-07)。 */
+export const LOCK_DELETE_GUIDANCE = '他の変異テストの実行が無いことを確かめてから、ロックファイルを削除してください';
+
+/** 中止時に出す、既存ロックに記録された PID の行の見出し (execution R-202 / DD-07)。後ろに PID を続ける。 */
+export const LOCK_PID_LABEL = '記録された PID: ';
+
+/** 中止時に出す、既存ロックに記録された作成時刻の行の見出し (execution R-202 / DD-07)。後ろに記録の原文を続ける。 */
+export const LOCK_CREATED_AT_LABEL = '記録された作成時刻: ';
+
+/** 実行ロックを解放できなかったときの警告の接頭辞 (execution R-213 / DD-14)。後ろにロックファイルのパスと失敗の理由を続ける。 */
+export const LOCK_RELEASE_WARNING = '実行ロックを解放できませんでした: ';
 
 /** 報告で件数を並べる判定の順 (DR-02 の 5 種。`MutantStatus` の宣言順)。 */
 export const MUTANT_STATUSES: readonly MutantStatus[] = ['killed', 'survived', 'timeout', 'error', 'compile-error'];
