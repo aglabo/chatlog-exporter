@@ -2,7 +2,7 @@
 title: "Implementation Plan: mutation testing harness"
 based-on: specifications-index.md v1.2.0
 status: Draft
-version: 1.7.0
+version: 1.9.1
 created: "2026-10-07"
 ---
 
@@ -282,13 +282,15 @@ C3 / C4 / C5 は C2 の型にのみ依存し、互いに独立である。C14 �
 
 #### Commit 15: `feat(mutation): parse mutate-tester arguments`
 
-**参照**: REQ-F-012 (引数)、REQ-C-003、`specifications-report-cli.md` R-601〜R-604、DD-01、DD-03
+**参照**: REQ-F-012 (引数)、REQ-C-003、`specifications-report-cli.md` R-601〜R-604、R-622、DD-01、DD-03、DD-11
 
 **変更**:
 
 - `scripts/testing/mutate-tester.ts` を新設し、`parseMutateArgs(argv)` を追加する。結果は `{ module, strict, timeoutSec }`
 - モジュール名は libs / classify / export / filter / normalize / set のみ許可する。`all`・`classes`・`scripts`・ディレクトリ名・未指定は `ChatlogError` を投げる
-- `--timeout` は正の整数 (秒) のみで、既定は 120。0・負数・小数・非数・値の欠落はエラーにする
+- `--timeout` は 1 以上 3600 以下の整数 (秒) のみで、既定は 120。0・負数・小数・非数・3600 超・値の欠落はエラーにする
+- `--strict` / `--timeout` 以外のオプション (`parseOptions` の既定スキーマが受け付ける `--config` / `--dry-run` / `--model` / `--input-dir` / `--output-dir` を含む) はエラーにする (R-622)
+- `parseOptions` が値の欠落・未知のオプションで先に投げても、モジュール名の判定 (R-601 / R-602) を先に行う (DD-11)
 - `parseOptions` (`_cle-libs/libs/io/parse-args.ts`) で正の整数を表現できるかをここで確認する。できなければ解析後に自前で検証する
 - 引数エラーは何も書き込む前に投げる。理由と許可値の一覧を含める
 - テストは `scripts/testing/mutation/__tests__/unit/mutate-tester.unit.spec.ts` に置く。owns (`scripts/testing/mutation/**`) の範囲内に置くことで、Commit 17 の owns 拡張はソース `mutate-tester.ts` 1 件で済む
@@ -296,13 +298,15 @@ C3 / C4 / C5 は C2 の型にのみ依存し、互いに独立である。C14 �
 
 #### Commit 16: `feat(mutation): orchestrate audit in main with SIGINT handling`
 
-**参照**: REQ-F-001〜REQ-F-018 (結線)、REQ-C-003、REQ-C-006、`specifications-index.md` R-001〜R-014、DD-01、DD-02、DD-04、`specifications-execution.md` R-204、R-208、R-227、R-228、DD-08、DD-14
+**参照**: REQ-F-001〜REQ-F-018 (結線)、REQ-C-003、REQ-C-006、`specifications-index.md` R-001〜R-014、DD-01、DD-02、DD-04、DD-09、`specifications-execution.md` R-204、R-208、R-227、R-228、DD-08、DD-14
 
 **変更**:
 
-- `main(argv?): Promise<number>` を追加する。順序は 引数 → `resolveTargets` → `loadAllowlist` → `acquireLock` → SIGINT リスナー → 掃除 → ハッシュ → ベースライン → 生成 → `runMutants` → 照合 → drift → レポート → ロック解放。Deno.exit は `if (import.meta.main)` ブロックのみに置く
+- `main(argv?): Promise<number>` を追加する。順序は 引数 → 作業ディレクトリの検査 → `resolveTargets` → `loadAllowlist` → `acquireLock` → SIGINT リスナー → 掃除 → ハッシュ → ベースライン → 生成 → `runMutants` → 照合 → drift → レポート → ロック解放。Deno.exit は `if (import.meta.main)` ブロックのみに置く
 - ベースラインで中止する場合も drift 検査を行い、drift を標準エラー出力に列挙する。変異体 0 件でもベースラインを実行し、照合は古いエントリの抽出だけを行う
 - SIGINT (`Deno.addSignalListener`) はロック取得後に受け付ける。受信時は `AbortController` を中止し、その `signal` をベースラインと `runMutants` の両方に渡す
+- 作業ディレクトリ (`MainDeps.cwd`、既定は `Deno.cwd`) がリポジトリルートと一致しなければ、引数の解釈の直後に `ChatlogError` (`InvalidPath` / `WrongWorkingDirectory`) を投げる (index DD-09)。比較はパスを正規化して行う (末尾の区切り文字の有無で食い違わない)。正規化後は文字列の完全一致とし、ドライブ文字の大文字小文字やシンボリックリンク等の別名は畳まない (index DD-09)
+- SIGINT の受信登録はロック取得後の `try` の内側で行う (登録が例外を投げてもロックを解放する)。`finally` ではロックの解放を先に、受信の解除を後に行う (解除が例外を投げてもロックは解放済みで、解放中の SIGINT は handler が受ける)
 - ハッシュ記録の完了前に届いた場合は、その工程を終えてから drift 検査を省き、中断だけをレポートしてロックを解放し、130 を返す (execution R-227、index R-014 v1.0.1)
 - ベースラインが `interrupted` を返した場合は、ベースライン失敗 (非 0) としては扱わない。drift 検査を行い、中断として判定 0 件のレポートを出し、ロックを解放して 130 を返す (R-227、R-228)
 - 掃除・ハッシュ・レポート出力の失敗は監査単位の失敗として非 0 で中止し、ロックは解放する (DD-14)。掃除の失敗には、`sweepArtifacts` が削除に失敗したパスを 1 件以上返した場合を含む。ロック解放の失敗は警告のみ
@@ -468,7 +472,7 @@ bdd-cycle ルールに従い、Commit 16 の前後で production の import を 
 | R-216 | 全キーを保つ一時設定に imports を 1 件足す       | C4            |
 | R-217 | 一時設定を指定して制限時間つきで実行             | C10, C14      |
 | R-218 | 制限時間超過で直接の子プロセスを終了             | C10           |
-| R-219 | 書き出し・起動の失敗は error                     | C10, C14      |
+| R-219 | 読み取り・解析・書き出し・起動の失敗は error     | C10, C14      |
 | R-220 | 終了 0 は survived                               | C5            |
 | R-221 | 型検査失敗は compile-error                       | C5            |
 | R-222 | 要約行で失敗を確認できれば killed                | C5            |
@@ -496,29 +500,30 @@ bdd-cycle ルールに従い、Commit 16 の前後で production の import を 
 
 ### 4.5 specifications-report-cli.md (R-601〜R-620)
 
-| Rule  | 内容 (短縮)                                | Commit  |
-| ----- | ------------------------------------------ | ------- |
-| R-601 | モジュール名が無ければ引数エラー           | C15     |
-| R-602 | 許可値以外は引数エラー                     | C15     |
-| R-603 | `--timeout` が正の整数でなければ引数エラー | C15     |
-| R-604 | 引数解決の成功。既定 120 秒                | C15     |
-| R-605 | 中断のレポートは途中結果と明示             | C8      |
-| R-606 | 変異体 0 件を明示                          | C8      |
-| R-607 | 判定ごとの件数と survived の内訳           | C8      |
-| R-608 | kill 率・有効判定率                        | C8      |
-| R-609 | 未許容の生存の一覧                         | C8      |
-| R-610 | 古い許容エントリの列挙                     | C8      |
-| R-611 | drift の列挙                               | C8      |
-| R-612 | 残骸の列挙と警告                           | C8      |
-| R-613 | 全件 survived のファイルの警告             | C8      |
-| R-614 | 中断は 130 (最優先)                        | C9, C16 |
-| R-615 | 監査単位の失敗・drift は非 0               | C9      |
-| R-616 | 既定は 0                                   | C9      |
-| R-617 | `--strict` で未許容の生存があれば非 0      | C9      |
-| R-618 | `--strict` で有効判定 0 件なら非 0         | C9      |
-| R-619 | `--strict` で古いエントリがあれば非 0      | C9      |
-| R-620 | 上記のいずれにも該当しなければ 0           | C9      |
-| R-621 | 監査単位の失敗の列挙                       | C8      |
+| Rule  | 内容 (短縮)                                       | Commit  |
+| ----- | ------------------------------------------------- | ------- |
+| R-601 | モジュール名が無ければ引数エラー                  | C15     |
+| R-602 | 許可値以外は引数エラー                            | C15     |
+| R-603 | `--timeout` が 1〜3600 の整数でなければ引数エラー | C15     |
+| R-622 | 定義しないオプションは引数エラー                  | C15     |
+| R-604 | 引数解決の成功。既定 120 秒                       | C15     |
+| R-605 | 中断のレポートは途中結果と明示                    | C8      |
+| R-606 | 変異体 0 件を明示                                 | C8      |
+| R-607 | 判定ごとの件数と survived の内訳                  | C8      |
+| R-608 | kill 率・有効判定率                               | C8      |
+| R-609 | 未許容の生存の一覧                                | C8      |
+| R-610 | 古い許容エントリの列挙                            | C8      |
+| R-611 | drift の列挙                                      | C8      |
+| R-612 | 残骸の列挙と警告                                  | C8      |
+| R-613 | 全件 survived のファイルの警告                    | C8      |
+| R-614 | 中断は 130 (最優先)                               | C9, C16 |
+| R-615 | 監査単位の失敗・drift は非 0                      | C9      |
+| R-616 | 既定は 0                                          | C9      |
+| R-617 | `--strict` で未許容の生存があれば非 0             | C9      |
+| R-618 | `--strict` で有効判定 0 件なら非 0                | C9      |
+| R-619 | `--strict` で古いエントリがあれば非 0             | C9      |
+| R-620 | 上記のいずれにも該当しなければ 0                  | C9      |
+| R-621 | 監査単位の失敗の列挙                              | C8      |
 
 ---
 
@@ -572,3 +577,7 @@ bdd-cycle ルールに従い、Commit 16 の前後で production の import を 
 | 2026-10-09 | 1.5.0   | Commit 7 に `matchAllowlist` の前提 (判定の変異体は生成された変異体に含まれる。違反は `ChatlogError`) を追加 (cle-kju.17.2.2)                                                                                                                                                                                                                                                                                           |
 | 2026-10-09 | 1.6.0   | UTF-8（BOM なし）規約 (coding-guidelines.md) に従い、BOM 付きのソースの扱いを仕様から外す。BOM の無い入力を前提とする (cle-kju.17.1.2)                                                                                                                                                                                                                                                                                  |
 | 2026-10-09 | 1.7.0   | Commit 8 に監査単位の失敗の列挙 (report-cli R-621 / DD-10) を追加し、トレーサビリティ表に R-621 を加える (cle-kju.17.4.2)                                                                                                                                                                                                                                                                                               |
+| 2026-10-11 | 1.7.1   | R-219 のトレース行の要約を specifications-execution.md v1.2.0 (読み取り・解析の失敗も error) に揃える (cle-kju.17.3.7)                                                                                                                                                                                                                                                                                                  |
+| 2026-10-11 | 1.8.0   | Commit 15 に `--timeout` の上限 3600 秒、定義しないオプションの拒否 (report-cli R-622 / DD-11)、値の欠落・未知のオプションでもモジュール名を先に判定することを追加し、トレーサビリティ表に R-622 を加える (cle-kju.17.3.8)                                                                                                                                                                                              |
+| 2026-10-11 | 1.9.0   | Commit 16 に作業ディレクトリの検査 (index DD-09)、SIGINT の受信登録を `try` の内側に置くこと、`finally` でロック解放を受信の解除より先に行うことを追加 (cle-kju.17.3.9)                                                                                                                                                                                                                                                 |
+| 2026-10-11 | 1.9.1   | Commit 16 の作業ディレクトリの比較が正規化後の完全一致であり、ドライブ文字の大文字小文字・別名を畳まないことを明記 (cle-kju.17.3.13)                                                                                                                                                                                                                                                                                    |
