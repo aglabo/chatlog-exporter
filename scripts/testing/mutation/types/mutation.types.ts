@@ -219,3 +219,10 @@ export type LockToken = {
   /** この実行が記録したランダム ID (`LockRecord.id` と同じ値)。 */
   id: string;
 };
+
+/**
+ * ソースファイルごとの内容ハッシュ (execution R-206)。
+ *
+ * キーはソースファイルのパス、値はその内容の決定的なハッシュ。実行前後の比較でソースの書き換えを検出する。
+ */
+export type SourceHashes = Record<string, string>;

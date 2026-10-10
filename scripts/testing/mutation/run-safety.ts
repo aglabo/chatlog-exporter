@@ -1,12 +1,15 @@
 // src: scripts/testing/mutation/run-safety.ts
-// @(#): 変異テストの実行を守る仕組み (実行ロック)
+// @(#): 変異テストの実行を守る仕組み (実行ロック・残骸の後始末・ソースの内容ハッシュ・drift の検出)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+import { walk } from 'jsr:@std/fs@^1.0.24';
+import { basename } from 'jsr:@std/path@^1.1.6';
 import { ChatlogError } from '../../../skills/_cle-libs/classes/ChatlogError.class.ts';
+import { sessionHash } from '../../../skills/_cle-libs/libs/io/hash.ts';
 import { logger } from '../../../skills/_cle-libs/libs/io/logger.ts';
 import {
   LOCK_CREATED_AT_LABEL,
@@ -14,10 +17,12 @@ import {
   LOCK_HELD_MESSAGE,
   LOCK_PID_LABEL,
   LOCK_RELEASE_WARNING,
+  SOURCE_NOT_FOUND_MESSAGE,
 } from './constants/mutation.constants.ts';
-import type { LockRecord, LockToken } from './types/mutation.types.ts';
+import { isMutationArtifact } from './resolve-targets.ts';
+import type { LockRecord, LockToken, SourceHashes } from './types/mutation.types.ts';
 
-export type { LockRecord, LockToken } from './types/mutation.types.ts';
+export type { LockRecord, LockToken, SourceHashes } from './types/mutation.types.ts';
 
 /**
  * 実行ロックを取得する (execution R-201 / R-202 / R-203 / REQ-F-017)。
@@ -120,3 +125,111 @@ export const releaseLock = async (token: LockToken): Promise<void> => {
     logger.warn(`${LOCK_RELEASE_WARNING}${token.path}: ${e instanceof Error ? e.message : String(e)}`);
   }
 };
+
+/**
+ * 1 件の残骸を削除する (非再帰)。
+ *
+ * 対象が存在しない (`Deno.errors.NotFound`) ときは、残す残骸が無いため削除できたものとして扱う。
+ *
+ * @param path - 削除する残骸のパス
+ * @returns 削除できなかったときはそのパス、削除できたとき・存在しないときは `null`
+ */
+const _removeArtifact = async (path: string): Promise<string | null> => {
+  try {
+    await Deno.remove(path);
+    return null;
+  } catch (e) {
+    return e instanceof Deno.errors.NotFound ? null : path;
+  }
+};
+
+/**
+ * 変異体ファイル・一時設定などの残骸を削除する (execution R-225 / REQ-F-006)。
+ *
+ * 各パスを非再帰で削除し、例外は投げない。中止するかの判断は呼び出し元が行う。
+ *
+ * @param paths - 削除する残骸のパスの並び
+ * @returns 削除できなかったパスの並び (全件削除できたときは空)
+ */
+export const removeArtifacts = async (paths: string[]): Promise<string[]> => {
+  const _results = await Promise.all(paths.map(_removeArtifact));
+  return _results.filter((path): path is string => path !== null);
+};
+
+/**
+ * 1 ディレクトリ配下を再帰的に探索し、名前が変異体・一時設定の命名に一致するエントリのパスを集める。
+ *
+ * 削除できない残骸を報告できるよう、命名に一致するディレクトリも候補に含める。
+ *
+ * @param dir - 探索するディレクトリ
+ * @returns 命名に一致したエントリのパスの並び
+ */
+const _collectArtifacts = async (dir: string): Promise<string[]> => {
+  const _entries = await Array.fromAsync(walk(dir));
+  return _entries.map((entry) => entry.path).filter((path) => isMutationArtifact(basename(path)));
+};
+
+/**
+ * 前回の実行が残した変異体ファイル・一時設定を掃除する (execution R-205 / REQ-F-007 / AC-008)。
+ *
+ * 各ディレクトリを再帰的に探索し、名前が `isMutationArtifact` に一致するエントリだけを `removeArtifacts` で削除する。
+ * 例外は投げない。中止するかの判断は呼び出し元が行う (DD-14)。
+ *
+ * @param dirs - 探索するディレクトリの並び
+ * @returns 削除できなかったパスの並び (全件削除できたときは空)
+ */
+export const sweepArtifacts = async (dirs: string[]): Promise<string[]> => {
+  const _candidates = await Promise.all(dirs.map(_collectArtifacts));
+  return await removeArtifacts(_candidates.flat());
+};
+
+/**
+ * ソースファイルを改行コードを正規化せずに読む (execution R-206 / R-212 / DD-14)。
+ *
+ * 共通の `readTextFile` は改行コードを正規化するため使わない (改行コードだけの変化も drift として検出する)。
+ *
+ * @param path - 読み込むソースファイルのパス
+ * @returns ファイルの内容 (原文のまま)
+ * @throws {ChatlogError} ファイルが存在しないとき (`FileDirNotFound` / `NotFound`)
+ */
+const _readSource = async (path: string): Promise<string> => {
+  try {
+    return await Deno.readTextFile(path);
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      throw new ChatlogError('FileDirNotFound', 'NotFound', `${SOURCE_NOT_FOUND_MESSAGE}${path}`);
+    }
+    throw e;
+  }
+};
+
+/**
+ * ソースファイルの内容ハッシュを取る (execution R-206)。
+ *
+ * 各ファイルを改行コードを正規化せずに読み、内容から決定的なハッシュ (`sessionHash`) を作る。
+ * 実行前後の記録を比べることで、変異テスト中のソースの書き換えを検出できる。
+ * 存在しないソースは drift として扱わず、エラーで中止する (execution R-212 / DD-14)。
+ *
+ * @param files - ハッシュを取るソースファイルのパスの並び
+ * @returns パスから内容ハッシュへの記録
+ * @throws {ChatlogError} ソースファイルが存在しないとき (`FileDirNotFound` / `NotFound`)
+ */
+export const hashSources = async (files: string[]): Promise<SourceHashes> => {
+  const _entries = await Promise.all(
+    files.map(async (path) => [path, await sessionHash(await _readSource(path), 64)] as const),
+  );
+  return Object.fromEntries(_entries);
+};
+
+/**
+ * 実行前後のソースの内容ハッシュを突合し、drift したパスを返す (execution R-212 / REQ-NF-001)。
+ *
+ * `before` の各パスについて、`after` のハッシュと一致しないもの (`after` に無いものを含む) を drift とする。
+ * 同じ入力から同じ出力を得るため (report-cli R-611)、記録のキー挿入順によらず昇順で返す。
+ *
+ * @param before - 変異テスト実行前の内容ハッシュの記録
+ * @param after - 変異テスト実行後の内容ハッシュの記録
+ * @returns ハッシュが変わったパスの昇順の並び
+ */
+export const detectDrift = (before: SourceHashes, after: SourceHashes): string[] =>
+  Object.keys(before).filter((path) => before[path] !== after[path]).toSorted();

@@ -31,6 +31,9 @@ export const LOCK_CREATED_AT_LABEL = '記録された作成時刻: ';
 /** 実行ロックを解放できなかったときの警告の接頭辞 (execution R-213 / DD-14)。後ろにロックファイルのパスと失敗の理由を続ける。 */
 export const LOCK_RELEASE_WARNING = '実行ロックを解放できませんでした: ';
 
+/** ハッシュを取るソースファイルが存在しないときの例外の詳細の接頭辞 (execution R-212 / DD-14)。後ろにソースファイルのパスを続ける。 */
+export const SOURCE_NOT_FOUND_MESSAGE = 'ハッシュを取るソースファイルが存在しません: ';
+
 /** 報告で件数を並べる判定の順 (DR-02 の 5 種。`MutantStatus` の宣言順)。 */
 export const MUTANT_STATUSES: readonly MutantStatus[] = ['killed', 'survived', 'timeout', 'error', 'compile-error'];
 
