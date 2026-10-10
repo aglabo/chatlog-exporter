@@ -102,3 +102,18 @@ export const EXIT_CODE_FAILURE = 1;
 
 /** 終了コード: SIGINT で中断した (report-cli 4.3。128 + SIGINT の 2)。 */
 export const EXIT_CODE_INTERRUPTED = 130;
+
+/** ベースラインのテストが終了コード 0 以外で終了したときの失敗理由 (execution R-208 / DD-06)。 */
+export const BASELINE_REASON_NONZERO_EXIT = 'ベースラインのテストが失敗しました (終了コードが 0 以外)';
+
+/** ベースラインの実行で成功したテストが 1 件も無いときの失敗理由 (execution R-208 / DD-06)。 */
+export const BASELINE_REASON_ZERO_PASSED = 'ベースラインで成功したテストが 1 件もありません';
+
+/** ベースラインの出力にテスト結果の要約行が無いときの失敗理由 (execution R-208 / DD-06)。 */
+export const BASELINE_REASON_NO_SUMMARY = 'ベースラインの出力にテスト結果の要約行がありません';
+
+/** ベースラインのテストが制限時間内に終わらなかったときの失敗理由 (execution R-208 / DD-10)。 */
+export const BASELINE_REASON_TIMEOUT = 'ベースラインのテストが制限時間内に終了しませんでした';
+
+/** ベースラインのテストを起動できなかったときの失敗理由の前置き。起動失敗のメッセージを続ける (execution R-208 / DD-10)。 */
+export const BASELINE_REASON_LAUNCH_ERROR = 'ベースラインのテストを起動できませんでした: ';
