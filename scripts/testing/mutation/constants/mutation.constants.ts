@@ -8,7 +8,8 @@
 
 import { fromFileUrl, join } from '@std/path';
 
-import type { MutantStatus } from '../types/mutation.types.ts';
+import { VALID_MODULES } from '../../../aplys-tester.ts';
+import type { MutantStatus, MutateModule } from '../types/mutation.types.ts';
 
 /** `scripts/testing/mutation/constants/` から見たリポジトリルート。元の設定 `deno.jsonc` が置かれる。 */
 export const REPO_ROOT = fromFileUrl(new URL('../../../../', import.meta.url));
@@ -120,3 +121,23 @@ export const BASELINE_REASON_TIMEOUT = 'ベースラインのテストが制限�
 
 /** ベースラインのテストを起動できなかったときの失敗理由の前置き。起動失敗のメッセージを続ける (execution R-208 / DD-10)。 */
 export const BASELINE_REASON_LAUNCH_ERROR = 'ベースラインのテストを起動できませんでした: ';
+
+/** 変異テストが受け付けるモジュール短縮名 (report-cli DD-01)。aplys-tester の `VALID_MODULES` から、ソース集合を持たない `classes` と `scripts` を除く。 */
+export const MUTATE_MODULES: readonly MutateModule[] = VALID_MODULES.filter(
+  (m): m is MutateModule => m !== 'classes' && m !== 'scripts',
+);
+
+/** モジュール名の引数エラーの詳細に添える許可値の一覧 (report-cli R-601 / R-602)。 */
+export const MUTATE_MODULES_NOTE = `許可値: ${MUTATE_MODULES.join(', ')}`;
+
+/** `--timeout` 省略時の、変異体 1 件あたりのテストの制限時間 (秒) (report-cli R-604)。 */
+export const DEFAULT_TIMEOUT_SEC = 120;
+
+/** 位置引数のモジュール名が無いときの例外の詳細 (report-cli R-601)。 */
+export const MISSING_MODULE_MESSAGE = 'モジュール名を指定してください';
+
+/** 許可値以外のモジュール名を渡されたときの例外の詳細の接頭辞 (report-cli R-602)。後ろにモジュール名を続ける。 */
+export const UNKNOWN_MODULE_MESSAGE = '不明なモジュール名: ';
+
+/** `--timeout` の値が正の整数でないときの例外の詳細の接頭辞 (report-cli R-603)。後ろに渡された値を続ける。 */
+export const INVALID_TIMEOUT_MESSAGE = '--timeout には正の整数 (秒) を指定してください: ';

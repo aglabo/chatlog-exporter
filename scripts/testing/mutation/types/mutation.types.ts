@@ -195,6 +195,16 @@ export type ResolvedTargets = {
  */
 export type MutateModule = Exclude<import('../../../aplys-tester.ts').ValidModule, 'classes' | 'scripts'>;
 
+/** `parseMutateArgs` の結果。mutate-tester の CLI 引数から確定した実行条件 (report-cli R-604)。 */
+export type MutateArgs = {
+  /** 変異テストの対象モジュール。 */
+  module: MutateModule;
+  /** `--strict` の指定有無。省略時は `false`。 */
+  strict: boolean;
+  /** 変異体 1 件あたりのテストの制限時間 (秒)。省略時は `DEFAULT_TIMEOUT_SEC`。 */
+  timeoutSec: number;
+};
+
 /**
  * `applyMutant` の結果。例外を投げずに成否を返す。
  *
