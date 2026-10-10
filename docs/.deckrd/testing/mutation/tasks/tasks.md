@@ -94,7 +94,7 @@ GG はシナリオ (`T-XX-YY`) ごとに 1 つ、CC はその中の連番であ�
 | T-12: `runMutants`                                                                    | 14     | 2     | 17        | 37      | done    |
 | T-13: `parseMutateArgs`                                                               | 15     | 3     | 8         | 31      | done    |
 | T-14: `main`（監査の順序制御と SIGINT）                                               | 16     | 3     | 19        | 66      | done    |
-| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | pending |
+| T-15: `runMutants` integration（実 `deno test` での差し替え検証）                     | 18     | 3     | 5         | 8       | done    |
 | T-16: `generateMutants` 追補（generation Edge 16〜24 の未検証分）                     | —      | 1     | 6         | 7       | pending |
 | **合計**                                                                              | —      | —     | **175**   | **481** | —       |
 
@@ -3925,14 +3925,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-15-01: 差し替えた変異体がテストに読まれる
 
-- [ ] **T-15-01-01**: テストが検出する変異体は killed になる
+- [x] **T-15-01-01**: テストが検出する変異体は killed になる
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-01-01`
   - Rule: index DD-08 / DR-01 / execution R-216 / REQ-F-003 / AC-004
   - Scenario: Given `export const isPositive = (n: number) => n > 0;` と、`isPositive(0) === false` を検査するテストの fixture があり、`>` を `>=` にした変異体 1 件がある, When 実 `deno test` で `runMutants` を実行する
   - Expected: Then その変異体の判定が killed であること (`imports` による差し替えが効いている)
 
-- [ ] **T-15-01-02**: テストが触れない変異体は survived になる
+- [x] **T-15-01-02**: テストが触れない変異体は survived になる
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-01-02`
   - Rule: execution R-220 / REQ-F-004
@@ -3941,14 +3941,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-15-02: 元ソースと作業ツリーを汚さない
 
-- [ ] **T-15-02-01**: 実行の前後で元ソースの drift が 0 件である
+- [x] **T-15-02-01**: 実行の前後で元ソースの drift が 0 件である
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-02-01`
   - Rule: execution R-212 / REQ-F-008 / REQ-NF-001 / AC-003 / AC-009
   - Scenario: Given T-15-01-01 と同じ fixture と変異体があり、実行前に `hashSources` で `target.ts` のハッシュを記録した, When 実 `deno test` で `runMutants` を実行し、再度 `hashSources` を取って `detectDrift` に渡す
   - Expected: Then drift が 0 件であること
 
-- [ ] **T-15-02-02**: 実行後に変異体ファイルと一時設定が残らない
+- [x] **T-15-02-02**: 実行後に変異体ファイルと一時設定が残らない
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-02-02`
   - Rule: execution R-225 / REQ-F-006 / AC-007
@@ -3959,7 +3959,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-15-03: 型検査で落ちる変異体
 
-- [ ] **T-15-03-01**: 型検査が落とした変異体は compile-error になり killed にならない
+- [x] **T-15-03-01**: 型検査が落とした変異体は compile-error になり killed にならない
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-03-01`
   - Rule: execution R-221 / execution DD-03 / DR-02 / Edge execution-5 / Edge generation-22 / AC-005
@@ -3970,14 +3970,14 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-15-04: 移植性 (改行コードとパス)
 
-- [ ] **T-15-04-01**: CRLF のソースでも差し替えが効く
+- [x] **T-15-04-01**: CRLF のソースでも差し替えが効く
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-04-01`
   - Rule: REQ-NF-004 / execution R-215 / Edge index-11 / Edge execution-2
   - Scenario: Given T-15-01-01 と同じ内容を CRLF 改行で書いた fixture と、`>` を `>=` にした変異体 1 件がある, When 実 `deno test` で `runMutants` を実行する
   - Expected: Then その変異体の判定が killed であること
 
-- [ ] **T-15-04-02**: 空白を含むディレクトリでも file URL で差し替えが効く
+- [x] **T-15-04-02**: 空白を含むディレクトリでも file URL で差し替えが効く
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-04-02`
   - Rule: REQ-NF-004 (file URL への変換) / execution R-216
@@ -3986,7 +3986,7 @@ unit は子プロセスの起動部をスタブに差し替えて検証する（
 
 #### T-15-05: 差し替えが効かない読み方の前提
 
-- [ ] **T-15-05-01**: ソースを文字列として読むテストでは検出されるべき変異体も survived になる
+- [x] **T-15-05-01**: ソースを文字列として読むテストでは検出されるべき変異体も survived になる
   - Target: `runMutants`
   - Test ID: `T-MUT-MTI-05-01`
   - Rule: index DD-08 / DR-01 (import 経由でのみ効く) / report-cli R-613 の前提
