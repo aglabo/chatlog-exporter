@@ -1,6 +1,6 @@
 // src: scripts/testing/mutation/__tests__/unit/run-safety.unit.spec.ts
 // @(#): run-safety のユニットテスト
-//       対象: acquireLock / releaseLock
+//       対象: acquireLock / acquireLockEnsuringDir / releaseLock
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -21,7 +21,7 @@ import {
   LOCK_HELD_MESSAGE,
   LOCK_PID_LABEL,
 } from '../../constants/mutation.constants.ts';
-import { acquireLock, releaseLock } from '../../run-safety.ts';
+import { acquireLock, acquireLockEnsuringDir, releaseLock } from '../../run-safety.ts';
 import type { LockRecord } from '../../types/mutation.types.ts';
 
 // ─── Helpers
@@ -311,6 +311,78 @@ describe('acquireLock', () => {
         await _withLoggerStub(() => assertRejects(() => acquireLock(lockPath), ChatlogError));
 
         assertEquals(await _snapshotDir(tempDir), _before);
+      });
+    });
+  });
+});
+
+/**
+ * `acquireLockEnsuringDir` のユニットテストスイート。
+ *
+ * ロックパスの親ディレクトリを作成してから実行ロックを取得することを検証する。
+ * 親ディレクトリが無いと `Deno.errors.NotFound` になる `acquireLock` の契約 (T-MUT-RS-03-04) は変えず、
+ * 新しいクローン (`temp/` が無い) での初回実行を通すための入口。
+ *
+ * テスト ID 範囲: T-MUT-RS-20-01 〜 T-MUT-RS-20-03
+ *
+ * @see acquireLockEnsuringDir
+ */
+describe('acquireLockEnsuringDir', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await Deno.makeTempDir({ prefix: 'run-safety-' });
+  });
+
+  afterEach(async () => {
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
+  /**
+   * 親ディレクトリの有無を問わない取得。
+   */
+  describe('親ディレクトリの作成とロックの取得', () => {
+    /** 親ディレクトリが無い、または既にある正常ケース。 */
+    describe('When: 正常系', () => {
+      it('[Normal] T-MUT-RS-20-01: 多段の親ディレクトリが無い → 親を作成し、PID・作成時刻・ランダム ID を記録して token と一致させる', async () => {
+        const _nestedPath = join(tempDir, 'missing', 'nested', 'dir', _LOCK_FILE_NAME);
+
+        const _token = await acquireLockEnsuringDir(_nestedPath);
+
+        const _record = await _readLockRecord(_nestedPath);
+        assertEquals(_record.pid, Deno.pid);
+        assert(!Number.isNaN(Date.parse(_record.createdAt)), `createdAt is not a date: ${_record.createdAt}`);
+        assert(typeof _record.id === 'string' && _record.id.length > 0, `id is empty: ${_record.id}`);
+        assertEquals(_token.path, _nestedPath);
+        assertEquals(_token.id, _record.id);
+      });
+
+      it('[Normal] T-MUT-RS-20-02: 親ディレクトリが既にある → 例外なしでロックファイルを作成する', async () => {
+        const _lockPath = join(tempDir, _LOCK_FILE_NAME);
+
+        const _token = await acquireLockEnsuringDir(_lockPath);
+
+        assert((await Deno.stat(_lockPath)).isFile);
+        assertEquals(_token.id, (await _readLockRecord(_lockPath)).id);
+      });
+    });
+
+    /** 他の実行が作成したロックファイルが既にある異常ケース。 */
+    describe('When: 異常系', () => {
+      it('[Error] T-MUT-RS-20-03: 他実行のロックがある → ChatlogError(ParallelExecutionError / LockHeld) で reject し、ロックファイルをバイト単位で保持する', async () => {
+        const _lockPath = join(tempDir, _LOCK_FILE_NAME);
+        await _writeForeignLock(_lockPath);
+        const _before = await Deno.readFile(_lockPath);
+
+        let _error: ChatlogError | undefined;
+        await _withLoggerStub(async () => {
+          _error = await assertRejects(() => acquireLockEnsuringDir(_lockPath), ChatlogError);
+        });
+
+        assertEquals(_error?.kind, 'ParallelExecutionError');
+        assertEquals(_error?.subindex, 'LockHeld');
+        // 削除されていれば readFile が NotFound で失敗する
+        assertEquals(await Deno.readFile(_lockPath), _before);
       });
     });
   });
