@@ -6,8 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-import { ensureDir, walk, type WalkEntry } from 'jsr:@std/fs@^1.0.24';
-import { basename, dirname } from 'jsr:@std/path@^1.1.6';
+import { walk, type WalkEntry } from 'jsr:@std/fs@^1.0.24';
+import { basename } from 'jsr:@std/path@^1.1.6';
 import { ChatlogError } from '../../../skills/_cle-libs/classes/ChatlogError.class.ts';
 import { sessionHash } from '../../../skills/_cle-libs/libs/io/hash.ts';
 import { logger } from '../../../skills/_cle-libs/libs/io/logger.ts';
@@ -46,22 +46,6 @@ export const acquireLock = async (path: string): Promise<LockToken> => {
     throw e;
   }
   return { path, id: _record.id };
-};
-
-/**
- * ロックの親ディレクトリを作ってから実行ロックを取得する (execution R-201 の例外 / OQ-2)。
- *
- * execution R-201 はロック取得より前に何も書き込まないことを求めるが、OQ-2 の決定により
- * ロックファイルの親ディレクトリだけはロック取得前に作る (既に存在するときは何もしない)。
- * ロックの取得そのものは `acquireLock` に委ね、その挙動は変えない。
- *
- * @param path - ロックファイルのパス
- * @returns 解放時に渡すロックの持ち主の証明
- * @throws {ChatlogError} ロックファイルが既に存在するとき (`ParallelExecutionError` / `LockHeld`)
- */
-export const acquireLockEnsuringDir = async (path: string): Promise<LockToken> => {
-  await ensureDir(dirname(path));
-  return await acquireLock(path);
 };
 
 /**
