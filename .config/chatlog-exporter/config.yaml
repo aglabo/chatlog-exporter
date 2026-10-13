@@ -12,11 +12,14 @@ agent: claude
 # model selects the AI backend. It is independent of "agent" (the export source).
 # Use "llama/<model>" to call the llama server set in llamaEndpoint over HTTP.
 model: "llama/avalon" # local llama server. Empty = built-in default "sonnet"
+
 # Large local prompts can spend more than 5 minutes in prompt evaluation alone.
 # 0 disables the deadline; this value covers prompt evaluation and generation together.
-timeoutMs: 600_000 # 10 min (ms)
+# timeoutMs: 600_000 # 10 min (ms)
+timeoutMs: 120_000 # 2 min (ms)
+
 # Set debug to trace request timing and DNS retries without logging prompt/response text.
-aiLogLevel: "off"
+aiLogLevel: "debugoff"
 maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Llama backend
