@@ -3,13 +3,16 @@
 // Copyright (c) 2026- atsushifx. MIT License.
 import type { FetchProvider } from '../../types/providers.types.ts';
 
-/** DNS failures happen before the request reaches the server. Never retry ambiguous transport failures. */
+/**
+ * DNS failures happen before the request reaches the server. Never retry ambiguous transport failures.
+ * Deno emits both `dns error: <detail>` and a bare trailing `dns error`.
+ */
 const isDnsFailure = (error: unknown): boolean => {
   const seen = new Set<Error>();
   while (error instanceof Error && !seen.has(error)) {
     seen.add(error);
     const code = (error as Error & { code?: string }).code;
-    if (code === 'EAI_AGAIN' || code === 'ENOTFOUND' || /\bdns error: /i.test(error.message)) {
+    if (code === 'EAI_AGAIN' || code === 'ENOTFOUND' || /\bdns error\b/i.test(error.message)) {
       return true;
     }
     error = error.cause;

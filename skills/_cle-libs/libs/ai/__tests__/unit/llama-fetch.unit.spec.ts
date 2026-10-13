@@ -20,6 +20,24 @@ Deno.test('DNS recovers on the next attempt with the same request and signal', a
   assertEquals(calls, 2);
 });
 
+Deno.test('DNS failure without a trailing detail (observed Deno format) is retried', async () => {
+  let calls = 0;
+  const response = await fetchLlama('http://avalon:8080/', {}, new AbortController().signal, () => {
+    if (++calls === 1) {
+      return Promise.reject(
+        new TypeError('fetch failed', {
+          cause: new Error(
+            'error sending request for url (http://this-host-does-not-exist.invalid/): client error (Connect): dns error',
+          ),
+        }),
+      );
+    }
+    return Promise.resolve(new Response('ok'));
+  });
+  assertEquals(await response.text(), 'ok');
+  assertEquals(calls, 2);
+});
+
 Deno.test('persistent DNS failure stops after three attempts and preserves the cause', async () => {
   let calls = 0;
   const error = dnsFailure();
