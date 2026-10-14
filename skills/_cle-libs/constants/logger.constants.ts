@@ -19,6 +19,7 @@ export const LOGGER_PREFIX = {
   INFO: '::info::',
   WARN: '::warn::',
   ERROR: '::error::',
+  DEBUG: '::debug::',
   DRYRUN: '<<dry-run>>',
 } as const;
 

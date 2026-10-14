@@ -17,16 +17,18 @@ export type LoggerStub = {
   warnLogs: string[];
   errorLogs: string[];
   dryrunLogs: string[];
+  debugLogs: string[];
   logStub: Stub;
   infoStub: Stub;
   warnStub: Stub;
   errorStub: Stub;
   dryrunStub: Stub;
+  debugStub: Stub;
   restore(): void;
 };
 
 /**
- * logger.info / logger.warn / logger.error / logger.dryrun をキャプチャするスタブを設置し、ハンドルを返す。
+ * logger.info / logger.warn / logger.error / logger.dryrun / logger.debug をキャプチャするスタブを設置し、ハンドルを返す。
  * afterEach で loggerStub.restore() を呼ぶこと。
  */
 export function makeLoggerStub(): LoggerStub {
@@ -35,6 +37,7 @@ export function makeLoggerStub(): LoggerStub {
   const warnLogs: string[] = [];
   const errorLogs: string[] = [];
   const dryrunLogs: string[] = [];
+  const debugLogs: string[] = [];
   const logStub = stub(logger, 'log', (msg: string) => {
     logLogs.push(msg);
   });
@@ -50,23 +53,29 @@ export function makeLoggerStub(): LoggerStub {
   const dryrunStub = stub(logger, 'dryrun', (msg: string) => {
     dryrunLogs.push(msg);
   });
+  const debugStub = stub(logger, 'debug', (msg: string) => {
+    debugLogs.push(msg);
+  });
   return {
     logLogs,
     infoLogs,
     warnLogs,
     errorLogs,
     dryrunLogs,
+    debugLogs,
     logStub,
     infoStub,
     warnStub,
     errorStub,
     dryrunStub,
+    debugStub,
     restore() {
       logStub.restore();
       infoStub.restore();
       warnStub.restore();
       errorStub.restore();
       dryrunStub.restore();
+      debugStub.restore();
     },
   };
 }

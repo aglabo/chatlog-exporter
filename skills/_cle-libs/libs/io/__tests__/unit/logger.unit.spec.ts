@@ -168,4 +168,30 @@ describe('logger', () => {
       });
     });
   });
+
+  // ─── グループ06: logger.debug ────────────────────────────────────────────────
+
+  describe('Given: msg="debug message"', () => {
+    describe('When: logger.debug("debug message") を呼び出す', () => {
+      describe('Then: T-LIB-LOG-06 - "::debug::" prefix を付けて stderr へ出力する', () => {
+        it('T-LIB-LOG-06-01: console.error が 1 回呼ばれる', () => {
+          logger.debug('debug message');
+          assertSpyCalls(errorSpy, 1);
+        });
+
+        it('T-LIB-LOG-06-02: console.error の引数が "::debug:: debug message" である', () => {
+          logger.debug('debug message');
+          const [arg] = errorSpy.calls[0].args as [string];
+          if (arg !== '::debug:: debug message') {
+            throw new Error(`Expected "::debug:: debug message", got "${arg}"`);
+          }
+        });
+
+        it('T-LIB-LOG-06-03: console.log は呼ばれない', () => {
+          logger.debug('debug message');
+          assertSpyCalls(logSpy, 0);
+        });
+      });
+    });
+  });
 });

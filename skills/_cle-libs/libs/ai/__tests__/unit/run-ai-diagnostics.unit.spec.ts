@@ -15,9 +15,10 @@ for (const level of ['debug', 'off']) {
         outputContract: { contract: 'line-prefixed', properties: { type: { type: 'string' } }, maxTokens: 256 },
         fetchProvider: () => Promise.resolve(makeLlamaOkResponse('{"type":"secret-response"}')),
       });
-      if (level === 'off') { assertEquals(logs.infoLogs, []); }
+      assertEquals(logs.infoLogs, []);
+      if (level === 'off') { assertEquals(logs.debugLogs, []); }
       else {
-        const text = logs.infoLogs.join('\n');
+        const text = logs.debugLogs.join('\n');
         for (
           const stage of [
             'start backend=llama',
@@ -30,8 +31,8 @@ for (const level of ['debug', 'off']) {
           assert(text.includes(stage));
         }
         assert(!text.includes('secret-'));
-        assert(logs.infoLogs.every((line) => /elapsedMs=\d+/.test(line)));
-        assertEquals(new Set(logs.infoLogs.map((line) => /request=([^ ]+)/.exec(line)?.[1])).size, 1);
+        assert(logs.debugLogs.every((line) => /elapsedMs=\d+/.test(line)));
+        assertEquals(new Set(logs.debugLogs.map((line) => /request=([^ ]+)/.exec(line)?.[1])).size, 1);
       }
     } finally {
       logs.restore();
@@ -55,7 +56,7 @@ Deno.test('AI diagnostic timeout is distinct from backend unavailability', async
           }),
       })
     );
-    assert(logs.infoLogs.some((line) => line.includes('failure category=Timeout')));
+    assert(logs.debugLogs.some((line) => line.includes('failure category=Timeout')));
   } finally {
     logs.restore();
     GlobalConfig.resetInstance();

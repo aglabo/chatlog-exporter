@@ -389,7 +389,7 @@ export const runAI = async (
   const _requestId = _globalConfig.get('aiLogLevel') === 'debug' ? crypto.randomUUID() : '';
   const _trace = (message: string): void => {
     if (_requestId) {
-      logger.info(
+      logger.debug(
         `ai request=${_requestId} time=${new Date().toISOString()} elapsedMs=${
           Math.round(performance.now() - _started)
         } ${message}`,
