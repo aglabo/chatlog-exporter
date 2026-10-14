@@ -14,6 +14,7 @@ import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 import { GlobalConfig } from '../../classes/GlobalConfig.class.ts';
 import { logger } from '../io/logger.ts';
 import { assertEndpointAcceptable, normalizeEndpointUrl } from './endpoint-utils.ts';
+import { fetchLlama } from './llama-fetch.ts';
 import { buildLlamaRequest } from './llama-request-builder.ts';
 import { interpretLlamaResponse, mapLlamaFetchFailure } from './llama-response.ts';
 import { getAiBackend, isEmptyLlamaModelId, parseModel } from './model-utils.ts';
@@ -329,11 +330,13 @@ const _runViaHttp = async (
   userPrompt: string,
   options: RunAIOptions,
   signal: AbortSignal,
+  trace: (message: string) => void,
 ): Promise<string> => {
   // 送信より前にエンドポイントを検証する（transport R-006 / AC-019）
   const _endpoint = GlobalConfig.getInstance().get('llamaEndpoint') as string;
   assertEndpointAcceptable(_endpoint);
   const _url = normalizeEndpointUrl(_endpoint);
+  trace(`http-send endpoint=${new URL(_url).origin}`);
   const _contract = options.outputContract;
   const _init = buildLlamaRequest({
     model: options.model!,
@@ -342,8 +345,12 @@ const _runViaHttp = async (
     outputContract: _contract,
   });
   // reject（接続失敗等）は BackendUnavailable へ分類する。abort 起因の reject は runAI の catch が Aborted / TimedOut へ上書きする
-  const _response = await (options.fetchProvider ?? fetch)(_url, { ..._init, signal }).catch(mapLlamaFetchFailure);
+  const _response = await fetchLlama(_url, _init, signal, options.fetchProvider ?? fetch, trace).catch(
+    mapLlamaFetchFailure,
+  );
+  trace(`http-headers status=${_response.status}`);
   const _text = await interpretLlamaResponse(_response);
+  trace('http-body-complete');
   const _payload = parseContractPayload(_text);
   // buildLlamaRequest が契約なしで throw するため、ここでは契約が存在する
   validateOutputContract(_contract!, _payload);
@@ -378,6 +385,20 @@ export const runAI = async (
   }
   const _backend = getAiBackend(_options.model)!;
   const _routeLabel = _backend === 'llama' ? 'llama' : AI_BACKEND_COMMAND_MAP[_backend];
+  const _started = performance.now();
+  const _requestId = _globalConfig.get('aiLogLevel') === 'debug' ? crypto.randomUUID() : '';
+  const _trace = (message: string): void => {
+    if (_requestId) {
+      logger.info(
+        `ai request=${_requestId} time=${new Date().toISOString()} elapsedMs=${
+          Math.round(performance.now() - _started)
+        } ${message}`,
+      );
+    }
+  };
+  _trace(
+    `start backend=${_routeLabel} timeoutMs=${_timeoutMs} systemChars=${systemPrompt.length} userChars=${userPrompt.length}`,
+  );
   const _controller = new AbortController();
   const _timer = _options.timeoutMs !== 0
     ? setTimeout(() => _controller.abort(), _options.timeoutMs)
@@ -385,16 +406,22 @@ export const runAI = async (
   const _signals = _options.signal ? [_controller.signal, _options.signal] : [_controller.signal];
   try {
     const _signal = AbortSignal.any(_signals);
-    return _backend === 'llama'
-      ? await _runViaHttp(systemPrompt, userPrompt, _options, _signal)
+    const _result = _backend === 'llama'
+      ? await _runViaHttp(systemPrompt, userPrompt, _options, _signal, _trace)
       : await _runViaCli(_buildCommand(_options.model, systemPrompt), systemPrompt, userPrompt, _signal);
+    _trace('complete');
+    return _result;
   } catch (e) {
+    const _failure = e instanceof ChatlogError ? `${e.kind}/${e.subindex}` : e instanceof Error ? e.name : 'unknown';
     if (_options.signal?.aborted) {
+      _trace('failure category=ExternalAbort');
       throw new ChatlogError('Aborted', 'ExternalAbort', `${_routeLabel} was aborted by an external signal`);
     }
     if (_controller.signal.aborted) {
+      _trace('failure category=Timeout');
       throw new ChatlogError('TimedOut', 'Timeout', `${_routeLabel} timed out after ${_options.timeoutMs}ms`);
     }
+    _trace(`failure category=${_failure}`);
     throw e;
   } finally {
     if (_timer !== undefined) { clearTimeout(_timer); }
