@@ -188,13 +188,14 @@ llamaEndpoint: "http://avalon:8080/"
 
 ## 利用可能なオプション一覧
 
-| オプション         | 説明                                                   |
-| ------------------ | ------------------------------------------------------ |
-| `--period YYYY-MM` | 対象期間 (`YYYY-MM` 形式のみ。`YYYY` 単体は不可)       |
-| `--input-dir DIR`  | 走査対象ディレクトリを直接指定 (agent / period を無視) |
-| `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)      |
-| `--config FILE`    | GlobalConfig ファイルのパス                            |
-| `--dry-run`        | ファイルを移動しない (AI 分類もスキップされる)         |
+| オプション         | 説明                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `--period YYYY-MM` | 対象期間 (`YYYY-MM` 形式のみ。`YYYY` 単体は不可)                                                                   |
+| `--input-dir DIR`  | 走査対象ディレクトリを直接指定 (agent / period を無視)                                                             |
+| `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)                                                                  |
+| `--debug`          | AI 診断ログ (応答本文の一部を含む) を stderr に出力する。`config.yaml` の `debug` より優先 (`--no-debug` で無効化) |
+| `--config FILE`    | GlobalConfig ファイルのパス                                                                                        |
+| `--dry-run`        | ファイルを移動しない (AI 分類もスキップされる)                                                                     |
 
 `--no-dry-run` のようなフラグ否定形、および `--option=value` 形式も利用できる。
 上記以外の `--` オプションを渡すと `UnknownOption` エラーで異常終了する。

@@ -6,7 +6,7 @@ description: >
   strip サブコマンドでは、AIを使わず本文先頭の定型部（TOPICS ASSIGNMENT RULES 等）を除去する。
   /filter-chatlogs で呼び出す。
   KEEP/DISCARD判定にはclaude CLIを使用するため ANTHROPIC_API_KEY 不要。
-argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] [--chunk-size N] [--max-body-chars N] [--model MODEL] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
+argument-hint: "[noise-filter|filter] [agent] [YYYY-MM] [--dry-run] [--single-file] [--chunk-size N] [--max-body-chars N] [--model MODEL] [--debug] / strip <agent> <YYYY-MM>|<path> [--dry-run] [--recover-orphans]"
 allowed-tools: Bash, Glob
 ---
 
@@ -59,6 +59,7 @@ allowed-tools: Bash, Glob
 - `--model MODEL` → AI バックエンドのモデル名。未指定時は `config.yaml` の `model` を使う。
   優先順位は **CLI 引数 > `config.yaml`**。
   AI を呼ぶのは filter モードのみで、`strip` / `noise-filter` では効かない
+- `--debug` → AI 診断ログ (応答本文の一部を含む) を stderr に出力する。`config.yaml` の `debug` より優先 (`--no-debug` で無効化)。
 
 **noise-filter モードの引数解析** (`noise-filter` トークンを除いた残りの引数に適用):
 

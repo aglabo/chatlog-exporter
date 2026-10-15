@@ -268,18 +268,19 @@ llamaEndpoint: "http://avalon:8080/"
 
 ## 利用可能なオプション一覧
 
-| オプション         | 説明                                                        |
-| ------------------ | ----------------------------------------------------------- |
-| `--input-dir DIR`  | 入力ディレクトリ (agent / period を無視)                    |
-| `--output-dir DIR` | 出力先 (`normalizeLogs` 入力時は自動上書きされる。上記参照) |
-| `--dics DIR`       | 辞書ディレクトリ                                            |
-| `--prompts DIR`    | プロンプトディレクトリ                                      |
-| `--concurrency N`  | 並列実行数 (デフォルト: 4)                                  |
-| `--cache-dir DIR`  | キャッシュディレクトリ                                      |
-| `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)           |
-| `--config FILE`    | GlobalConfig ファイルのパス                                 |
-| `--review`         | レビューフェーズを実行する (`--no-review` で無効化)         |
-| `--dry-run`        | 書き込まない (AI 呼び出しもスキップされる)                  |
+| オプション         | 説明                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `--input-dir DIR`  | 入力ディレクトリ (agent / period を無視)                                                                           |
+| `--output-dir DIR` | 出力先 (`normalizeLogs` 入力時は自動上書きされる。上記参照)                                                        |
+| `--dics DIR`       | 辞書ディレクトリ                                                                                                   |
+| `--prompts DIR`    | プロンプトディレクトリ                                                                                             |
+| `--concurrency N`  | 並列実行数 (デフォルト: 4)                                                                                         |
+| `--cache-dir DIR`  | キャッシュディレクトリ                                                                                             |
+| `--model MODEL`    | AI モデル名 (デフォルト: GlobalConfig の `model`)                                                                  |
+| `--debug`          | AI 診断ログ (応答本文の一部を含む) を stderr に出力する。`config.yaml` の `debug` より優先 (`--no-debug` で無効化) |
+| `--config FILE`    | GlobalConfig ファイルのパス                                                                                        |
+| `--review`         | レビューフェーズを実行する (`--no-review` で無効化)                                                                |
+| `--dry-run`        | 書き込まない (AI 呼び出しもスキップされる)                                                                         |
 
 > ディレクトリを取る値 (`--input-dir` / `--output-dir` / `--dics` / `--prompts`) は
 > **スラッシュを含む必要がある** (`dics` は不可、`./dics` は可)。

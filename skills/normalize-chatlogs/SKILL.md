@@ -136,6 +136,7 @@ llamaEndpoint: "http://avalon:8080/"
 | `--max-batch-chars N` | 1 バッチの累積本文文字数の上限 (デフォルト: 20000。0 で無制限) |
 | `--timeout-ms N`      | AI 呼び出しのタイムアウト (ミリ秒)                             |
 | `--model MODEL`       | AI モデル名 (デフォルト: GlobalConfig の `model`)              |
+| `--debug`             | AI 診断ログ (応答本文の一部を含む) を stderr に出力する。      |
 | `--config FILE`       | GlobalConfig ファイルのパス                                    |
 | `--fail-fast`         | 失敗時に即座に中断する                                         |
 | `--single-file`       | AI へ1ファイルずつ渡す (バッチ相乗りを避ける)                  |
