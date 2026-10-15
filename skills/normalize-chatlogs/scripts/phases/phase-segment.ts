@@ -67,7 +67,7 @@ const _formatRepairWarning = (filePath: string, repairedNonBlankLines: number[])
  * `logger.warn` per file (see {@link _formatRepairWarning}); blank-only recoveries are silent.
  *
  * Each `status: 'set'` write is followed by one `logger.info` naming the source file and its
- * repaired segment count, regardless of `aiLogLevel`; `status: 'retry'` writes are not logged.
+ * repaired segment count, regardless of `debug`; `status: 'retry'` writes are not logged.
  *
  * @param chunk  - Entries to segment together in a single AI call
  * @param config - Model/timeout options forwarded to `segmentChatlogs`

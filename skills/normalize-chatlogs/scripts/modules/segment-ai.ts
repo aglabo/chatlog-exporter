@@ -85,11 +85,11 @@ const _buildSegmentOutputContract = (fileCount: number): OutputContract => ({
 
 /**
  * 握りつぶす AI 失敗の warn に添える詳細を返す。
- * `aiLogLevel` が `debug` のときだけ message 全文（CLI 出力を含みうる）を返し、
+ * `debug` が `true` のときだけ message 全文（CLI 出力を含みうる）を返し、
  * それ以外は秘匿情報を含まない分類（`kind/subindex` またはエラー名）に留める。
  */
 const _describeAiFailure = (e: unknown): string => {
-  if (GlobalConfig.getInstance().get('aiLogLevel') === 'debug') {
+  if (GlobalConfig.getInstance().get('debug') === true) {
     return e instanceof Error ? e.message : String(e);
   }
   return e instanceof ChatlogError ? `${e.kind}/${e.subindex}` : e instanceof Error ? e.name : 'unknown';
@@ -116,7 +116,7 @@ const _addLineNumbers = (content: string): string => {
  * did not return results for, or if the AI call fails entirely. An empty array response (`[]`)
  * also yields null for every filePath, logged once per chunk with the first 200 chars of the raw output.
  * A swallowed AI failure is logged once per chunk. The appended detail is the error category
- * (`kind/subindex` for ChatlogError, the error name otherwise) unless `aiLogLevel` is `debug`,
+ * (`kind/subindex` for ChatlogError, the error name otherwise) unless `debug` is `true`,
  * in which case the full error message (which may include CLI output) is appended instead.
  *
  * Line numbers (`startLine`/`endLine`) refer to `entry.content` (frontmatter excluded),

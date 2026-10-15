@@ -270,7 +270,7 @@ const _normalizedLogs = (logs: string[]): string[] => logs.filter((log) => log.i
  * 既存インスタンスがあると `getInstance` は options を無視するため、先に `resetInstance()` する。
  * 呼び出したテストは afterEach で `GlobalConfig.resetInstance()` して他テストへ残さないこと。
  *
- * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'aiLogLevel: debug'`、`''` で既定値）
+ * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'debug: true'`、`''` で既定値）
  */
 const _seedGlobalConfig = (yaml: string): void => {
   GlobalConfig.resetInstance();
@@ -933,7 +933,7 @@ describe('phaseSegment', () => {
         const result = await phaseSegment([entry], cache, { ..._baseConfig, timeoutMs: 1 }, 1);
 
         // assert — タイムアウト由来であることを warn の文言で区別する（AI 失敗一般では別文言になる）。
-        // aiLogLevel 未設定（非 debug）なので末尾は runAI のエラー分類（kind/subindex）だけになる
+        // debug 未設定（false）なので末尾は runAI のエラー分類（kind/subindex）だけになる
         assertEquals(loggerStub.warnLogs, ['segmentChatlogs: timed out — slow: TimedOut/Timeout']);
         assertEquals(result, []);
         assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.RETRY);
@@ -960,7 +960,7 @@ describe('phaseSegment', () => {
   /**
    * キャッシュ作成に成功したファイルごとに、元ファイル名と分割件数を `logger.info` へ出す挙動のグループ。
    *
-   * `aiLogLevel` に関係なく常に出す。件数は `repairSegmentCoverage` 後の segments 件数。
+   * `debug` に関係なく常に出す。件数は `repairSegmentCoverage` 後の segments 件数。
    * `status: 'retry'` を書いたファイル・dryRun では出さない。
    * `GlobalConfig` はケースごとにシードし、afterEach で必ずリセットする。
    */
@@ -1027,9 +1027,9 @@ describe('phaseSegment', () => {
         ]);
       });
 
-      it('[Normal] T-NC-PSC-03-03: aiLogLevel: debug でも info で出て debug には出ない', async () => {
+      it('[Normal] T-NC-PSC-03-03: debug: true でも info で出て debug には出ない', async () => {
         // arrange — T-NC-PSC-03-01 と同じ成功応答。GlobalConfig だけが debug
-        _seedGlobalConfig('aiLogLevel: debug');
+        _seedGlobalConfig('debug: true');
         const entry = _makeEntry('two.md', _COVERAGE_BODY);
         const aiResponse = _makeAiResponse([
           { filePath: 'two.md', segments: [{ title: 'A', startLine: 1, endLine: _COVERAGE_TOTAL_LINES }] },
