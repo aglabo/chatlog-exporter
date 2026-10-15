@@ -172,6 +172,7 @@ export const MUTATE_UNSUPPORTED_OPTIONS: ArgSchema<DefaultArgFields> = [
   { option: '--input-dir', field: 'inputDir', type: 'directory' },
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--model', field: 'model', type: 'string' },
+  { option: '--debug', field: 'debug', type: 'flag' },
 ];
 
 /** mutate-tester が定義しないオプションを渡されたときの例外の詳細の接頭辞 (report-cli R-622)。後ろにオプション名を続ける。 */
