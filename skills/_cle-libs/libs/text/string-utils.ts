@@ -36,6 +36,13 @@ export const parseNumber = (value: unknown): number | undefined => {
   return _parsed;
 };
 
+/** unknown が boolean ならそのまま返す。null/undefined は undefined を返す。それ以外は TypeError をスローする。 */
+export const parseBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') { return value; }
+  if (value == null) { return undefined; }
+  throw new TypeError(`Unsupported type: ${typeof value}`);
+};
+
 export const toStringArrayWithNull = (v: unknown): string[] => {
   if (!Array.isArray(v)) { return []; }
   return v.map(String);
