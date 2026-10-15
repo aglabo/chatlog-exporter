@@ -1278,6 +1278,68 @@ describe('parseArgs (defaultConfigFile)', () => {
   });
 });
 
+// ─── T-PA-39: --debug / --no-debug ───────────────────────────────────────────
+
+/**
+ * 共通 CLI オプション `--debug` / `--no-debug` のテストスイート。
+ *
+ * CLI 値が `GlobalConfig` の `debug` に注入されることを検証する。
+ * 優先度 `--debug` / `--no-debug` > config.yaml の `debug` > 既定値 `false` を確認する。
+ *
+ * 実機の設定ファイルに依存しないよう、一時ディレクトリ配下の設定ファイルを
+ * `defaultConfigFile` に渡す。
+ *
+ * テスト ID 範囲: T-PA-39-01 〜 T-PA-39-04
+ *
+ * @see parseArgs
+ */
+describe('parseArgs (--debug)', () => {
+  let tempDir: string;
+  let debugOnConfigPath: string;
+  let noDebugConfigPath: string;
+
+  beforeEach(async () => {
+    GlobalConfig.resetInstance();
+    tempDir = await Deno.makeTempDir({ prefix: 'cle-parse-args-debug-' });
+    debugOnConfigPath = `${tempDir}/debug-on.yaml`;
+    noDebugConfigPath = `${tempDir}/no-debug.yaml`;
+    await Deno.writeTextFile(debugOnConfigPath, 'debug: true\n');
+    await Deno.writeTextFile(noDebugConfigPath, 'agent: chatgpt\n');
+  });
+
+  afterEach(async () => {
+    GlobalConfig.resetInstance();
+    await Deno.remove(tempDir, { recursive: true });
+  });
+
+  /** CLI フラグが GlobalConfig の debug を上書きする正常系。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-PA-39-01: --debug + debug キーなしの設定 → GlobalConfig と戻り値の debug が true', () => {
+      const result = parseArgs<TestConfig & { debug?: boolean }>(['--debug'], TEST_SCHEMA, {}, noDebugConfigPath);
+      assertEquals(GlobalConfig.getInstance().get('debug'), true);
+      assertEquals(result.debug, true);
+    });
+
+    it('[Normal] T-PA-39-02: --no-debug + 設定 debug: true → GlobalConfig の debug が false', () => {
+      parseArgs<TestConfig>(['--no-debug'], TEST_SCHEMA, {}, debugOnConfigPath);
+      assertEquals(GlobalConfig.getInstance().get('debug'), false);
+    });
+  });
+
+  /** フラグ未指定時に設定値・既定値が保たれるエッジケース。 */
+  describe('When: エッジケース', () => {
+    it('[Edge] T-PA-39-03: フラグなし + 設定 debug: true → GlobalConfig の debug が true のまま', () => {
+      parseArgs<TestConfig>([], TEST_SCHEMA, {}, debugOnConfigPath);
+      assertEquals(GlobalConfig.getInstance().get('debug'), true);
+    });
+
+    it('[Edge] T-PA-39-04: フラグなし + debug キーなしの設定 → GlobalConfig の debug は既定値 false', () => {
+      parseArgs<TestConfig>([], TEST_SCHEMA, {}, noDebugConfigPath);
+      assertEquals(GlobalConfig.getInstance().get('debug'), false);
+    });
+  });
+});
+
 // ─── isArgDirectory ──────────────────────────────────────────────────────────
 
 describe('isArgDirectory', () => {
