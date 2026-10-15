@@ -10,6 +10,8 @@
 // ─── Shared scripts
 // classes
 import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
+// constants
+import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 // types
 import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 
@@ -63,6 +65,9 @@ const _formatRepairWarning = (filePath: string, repairedNonBlankLines: number[])
  * the cached boundaries cover the whole body — the AI regularly leaves head/tail/interior holes
  * and `extractLines` would drop those lines silently. Recovering non-blank lines emits one
  * `logger.warn` per file (see {@link _formatRepairWarning}); blank-only recoveries are silent.
+ *
+ * Each `status: 'set'` write is followed by one `logger.info` naming the source file and its
+ * repaired segment count, regardless of `aiLogLevel`; `status: 'retry'` writes are not logged.
  *
  * @param chunk  - Entries to segment together in a single AI call
  * @param config - Model/timeout options forwarded to `segmentChatlogs`
@@ -121,6 +126,7 @@ const _processChunk = async (
       // status === undefined or 'retry' (done/set entries are filtered out by _classifyEntries in
       // process-files.ts), and neither carries `segments` worth preserving.
       await cache.write(toCacheKey(filePath), _cacheEntry);
+      logger.info(`${LOGGER_TEXT.INDENT}normalized: ${getBasename(filePath)} (${_repaired.segments.length} segments)`);
       return entry;
     }),
   );
