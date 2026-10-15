@@ -1,6 +1,7 @@
 // src: skills/_cle-libs/libs/ai/__tests__/unit/llama-response.unit.spec.ts
 // @(#): llama 応答解釈関数 ユニットテスト
-//       対象: interpretLlamaResponse / mapLlamaFetchFailure
+//       対象: interpretLlamaResponse / mapLlamaFetchFailure / formatLlamaFailureDiagnostics /
+//             formatLlamaFailureRawResponse
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -12,7 +13,12 @@ import { assertEquals, assertFalse, assertRejects, assertStringIncludes, assertT
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
-import { interpretLlamaResponse, mapLlamaFetchFailure } from '../../llama-response.ts';
+import {
+  formatLlamaFailureDiagnostics,
+  formatLlamaFailureRawResponse,
+  interpretLlamaResponse,
+  mapLlamaFetchFailure,
+} from '../../llama-response.ts';
 
 // ─── Helpers
 import { ChatlogError } from '../../../../classes/ChatlogError.class.ts';
@@ -963,6 +969,347 @@ describe('llama 経路の失敗分類', () => {
         const _error = await assertRejects(run, ChatlogError);
 
         assertEquals(_error.kind, 'AiError');
+      });
+    }
+  });
+});
+
+// ─── Internal Helpers (formatLlamaFailureDiagnostics / onPayload)
+
+// constants
+/** 共通フィクスチャ: 診断出力に載せる `max_tokens`。 */
+const _DIAG_MAX_TOKENS = 256;
+
+/** 共通フィクスチャ: 切り詰めを示す応答の `usage`。 */
+const _DIAG_USAGE = { prompt_tokens: 10, completion_tokens: 256, total_tokens: 266 };
+
+/** 共通フィクスチャ: 先頭 100 文字が 'a'、末尾 500 文字が 'b' の 600 文字テキスト（切り詰めずに全文が残ることの検証用）。 */
+const _DIAG_LONG_CONTENT = 'a'.repeat(100) + 'b'.repeat(500);
+
+// types
+/** 診断文字列の組み立てケース 1 件分の定義（テスト ID・ケース説明・payload・期待文字列）。 */
+type _DiagnosticsCase = {
+  /** テスト ID。 */
+  id: string;
+  /** `it` ラベルに埋め込むケース説明。 */
+  label: string;
+  /** `formatLlamaFailureDiagnostics` に渡す parse 済み応答本文。 */
+  payload: unknown;
+  /** 期待する診断文字列（完全一致）。 */
+  expected: string;
+};
+
+/** `onPayload` が呼ばれない応答 1 件分の定義（テスト ID・ケース説明・応答の組み立て）。 */
+type _NoPayloadCase = {
+  /** テスト ID。 */
+  id: string;
+  /** `it` ラベルに埋め込むケース説明。 */
+  label: string;
+  /** 応答を組み立てる。`Response` の body は 1 度しか読めないため呼び出しごとに作る。 */
+  makeResponse: () => Response;
+};
+
+// functions
+/**
+ * `onPayload` に渡された値を記録する spy を組み立てる。
+ *
+ * 呼び出し回数だけでなく、渡された payload そのものを検証するために値を蓄積する。
+ *
+ * @returns 受け取った payload の記録配列と、`onPayload` に渡すコールバック
+ */
+const _makePayloadSpy = (): { calls: unknown[]; onPayload: (payload: unknown) => void } => {
+  const _calls: unknown[] = [];
+  return { calls: _calls, onPayload: (payload: unknown) => void _calls.push(payload) };
+};
+
+// ─── Tests (formatLlamaFailureDiagnostics)
+
+/**
+ * `formatLlamaFailureDiagnostics` の診断文字列組み立てテスト。
+ *
+ * 失敗時のログ 1 行に `max_tokens`・`finish_reason`・`usage.completion_tokens`・`content` 全文を
+ * この順で並べること、欠落した項目を `(missing)` で示すこと、
+ * `content` は切り詰めずに全文を `JSON.stringify` して 1 行に収めることを検証する。
+ *
+ * @see formatLlamaFailureDiagnostics
+ */
+describe('formatLlamaFailureDiagnostics', () => {
+  /** 4 項目がそろった payload と、長文の全文出力・改行エスケープのケース。 */
+  describe('When: 正常系', () => {
+    const _cases: _DiagnosticsCase[] = [
+      {
+        id: 'T-LIB-AI-LRI-14-01',
+        label: 'completion_tokens・finish_reason=length・content がそろう → 4 項目をこの順で並べる',
+        payload: {
+          choices: [{ message: { content: 'partial output' }, finish_reason: 'length' }],
+          usage: _DIAG_USAGE,
+        },
+        expected: 'max_tokens=256 finish_reason=length completion_tokens=256 content="partial output"',
+      },
+      {
+        // 末尾だけを切り出すと先頭の 'a' が落ち、このケースだけが落ちる。
+        id: 'T-LIB-AI-LRI-14-02',
+        label: 'content が 600 文字 → 切り詰めずに全文が残る',
+        payload: {
+          choices: [{ message: { content: _DIAG_LONG_CONTENT }, finish_reason: 'length' }],
+          usage: _DIAG_USAGE,
+        },
+        expected: `max_tokens=256 finish_reason=length completion_tokens=256 content="${_DIAG_LONG_CONTENT}"`,
+      },
+    ];
+
+    for (const { id, label, payload, expected } of _cases) {
+      it(`[Normal] ${id}: ${label}`, () => {
+        assertEquals(formatLlamaFailureDiagnostics(payload, _DIAG_MAX_TOKENS), expected);
+      });
+    }
+
+    // content を JSON.stringify せずに埋め込むと実改行が残り、ログが複数行に割れる。
+    it('[Normal] T-LIB-AI-LRI-14-03: content に改行を含む → 出力は改行をエスケープした 1 行', () => {
+      const _output = formatLlamaFailureDiagnostics(
+        { choices: [{ message: { content: 'line1\nline2' }, finish_reason: 'length' }], usage: _DIAG_USAGE },
+        _DIAG_MAX_TOKENS,
+      );
+
+      assertFalse(_output.includes('\n'));
+      assertStringIncludes(_output, 'content="line1\\nline2"');
+    });
+  });
+
+  /** payload の一部が欠落・型違いのケース。例外を投げず、欠落を出力に残す。 */
+  describe('When: エッジケース', () => {
+    const _cases: _DiagnosticsCase[] = [
+      {
+        id: 'T-LIB-AI-LRI-14-04',
+        label: 'usage が欠落 → completion_tokens=(missing)',
+        payload: { choices: [{ message: { content: 'x' }, finish_reason: 'length' }] },
+        expected: 'max_tokens=256 finish_reason=length completion_tokens=(missing) content="x"',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-05-01',
+        label: 'content が null → content=(missing)',
+        payload: { choices: [{ message: { content: null }, finish_reason: 'stop' }], usage: _DIAG_USAGE },
+        expected: 'max_tokens=256 finish_reason=stop completion_tokens=256 content=(missing)',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-05-02',
+        label: 'choices が欠落 → finish_reason=undefined / content=(missing)',
+        payload: { usage: _DIAG_USAGE },
+        expected: 'max_tokens=256 finish_reason=undefined completion_tokens=256 content=(missing)',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-05-03',
+        label: 'content が配列（文字列でない）→ content=(missing)',
+        payload: { choices: [{ message: { content: [{ type: 'text', text: 'x' }] }, finish_reason: 'stop' }] },
+        expected: 'max_tokens=256 finish_reason=stop completion_tokens=(missing) content=(missing)',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-06',
+        label: 'finish_reason が欠落 → finish_reason=undefined',
+        payload: { choices: [{ message: { content: 'x' } }], usage: _DIAG_USAGE },
+        expected: 'max_tokens=256 finish_reason=undefined completion_tokens=256 content="x"',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-07',
+        label: 'usage に completion_tokens が無い → completion_tokens=(missing)',
+        payload: {
+          choices: [{ message: { content: 'x' }, finish_reason: 'length' }],
+          usage: { prompt_tokens: 10, total_tokens: 10 },
+        },
+        expected: 'max_tokens=256 finish_reason=length completion_tokens=(missing) content="x"',
+      },
+      {
+        id: 'T-LIB-AI-LRI-14-08',
+        label: 'completion_tokens が数値でない → completion_tokens=(missing)',
+        payload: {
+          choices: [{ message: { content: 'x' }, finish_reason: 'length' }],
+          usage: { completion_tokens: '256' },
+        },
+        expected: 'max_tokens=256 finish_reason=length completion_tokens=(missing) content="x"',
+      },
+    ];
+
+    for (const { id, label, payload, expected } of _cases) {
+      it(`[Edge] ${id}: ${label}`, () => {
+        assertEquals(formatLlamaFailureDiagnostics(payload, _DIAG_MAX_TOKENS), expected);
+      });
+    }
+  });
+});
+
+// ─── Tests (interpretLlamaResponse onPayload)
+
+/**
+ * `interpretLlamaResponse` の `onPayload` コールバックテスト。
+ *
+ * Step 6.5 の `JSON.parse` に成功した直後に、parse 済み payload で 1 回だけ呼ばれること
+ * （その後 Step 7 で throw する場合も呼ばれた後であること）と、
+ * HTTP 非 2xx・`Content-Type` 非 JSON・JSON parse 失敗では呼ばれないことを検証する。
+ *
+ * @see interpretLlamaResponse
+ */
+describe('interpretLlamaResponse onPayload', () => {
+  /** JSON.parse に成功する応答のケース。 */
+  describe('When: 正常系', () => {
+    it('[Normal] T-LIB-AI-LRI-15-01: 200 + JSON + finish_reason=stop → parse 済み payload で 1 回呼ばれる', async () => {
+      const _body: LlamaResponseBody = { choices: [{ message: { content: _CONTENT }, finish_reason: 'stop' }] };
+      const _spy = _makePayloadSpy();
+
+      assertEquals(await interpretLlamaResponse(_successResponse(_body), _spy.onPayload), _CONTENT);
+      assertEquals(_spy.calls, [_body]);
+    });
+
+    // 呼び出しを Step 7 の成功後に置くと、失敗時の診断材料が取れずこのケースだけが落ちる。
+    it('[Normal] T-LIB-AI-LRI-15-02: 200 + JSON + finish_reason=length → reject しつつ payload で 1 回呼ばれる', async () => {
+      const _body: LlamaResponseBody = { choices: [{ message: { content: _CONTENT }, finish_reason: 'length' }] };
+      const _spy = _makePayloadSpy();
+
+      await assertRejects(() => interpretLlamaResponse(_successResponse(_body), _spy.onPayload), ChatlogError);
+      assertEquals(_spy.calls, [_body]);
+    });
+  });
+
+  /** JSON.parse に到達しない・失敗する応答のケース。onPayload は呼ばれない。 */
+  describe('When: 異常系', () => {
+    const _cases: _NoPayloadCase[] = [
+      {
+        // 本文は parse 可能な JSON にしておき、ステータスだけで呼ばれないことを示す。
+        id: 'T-LIB-AI-LRI-15-03-01',
+        label: 'HTTP 503',
+        makeResponse: () => _responseWithStatus(503),
+      },
+      {
+        id: 'T-LIB-AI-LRI-15-03-02',
+        label: 'Content-Type が text/plain',
+        makeResponse: () => _responseWithContentType(_VALID_BODY_TEXT, 'text/plain'),
+      },
+      {
+        id: 'T-LIB-AI-LRI-15-03-03',
+        label: '本文が JSON として parse できない',
+        makeResponse: () => _responseWithContentType(_SSE_BODY_TEXT, _CONTENT_TYPE_JSON_UTF8),
+      },
+    ];
+
+    for (const { id, label, makeResponse } of _cases) {
+      it(`[Error] ${id}: ${label} → onPayload は呼ばれない`, async () => {
+        const _spy = _makePayloadSpy();
+
+        await assertRejects(() => interpretLlamaResponse(makeResponse(), _spy.onPayload), ChatlogError);
+        assertEquals(_spy.calls, []);
+      });
+    }
+  });
+});
+
+// ─── Internal Helpers (formatLlamaFailureRawResponse)
+
+// types
+/** 生 JSON 診断の組み立てケース 1 件分の定義（テスト ID・ケース説明・payload・期待文字列）。 */
+type _RawResponseCase = {
+  /** テスト ID。 */
+  id: string;
+  /** `it` ラベルに埋め込むケース説明。 */
+  label: string;
+  /** `formatLlamaFailureRawResponse` に渡す parse 済み応答本文。 */
+  payload: unknown;
+  /** 期待する診断文字列（完全一致）。 */
+  expected: string;
+};
+
+// ─── Tests (formatLlamaFailureRawResponse)
+
+/**
+ * `formatLlamaFailureRawResponse` の生 JSON 組み立てテスト。
+ *
+ * `usage` 全体・`choices[0].finish_reason`・`choices[0].message` 全体を、この順のキーで
+ * `JSON.stringify` した 1 行を返すこと、欠落した項目はキーごと省かれることを検証する。
+ *
+ * @see formatLlamaFailureRawResponse
+ */
+describe('formatLlamaFailureRawResponse', () => {
+  /** 3 項目がそろった payload と、message の content 以外のキーを残すケース。 */
+  describe('When: 正常系', () => {
+    const _cases: _RawResponseCase[] = [
+      {
+        id: 'T-LIB-AI-LRI-16-01',
+        label: 'usage・finish_reason・message がそろう → 3 キーをこの順で JSON にする',
+        payload: {
+          choices: [{ message: { role: 'assistant', content: 'partial' }, finish_reason: 'length' }],
+          usage: _DIAG_USAGE,
+        },
+        expected: JSON.stringify({
+          usage: _DIAG_USAGE,
+          finish_reason: 'length',
+          message: { role: 'assistant', content: 'partial' },
+        }),
+      },
+      {
+        // content だけを抜き出すと tool_calls が落ち、このケースだけが落ちる。
+        id: 'T-LIB-AI-LRI-16-02',
+        label: 'message に content 以外のキー（tool_calls）がある → message 全体を残す',
+        payload: {
+          choices: [{
+            message: { content: null, tool_calls: [{ id: 'c1' }] },
+            finish_reason: 'tool_calls',
+          }],
+          usage: _DIAG_USAGE,
+        },
+        expected: JSON.stringify({
+          usage: _DIAG_USAGE,
+          finish_reason: 'tool_calls',
+          message: { content: null, tool_calls: [{ id: 'c1' }] },
+        }),
+      },
+    ];
+
+    for (const { id, label, payload, expected } of _cases) {
+      it(`[Normal] ${id}: ${label}`, () => {
+        assertEquals(formatLlamaFailureRawResponse(payload), expected);
+      });
+    }
+
+    it('[Normal] T-LIB-AI-LRI-16-03: content に改行を含む → 出力は改行をエスケープした 1 行', () => {
+      const _output = formatLlamaFailureRawResponse(
+        { choices: [{ message: { content: 'line1\nline2' }, finish_reason: 'length' }] },
+      );
+
+      assertFalse(_output.includes('\n'));
+      assertStringIncludes(_output, '"content":"line1\\nline2"');
+    });
+  });
+
+  /** payload の一部が欠落するケース。例外を投げず、欠落キーを省いた JSON を返す。 */
+  describe('When: エッジケース', () => {
+    const _cases: _RawResponseCase[] = [
+      {
+        id: 'T-LIB-AI-LRI-16-04',
+        label: 'usage が欠落 → usage キーを省く',
+        payload: { choices: [{ message: { content: 'x' }, finish_reason: 'length' }] },
+        expected: '{"finish_reason":"length","message":{"content":"x"}}',
+      },
+      {
+        id: 'T-LIB-AI-LRI-16-05',
+        label: 'choices が欠落 → usage だけを残す',
+        payload: { usage: _DIAG_USAGE },
+        expected: JSON.stringify({ usage: _DIAG_USAGE }),
+      },
+      {
+        id: 'T-LIB-AI-LRI-16-06',
+        label: 'usage が null → usage は null のまま残す',
+        payload: { choices: [{ message: { content: 'x' }, finish_reason: 'stop' }], usage: null },
+        expected: '{"usage":null,"finish_reason":"stop","message":{"content":"x"}}',
+      },
+      {
+        id: 'T-LIB-AI-LRI-16-07',
+        label: 'payload が null → 空オブジェクト',
+        payload: null,
+        expected: '{}',
+      },
+    ];
+
+    for (const { id, label, payload, expected } of _cases) {
+      it(`[Edge] ${id}: ${label}`, () => {
+        assertEquals(formatLlamaFailureRawResponse(payload), expected);
       });
     }
   });

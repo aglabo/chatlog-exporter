@@ -39,6 +39,17 @@ export type LlamaResponseChoice = {
 };
 
 /**
+ * chat completions 応答の `usage`（token 使用量）。
+ *
+ * 形状はサーバ依存のため、診断に使う `completion_tokens` だけを `unknown` で定義し、
+ * 数値であることの検査は解釈側で行う（gh-528）。
+ */
+export type LlamaResponseUsage = {
+  /** 生成したトークン数。 */
+  completion_tokens?: unknown;
+};
+
+/**
  * chat completions 応答ボディの on-wire 形状。
  *
  * サーバの応答が契約どおりである保証は無いため、すべて optional で定義する。
@@ -52,4 +63,10 @@ export type LlamaResponseBody = {
    * （error-handling §4.1 R-004 条件 a）。
    */
   choices?: (LlamaResponseChoice | null)[];
+  /**
+   * token 使用量（サーバ依存）。
+   *
+   * debug 時の診断ログに `completion_tokens` を出し、打ち切られた本文と突き合わせる（gh-528）。
+   */
+  usage?: LlamaResponseUsage | null;
 };
