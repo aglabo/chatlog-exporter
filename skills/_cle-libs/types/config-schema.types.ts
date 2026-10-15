@@ -6,8 +6,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-export type ConfigValue = string | number;
-export type ConfigFieldType = 'string' | 'number';
+export type ConfigValue = string | number | boolean;
+export type ConfigFieldType = 'string' | 'number' | 'boolean';
 
 /** number フィールドの値範囲を指定するスキーマ定義。 */
 export type ConfigFieldSchema = {
