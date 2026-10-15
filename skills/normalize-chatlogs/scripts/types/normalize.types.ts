@@ -72,6 +72,12 @@ export type NormalizeConfig = DefaultArgFields & {
   concurrency: number;
   failFast?: boolean;
   singleFile?: boolean;
+  /**
+   * デバッグ用。処理対象とする単一ファイルのパス（`--file`）。
+   * `--input-dir`（`inputDir`）とは独立で、値は `inputDir` に入らない。
+   * `--single-file`（flag, `singleFile`）とは別物。
+   */
+  inputFile?: string;
   /** 1 チャンクあたりの最大ファイル数。 */
   batchSize: number;
   /** 1 チャンクあたりの累積 `content` 文字数の上限。0 = 無制限。 */

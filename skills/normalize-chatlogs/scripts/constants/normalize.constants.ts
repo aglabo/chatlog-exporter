@@ -31,3 +31,11 @@ export const DEFAULT_NORMALIZE_CONFIG: Partial<NormalizeConfig> = {
 
 /** Maximum number of segments per file. Segments returned by the AI are truncated to this count. */
 export const MAX_SEGMENTS = 5;
+
+/**
+ * Matches a normalized directory path that ENDS with a chatlogs-style month directory `<agent>/<yyyy>/<yyyy-mm>`.
+ *
+ * Captures: `1` = base directory before `<agent>` (may be empty), `2` = agent, `3` = year, `4` = period (`yyyy-mm`).
+ * Anchored at both ends with a greedy prefix, so when the pattern occurs more than once the last (tail) occurrence wins.
+ */
+export const CHATLOG_MONTH_DIR_PATTERN = /^(.*)\/([^/]+)\/(\d{4})\/(\d{4}-\d{2})$/;
