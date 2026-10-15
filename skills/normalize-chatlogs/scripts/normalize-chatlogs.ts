@@ -23,19 +23,25 @@ import {
   DEFAULT_ORIGINAL_LOGS_DIR,
 } from '../../_cle-libs/constants/defaults.constants.ts';
 
+// -- std --
+import { resolve } from '@std/path';
+
 // -- file-io --
 import { resolveChatlogsDir, resolveOutputBase } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
-import { dirExistsSync } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { dirExistsSync, fileExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
 
 // -- io --
 import { logger } from '../../_cle-libs/libs/io/logger.ts';
+
+// -- path-utils --
+import { getDirectory, normalizePath } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 
 // ─────────────────────────────────────────────
 // local modules
 // ─────────────────────────────────────────────
 
 // -- constants --
-import { DEFAULT_NORMALIZE_CONFIG } from './constants/normalize.constants.ts';
+import { CHATLOG_MONTH_DIR_PATTERN, DEFAULT_NORMALIZE_CONFIG } from './constants/normalize.constants.ts';
 
 // -- libs --
 import { initStats, reportStats } from './libs/stats-utils.ts';
@@ -44,13 +50,106 @@ import { initStats, reportStats } from './libs/stats-utils.ts';
 import { buildConfig } from './modules/normalize-config.ts';
 import { processFiles } from './modules/process-files.ts';
 
+// -- types --
+import type { NormalizeConfig } from './types/normalize.types.ts';
+
+// ─── Input Resolution ─────────────────────────────────────────────────────────
+
+/** Result of {@link _resolveInput}. `agent` / `period` are set only when `--file` sits in a month directory. */
+type _ResolvedInput = { inputDir: string; inputFile?: string; agent?: string; period?: string };
+
+/** A bare Windows drive (`C:`), which is not a usable input directory on its own. */
+const _BARE_DRIVE_PATTERN = /^[A-Za-z]:$/;
+
+/**
+ * Derives the input directory and the agent / period from a `--file` path's parent directory.
+ *
+ * When `fileDir` ends with `<agent>/<yyyy>/<yyyy-mm>` ({@link CHATLOG_MONTH_DIR_PATTERN}, the last occurrence
+ * wins), `agent` and `period` (`<yyyy-mm>`) come from that tail, and `inputDir` is the directory before `<agent>`.
+ * When that base directory is empty or a bare drive, `inputDir` falls back to `fileDir`.
+ * Without a tail match, `inputDir` is `fileDir` and no agent / period is returned.
+ *
+ * @param fileDir - Normalized absolute parent directory of the input file
+ * @returns The input directory to scan/validate, plus the agent / period derived from the path
+ */
+const _resolveFromFileDir = (fileDir: string): Omit<_ResolvedInput, 'inputFile'> => {
+  const _match = fileDir.match(CHATLOG_MONTH_DIR_PATTERN);
+  if (!_match) {
+    return { inputDir: fileDir };
+  }
+  const [, _baseDir, _agent, , _period] = _match;
+  const _usable = _baseDir !== '' && !_BARE_DRIVE_PATTERN.test(_baseDir);
+  return { inputDir: _usable ? _baseDir : fileDir, agent: _agent, period: _period };
+};
+
+/**
+ * Resolves where the run reads its chatlogs from.
+ *
+ * - `--file` given: the file path is resolved to a normalized absolute path and must exist. `inputDir`,
+ *   `agent` and `period` are derived from its parent directory by {@link _resolveFromFileDir}. The file and
+ *   input directory are logged. `--input-dir` and positional directories are ignored (`--file` wins).
+ * - otherwise: `resolveChatlogsDir` decides `inputDir`, which is logged and must exist.
+ *
+ * @param config - Built normalize config
+ * @returns The input directory, plus the normalized input file and path-derived agent / period for `--file`
+ * @throws ChatlogError(`InputNotFound`, `NotFound`) when the `--file` file or the input directory does not exist
+ */
+const _resolveInput = async (config: NormalizeConfig): Promise<_ResolvedInput> => {
+  if (config.inputFile) {
+    const _inputFile = normalizePath(resolve(config.inputFile));
+    if (!(await fileExists(_inputFile))) {
+      throw new ChatlogError('InputNotFound', 'NotFound', `file not found: ${_inputFile}`);
+    }
+    const _resolved = _resolveFromFileDir(getDirectory(_inputFile));
+    logger.info(`入力ファイル: ${_inputFile}`);
+    logger.info(`入力ディレクトリ: ${_resolved.inputDir}`);
+    return { ..._resolved, inputFile: _inputFile };
+  }
+  const _inputDir = resolveChatlogsDir({
+    chatlogsDir: config.chatlogsDir,
+    agent: config.agent ?? DEFAULT_AGENT,
+    period: config.period,
+    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    override: config.inputDir,
+  });
+  logger.info(`入力ディレクトリ: ${_inputDir}`);
+  if (!dirExistsSync(_inputDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${_inputDir}`);
+  }
+  return { inputDir: _inputDir };
+};
+
+/**
+ * Resolves the output base directory.
+ *
+ * The path-derived `agent` / `period` of `--file` override the config / CLI values; `--output-dir` always wins.
+ * In `--file` mode the result is a normalized absolute path, so the input/output containment check compares
+ * two absolute paths. Otherwise the result is returned as `resolveOutputBase` builds it.
+ *
+ * @param config - Built normalize config
+ * @param input  - Result of {@link _resolveInput}
+ * @returns The output base directory
+ */
+const _resolveOutput = (config: NormalizeConfig, input: _ResolvedInput): string => {
+  const _outputBase = resolveOutputBase({
+    chatlogsDir: config.chatlogsDir,
+    agent: input.agent ?? config.agent ?? DEFAULT_AGENT,
+    period: input.period ?? config.period,
+    addOnDir: DEFAULT_NORMALIZE_DIR,
+    outputDir: config.outputDir,
+  });
+  return input.inputFile ? normalizePath(resolve(_outputBase)) : _outputBase;
+};
+
 // ─── Main Orchestration ───────────────────────────────────────────────────────
 
 /**
  * Orchestrates the full normalize-chatlogs pipeline.
  *
- * Flow: parseArgs → resolveChatlogsDir → findFiles → withConcurrency(per-file:
- *   segmentChatlogs → generateSegmentFile + attachFrontmatter + writeTextFile) → reportStats
+ * Flow: parseArgs → {@link _resolveInput} (`--file` → that file and {@link _resolveFromFileDir};
+ *   otherwise resolveChatlogsDir) → {@link _resolveOutput} → findFiles (skipped for `--file`) →
+ *   withConcurrency(per-file: segmentChatlogs → generateSegmentFile + attachFrontmatter + writeTextFile) →
+ *   reportStats
  *
  * @param argv   - CLI argument array; defaults to `Deno.args` when omitted
  * @param hashFn - Optional hash generator for output file names (injectable for testing)
@@ -58,27 +157,12 @@ import { processFiles } from './modules/process-files.ts';
  */
 export const main = async (argv?: string[], hashFn?: HashProvider): Promise<number> => {
   const config = buildConfig(argv ?? Deno.args, DEFAULT_NORMALIZE_CONFIG);
-  const inputDir = resolveChatlogsDir({
-    chatlogsDir: config.chatlogsDir,
-    agent: config.agent ?? DEFAULT_AGENT,
-    period: config.period,
-    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
-    override: config.inputDir,
-  });
-  logger.info(`入力ディレクトリ: ${inputDir}`);
-  if (!dirExistsSync(inputDir)) {
-    throw new ChatlogError('InputNotFound', 'NotFound', `directory not found: ${inputDir}`);
-  }
-  const outputBase = resolveOutputBase({
-    chatlogsDir: config.chatlogsDir,
-    agent: config.agent ?? DEFAULT_AGENT,
-    period: config.period,
-    addOnDir: DEFAULT_NORMALIZE_DIR,
-    outputDir: config.outputDir,
-  });
+  const _input = await _resolveInput(config);
+  const { inputDir, inputFile } = _input;
+  const outputBase = _resolveOutput(config, _input);
   logger.info(`出力ディレクトリ: ${outputBase}`);
   const stats = initStats();
-  await processFiles(inputDir, outputBase, config, stats, hashFn);
+  await processFiles(inputDir, outputBase, inputFile ? { ...config, inputFile } : config, stats, hashFn);
   reportStats(stats);
   return 0;
 };
