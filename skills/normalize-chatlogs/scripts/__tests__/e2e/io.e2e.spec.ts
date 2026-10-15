@@ -8,7 +8,7 @@
 // This software is released under the MIT License.
 
 // ─── Deno Test module
-import { assertEquals, assertMatch, assertNotMatch, assertRejects } from '@std/assert';
+import { assertEquals, assertMatch, assertNotMatch, assertRejects, assertStringIncludes } from '@std/assert';
 import { after, afterEach, before, beforeEach, describe, it } from '@std/testing/bdd';
 // path
 import { resolve } from '@std/path';
@@ -678,9 +678,9 @@ describe('main - I/O', () => {
       {
         id: 'T-NC-EIO-15-09-05-05',
         label: '[Edge]',
-        fileRel: 'outer/2025/2025-01/inner/2026/2026-04/x.md',
+        fileRel: 'outer/2025/2025-01/claude/2026/2026-04/x.md',
         expectedRel: 'outer/2025/2025-01',
-        desc: '途中に別の <seg>/<yyyy>/<yyyy-mm> があっても末尾の <agent>/<yyyy>/<yyyy-mm> の <agent> の親',
+        desc: '途中に別の <seg>/<yyyy>/<yyyy-mm> があっても末尾の claude/<yyyy>/<yyyy-mm> の claude の親',
       },
     ] as const;
 
@@ -702,6 +702,67 @@ describe('main - I/O', () => {
             // assert
             const expected = `入力ディレクトリ: ${normalizePath(resolve(`${tmpRoot}/${expectedRel}`))}`;
             assertEquals(loggerStub.infoLogs.filter((line) => line === expected).length, 1);
+          });
+        }
+      });
+    });
+
+    /** 親ディレクトリが `<seg>/<yyyy>/<yyyy-mm>` に一致するが、agent / 年 / 月のいずれかが不正なケース。 */
+    describe('When: 不正な <agent>/<yyyy>/<yyyy-mm> 配下のファイルで main(["--file", <tmpRoot>/<fileRel>, "--output-dir", outputDir]) を呼び出す', () => {
+      const _invalidCases = [
+        {
+          id: 'T-NC-EIO-15-09-06-01',
+          fileRel: 'chatlogs/reports/2026/2026-04/x.md',
+          subindex: 'UnknownAgent',
+          invalidValue: 'reports',
+          desc: '未知の agent',
+        },
+        {
+          id: 'T-NC-EIO-15-09-06-02',
+          fileRel: 'chatlogs/claude/2025/2026-04/x.md',
+          subindex: 'YearMismatch',
+          invalidValue: '2025',
+          desc: '<yyyy> と <yyyy-mm> の年が不一致',
+        },
+        {
+          id: 'T-NC-EIO-15-09-06-03',
+          fileRel: 'chatlogs/claude/2026/2026-13/x.md',
+          subindex: 'InvalidMonth',
+          invalidValue: '2026-13',
+          desc: '月が 12 を超える',
+        },
+        {
+          id: 'T-NC-EIO-15-09-06-04',
+          fileRel: 'chatlogs/claude/2026/2026-00/x.md',
+          subindex: 'InvalidMonth',
+          invalidValue: '2026-00',
+          desc: '月が 00',
+        },
+      ] as const;
+
+      describe('Then: Task T-NC-EIO-15-09-06 - ChatlogError(InvalidPath) で中断する', () => {
+        for (const { id, fileRel, subindex, invalidValue, desc } of _invalidCases) {
+          it(`[Error] ${id}: ${fileRel} → ChatlogError(kind=InvalidPath, subindex=${subindex}) (${desc})`, async () => {
+            // arrange — ファイルは実在させる（InputNotFound で落ちないようにする）
+            const filePath = normalizePath(resolve(`${tmpRoot}/${fileRel}`));
+            const fileDir = getDirectory(filePath);
+            await Deno.mkdir(fileDir, { recursive: true });
+            await Deno.writeTextFile(filePath, '---\nproject: test\n---\n### User\nHello\n\n### AI\nHi');
+            commandHandle = installCommandMock(makeClaudeJsonMock(JSON.stringify([
+              { filePath, segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 5 }] },
+            ])));
+
+            // act
+            const error = await assertRejects(
+              () => main(['--file', filePath, '--output-dir', outputDir], fixedHash),
+              ChatlogError,
+            );
+
+            // assert — 種別まで固定する（別の失敗で偶然 reject しても通らないようにする）
+            assertEquals(error.kind, 'InvalidPath');
+            assertEquals(error.subindex, subindex);
+            assertStringIncludes(error.message, fileDir);
+            assertStringIncludes(error.message, invalidValue);
           });
         }
       });

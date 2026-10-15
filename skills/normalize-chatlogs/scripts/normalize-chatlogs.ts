@@ -17,6 +17,7 @@ import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 import type { HashProvider } from '../../_cle-libs/types/providers.types.ts';
 
 // -- constants --
+import { isKnownAgent } from '../../_cle-libs/constants/agents.constants.ts';
 import {
   DEFAULT_AGENT,
   DEFAULT_NORMALIZE_DIR,
@@ -62,22 +63,50 @@ type _ResolvedInput = { inputDir: string; inputFile?: string; agent?: string; pe
 const _BARE_DRIVE_PATTERN = /^[A-Za-z]:$/;
 
 /**
+ * Validates the `<agent>/<yyyy>/<yyyy-mm>` tail captured by {@link CHATLOG_MONTH_DIR_PATTERN}.
+ *
+ * @param fileDir - Directory the tail was taken from (included in the error message)
+ * @param agent   - Captured `<agent>`
+ * @param year    - Captured `<yyyy>`
+ * @param period  - Captured `<yyyy-mm>`
+ * @throws ChatlogError(`InvalidPath`, `UnknownAgent`) when `agent` is not a known agent
+ * @throws ChatlogError(`InvalidPath`, `YearMismatch`) when the year of `period` differs from `year`
+ * @throws ChatlogError(`InvalidPath`, `InvalidMonth`) when the month of `period` is outside 01-12
+ */
+const _validateMonthDir = (fileDir: string, agent: string, year: string, period: string): void => {
+  if (!isKnownAgent(agent)) {
+    throw new ChatlogError('InvalidPath', 'UnknownAgent', `unknown agent '${agent}' in ${fileDir}`);
+  }
+  if (!period.startsWith(`${year}-`)) {
+    throw new ChatlogError('InvalidPath', 'YearMismatch', `year '${year}' does not match '${period}' in ${fileDir}`);
+  }
+  const _month = Number(period.slice(-2));
+  if (_month < 1 || _month > 12) {
+    throw new ChatlogError('InvalidPath', 'InvalidMonth', `invalid month in '${period}' in ${fileDir}`);
+  }
+};
+
+/**
  * Derives the input directory and the agent / period from a `--file` path's parent directory.
  *
  * When `fileDir` ends with `<agent>/<yyyy>/<yyyy-mm>` ({@link CHATLOG_MONTH_DIR_PATTERN}, the last occurrence
- * wins), `agent` and `period` (`<yyyy-mm>`) come from that tail, and `inputDir` is the directory before `<agent>`.
+ * wins), the tail is validated by {@link _validateMonthDir}; `agent` and `period` (`<yyyy-mm>`) come from that
+ * tail, and `inputDir` is the directory before `<agent>`.
  * When that base directory is empty or a bare drive, `inputDir` falls back to `fileDir`.
  * Without a tail match, `inputDir` is `fileDir` and no agent / period is returned.
  *
  * @param fileDir - Normalized absolute parent directory of the input file
  * @returns The input directory to scan/validate, plus the agent / period derived from the path
+ * @throws ChatlogError(`InvalidPath`, `UnknownAgent` | `YearMismatch` | `InvalidMonth`) when the matched tail
+ *   has an unknown agent, a year mismatch between `<yyyy>` and `<yyyy-mm>`, or a month outside 01-12
  */
 const _resolveFromFileDir = (fileDir: string): Omit<_ResolvedInput, 'inputFile'> => {
   const _match = fileDir.match(CHATLOG_MONTH_DIR_PATTERN);
   if (!_match) {
     return { inputDir: fileDir };
   }
-  const [, _baseDir, _agent, , _period] = _match;
+  const [, _baseDir, _agent, _year, _period] = _match;
+  _validateMonthDir(fileDir, _agent, _year, _period);
   const _usable = _baseDir !== '' && !_BARE_DRIVE_PATTERN.test(_baseDir);
   return { inputDir: _usable ? _baseDir : fileDir, agent: _agent, period: _period };
 };
@@ -93,6 +122,8 @@ const _resolveFromFileDir = (fileDir: string): Omit<_ResolvedInput, 'inputFile'>
  * @param config - Built normalize config
  * @returns The input directory, plus the normalized input file and path-derived agent / period for `--file`
  * @throws ChatlogError(`InputNotFound`, `NotFound`) when the `--file` file or the input directory does not exist
+ * @throws ChatlogError(`InvalidPath`, `UnknownAgent` | `YearMismatch` | `InvalidMonth`) when the `--file` parent
+ *   directory ends with an invalid `<agent>/<yyyy>/<yyyy-mm>` tail (see {@link _resolveFromFileDir})
  */
 const _resolveInput = async (config: NormalizeConfig): Promise<_ResolvedInput> => {
   if (config.inputFile) {
