@@ -151,10 +151,13 @@ const _accountSegmentFailures = (
 /**
  * Processes markdown files under `inputDir` by segmenting each via AI and writing output.
  *
- * Flow: {@link _validateDirs} (validate, before cache init) → `findFiles` (discover) →
+ * Flow: {@link _validateDirs} (validate, before cache init) → `findFiles` (discover; skipped when
+ * `config.inputFile` is set, in which case only that normalized path is processed) →
  * {@link phaseLoad} (load all files into `ChatlogEntry`, partition load errors) →
  * {@link _classifyEntries} (classify loaded entries by cache status: done/set/pending, where
- * pending covers status `undefined` and `'retry'`) →
+ * pending covers status `undefined` and `'retry'`; then logs the discovered file count and the
+ * to-process count (pending only; excludes done and set) once via `logger.info`, also in `dryRun`) →
+ * logs each pending entry's basename via `logger.info` (also in `dryRun`) →
  * {@link phaseSegment} (AI call for pending entries; writes planned segments to the cache;
  * skips the AI call entirely when `dryRun`, returning only already-planned entries)
  * → {@link _accountSegmentFailures} (fail/failFast/warn accounting for entries still without
@@ -164,10 +167,14 @@ const _accountSegmentFailures = (
  * Updates `stats` in place: `done` increments on already-normalized skip, `error` on load error,
  * `fail` on AI error (or `skip` when dryRun), `success` on each write.
  *
- * @param inputDir   - Source directory (files are discovered here via findFiles)
+ * @param inputDir   - Source directory (files are discovered here via findFiles; when `config.inputFile`
+ *                     is set it is still validated but not scanned)
  * @param outputBase - Base output directory
  * @param config     - Processing config (dryRun, concurrency, model/timeoutMs, failFast, singleFile,
- *                     and the `batchSize`/`maxBatchChars` chunk limits forwarded to {@link phaseSegment})
+ *                     and the `batchSize`/`maxBatchChars` chunk limits forwarded to {@link phaseSegment}).
+ *                     `inputFile` restricts processing to that single file; its existence is not checked
+ *                     here, so a missing path rejects with `ChatlogError('FileDirNotFound', 'NotFound')`
+ *                     from the load phase (`main` checks existence beforehand)
  * @param stats      - Mutable counters updated in place
  * @param hashFn     - Optional hash generator for output file names (injectable for testing)
  */
@@ -176,7 +183,15 @@ export const processFiles = async (
   outputBase: string,
   config: Pick<
     NormalizeConfig,
-    'dryRun' | 'concurrency' | 'model' | 'timeoutMs' | 'failFast' | 'singleFile' | 'batchSize' | 'maxBatchChars'
+    | 'dryRun'
+    | 'concurrency'
+    | 'model'
+    | 'timeoutMs'
+    | 'failFast'
+    | 'singleFile'
+    | 'batchSize'
+    | 'maxBatchChars'
+    | 'inputFile'
   >,
   stats: Stats,
   hashFn?: HashProvider,
@@ -185,7 +200,7 @@ export const processFiles = async (
   const _outputBase = normalizePath(outputBase);
 
   await _validateDirs(_inputDir, _outputBase);
-  const allFiles = await findFiles(_inputDir);
+  const allFiles = config.inputFile ? [normalizePath(config.inputFile)] : await findFiles(_inputDir);
 
   const cache = new ChatlogCache<NormalizeCache>('normalize-cache');
   await cache.ready;
@@ -201,6 +216,7 @@ export const processFiles = async (
   }
 
   const { doneEntries, setEntries, pendingEntries } = _classifyEntries(allEntries, cache);
+  logger.info(`All Files: ${allFiles.length} / cached: ${setEntries.length} / pending: ${pendingEntries.length}`);
 
   for (const entry of doneEntries) {
     logger.info(`${LOGGER_TEXT.INDENT}skipped (already normalized): ${getBasename(entry.filePath!)}`);

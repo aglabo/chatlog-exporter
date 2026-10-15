@@ -102,6 +102,7 @@ const _addLineNumbers = (content: string): string => {
  * filePath to its planned segment boundaries. Returns null for any filePath that the AI
  * did not return results for, or if the AI call fails entirely. An empty array response (`[]`)
  * also yields null for every filePath, logged once per chunk with the first 200 chars of the raw output.
+ * A swallowed AI failure is logged once per chunk with the error message appended.
  *
  * Line numbers (`startLine`/`endLine`) refer to `entry.content` (frontmatter excluded),
  * not the raw file. Building the actual `content` from these boundaries is the caller's
@@ -138,7 +139,8 @@ export const segmentChatlogs = async (
     + '"startLine" (integer, 1-based, inclusive),\n'
     + '"endLine" (integer, 1-based, inclusive).\n'
     + 'Ranges must be contiguous and non-overlapping. Cover the full conversation.\n'
-    + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
+    + 'Do not include any explanation or markdown fences — respond with the JSON array only.\n'
+    + '---\n\n';
 
   const userPrompt = inputs
     .map((entry, i) => `File ${i + 1}: ${entry.filePath}\n${_addLineNumbers(entry.content)}`)
@@ -158,10 +160,11 @@ export const segmentChatlogs = async (
       throw e;
     }
     const _paths = inputs.map((entry) => getBasename(entry.filePath!)).join(', ');
+    const _detail = e instanceof Error ? e.message : String(e);
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlogs: timed out — ${_paths}`);
+      logger.warn(`segmentChatlogs: timed out — ${_paths}: ${_detail}`);
     } else {
-      logger.warn(`segmentChatlogs: AI error — ${_paths}`);
+      logger.warn(`segmentChatlogs: AI error — ${_paths}: ${_detail}`);
     }
     return _nullMap();
   }

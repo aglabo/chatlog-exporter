@@ -254,7 +254,7 @@ const _makeSignalCaptureMock = (
  * 正常系・異常系・エッジケースを検証する。
  *
  * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
- * T-SCB-WL-01 〜 T-SCB-WL-04, T-SCB-NA-01 〜 T-SCB-NA-03, T-SCB-SP-01,
+ * T-SCB-WL-01 〜 T-SCB-WL-05, T-SCB-NA-01 〜 T-SCB-NA-03, T-SCB-SP-01 〜 T-SCB-SP-02,
  * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-26, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-06
  *
  * @see segmentChatlogs
@@ -448,31 +448,46 @@ describe('segmentChatlogs', () => {
     it('[Error] T-SCB-WL-03: ChatlogError(TimedOut) のとき warn は "timed out" 側のメッセージになる', async () => {
       // arrange — runAI がタイムアウトで throw する ChatlogError('TimedOut', 'Timeout') を模す
       const inputs = [_makeEntry('file-timeout.md', 'content')];
+      const err = new ChatlogError('TimedOut', 'Timeout', 'claude timed out after 1000ms');
 
       // act
       const warnings = await _captureWarnings(() =>
-        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(new ChatlogError('TimedOut', 'Timeout')) })
+        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) })
       );
 
-      // assert — TimedOut 専用の文言が出て、汎用 AI エラーの文言は出ない
+      // assert — TimedOut 専用の文言にエラーメッセージが付き、汎用 AI エラーの文言は出ない
       assertEquals(warnings.length, 1);
-      assertEquals(warnings[0], 'segmentChatlogs: timed out — file-timeout');
+      assertEquals(warnings[0], `segmentChatlogs: timed out — file-timeout: ${err.message}`);
       assertFalse(warnings[0].includes('AI error'));
     });
 
     it('[Error] T-SCB-WL-04: TimedOut 以外の ChatlogError のとき warn は "AI error" 側のメッセージになる', async () => {
       // arrange — 中断側でない AiError（握りつぶされて null Map になる種類）
       const inputs = [_makeEntry('file-aierror.md', 'content')];
+      const err = new ChatlogError('AiError', 'ExitFailure', 'claude exited with code 1: boom');
 
       // act
       const warnings = await _captureWarnings(() =>
-        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(new ChatlogError('AiError', 'ExitFailure')) })
+        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) })
       );
 
-      // assert — 汎用 AI エラーの文言が出て、TimedOut 専用の文言は出ない
+      // assert — 汎用 AI エラーの文言にエラーメッセージが付き、TimedOut 専用の文言は出ない
       assertEquals(warnings.length, 1);
-      assertEquals(warnings[0], 'segmentChatlogs: AI error — file-aierror');
+      assertEquals(warnings[0], `segmentChatlogs: AI error — file-aierror: ${err.message}`);
       assertFalse(warnings[0].includes('timed out'));
+    });
+
+    it('[Edge] T-SCB-WL-05: Error 以外の値が throw されたとき warn には String(e) が付く', async () => {
+      // arrange — Error インスタンスでない値で reject する runner
+      const inputs = [_makeEntry('file-raw.md', 'content')];
+
+      // act
+      const warnings = await _captureWarnings(() =>
+        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner('raw failure') })
+      );
+
+      // assert
+      assertEquals(warnings, ['segmentChatlogs: AI error — file-raw: raw failure']);
     });
 
     it('[Error] T-SCB-02-03: runAI が ChatlogError(AiError, RateLimit) を throw するとき握りつぶさず再 throw する', async () => {
@@ -774,7 +789,7 @@ describe('segmentChatlogs', () => {
     });
   });
 
-  /** systemPrompt の内容検証: 「必ず 1 件以上返す」指示が含まれることを確認するケース。 */
+  /** systemPrompt の内容検証: 「必ず 1 件以上返す」指示と末尾の区切りを確認するケース。 */
   describe('When: systemPrompt 内容検証', () => {
     it('[Normal] T-SCB-SP-01: systemPrompt に "at least 1 segment" が含まれる', async () => {
       // arrange
@@ -792,6 +807,31 @@ describe('segmentChatlogs', () => {
       assert(capturedArgs.value.length > 0, 'no args captured — mock did not fire');
       const argsText = capturedArgs.value.join(' ');
       assert(argsText.includes('at least 1 segment'), `expected "at least 1 segment" in args, got: ${argsText}`);
+    });
+
+    it('[Normal] T-SCB-SP-02: systemPrompt の末尾に区切り "---" と空行が付く', async () => {
+      // arrange — runner が受け取った systemPrompt を記録し、入力ファイルに対する有効なセグメントを返す
+      const aiResult = [
+        { filePath: 'test.md', segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 1 }] },
+      ];
+      const capturedSystem: string[] = [];
+      const recordingRunner: AiRunnerProvider = (system) => {
+        capturedSystem.push(system);
+        return Promise.resolve(JSON.stringify(aiResult));
+      };
+
+      // act
+      await segmentChatlogs([_makeEntry('test.md', 'single line')], { aiRunnerProvider: recordingRunner });
+
+      // assert
+      assertEquals(capturedSystem.length, 1);
+      const expectedTail = 'respond with the JSON array only.\n---\n\n';
+      assert(
+        capturedSystem[0].endsWith(expectedTail),
+        `expected systemPrompt to end with ${JSON.stringify(expectedTail)}, got tail: ${
+          JSON.stringify(capturedSystem[0].slice(-60))
+        }`,
+      );
     });
   });
 
