@@ -5,18 +5,17 @@ import { makeLoggerStub } from '../../../../__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../classes/GlobalConfig.class.ts';
 import { runAI } from '../../run-ai.ts';
 
-for (const level of ['debug', 'off']) {
-  Deno.test(`AI diagnostic level ${level}: stage timing without prompt or response text`, async () => {
+for (const debug of [true, false]) {
+  Deno.test(`AI diagnostic debug=${debug}: stage timing without prompt or response text`, async () => {
     GlobalConfig.resetInstance();
-    GlobalConfig.getInstance({ yaml: `model: llama/avalon\nllamaEndpoint: http://avalon:8080/\naiLogLevel: ${level}` });
+    GlobalConfig.getInstance({ yaml: `model: llama/avalon\nllamaEndpoint: http://avalon:8080/\ndebug: ${debug}` });
     const logs = makeLoggerStub();
     try {
       await runAI('secret-system', 'secret-user', {
         outputContract: { contract: 'line-prefixed', properties: { type: { type: 'string' } }, maxTokens: 256 },
         fetchProvider: () => Promise.resolve(makeLlamaOkResponse('{"type":"secret-response"}')),
       });
-      assertEquals(logs.infoLogs, []);
-      if (level === 'off') { assertEquals(logs.debugLogs, []); }
+      if (!debug) { assertEquals(logs.infoLogs, []); }
       else {
         const text = logs.debugLogs.join('\n');
         for (
@@ -43,7 +42,7 @@ for (const level of ['debug', 'off']) {
 
 Deno.test('AI diagnostic timeout is distinct from backend unavailability', async () => {
   GlobalConfig.resetInstance();
-  GlobalConfig.getInstance({ yaml: 'model: llama/avalon\nllamaEndpoint: http://avalon:8080/\naiLogLevel: debug' });
+  GlobalConfig.getInstance({ yaml: 'model: llama/avalon\nllamaEndpoint: http://avalon:8080/\ndebug: true' });
   const logs = makeLoggerStub();
   try {
     await assertRejects(() =>
@@ -91,7 +90,7 @@ const _collectLlamaFailureLogs = async (
   userPrompt = 'user',
 ): Promise<string[]> => {
   GlobalConfig.resetInstance();
-  GlobalConfig.getInstance({ yaml: 'model: llama/avalon\nllamaEndpoint: http://avalon:8080/\naiLogLevel: debug' });
+  GlobalConfig.getInstance({ yaml: 'model: llama/avalon\nllamaEndpoint: http://avalon:8080/\ndebug: true' });
   const logs = makeLoggerStub();
   try {
     await assertRejects(() =>

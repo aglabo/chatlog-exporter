@@ -13,13 +13,13 @@ import { parse } from 'jsr:@std/yaml@^1.0.12';
 // --- local modules
 // libs
 import { resolveConfigPath } from '../libs/path-utils/resolve-path.ts';
-import { parseNumber, parseString } from '../libs/text/string-utils.ts';
+import { parseBoolean, parseNumber, parseString } from '../libs/text/string-utils.ts';
 // constants
 import { DEFAULT_CONFIG_SCHEMA, DEFAULT_CONFIG_VALUES } from '../constants/config-schema.constants.ts';
 import { DEFAULT_APP_NAME, DEFAULT_CONFIG_FILE } from '../constants/defaults.constants.ts';
 // types
 import type { ConfigKey } from '../constants/config-schema.constants.ts';
-import type { ConfigSchema, ConfigValue, ConfigValues } from '../types/config-schema.types.ts';
+import type { ConfigFieldType, ConfigSchema, ConfigValue, ConfigValues } from '../types/config-schema.types.ts';
 import type { ReadTextFileSyncProvider } from '../types/providers.types.ts';
 // classes
 import { ChatlogError } from './ChatlogError.class.ts';
@@ -27,7 +27,7 @@ import { ChatlogError } from './ChatlogError.class.ts';
 /**
  * グローバル設定シングルトン。スキーマ検証付き。
  * - `getInstance(options?)` でシングルトンインスタンスを取得する。既にインスタンスが存在する場合は既存のインスタンスを返す。
- * - `get(key: string): string | number` で値を取得する。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。
+ * - `get(key: string): ConfigValue` で値を取得する。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。
  * - `values(): ConfigValues` で全フィールドの値を `{ field: value }` 形式で返す。
  * - `parseYaml(text: string): Partial<ConfigValues>` で YAML テキストをパースし `Partial<ConfigValues>` に変換する。スキーマにないキーは `ChatlogError('InvalidYaml')` をスローする。
  * - テスト専用の `resetInstance()` メソッドでシングルトンインスタンスをリセットできる。プロダクションコードからは呼び出さないこと。
@@ -36,6 +36,12 @@ export class GlobalConfig {
   private static _instance: GlobalConfig | undefined;
   private static readonly _DEFAULT_READ_TEXT_FILE: ReadTextFileSyncProvider = (path: string) =>
     Deno.readTextFileSync(path);
+  /** スキーマの型名ごとの値変換関数。null / undefined は `undefined`、型不一致は `TypeError` をスローする。 */
+  private static readonly _PARSERS: Record<ConfigFieldType, (value: unknown) => ConfigValue | undefined> = {
+    string: parseString,
+    number: parseNumber,
+    boolean: parseBoolean,
+  };
   private _schema: ConfigSchema;
   private _fields: ConfigValues = {} as ConfigValues;
   private _appName: string;
@@ -58,6 +64,7 @@ export class GlobalConfig {
    *   `ChatlogError('FileDirNotFound', 'ConfigNotFound')` をスローする（fail-first）。
    *   それ以外（`defaultConfigFile` 指定時・既定パス使用時）はエラーを無視して `DEFAULT_CONFIG_VALUES` のまま返す。
    * - `appName` はオプションとして受け付け、`configDir`（設定ファイル・辞書・プロンプトの基準ディレクトリ）の組み立てに使用する。
+   * - `overrides` は CLI 由来の値で、yaml / 設定ファイル / 既定値より優先して上書きする（値が `undefined` のキーは無視する）。
    * - 既にインスタンスが存在する場合は `options` を無視して既存インスタンスを返す。
    * - 設定ロードに失敗した場合はシングルトンを保持しない。インスタンスはロード成功後にだけ確定するため、
    *   スローされた後に正しい `options` で再度呼び出せば新しい設定が読み込まれる。
@@ -69,6 +76,7 @@ export class GlobalConfig {
     defaultConfigFile?: string;
     readTextFileProvider?: ReadTextFileSyncProvider;
     appName?: string;
+    overrides?: Partial<ConfigValues>;
   }): GlobalConfig {
     if (GlobalConfig._instance) {
       return GlobalConfig._instance;
@@ -77,17 +85,18 @@ export class GlobalConfig {
     // ロード完了までローカル変数で組み立て、成功後にだけシングルトンへ代入する（失敗時に壊れたインスタンスを残さない）
     const _config = new GlobalConfig(options?.schema, options?.appName);
     // 設定ソースの優先順位: yaml > configFile > defaultConfigFile > DEFAULT_CONFIG_VALUES
-    if (options?.yaml !== undefined) {
-      const _loaded = _config.parseYaml(options.yaml);
-      _config._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
-    } else {
-      const _loaded = _config.loadConfigFile({
+    const _loaded = options?.yaml !== undefined
+      ? _config.parseYaml(options.yaml)
+      : _config.loadConfigFile({
         configPath: options?.configFile ?? options?.defaultConfigFile,
         readTextFileProvider: options?.readTextFileProvider,
         throwFileNotFound: options?.configFile !== undefined,
       });
-      _config._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded } as ConfigValues;
-    }
+    // overrides は CLI 由来の型付き値。undefined のキーは読み込み値を潰さないよう除外する
+    const _overrides = Object.fromEntries(
+      Object.entries(options?.overrides ?? {}).filter(([, value]) => value !== undefined),
+    ) as Partial<ConfigValues>;
+    _config._fields = { ...DEFAULT_CONFIG_VALUES, ..._loaded, ..._overrides } as ConfigValues;
     GlobalConfig._instance = _config;
     return _config;
   }
@@ -98,7 +107,7 @@ export class GlobalConfig {
   }
 
   /** `key` に対応する値を返す。すべてのスキーマキーはデフォルト値を持つため `undefined` は返さない。 */
-  get(key: ConfigKey): string | number {
+  get(key: ConfigKey): ConfigValue {
     const _value = this._fields[key];
     return _value;
   }
@@ -154,7 +163,7 @@ export class GlobalConfig {
     for (const [key, value] of Object.entries(raw)) {
       const _fieldSchema = this._schema[key as keyof ConfigSchema];
       const _typeName = typeof _fieldSchema === 'string' ? _fieldSchema : _fieldSchema.type;
-      const _parsed: ConfigValue | undefined = _typeName === 'string' ? parseString(value) : parseNumber(value);
+      const _parsed: ConfigValue | undefined = GlobalConfig._PARSERS[_typeName](value);
       if (_parsed !== undefined) {
         if (typeof _parsed === 'number' && typeof _fieldSchema === 'object') {
           this._assertInRange(key, _parsed, _fieldSchema.min, _fieldSchema.max);

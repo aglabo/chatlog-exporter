@@ -18,8 +18,9 @@ model: "llama/avalon" # local llama server. Empty = built-in default "sonnet"
 # timeoutMs: 600_000 # 10 min (ms)
 timeoutMs: 300_000 # 5 min (ms)
 
-# Set debug to trace request timing and DNS retries without logging prompt/response text.
-aiLogLevel: "off"
+# Set debug: true (or pass --debug) to log AI diagnostics to stderr, including part of the response text.
+# See docs/debug-option.md for details.
+debug: false
 maxRetry: 2 # Max retry count for runAI (0 = no retry, max 10)
 
 # Llama backend

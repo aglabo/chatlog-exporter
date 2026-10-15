@@ -24,13 +24,8 @@ export const DEFAULT_CONFIG_SCHEMA: ConfigSchema = {
   agent: 'string',
   /** 使用するモデル名またはエイリアス。例: "sonnet", "opus" */
   model: 'string',
-
-  /**
-   * AI diagnostics: debug enables stderr trace logs and puts full AI error messages
-   * (may include CLI output) in warnings; off disables traces and logs error categories only.
-   */
-  aiLogLevel: 'string',
-
+  /** true でメタデータのみの AI 診断ログを stderr に出す（プロンプト・応答本文は出さない）。CLI の --debug が優先する。 */
+  debug: 'boolean',
   /** AI 実行タイムアウト (ms)。0 = タイムアウトなし。 */
   timeoutMs: { type: 'number', min: 0, max: 600000 },
   /** generateHash が返す16進数文字列の長さ。 */
@@ -86,7 +81,8 @@ export const DEFAULT_CONFIG_VALUES = {
   agent: 'claude',
   /** デフォルトモデルは "sonnet" */
   model: 'sonnet',
-  aiLogLevel: 'off',
+  /** デフォルトは AI 診断ログ無効 */
+  debug: false,
   /** デフォルトタイムアウトは 120,000 ms（2分） */
   timeoutMs: 120_000,
   /** デフォルトハッシュ長は 8 文字 */

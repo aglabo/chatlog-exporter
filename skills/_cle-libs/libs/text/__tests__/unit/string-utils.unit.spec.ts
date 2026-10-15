@@ -13,6 +13,7 @@ import { describe, it } from '@std/testing/bdd';
 // -- test target --
 import {
   escapeString,
+  parseBoolean,
   parseNumber,
   parseString,
   quoteString,
@@ -474,6 +475,60 @@ describe('parseNumber', () => {
     for (const { id, label, input } of cases) {
       it(`${id}: ${label}`, () => {
         assertThrows(() => parseNumber(input), TypeError);
+      });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────
+// parseBoolean
+// ─────────────────────────────────────────────
+
+describe('parseBoolean', () => {
+  describe('正常系', () => {
+    const cases: ReadonlyArray<{ id: string; label: string; input: unknown; expected: boolean }> = [
+      { id: 'T-TXT-PB-01', label: 'true はそのまま返す', input: true, expected: true },
+      { id: 'T-TXT-PB-02', label: 'false はそのまま返す', input: false, expected: false },
+    ];
+    for (const { id, label, input, expected } of cases) {
+      it(`${id}: ${label}`, () => {
+        assertEquals(parseBoolean(input), expected);
+      });
+    }
+  });
+
+  describe('エッジケース', () => {
+    const cases: ReadonlyArray<{ id: string; label: string; input: unknown }> = [
+      { id: 'T-TXT-PB-03', label: 'undefined は undefined を返す', input: undefined },
+      { id: 'T-TXT-PB-04', label: 'null は undefined を返す', input: null },
+    ];
+    for (const { id, label, input } of cases) {
+      it(`${id}: ${label}`, () => {
+        assertEquals(parseBoolean(input), undefined);
+      });
+    }
+  });
+
+  describe('異常系', () => {
+    const cases: ReadonlyArray<{ id: string; label: string; input: unknown; message: string }> = [
+      {
+        id: 'T-TXT-PB-05',
+        label: '文字列 "true" は TypeError をスローする',
+        input: 'true',
+        message: 'Unsupported type: string',
+      },
+      { id: 'T-TXT-PB-06', label: '数値 1 は TypeError をスローする', input: 1, message: 'Unsupported type: number' },
+      { id: 'T-TXT-PB-07', label: '数値 0 は TypeError をスローする', input: 0, message: 'Unsupported type: number' },
+      {
+        id: 'T-TXT-PB-08',
+        label: 'オブジェクトは TypeError をスローする',
+        input: {},
+        message: 'Unsupported type: object',
+      },
+    ];
+    for (const { id, label, input, message } of cases) {
+      it(`${id}: ${label}`, () => {
+        assertThrows(() => parseBoolean(input), TypeError, message);
       });
     }
   });

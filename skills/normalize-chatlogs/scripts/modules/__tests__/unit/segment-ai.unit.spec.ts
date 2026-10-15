@@ -89,21 +89,21 @@ const _captureWarnings = async (fn: () => Promise<unknown>): Promise<string[]> =
 };
 
 /**
- * `aiLogLevel` を指定した `GlobalConfig` を用意した状態で `fn` を実行し、warn に渡されたメッセージ列を返す。
+ * `debug` を指定した `GlobalConfig` を用意した状態で `fn` を実行し、warn に渡されたメッセージ列を返す。
  *
  * 他テストの設定に影響されないよう、実行前に必ず `GlobalConfig.resetInstance()` で初期化し、
  * 終了後も `finally` で `resetInstance()` して後始末する。
  *
- * @param level - 設定する `aiLogLevel`。`undefined` のときは YAML にキーを書かない（未設定 = 既定値）
+ * @param debug - 設定する `debug`。`undefined` のときは YAML にキーを書かない（未設定 = 既定値）
  * @param fn    - warn を観測したい非同期処理
  * @returns `logger.warn` の第 1 引数を呼び出し順に並べた配列
  */
 const _captureWarningsAt = async (
-  level: 'debug' | 'off' | undefined,
+  debug: boolean | undefined,
   fn: () => Promise<unknown>,
 ): Promise<string[]> => {
   GlobalConfig.resetInstance();
-  GlobalConfig.getInstance({ yaml: level === undefined ? 'model: sonnet' : `aiLogLevel: ${level}` });
+  GlobalConfig.getInstance({ yaml: debug === undefined ? 'model: sonnet' : `debug: ${debug}` });
   try {
     return await _captureWarnings(fn);
   } finally {
@@ -465,7 +465,7 @@ describe('segmentChatlogs', () => {
       }
     });
 
-    it('[Error] T-SCB-WL-03: aiLogLevel 未設定で ChatlogError(TimedOut) のとき warn は "timed out" 側で kind/subindex のみ載る', async () => {
+    it('[Error] T-SCB-WL-03: debug 未設定で ChatlogError(TimedOut) のとき warn は "timed out" 側で kind/subindex のみ載る', async () => {
       // arrange — runAI がタイムアウトで throw する ChatlogError('TimedOut', 'Timeout') を模す
       const inputs = [_makeEntry('file-timeout.md', 'content')];
       const err = new ChatlogError('TimedOut', 'Timeout', 'claude timed out after 1000ms');
@@ -480,14 +480,14 @@ describe('segmentChatlogs', () => {
       assertEquals(warnings, ['segmentChatlogs: timed out — file-timeout: TimedOut/Timeout']);
     });
 
-    it('[Error] T-SCB-WL-04: aiLogLevel off で TimedOut 以外の ChatlogError のとき warn は "AI error" 側で kind/subindex のみ載る', async () => {
+    it('[Error] T-SCB-WL-04: debug false で TimedOut 以外の ChatlogError のとき warn は "AI error" 側で kind/subindex のみ載る', async () => {
       // arrange — 中断側でない AiError（握りつぶされて null Map になる種類）
       const inputs = [_makeEntry('file-aierror.md', 'content')];
       const err = new ChatlogError('AiError', 'ExitFailure', 'claude exited with code 1: boom');
 
       // act
       const warnings = await _captureWarningsAt(
-        'off',
+        false,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
@@ -495,13 +495,13 @@ describe('segmentChatlogs', () => {
       assertEquals(warnings, ['segmentChatlogs: AI error — file-aierror: AiError/ExitFailure']);
     });
 
-    it('[Edge] T-SCB-WL-05: aiLogLevel off で Error 以外の値が throw されたとき warn には "unknown" が付く', async () => {
+    it('[Edge] T-SCB-WL-05: debug false で Error 以外の値が throw されたとき warn には "unknown" が付く', async () => {
       // arrange — Error インスタンスでない値で reject する runner
       const inputs = [_makeEntry('file-raw.md', 'content')];
 
       // act
       const warnings = await _captureWarningsAt(
-        'off',
+        false,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner('raw failure') }),
       );
 
@@ -509,14 +509,14 @@ describe('segmentChatlogs', () => {
       assertEquals(warnings, ['segmentChatlogs: AI error — file-raw: unknown']);
     });
 
-    it('[Error] T-SCB-WL-06: aiLogLevel off で InvalidFormat の message に CLI 出力本文が含まれても warn には載らない', async () => {
+    it('[Error] T-SCB-WL-06: debug false で InvalidFormat の message に CLI 出力本文が含まれても warn には載らない', async () => {
       // arrange — runAI が stdout 全文を message に入れる InvalidFormat を模す
       const inputs = [_makeEntry('file-invalid.md', 'content')];
       const err = new ChatlogError('AiError', 'InvalidFormat', 'claude output is not JSON: SECRET-CHATLOG-BODY');
 
       // act
       const warnings = await _captureWarningsAt(
-        'off',
+        false,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
@@ -526,14 +526,14 @@ describe('segmentChatlogs', () => {
       assert(warnings[0].endsWith('AiError/InvalidFormat'), `unexpected warn: ${warnings[0]}`);
     });
 
-    it('[Error] T-SCB-WL-07: aiLogLevel off で ChatlogError でない一般 Error のとき warn には e.name のみ載る', async () => {
+    it('[Error] T-SCB-WL-07: debug false で ChatlogError でない一般 Error のとき warn には e.name のみ載る', async () => {
       // arrange — message に秘匿文字列を含む一般 Error
       const inputs = [_makeEntry('file-generic.md', 'content')];
       const err = new Error('SECRET-CHATLOG-BODY');
 
       // act
       const warnings = await _captureWarningsAt(
-        'off',
+        false,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
@@ -541,14 +541,14 @@ describe('segmentChatlogs', () => {
       assertEquals(warnings, ['segmentChatlogs: AI error — file-generic: Error']);
     });
 
-    it('[Normal] T-SCB-WL-08: aiLogLevel debug で InvalidFormat のとき warn は "AI error" 側に message 全文が載る', async () => {
+    it('[Normal] T-SCB-WL-08: debug true で InvalidFormat のとき warn は "AI error" 側に message 全文が載る', async () => {
       // arrange
       const inputs = [_makeEntry('file-invalid.md', 'content')];
       const err = new ChatlogError('AiError', 'InvalidFormat', 'claude output is not JSON: SECRET-CHATLOG-BODY');
 
       // act
       const warnings = await _captureWarningsAt(
-        'debug',
+        true,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
@@ -556,14 +556,14 @@ describe('segmentChatlogs', () => {
       assertEquals(warnings, [`segmentChatlogs: AI error — file-invalid: ${err.message}`]);
     });
 
-    it('[Normal] T-SCB-WL-09: aiLogLevel debug で ChatlogError(TimedOut) のとき warn は "timed out" 側に message 全文が載る', async () => {
+    it('[Normal] T-SCB-WL-09: debug true で ChatlogError(TimedOut) のとき warn は "timed out" 側に message 全文が載る', async () => {
       // arrange
       const inputs = [_makeEntry('file-timeout.md', 'content')];
       const err = new ChatlogError('TimedOut', 'Timeout', 'claude timed out after 1000ms');
 
       // act
       const warnings = await _captureWarningsAt(
-        'debug',
+        true,
         () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
@@ -1100,14 +1100,14 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
  *
  * `options.aiRunnerProvider` へ呼び出しオプションを捕捉するスタブを注入し、
  * structured-output §4.3.1 #3 の契約定義が `outputContract` として渡ることを検証する。
- * `maxTokens` は 1 ファイルあたり 1280 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
+ * `maxTokens` は 1 ファイルあたり 4096 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
  * 期待値は定数を参照せず数値リテラルで書き、定数値の変更を検出できるようにする。
  *
  * @see segmentChatlogs
  */
 describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', () => {
   describe('When: 正常系', () => {
-    it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約と maxTokens 1280 が渡る', async () => {
+    it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約と maxTokens 4096 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
 
@@ -1136,11 +1136,11 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
             },
           },
         },
-        maxTokens: 1280,
+        maxTokens: 4096,
       });
     });
 
-    it('[Normal] T-NC-OCT-01-02: 2 ファイルを載せた呼び出しでは maxTokens 2560 が渡る', async () => {
+    it('[Normal] T-NC-OCT-01-02: 2 ファイルを載せた呼び出しでは maxTokens 8192 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = [_makeEntry('/tmp/a.md', 'content a'), _makeEntry('/tmp/b.md', 'content b')];
@@ -1150,12 +1150,12 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 2560);
+      assertEquals(captured[0].outputContract?.maxTokens, 8192);
     });
   });
 
   describe('When: 異常系', () => {
-    it('[Error] T-NC-OCT-01-03: AI 実行が Error で失敗しても呼び出し時の maxTokens は 3 ファイル分の 3840 で、全件 null の Map が返る', async () => {
+    it('[Error] T-NC-OCT-01-03: AI 実行が Error で失敗しても呼び出し時の maxTokens は 3 ファイル分の 12288 で、全件 null の Map が返る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = ['a', 'b', 'c'].map((name) => _makeEntry(`/tmp/${name}.md`, `content ${name}`));
@@ -1168,14 +1168,14 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 3840);
+      assertEquals(captured[0].outputContract?.maxTokens, 12288);
       assertEquals(result.size, 3);
       inputs.forEach((entry) => assertNull(result.get(entry.filePath!)));
     });
   });
 
   describe('When: エッジケース', () => {
-    it('[Edge] T-NC-OCT-01-04: chunkSize 上限の 10 ファイルを載せた呼び出しでは maxTokens 12800 が渡る', async () => {
+    it('[Edge] T-NC-OCT-01-04: chunkSize 上限の 10 ファイルを載せた呼び出しでは maxTokens 40960 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = Array.from(
@@ -1188,7 +1188,7 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 12800);
+      assertEquals(captured[0].outputContract?.maxTokens, 40960);
     });
 
     it('[Edge] T-NC-OCT-01-05: inputs が空配列のとき AI を一度も呼ばず空の Map を返す', async () => {

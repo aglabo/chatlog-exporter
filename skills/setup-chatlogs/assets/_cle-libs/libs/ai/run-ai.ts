@@ -386,7 +386,7 @@ export const runAI = async (
   const _backend = getAiBackend(_options.model)!;
   const _routeLabel = _backend === 'llama' ? 'llama' : AI_BACKEND_COMMAND_MAP[_backend];
   const _started = performance.now();
-  const _requestId = _globalConfig.get('aiLogLevel') === 'debug' ? crypto.randomUUID() : '';
+  const _requestId = _globalConfig.get('debug') === true ? crypto.randomUUID() : '';
   const _trace = (message: string): void => {
     if (_requestId) {
       logger.debug(

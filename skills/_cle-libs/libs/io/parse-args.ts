@@ -61,6 +61,7 @@ const _DEFAULT_ARG_SCHEMA: ArgSchema<DefaultArgFields> = [
   { option: '--input-dir', field: 'inputDir', type: 'directory' },
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--model', field: 'model', type: 'string' },
+  { option: '--debug', field: 'debug', type: 'flag' },
 ];
 
 /**
@@ -349,6 +350,9 @@ export const parseOptions = <T>(
  *   `positionals[2]` 以降はすべて directory 型（`output-dir`、1個のみ許容）。
  * - 上記以外の型混在・順序違反はすべて `ChatlogError('InvalidArgs', ...)` を throw する。
  *
+ * `--debug` / `--no-debug` は `GlobalConfig` の `debug` に注入する（config.yaml の値より優先）。
+ * 未指定時は config.yaml の値（無ければ既定値 `false`）を保つ。
+ *
  * @param args - CLI 引数配列全体
  * @param schema - 呼び出し元が追加するスキーマ
  * @param defaults - CLI・GlobalConfig いずれにも値がない場合に使う既定値
@@ -371,6 +375,7 @@ export const parseArgs = <T extends { period?: string; agent?: string; chatlogsD
   const _globalConfig = GlobalConfig.getInstance({
     configFile: _config.configFile as string | undefined,
     defaultConfigFile,
+    overrides: { debug: _config.debug as boolean | undefined },
   });
   const _globalValues = _globalConfig.values();
   const _merged: ParsedArgs = {

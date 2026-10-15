@@ -30,6 +30,7 @@ export type DefaultArgFields = {
   inputDir?: string;
   outputDir?: string;
   model?: string;
+  debug?: boolean;
 };
 
 /** parseArgs 内部でパース中に使う値の型（文字列・真偽値・数値のいずれか）。 */
