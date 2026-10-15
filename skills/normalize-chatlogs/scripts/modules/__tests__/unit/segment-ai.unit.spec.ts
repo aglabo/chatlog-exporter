@@ -38,6 +38,7 @@ import type { CommandMockHandle } from '../../../../../_cle-libs/__tests__/helpe
 // classes
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import { ChatlogError } from '../../../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 // types
@@ -84,6 +85,29 @@ const _captureWarnings = async (fn: () => Promise<unknown>): Promise<string[]> =
     return warnStub.calls.map((call) => String(call.args[0]));
   } finally {
     warnStub.restore();
+  }
+};
+
+/**
+ * `aiLogLevel` を指定した `GlobalConfig` を用意した状態で `fn` を実行し、warn に渡されたメッセージ列を返す。
+ *
+ * 他テストの設定に影響されないよう、実行前に必ず `GlobalConfig.resetInstance()` で初期化し、
+ * 終了後も `finally` で `resetInstance()` して後始末する。
+ *
+ * @param level - 設定する `aiLogLevel`。`undefined` のときは YAML にキーを書かない（未設定 = 既定値）
+ * @param fn    - warn を観測したい非同期処理
+ * @returns `logger.warn` の第 1 引数を呼び出し順に並べた配列
+ */
+const _captureWarningsAt = async (
+  level: 'debug' | 'off' | undefined,
+  fn: () => Promise<unknown>,
+): Promise<string[]> => {
+  GlobalConfig.resetInstance();
+  GlobalConfig.getInstance({ yaml: level === undefined ? 'model: sonnet' : `aiLogLevel: ${level}` });
+  try {
+    return await _captureWarnings(fn);
+  } finally {
+    GlobalConfig.resetInstance();
   }
 };
 
@@ -252,10 +276,6 @@ const _makeSignalCaptureMock = (
  *
  * 複数ファイルをまとめて1回のAI呼び出しでセグメント分割する関数の
  * 正常系・異常系・エッジケースを検証する。
- *
- * テスト ID 範囲: T-SC-01-01, T-SC-05-01, T-SC-05-02, T-SCB-01-01 〜 T-SCB-06-01, T-SCB-02-03 〜 T-SCB-02-04,
- * T-SCB-WL-01 〜 T-SCB-WL-05, T-SCB-NA-01 〜 T-SCB-NA-03, T-SCB-SP-01 〜 T-SCB-SP-02,
- * T-NC-SIO-LR-14, T-NC-SIO-LR-19 〜 T-NC-SIO-LR-26, T-NC-SIO-LOG-01 〜 T-NC-SIO-LOG-06
  *
  * @see segmentChatlogs
  */
@@ -445,49 +465,110 @@ describe('segmentChatlogs', () => {
       }
     });
 
-    it('[Error] T-SCB-WL-03: ChatlogError(TimedOut) のとき warn は "timed out" 側のメッセージになる', async () => {
+    it('[Error] T-SCB-WL-03: aiLogLevel 未設定で ChatlogError(TimedOut) のとき warn は "timed out" 側で kind/subindex のみ載る', async () => {
       // arrange — runAI がタイムアウトで throw する ChatlogError('TimedOut', 'Timeout') を模す
       const inputs = [_makeEntry('file-timeout.md', 'content')];
       const err = new ChatlogError('TimedOut', 'Timeout', 'claude timed out after 1000ms');
 
       // act
-      const warnings = await _captureWarnings(() =>
-        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) })
+      const warnings = await _captureWarningsAt(
+        undefined,
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
-      // assert — TimedOut 専用の文言にエラーメッセージが付き、汎用 AI エラーの文言は出ない
-      assertEquals(warnings.length, 1);
-      assertEquals(warnings[0], `segmentChatlogs: timed out — file-timeout: ${err.message}`);
-      assertFalse(warnings[0].includes('AI error'));
+      // assert — TimedOut 専用の文言に分類だけが付き、message 本文と汎用 AI エラーの文言は出ない
+      assertEquals(warnings, ['segmentChatlogs: timed out — file-timeout: TimedOut/Timeout']);
     });
 
-    it('[Error] T-SCB-WL-04: TimedOut 以外の ChatlogError のとき warn は "AI error" 側のメッセージになる', async () => {
+    it('[Error] T-SCB-WL-04: aiLogLevel off で TimedOut 以外の ChatlogError のとき warn は "AI error" 側で kind/subindex のみ載る', async () => {
       // arrange — 中断側でない AiError（握りつぶされて null Map になる種類）
       const inputs = [_makeEntry('file-aierror.md', 'content')];
       const err = new ChatlogError('AiError', 'ExitFailure', 'claude exited with code 1: boom');
 
       // act
-      const warnings = await _captureWarnings(() =>
-        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) })
+      const warnings = await _captureWarningsAt(
+        'off',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
-      // assert — 汎用 AI エラーの文言にエラーメッセージが付き、TimedOut 専用の文言は出ない
-      assertEquals(warnings.length, 1);
-      assertEquals(warnings[0], `segmentChatlogs: AI error — file-aierror: ${err.message}`);
-      assertFalse(warnings[0].includes('timed out'));
+      // assert — 汎用 AI エラーの文言に分類だけが付き、message 本文と TimedOut 専用の文言は出ない
+      assertEquals(warnings, ['segmentChatlogs: AI error — file-aierror: AiError/ExitFailure']);
     });
 
-    it('[Edge] T-SCB-WL-05: Error 以外の値が throw されたとき warn には String(e) が付く', async () => {
+    it('[Edge] T-SCB-WL-05: aiLogLevel off で Error 以外の値が throw されたとき warn には "unknown" が付く', async () => {
       // arrange — Error インスタンスでない値で reject する runner
       const inputs = [_makeEntry('file-raw.md', 'content')];
 
       // act
-      const warnings = await _captureWarnings(() =>
-        segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner('raw failure') })
+      const warnings = await _captureWarningsAt(
+        'off',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner('raw failure') }),
+      );
+
+      // assert — 値そのもの（String(e)）は出さず分類 "unknown" だけが載る
+      assertEquals(warnings, ['segmentChatlogs: AI error — file-raw: unknown']);
+    });
+
+    it('[Error] T-SCB-WL-06: aiLogLevel off で InvalidFormat の message に CLI 出力本文が含まれても warn には載らない', async () => {
+      // arrange — runAI が stdout 全文を message に入れる InvalidFormat を模す
+      const inputs = [_makeEntry('file-invalid.md', 'content')];
+      const err = new ChatlogError('AiError', 'InvalidFormat', 'claude output is not JSON: SECRET-CHATLOG-BODY');
+
+      // act
+      const warnings = await _captureWarningsAt(
+        'off',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
+      );
+
+      // assert — チャットログ本文は漏れず、分類 AiError/InvalidFormat で終わる
+      assertEquals(warnings.length, 1);
+      assertFalse(warnings[0].includes('SECRET-CHATLOG-BODY'));
+      assert(warnings[0].endsWith('AiError/InvalidFormat'), `unexpected warn: ${warnings[0]}`);
+    });
+
+    it('[Error] T-SCB-WL-07: aiLogLevel off で ChatlogError でない一般 Error のとき warn には e.name のみ載る', async () => {
+      // arrange — message に秘匿文字列を含む一般 Error
+      const inputs = [_makeEntry('file-generic.md', 'content')];
+      const err = new Error('SECRET-CHATLOG-BODY');
+
+      // act
+      const warnings = await _captureWarningsAt(
+        'off',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
       );
 
       // assert
-      assertEquals(warnings, ['segmentChatlogs: AI error — file-raw: raw failure']);
+      assertEquals(warnings, ['segmentChatlogs: AI error — file-generic: Error']);
+    });
+
+    it('[Normal] T-SCB-WL-08: aiLogLevel debug で InvalidFormat のとき warn は "AI error" 側に message 全文が載る', async () => {
+      // arrange
+      const inputs = [_makeEntry('file-invalid.md', 'content')];
+      const err = new ChatlogError('AiError', 'InvalidFormat', 'claude output is not JSON: SECRET-CHATLOG-BODY');
+
+      // act
+      const warnings = await _captureWarningsAt(
+        'debug',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
+      );
+
+      // assert — debug では診断のため message 全文を残す
+      assertEquals(warnings, [`segmentChatlogs: AI error — file-invalid: ${err.message}`]);
+    });
+
+    it('[Normal] T-SCB-WL-09: aiLogLevel debug で ChatlogError(TimedOut) のとき warn は "timed out" 側に message 全文が載る', async () => {
+      // arrange
+      const inputs = [_makeEntry('file-timeout.md', 'content')];
+      const err = new ChatlogError('TimedOut', 'Timeout', 'claude timed out after 1000ms');
+
+      // act
+      const warnings = await _captureWarningsAt(
+        'debug',
+        () => segmentChatlogs(inputs, { aiRunnerProvider: _throwingRunner(err) }),
+      );
+
+      // assert
+      assertEquals(warnings, [`segmentChatlogs: timed out — file-timeout: ${err.message}`]);
     });
 
     it('[Error] T-SCB-02-03: runAI が ChatlogError(AiError, RateLimit) を throw するとき握りつぶさず再 throw する', async () => {
@@ -970,8 +1051,6 @@ describe('segmentChatlogs', () => {
  * `options.aiRunnerProvider` へ例外を投げるスタブを注入し、catch 節が `isAbortingAiError` で
  * 再 throw / 握りつぶしを振り分けることを検証する。
  *
- * テスト ID 範囲: T-NC-LAB-01-01 〜 T-NC-LAB-03-01
- *
  * @see segmentChatlogs
  */
 describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () => {
@@ -1023,8 +1102,6 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
  * structured-output §4.3.1 #3 の契約定義が `outputContract` として渡ることを検証する。
  * `maxTokens` は 1 ファイルあたり 1280 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
  * 期待値は定数を参照せず数値リテラルで書き、定数値の変更を検出できるようにする。
- *
- * テスト ID 範囲: T-NC-OCT-01-01 〜 T-NC-OCT-01-05
  *
  * @see segmentChatlogs
  */

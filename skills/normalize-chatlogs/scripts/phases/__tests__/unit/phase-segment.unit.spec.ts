@@ -933,10 +933,8 @@ describe('phaseSegment', () => {
         const result = await phaseSegment([entry], cache, { ..._baseConfig, timeoutMs: 1 }, 1);
 
         // assert — タイムアウト由来であることを warn の文言で区別する（AI 失敗一般では別文言になる）。
-        // 末尾には runAI のエラーメッセージ（制限時間を含む）が付く
-        assertEquals(loggerStub.warnLogs.length, 1);
-        assert(loggerStub.warnLogs[0].startsWith('segmentChatlogs: timed out — slow: '));
-        assert(loggerStub.warnLogs[0].includes('timed out after 1ms'));
+        // aiLogLevel 未設定（非 debug）なので末尾は runAI のエラー分類（kind/subindex）だけになる
+        assertEquals(loggerStub.warnLogs, ['segmentChatlogs: timed out — slow: TimedOut/Timeout']);
         assertEquals(result, []);
         assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.RETRY);
       });
