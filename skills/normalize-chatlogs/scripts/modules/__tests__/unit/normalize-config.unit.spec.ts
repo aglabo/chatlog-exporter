@@ -27,8 +27,6 @@ import { DEFAULT_CHATLOGS_DIR } from '../../../../../_cle-libs/constants/default
  *
  * CLI 引数・GlobalConfig・デフォルト値から NormalizeConfig を構築する処理を検証する。
  *
- * テスト ID 範囲: T-NC-BC-01 〜 T-NC-BC-22
- *
  * @see buildConfig
  */
 describe('buildConfig', () => {
@@ -257,6 +255,25 @@ describe('buildConfig', () => {
         });
       });
     });
+
+    describe('Given: --file でファイルパスを指定', () => {
+      // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
+      describe('When: buildConfig(args) を呼び出す', () => {
+        describe('Then: T-NC-BC-23 - --file の値が inputFile にそのまま入る', () => {
+          it('[Normal] T-NC-BC-23-01: --file x.md → inputFile が x.md になる', () => {
+            assertEquals(buildConfig(['--file', 'x.md']).inputFile, 'x.md');
+          });
+          it('[Normal] T-NC-BC-23-02: --file dir/x.md → inputFile が dir/x.md になり inputDir には入らない', () => {
+            const _config = buildConfig(['--file', 'dir/x.md']);
+            assertEquals([_config.inputFile, _config.inputDir], ['dir/x.md', undefined]);
+          });
+        });
+      });
+    });
   });
 
   /** 異常系: 不正な引数で ChatlogError がスローされる。 */
@@ -324,6 +341,18 @@ describe('buildConfig', () => {
           assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'OutOfRange']);
         });
       }
+    });
+
+    describe('Given: 値の無い --file', () => {
+      // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
+      it('[Error] T-NC-BC-24-01: --file → ChatlogError(InvalidArgs/EmptyValue) がスローされる', () => {
+        const _error = assertThrows(() => buildConfig(['--file']), ChatlogError);
+        assertEquals([_error.kind, _error.subindex], ['InvalidArgs', 'EmptyValue']);
+      });
     });
   });
 
@@ -445,6 +474,17 @@ describe('buildConfig', () => {
           assertEquals(buildConfig([...args])[field], expected);
         });
       }
+    });
+
+    describe('Given: --file を指定しない', () => {
+      // 実在する config.yaml の値が混入しないよう、空 YAML でシングルトンを事前生成する
+      beforeEach(() => {
+        GlobalConfig.getInstance({ yaml: '' });
+      });
+
+      it('[Edge] T-NC-BC-23-03: buildConfig([]) → inputFile キーが存在しない', () => {
+        assertEquals('inputFile' in buildConfig([]), false);
+      });
     });
   });
 });

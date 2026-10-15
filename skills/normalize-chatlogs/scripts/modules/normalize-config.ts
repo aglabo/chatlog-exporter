@@ -45,6 +45,7 @@ const _SCHEMA: ArgSchema<NormalizeConfig> = [
   { option: '--output-dir', field: 'outputDir', type: 'directory' },
   { option: '--fail-fast', field: 'failFast', type: 'flag' },
   { option: '--single-file', field: 'singleFile', type: 'flag' },
+  { option: '--file', field: 'inputFile', type: 'string' },
 ];
 
 /**

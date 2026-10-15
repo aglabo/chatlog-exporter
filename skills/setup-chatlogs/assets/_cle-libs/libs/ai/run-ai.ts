@@ -389,7 +389,7 @@ export const runAI = async (
   const _requestId = _globalConfig.get('aiLogLevel') === 'debug' ? crypto.randomUUID() : '';
   const _trace = (message: string): void => {
     if (_requestId) {
-      logger.info(
+      logger.debug(
         `ai request=${_requestId} time=${new Date().toISOString()} elapsedMs=${
           Math.round(performance.now() - _started)
         } ${message}`,
@@ -421,7 +421,11 @@ export const runAI = async (
       _trace('failure category=Timeout');
       throw new ChatlogError('TimedOut', 'Timeout', `${_routeLabel} timed out after ${_options.timeoutMs}ms`);
     }
-    _trace(`failure category=${_failure}`);
+    // llama 経路の ExitFailure message は応答本文を含まない。CLI 経路は stdout を含むため detail を付けない
+    const _detail = _backend === 'llama' && e instanceof ChatlogError && e.subindex === 'ExitFailure'
+      ? ` detail=${e.message}`
+      : '';
+    _trace(`failure category=${_failure}${_detail}`);
     throw e;
   } finally {
     if (_timer !== undefined) { clearTimeout(_timer); }

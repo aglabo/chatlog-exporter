@@ -5,7 +5,7 @@ description: >
   フロントマター付きMarkdownとして出力する。
   /normalize-chatlogs で呼び出す。
   入力ファイルのフロントマターを引き継ぎつつ、title/log_idをAIが生成する。summaryは本文の`## Summary`セクションに使われる。
-argument-hint: "<agent> <YYYY-MM> | <path> [--output-dir <dir>] [--concurrency <n>] [--batch-size <n>] [--max-batch-chars <n>] [--model <model>] [--dry-run]"
+argument-hint: "<agent> <YYYY-MM> | <path> [--file <path>] [--output-dir <dir>] [--concurrency <n>] [--batch-size <n>] [--max-batch-chars <n>] [--model <model>] [--dry-run]"
 allowed-tools: Bash, Glob
 ---
 
@@ -29,6 +29,7 @@ allowed-tools: Bash, Glob
 引数の判定ルール:
 
 - `YYYY-MM` パターン (`^[0-9]{4}-[0-9]{2}$`) → YEAR_MONTH
+- `--file <path>` → 1 ファイルだけ処理 (`--file` フラグとしてそのまま転送。`<path>` は `/` を含んでも PATH 扱いしない)
 - `/` または `\` を含む文字列 → PATH (位置引数として渡す)
 - `--output-dir <dir>` → 出力先 (`--output-dir` フラグとしてそのまま転送)
 - `--concurrency <n>` → 並列実行数 (`--concurrency` フラグとしてそのまま転送、デフォルト: 4)
@@ -86,6 +87,7 @@ deno run --config ./deno.jsonc --allow-read --allow-write --allow-env --allow-ru
 - `2026-03` のみ → `deno run ... "$SCRIPT_PATH" --period 2026-03` (位置引数では渡せない)
 - `claude 2026-03` → `deno run ... "$SCRIPT_PATH" claude 2026-03`
 - `/path/to/chatlogs` → `deno run ... "$SCRIPT_PATH" /path/to/chatlogs`
+- `--file <path>` を含む → `--file <path>` をスクリプトに転送
 - `--output-dir <dir>` を含む → `--output-dir <dir>` をスクリプトに転送
 - `--concurrency <n>` を含む → `--concurrency <n>` をスクリプトに転送
 - `--batch-size <n>` を含む → `--batch-size <n>` をスクリプトに転送
@@ -127,6 +129,7 @@ llamaEndpoint: "http://avalon:8080/"
 | `--agent AGENT`       | 対象エージェント (`claude`, `chatgpt`, `codex`)                |
 | `--period YYYY-MM`    | 対象期間 (`YYYY-MM` 形式のみ。`YYYY` 単体は不可)               |
 | `--input-dir DIR`     | 入力ディレクトリを直接指定 (agent / period を無視)             |
+| `--file PATH`         | 指定した 1 ファイルだけを処理する (デバッグ用)                 |
 | `--output-dir DIR`    | 出力先ベースディレクトリ                                       |
 | `--concurrency N`     | 並列実行数 (デフォルト: 4)                                     |
 | `--batch-size N`      | 1 バッチの最大ファイル数 (デフォルト: 4)                       |
@@ -161,6 +164,26 @@ llamaEndpoint: "http://avalon:8080/"
 # 通常実行で fail が出たら
 deno run ... --single-file
 ```
+
+## デバッグ: 1 ファイルだけ処理する (`--file`)
+
+`--file <path>` を付けると、入力ディレクトリを走査せず指定した 1 ファイルだけを処理する。
+`--single-file` (AI へ 1 ファイルずつ渡す) とは別のオプションである。
+
+```bash
+deno run ... --file chatlogs/originalLogs/claude/2026/2026-04/xxxx.md
+```
+
+- パスは絶対パスに解決してから扱う。ファイルが無ければ `InputNotFound` で中断する
+- `--input-dir` / 位置引数のディレクトリは無視される (`--file` が優先)
+- ファイルの親ディレクトリが `<agent>/<yyyy>/<yyyy-mm>` で終わる場合:
+  - `<agent>` の親ディレクトリを入力ディレクトリとする
+  - 出力先の agent / period もパスの値を使う (`--agent` / `--period` より優先)。
+    出力先を変えたいときは `--output-dir` を指定する
+- それ以外はファイルの親ディレクトリを入力ディレクトリとし、agent / period は通常どおり決まる
+- 出力先が入力ディレクトリ配下になる場合は `ForbiddenOutput` で中断する
+- キャッシュは通常どおり参照する。分割済み (`done`) のファイルはスキップされるため、
+  再処理するときは該当ファイルのキャッシュを削除する
 
 ## dry-run の挙動に関する注意
 

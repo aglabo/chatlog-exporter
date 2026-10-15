@@ -32,6 +32,7 @@ import {
   wrapClaudeJson,
 } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { CommandMockHandle } from '../../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
+import { findFiles } from '../../../../../_cle-libs/libs/file-ops/find-files.ts';
 import { logger } from '../../../../../_cle-libs/libs/io/logger.ts';
 import { normalizePath } from '../../../../../_cle-libs/libs/path-utils/path-utils.ts';
 import { toCacheKey } from '../../../libs/cache-utils.ts';
@@ -55,7 +56,7 @@ import { NORMALIZE_CACHE_STATUSES } from '../../../types/cache.const.type.ts';
  */
 type _ProcessConfig = Pick<
   NormalizeConfig,
-  'dryRun' | 'concurrency' | 'model' | 'failFast' | 'singleFile' | 'batchSize' | 'maxBatchChars'
+  'dryRun' | 'concurrency' | 'model' | 'failFast' | 'singleFile' | 'batchSize' | 'maxBatchChars' | 'inputFile'
 >;
 
 // constants
@@ -183,9 +184,6 @@ const _installSegmentMock = (
  * `processFiles` のユニットテストスイート。
  *
  * AI 呼び出し（segmentChatlogs）をモックして stats の更新と dryRun 動作を検証する。
- *
- * テスト ID 範囲: T-PF-01-01 〜 T-PF-01-07, T-PF-VAL-01 〜 T-PF-VAL-05,
- *                T-NC-PRF-01-01 〜 T-NC-PRF-03-01
  *
  * @see processFiles
  */
@@ -1031,6 +1029,198 @@ describe('processFiles', () => {
       // assert — どのバケットにも入らず消えるファイルがないこと
       assertEquals(_totalStats(stats), 2);
       assertEquals(stats.done, 1);
+    });
+  });
+
+  /**
+   * 件数ログ: 検出ファイル数（全件）・分割計画済み数（cached = set）・処理対象数（AI 分割が必要な pending）を
+   * `logger.info` へ 1 回だけ出力することを検証する。
+   *
+   * dryRun=true（既定 `_CONFIG`）で呼び、AI 呼び出しを経由せずにログだけを観測する。
+   */
+  describe('When: 件数ログ', () => {
+    const _cases = [
+      {
+        id: 'T-NC-PRF-04-01',
+        fileCount: 3,
+        doneCount: 1,
+        setCount: 0,
+        expected: 'All Files: 3 / cached: 0 / pending: 2',
+      },
+      {
+        id: 'T-NC-PRF-04-02',
+        fileCount: 2,
+        doneCount: 0,
+        setCount: 0,
+        expected: 'All Files: 2 / cached: 0 / pending: 2',
+      },
+      {
+        id: 'T-NC-PRF-04-03',
+        fileCount: 3,
+        doneCount: 1,
+        setCount: 1,
+        expected: 'All Files: 3 / cached: 1 / pending: 1',
+      },
+      {
+        id: 'T-NC-PRF-04-04',
+        fileCount: 2,
+        doneCount: 0,
+        setCount: 2,
+        expected: 'All Files: 2 / cached: 2 / pending: 0',
+      },
+    ];
+
+    for (const { id, fileCount, doneCount, setCount, expected } of _cases) {
+      it(`[Normal] ${id}: ${fileCount} 件中 done ${doneCount} 件・set ${setCount} 件のとき logger.info に「${expected}」が 1 回出力される`, async () => {
+        // arrange — 先頭 doneCount 件を処理済み（status:'done'）、続く setCount 件を分割計画済み（status:'set'）としてシードする
+        const filePaths = await _writeSizedFiles(tmpDir, fileCount, 20);
+        await Promise.all([
+          ...filePaths.slice(0, doneCount).map((filePath) =>
+            _seedCache(filePath, { status: NORMALIZE_CACHE_STATUSES.DONE })
+          ),
+          ...filePaths.slice(doneCount, doneCount + setCount).map((filePath) =>
+            _seedCache(filePath, {
+              status: NORMALIZE_CACHE_STATUSES.SET,
+              segments: [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 1 }],
+            })
+          ),
+        ]);
+        mockHandle = installCommandMock(makeFailMock(1));
+        let infoStub: Stub | undefined;
+
+        try {
+          infoStub = stub(logger, 'info');
+
+          // act
+          await processFiles(tmpDir, outputDir, _CONFIG, stats);
+
+          // assert — 件数ログは完全一致で 1 回だけ出る
+          const countLogs = infoStub.calls.filter((call) => call.args[0] === expected);
+          assertEquals(countLogs.length, 1);
+        } finally {
+          infoStub?.restore();
+        }
+      });
+    }
+  });
+
+  /**
+   * inputFile 指定: `config.inputFile` があるとき `inputDir` を走査せず、そのファイルだけを処理する。
+   *
+   * すべて `dryRun: false` で呼び、AI モックは inputDir 内の全ファイルに 1 セグメントを返す。
+   * 走査対象を取り違えると余分なファイルまで処理され、stats の合計に差が出る。
+   */
+  describe('When: inputFile 指定', () => {
+    it('[Normal] T-NC-PRF-05-01: inputDir に 2 件あっても inputFile=file0 のとき file0 だけ処理され file1 は cache 未登録のまま', async () => {
+      // arrange
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      const { handle } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      // act
+      await processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false, inputFile: filePaths[0] }), stats);
+
+      // assert — 処理は 1 件だけで、file1 には触れていない
+      assertEquals(_totalStats(stats), 1);
+      assertEquals(stats.success, 1);
+      assertEquals((await _readCache(filePaths[1])).status, undefined);
+    });
+
+    // 存在確認は main の責務。processFiles に渡った存在しない inputFile は loadEntry が致命的エラーとして
+    // そのまま投げる（load error として stats.error には計上されない）。inputDir 側へ黙って
+    // フォールバックしないことを、例外の種別と「何も処理されていない」ことの両面で固定する
+    it('[Error] T-NC-PRF-05-02: inputFile が存在しないパスのとき ChatlogError(FileDirNotFound/NotFound) で中断し inputDir の file0 / file1 は処理されない', async () => {
+      // arrange
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      const { handle } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+      const missingPath = normalizePath(`${tmpDir}/missing.md`);
+
+      // act
+      const error = await assertRejects(
+        () => processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false, inputFile: missingPath }), stats),
+        ChatlogError,
+      );
+
+      // assert — 種別まで固定し、inputDir の 2 件は 1 件も処理されていない
+      assertEquals([error.kind, error.subindex], ['FileDirNotFound', 'NotFound']);
+      assertEquals(_totalStats(stats), 0);
+      assertEquals((await _readCache(filePaths[0])).status, undefined);
+    });
+
+    it('[Edge] T-NC-PRF-05-03: file0 のパスをバックスラッシュ区切りにした inputFile でも正規化され file0 の 1 件だけ success になる', async () => {
+      // arrange — AI 応答の filePath は '/' 区切り。未正規化のままだと応答と突合できない
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      const { handle } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+      const backslashPath = filePaths[0].replaceAll('/', '\\');
+
+      // act
+      await processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false, inputFile: backslashPath }), stats);
+
+      // assert
+      assertEquals(stats.success, 1);
+      assertEquals(_totalStats(stats), 1);
+    });
+
+    it('[Normal] T-NC-PRF-05-04: inputFile 未指定のとき従来どおり inputDir を走査し file0 / file1 の 2 件とも success になる', async () => {
+      // arrange
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      const { handle } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      // act
+      await processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false }), stats);
+
+      // assert
+      assertEquals(stats.success, 2);
+      assertEquals(_totalStats(stats), 2);
+    });
+  });
+
+  /**
+   * inputFile 指定時のキャッシュ: `findFiles` を飛ばしても、cache の status による done / set / pending の
+   * 振り分けは inputDir 走査時と同じく効く。
+   *
+   * AI モックは呼び出し回数を数える。キャッシュを無視して pending 扱いにすると AI が呼ばれ、
+   * stats も done ではなく success / fail 側に計上される。
+   */
+  describe('When: inputFile 指定 + キャッシュ', () => {
+    it("[Normal] T-NC-PRF-06-01: inputFile の cache status が 'done' のとき stats.done === 1 で AI は呼ばれず何も書き出されない", async () => {
+      // arrange
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      await _seedCache(filePaths[0], { status: NORMALIZE_CACHE_STATUSES.DONE });
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      // act
+      await processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false, inputFile: filePaths[0] }), stats);
+
+      // assert
+      assertEquals(stats.done, 1);
+      assertEquals(_totalStats(stats), 1);
+      assertEquals(counter.calls, 0);
+      assertEquals(await findFiles(outputDir), []);
+    });
+
+    it("[Normal] T-NC-PRF-06-02: inputFile の cache status が 'set'（segments あり）のとき AI を呼ばずキャッシュから 1 件書き出し success === 1", async () => {
+      // arrange
+      const filePaths = await _writeSizedFiles(tmpDir, 2, 20);
+      await _seedCache(filePaths[0], {
+        status: NORMALIZE_CACHE_STATUSES.SET,
+        segments: [{ title: 'Cached Topic', summary: 'Cached Summary', startLine: 1, endLine: 1 }],
+      });
+      const { handle, counter } = _installSegmentMock(filePaths);
+      mockHandle = handle;
+
+      // act
+      await processFiles(tmpDir, outputDir, _makeConfig({ dryRun: false, inputFile: filePaths[0] }), stats);
+
+      // assert
+      assertEquals(stats.success, 1);
+      assertEquals(_totalStats(stats), 1);
+      assertEquals(counter.calls, 0);
+      assertEquals((await findFiles(outputDir)).length, 1);
     });
   });
 });

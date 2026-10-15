@@ -11,6 +11,7 @@
 
 // classes
 import { ChatlogError } from '../../../_cle-libs/classes/ChatlogError.class.ts';
+import { GlobalConfig } from '../../../_cle-libs/classes/GlobalConfig.class.ts';
 // types
 import type { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
 import type { OutputContract } from '../../../_cle-libs/types/json-schema.types.ts';
@@ -83,6 +84,18 @@ const _buildSegmentOutputContract = (fileCount: number): OutputContract => ({
 });
 
 /**
+ * 握りつぶす AI 失敗の warn に添える詳細を返す。
+ * `aiLogLevel` が `debug` のときだけ message 全文（CLI 出力を含みうる）を返し、
+ * それ以外は秘匿情報を含まない分類（`kind/subindex` またはエラー名）に留める。
+ */
+const _describeAiFailure = (e: unknown): string => {
+  if (GlobalConfig.getInstance().get('aiLogLevel') === 'debug') {
+    return e instanceof Error ? e.message : String(e);
+  }
+  return e instanceof ChatlogError ? `${e.kind}/${e.subindex}` : e instanceof Error ? e.name : 'unknown';
+};
+
+/**
  * content の各行に 1-based の行番号を付与する（`segmentChatlogs` の userPrompt 生成専用）。
  *
  * 各行の先頭に `<行番号>: ` を前置する（桁揃えのパディングはしない）。
@@ -102,6 +115,9 @@ const _addLineNumbers = (content: string): string => {
  * filePath to its planned segment boundaries. Returns null for any filePath that the AI
  * did not return results for, or if the AI call fails entirely. An empty array response (`[]`)
  * also yields null for every filePath, logged once per chunk with the first 200 chars of the raw output.
+ * A swallowed AI failure is logged once per chunk. The appended detail is the error category
+ * (`kind/subindex` for ChatlogError, the error name otherwise) unless `aiLogLevel` is `debug`,
+ * in which case the full error message (which may include CLI output) is appended instead.
  *
  * Line numbers (`startLine`/`endLine`) refer to `entry.content` (frontmatter excluded),
  * not the raw file. Building the actual `content` from these boundaries is the caller's
@@ -138,7 +154,8 @@ export const segmentChatlogs = async (
     + '"startLine" (integer, 1-based, inclusive),\n'
     + '"endLine" (integer, 1-based, inclusive).\n'
     + 'Ranges must be contiguous and non-overlapping. Cover the full conversation.\n'
-    + 'Do not include any explanation or markdown fences — respond with the JSON array only.';
+    + 'Do not include any explanation or markdown fences — respond with the JSON array only.\n'
+    + '---\n\n';
 
   const userPrompt = inputs
     .map((entry, i) => `File ${i + 1}: ${entry.filePath}\n${_addLineNumbers(entry.content)}`)
@@ -158,10 +175,11 @@ export const segmentChatlogs = async (
       throw e;
     }
     const _paths = inputs.map((entry) => getBasename(entry.filePath!)).join(', ');
+    const _detail = _describeAiFailure(e);
     if (e instanceof ChatlogError && e.kind === 'TimedOut') {
-      logger.warn(`segmentChatlogs: timed out — ${_paths}`);
+      logger.warn(`segmentChatlogs: timed out — ${_paths}: ${_detail}`);
     } else {
-      logger.warn(`segmentChatlogs: AI error — ${_paths}`);
+      logger.warn(`segmentChatlogs: AI error — ${_paths}: ${_detail}`);
     }
     return _nullMap();
   }

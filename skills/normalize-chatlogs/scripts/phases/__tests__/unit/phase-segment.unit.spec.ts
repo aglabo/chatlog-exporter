@@ -37,6 +37,7 @@ import { toCacheKey } from '../../../libs/cache-utils.ts';
 // classes
 import { ChatlogCache } from '../../../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../../../_cle-libs/classes/ChatlogEntry.class.ts';
+import { GlobalConfig } from '../../../../../_cle-libs/classes/GlobalConfig.class.ts';
 // constants
 import { DEFAULT_AI_MODEL } from '../../../../../_cle-libs/constants/defaults.constants.ts';
 import { DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_CHARS } from '../../../constants/normalize.constants.ts';
@@ -254,6 +255,29 @@ const _repairWarnings = (loggerStub: LoggerStub): string[] =>
   loggerStub.warnLogs.filter((log) => log.includes('into adjacent segments'));
 
 /**
+ * キャッシュ作成ログ（`normalized: <basename> (<n> segments)`）だけを指定したログ配列から抜き出す。
+ *
+ * 他の info / debug ログと混ざるため、件数を数えるときは種別で絞る必要がある。
+ *
+ * @param logs - `loggerStub.infoLogs` などのログ配列
+ * @returns キャッシュ作成ログのメッセージ配列（出力順）
+ */
+const _normalizedLogs = (logs: string[]): string[] => logs.filter((log) => log.includes('normalized:'));
+
+/**
+ * `GlobalConfig` シングルトンを `yaml` で作り直す。
+ *
+ * 既存インスタンスがあると `getInstance` は options を無視するため、先に `resetInstance()` する。
+ * 呼び出したテストは afterEach で `GlobalConfig.resetInstance()` して他テストへ残さないこと。
+ *
+ * @param yaml - GlobalConfig に読み込ませる YAML テキスト（例: `'aiLogLevel: debug'`、`''` で既定値）
+ */
+const _seedGlobalConfig = (yaml: string): void => {
+  GlobalConfig.resetInstance();
+  GlobalConfig.getInstance({ yaml });
+};
+
+/**
  * `timeoutMs` 転送の検証で AI 応答を遅らせる時間（ミリ秒）。
  *
  * `timeoutMs: 1` を転送できていれば応答より先に abort され、転送しなければ既定の 120s が効いて
@@ -271,9 +295,6 @@ const _TIMEOUT_FILE_PATH = 'slow.md';
  *
  * キャッシュ済みエントリのスキップ、未キャッシュエントリのチャンク分割・AI呼び出し・
  * キャッシュ書き込み、セグメント取得失敗時の `status: 'retry'` 記録と戻り値からの除外を検証する。
- *
- * テスト ID 範囲: T-PP-01-01 〜 T-PP-14-01、T-NC-PSG-01-01 〜 T-NC-PSG-06-02、
- * T-NC-PSC-01-01 〜 T-NC-PSC-02-05
  *
  * @see phaseSegment
  */
@@ -911,8 +932,9 @@ describe('phaseSegment', () => {
         // act
         const result = await phaseSegment([entry], cache, { ..._baseConfig, timeoutMs: 1 }, 1);
 
-        // assert — タイムアウト由来であることを warn の文言で区別する（AI 失敗一般では別文言になる）
-        assertEquals(loggerStub.warnLogs, ['segmentChatlogs: timed out — slow']);
+        // assert — タイムアウト由来であることを warn の文言で区別する（AI 失敗一般では別文言になる）。
+        // aiLogLevel 未設定（非 debug）なので末尾は runAI のエラー分類（kind/subindex）だけになる
+        assertEquals(loggerStub.warnLogs, ['segmentChatlogs: timed out — slow: TimedOut/Timeout']);
         assertEquals(result, []);
         assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.RETRY);
       });
@@ -931,6 +953,126 @@ describe('phaseSegment', () => {
         assertEquals(loggerStub.warnLogs, []);
         assertEquals(result, [entry]);
         assertEquals(cache.read(toCacheKey(_TIMEOUT_FILE_PATH)).status, NORMALIZE_CACHE_STATUSES.SET);
+      });
+    });
+  });
+
+  /**
+   * キャッシュ作成に成功したファイルごとに、元ファイル名と分割件数を `logger.info` へ出す挙動のグループ。
+   *
+   * `aiLogLevel` に関係なく常に出す。件数は `repairSegmentCoverage` 後の segments 件数。
+   * `status: 'retry'` を書いたファイル・dryRun では出さない。
+   * `GlobalConfig` はケースごとにシードし、afterEach で必ずリセットする。
+   */
+  describe('When: キャッシュ作成ログ', () => {
+    let loggerStub: LoggerStub;
+
+    beforeEach(() => {
+      loggerStub = makeLoggerStub();
+    });
+
+    afterEach(() => {
+      loggerStub.restore();
+      GlobalConfig.resetInstance();
+    });
+
+    describe('Then: status:set を書いたファイルごとに件数付きで info を出す', () => {
+      it('[Normal] T-NC-PSC-03-01: 2 segments を返したファイルについて normalized ログが info で 1 件出る', async () => {
+        // arrange — 6 行の本文を 1..3 / 4..6 で覆う応答（修復は起きない）
+        _seedGlobalConfig('');
+        const entry = _makeEntry('two.md', _COVERAGE_BODY);
+        const aiResponse = _makeAiResponse([
+          {
+            filePath: 'two.md',
+            segments: [
+              { title: 'A', startLine: 1, endLine: 3 },
+              { title: 'B', startLine: 4, endLine: _COVERAGE_TOTAL_LINES },
+            ],
+          },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — インデント・basename（拡張子なし）・件数まで文言を固定する
+        assertEquals(_normalizedLogs(loggerStub.infoLogs), ['  normalized: two (2 segments)']);
+        assertEquals(_normalizedLogs(loggerStub.debugLogs), []);
+      });
+
+      it('[Normal] T-NC-PSC-03-02: 同一チャンクの 2 ファイルはそれぞれの件数で 1 件ずつ出る', async () => {
+        // arrange — one.md は 1 segment、three.md は 3 segments
+        _seedGlobalConfig('');
+        const entries = [_makeEntry('one.md', _COVERAGE_BODY), _makeEntry('three.md', _COVERAGE_BODY)];
+        const aiResponse = _makeAiResponse([
+          { filePath: 'one.md', segments: [{ title: 'A', startLine: 1, endLine: _COVERAGE_TOTAL_LINES }] },
+          {
+            filePath: 'three.md',
+            segments: [
+              { title: 'A', startLine: 1, endLine: 2 },
+              { title: 'B', startLine: 3, endLine: 4 },
+              { title: 'C', startLine: 5, endLine: _COVERAGE_TOTAL_LINES },
+            ],
+          },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment(entries, cache, _baseConfig, 1);
+
+        // assert — ファイル内の書き込みは並列なので出力順には依存しない
+        assertEquals(_normalizedLogs(loggerStub.infoLogs).toSorted(), [
+          '  normalized: one (1 segments)',
+          '  normalized: three (3 segments)',
+        ]);
+      });
+
+      it('[Normal] T-NC-PSC-03-03: aiLogLevel: debug でも info で出て debug には出ない', async () => {
+        // arrange — T-NC-PSC-03-01 と同じ成功応答。GlobalConfig だけが debug
+        _seedGlobalConfig('aiLogLevel: debug');
+        const entry = _makeEntry('two.md', _COVERAGE_BODY);
+        const aiResponse = _makeAiResponse([
+          { filePath: 'two.md', segments: [{ title: 'A', startLine: 1, endLine: _COVERAGE_TOTAL_LINES }] },
+        ]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        const result = await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert — ログレベルに関係なく info に 1 件だけ出る
+        assertEquals(result, [entry]);
+        assertEquals(_normalizedLogs(loggerStub.infoLogs), ['  normalized: two (1 segments)']);
+        assertEquals(_normalizedLogs(loggerStub.debugLogs), []);
+      });
+    });
+
+    describe('Then: 出さない条件', () => {
+      it("[Edge] T-NC-PSC-03-04: AI が空 segments を返し status:'retry' を書いたときは出ない", async () => {
+        // arrange
+        _seedGlobalConfig('');
+        const entry = _makeEntry('empty.md', _COVERAGE_BODY);
+        const aiResponse = _makeAiResponse([{ filePath: 'empty.md', segments: [] }]);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(aiResponse)));
+
+        // act
+        await phaseSegment([entry], cache, _baseConfig, 1);
+
+        // assert
+        assertEquals(cache.read(toCacheKey('empty.md')).status, NORMALIZE_CACHE_STATUSES.RETRY);
+        assertEquals(_normalizedLogs(loggerStub.infoLogs), []);
+      });
+
+      it('[Edge] T-NC-PSC-03-05: dryRun のときは出ない', async () => {
+        // arrange — 成功応答を用意しても dryRun では _processChunk に到達しない
+        _seedGlobalConfig('');
+        const entry = _makeEntry('dryrun.md', _COVERAGE_BODY);
+        mockHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode(_makeAiResponseFor([entry]))));
+
+        // act
+        await phaseSegment([entry], cache, { ..._baseConfig, dryRun: true }, 1);
+
+        // assert
+        assertEquals(_normalizedLogs(loggerStub.infoLogs), []);
       });
     });
   });
