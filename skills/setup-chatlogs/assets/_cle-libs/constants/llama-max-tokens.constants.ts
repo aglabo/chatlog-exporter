@@ -24,7 +24,7 @@ export const LLAMA_MAX_TOKENS = {
   /** classify の分類。実測最大: 1 ファイルあたり 111 tok。 */
   CLASSIFY_PER_FILE: 256,
   /** normalize のセグメント分割。実測最大: 1 ファイルあたり 790 tok（production 検証を通った要素過多応答を含む最大）。 */
-  SEGMENT_PER_FILE: 4096,
+  SEGMENT_PER_FILE: 2048,
   /** set-frontmatter の meta 生成。実測最大: 151 tok。 */
   FRONTMATTER: 256,
   /** set-frontmatter の type / category 判定。実測最大: 20 tok。 */

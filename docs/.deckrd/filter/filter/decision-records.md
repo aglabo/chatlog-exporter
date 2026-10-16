@@ -2,7 +2,7 @@
 title: "Decision Records: filter/filter"
 module: "filter/filter"
 status: Draft
-version: 2.0.0
+version: 2.1.0
 created: "2026-09-08"
 ---
 
@@ -546,6 +546,62 @@ subindex は `CountMismatch` が `MissingFile` / `ConflictingDecision` に置き
 
 ---
 
+## DR-10: 過去ログ貼り付けで始まるセッションを noise-filter で削除する
+
+**Status**: Accepted
+
+**Context**: filter のバッチ判定プロンプトは、各ログを `<<<CHATLOG file="NAME">>>` 〜 `<<<END_CHATLOG>>>` で包んで渡します
+（`libs/batch-prompt.ts`）。このプロンプトを投げた claude セッション自体が export されると、
+過去ログを貼り付けただけの記事として originalLogs に残ります。貼り付けの後に続くのは、
+その過去ログに対する AI の KEEP / DISCARD 応答だけで、再利用価値がありません。
+
+strip の DR-41 は、こうしたログについて `## Excerpt` 直後の前置き部分を除去する R-018 を採りました。
+同時に「noise-filter で削除する」案 D を「本文には実内容が続いており、削除は過剰」として退けています。
+noise-filter の既存規則も届きません。`CONDITIONAL_FILENAME_PATTERNS` の二重日付規則は
+「二重日付ファイル名 AND `=== x.md ===`」が条件です。そのため、単一日付のファイル名
+（`2026-08-20-chatlog-file-...`）と `<<<CHATLOG` マーカーの組み合わせには一致しません。
+
+`chatlogs/originalLogs` の実測は次のとおりです。
+
+| 指標                                                        | 実測           |
+| ----------------------------------------------------------- | -------------- |
+| 本文のどこかに貼り付けマーカー行を含む                      | 1387 件        |
+| 先頭 User ターンの最初の空でない行が貼り付けマーカー行      | 923 件         |
+| うちファイル名が `chatlog-file-` で始まる（バッチ判定由来） | 923 件（全件） |
+
+マーカーを含むが先頭行ではない 464 件には、classify のプロンプト（`Projects: ...`）、
+`<task-notification>` で始まるセッション、normalize 済みの後続セグメントが入ります。
+
+**Decision**:
+
+1. `classify-file.ts` に `checkPastedChatlog` を追加し、`classifyConversation` の判定連鎖の先頭に置く。
+   先頭 User ターンの最初の空でない行が貼り付けマーカー行なら、`'過去ログ貼り付けセッション'` として DISCARD する
+2. マーカー行の判定は strip の `isPasteMarkerLine`（行全体一致、DR-44）を再利用する。
+   正規表現を重複して持たない
+3. 判定は先頭 User ターンの先頭行に限る。2 行目以降・行中の引用・2 番目以降の User ターンにあるマーカーでは削除しない。
+   「先頭 User ターン」は、他の判定と同じく `stripPreamble` で Codex のプリアンブルを除いた後の先頭を指す
+   （プリアンブルはユーザーの入力ではないため）
+4. strip の R-018 は残す。noise-filter をすり抜けたファイル（normalize 済みのログなど）に対する保険とする
+
+**Alternatives Considered**:
+
+- `CONDITIONAL_FILENAME_PATTERNS` に「`chatlog-file-` を含むファイル名 AND `<<<CHATLOG`」を足す — 却下。
+  バッチプロンプトの冒頭がファイル名スラッグになるのは claude の命名の副産物であり、命名が変われば検出が外れます。
+  本文の構造（先頭行がマーカー）のほうが、セッションの成り立ちそのものを捉えます
+- 本文のどこかにマーカー行があれば削除する — 却下。実測で 464 件が余計に一致し、
+  filter-chatlogs を議論したセッション（DR-41 の 14 件に相当）まで消えます
+- strip で削除する — 却下。strip はファイルを書き換えるだけで削除を持たず、退避（`.bak`）と復旧の仕組みも書き換え前提です
+
+**Consequences**: バッチ判定由来の 923 件が noise-filter で削除されるようになります。DR-41 の案 D を、
+先頭行がマーカーである場合に限って採り直す形です。DR-41 の決定（R-018）そのものは変えません。
+`classifyConversation` の呼び出し元は noise-filter の `_phase2ClassifyConversations` だけなので、
+filter（AI 判定）側の振る舞いは変わりません。
+検証は `T-PF-PC-01` 〜 `T-PF-PC-03` と `T-PF-CC-04-01`（`libs/__tests__/unit/classify-file.unit.spec.ts`）が担います。
+
+> 出典: beads `cle-0ra3`（GitHub #531） / 前提は strip DR-41・DR-44
+
+---
+
 ## Change History
 
 | Date       | Version | Description                                                                                                                                                         |
@@ -559,5 +615,6 @@ subindex は `CountMismatch` が `MissingFile` / `ConflictingDecision` に置き
 | 2026-09-30 | 1.6.0   | DR-08 を追加。llama 経路の応答契約違反を実行失敗から切り離し再要求対象とする決定を記録                                                                              |
 | 2026-10-05 | 1.6.1   | DR-05 の Context と決定 3 を gh-484（libs/text DR-01）後の現状へ追随。filter が `{ allowEmpty: true }` を明示する形を記録（cle-jkn.5）                              |
 | 2026-10-05 | 2.0.0   | DR-09 を追加し、DR-06 決定 5 を改訂・決定 6 を廃止（MAJOR: 採用済み DR の一部を置き換え）。応答の妥当性を要素数ではなくファイル名の照合で判定する（cle-kju.3.3.12） |
+| 2026-10-16 | 2.1.0   | DR-10 を追加。過去ログ貼り付けで始まるセッションを noise-filter で削除する決定を記録。strip DR-41 の案 D を先頭行マーカーに限って採り直す（cle-0ra3）               |
 
 <!-- markdownlint-enable line-length -->

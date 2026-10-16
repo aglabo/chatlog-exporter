@@ -11,49 +11,86 @@ import { ChatlogError } from '../../classes/ChatlogError.class.ts';
 // types
 import type { LlamaResponseBody } from '../../types/llama-response.types.ts';
 
-// ─── Internal helpers
+// ─── Types
 
-// constants
-/**
- * バックエンドが過負荷であることを示す HTTP ステータス（error-handling §4.1 Step 2 / R-002）。
- *
- * 429 はレート制限、503 / 504 はモデルロード・キュー詰まり等による一時的な過負荷を示す。
- * 恒久的な失敗と区別して呼び出し元の中断ロジックへ伝えるため、`RateLimit` に写像する（DD-01 / DR-18）。
- */
-const _RATE_LIMIT_STATUSES: readonly number[] = [429, 503, 504];
+/** HTTP ステータスから引く失敗分類（error-handling §4.1 Step 2〜5）。 */
+type _StatusFailure = {
+  subindex: 'RateLimit' | 'BackendUnavailable' | 'ResponseFormatRejected';
+  /** `: HTTP <status>` を除いたメッセージ本体。status は throw 時に埋め込む */
+  message: string;
+  /** 本文で追加判定する場合のみ持つ（Step 5: 400 は response_format 拒否と判別できたときだけ該当） */
+  matches?: (raw: string) => boolean;
+};
 
-/**
- * エンドポイントを実装していないことを示す HTTP ステータス（error-handling §4.1 Step 3 / R-006）。
- *
- * 404 は指定したパスにエンドポイントが無いこと、501 はサーバがその操作を実装していないことを示す。
- * いずれも後続の呼び出しが同じ結果になるため、中断側として扱う（DR-18）。
- */
-const _UNIMPLEMENTED_ENDPOINT_STATUSES: readonly number[] = [404, 501];
-
-/**
- * サーバが認証を要求していることを示す HTTP ステータス（error-handling §4.1 Step 4 / R-007）。
- *
- * 401 は認証情報が無い・無効であること、403 は認証情報では許可されない操作であることを示す。
- * 仕様 §2 Assumptions の「認証を要求しない構成」という前提が崩れた場合にあたり、
- * 設定を変えない限り後続もすべて失敗するため、中断側として扱う（DR-18）。
- */
-const _AUTH_REQUIRED_STATUSES: readonly number[] = [401, 403];
-
-/**
- * `response_format` の拒否を示す HTTP ステータス（error-handling §4.1 Step 5 / R-008）。
- *
- * 400 のうち本文から拒否と判別できたものだけが中断側の `ResponseFormatRejected` に落ち、
- * 判別できないものは Step 6 で続行側の `ExitFailure` になる。
- */
-const _RESPONSE_FORMAT_REJECTED_STATUS = 400;
-
+// ─── Constants
+// markers
 /**
  * `response_format` の拒否を示す `error.message` の接頭辞（DR-33 決定 1）。
  *
  * llama-server が JSON schema を grammar へ変換できなかったときの文言。後続に改行と詳細が続くため、
  * 正規表現ではなく `startsWith` で照合する。
  */
-const _RESPONSE_FORMAT_REJECTION_MESSAGE_PREFIX = 'JSON schema conversion failed';
+const _MARKER_RESPONSE_FORMAT_REJECTION = 'JSON schema conversion failed';
+
+/**
+ * TLS 証明書の検証失敗を示す、`fetch` の原因エラーメッセージ中の語（DR-26 決定 1）。
+ *
+ * Deno が用いる rustls の文言。自己署名証明書のサーバへ `fetch` して実測した
+ * `... client error (Connect): invalid peer certificate: Other(...)` に由来する。
+ */
+const _MARKER_TLS_VERIFICATION_FAILURE = 'invalid peer certificate';
+
+// status failures（error-handling §4.1 Step 2〜5）
+/**
+ * Step 2 / R-002: 429 はレート制限、503 / 504 はモデルロード・キュー詰まり等による一時的な過負荷。
+ * 恒久的な失敗と区別して呼び出し元の並列実行の中断ロジックへ伝えるため `RateLimit` に写像する（DD-01 / DR-18）。
+ */
+const _FAILURE_OVERLOADED: _StatusFailure = { subindex: 'RateLimit', message: 'llama backend is overloaded' };
+
+/**
+ * Step 3 / R-006: 404 はパスにエンドポイントが無い、501 はサーバが操作を実装していない。
+ * 後続の呼び出しも同じ結果になるため中断側として扱う（DR-18）。
+ */
+const _FAILURE_ENDPOINT_NOT_IMPLEMENTED: _StatusFailure = {
+  subindex: 'BackendUnavailable',
+  message: 'llama endpoint is not implemented',
+};
+
+/**
+ * Step 4 / R-007: 401 は認証情報が無い・無効、403 は認証情報では許可されない操作。
+ * 仕様 §2 Assumptions の「認証を要求しない構成」という前提が崩れた場合にあたり、設定を変えない限り
+ * 後続もすべて失敗するため中断側として扱う（DR-18）。404 や到達不能と読み分けられるよう
+ * メッセージに前提の崩れを記す（Edge error-handling-9）。
+ */
+const _FAILURE_AUTH_REQUIRED: _StatusFailure = {
+  subindex: 'BackendUnavailable',
+  message: 'llama backend requires authentication, but the configuration assumes no authentication',
+};
+
+/**
+ * Step 5 / R-008: 400 のうち本文から `response_format` の拒否と判別できたものだけを中断側にする（DR-33）。
+ * 判別できないものは Step 6 で続行側の `ExitFailure` になる。
+ */
+const _FAILURE_RESPONSE_FORMAT_REJECTED: _StatusFailure = {
+  subindex: 'ResponseFormatRejected',
+  message: 'llama backend rejected the requested response_format',
+  // 関数は定数より後方で定義される const のため、評価時の TDZ を避けて呼び出し時に参照する
+  matches: (raw) => _isResponseFormatRejection(raw),
+};
+
+/** 中断側に写像する HTTP ステータスの表（error-handling §4.1 Step 2〜5）。ここに無いステータスは Step 6 へ落ちる */
+const _FAILURE_BY_STATUS: Readonly<Record<number, _StatusFailure>> = {
+  400: _FAILURE_RESPONSE_FORMAT_REJECTED,
+  401: _FAILURE_AUTH_REQUIRED,
+  403: _FAILURE_AUTH_REQUIRED,
+  404: _FAILURE_ENDPOINT_NOT_IMPLEMENTED,
+  429: _FAILURE_OVERLOADED,
+  501: _FAILURE_ENDPOINT_NOT_IMPLEMENTED,
+  503: _FAILURE_OVERLOADED,
+  504: _FAILURE_OVERLOADED,
+};
+
+// ─── Response interpretation（error-handling §4.1 Step 2〜7）
 
 /**
  * HTTP 400 の応答本文が `response_format` の拒否を示すかを判定する（error-handling §4.1 Step 5 / R-008）。
@@ -83,7 +120,36 @@ const _isResponseFormatRejection = (body: string): boolean => {
     return false;
   }
   const _message = (_payload as { error?: { message?: unknown } | null } | null)?.error?.message;
-  return typeof _message === 'string' && _message.startsWith(_RESPONSE_FORMAT_REJECTION_MESSAGE_PREFIX);
+  return typeof _message === 'string' && _message.startsWith(_MARKER_RESPONSE_FORMAT_REJECTION);
+};
+
+/**
+ * HTTP ステータスを失敗分類へ写像し、非成功なら throw する（error-handling §4.1 Step 2〜6）。
+ *
+ * Step 2〜5 は `_FAILURE_BY_STATUS` をステータスで引き、該当すれば（本文判定を持つものはそれも満たせば）
+ * 中断側として throw する。本文の形によらずステータスで打ち切る。
+ * 中断側（`RateLimit` / `BackendUnavailable` / `ResponseFormatRejected`）に当たらない非成功ステータス
+ * （判別できない 400 や 3xx を含む）は、Step 6 で続行側の `ExitFailure` になる（R-003 / DR-18）。
+ *
+ * @param response - chat completions の応答
+ * @param raw - 応答の生本文（Step 5 の判別に使う）
+ * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'RateLimit'`（中断側、Step 2）
+ * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'BackendUnavailable'`（中断側、Step 3 / Step 4）
+ * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'ResponseFormatRejected'`（中断側、Step 5）
+ * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'ExitFailure'`（続行側、Step 6）
+ */
+const _assertSuccessStatus = (response: Response, raw: string): void => {
+  const _status = response.status;
+  // Step 2〜5: 表に該当し、本文判定を持つ場合はそれも満たすときだけ中断側にする
+  const _failure = _FAILURE_BY_STATUS[_status];
+  if (_failure && (_failure.matches?.(raw) ?? true)) {
+    throw new ChatlogError('AiError', _failure.subindex, `${_failure.message}: HTTP ${_status}`);
+  }
+
+  // Step 6 / R-003: 上記いずれにも該当しない非成功ステータスは続行側（DR-18）。
+  if (!response.ok) {
+    throw new ChatlogError('AiError', 'ExitFailure', `llama request failed: HTTP ${_status}`);
+  }
 };
 
 /**
@@ -100,6 +166,35 @@ const _isResponseFormatRejection = (body: string): boolean => {
  */
 const _isJsonContentType = (value: string | null): boolean =>
   value?.split(';')[0].trim().toLowerCase() === 'application/json';
+
+/**
+ * 成功応答の本文を JSON として解釈する（error-handling §4.1 Step 6.5 / DR-26 決定 2）。
+ *
+ * `Content-Type` が JSON 系でない・ヘッダが欠落している・本文を JSON として parse できない場合は、
+ * サーバが送信したフィールドを honour しておらず後続の呼び出しも同じ結果になるため、
+ * 中断側の `BackendUnavailable` として throw する。
+ *
+ * @param response - chat completions の応答（ステータス分類済み）
+ * @param raw - 応答の生本文
+ * @returns JSON パース済みの応答ボディ
+ * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'BackendUnavailable'`（中断側）
+ */
+const _parseJsonResponse = (response: Response, raw: string): unknown => {
+  const _contentType = response.headers.get('Content-Type');
+  if (!_isJsonContentType(_contentType)) {
+    throw new ChatlogError(
+      'AiError',
+      'BackendUnavailable',
+      `llama response Content-Type is not JSON: ${_contentType ?? '(missing)'}`,
+    );
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new ChatlogError('AiError', 'BackendUnavailable', 'llama response body is not valid JSON');
+  }
+};
 
 /**
  * chat completions 応答ボディからアシスタントテキストを取り出す（error-handling §4.1 Step 7 / R-004）。
@@ -145,38 +240,25 @@ const _extractAssistantText = (payload: unknown): string => {
  * 採用するのは `choices[0]` のみで、2 番目以降は無視する（AC-017）。
  *
  * 分類は error-handling §4.1 の Step 順に評価する（Rule ID 順ではない。implementation §4.3）。
- * まず Step 2 で HTTP ステータスが 429 / 503 / 504 の応答を中断側の `RateLimit` として throw する
- * （error-handling §4.1 Step 2 / R-002 / DD-01）。過負荷は恒久的な設定ミスと区別して
- * 呼び出し元の並列実行の中断ロジックへ伝える必要があるため、本文の形によらずここで打ち切る。
- * 次に Step 3 で HTTP ステータスが 404 / 501 の応答を中断側の `BackendUnavailable` として throw する
- * （error-handling §4.1 Step 3 / R-006 / DR-18）。エンドポイントを実装していないことを示し、
- * 後続の呼び出しも同じ結果になるため、本文の形によらずここで打ち切る。
- * 次に Step 4 で HTTP ステータスが 401 / 403 の応答を中断側の `BackendUnavailable` として throw する
- * （error-handling §4.1 Step 4 / R-007 / DR-18）。仕様 §2 Assumptions の「認証を要求しない構成」という
- * 前提が崩れた場合にあたるため、404 や到達不能と読み分けられるようメッセージに前提の崩れを記す
- * （Edge error-handling-9）。
- * 次に Step 5 で HTTP ステータスが 400 かつ本文から `response_format` の拒否と判別できる応答を
- * 中断側の `ResponseFormatRejected` として throw する（error-handling §4.1 Step 5 / R-008）。
- * 判別は `_isResponseFormatRejection` が担い、`error.message` の接頭辞で読み分ける（DR-33）。
- * 最後に Step 6 で、上記いずれにも該当しない非成功ステータス（判別できない 400 を含む）を
- * 続行側の `ExitFailure` として throw する（error-handling §4.1 Step 6 / R-003 / DR-18）。
+ * Step 2〜6 のステータス分類は `_assertSuccessStatus`、Step 6.5 のゲートは `_parseJsonResponse`、
+ * Step 7 の本文解釈は `_extractAssistantText`（R-004）が担う。
  *
- * 次に Step 7 の本文解釈の前に、Step 6.5 のゲートを通す（error-handling §4.1 Step 6.5 / DR-26 決定 2）。
- * `Content-Type` が JSON 系でない・ヘッダが欠落している・本文を JSON として parse できない場合は、
- * サーバが送信したフィールドを honour しておらず後続の呼び出しも同じ結果になるため、
- * 中断側の `BackendUnavailable` として throw する。
- *
- * ゲートを通った応答のみ Step 7 に進み、アシスタントテキストを取り出せない場合は
- * `_extractAssistantText` が続行側として分類する（error-handling §4.1 Step 7 / R-004）。
+ * Step 6.5 で本文を JSON として parse できた直後、Step 7 の前に `onPayload` を呼ぶ。
+ * Step 7 で失敗する応答の診断（`formatLlamaFailureDiagnostics`）に parse 済み本文を渡すためで、
+ * 分類と throw には影響しない（gh-528）。
  *
  * @param response - chat completions の応答
+ * @param onPayload - parse 済み応答本文を受け取るコールバック。Step 6.5 を通過した場合のみ 1 回呼ばれる
  * @returns `choices[0]` のアシスタントテキスト
  * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'RateLimit'`（中断側、Step 2）
  * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'BackendUnavailable'`（中断側、Step 3 / Step 4 / Step 6.5）
  * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'ResponseFormatRejected'`（中断側、Step 5）
  * @throws {ChatlogError} `kind: 'AiError'` / `subindex: 'ExitFailure'`（続行側、Step 6 / Step 7）
  */
-export const interpretLlamaResponse = async (response: Response): Promise<string> => {
+export const interpretLlamaResponse = async (
+  response: Response,
+  onPayload?: (payload: unknown) => void,
+): Promise<string> => {
   let _raw = '';
   try {
     _raw = await response.text();
@@ -186,73 +268,13 @@ export const interpretLlamaResponse = async (response: Response): Promise<string
     // BackendUnavailable に落ちる（サーバが本文を送り切れなかったことの正しい分類）。
   }
 
-  if (_RATE_LIMIT_STATUSES.includes(response.status)) {
-    throw new ChatlogError(
-      'AiError',
-      'RateLimit',
-      `llama backend is overloaded: HTTP ${response.status}`,
-    );
-  }
-
-  if (_UNIMPLEMENTED_ENDPOINT_STATUSES.includes(response.status)) {
-    throw new ChatlogError(
-      'AiError',
-      'BackendUnavailable',
-      `llama endpoint is not implemented: HTTP ${response.status}`,
-    );
-  }
-
-  if (_AUTH_REQUIRED_STATUSES.includes(response.status)) {
-    throw new ChatlogError(
-      'AiError',
-      'BackendUnavailable',
-      `llama backend requires authentication, but the configuration assumes no authentication: HTTP ${response.status}`,
-    );
-  }
-
-  if (response.status === _RESPONSE_FORMAT_REJECTED_STATUS && _isResponseFormatRejection(_raw)) {
-    throw new ChatlogError(
-      'AiError',
-      'ResponseFormatRejected',
-      `llama backend rejected the requested response_format: HTTP ${response.status}`,
-    );
-  }
-
-  if (!response.ok) {
-    throw new ChatlogError(
-      'AiError',
-      'ExitFailure',
-      `llama request failed: HTTP ${response.status}`,
-    );
-  }
-
-  const _contentType = response.headers.get('Content-Type');
-
-  if (!_isJsonContentType(_contentType)) {
-    throw new ChatlogError(
-      'AiError',
-      'BackendUnavailable',
-      `llama response Content-Type is not JSON: ${_contentType ?? '(missing)'}`,
-    );
-  }
-
-  let _payload: unknown;
-  try {
-    _payload = JSON.parse(_raw);
-  } catch {
-    throw new ChatlogError('AiError', 'BackendUnavailable', 'llama response body is not valid JSON');
-  }
-
+  _assertSuccessStatus(response, _raw);
+  const _payload = _parseJsonResponse(response, _raw);
+  onPayload?.(_payload);
   return _extractAssistantText(_payload);
 };
 
-/**
- * TLS 証明書の検証失敗を示す、`fetch` の原因エラーメッセージ中の語（DR-26 決定 1）。
- *
- * Deno が用いる rustls の文言。自己署名証明書のサーバへ `fetch` して実測した
- * `... client error (Connect): invalid peer certificate: Other(...)` に由来する。
- */
-const _TLS_VERIFICATION_FAILURE_MARKER = 'invalid peer certificate';
+// ─── Fetch failure mapping（error-handling §4.1 Step 1）
 
 /**
  * reject 値とその `cause` チェーンを根まで並べる（error-handling §4.1 Step 1 / DR-26 決定 1）。
@@ -292,7 +314,7 @@ const _errorChain = (e: unknown): Error[] => {
  */
 const _isRuntimeFailure = (e: unknown): boolean =>
   _errorChain(e).some((error) =>
-    error instanceof Deno.errors.NotCapable || error.message.includes(_TLS_VERIFICATION_FAILURE_MARKER)
+    error instanceof Deno.errors.NotCapable || error.message.includes(_MARKER_TLS_VERIFICATION_FAILURE)
   );
 
 /**
@@ -333,4 +355,45 @@ export const mapLlamaFetchFailure = (e: unknown): never => {
   }
 
   throw new ChatlogError('AiError', 'BackendUnavailable', `llama backend is unreachable: ${_describeFailure(e)}`);
+};
+
+// ─── Failure diagnostics（debug 用, gh-528）
+
+/**
+ * debug 時の失敗診断用に、parse 済み応答本文を 1 行の文字列へまとめる（gh-528）。
+ *
+ * `finish_reason=length` による打ち切りで `max_tokens` を見直す根拠を取るため、
+ * `usage.completion_tokens` と打ち切られた本文を突き合わせられるよう、
+ * `max_tokens`・`finish_reason`・`completion_tokens`・`content` 全文をこの順で並べる。
+ * `completion_tokens` が数値でない（`usage` 欠落を含む）場合と `content` が文字列でない場合は `(missing)` と示す。
+ * `content` は切り詰めずに `JSON.stringify` で引用・エスケープし、改行を含んでも 1 行に収める。
+ *
+ * @param payload - JSON パース済みの応答ボディ
+ * @param maxTokens - リクエストに指定した `max_tokens`
+ * @returns 診断用の 1 行文字列
+ */
+export const formatLlamaFailureDiagnostics = (payload: unknown, maxTokens: number): string => {
+  const _body = payload as LlamaResponseBody | null | undefined;
+  const _choice = _body?.choices?.[0];
+  const _content = _choice?.message?.content;
+  const _completionTokens = _body?.usage?.completion_tokens;
+  const _tokensText = typeof _completionTokens === 'number' ? String(_completionTokens) : '(missing)';
+  const _contentText = typeof _content === 'string' ? JSON.stringify(_content) : '(missing)';
+  return `max_tokens=${maxTokens} finish_reason=${_choice?.finish_reason} completion_tokens=${_tokensText} content=${_contentText}`;
+};
+
+/**
+ * debug 時の失敗診断用に、parse 済み応答本文の `usage`・`finish_reason`・`message` を生のまま 1 行の JSON にする（gh-528）。
+ *
+ * `formatLlamaFailureDiagnostics` が数値・文字列に絞って出す項目を補い、`usage` 全体と
+ * `message` 全体（`tool_calls` 等の `content` 以外のキーを含む）をサーバ応答のまま残す。
+ * 欠落した項目は `JSON.stringify` によりキーごと省かれる。
+ *
+ * @param payload - JSON パース済みの応答ボディ
+ * @returns 診断用の 1 行 JSON 文字列
+ */
+export const formatLlamaFailureRawResponse = (payload: unknown): string => {
+  const _body = payload as LlamaResponseBody | null | undefined;
+  const _choice = _body?.choices?.[0];
+  return JSON.stringify({ usage: _body?.usage, finish_reason: _choice?.finish_reason, message: _choice?.message });
 };

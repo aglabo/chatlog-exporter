@@ -1100,14 +1100,14 @@ describe('segmentChatlogs — llama 中断側判定（isAbortingAiError）', () 
  *
  * `options.aiRunnerProvider` へ呼び出しオプションを捕捉するスタブを注入し、
  * structured-output §4.3.1 #3 の契約定義が `outputContract` として渡ることを検証する。
- * `maxTokens` は 1 ファイルあたり 4096 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
+ * `maxTokens` は 1 ファイルあたり 2048 に、その呼び出しに載せたファイル数を掛けた値になる（ai-backend DR-37）。
  * 期待値は定数を参照せず数値リテラルで書き、定数値の変更を検出できるようにする。
  *
  * @see segmentChatlogs
  */
 describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', () => {
   describe('When: 正常系', () => {
-    it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約と maxTokens 4096 が渡る', async () => {
+    it('[Normal] T-NC-OCT-01-01: runAI の options.outputContract に segments 要素 4 キーまで定義した json-array 契約と maxTokens 2048 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
 
@@ -1136,11 +1136,11 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
             },
           },
         },
-        maxTokens: 4096,
+        maxTokens: 2048,
       });
     });
 
-    it('[Normal] T-NC-OCT-01-02: 2 ファイルを載せた呼び出しでは maxTokens 8192 が渡る', async () => {
+    it('[Normal] T-NC-OCT-01-02: 2 ファイルを載せた呼び出しでは maxTokens 4096 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = [_makeEntry('/tmp/a.md', 'content a'), _makeEntry('/tmp/b.md', 'content b')];
@@ -1150,12 +1150,12 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 8192);
+      assertEquals(captured[0].outputContract?.maxTokens, 4096);
     });
   });
 
   describe('When: 異常系', () => {
-    it('[Error] T-NC-OCT-01-03: AI 実行が Error で失敗しても呼び出し時の maxTokens は 3 ファイル分の 12288 で、全件 null の Map が返る', async () => {
+    it('[Error] T-NC-OCT-01-03: AI 実行が Error で失敗しても呼び出し時の maxTokens は 3 ファイル分の 6144 で、全件 null の Map が返る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = ['a', 'b', 'c'].map((name) => _makeEntry(`/tmp/${name}.md`, `content ${name}`));
@@ -1168,14 +1168,14 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 12288);
+      assertEquals(captured[0].outputContract?.maxTokens, 6144);
       assertEquals(result.size, 3);
       inputs.forEach((entry) => assertNull(result.get(entry.filePath!)));
     });
   });
 
   describe('When: エッジケース', () => {
-    it('[Edge] T-NC-OCT-01-04: chunkSize 上限の 10 ファイルを載せた呼び出しでは maxTokens 40960 が渡る', async () => {
+    it('[Edge] T-NC-OCT-01-04: chunkSize 上限の 10 ファイルを載せた呼び出しでは maxTokens 20480 が渡る', async () => {
       // arrange
       const captured: RunAIOptions[] = [];
       const inputs = Array.from(
@@ -1188,7 +1188,7 @@ describe('segmentChatlogs — 出力契約（structured-output §4.3.1 #3）', (
 
       // assert
       assertEquals(captured.length, 1);
-      assertEquals(captured[0].outputContract?.maxTokens, 40960);
+      assertEquals(captured[0].outputContract?.maxTokens, 20480);
     });
 
     it('[Edge] T-NC-OCT-01-05: inputs が空配列のとき AI を一度も呼ばず空の Map を返す', async () => {

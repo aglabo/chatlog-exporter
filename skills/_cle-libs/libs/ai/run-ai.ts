@@ -16,7 +16,12 @@ import { logger } from '../io/logger.ts';
 import { assertEndpointAcceptable, normalizeEndpointUrl } from './endpoint-utils.ts';
 import { fetchLlama } from './llama-fetch.ts';
 import { buildLlamaRequest } from './llama-request-builder.ts';
-import { interpretLlamaResponse, mapLlamaFetchFailure } from './llama-response.ts';
+import {
+  formatLlamaFailureDiagnostics,
+  formatLlamaFailureRawResponse,
+  interpretLlamaResponse,
+  mapLlamaFetchFailure,
+} from './llama-response.ts';
 import { getAiBackend, isEmptyLlamaModelId, parseModel } from './model-utils.ts';
 import { parseContractPayload, restoreContractText, validateOutputContract } from './output-contract.ts';
 
@@ -316,6 +321,9 @@ const _runViaCli = async (
  * 経路依存の中段。transport §4.1 の Step 3〜7.5 を担う。エンドポイント検証 → URL 正規化 →
  * リクエスト構成 → 送信 → 応答解釈 → JSON parse → 契約検証 → 契約に基づく復元の順に処理する。中断シグナルの合成やタイマーの生成・解放は
  * 行わない（前段 / 後段の責務）。送信関数は `options.fetchProvider ?? fetch` を呼び出し時に解決する。
+ * 応答本文を parse できた後の失敗では、debug 有効時に `failure-response` 行（max_tokens / finish_reason /
+ * completion_tokens / content 全文）と `failure-response-raw` 行（usage / finish_reason / message の生 JSON）を
+ * trace へ出してから再 throw する。
  *
  * **export しない（module-private）**。
  *
@@ -349,12 +357,25 @@ const _runViaHttp = async (
     mapLlamaFetchFailure,
   );
   trace(`http-headers status=${_response.status}`);
-  const _text = await interpretLlamaResponse(_response);
-  trace('http-body-complete');
-  const _payload = parseContractPayload(_text);
-  // buildLlamaRequest が契約なしで throw するため、ここでは契約が存在する
-  validateOutputContract(_contract!, _payload);
-  return restoreContractText(_contract!, _payload);
+  let _responseBody: unknown;
+  try {
+    const _text = await interpretLlamaResponse(_response, (payload) => {
+      _responseBody = payload;
+    });
+    trace('http-body-complete');
+    const _payload = parseContractPayload(_text);
+    // buildLlamaRequest が契約なしで throw するため、ここでは契約が存在する
+    validateOutputContract(_contract!, _payload);
+    return restoreContractText(_contract!, _payload);
+  } catch (e) {
+    // 応答本文を parse できた後の失敗だけ診断する（gh-528）。trace は debug 無効時 no-op。
+    // max_tokens は buildLlamaRequest が契約の maxTokens を無補正で載せる（DR-37）ため契約値を使う
+    if (_responseBody !== undefined) {
+      trace(`failure-response ${formatLlamaFailureDiagnostics(_responseBody, _contract!.maxTokens)}`);
+      trace(`failure-response-raw ${formatLlamaFailureRawResponse(_responseBody)}`);
+    }
+    throw e;
+  }
 };
 
 /**

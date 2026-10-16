@@ -1,6 +1,7 @@
 // src: scripts/__tests__/unit/libs/classify-file.unit.spec.ts
 // @(#): classify-file.ts のユニットテスト
-//       対象: checkFilename / checkUserContent / checkConversationPattern / checkPromptContent / checkAssistantContent
+//       対象: checkFilename / checkUserContent / checkConversationPattern / checkPromptContent / checkAssistantContent /
+//             checkPastedChatlog / classifyConversation
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -17,6 +18,7 @@ import {
   checkAssistantContent,
   checkConversationPattern,
   checkFilename,
+  checkPastedChatlog,
   checkPromptContent,
   checkUserContent,
   classifyConversation,
@@ -1401,16 +1403,156 @@ describe('readConversation', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// checkPastedChatlog
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `checkPastedChatlog` のユニットテストスイート。
+ *
+ * 先頭 User ターンの最初の非空行が貼り付けマーカー行（行全体一致）のときに
+ * reason を返し、それ以外（マーカー無し・User ターン無し・2 行目以降や行中の引用・
+ * 2 番目以降の User ターン）では null を返すことを検証する。
+ *
+ * テスト ID 範囲: T-PF-PC-01 〜 T-PF-PC-03
+ *
+ * @see checkPastedChatlog
+ */
+describe('checkPastedChatlog', () => {
+  /** 先頭 User ターンの最初の非空行が貼り付けマーカー行で、reason を返すケース。 */
+  describe('When: 正常系', () => {
+    const _cases: Array<{ id: string; label: string; turns: Turn[] }> = [
+      {
+        id: 'T-PF-PC-01-01',
+        label: '先頭行が <<<CHATLOG file="a.md">>>',
+        turns: [
+          { role: 'user', content: '<<<CHATLOG file="a.md">>>\n## User\n\nこんにちは' },
+          { role: 'assistant', content: '回答' },
+        ],
+      },
+      {
+        id: 'T-PF-PC-01-02',
+        label: '先頭行が # <<<CHATLOG file="a.md">>> #',
+        turns: [
+          { role: 'user', content: '# <<<CHATLOG file="a.md">>> #\n## User\n\nこんにちは' },
+          { role: 'assistant', content: '回答' },
+        ],
+      },
+      {
+        id: 'T-PF-PC-01-03',
+        label: '先頭行が === a.md ===',
+        turns: [
+          { role: 'user', content: '=== a.md ===\n\n過去ログ本文' },
+          { role: 'assistant', content: '回答' },
+        ],
+      },
+    ];
+
+    for (const { id, label, turns } of _cases) {
+      it(`[Normal] ${id}: ${label} → '過去ログ貼り付けセッション'`, () => {
+        assertEquals(checkPastedChatlog(turns), '過去ログ貼り付けセッション');
+      });
+    }
+  });
+
+  /** マーカー行が無い、または User ターンが無く、null を返すケース。 */
+  describe('When: 異常系', () => {
+    const _cases: Array<{ id: string; label: string; turns: Turn[] }> = [
+      {
+        id: 'T-PF-PC-02-01',
+        label: 'マーカーを含まない通常の依頼文',
+        turns: [
+          { role: 'user', content: 'この関数の設計についてどう思いますか？' },
+          { role: 'assistant', content: '回答' },
+        ],
+      },
+      {
+        id: 'T-PF-PC-02-02',
+        label: 'User ターンが存在しない',
+        turns: [{ role: 'assistant', content: '回答' }],
+      },
+    ];
+
+    for (const { id, label, turns } of _cases) {
+      it(`[Error] ${id}: ${label} → null`, () => {
+        assertNull(checkPastedChatlog(turns));
+      });
+    }
+  });
+
+  /** 「最初の非空行」「行全体一致」「先頭 User ターン」の境界を検証するケース。 */
+  describe('When: エッジケース', () => {
+    const _cases: Array<{ id: string; label: string; turns: Turn[]; expected: string | null }> = [
+      {
+        id: 'T-PF-PC-03-01',
+        label: '空行・空白のみの行の後にマーカー行',
+        turns: [
+          { role: 'user', content: '\n   \n<<<CHATLOG file="a.md">>>\n## User\n\nこんにちは' },
+          { role: 'assistant', content: '回答' },
+        ],
+        expected: '過去ログ貼り付けセッション',
+      },
+      {
+        id: 'T-PF-PC-03-02',
+        label: 'マーカーが 2 行目以降に引用されている',
+        turns: [
+          {
+            role: 'user',
+            content: 'filter のバッチプロンプトについて相談です。\n<<<CHATLOG file="a.md">>>\nという行が入ります。',
+          },
+          { role: 'assistant', content: '回答' },
+        ],
+        expected: null,
+      },
+      {
+        id: 'T-PF-PC-03-03',
+        label: 'マーカー行の同じ行に後続テキストがある',
+        turns: [
+          { role: 'user', content: '<<<CHATLOG file="a.md">>> 説明\n本文' },
+          { role: 'assistant', content: '回答' },
+        ],
+        expected: null,
+      },
+      {
+        id: 'T-PF-PC-03-04',
+        label: 'マーカーが行の途中に引用されている',
+        turns: [
+          { role: 'user', content: '入力は <<<CHATLOG file="a.md">>> で囲まれています。' },
+          { role: 'assistant', content: '回答' },
+        ],
+        expected: null,
+      },
+      {
+        id: 'T-PF-PC-03-05',
+        label: '2 番目の User ターンの先頭のみマーカー行',
+        turns: [
+          { role: 'user', content: 'ログを貼ります。' },
+          { role: 'assistant', content: 'どうぞ。' },
+          { role: 'user', content: '<<<CHATLOG file="a.md">>>\n## User\n\nこんにちは' },
+          { role: 'assistant', content: '回答' },
+        ],
+        expected: null,
+      },
+    ];
+
+    for (const { id, label, turns, expected } of _cases) {
+      it(`[Edge] ${id}: ${label} → ${expected === null ? 'null' : `'${expected}'`}`, () => {
+        assertEquals(checkPastedChatlog(turns), expected);
+      });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // classifyConversation
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * `classifyConversation` のユニットテストスイート。
  *
- * checkUserContent → checkConversationPattern → checkPromptContent → checkAssistantContent
+ * checkPastedChatlog → checkUserContent → checkConversationPattern → checkPromptContent → checkAssistantContent
  * の優先順位で最初に一致した reason を返すこと、いずれも一致しない場合に null を返すことを検証する。
  *
- * テスト ID 範囲: T-PF-CC-01 〜 T-PF-CC-02
+ * テスト ID 範囲: T-PF-CC-01 〜 T-PF-CC-04
  *
  * @see classifyConversation
  */
@@ -1444,6 +1586,20 @@ describe('classifyConversation', () => {
 
       assertNull(result);
     });
+
+    it(
+      '[Normal] T-PF-CC-04-01: 先頭 User ターンが貼り付けマーカー行 + 短い Assistant 応答 → checkPastedChatlog の reason を優先する',
+      () => {
+        const turns = _makeTurns([
+          { role: 'user', content: '<<<CHATLOG file="a.md">>>\n## User\n\nこんにちは' },
+          { role: 'assistant', content: '短い' },
+        ]);
+
+        const result = classifyConversation(turns);
+
+        assertEquals(result, '過去ログ貼り付けセッション');
+      },
+    );
   });
 
   /** checkUserContent は一致せず checkConversationPattern が一致するケース（優先順位の検証）。 */

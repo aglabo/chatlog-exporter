@@ -37,6 +37,8 @@ import {
   PREAMBLE_RESIDUE_PATTERNS,
   SYSTEM_TAG_REGEX,
 } from '../constants/patterns.constants.ts';
+// functions
+import { isPasteMarkerLine } from './strip-boundary.ts';
 // types
 import { FILTER_DECISIONS } from '../types/filter-decision.const.types.ts';
 import type { NoiseDiscardFile } from '../types/noise-filter.types.ts';
@@ -209,6 +211,25 @@ export const checkPromptContent = (conversation: Conversation): string | null =>
   return _matchUserPattern(_userTurns[0].content, NOISE_PROMPT_PATTERNS);
 };
 
+/**
+ * 先頭 User ターンが過去ログの貼り付けで始まるセッションかどうかを判定する。
+ *
+ * 先頭 User ターンの最初の非空行（`trim()` が空でない行）を取り出し、
+ * その行自体を `isPasteMarkerLine` で行全体一致判定する。
+ * 2 行目以降や行中に引用されたマーカー、2 番目以降の User ターンのマーカーは対象外。
+ * `classifyConversation` 経由では `stripPreamble` 適用後の会話を受け取るため、先頭 User ターンは
+ * Codex プリアンブルを除いた後の先頭になる。
+ *
+ * @param conversation - 解析済みの会話ターン配列
+ * @returns 貼り付けマーカー行で始まる場合は判定理由の文字列、それ以外は `null`
+ */
+export const checkPastedChatlog = (conversation: Conversation): string | null => {
+  const _userTurns = getUserTurns(conversation);
+  if (_userTurns.length === 0) { return null; }
+  const _firstLine = _userTurns[0].content.split('\n').find((line) => line.trim() !== '');
+  return _firstLine !== undefined && isPasteMarkerLine(_firstLine) ? '過去ログ貼り付けセッション' : null;
+};
+
 export const checkAssistantContent = (conversation: Conversation): string | null => {
   if (isSingleUserTurn(conversation)) {
     const _assistantTurns = getAssistantTurns(conversation);
@@ -248,7 +269,7 @@ export const readConversation = (text: string): Conversation => {
 };
 
 /**
- * 会話に対して User本文・会話パターン・プロンプトパターン・Assistant応答長のチェックを順に適用する。
+ * 会話に対して過去ログ貼り付け・User本文・会話パターン・プロンプトパターン・Assistant応答長のチェックを順に適用する。
  *
  * 各チェックは「User ターンが 1 件」または「先頭 User ターン」を前提とするため、
  * 判定の前に `stripPreamble` で Codex 注入のプリアンブルを取り除いて正規化する。
@@ -258,7 +279,8 @@ export const readConversation = (text: string): Conversation => {
  */
 export const classifyConversation = (conversation: Conversation): string | null => {
   const _conv = stripPreamble(conversation);
-  return checkUserContent(_conv)
+  return checkPastedChatlog(_conv)
+    ?? checkUserContent(_conv)
     ?? checkConversationPattern(_conv)
     ?? checkPromptContent(_conv)
     ?? checkAssistantContent(_conv);
