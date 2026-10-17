@@ -25,25 +25,25 @@ import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
 /**
  * バッファエントリに対して AI 不要なケースの事前分類を行い、判定結果を `cache` に書き込む。
- * - frontmatter の `project` フィールドが `projects`（プロジェクト辞書）に存在する場合: `move`
+ * - frontmatter の `project` フィールドが非空文字列の場合: プロジェクト辞書の有無にかかわらずその値で `move`
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
  * - それ以外: 何もしない（`action`/`project` 未設定のまま、AI 処理対象）
  *
  * 戻り値は常に入力の `entry` をそのまま返す（cache への書き込みが主目的）。
+ *
+ * `_projects` は現在未使用。呼び出し側とのインターフェース互換のために残している。
  */
 export const classifyByNoAI = async (
   entry: ChatlogEntry,
   cache: ChatlogCache<ClassifyCache>,
-  projects: ProjectDicEntry,
+  _projects: ProjectDicEntry,
 ): Promise<ChatlogEntry> => {
   const f = entry;
   const _fm = f.frontmatter;
   const _existingProject = _fm.get('project');
 
-  // 辞書に存在するプロジェクト指定済み → 移動。辞書外・空文字は後段の判定へ落とす
-  const _isKnownProject = typeof _existingProject === 'string' && _existingProject !== ''
-    && Object.hasOwn(projects, _existingProject);
-  if (_isKnownProject) {
+  // frontmatter のプロジェクト指定を優先 → 辞書の有無にかかわらず移動。未指定・空文字は後段の判定へ落とす
+  if (typeof _existingProject === 'string' && _existingProject !== '') {
     await cache.write(f.filePath!, { project: _existingProject, action: CLASSIFY_ACTIONS.MOVE });
     return entry;
   }
@@ -73,6 +73,8 @@ export const classifyByNoAI = async (
  * バッファエントリ配列に対して `classifyByNoAI` を適用し、各判定結果を `cache` に書き込んだ上で、
  * `cached.project` の有無に基づき AI 分類が不要な確定済みエントリ（`move`）と
  * AI 分類が必要なエントリ（`remaining`）に分割する。
+ *
+ * `projects` は `classifyByNoAI` へ渡すのみで判定には使わない（インターフェース互換のために残している）。
  */
 export const processClassifyNoAI = async (
   buffer: ChatlogEntry[],

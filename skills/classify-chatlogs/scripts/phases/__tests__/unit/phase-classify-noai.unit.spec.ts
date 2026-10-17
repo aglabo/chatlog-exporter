@@ -101,15 +101,15 @@ describe('classifyByNoAI', () => {
       assertEquals(cache.read(_filePath).project, undefined);
     });
 
-    it('[Normal] T-CL-PRE-06: project フィールドが辞書外 + 本文が長い → cache: action/project とも未設定（AI 処理対象）', async () => {
+    it('[Normal] T-CL-PRE-06: project フィールドが辞書外 + 本文が長い → 辞書に無くても cache: action=move, project=その値（AI 不要）', async () => {
       const _filePath = '/tmp/chatlogs/test.md';
       const _entry = _makeEntry(_filePath, { project: 'unknown-project' }, 'a'.repeat(100));
       const cache = await _makeEmptyClassifyCache();
 
       await classifyByNoAI(_entry, cache, _PROJECTS);
 
-      assertEquals(cache.read(_filePath).action, undefined);
-      assertEquals(cache.read(_filePath).project, undefined);
+      assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
+      assertEquals(cache.read(_filePath).project, 'unknown-project');
     });
 
     it('[Normal] T-CL-PRE-07: project=FALLBACK_PROJECT（辞書が必ず含む）→ cache: action=move, project=FALLBACK_PROJECT', async () => {
@@ -134,7 +134,7 @@ describe('classifyByNoAI', () => {
       assertEquals(cache.read(_filePath).project, undefined);
     });
 
-    it('[Normal] T-CL-PRE-09: project が辞書外 + hasMeta=false + 短い → cache: project=FALLBACK_PROJECT, action=move', async () => {
+    it('[Normal] T-CL-PRE-09: project が辞書外 + hasMeta=false + 短い → FALLBACK_PROJECT ではなく cache: project=その値, action=move', async () => {
       const _filePath = '/tmp/chatlogs/test.md';
       const _entry = _makeEntry(_filePath, { project: 'unknown-project' }, 'short');
       const cache = await _makeEmptyClassifyCache();
@@ -142,7 +142,7 @@ describe('classifyByNoAI', () => {
       await classifyByNoAI(_entry, cache, _PROJECTS);
 
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
-      assertEquals(cache.read(_filePath).project, FALLBACK_PROJECT);
+      assertEquals(cache.read(_filePath).project, 'unknown-project');
     });
   });
 });
@@ -187,7 +187,7 @@ describe('processClassifyNoAI', () => {
       assertEquals(cache.read(_pathLong).project, undefined);
     });
 
-    it('[Normal] T-CL-PCL-04: 辞書内 project・辞書外 project 混在 → 辞書内は move、辞書外は remaining', async () => {
+    it('[Normal] T-CL-PCL-04: 辞書内 project・辞書外 project 混在 → 両方とも move、remaining は空', async () => {
       const _pathInDic = '/tmp/dir/app1/a.md';
       const _pathOutOfDic = '/tmp/dir/unknown/b.md';
       const _entryInDic = _makeEntry(_pathInDic, { project: 'app1' }, '本文');
@@ -198,9 +198,10 @@ describe('processClassifyNoAI', () => {
 
       const _result = await processClassifyNoAI(_buffer, cache, { concurrency: 4 }, _PROJECTS);
 
-      assertEquals(_result.move, [_entryInDic]);
-      assertEquals(_result.remaining, [_entryOutOfDic]);
-      assertEquals(cache.read(_pathOutOfDic).project, undefined);
+      assertEquals(_result.move, [_entryInDic, _entryOutOfDic]);
+      assertEquals(_result.remaining, []);
+      assertEquals(cache.read(_pathOutOfDic).action, CLASSIFY_ACTIONS.MOVE);
+      assertEquals(cache.read(_pathOutOfDic).project, 'unknown-project');
     });
   });
 
