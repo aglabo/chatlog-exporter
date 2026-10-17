@@ -52,9 +52,10 @@ const _projects: ProjectDicEntry = { 'proj-a': {} };
  * `loadClassifyEntries` のユニットテストスイート。
  *
  * ファイルパス一覧から `ChatlogEntry` を読み込み、成功分（`entries`）と失敗分（`errors`）に分離する。
- * 成功エントリについては必ず `action`（既定値 `EMPTY`）をキャッシュへ書き込み、既存 project frontmatter が
- * プロジェクト辞書に存在する場合のみ同じ書き込みに含める。読み込み失敗エントリはキャッシュへエラー記録した
- * うえで `errors` に含める。cache に残った辞書外 `project` も同じ述語で落とす。
+ * 成功エントリについては必ず `action`（既定値 `EMPTY`）をキャッシュへ書き込み、frontmatter の `project` が
+ * 空でない文字列なら、プロジェクト辞書の有無に関わらず同じ書き込みに含める（#533）。読み込み失敗エントリは
+ * キャッシュへエラー記録したうえで `errors` に含める。辞書で検証するのは frontmatter に無く cache にだけ残った
+ * `project` で、辞書外ならキャッシュから落とす。
  *
  * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-09
  *
@@ -124,7 +125,7 @@ describe('loadClassifyEntries', () => {
       assertEquals(_cache.read(_noProject).action, CLASSIFY_ACTIONS.EMPTY);
     });
 
-    it('[Normal] T-CL-LCE-06: frontmatter の project が辞書外 → cache に project が書き込まれない', async () => {
+    it('[Normal] T-CL-LCE-06: frontmatter の project が辞書外 → 辞書に無くても cache に project が書き込まれる', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _filePath = '/tmp/input/unknown.md';
       const _opts: FindBufferEntriesOptions = {
@@ -134,11 +135,11 @@ describe('loadClassifyEntries', () => {
       const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
 
       assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
-      assertEquals(_cache.read(_filePath).project, undefined);
+      assertEquals(_cache.read(_filePath).project, 'not-in-dic');
       assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.EMPTY);
     });
 
-    it('[Normal] T-CL-LCE-07: frontmatter の project が辞書外 → partitionEntries で uncached に入る', async () => {
+    it('[Normal] T-CL-LCE-07: frontmatter の project が辞書外 → 辞書に無くても partitionEntries で cached に入る', async () => {
       const _cache = await _makeEmptyClassifyCache();
       const _filePath = '/tmp/input/unknown.md';
       const _opts: FindBufferEntriesOptions = {
@@ -148,8 +149,8 @@ describe('loadClassifyEntries', () => {
       const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
       const _partition = partitionEntries(_result.entries, _cache);
 
-      assertEquals(_partition.uncached.map((e) => e.filePath), [_filePath]);
-      assertEquals(_partition.cached.length, 0);
+      assertEquals(_partition.cached.map((e) => e.filePath), [_filePath]);
+      assertEquals(_partition.uncached.length, 0);
     });
 
     it('[Normal] T-CL-LCE-08: cache に残った辞書外 project → cache から落ち partitionEntries で uncached に入る', async () => {

@@ -31,11 +31,11 @@ const _isKnownProject = (value: unknown, projects: ProjectDicEntry): value is st
 
 /**
  * `entry` の frontmatter から既存の `project` フィールドを取得する。
- * 非空文字列であり、かつ `projects`（プロジェクト辞書）に存在する値のみを返す。それ以外は `undefined`。
+ * 非空文字列であれば、プロジェクト辞書の有無にかかわらずそのまま返す（frontmatter 優先）。それ以外は `undefined`。
  */
-const _getExistingProject = (entry: ChatlogEntry, projects: ProjectDicEntry): string | undefined => {
+const _getExistingProject = (entry: ChatlogEntry): string | undefined => {
   const _project = entry?.frontmatter.get('project');
-  return _isKnownProject(_project, projects) ? _project : undefined;
+  return typeof _project === 'string' && _project !== '' ? _project : undefined;
 };
 
 /**
@@ -44,9 +44,10 @@ const _getExistingProject = (entry: ChatlogEntry, projects: ProjectDicEntry): st
  *   `cache` に `action: CLASSIFY_ACTIONS.ERROR` と `reason` をまとめて書き込む。
  * - 成功したエントリについては `cache` に `action`（未設定時は `CLASSIFY_ACTIONS.EMPTY`）を書き込む。
  *   既存キャッシュ（例: 前回 AI 分類済みの `confidence` / `reason`）を消さないよう既存値を引き継ぐ。
- * - frontmatter の `project` は、`projects`（プロジェクト辞書）に存在する値のときだけ同じ書き込みに含める。
- *   辞書外の値は書き込まない（`partitionEntries` で `uncached` に回り、後続の分類で辞書から選ばれる）。
- * - cache に残っている辞書外 `project` も同様に落とす（`--dry-run` や中断した実行が残した stale な値を、
+ * - frontmatter の `project` が非空文字列なら、`projects`（プロジェクト辞書）に無い値でも同じ書き込みに含める
+ *   （frontmatter 優先。`partitionEntries` で `cached` に回り、AI を通さず移動される）。
+ * - frontmatter に `project` が無い・空のときは、cache に残っている `project` を `projects` で検証し、
+ *   辞書外なら落とす（`--dry-run` や中断した実行が残した stale な値を、
  *   辞書外ディレクトリへ移動される前にここで正規化する）。
  */
 export const loadClassifyEntries = async (
@@ -77,7 +78,7 @@ export const loadClassifyEntries = async (
       const _filePath = entry.filePath!;
       const _cached = cache.read(_filePath);
       const { project: _staleProject, ..._rest } = _cached;
-      const _project = _getExistingProject(entry, projects)
+      const _project = _getExistingProject(entry)
         ?? (_isKnownProject(_staleProject, projects) ? _staleProject : undefined);
       return cache.write(_filePath, {
         ..._rest,
