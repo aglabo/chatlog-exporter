@@ -971,6 +971,7 @@
     ],
     "packageJson": {
       "dependencies": [
+        "npm:@commitlint/config-conventional@^21.2.3",
         "npm:remark-lint-emphasis-marker@^4.0.1",
         "npm:remark-lint-maximum-line-length@^4.1.1",
         "npm:remark-lint-no-duplicate-headings@^4.0.1",

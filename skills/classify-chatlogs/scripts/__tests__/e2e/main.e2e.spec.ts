@@ -203,8 +203,8 @@ describe('main - project 設定済みファイルの dry-run スキップ', () =
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
-          // `existing-project` must be present in the project dictionary: out-of-dictionary
-          // `project:` values are no longer cached, so they would go to AI classification, not skip
+          // `existing-project` is listed in the project dictionary, but a dictionary entry is no
+          // longer required: a non-empty frontmatter `project:` is used as-is (#533)
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
@@ -264,8 +264,8 @@ describe('main - project 設定済みファイルの dry-run スキップ', () =
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
-          // `existing-project` must be present in the project dictionary: out-of-dictionary
-          // `project:` values are no longer cached, so they would go to AI classification
+          // `existing-project` is listed in the project dictionary, but a dictionary entry is no
+          // longer required: a non-empty frontmatter `project:` is used as-is (#533)
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
@@ -317,8 +317,8 @@ describe('main - project 設定済みファイルの実移動', () => {
 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
-          // `existing-project` must be present in the project dictionary: out-of-dictionary
-          // `project:` values are no longer cached, so they would go to AI classification, not move
+          // `existing-project` is listed in the project dictionary, but a dictionary entry is no
+          // longer required: a non-empty frontmatter `project:` is used as-is (#533)
           await Deno.writeTextFile(
             `${configsDir}/projects.dic`,
             'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\nexisting-project:\n  def: Existing project\n',
@@ -354,6 +354,79 @@ describe('main - project 設定済みファイルの実移動', () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileOrDirExists(`${monthDir}/chat.md`), false);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-CL-E2E-14: 辞書外 project 設定済みファイルを AI なしで実際に移動 ─────
+
+describe('main - 辞書外 project 設定済みファイルの実移動', () => {
+  describe('Given: projects.dic に無い project: foo が設定済みの .md ファイル（月ディレクトリ直下）', () => {
+    describe('When: main([...args]) を呼び出す（dryRun=false）', () => {
+      describe('Then: T-CL-E2E-14 - 辞書に無くても AI を使わず foo/ サブディレクトリに移動される', () => {
+        let inputDir: string;
+        let configsDir: string;
+        let configFile: string;
+        let monthDir: string;
+        let commandHandle: CommandMockHandle;
+        let counter: { calls: number };
+        let errLogs: string[];
+        let errStub: Stub;
+
+        beforeEach(async () => {
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          // the dictionary deliberately lacks `foo`: a non-empty frontmatter `project:` is used as-is (#533)
+          await Deno.writeTextFile(
+            `${configsDir}/projects.dic`,
+            'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
+          );
+          await Deno.writeTextFile(
+            `${monthDir}/chat.md`,
+            '---\ntitle: テスト\nproject: foo\n---\n本文',
+          );
+          counter = { calls: 0 };
+          resetProjectRoot(inputDir);
+          commandHandle = installCommandMock(makeCountingMock('[]', counter));
+          errLogs = [];
+          errStub = stub(console, 'error', (...args: unknown[]) => {
+            errLogs.push(args.map(String).join(' '));
+          });
+          GlobalConfig.resetInstance();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          resetProjectRoot();
+          errStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(inputDir, { recursive: true });
+          await Deno.remove(configsDir, { recursive: true });
+        });
+
+        it('T-CL-E2E-14-01: foo/ にファイルが移動している', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(await fileExists(`${monthDir}/foo/chat.md`), true);
+        });
+
+        it('T-CL-E2E-14-02: 元のパスにファイルが存在しない', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(await fileOrDirExists(`${monthDir}/chat.md`), false);
+        });
+
+        it('T-CL-E2E-14-03: Deno.Command が一度も構築されない（counter.calls === 0）', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(counter.calls, 0);
+        });
+
+        it('T-CL-E2E-14-04: 完了ログに moved=1 movedByAI=0 が含まれる', async () => {
+          await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
+
+          assertEquals(errLogs.some((l) => l.includes('moved=1 movedByAI=0')), true);
         });
       });
     });

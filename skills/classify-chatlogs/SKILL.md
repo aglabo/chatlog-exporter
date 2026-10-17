@@ -86,6 +86,7 @@ deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-en
 2. 判定結果キャッシュ (`${TEMP}/cle-cache`) で判定済み・未判定に分割する
 3. AI なし事前分類 — 次のいずれかに該当するファイルは AI を呼ばずに確定させる
    - フロントマターに `project:` が既にある → その値で移動
+     (`projects.dic` に無い値でも優先する。`project:` が無い場合のみ AI 分類へ回す)
    - メタ情報 (title / category / topics / tags) がなく、全文が 50 文字未満 → `misc` に移動
      (`[skip-ai: too-short]` を警告出力)
 4. AI 分類 — 残ったファイルの title / category / topics / tags を `projects.dic` の候補とともに
