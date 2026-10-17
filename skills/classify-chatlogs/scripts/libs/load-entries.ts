@@ -12,6 +12,7 @@ import { runConcurrent } from '../../../_cle-libs/libs/parallel/concurrency.ts';
 
 // ─── Local
 import { loadClassifyEntry } from './load-classify-entry.ts';
+import { isSafeProjectName } from './project-name.ts';
 // types
 import type { ChatlogCache } from '../../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogEntry } from '../../../_cle-libs/classes/ChatlogEntry.class.ts';
@@ -25,17 +26,18 @@ import type { LoadClassifyEntryFailure } from '../types/load-classify-entry.type
 // constants
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
 
-/** `value` が非空文字列で、かつ `projects`（プロジェクト辞書）のキーであるか判定する。 */
+/** `value` が安全なプロジェクト名（`isSafeProjectName`）で、かつ `projects`（プロジェクト辞書）のキーであるか判定する。 */
 const _isKnownProject = (value: unknown, projects: ProjectDicEntry): value is string =>
-  typeof value === 'string' && value !== '' && Object.hasOwn(projects, value);
+  isSafeProjectName(value) && Object.hasOwn(projects, value);
 
 /**
  * `entry` の frontmatter から既存の `project` フィールドを取得する。
- * 非空文字列であれば、プロジェクト辞書の有無にかかわらずそのまま返す（frontmatter 優先）。それ以外は `undefined`。
+ * 安全なプロジェクト名（`isSafeProjectName`）であれば、プロジェクト辞書の有無にかかわらずそのまま返す（frontmatter 優先）。
+ * 空・非文字列・パス区切りや相対参照を含む unsafe な値は未指定として扱い、`undefined` を返す。
  */
 const _getExistingProject = (entry: ChatlogEntry): string | undefined => {
   const _project = entry?.frontmatter.get('project');
-  return typeof _project === 'string' && _project !== '' ? _project : undefined;
+  return isSafeProjectName(_project) ? _project : undefined;
 };
 
 /**
@@ -44,9 +46,10 @@ const _getExistingProject = (entry: ChatlogEntry): string | undefined => {
  *   `cache` に `action: CLASSIFY_ACTIONS.ERROR` と `reason` をまとめて書き込む。
  * - 成功したエントリについては `cache` に `action`（未設定時は `CLASSIFY_ACTIONS.EMPTY`）を書き込む。
  *   既存キャッシュ（例: 前回 AI 分類済みの `confidence` / `reason`）を消さないよう既存値を引き継ぐ。
- * - frontmatter の `project` が非空文字列なら、`projects`（プロジェクト辞書）に無い値でも同じ書き込みに含める
- *   （frontmatter 優先。`partitionEntries` で `cached` に回り、AI を通さず移動される）。
- * - frontmatter に `project` が無い・空のときは、cache に残っている `project` を `projects` で検証し、
+ * - frontmatter の `project` が安全なプロジェクト名（`isSafeProjectName`）なら、`projects`（プロジェクト辞書）に
+ *   無い値でも同じ書き込みに含める（frontmatter 優先。`partitionEntries` で `cached` に回り、AI を通さず移動される）。
+ * - frontmatter に `project` が無い・空・unsafe（`.` / `..` / `/` `\` `:` を含む）のときは未指定として扱い、
+ *   cache に残っている `project` を `projects` で検証し、
  *   辞書外なら落とす（`--dry-run` や中断した実行が残した stale な値を、
  *   辞書外ディレクトリへ移動される前にここで正規化する）。
  */

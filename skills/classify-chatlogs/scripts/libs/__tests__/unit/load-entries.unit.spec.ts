@@ -53,11 +53,13 @@ const _projects: ProjectDicEntry = { 'proj-a': {} };
  *
  * ファイルパス一覧から `ChatlogEntry` を読み込み、成功分（`entries`）と失敗分（`errors`）に分離する。
  * 成功エントリについては必ず `action`（既定値 `EMPTY`）をキャッシュへ書き込み、frontmatter の `project` が
- * 空でない文字列なら、プロジェクト辞書の有無に関わらず同じ書き込みに含める（#533）。読み込み失敗エントリは
+ * 安全なプロジェクト名（空でなく `.` / `..` でもなく、`/` `\` `:` を含まない単一ディレクトリ名）なら、
+ * プロジェクト辞書の有無に関わらず同じ書き込みに含める（#533）。安全でない `project` は欠落と同じに扱う。
+ * 読み込み失敗エントリは
  * キャッシュへエラー記録したうえで `errors` に含める。辞書で検証するのは frontmatter に無く cache にだけ残った
  * `project` で、辞書外ならキャッシュから落とす。
  *
- * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-09
+ * テスト ID 範囲: T-CL-LCE-01 〜 T-CL-LCE-10
  *
  * @see loadClassifyEntries
  */
@@ -217,5 +219,36 @@ describe('loadClassifyEntries', () => {
         await Deno.remove(_tempDir, { recursive: true });
       }
     });
+
+    /** 移動先パスを書き換えうる frontmatter の `project`（安全でないプロジェクト名）。 */
+    const _unsafeProjectCases = [
+      { id: 'T-CL-LCE-10-01', project: '.' },
+      { id: 'T-CL-LCE-10-02', project: '..' },
+      { id: 'T-CL-LCE-10-03', project: '../foo' },
+      { id: 'T-CL-LCE-10-04', project: 'a/b' },
+      { id: 'T-CL-LCE-10-05', project: 'a\\b' },
+      { id: 'T-CL-LCE-10-06', project: 'C:foo' },
+    ];
+
+    for (const { id, project } of _unsafeProjectCases) {
+      it(
+        `[Edge] ${id}: frontmatter の project=${
+          JSON.stringify(project)
+        }（安全でない名前）→ 欠落と同じ扱いで cache に project が書き込まれない`,
+        async () => {
+          const _cache = await _makeEmptyClassifyCache();
+          const _filePath = '/tmp/input/unsafe.md';
+          const _opts: FindBufferEntriesOptions = {
+            loadMeta: () => Promise.resolve(_makeEntry(_filePath, { project })),
+          };
+
+          const _result = await loadClassifyEntries([_filePath], _cache, { concurrency: 4 }, _projects, _opts);
+
+          assertEquals(_result.entries.map((e) => e.filePath), [_filePath]);
+          assertEquals(_cache.read(_filePath).project, undefined);
+          assertEquals(_cache.read(_filePath).action, CLASSIFY_ACTIONS.EMPTY);
+        },
+      );
+    }
   });
 });
