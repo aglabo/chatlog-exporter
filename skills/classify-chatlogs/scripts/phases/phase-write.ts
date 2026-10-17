@@ -25,6 +25,8 @@ import type { ClassifyAction, ClassifyCache, ClassifyConfig, ClassifyState } fro
 // constants
 import { FALLBACK_PROJECT } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
+// functions
+import { isSafeProjectName } from '../libs/project-name.ts';
 
 /** `project` が `undefined` の場合は `FALLBACK_PROJECT` を返す。 */
 export const resolveProject = (project: string | undefined): string => project ?? FALLBACK_PROJECT;
@@ -33,6 +35,8 @@ export const resolveProject = (project: string | undefined): string => project ?
  * 1ファイルを指定プロジェクトのサブディレクトリへ移動し、フロントマターを更新する。
  * 副作用（ログ出力・stats 更新）は呼び出し元が戻り値の `action` に応じて行う。
  * - `project` が `undefined` の場合は `FALLBACK_PROJECT` に補完して移動する。
+ * - 補完後の `project` が unsafe（`isSafeProjectName` が `false`）な場合は、ディレクトリ作成・書き込み・削除の前に
+ *   `{ action: ERROR, message }` を返す（移動元は変更しない）。
  * - `dryRun` が `true` の場合は移動せず `{ action: MOVE, message }` を返す。
  * - 移動エラーは `{ action: ERROR, message }` を返す（スローしない）。
  * - 移動成功時は対応する `cache` エントリも削除する。ただし cache 削除の失敗は
@@ -46,6 +50,12 @@ export const moveChatlogEntry = async (
   cache: ChatlogCache<ClassifyCache>,
 ): Promise<{ action: ClassifyAction; message: string }> => {
   const _project = resolveProject(project);
+  if (!isSafeProjectName(_project)) {
+    return {
+      action: CLASSIFY_ACTIONS.ERROR,
+      message: `${LOGGER_TEXT.INDENT}move failed: ${classifyEntry.filename!}: unsafe project name: ${_project}`,
+    };
+  }
   const srcPath = classifyEntry.filePath!;
   const _projectDir = normalizePath(`${destDir}/${_project}`);
   const dstPath = `${_projectDir}/${classifyEntry.filename!}`;

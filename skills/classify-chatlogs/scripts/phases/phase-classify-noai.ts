@@ -22,10 +22,13 @@ import type { ClassifyCache, ClassifyConfig, ProjectDicEntry } from '../types/cl
 import { LOGGER_TEXT } from '../../../_cle-libs/constants/logger.constants.ts';
 import { FALLBACK_PROJECT, MIN_CLASSIFIABLE_LENGTH } from '../constants/classify.constants.ts';
 import { CLASSIFY_ACTIONS } from '../types/classify.types.ts';
+// functions
+import { isSafeProjectName } from '../libs/project-name.ts';
 
 /**
  * バッファエントリに対して AI 不要なケースの事前分類を行い、判定結果を `cache` に書き込む。
- * - frontmatter の `project` フィールドが非空文字列の場合: プロジェクト辞書の有無にかかわらずその値で `move`
+ * - frontmatter の `project` フィールドが安全なプロジェクト名（`isSafeProjectName`）の場合:
+ *   プロジェクト辞書の有無にかかわらずその値で `move`。unsafe な値（`.` / `..` / `/` `\` `:` を含む）は未指定として扱う
  * - `project` フィールドがなく `hasMeta=false` かつ本文が短い場合: `FALLBACK_PROJECT` に `move`
  * - それ以外: 何もしない（`action`/`project` 未設定のまま、AI 処理対象）
  *
@@ -42,8 +45,8 @@ export const classifyByNoAI = async (
   const _fm = f.frontmatter;
   const _existingProject = _fm.get('project');
 
-  // frontmatter のプロジェクト指定を優先 → 辞書の有無にかかわらず移動。未指定・空文字は後段の判定へ落とす
-  if (typeof _existingProject === 'string' && _existingProject !== '') {
+  // frontmatter のプロジェクト指定を優先 → 辞書の有無にかかわらず移動。未指定・空文字・unsafe な値は後段の判定へ落とす
+  if (isSafeProjectName(_existingProject)) {
     await cache.write(f.filePath!, { project: _existingProject, action: CLASSIFY_ACTIONS.MOVE });
     return entry;
   }

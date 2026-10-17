@@ -43,7 +43,7 @@ const _PROJECTS_WITH_EMPTY_KEY: ProjectDicEntry = { '': {}, app1: {}, [FALLBACK_
  * frontmatter の `project` フィールドと本文長に基づく事前分類ロジックを検証する。
  * `ChatlogEntry` と `cache` を受け取り、判定結果を `cache.write` に書き込む。
  *
- * テスト ID 範囲: T-CL-PRE-02 〜 T-CL-PRE-09
+ * テスト ID 範囲: T-CL-PRE-02 〜 T-CL-PRE-10
  *
  * @see classifyByNoAI
  */
@@ -144,6 +144,43 @@ describe('classifyByNoAI', () => {
       assertEquals(cache.read(_filePath).action, CLASSIFY_ACTIONS.MOVE);
       assertEquals(cache.read(_filePath).project, 'unknown-project');
     });
+  });
+
+  /**
+   * エッジケース: frontmatter の `project` が安全でないプロジェクト名（`.` / `..` / 区切り文字・ドライブ指定を含む）の場合。
+   * `project` 欠落と同じに扱い、その値での `move` を書き込まない。
+   */
+  describe('When: エッジケース', () => {
+    const _unsafeProjectCases = [
+      { id: 'T-CL-PRE-10-01', project: '.' },
+      { id: 'T-CL-PRE-10-02', project: '..' },
+      { id: 'T-CL-PRE-10-03', project: '../foo' },
+      { id: 'T-CL-PRE-10-04', project: 'a/b' },
+      { id: 'T-CL-PRE-10-05', project: 'a\\b' },
+      { id: 'T-CL-PRE-10-06', project: 'C:foo' },
+    ];
+
+    for (const { id, project } of _unsafeProjectCases) {
+      it(
+        `[Edge] ${id}: project=${
+          JSON.stringify(project)
+        } + hasMeta=true + 長い → cache: action/project とも未設定（AI 処理対象）`,
+        async () => {
+          const _filePath = '/tmp/chatlogs/test.md';
+          const _entry = _makeEntry(
+            _filePath,
+            { project, title: 'Some Title', category: 'development' },
+            'a'.repeat(100),
+          );
+          const cache = await _makeEmptyClassifyCache();
+
+          await classifyByNoAI(_entry, cache, _PROJECTS);
+
+          assertEquals(cache.read(_filePath).action, undefined);
+          assertEquals(cache.read(_filePath).project, undefined);
+        },
+      );
+    }
   });
 });
 
