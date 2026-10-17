@@ -21,6 +21,7 @@ import { ChatlogCache } from '../../_cle-libs/classes/ChatlogCache.class.ts';
 import { ChatlogError } from '../../_cle-libs/classes/ChatlogError.class.ts';
 import { resolveChatlogsDir } from '../../_cle-libs/libs/file-io/resolve-directory.ts';
 import { dirExists } from '../../_cle-libs/libs/file-ops/exists-utils.ts';
+import { findFilesFlat } from '../../_cle-libs/libs/file-ops/find-files.ts';
 import { logger } from '../../_cle-libs/libs/io/logger.ts';
 import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
@@ -28,7 +29,6 @@ import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.co
 import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 
 // ─── Local
-import { findChatlogFilePaths } from './libs/find-files-flat.ts';
 import { loadClassifyEntries } from './libs/load-entries.ts';
 import { loadProjectDic } from './libs/load-project-dic.ts';
 import { buildConfig } from './modules/classify-config.ts';
@@ -94,7 +94,7 @@ const _loadProjects = async (config: ClassifyConfig): Promise<ProjectDicEntry> =
 const _collectFilesAndCache = async (
   originalLogsDir: string,
 ): Promise<{ filePaths: string[]; cache: ChatlogCache<ClassifyCache> } | null> => {
-  const filePaths = await findChatlogFilePaths(originalLogsDir);
+  const filePaths = await findFilesFlat(originalLogsDir, { ext: '.md' });
   if (filePaths.length === 0) {
     logger.info('対象ファイルなし');
     logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0 skip=0');
