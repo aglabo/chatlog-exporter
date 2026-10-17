@@ -38,6 +38,7 @@
     "test:sh:all": "bash runners/run-shellspec.sh all"
   },
   "devDependencies": {
+    "@commitlint/config-conventional": "^21.2.3",
     "remark-lint-emphasis-marker": "^4.0.1",
     "remark-lint-maximum-line-length": "^4.1.1",
     "remark-lint-no-duplicate-headings": "^4.0.1",
