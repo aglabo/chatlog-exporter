@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/phases/phase-write.ts
 // @(#): セグメント書き込みフェーズ
-//       対象: phaseWrite, resolveOutputDir
+//       対象: phaseWrite
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -30,15 +30,6 @@ import { NORMALIZE_CACHE_STATUSES } from '../types/cache.const.type.ts';
 // types
 import type { NormalizeCache } from '../types/cache.const.type.ts';
 import type { NormalizeConfig, Segment, Stats } from '../types/normalize.types.ts';
-
-/**
- * Resolves the output directory for a single chatlog file.
- *
- * Joins `project` onto `outputBase`. Falls back to `'misc'` when `project` is undefined.
- */
-export const resolveOutputDir = (outputBase: string, project?: string): string => {
-  return `${outputBase}/${project ?? 'misc'}`;
-};
 
 /**
  * Rebuilds a `Segment[]` for `entry` from its cached segment boundaries.
@@ -116,7 +107,7 @@ export const _writeSegment = async (
  * `entry` succeeded.
  *
  * @param entry       - Entry whose cached segment boundaries are rebuilt and written
- * @param outputBase  - Base output directory
+ * @param outputBase  - Output directory; segments are written directly under it (no per-project subdirectory)
  * @param config      - Processing config (dryRun)
  * @param stats       - Mutable counters updated in place
  * @param cache       - Cache read for planned segments, marked `status: 'done'` on successful, non-dryRun writes
@@ -141,13 +132,10 @@ const _writePlannedEntry = async (
     return;
   }
 
-  const _projectVal = entry.frontmatter.get('project');
-  const _project = typeof _projectVal === 'string' ? _projectVal : undefined;
-  const outputDir = resolveOutputDir(outputBase, _project);
-  await Deno.mkdir(outputDir, { recursive: true });
+  await Deno.mkdir(outputBase, { recursive: true });
 
   const _results = await Promise.all(
-    segments.map((segment, i) => _writeSegment(outputDir, filePath, i, segment, entry.frontmatter, hashFn)),
+    segments.map((segment, i) => _writeSegment(outputBase, filePath, i, segment, entry.frontmatter, hashFn)),
   );
   const _successCount = _results.filter((r) => r.success).length;
   stats.success += _successCount;

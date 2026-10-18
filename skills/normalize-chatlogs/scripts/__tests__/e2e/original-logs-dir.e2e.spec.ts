@@ -24,7 +24,7 @@ import { installCommandMock, makeClaudeJsonMock } from '../../../../_cle-libs/__
 import { makeLoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
 import { GlobalConfig } from '../../../../_cle-libs/classes/GlobalConfig.class.ts';
 import { findFiles } from '../../../../_cle-libs/libs/file-ops/find-files.ts';
-import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
+import { getDirectory, normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.ts';
 // types
 import type { CommandMockHandle } from '../../../../_cle-libs/__tests__/helpers/deno-command-mock.ts';
 import type { LoggerStub } from '../../../../_cle-libs/__tests__/helpers/logger-stub.ts';
@@ -177,7 +177,7 @@ describe('main', () => {
             await Deno.remove(chatlogsDir, { recursive: true });
           });
 
-          it('T-NC-MAIN-02-01: 出力ファイルが normalizeLogs/claude/2026/2026-03/my-project/ 配下に生成される', async () => {
+          it('T-NC-MAIN-02-01: 出力ファイルが project で振り分けられず normalizeLogs/claude/2026/2026-03/ 直下に生成される', async () => {
             await main([
               '--config',
               configFile,
@@ -189,8 +189,8 @@ describe('main', () => {
 
             const mirroredBase = `${chatlogsDir}/normalizeLogs/claude/2026/2026-03`;
             const files = await findFiles(mirroredBase);
-            const underProject = files.filter((f) => normalizePath(f).includes(`${mirroredBase}/my-project`));
-            assertEquals(underProject.length > 0, true);
+            assertEquals(files.length > 0, true);
+            assertEquals(files.every((f) => getDirectory(f) === normalizePath(mirroredBase)), true);
           });
         });
       });

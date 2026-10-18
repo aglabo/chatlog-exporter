@@ -42,6 +42,11 @@ const _FIXED_HASH = () => 'abc1234';
 /** テスト用の `ChatlogEntry` を `filePath` と本文 `content` から生成する（frontmatterなし）。 */
 const _makeEntry = (filePath: string, content: string): ChatlogEntry => new ChatlogEntry(content, { filePath });
 
+/** `Deno.stat` が `NotFound` で失敗する（パスが存在しない）ことを検証する。 */
+const _assertNotExists = async (path: string): Promise<void> => {
+  await assertRejects(() => Deno.stat(path), Deno.errors.NotFound);
+};
+
 // ─── Tests
 
 /**
@@ -87,10 +92,29 @@ describe('phaseWrite', () => {
       // act
       await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
 
-      // assert — misc フォールバックの出力先に決定的なファイル名で書かれ、cache が done になる
-      const written = await Deno.stat(`${outputBase}/misc/a-01-abc1234.md`);
+      // assert — outputBase 直下に決定的なファイル名で書かれ、misc/ は作られず、cache が done になる
+      const written = await Deno.stat(`${outputBase}/a-01-abc1234.md`);
       assert(written.isFile);
+      await _assertNotExists(`${outputBase}/misc`);
       assertEquals(cache.read(toCacheKey('a.md')).status, 'done');
+    });
+
+    it('[Normal] T-PWF-01-02: frontmatter に project を持つ entry でも outputBase 直下に書かれ project ディレクトリは作られない', async () => {
+      // arrange
+      const entry = _makeEntry('a.md', '---\nproject: my-app\n---\nline1\nline2\nline3');
+      await cache.write(toCacheKey('a.md'), {
+        status: 'set',
+        segments: [{ title: 'T', summary: 'S', startLine: 1, endLine: 2 }],
+      });
+      const config: Pick<NormalizeConfig, 'dryRun'> = { dryRun: false };
+
+      // act
+      await phaseWrite([entry], outputBase, config, stats, cache, 2, _FIXED_HASH);
+
+      // assert — project で振り分けず outputBase 直下に書かれる
+      const written = await Deno.stat(`${outputBase}/a-01-abc1234.md`);
+      assert(written.isFile);
+      await _assertNotExists(`${outputBase}/my-app`);
     });
   });
 
@@ -172,9 +196,9 @@ describe('phaseWrite', () => {
     });
 
     it('[Error] T-PWF-04-03: ファイル I/O 起因ではないエラー（ForbiddenOutput）はそのままスローされる', async () => {
-      // arrange — filePath を resolveOutputDir の解決先（misc フォールバック）そのものにし、
+      // arrange — 出力パス `${outputBase}/a-01-abc1234.md` が filePath を含むようにし、
       // writeSegmentToFile の ForbiddenOutput チェック（outputPath.includes(filePath)）を発火させる
-      const filePath = `${outputBase}/misc`;
+      const filePath = `${outputBase}/a`;
       const entry = _makeEntry(filePath, 'line1\nline2');
       await cache.write(toCacheKey(filePath), {
         status: 'set',
