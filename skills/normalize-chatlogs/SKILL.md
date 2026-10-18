@@ -227,8 +227,7 @@ chatlogs/normalizeLogs/
   └── <agent>/
        └── <year>/
             └── <yearMonth>/
-                 └── <project>/
-                      └── <baseName>-<XX>-<hash7>.md
+                 └── <baseName>-<XX>-<hash7>.md
 ```
 
 入力を任意パスで指定した場合 (`period` が付かないため `<agent>` まで):
@@ -236,13 +235,13 @@ chatlogs/normalizeLogs/
 ```bash
 chatlogs/normalizeLogs/
   └── <agent>/
-       └── <project>/
-            └── <baseName>-<XX>-<hash7>.md
+       └── <baseName>-<XX>-<hash7>.md
 ```
 
 `--output-dir` を指定した場合は、絶対パスならそのまま、相対パスなら `chatlogsDir` からの相対として解決される。
 
-`project` はソースファイルのフロントマターから引き継ぐ。未定義の場合は `misc/` に出力される。
+出力ファイルは `project` で振り分けず、出力先ベースの直下に書き込む。
+`project` はソースファイルのフロントマターから出力ファイルのフロントマターへ引き継ぐ。
 
 ## 関連スキル
 
