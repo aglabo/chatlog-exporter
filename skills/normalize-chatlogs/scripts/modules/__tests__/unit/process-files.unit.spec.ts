@@ -1,6 +1,6 @@
 // src: skills/normalize-chatlogs/scripts/modules/__tests__/unit/process-files.unit.spec.ts
 // @(#): processFiles のユニットテスト
-//       対象: processFiles, resolveOutputDir
+//       対象: processFiles
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 //
@@ -697,7 +697,7 @@ describe('processFiles', () => {
   /**
    * スキップ処理: cache に status:'done' が未登録の場合に processFiles がスキップしないケース。
    *
-   * project frontmatter なし → project=undefined → outputDir は `${outputBase}/misc`。
+   * outputDir は outputBase（project による振り分けは行わない）。
    */
   describe('When: スキップ処理', () => {
     it('[Normal] T-PF-SKIP-02: outputDir に baseName-*.md が存在しないとき stats.done は増加しない', async () => {
@@ -728,7 +728,7 @@ describe('processFiles', () => {
       mockHandle = installCommandMock(makeSuccessMock(stdout));
 
       await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      // misc サブディレクトリを作成しない（outputDir 自体は存在する）
+      // 出力済みファイルを作成しない（outputDir 自体は存在する）
 
       const config = _makeConfig({ dryRun: false, concurrency: 2 });
 
@@ -736,26 +736,6 @@ describe('processFiles', () => {
       await processFiles(tmpDir, outputDir, config, stats);
 
       // assert
-      assertEquals(stats.done, 0);
-      assertEquals(stats.fail, 0);
-    });
-
-    it('[Edge] T-PF-SKIP-04: project が undefined のとき misc フォールバックで outputDir が解決され stats.done は 0', async () => {
-      // arrange — project frontmatter なしのファイル
-      const filePath = normalizePath(`${tmpDir}/dummy.md`);
-      const segments = [{ title: 'Topic', summary: 'Summary', startLine: 1, endLine: 3 }];
-      const stdout = new TextEncoder().encode(wrapClaudeJson(JSON.stringify([{ filePath, segments }])));
-      mockHandle = installCommandMock(makeSuccessMock(stdout));
-
-      await Deno.writeTextFile(filePath, '# Test\n\nContent');
-      // misc ディレクトリにマッチするファイルなし
-
-      const config = _makeConfig({ dryRun: false, concurrency: 2 });
-
-      // act
-      await processFiles(tmpDir, outputDir, config, stats);
-
-      // assert — misc フォールバックで解決されるが該当ファイルがないのでスキップなし
       assertEquals(stats.done, 0);
       assertEquals(stats.fail, 0);
     });

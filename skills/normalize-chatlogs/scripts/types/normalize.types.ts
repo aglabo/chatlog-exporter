@@ -42,7 +42,7 @@ export type SegmentPlan = Omit<Segment, 'content'>;
 export type SegmentedFile = {
   /** 入力ファイルパス（outputFileName生成に使用）。 */
   filePath: string;
-  /** resolveOutputDir で事前計算済みの出力ディレクトリ。 */
+  /** 事前計算済みの出力ディレクトリ（outputBase）。 */
   outputDir: string;
   /** AIが生成したセグメント配列。 */
   segments: Segment[];

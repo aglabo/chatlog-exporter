@@ -39,6 +39,15 @@ import type { HashProvider } from '../../../../_cle-libs/types/providers.types.t
 // functions
 
 /**
+ * `files` のすべての親ディレクトリが `dir` と一致する（サブディレクトリに振り分けられていない）かを返す。
+ *
+ * @param files - 検査する出力ファイルパス
+ * @param dir   - 期待する親ディレクトリ
+ */
+const _allDirectlyUnder = (files: string[], dir: string): boolean =>
+  files.every((f) => getDirectory(f) === normalizePath(dir));
+
+/**
  * テスト用 `GlobalConfig` インスタンスを `cacheDir` 指定の YAML で生成する。
  *
  * `GlobalConfig.resetInstance()` 済みであることを前提に、`normalize-cache` を
@@ -219,7 +228,7 @@ describe('main - I/O', () => {
   // ─── T-NC-EIO-15-05: chatlogs形式入力パスに応じた出力パス構造 ──────────────────────
 
   /** 正常系: chatlogs形式の入力パス (chatlogs/<agent>/<yyyy>/<yyyy-mm>) に対して
-   *  出力が normalized-logs/<agent>/<yyyy>/<yyyy-mm>/<project>/ 以下に生成される */
+   *  project フロントマターがあっても出力は <outputBase> 直下に生成される */
   describe('Given: chatlogs形式ディレクトリ (chatlogs/claude/2026/2026-04) と project フロントマターを持つ MD ファイル', () => {
     let tmpRoot: string;
     let CHATLOG_INPUT_DIR: string;
@@ -264,24 +273,22 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", CHATLOG_INPUT_DIR, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: 出力が <outputBase>/my-app/ 以下に生成される', () => {
-        it('T-NC-EIO-15-05-01-01: 出力ファイルのパスが <outputBase>/my-app/ を含む', async () => {
+      describe('Then: 出力が <outputBase> 直下に生成される', () => {
+        it('T-NC-EIO-15-05-01-01: 全出力ファイルの親ディレクトリが <outputBase> である', async () => {
           const fixedHash: HashProvider = () => 'abc1234';
           await main(['--input-dir', CHATLOG_INPUT_DIR, '--output-dir', outputBase], fixedHash);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
-          const expectedSubPath = `my-app`;
-          const allUnderExpected = files.every((f) => normalizePath(f).includes(expectedSubPath));
-          assertEquals(allUnderExpected, true);
+          assertEquals(_allDirectlyUnder(files, outputBase), true);
         });
       });
     });
   });
 
-  // ─── T-NC-EIO-15-06: 任意ディレクトリ入力時は <outputBase>/<project>/ 以下に出力 ───
+  // ─── T-NC-EIO-15-06: 任意ディレクトリ入力時は <outputBase> 直下に出力 ───
 
-  /** 正常系: 任意パスの入力ディレクトリに対して出力が <outputBase>/<project>/ 以下に生成される */
+  /** 正常系: 任意パスの入力ディレクトリに対して project フロントマターがあっても出力が <outputBase> 直下に生成される */
   describe('Given: 任意パスのディレクトリと project フロントマターを持つ MD ファイル', () => {
     let inputDir: string;
     let outputBase: string;
@@ -316,23 +323,22 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: Task T-NC-EIO-15-06-01 - 出力が <outputBase>/custom-project/ 以下に生成される', () => {
-        it('T-NC-EIO-15-06-01-01: 出力ファイルのパスが <outputBase>/custom-project/ を含む', async () => {
+      describe('Then: Task T-NC-EIO-15-06-01 - 出力が <outputBase> 直下に生成される', () => {
+        it('T-NC-EIO-15-06-01-01: 全出力ファイルの親ディレクトリが <outputBase> である', async () => {
           const fixedHash: HashProvider = () => 'def5678';
           await main(['--input-dir', inputDir, '--output-dir', outputBase], fixedHash);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
-          const allUnderProject = files.every((f) => normalizePath(f).includes('custom-project'));
-          assertEquals(allUnderProject, true);
+          assertEquals(_allDirectlyUnder(files, outputBase), true);
         });
       });
     });
   });
 
-  // ─── T-NC-EIO-15-07: project なし（misc フォールバック）────────────────────────────
+  // ─── T-NC-EIO-15-07: project なし（サブディレクトリを作らない）────────────────────
 
-  /** エッジケース: project フィールドなしの場合、出力が <outputBase>/misc/ 以下に生成される */
+  /** エッジケース: project フィールドなしの場合も、出力が <outputBase> 直下に生成される */
   describe('Given: project フロントマターなしの MD ファイル', () => {
     let inputDir: string;
     let outputBase: string;
@@ -367,14 +373,14 @@ describe('main - I/O', () => {
     });
 
     describe('When: main(["--input-dir", inputDir, "--output", outputBase]) を呼び出す', () => {
-      describe('Then: Task T-NC-EIO-15-07-01 - project なし時は misc サブディレクトリに出力される', () => {
-        it('T-NC-EIO-15-07-01-01: 出力ファイルのパスが <outputBase>/misc/ を含む', async () => {
+      describe('Then: Task T-NC-EIO-15-07-01 - project なし時もサブディレクトリを作らず <outputBase> 直下に出力される', () => {
+        it('T-NC-EIO-15-07-01-01: 全出力ファイルの親ディレクトリが <outputBase> で、パスに /misc/ を含まない', async () => {
           await main(['--input-dir', inputDir, '--output-dir', outputBase]);
 
           const files = await findFiles(outputBase);
           assertEquals(files.length >= 1, true);
-          const allUnderMisc = files.every((f) => normalizePath(f).includes('/misc/'));
-          assertEquals(allUnderMisc, true);
+          assertEquals(_allDirectlyUnder(files, outputBase), true);
+          assertEquals(files.some((f) => normalizePath(f).includes('/misc/')), false);
         });
       });
     });
