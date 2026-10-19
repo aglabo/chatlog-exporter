@@ -79,7 +79,7 @@ async function _runClassifyWithStderr(
  * inputDir / configsDir を作成して返す（e2e の `_makeTestDirs` と同構成）。
  * - configsDir/config.yaml: GlobalConfig 用の設定ファイル
  * - configsDir/projects.dic: テスト用プロジェクト辞書
- * - inputDir/originalLogs/claude/2026/2026-03/: 空の月別ディレクトリ
+ * - inputDir/normalizeLogs/claude/2026/2026-03/: 空の月別ディレクトリ
  *
  * @returns 作成した一時ディレクトリ群
  */
@@ -87,7 +87,7 @@ async function _makeTestDirs(): Promise<_TestDirs> {
   const inputDir = normalizePath(await Deno.makeTempDir());
   const configsDir = normalizePath(await Deno.makeTempDir());
   const configFile = `${configsDir}/config.yaml`;
-  const monthDir = `${inputDir}/originalLogs/claude/2026/2026-03`;
+  const monthDir = `${inputDir}/normalizeLogs/claude/2026/2026-03`;
   await Deno.mkdir(monthDir, { recursive: true });
   await Deno.writeTextFile(
     configFile,

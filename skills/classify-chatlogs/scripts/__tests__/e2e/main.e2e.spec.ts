@@ -3,8 +3,8 @@
 //       main() 経由でのファイル分類フロー（Deno.Command モック・実 tempdir）
 //
 //       classify-chatlogs の動作:
-//         入力: baseDir/originalLogs/agent/YYYY/YYYY-MM/*.md
-//         出力: ファイルを baseDir/originalLogs/agent/YYYY/YYYY-MM/<project>/ サブディレクトリに移動
+//         入力: baseDir/normalizeLogs/agent/YYYY/YYYY-MM/*.md
+//         出力: ファイルを baseDir/normalizeLogs/agent/YYYY/YYYY-MM/<project>/ サブディレクトリに移動
 //               (normalize-chatlog と異なり、別出力ディレクトリはない)
 //
 // Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
@@ -50,7 +50,7 @@ import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.
  * inputDir / configsDir を作成して返す。
  * - configsDir/config.yaml: 空の設定ファイル（GlobalConfig 用）
  * - configsDir/projects.dic: テスト用プロジェクト辞書（YAML 形式）
- * - inputDir/originalLogs/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
+ * - inputDir/normalizeLogs/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
  */
 async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   inputDir: string;
@@ -62,7 +62,7 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
   const configsDir = normalizePath(await Deno.makeTempDir());
   const configFile = `${configsDir}/config.yaml`;
   const year = period.slice(0, 4);
-  const monthDir = `${inputDir}/originalLogs/${agent}/${year}/${period}`;
+  const monthDir = `${inputDir}/normalizeLogs/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
   await Deno.writeTextFile(
     configFile,
@@ -73,6 +73,17 @@ async function _makeTestDirs(agent = 'claude', period = '2026-03'): Promise<{
     'app1:\n  def: Test project 1\napp2:\n  def: Test project 2\n',
   );
   return { inputDir, configsDir, configFile, monthDir };
+}
+
+/**
+ * config.yaml に chatlogsDir を加えて書き直す。
+ * `--input-dir` を渡さず、resolveChatlogsDir の通常解決経路（chatlogsDir + normalizeLogs + agent + period）を通すために使う。
+ */
+async function _writeChatlogsDirConfig(configFile: string, inputDir: string, configsDir: string): Promise<void> {
+  await Deno.writeTextFile(
+    configFile,
+    `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\ncacheDir: "${configsDir}/cache"\n`,
+  );
 }
 
 // ─── T-CL-E2E-01: dry-run モード ─────────────────────────────────────────────
@@ -451,7 +462,7 @@ describe('main - サブディレクトリ内のファイルは走査対象外', 
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
           // 既に app1/ サブディレクトリに配置済み（月ディレクトリ直下には .md ファイルなし）
-          const app1Dir = `${inputDir}/originalLogs/claude/2026/2026-03/app1`;
+          const app1Dir = `${inputDir}/normalizeLogs/claude/2026/2026-03/app1`;
           await Deno.mkdir(app1Dir, { recursive: true });
           await Deno.writeTextFile(
             `${app1Dir}/chat.md`,
@@ -489,7 +500,7 @@ describe('main - サブディレクトリ内のファイルは走査対象外', 
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(
-            await fileOrDirExists(`${inputDir}/originalLogs/claude/2026/2026-03/app1/chat.md`),
+            await fileOrDirExists(`${inputDir}/normalizeLogs/claude/2026/2026-03/app1/chat.md`),
             true,
           );
         });
@@ -668,17 +679,14 @@ describe('main - 期間フィルタ', () => {
         beforeEach(async () => {
           ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs('claude', '2026-03'));
           // chatlogsDir を GlobalConfig 経由で inputDir に設定し、period による通常解決経路を通す
-          await Deno.writeTextFile(
-            configFile,
-            `chatlogsDir: "${inputDir}"\ndicsDir: "${configsDir}"\nprojectsDic: "${configsDir}/projects.dic"\ncacheDir: "${configsDir}/cache"\n`,
-          );
+          await _writeChatlogsDirConfig(configFile, inputDir, configsDir);
           // 2026-03 の対象ファイル
           await Deno.writeTextFile(
             `${monthDir}/in-scope.md`,
             '---\ntitle: 対象\ncategory: dev\n---\n本文',
           );
-          // 2026-02 の期間外ファイル（resolveChatlogsDir で解決可能なツリー上に配置）
-          const outOfScopeDir = `${inputDir}/originalLogs/claude/2026/2026-02`;
+          // 2026-02 の期間外ファイル（同じ normalizeLogs/claude/2026 ツリー上の隣の月に配置）
+          const outOfScopeDir = `${inputDir}/normalizeLogs/claude/2026/2026-02`;
           await Deno.mkdir(outOfScopeDir, { recursive: true });
           await Deno.writeTextFile(
             `${outOfScopeDir}/out-of-scope.md`,
@@ -998,6 +1006,139 @@ describe('main - キャッシュ済み AI 分類判定', () => {
           await main(['claude', '2026-03', '--input-dir', monthDir, '--config', configFile]);
 
           assertEquals(await fileExists(`${monthDir}/app1/chat.md`), true);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-CL-E2E-15: --input-dir なし → normalizeLogs 配下を入力として移動 ─────────
+
+/**
+ * `main` 関数の E2E テストスイート（既定の入力ディレクトリ）。
+ *
+ * `--input-dir` を渡さないとき、`<chatlogsDir>/normalizeLogs/<agent>/YYYY/YYYY-MM` を入力として
+ * 分類し、同ディレクトリ配下のプロジェクト別サブディレクトリへ移動することを検証する。
+ *
+ * テスト ID 範囲: T-CL-E2E-15
+ *
+ * @see main
+ */
+describe('main - 既定の入力ディレクトリ（normalizeLogs）', () => {
+  /** config の chatlogsDir 配下 normalizeLogs/claude/2026/2026-03/chat.md が存在する前提。 */
+  describe('Given: chatlogsDir 設定と normalizeLogs/claude/2026/2026-03/chat.md', () => {
+    /** `main(["claude", "2026-03", "--config", configFile])` を呼び出すとき（dryRun=false、--input-dir なし）。 */
+    describe('When: main(["claude", "2026-03", "--config", configFile]) を呼び出す', () => {
+      /** chat.md が normalizeLogs/.../2026-03/app1/ へ移動されること。 */
+      describe('Then: T-CL-E2E-15 - normalizeLogs 配下のファイルが app1/ へ移動される', () => {
+        let inputDir: string;
+        let configsDir: string;
+        let configFile: string;
+        let monthDir: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let errStub: Stub;
+
+        beforeEach(async () => {
+          ({ inputDir, configsDir, configFile, monthDir } = await _makeTestDirs());
+          await _writeChatlogsDirConfig(configFile, inputDir, configsDir);
+          await Deno.writeTextFile(
+            `${monthDir}/chat.md`,
+            '---\ntitle: テスト\ncategory: development\n---\n本文',
+          );
+          const response = JSON.stringify([
+            { file: 'chat.md', project: 'app1', confidence: 0.9, reason: 'matched' },
+          ]);
+          resetProjectRoot(inputDir);
+          commandHandle = installCommandMock(makeClaudeJsonMock(response));
+          loggerStub = makeLoggerStub();
+          errStub = stub(console, 'error', () => {});
+          GlobalConfig.resetInstance();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          resetProjectRoot();
+          loggerStub.restore();
+          errStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(inputDir, { recursive: true });
+          await Deno.remove(configsDir, { recursive: true });
+        });
+
+        it('T-CL-E2E-15-01: normalizeLogs/claude/2026/2026-03/app1/chat.md へ移動し、元ファイルは残らない', async () => {
+          await main(['claude', '2026-03', '--config', configFile]);
+
+          assertEquals(await fileExists(`${inputDir}/normalizeLogs/claude/2026/2026-03/app1/chat.md`), true);
+          assertEquals(await fileExists(`${monthDir}/chat.md`), false);
+        });
+      });
+    });
+  });
+});
+
+// ─── T-CL-E2E-16: originalLogs のみ存在 → InputNotFound ─────────────────────────
+
+/**
+ * `main` 関数の E2E テストスイート（旧入力ディレクトリのみ存在）。
+ *
+ * normalizeLogs 側が無く originalLogs 側にだけ月ディレクトリがあるとき、
+ * originalLogs を入力に使わず InputNotFound で reject することを検証する。
+ *
+ * テスト ID 範囲: T-CL-E2E-16
+ *
+ * @see main
+ */
+describe('main - originalLogs のみ存在 → InputNotFound', () => {
+  /** originalLogs/claude/2026/2026-03/chat.md のみ存在し、normalizeLogs は無い前提。 */
+  describe('Given: originalLogs/claude/2026/2026-03/chat.md のみ存在（normalizeLogs なし）', () => {
+    /** `main(["claude", "2026-03", "--config", configFile])` を呼び出すとき（--input-dir なし）。 */
+    describe('When: main(["claude", "2026-03", "--config", configFile]) を呼び出す', () => {
+      /** ChatlogError（kind=InputNotFound）で reject されること。 */
+      describe('Then: T-CL-E2E-16 - InputNotFound → ChatlogError で reject される', () => {
+        let inputDir: string;
+        let configsDir: string;
+        let configFile: string;
+        let commandHandle: CommandMockHandle;
+        let loggerStub: LoggerStub;
+        let errStub: Stub;
+
+        beforeEach(async () => {
+          ({ inputDir, configsDir, configFile } = await _makeTestDirs());
+          await _writeChatlogsDirConfig(configFile, inputDir, configsDir);
+          await Deno.remove(`${inputDir}/normalizeLogs`, { recursive: true });
+          const originalMonthDir = `${inputDir}/originalLogs/claude/2026/2026-03`;
+          await Deno.mkdir(originalMonthDir, { recursive: true });
+          await Deno.writeTextFile(
+            `${originalMonthDir}/chat.md`,
+            '---\ntitle: テスト\ncategory: development\n---\n本文',
+          );
+          resetProjectRoot(inputDir);
+          // 誤って originalLogs を読んだ場合に実 CLI を起動しないよう、常にモックを入れる
+          commandHandle = installCommandMock(makeSuccessMock(new TextEncoder().encode('[]')));
+          loggerStub = makeLoggerStub();
+          errStub = stub(console, 'error', () => {});
+          GlobalConfig.resetInstance();
+        });
+
+        afterEach(async () => {
+          commandHandle.restore();
+          resetProjectRoot();
+          loggerStub.restore();
+          errStub.restore();
+          GlobalConfig.resetInstance();
+          await Deno.remove(inputDir, { recursive: true });
+          await Deno.remove(configsDir, { recursive: true });
+        });
+
+        it('T-CL-E2E-16-01: kind=InputNotFound の ChatlogError で reject され、message に "入力ディレクトリが見つかりません" を含む', async () => {
+          const rejected = await assertRejects(
+            () => main(['claude', '2026-03', '--config', configFile]),
+            ChatlogError,
+          );
+
+          assertEquals((rejected as ChatlogError).kind, 'InputNotFound');
+          assertStringIncludes((rejected as ChatlogError).message, '入力ディレクトリが見つかりません');
         });
       });
     });

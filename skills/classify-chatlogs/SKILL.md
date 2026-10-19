@@ -13,7 +13,7 @@ allowed-tools: Bash, Glob
 
 # classify-chatlogs スキル
 
-`chatlogs/originalLogs/<agent>/` 配下のフラットなチャットログをプロジェクト別サブディレクトリに分類する。
+`chatlogs/normalizeLogs/<agent>/` 配下のフラットなチャットログ（normalize-chatlogs の出力）をプロジェクト別サブディレクトリに分類する。
 `.config/chatlog-exporter/dics/projects.dic` の辞書を参照してプロジェクトを選定する。
 
 ## 前提条件
@@ -138,7 +138,7 @@ dry-run の場合は `完了 (dry-run): ...` となる。各カウンタの意�
 ## 分類後のディレクトリ構造
 
 ```bash
-chatlogs/originalLogs/claude/2026/2026-04/
+chatlogs/normalizeLogs/claude/2026/2026-04/
   ├── chatlog-exporter/
   │   └── 2026-04-08-classify実装.md
   ├── dev-tooling/
