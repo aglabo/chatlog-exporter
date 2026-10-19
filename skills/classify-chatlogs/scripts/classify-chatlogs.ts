@@ -25,7 +25,7 @@ import { findFilesFlat } from '../../_cle-libs/libs/file-ops/find-files.ts';
 import { logger } from '../../_cle-libs/libs/io/logger.ts';
 import { getFilename } from '../../_cle-libs/libs/path-utils/path-utils.ts';
 // constants
-import { DEFAULT_ORIGINAL_LOGS_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
+import { DEFAULT_NORMALIZE_DIR } from '../../_cle-libs/constants/defaults.constants.ts';
 import { LOGGER_TEXT } from '../../_cle-libs/constants/logger.constants.ts';
 
 // ─── Local
@@ -56,17 +56,17 @@ import { FALLBACK_PROJECT } from './constants/classify.constants.ts';
  * 存在しない場合は `ChatlogError('InputNotFound', 'NotFound', ...)` を throw する。
  */
 const _resolveInputDir = async (config: ClassifyConfig): Promise<string> => {
-  const originalLogsDir = resolveChatlogsDir({
+  const inputDir = resolveChatlogsDir({
     chatlogsDir: config.chatlogsDir,
     agent: config.agent,
     period: config.period,
-    addOnDir: DEFAULT_ORIGINAL_LOGS_DIR,
+    addOnDir: DEFAULT_NORMALIZE_DIR,
     override: config.inputDir,
   });
-  if (!await dirExists(originalLogsDir)) {
-    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${originalLogsDir}`);
+  if (!await dirExists(inputDir)) {
+    throw new ChatlogError('InputNotFound', 'NotFound', `入力ディレクトリが見つかりません: ${inputDir}`);
   }
-  return originalLogsDir;
+  return inputDir;
 };
 
 /**
@@ -92,9 +92,9 @@ const _loadProjects = async (config: ClassifyConfig): Promise<ProjectDicEntry> =
  * 対象ファイルが0件の場合は完了ログを出力し `null` を返す。
  */
 const _collectFilesAndCache = async (
-  originalLogsDir: string,
+  inputDir: string,
 ): Promise<{ filePaths: string[]; cache: ChatlogCache<ClassifyCache> } | null> => {
-  const filePaths = await findFilesFlat(originalLogsDir, { ext: '.md' });
+  const filePaths = await findFilesFlat(inputDir, { ext: '.md' });
   if (filePaths.length === 0) {
     logger.info('対象ファイルなし');
     logger.info('完了: moved=0 movedByAI=0 error=0 remaining=0 skip=0');
@@ -153,12 +153,12 @@ const _classify = async (
 export const main = async (argv?: string[]): Promise<number> => {
   const _config = buildConfig(argv ?? Deno.args);
 
-  const _originalLogsDir = await _resolveInputDir(_config);
+  const _inputDir = await _resolveInputDir(_config);
   const projects = await _loadProjects(_config);
 
   const stats: ClassifyStats = { moved: 0, movedByAI: 0, error: 0, remaining: 0, skip: 0 };
 
-  const _collected = await _collectFilesAndCache(_originalLogsDir);
+  const _collected = await _collectFilesAndCache(_inputDir);
   if (_collected === null) { return 0; }
   const { filePaths: _filePaths, cache: _cache } = _collected;
 
@@ -167,7 +167,7 @@ export const main = async (argv?: string[]): Promise<number> => {
   // Step 5: ファイル移動
   await applyClassifications(
     [..._partition.cached, ..._partition.uncached],
-    _originalLogsDir,
+    _inputDir,
     _config.dryRun,
     { cache: _cache, stats },
     _config,

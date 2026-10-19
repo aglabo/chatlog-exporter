@@ -36,7 +36,7 @@ import { normalizePath } from '../../../../_cle-libs/libs/path-utils/path-utils.
  * inputDir / configsDir を作成して返す。
  * - configsDir/config.yaml: GlobalConfig 用の最小設定（dicsDir/projectsDic/cacheDir）
  * - configsDir/projects.dic: テスト用プロジェクト辞書（YAML 形式、省略時は app1/app2）
- * - inputDir/originalLogs/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
+ * - inputDir/normalizeLogs/agent/YYYY/YYYY-MM/: 月別ディレクトリ（入れ子形式）
  */
 async function _makeTestDirs(
   agent = 'claude',
@@ -52,7 +52,7 @@ async function _makeTestDirs(
   const configsDir = normalizePath(await Deno.makeTempDir());
   const configFile = `${configsDir}/config.yaml`;
   const year = period.slice(0, 4);
-  const monthDir = `${inputDir}/originalLogs/${agent}/${year}/${period}`;
+  const monthDir = `${inputDir}/normalizeLogs/${agent}/${year}/${period}`;
   await Deno.mkdir(monthDir, { recursive: true });
   await Deno.writeTextFile(
     configFile,
