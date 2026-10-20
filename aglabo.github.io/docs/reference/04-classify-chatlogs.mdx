@@ -1,0 +1,101 @@
+---
+title: classify-chatlogs
+description: Sort chat log segments into per-project subdirectories, with the AI choosing the project from your project dictionary.
+---
+
+## Overview
+
+`/classify-chatlogs` decides which project each chat log belongs to, moves it into a subdirectory named after
+that project, and adds a `project` field to its frontmatter.
+
+The AI picks the project from the names defined in `.config/chatlog-exporter/dics/projects.dic`, based on each
+log's title, category, topics, and tags. A log that matches no project goes to `misc`.
+To classify into your own projects, add them to `projects.dic` first.
+
+In the [basic workflow](../user-guide/basic-workflow), run it on the topic-based segments, after
+[`/normalize-chatlogs`](./normalize-chatlogs) and the second run of [`/filter-chatlogs`](./filter-chatlogs).
+Classifying segments rather than whole sessions lets a session that spans several projects be split between them.
+
+## Usage
+
+```bash
+/classify-chatlogs [agent] [YYYY-MM] [options]
+/classify-chatlogs <path> [options]
+```
+
+### Arguments
+
+| Argument  | Description                                                                                |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `agent`   | `claude`, `codex`, or `chatgpt`. Defaults to `agent` in `config.yaml` (`claude` if unset). |
+| `YYYY-MM` | The month to process. Omit it to process all periods. It must follow `agent`.              |
+| `path`    | A directory to process instead of `agent` / `YYYY-MM`. It must contain a `/`.              |
+
+### Options
+
+| Option             | Description                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `--period YYYY-MM` | Give the month without an agent (the default agent is used).                            |
+| `--input-dir DIR`  | Directory to process, the same as giving `path`.                                        |
+| `--model MODEL`    | AI model to use. Defaults to `model` in `config.yaml`. See [`--model`](./model-option). |
+| `--debug`          | Print AI diagnostic logs, including part of the responses, to stderr.                   |
+| `--config FILE`    | Use a different `config.yaml`.                                                          |
+| `--dry-run`        | Move nothing. The AI is not called either, so no project is shown.                      |
+
+:::note
+
+- A log whose frontmatter already has `project:` is moved to that project without calling the AI,
+  even if the name is not in `projects.dic`.
+- A log with no title, category, topics, or tags and fewer than 50 characters goes to `misc` without calling the AI.
+- Results are cached, so a re-run does not call the AI again for logs already classified.
+
+:::
+
+## Input and output
+
+By default it reads the `.md` files directly under `chatlogs/normalizeLogs/<agent>/<YYYY>/<YYYY-MM>/`
+(subdirectories are not scanned), and moves each one into a project subdirectory of that same directory:
+
+<FileTree>
+
+- chatlogs/
+  - normalizeLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - chatlog-exporter/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+          - dev-tooling/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-02-b7e04d8.md
+          - misc/
+            - 2026-06-14-short-question-0c9d8e7f6a5b-01-91ad3e2.md
+
+</FileTree>
+
+Because only the top level is scanned, logs already sorted into a subdirectory are not classified again.
+The `project` field is added to the frontmatter of each moved file:
+
+```yaml
+---
+title: Fix encoding of exported logs
+date: 2026-06-12
+project: chatlog-exporter
+---
+```
+
+## Examples
+
+Classify the Claude segments of June 2026:
+
+```bash
+/classify-chatlogs claude 2026-06
+```
+
+Classify the files in a specific directory:
+
+```bash
+/classify-chatlogs "chatlogs/normalizeLogs/codex/2026/2026-06"
+```
+
+When it finishes, the skill reports how many files were moved with and without the AI, and which projects they went to.
+Next, add the frontmatter with [`/set-frontmatter`](./set-frontmatter).

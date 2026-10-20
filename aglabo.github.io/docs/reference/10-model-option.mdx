@@ -1,0 +1,145 @@
+---
+title: --model option
+description: How to write the value of --model, which selects both the AI backend and the model that the AI-calling skills use.
+---
+
+## Overview
+
+`--model` selects the AI that a skill calls. One value decides two things:
+which **backend** runs (the Claude CLI, the Codex CLI, a local llama server, and so on)
+and which **model** that backend uses.
+
+It is accepted by the skills that call AI:
+
+- [`/filter-chatlogs`](./filter-chatlogs) (`filter` mode only. `noise-filter` and `strip` do not use AI)
+- [`/normalize-chatlogs`](./normalize-chatlogs)
+- [`/classify-chatlogs`](./classify-chatlogs)
+- [`/set-frontmatter`](./set-frontmatter)
+
+[`/export-chatlogs`](./export-chatlogs) does not call AI, so it ignores `--model`.
+
+The value is chosen in this order:
+
+1. `--model` on the command line
+2. `model` in `config.yaml`
+3. The built-in default `sonnet`
+
+`--model` is independent of `agent`. `agent` chooses which logs to read, and `--model` chooses which AI reads them.
+For example, you can process Codex logs with Claude: `/classify-chatlogs codex 2026-06 --model sonnet`.
+
+## How to write the value
+
+There are two forms.
+
+### Model name only
+
+Write only the model name, and the backend is inferred from it. The patterns are checked from the top.
+
+| Value                                                                                       | Backend             |
+| ------------------------------------------------------------------------------------------- | ------------------- |
+| `gpt-*` (for example `gpt-5`)                                                               | codex               |
+| `default`, `best`, `fable`, `opus`, `sonnet`, `haiku`, `sonnet[1m]`, `opus[1m]`, `opusplan` | claude              |
+| `claude-opus-*`, `claude-sonnet-*`, `claude-haiku-*` (for example `claude-sonnet-4-6`)      | claude              |
+| `gemini-*` (for example `gemini-2.5-pro`)                                                   | antigravity (`agy`) |
+
+A name that matches none of these is an error. To use such a model, write the provider explicitly (see below).
+
+### `<provider>/<model>`
+
+Put a provider name before the model name, separated by `/`.
+The value is split at the **first** `/`, and everything after it is the model name.
+The model name itself is not checked here, so use this form for any model the table above does not cover.
+
+| Provider                | Backend              |
+| ----------------------- | -------------------- |
+| `claude`, `anthropic`   | claude               |
+| `codex`, `openai`       | codex                |
+| `copilot`               | copilot              |
+| `opencode`              | opencode             |
+| `google`, `antigravity` | antigravity (`agy`)  |
+| `llama`                 | llama (HTTP, no CLI) |
+
+For example, `anthropic/sonnet` is the same as `sonnet`, and `openai/gpt-5` is the same as `gpt-5`.
+
+## What the backend receives
+
+Except for llama, the skill starts the backend's CLI and passes the model name to its `--model` flag.
+The CLI must be installed and signed in beforehand.
+
+| Backend     | CLI        | Passed to `--model`             | Example: value → passed                    |
+| ----------- | ---------- | ------------------------------- | ------------------------------------------ |
+| claude      | `claude`   | The model name without provider | `anthropic/opus` → `opus`                  |
+| codex       | `codex`    | The model name without provider | `openai/gpt-5` → `gpt-5`                   |
+| copilot     | `copilot`  | The model name without provider | `copilot/gpt-5` → `gpt-5`                  |
+| antigravity | `agy`      | The model name without provider | `google/gemini-2.5-pro` → `gemini-2.5-pro` |
+| opencode    | `opencode` | `<provider>/<model>` as written | `opencode/<model>` → `opencode/<model>`    |
+
+opencode is the only backend that receives the provider part. Since the provider is always `opencode`,
+opencode receives `opencode/<model>`, that is, a model of opencode's own `opencode` provider.
+
+## Local llama server
+
+`llama/<model>` does not start a CLI. It sends HTTP requests to the llama server at `llamaEndpoint` in `config.yaml`.
+The endpoint can only be set in `config.yaml`, not by an option or an environment variable.
+
+```yaml
+model: "llama/avalon"
+llamaEndpoint: "http://avalon:8080/"
+concurrency: 1 # must not exceed the llama server slot count (--parallel)
+```
+
+- If `llamaEndpoint` is empty, the run stops with `InvalidEndpoint`.
+- `llama/` with an empty model name is an error.
+- Keep `concurrency` at or below the number of slots the server runs with.
+
+## Invalid values
+
+The run stops before calling AI, with an `InvalidModel` error, when:
+
+- the provider is unknown (for example `foo/bar`)
+- a name without a provider matches none of the patterns (for example `o3`. Write `codex/o3` instead)
+- the value is `llama/` with no model name
+
+The error message lists the accepted values:
+
+```text
+"o3" is not valid. Valid models: gpt-*, default, best, fable, opus, sonnet, haiku, ... (or <provider>/<model> with provider: claude, anthropic, ...)
+```
+
+## Examples
+
+Use Haiku for a quick, cheap pass.
+
+```bash
+/filter-chatlogs filter claude 2026-06 --model haiku
+```
+
+Pin a specific Claude model version.
+
+```bash
+/set-frontmatter claude 2026-06 --model claude-sonnet-4-6
+```
+
+Split logs with Codex.
+
+```bash
+/normalize-chatlogs claude 2026-06 --model gpt-5
+```
+
+Use a model that is not in the pattern table, by naming the provider.
+
+```bash
+/classify-chatlogs claude 2026-06 --model codex/o3
+```
+
+Use the local llama server for one run (`llamaEndpoint` must be set in `config.yaml`).
+
+```bash
+/normalize-chatlogs claude 2026-06 --model llama/avalon
+```
+
+To change the default for every run, set `model` in `config.yaml` instead of passing `--model` each time.
+
+```yaml
+model: "haiku"
+```

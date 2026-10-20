@@ -1,0 +1,105 @@
+---
+title: normalize-chatlogs
+description: Split each chat log into topic-based segments with AI, and write each segment as Markdown with frontmatter.
+---
+
+## Overview
+
+`/normalize-chatlogs` has the AI read each chat log and split it into segments, one per topic.
+A single session often covers several unrelated topics; splitting them lets the later skills classify and
+tag each topic on its own. A log is split into at most five segments, and a log with a single topic stays as one.
+
+Each segment is written as its own Markdown file. The frontmatter of the source log is carried over, and the AI
+generates a `title` and a `log_id` for each segment. The AI's summary goes into a `## Summary` section of the body.
+
+Use it after the first run of [`/filter-chatlogs`](./filter-chatlogs), so that the AI does not spend tokens
+splitting logs you are going to delete anyway.
+
+## Usage
+
+```bash
+/normalize-chatlogs [agent] [YYYY-MM] [options]
+/normalize-chatlogs <path> [options]
+```
+
+### Arguments
+
+| Argument  | Description                                                                                |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `agent`   | `claude`, `codex`, or `chatgpt`. Defaults to `agent` in `config.yaml` (`claude` if unset). |
+| `YYYY-MM` | The month to process. Omit it to process all periods. It must follow `agent`.              |
+| `path`    | A directory to process instead of `agent` / `YYYY-MM`. It must contain a `/`.              |
+
+### Options
+
+| Option                | Description                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `--period YYYY-MM`    | Give the month without an agent (the default agent is used).                            |
+| `--input-dir DIR`     | Directory to read from, the same as giving `path`.                                      |
+| `--output-dir DIR`    | Base directory to write to. A relative path is resolved from `chatlogs/`.               |
+| `--file PATH`         | Process only this one file. Useful for checking a single log.                           |
+| `--single-file`       | Send one file per AI call. Use it when files fail with `no segments returned`.          |
+| `--concurrency N`     | Number of AI calls run in parallel. Default 4.                                          |
+| `--batch-size N`      | Maximum number of files per AI call. Default 4.                                         |
+| `--max-batch-chars N` | Maximum total characters per AI call. Default 20000; 0 means no limit.                  |
+| `--timeout-ms N`      | Timeout of each AI call, in milliseconds.                                               |
+| `--model MODEL`       | AI model to use. Defaults to `model` in `config.yaml`. See [`--model`](./model-option). |
+| `--fail-fast`         | Stop at the first failure.                                                              |
+| `--debug`             | Print AI diagnostic logs, including part of the responses, to stderr.                   |
+| `--config FILE`       | Use a different `config.yaml`.                                                          |
+| `--dry-run`           | Write nothing. The AI is not called, so no split result is shown.                       |
+
+:::tip
+When several nearly identical logs share one AI call, the AI may skip one of them, and that file is reported as
+`failed (no segments returned)`. Re-running normally rebuilds the same batch, so it fails again.
+Re-run with `--single-file` to send each file on its own.
+:::
+
+## Input and output
+
+By default it reads `chatlogs/originalLogs/<agent>/<YYYY>/<YYYY-MM>/`, including subdirectories,
+and writes to `chatlogs/normalizeLogs/<agent>/<YYYY>/<YYYY-MM>/`:
+
+<FileTree>
+
+- chatlogs/
+  - originalLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6.md
+  - normalizeLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6-02-b7e04d8.md
+
+</FileTree>
+
+The output file name is `<source name>-<NN>-<hash>.md`, where `<NN>` is the segment number.
+The segments are written directly under the output directory, without project subdirectories.
+The source files in `originalLogs` are left as they are.
+
+When you give a path instead of `agent YYYY-MM`, the output goes to `chatlogs/normalizeLogs/<agent>/`,
+without the year and month.
+
+If an output file already exists, it is backed up as `.old-NN.md` and then overwritten.
+Logs that were already split are skipped on a re-run.
+
+## Examples
+
+Split the Claude logs of June 2026:
+
+```bash
+/normalize-chatlogs claude 2026-06
+```
+
+Re-run with one file per AI call after some files failed with `no segments returned`:
+
+```bash
+/normalize-chatlogs claude 2026-06 --single-file
+```
+
+When it finishes, the skill reports the counts of succeeded, already done, skipped, failed, and errored files.
+Next, run [`/filter-chatlogs`](./filter-chatlogs) again on `chatlogs/normalizeLogs/` to drop empty segments.

@@ -1,0 +1,112 @@
+---
+title: filter-chatlogs
+description: Delete exported chat logs that are of little value to keep, by pattern matching or by AI judgment.
+---
+
+## Overview
+
+`/filter-chatlogs` judges each chat log as KEEP or DISCARD and **deletes** the DISCARD ones.
+It has three modes, chosen by the first argument:
+
+| Mode           | What it does                                                                                       | Uses AI |
+| -------------- | -------------------------------------------------------------------------------------------------- | ------- |
+| `noise-filter` | Deletes logs that match fixed noise patterns, such as very short logs or Git-operation-only logs.  | No      |
+| `filter`       | Asks the AI whether each log keeps the reasoning behind a decision, and deletes those that do not. | Yes     |
+| `strip`        | Removes fixed boilerplate (such as `TOPICS ASSIGNMENT RULES`) from the top of the body.            | No      |
+
+If you give no mode, `filter` is used.
+
+In the [basic workflow](../user-guide/basic-workflow) it runs twice: once on the exported sessions, and once
+on the segments that [`/normalize-chatlogs`](./normalize-chatlogs) split out. Run `noise-filter` first and
+`filter` after it, so that the AI only reads the logs that survived the cheap pattern check.
+
+The AI filter keeps logs that hold decisions and their reasons, rejected options, discovered constraints,
+pitfalls and their fixes, or your confirmed answers. It discards logs with only execution status, trivial Q&A,
+conclusions obvious from the current code, or context that only makes sense inside that session.
+
+## Usage
+
+```bash
+/filter-chatlogs [noise-filter|filter] [agent] [YYYY-MM] [options]
+/filter-chatlogs [noise-filter|filter] <path> [options]
+/filter-chatlogs strip <agent> <YYYY-MM> [options]
+/filter-chatlogs strip <path> [options]
+```
+
+### Arguments
+
+| Argument  | Description                                                                                                          |
+| --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `agent`   | `claude`, `codex`, or `chatgpt`. Defaults to `agent` in `config.yaml` (`claude` if unset).                           |
+| `YYYY-MM` | The month to process. Omit it to process all periods. Required for `strip` unless you give a path.                   |
+| `path`    | A directory to process instead of `agent` / `YYYY-MM`. It must contain a `/`. Use it for the second run on segments. |
+
+Without a path, the target is `chatlogs/originalLogs/<agent>/<YYYY>/<YYYY-MM>/`.
+
+### Options
+
+| Option               | Modes    | Description                                                                                          |
+| -------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `--dry-run`          | all      | Do not delete or rewrite anything. See the notes below for what each mode reports.                   |
+| `--single-file`      | `filter` | Judge one file per AI call.                                                                          |
+| `--chunk-size N`     | `filter` | Number of files per AI call (1–10). Defaults to `chunkSize` in `config.yaml` (2 in the shipped one). |
+| `--max-body-chars N` | `filter` | Maximum characters of each body sent to the AI (1–100000). Default 8000.                             |
+| `--model MODEL`      | `filter` | AI model to use. Defaults to `model` in `config.yaml`. See [`--model`](./model-option).              |
+| `--debug`            | `filter` | Print AI diagnostic logs, including part of the responses, to stderr.                                |
+| `--recover-orphans`  | `strip`  | Restore originals left behind as `.bak` by an interrupted run, then stop without stripping.          |
+
+:::warning
+**What `--dry-run` shows differs by mode**
+
+- `filter`: the AI is not called, so no KEEP/DISCARD judgment is made (`judged=0`).
+  It only lists the files that would be judged.
+- `noise-filter`: the same rules as a real run are applied, so you can use it to review the result.
+  The files that would be deleted are counted in `skip`, and `remove` is always 0.
+  Read `skip` as the number of files a real run would delete.
+- `strip`: every file is judged as in a real run. The files that would be rewritten are counted in
+  `skipped`, and `stripped` is always 0.
+
+:::
+
+:::note
+In `filter` mode, a DISCARD with low confidence (below `discardThreshold` in `config.yaml`, default 0.7)
+is not deleted; it is judged again on the next run. Judgments are cached, so a re-run does not call the AI
+again for files already judged.
+:::
+
+## Input and output
+
+Every mode works on the target directory in place. There is no separate output directory.
+
+| Mode           | Reads                                  | Writes                                                |
+| -------------- | -------------------------------------- | ----------------------------------------------------- |
+| `noise-filter` | `.md` files in the target directory    | Deletes the noise files                               |
+| `filter`       | `.md` files in the target directory    | Deletes the DISCARD files                             |
+| `strip`        | `.md` files in the target, recursively | Rewrites files with boilerplate; others are untouched |
+
+`strip` saves each original as `.bak` while it rewrites, and deletes every `.bak` under the target directory
+once the run finishes without errors. Do not keep `.bak` files of your own under that directory.
+
+:::warning
+This skill deletes files. Run it with `--dry-run` first and review the targets before the real run.
+:::
+
+## Examples
+
+The first run, on the exported sessions of June 2026:
+
+```bash
+/filter-chatlogs noise-filter claude 2026-06 --dry-run
+/filter-chatlogs noise-filter claude 2026-06
+/filter-chatlogs filter claude 2026-06
+```
+
+The second run, on the segments split by `/normalize-chatlogs`. Pass the path, because the
+`claude 2026-06` form would point at `originalLogs` again:
+
+```bash
+/filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+```
+
+When it finishes, the skill reports the counts of kept, skipped, removed, and failed files.
