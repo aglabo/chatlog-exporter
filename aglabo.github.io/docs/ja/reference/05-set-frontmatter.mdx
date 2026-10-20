@@ -51,6 +51,12 @@ category・topics・tags は `.config/chatlog-exporter/dics/` の辞書から選
 
 ディレクトリを指定するオプションは `/` を含む必要があります (`./dics` は可、`dics` は不可)。
 
+:::note
+現在、`/set-frontmatter` スラッシュコマンドがスクリプトへ渡すオプションは `--dry-run` と `--no-review` だけです。
+この表のほかのオプションはまだ転送されないため、スラッシュコマンドからは使えません。
+対応は [#549](https://github.com/aglabo/chatlog-exporter/issues/549) で進めます。
+:::
+
 :::warning
 `category.dic` または `types.dic` が存在しない・空である、またはフォールバック値
 (`category.dic` の `development`、`types.dic` の `research`) を含まない場合は、AI を呼び出す前に実行が中断されます。
