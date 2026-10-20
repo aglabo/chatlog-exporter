@@ -5,3 +5,9 @@ Choose project ONLY from this list: app1, app2, misc
 If no project matches well, use "misc".
 If the file has no metadata AND the body is fewer than 3 lines, assign "misc" unconditionally.
 Base your decision on: title, category, topics, tags.
+Match them against the project definitions below. "when" lists conditions for choosing a project; "not" lists conditions that exclude it.
+
+Project definitions:
+- app1: Application 1
+- app2: Application 2
+- misc: Miscellaneous
