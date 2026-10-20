@@ -26,7 +26,9 @@
     // Other Configurations
     "**/*.dic",
     // Documents
-
+    // NOTE: The markdown plugin does not support MDX. It rewrites JSX expression
+    //       attributes (cols={2}) into strings ("{2}"). In *.mdx, write component
+    //       attributes as string literals (cols="2").
     "**/*.md",
     "**/*.mdx",
   ],
@@ -45,9 +47,10 @@
     "**/deno.lock",
     "**/pnpm-lock.yaml",
     // test fixtures
-    // dprint がﾊﾞoｲCﾄg列を正規化すると､A空行・末尾改行・改行ｺRｰ[ﾄﾞhを検証する
-    // ｴGｯbｼﾞWｹPｰ[ｽXのﾌtｨBｸNｽXﾁ`ｬﾓが骨抜きになる（markdownlint は **/__tests__/**､A
-    // textlint は **/fixtures/** を既に除外済み）｡B.ts の spec / helper は対象に残す｡B
+    // If dprint normalizes their bytes, edge-case fixtures that test blank lines,
+    // trailing newlines, and line endings become useless. (markdownlint already
+    // excludes **/__tests__/**, and textlint excludes **/fixtures/**.)
+    // .ts specs and helpers are still formatted.
     "**/fixtures-data/**",
     "**/fixtures/**/*.md",
     "**/fixtures/**/*.yaml",
