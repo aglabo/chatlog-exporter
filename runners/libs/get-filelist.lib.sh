@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# get-filelist.sh — file list and argument normalization library
-# Provides path normalization, glob-to-regex conversion, and file list retrieval
+# src: runners/libs/get-filelist.lib.sh
+# @(#) : get-filelist.lib.sh — file list and argument normalization library
+#
+# Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
 
 # Guard against double sourcing
 [[ -n "${_GET_FILELIST_SH:-}" ]] && return 0
@@ -69,10 +74,12 @@ get_filelist() {
   local __f __norm
   for __f in "$@"; do
     __norm=$(normalize_path "$__f")
+    # Strip leading ./ so filter matches rg output (hidden paths have no ./ prefix)
+    __norm="${__norm#./}"
     if [[ "$__norm" == */* ]]; then
       __filters+=("$__norm")
     else
-      __filters+=("$(args_to_filter "$__f")")
+      __filters+=("$(args_to_filter "$__norm")")
     fi
   done
 

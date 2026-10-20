@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# wsl.lib.sh - WSL delegation library
-# Provides Windows host detection and script execution inside WSL
+# src: runners/libs/wsl.lib.sh
+# @(#): wsl.lib.sh - WSL delegation library
 #
 # Copyright (c) 2026- atsushifx <https://github.com/atsushifx>
 #
