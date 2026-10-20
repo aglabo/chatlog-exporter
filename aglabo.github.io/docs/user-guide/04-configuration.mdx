@@ -1,0 +1,126 @@
+---
+title: Customizing config.yaml
+description: What each key in config.yaml means, its default, and what changes when you edit it.
+---
+
+## Overview
+
+`.config/chatlog-exporter/config.yaml` holds the global settings that every skill reads:
+the default agent, the AI model, timeouts, batch sizes, filter thresholds, and directory locations.
+`/setup-chatlogs` deploys it, and you edit it directly to change the defaults for every run.
+
+To customize the dictionaries or the AI prompts, see [Customizing dictionaries](./dictionaries)
+and [Customizing prompts](./prompts).
+
+## How the file is read
+
+- **Location**: `.config/chatlog-exporter/config.yaml`, relative to the **current directory**.
+  Run the skills from the directory you ran `/setup-chatlogs` in.
+  Neither the home directory nor parent directories are searched.
+- **Another file**: `--config FILE` (accepted by every skill) reads a different file.
+  An absolute path is used as given. A relative path is resolved under `.config/chatlog-exporter/`,
+  so `--config my.yaml` reads `.config/chatlog-exporter/my.yaml`.
+- **Missing file**: if the default `config.yaml` does not exist, the built-in defaults are used.
+  If the file given with `--config` does not exist, the run stops with an error.
+- **Missing keys**: a key you leave out falls back to its built-in default.
+  You only need to write the keys you want to change.
+- **Empty keys**: an empty number or true/false key (for example `timeoutMs:`) also falls back to its default.
+  An empty text key (for example `agent:`, `model:`, or `dicsDir:`) does **not**. It is read as an empty string.
+  To use the default for a text key, delete the whole line.
+
+A value is chosen in this order:
+
+1. The command-line option (for skills that have one)
+2. The key in `config.yaml`
+3. The built-in default
+
+:::warning
+**Invalid values stop the run**
+
+- An **unknown key** (including a misspelled one) is an error. The run stops before any processing.
+- A number **outside its range** (see the tables below) is an error.
+- A YAML syntax error is an error.
+
+:::
+
+## Keys
+
+The **Default** column is the built-in value used when the key is absent.
+Where the shipped `config.yaml` sets a different value, it is shown in **Shipped**.
+
+### Agent and AI
+
+| Key             | Default  | Shipped   | Range    | Description                                                                                                                                             |
+| --------------- | -------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agent`         | `claude` |           | —        | The agent whose logs are processed when no agent is given on the command line: `claude`, `codex`, or `chatgpt`.                                         |
+| `model`         | `sonnet` |           | —        | The AI backend and model used by the AI-calling skills. Overridden by `--model`. See [`--model` option](../reference/model-option) for how to write it. |
+| `timeoutMs`     | `120000` | `300000`  | 0–600000 | Deadline for one AI call, in milliseconds. `0` disables it. Raise it for slow local models, where prompt evaluation alone can take minutes.             |
+| `maxRetry`      | `2`      |           | 0–10     | How many times to re-ask the AI when its response cannot be parsed (filter-chatlogs, set-frontmatter). CLI and backend errors are not retried.          |
+| `debug`         | `false`  |           | —        | `true` writes AI diagnostics, including part of the response text, to stderr. Same as `--debug`.                                                        |
+| `llamaEndpoint` | `''`     | (example) | —        | URL of the llama server used by `llama/<model>`. It can only be set here. The shipped value is a sample address; replace it with your own server's URL. |
+
+### Batching and parallelism
+
+| Key             | Default | Shipped | Range     | Description                                                                                                                                            |
+| --------------- | ------- | ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `chunkSize`     | `10`    | `2`     | 1–10      | Number of files sent to the AI in one call by filter-chatlogs and classify-chatlogs. Larger values mean fewer calls but longer prompts.                |
+| `concurrency`   | `4`     |         | 1–10      | Number of AI calls run in parallel. With `llama/<model>`, keep it at or below the server's slot count (`--parallel`).                                  |
+| `batchSize`     | `4`     |         | 1–10      | Number of files per AI call when normalize-chatlogs splits logs into segments. Overridden by `--batch-size`. Not in the shipped file.                  |
+| `maxBatchChars` | `20000` |         | 0–1000000 | Upper limit on the total body characters per normalize-chatlogs call. `0` means unlimited. Overridden by `--max-batch-chars`. Not in the shipped file. |
+
+### Filters and lengths
+
+| Key                 | Default | Shipped | Range    | Description                                                                                                                                            |
+| ------------------- | ------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `minCharCount`      | `1000`  |         | 0–100000 | filter-chatlogs: logs with a shorter body are discarded before the AI is called.                                                                       |
+| `minAssistantChars` | `300`   |         | 0–100000 | filter-chatlogs: for a log with only one user turn, the minimum length of the assistant's replies. Shorter logs are discarded before the AI is called. |
+| `maxBodyChars`      | `8000`  |         | 1–100000 | filter-chatlogs: how many body characters of each log are put into the judgement prompt. `0` is not allowed. Overridden by `--max-body-chars`.         |
+| `discardThreshold`  | `0.7`   |         | 0–1      | filter-chatlogs: a DISCARD is applied only when the AI's confidence is at or above this value. Raise it to delete less.                                |
+| `maxContentLength`  | `4000`  | `10000` | 0–100000 | set-frontmatter: the body is truncated to this length before it is sent to the AI.                                                                     |
+
+### Directories
+
+| Key           | Default                                      | Description                                                                                                      |
+| ------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `chatlogsDir` | `./chatlogs`                                 | Base directory for exported and processed logs (`originalLogs/`, `normalizeLogs/`, `outputLogs/` live under it). |
+| `dicsDir`     | `dics`                                       | Dictionary directory. A relative path is resolved under `.config/chatlog-exporter/`.                             |
+| `projectsDic` | `.config/chatlog-exporter/dics/projects.dic` | The project dictionary used by classify-chatlogs. When left at the default, it follows `dicsDir`.                |
+| `promptsDir`  | `prompts`                                    | Prompt directory used by set-frontmatter. A relative path is resolved under `.config/chatlog-exporter/`.         |
+| `cacheDir`    | `${TEMP}/cle-cache`                          | Cache root for AI results.                                                                                       |
+
+### Unused keys
+
+`hashLength`, `minRandomLength`, and `maxRandomLength` are accepted for compatibility,
+but no skill currently reads them. Changing them has no effect.
+
+## Variables in paths
+
+Path values can contain the following variables.
+
+| Variable         | Expands to                                                     |
+| ---------------- | -------------------------------------------------------------- |
+| `${ProjectRoot}` | The current directory when the skill starts (not the git root) |
+| `${HOME}`        | `HOME`, or `USERPROFILE` if `HOME` is not set                  |
+| `${TEMP}`        | The `TEMP` environment variable                                |
+| `${TMP}`         | The `TMP` environment variable                                 |
+
+Any other `${...}` is an error, and so is an allowed variable that is not set.
+A path that still contains `..` after expansion is also rejected.
+
+## Example
+
+To process Codex logs by default, give slow local models more time, and keep more borderline logs:
+
+```yaml
+agent: codex
+model: "llama/qwen3"
+llamaEndpoint: "http://localhost:8080/"
+timeoutMs: 600_000
+concurrency: 2
+discardThreshold: 0.85
+```
+
+:::warning
+`/setup-chatlogs --force` copies the shipped `.config/chatlog-exporter/` over the existing one,
+so your edited `config.yaml` is replaced. Keep a copy, or commit it, before running it.
+:::
