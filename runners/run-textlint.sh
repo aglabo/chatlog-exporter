@@ -11,10 +11,10 @@
 
 set -euo pipefail
 
-# shellcheck source=runners/libs/init-vars.lib.sh
+# Init variables
 . "$(dirname "${BASH_SOURCE[0]}")/libs/init-vars.lib.sh"
 
-# shellcheck source=runners/libs/utils.lib.sh
+# load utilty library
 . "${SCRIPT_ROOT}/libs/utils.lib.sh"
 
 # @description Run textlint with the global config,
