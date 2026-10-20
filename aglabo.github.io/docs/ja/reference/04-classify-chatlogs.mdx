@@ -1,0 +1,101 @@
+---
+title: classify-chatlogs
+description: チャットログのセグメントをプロジェクト別のサブディレクトリに振り分けます。プロジェクトは、プロジェクト辞書から AI が選びます。
+---
+
+## 概要
+
+`/classify-chatlogs` は、各チャットログがどのプロジェクトに属するかを判定し、そのプロジェクト名のサブディレクトリへ移動して、
+frontmatter に `project` フィールドを付加します。
+
+AI は、各ログの title・category・topics・tags を手がかりに、`.config/chatlog-exporter/dics/projects.dic` に定義された名前からプロジェクトを選びます。
+どのプロジェクトにも当てはまらないログは `misc` に入ります。
+自分のプロジェクトに分類したい場合は、先に `projects.dic` へ追加してください。
+
+[基本ワークフロー](../user-guide/basic-workflow) では、[`/normalize-chatlogs`](./normalize-chatlogs) と
+2 回目の [`/filter-chatlogs`](./filter-chatlogs) の後に、トピック別のセグメントに対して実行します。
+セッション単位ではなくセグメント単位で分類するため、複数のプロジェクトにまたがるセッションもそれぞれのプロジェクトに分けられます。
+
+## 使い方
+
+```bash
+/classify-chatlogs [agent] [YYYY-MM] [オプション]
+/classify-chatlogs <path> [オプション]
+```
+
+### 引数
+
+| 引数      | 説明                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `agent`   | `claude`、`codex`、`chatgpt`。省略時は `config.yaml` の `agent` (未設定なら `claude`)。 |
+| `YYYY-MM` | 処理する月。省略すると全期間が対象です。`agent` の後ろに置きます。                      |
+| `path`    | `agent` / `YYYY-MM` の代わりに処理するディレクトリ。`/` を含む必要があります。          |
+
+### オプション
+
+| オプション         | 説明                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `--period YYYY-MM` | エージェントを指定せずに月を指定します (デフォルトのエージェントを使用)。                          |
+| `--input-dir DIR`  | 処理するディレクトリ。`path` を指定するのと同じです。                                              |
+| `--model MODEL`    | 使用する AI モデル。既定は `config.yaml` の `model`。書き方は [`--model`](./model-option) を参照。 |
+| `--debug`          | AI の診断ログ (応答本文の一部を含む) を stderr に出力します。                                      |
+| `--config FILE`    | 別の `config.yaml` を使います。                                                                    |
+| `--dry-run`        | 何も移動しません。AI も呼び出さないため、分類先は表示されません。                                  |
+
+:::note
+
+- frontmatter に既に `project:` があるログは、AI を呼び出さずにそのプロジェクトへ移動します。
+  `projects.dic` に無い名前でも同様です。
+- title・category・topics・tags がなく、50 文字未満のログは、AI を呼び出さずに `misc` へ移動します。
+- 結果はキャッシュされるため、再実行時に分類済みのログで AI を呼び出すことはありません。
+
+:::
+
+## 入力と出力
+
+既定では `chatlogs/normalizeLogs/<agent>/<YYYY>/<YYYY-MM>/` の直下にある `.md` ファイルを読み込み
+(サブディレクトリは走査しません)、同じディレクトリのプロジェクト別サブディレクトリへ移動します。
+
+<FileTree>
+
+- chatlogs/
+  - normalizeLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - chatlog-exporter/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+          - dev-tooling/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-02-b7e04d8.md
+          - misc/
+            - 2026-06-14-short-question-0c9d8e7f6a5b-01-91ad3e2.md
+
+</FileTree>
+
+直下だけを走査するため、既にサブディレクトリへ振り分けたログは再分類されません。
+移動した各ファイルの frontmatter には `project` フィールドが付加されます。
+
+```yaml
+---
+title: エクスポートしたログの文字コードを修正
+date: 2026-06-12
+project: chatlog-exporter
+---
+```
+
+## 実行例
+
+Claude の 2026 年 6 月分のセグメントを分類します。
+
+```bash
+/classify-chatlogs claude 2026-06
+```
+
+特定のディレクトリのファイルを分類します。
+
+```bash
+/classify-chatlogs "chatlogs/normalizeLogs/codex/2026/2026-06"
+```
+
+完了すると、AI を使って / 使わずに移動した件数と、振り分け先のプロジェクトが報告されます。
+次は [`/set-frontmatter`](./set-frontmatter) で frontmatter を付加します。

@@ -1,0 +1,110 @@
+---
+title: export-chatlogs
+description: Export the session history of an AI agent to Markdown, with noise such as system logs and tool-use records removed.
+---
+
+## Overview
+
+`/export-chatlogs` reads the session history that an AI agent keeps on your machine and writes each session
+out as a Markdown file. It keeps only the substantive conversation and drops the noise around it.
+
+Use it as the first step of the [basic workflow](../user-guide/basic-workflow), whenever you want to bring new
+sessions into your chat log archive. It does not call the AI, so it consumes no tokens.
+
+The following are excluded from the output:
+
+- System logs and injected content (such as `AGENTS.md` or permission settings)
+- Tool-use and tool-result entries
+- Slash commands such as `/clear`, `/help`, and `/exit`
+- Messages that start with a system tag, such as `<system-reminder`
+- Fixed messages such as `[Request interrupted` or `Tool loaded.`
+- Short affirmative replies of 20 characters or fewer, such as `y`, `yes`, or `ok`
+- Whole sessions that start with a commit message generator
+
+## Usage
+
+```bash
+/export-chatlogs [agent] [YYYY-MM] [options]
+```
+
+### Arguments
+
+| Argument  | Description                                                                                                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `agent`   | The agent whose history to export: `claude`, `codex`, or `chatgpt`. Defaults to `agent` in `config.yaml` (`claude` if unset). |
+| `YYYY-MM` | The month to export. Omit it to export all periods. It must follow `agent`.                                                   |
+
+### Options
+
+| Option             | Description                                                                   |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `--input-dir DIR`  | Where to read the history from. Its meaning depends on the agent (see below). |
+| `--export-dir DIR` | Write to `DIR` as is, instead of the default `chatlogs/originalLogs/`.        |
+| `--config FILE`    | Use a different `config.yaml`.                                                |
+
+`--input-dir` means the following for each agent:
+
+- `claude`: overrides the Claude projects root (default `~/.claude/projects`)
+- `chatgpt`: the directory holding your ChatGPT data export. **Required** for `chatgpt`
+- `codex`: ignored
+
+:::warning
+
+- The period accepts only the `YYYY-MM` form. A year alone (`2026`) is an error, and so is a period
+  without an agent (`/export-chatlogs 2026-06`).
+- `--dry-run` is not implemented for this skill. It is accepted but ignored, and the files are written as usual.
+
+:::
+
+## Input and output
+
+Each agent's history is read from the following location:
+
+| Agent     | Source                                                           |
+| --------- | ---------------------------------------------------------------- |
+| `claude`  | `~/.claude/projects/<project>/*.jsonl` (excluding `subagents/`)  |
+| `codex`   | `*.jsonl` found recursively under `~/.codex/sessions/`           |
+| `chatgpt` | `conversations-*.json` in the directory given with `--input-dir` |
+
+The files are written under `chatlogs/originalLogs/`, one file per session:
+
+<FileTree>
+
+- chatlogs/
+  - originalLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6.md
+
+</FileTree>
+
+The file name is `YYYY-MM-DD-<slug>-<id>.md`, where `<id>` is derived from the session ID.
+No project subdirectories are created at this stage. Sorting by project is done later by
+[`/classify-chatlogs`](./classify-chatlogs).
+
+The base directory `chatlogs/` comes from `chatlogsDir` in `config.yaml`.
+
+:::note
+Running the export again can write the same conversation out a second time under a different name,
+which makes the later skills process it twice. Before re-exporting, delete only the subtree for that
+agent and month (for example `chatlogs/originalLogs/claude/2026/2026-06/`), so that other agents, other
+months, and already classified files are left alone.
+:::
+
+## Examples
+
+Export the Claude sessions of June 2026:
+
+```bash
+/export-chatlogs claude 2026-06
+```
+
+Export a ChatGPT data export. Unpack the archive you downloaded from ChatGPT first, then pass its directory:
+
+```bash
+/export-chatlogs chatgpt 2026-06 --input-dir ~/Downloads/chatgpt-export
+```
+
+When it finishes, the skill reports how many sessions were written, skipped, and failed, and where they went.
+Next, delete the logs you do not need with [`/filter-chatlogs`](./filter-chatlogs).

@@ -1,0 +1,128 @@
+---
+title: set-frontmatter
+description: AI が各チャットログを解析して frontmatter (title / type / category / topics / tags) を書き込み、Obsidian 用の最終的な Markdown を作ります。
+---
+
+## 概要
+
+`/set-frontmatter` は、各チャットログを AI に読ませてメタデータを生成します。
+生成するのは `title`、ログの種類 `type`、`category`、`topics`、`tags` です。
+category・topics・tags は `.config/chatlog-exporter/dics/` の辞書から選ぶため、すべてのログで語彙が揃います。
+メタデータの生成後、AI がもう一度レビューして選択を修正します。
+
+[基本ワークフロー](../user-guide/basic-workflow) の最後のステップで、[`/classify-chatlogs`](./classify-chatlogs) の後に実行します。
+書き出されたファイルは、そのまま Obsidian の vault にインポートできます。
+
+1 ファイルにつき AI を複数回呼び出すため、最もトークンを消費するスキルです。
+レビューを省いて早く終えたい場合は `--no-review` を使います。
+
+## 使い方
+
+```bash
+/set-frontmatter [agent] [YYYY-MM] [オプション]
+/set-frontmatter <input-path> [output-path] [オプション]
+```
+
+### 引数
+
+| 引数          | 説明                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `agent`       | `claude`、`codex`、`chatgpt`。省略時は `config.yaml` の `agent` (未設定なら `claude`)。 |
+| `YYYY-MM`     | 処理する月。省略すると全期間が対象です。`agent` の後ろに置きます。                      |
+| `input-path`  | `agent` / `YYYY-MM` の代わりに処理するディレクトリ。`/` を含む必要があります。          |
+| `output-path` | 書き出し先のディレクトリ。省略可能で、`/` を含む必要があります。                        |
+
+プロジェクトを指定する引数はありません。1 つのプロジェクトだけを処理するには、そのディレクトリを `input-path` に指定します。
+
+### オプション
+
+| オプション         | 説明                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `--no-review`      | 生成したメタデータの AI レビューを省略します。                                                     |
+| `--input-dir DIR`  | 処理するディレクトリ。`input-path` を指定するのと同じです。                                        |
+| `--output-dir DIR` | 書き出し先のディレクトリ。`output-path` を指定するのと同じです。                                   |
+| `--dics DIR`       | 別の辞書ディレクトリを使います。                                                                   |
+| `--prompts DIR`    | 別のプロンプトディレクトリを使います。                                                             |
+| `--concurrency N`  | 並列に処理するファイル数。既定は 4。                                                               |
+| `--model MODEL`    | 使用する AI モデル。既定は `config.yaml` の `model`。書き方は [`--model`](./model-option) を参照。 |
+| `--debug`          | AI の診断ログ (応答本文の一部を含む) を stderr に出力します。                                      |
+| `--config FILE`    | 別の `config.yaml` を使います。                                                                    |
+| `--dry-run`        | 何も書き出しません。AI も呼び出さず、各ファイルの状態を表示するだけです。                          |
+
+ディレクトリを指定するオプションは `/` を含む必要があります (`./dics` は可、`dics` は不可)。
+
+:::note
+現在、`/set-frontmatter` スラッシュコマンドがスクリプトへ渡すオプションは `--dry-run` と `--no-review` だけです。
+この表のほかのオプションはまだ転送されないため、スラッシュコマンドからは使えません。
+対応は [#549](https://github.com/aglabo/chatlog-exporter/issues/549) で進めます。
+:::
+
+:::warning
+`category.dic` または `types.dic` が存在しない・空である、またはフォールバック値
+(`category.dic` の `development`、`types.dic` の `research`) を含まない場合は、AI を呼び出す前に実行が中断されます。
+辞書を編集するときは、これらのエントリを残してください。
+:::
+
+## 入力と出力
+
+既定では `chatlogs/normalizeLogs/<agent>/<YYYY>/<YYYY-MM>/` をプロジェクト別サブディレクトリも含めて読み込み、
+`chatlogs/outputLogs/` 配下の同じパスに書き出します。元のファイルはそのまま残ります。
+
+<FileTree>
+
+- chatlogs/
+  - normalizeLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - chatlog-exporter/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+  - outputLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - chatlog-exporter/
+            - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+
+</FileTree>
+
+入力が `normalizeLogs/` 配下の月のディレクトリ (`.../normalizeLogs/.../<YYYY>/<YYYY-MM>`) の場合、
+出力先は常に `outputLogs/` 配下の対応するパスになり、`output-path` は無視されます。
+
+frontmatter は次のフィールドが、この順序で書き込まれます。これ以外のフィールドは削除されます。
+
+```yaml
+---
+title: エクスポートしたログの文字コードを修正   # AI が生成
+date: 2026-06-12                                # 元の値を保持
+type: incident                                  # execution / incident / discussion / research / writing
+category: development                           # category.dic から選択
+session_id: a1b2c3d4-...                        # 元の値を保持
+project: chatlog-exporter                       # 元の値を保持
+slug: fix-encoding                              # 元の値を保持
+topics:                                         # topics.dic から選択
+  - development
+  - testing
+tags:                                           # tags.dic から選択
+  - lang/typescript
+---
+```
+
+書き込み済みのファイルは再実行時にスキップされるため、中断した場合はもう一度実行すれば続きから再開できます。
+
+## 実行例
+
+Claude の 2026 年 6 月分のログに frontmatter を付加します。
+
+```bash
+/set-frontmatter claude 2026-06
+```
+
+同じ処理を AI レビューなしで実行し、早く終えます。
+
+```bash
+/set-frontmatter claude 2026-06 --no-review
+```
+
+完了すると、見つかった・書き込んだ・失敗した・スキップした・書き込み済みだったファイルの件数が報告されます。
+これで `chatlogs/outputLogs/` の内容を Obsidian にインポートできます。

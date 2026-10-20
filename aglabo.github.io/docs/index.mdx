@@ -11,7 +11,7 @@ Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is w
 <CardGroup cols="2">
   <Card
     title="export-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md"
+    href="./reference/export-chatlogs"
     icon="rocket"
   >
     Exports AI agent session logs to Markdown with noise removed. It strips system logs, short affirmative replies,
@@ -19,7 +19,7 @@ Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is w
   </Card>
   <Card
     title="classify-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md"
+    href="./reference/classify-chatlogs"
     icon="folder-tree"
   >
     Classifies chat logs into per-project subdirectories. It analyzes metadata with the Claude CLI to infer
@@ -27,56 +27,61 @@ Claude Code skills, invoked from slash commands like `/export-chatlogs`. It is w
   </Card>
   <Card
     title="filter-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md"
+    href="./reference/filter-chatlogs"
     icon="filter"
   >
     Batch-judges exported Markdown with the claude CLI and deletes low-value files (DISCARD).
   </Card>
   <Card
     title="normalize-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md"
+    href="./reference/normalize-chatlogs"
     icon="wand-sparkles"
   >
     Splits chat logs into topic-based segments with AI and outputs them as Markdown with frontmatter.
   </Card>
   <Card
     title="set-frontmatter"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md"
+    href="./reference/set-frontmatter"
     icon="tags"
   >
-    Adds or overwrites frontmatter across ChatLog Markdown in bulk. AI generates title / summary / category / topics / tags.
+    Adds or overwrites frontmatter across ChatLog Markdown in bulk. AI generates title / type / category / topics / tags.
   </Card>
 </CardGroup>
 
 ## Workflow
 
 Applying the five skills in the following order progressively refines raw session logs into Markdown ready for Obsidian.
+`/filter-chatlogs` runs twice: once on the exported sessions, and once on the segments split by `/normalize-chatlogs`.
 
 <Steps>
   <Step title="export">
     `/export-chatlogs` writes session logs to Markdown with noise removed.
   </Step>
-  <Step title="classify">
-    `/classify-chatlogs` sorts them into per-project subdirectories.
-  </Step>
   <Step title="filter">
-    `/filter-chatlogs` deletes low-value files.
+    `/filter-chatlogs` deletes low-value sessions.
   </Step>
   <Step title="normalize">
     `/normalize-chatlogs` splits them into topic-based segments.
   </Step>
+  <Step title="filter (2nd run)">
+    `/filter-chatlogs` runs again on the segments and deletes the low-value ones.
+  </Step>
+  <Step title="classify">
+    `/classify-chatlogs` sorts the segments into per-project subdirectories.
+  </Step>
   <Step title="set-frontmatter">
-    `/set-frontmatter` adds title / summary / category / topics / tags.
+    `/set-frontmatter` adds title / type / category / topics / tags.
   </Step>
 </Steps>
 
 :::tip
 Each skill can run independently. Start with just `/export-chatlogs`, then combine the later skills as needed.
+For the commands and directories of each step, see [Basic workflow](./user-guide/basic-workflow).
 :::
 
 ## Project structure
 
-Each skill lives under `skills/`, with its specification described in `SKILL.md`.
+Each skill lives under `skills/`. For how to use each one, see its reference page (linked from the cards above).
 
 <FileTree>
 
@@ -153,5 +158,8 @@ Depending on your goal, run the corresponding slash command within Claude Code.
 
 :::note
 This tool set is implemented in TypeScript (Deno runtime) and distributed as JSR packages.
-For the detailed specification of each skill, refer to its `SKILL.md`.
+For the arguments, options, and input/output of each skill, see its reference page:
+[export-chatlogs](./reference/export-chatlogs), [filter-chatlogs](./reference/filter-chatlogs),
+[normalize-chatlogs](./reference/normalize-chatlogs), [classify-chatlogs](./reference/classify-chatlogs),
+and [set-frontmatter](./reference/set-frontmatter).
 :::

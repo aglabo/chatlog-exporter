@@ -10,7 +10,7 @@ Claude Code のスキルとして実装されており、`/export-chatlogs` な�
 <CardGroup cols="2">
   <Card
     title="export-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/export-chatlogs/SKILL.md"
+    href="./reference/export-chatlogs"
     icon="rocket"
   >
     AIエージェントのセッション履歴をノイズ除外して Markdown にエクスポートします。
@@ -18,63 +18,68 @@ Claude Code のスキルとして実装されており、`/export-chatlogs` な�
   </Card>
   <Card
     title="classify-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/classify-chatlogs/SKILL.md"
+    href="./reference/classify-chatlogs"
     icon="folder-tree"
   >
     チャットログをプロジェクト別のサブディレクトリに分類します。Claude CLI でメタデータを解析してプロジェクト名を推定し、frontmatter に `project` フィールドを付加します。
   </Card>
   <Card
     title="filter-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/filter-chatlogs/SKILL.md"
+    href="./reference/filter-chatlogs"
     icon="filter"
   >
     エクスポート済みの Markdown を claude CLI で一括バッチ判定し、再利用価値の低いファイル（DISCARD）を削除します。
   </Card>
   <Card
     title="normalize-chatlogs"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/normalize-chatlogs/SKILL.md"
+    href="./reference/normalize-chatlogs"
     icon="wand-sparkles"
   >
     チャットログを AI でトピック別のセグメントに分割し、frontmatter 付きの Markdown として出力します。
   </Card>
   <Card
     title="set-frontmatter"
-    href="https://github.com/aglabo/chatlog-exporter/blob/main/skills/set-frontmatter/SKILL.md"
+    href="./reference/set-frontmatter"
     icon="tags"
   >
-    ChatLog Markdown に frontmatter を一括で付加・上書きします。AI が title / summary / category / topics / tags を生成します。
+    ChatLog Markdown に frontmatter を一括で付加・上書きします。AI が title / type / category / topics / tags を生成します。
   </Card>
 </CardGroup>
 
 ## ワークフロー
 
 スキルを次の順に適用すると、生のセッション履歴を Obsidian 用に整った Markdown へと段階的に整備できます。
+`/filter-chatlogs` は、エクスポートしたセッションと、`/normalize-chatlogs` が分割したセグメントに対して 2 回実行します。
 
 <Steps>
   <Step title="export — エクスポート">
     `/export-chatlogs` でセッション履歴をノイズ除外して Markdown に書き出します。
   </Step>
   <Step title="filter — 選別">
-    `/filter-chatlogs` で再利用価値の低いファイルを削除します。
-  </Step>
-  <Step title="classify — 分類">
-    `/classify-chatlogs` でプロジェクト別のサブディレクトリに振り分けます。
+    `/filter-chatlogs` で再利用価値の低いセッションを削除します。
   </Step>
   <Step title="normalize — 正規化">
     `/normalize-chatlogs` でトピック別セグメントに分割します。
   </Step>
+  <Step title="filter (2 回目) — セグメントの選別">
+    `/filter-chatlogs` をセグメントに対して再度実行し、再利用価値の低いセグメントを削除します。
+  </Step>
+  <Step title="classify — 分類">
+    `/classify-chatlogs` でセグメントをプロジェクト別のサブディレクトリに振り分けます。
+  </Step>
   <Step title="set-frontmatter — Frontmatter付与">
-    `/set-frontmatter` で title / category / topics などの frontmatter を付加します。
+    `/set-frontmatter` で title / type / category / topics / tags の frontmatter を付加します。
   </Step>
 </Steps>
 
 :::tip
 各スキルは独立して実行できます。まずは `/export-chatlogs` だけを試し、必要に応じて後続のスキルを組み合わせてください。
+各ステップのコマンドと入出力ディレクトリは、[基本ワークフロー](./user-guide/basic-workflow) を参照してください。
 :::
 
 ## プロジェクト構造
 
-各スキルは `skills/` 以下に配置され、`SKILL.md` に仕様が記述されています。
+各スキルは `skills/` 以下に配置されています。各スキルの使い方は、上のカードからリンクしているリファレンスページを参照してください。
 
 <FileTree>
 
@@ -147,5 +152,8 @@ chatlog-exporter はエージェントスキルとして配布しています。
 </Tabs>
 
 :::note
-本ツール群は TypeScript（Deno ランタイム）で実装され、JSR パッケージとして提供されます。各スキルの詳細な仕様は、それぞれの `SKILL.md` を参照してください。
+本ツール群は TypeScript（Deno ランタイム）で実装され、JSR パッケージとして提供されます。各スキルの引数・オプション・入出力は、リファレンスページを参照してください:
+[export-chatlogs](./reference/export-chatlogs)、[filter-chatlogs](./reference/filter-chatlogs)、
+[normalize-chatlogs](./reference/normalize-chatlogs)、[classify-chatlogs](./reference/classify-chatlogs)、
+[set-frontmatter](./reference/set-frontmatter)。
 :::

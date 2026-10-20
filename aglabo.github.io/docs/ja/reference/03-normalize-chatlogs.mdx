@@ -1,0 +1,106 @@
+---
+title: normalize-chatlogs
+description: 各チャットログを AI でトピック別のセグメントに分割し、セグメントごとに frontmatter 付きの Markdown として書き出します。
+---
+
+## 概要
+
+`/normalize-chatlogs` は、各チャットログを AI に読ませ、トピックごとのセグメントに分割します。
+1 つのセッションには互いに無関係な複数のトピックが含まれることがよくあります。
+分割しておくと、後続のスキルがトピックごとに分類・タグ付けできます。
+1 つのログは最大 5 つのセグメントに分割され、トピックが 1 つだけのログは 1 つのままです。
+
+各セグメントは個別の Markdown ファイルとして書き出されます。元ログの frontmatter は引き継がれ、
+AI がセグメントごとに `title` と `log_id` を生成します。AI による要約は本文の `## Summary` セクションに入ります。
+
+1 回目の [`/filter-chatlogs`](./filter-chatlogs) の後に実行します。
+どうせ削除するログの分割に AI のトークンを使わないためです。
+
+## 使い方
+
+```bash
+/normalize-chatlogs [agent] [YYYY-MM] [オプション]
+/normalize-chatlogs <path> [オプション]
+```
+
+### 引数
+
+| 引数      | 説明                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `agent`   | `claude`、`codex`、`chatgpt`。省略時は `config.yaml` の `agent` (未設定なら `claude`)。 |
+| `YYYY-MM` | 処理する月。省略すると全期間が対象です。`agent` の後ろに置きます。                      |
+| `path`    | `agent` / `YYYY-MM` の代わりに処理するディレクトリ。`/` を含む必要があります。          |
+
+### オプション
+
+| オプション            | 説明                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `--period YYYY-MM`    | エージェントを指定せずに月を指定します (デフォルトのエージェントを使用)。                          |
+| `--input-dir DIR`     | 読み込むディレクトリ。`path` を指定するのと同じです。                                              |
+| `--output-dir DIR`    | 書き出し先のベースディレクトリ。相対パスは `chatlogs/` からの相対になります。                      |
+| `--file PATH`         | このファイル 1 つだけを処理します。1 つのログを確認したいときに使います。                          |
+| `--single-file`       | 1 回の AI 呼び出しで 1 ファイルずつ渡します。`no segments returned` の対処用。                     |
+| `--concurrency N`     | 並列に実行する AI 呼び出しの数。既定は 4。                                                         |
+| `--batch-size N`      | 1 回の AI 呼び出しにまとめる最大ファイル数。既定は 4。                                             |
+| `--max-batch-chars N` | 1 回の AI 呼び出しの合計最大文字数。既定は 20000。0 で無制限。                                     |
+| `--timeout-ms N`      | AI 呼び出し 1 回のタイムアウト (ミリ秒)。                                                          |
+| `--model MODEL`       | 使用する AI モデル。既定は `config.yaml` の `model`。書き方は [`--model`](./model-option) を参照。 |
+| `--fail-fast`         | 最初の失敗で中断します。                                                                           |
+| `--debug`             | AI の診断ログ (応答本文の一部を含む) を stderr に出力します。                                      |
+| `--config FILE`       | 別の `config.yaml` を使います。                                                                    |
+| `--dry-run`           | 何も書き出しません。AI も呼び出さないため、分割結果は表示されません。                              |
+
+:::tip
+内容がほぼ同じログが同じ AI 呼び出しにまとめられると、AI がその片方を省略し、
+そのファイルが `failed (no segments returned)` と報告されることがあります。
+通常の再実行では同じまとめ方が再現されるため、再び失敗します。
+`--single-file` を付けて再実行し、1 ファイルずつ渡してください。
+:::
+
+## 入力と出力
+
+既定では `chatlogs/originalLogs/<agent>/<YYYY>/<YYYY-MM>/` をサブディレクトリも含めて読み込み、
+`chatlogs/normalizeLogs/<agent>/<YYYY>/<YYYY-MM>/` に書き出します。
+
+<FileTree>
+
+- chatlogs/
+  - originalLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6.md
+  - normalizeLogs/
+    - claude/
+      - 2026/
+        - 2026-06/
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6-01-3f9a2c1.md
+          - 2026-06-12-fix-encoding-a1b2c3d4e5f6-02-b7e04d8.md
+
+</FileTree>
+
+出力ファイル名は `<元のファイル名>-<NN>-<hash>.md` で、`<NN>` はセグメント番号です。
+セグメントはプロジェクト別のサブディレクトリを作らず、出力ディレクトリの直下に書き出されます。
+`originalLogs` の元ファイルはそのまま残ります。
+
+`agent YYYY-MM` ではなくパスを指定した場合、出力先は年月を含まない `chatlogs/normalizeLogs/<agent>/` になります。
+
+出力ファイルが既にある場合は `.old-NN.md` にバックアップしてから上書きします。
+分割済みのログは、再実行時にスキップされます。
+
+## 実行例
+
+Claude の 2026 年 6 月分のログを分割します。
+
+```bash
+/normalize-chatlogs claude 2026-06
+```
+
+`no segments returned` で失敗したファイルがあったので、1 ファイルずつ渡して再実行します。
+
+```bash
+/normalize-chatlogs claude 2026-06 --single-file
+```
+
+完了すると、成功・処理済み・スキップ・失敗・エラーの件数が報告されます。
+次は `chatlogs/normalizeLogs/` に対して [`/filter-chatlogs`](./filter-chatlogs) を再度実行し、中身のないセグメントを削除します。
