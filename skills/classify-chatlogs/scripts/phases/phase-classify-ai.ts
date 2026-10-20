@@ -26,6 +26,8 @@ import type {
   ClassifyCache,
   ClassifyConfig,
   ProjectDicEntry,
+  ProjectProps,
+  ProjectRules,
 } from '../types/classify.types.ts';
 // constants
 import { LLAMA_MAX_TOKENS } from '../../../_cle-libs/constants/llama-max-tokens.constants.ts';
@@ -77,7 +79,52 @@ export const buildClassifyPrompt = (files: ChatlogEntry[], projects: ProjectDicE
   return header + _parts.join('\n\n');
 };
 
-/** AI へ渡すシステムプロンプトを構築する。JSON 配列のみを出力するよう指示する。 */
+/**
+ * プロジェクト定義ブロックの 1 行目（`- <name>: <def>`）を組み立てる。
+ * `def` が空でない文字列でない場合（未定義・空文字列・オブジェクト）は `- <name>` のみを返す。
+ *
+ * @param name - プロジェクト名
+ * @param def - projects.dic の `def` の値。文字列以外もありうる
+ * @returns 見出し行
+ */
+const _buildHeadLine = (name: string, def: ProjectProps[string]): string =>
+  typeof def === 'string' && def !== '' ? `- ${name}: ${def}` : `- ${name}`;
+
+/**
+ * プロジェクト定義ブロックのルール行（`  when: ...` / `  not: ...`）を組み立てる。
+ * 条件は `'; '` で連結し、when → not の順に並べる。条件が 1 件も無いキーの行は出さない。
+ *
+ * @param rules - プロジェクトの分類ルール。未定義なら行を出さない
+ * @returns ルール行の配列（字下げ済み）
+ */
+const _buildRuleLines = (rules: ProjectRules | undefined): string[] => {
+  const _ruleEntries: [label: string, conditions: string[]][] = [
+    ['when', rules?.when ?? []],
+    ['not', rules?.not ?? []],
+  ];
+  return _ruleEntries
+    .filter(([, conditions]) => conditions.length > 0)
+    .map(([label, conditions]) => `  ${label}: ${conditions.join('; ')}`);
+};
+
+/**
+ * `Project definitions:` 見出しと、辞書のキー順に並べたプロジェクト定義ブロックを組み立てる。
+ * `def` / `rules` 以外のプロパティは出力しない。辞書が空なら見出し行のみ（末尾改行なし）。
+ *
+ * @param projects - プロジェクト辞書
+ * @returns 見出しとブロックを `\n` で連結した文字列
+ */
+const _buildProjectDefinitions = (projects: ProjectDicEntry): string => {
+  const _blocks = Object.entries(projects).map(([name, props]) =>
+    [_buildHeadLine(name, props.def), ..._buildRuleLines(props.rules)].join('\n')
+  );
+  return ['Project definitions:', ..._blocks].join('\n');
+};
+
+/**
+ * AI へ渡すシステムプロンプトを構築する。JSON 配列のみを出力するよう指示する。
+ * 末尾に各プロジェクトの `def` と分類ルール（`when` / `not`）を列挙した定義ブロックを付ける。
+ */
 export const buildSystemPrompt = (projects: ProjectDicEntry): string => {
   const _projectList = Object.keys(projects).join(', ');
   return `Output ONLY a JSON array. No markdown, no explanation, no text before or after the array.
@@ -86,7 +133,10 @@ export const buildSystemPrompt = (projects: ProjectDicEntry): string => {
 Choose project ONLY from this list: ${_projectList}
 If no project matches well, use "${FALLBACK_PROJECT}".
 If the file has no metadata AND the body is fewer than 3 lines, assign "${FALLBACK_PROJECT}" unconditionally.
-Base your decision on: title, category, topics, tags.`;
+Base your decision on: title, category, topics, tags.
+Match them against the project definitions below. "when" lists conditions for choosing a project; "not" lists conditions that exclude it.
+
+${_buildProjectDefinitions(projects)}`;
 };
 
 /**

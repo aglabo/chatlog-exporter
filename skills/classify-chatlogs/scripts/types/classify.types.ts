@@ -20,8 +20,26 @@ import type { LoadClassifyEntryFailure } from './load-classify-entry.types.ts';
 // プロジェクトエントリ型
 // ─────────────────────────────────────────────
 
-/** projects.dic 全体。プロジェクト名をキー、プロパティ（string→string マップ）を値とする辞書。 */
-export type ProjectDicEntry = Record<string, Record<string, string>>;
+/** プロジェクトの分類ルール。`when` は該当条件、`not` は除外条件の一覧。 */
+export interface ProjectRules {
+  /** このプロジェクトに分類する条件。 */
+  when?: string[];
+  /** このプロジェクトに分類しない条件。 */
+  not?: string[];
+}
+
+/**
+ * 1 プロジェクトのプロパティ。`def` / `category` / `desc` などの文字列プロパティと、
+ * ネストした分類ルール `rules` を持つ。
+ */
+export interface ProjectProps {
+  [key: string]: string | ProjectRules | undefined;
+  /** 分類ルール。projects.dic に `rules` が無い、またはプレーンオブジェクトでない場合は持たない。 */
+  rules?: ProjectRules;
+}
+
+/** projects.dic 全体。プロジェクト名をキー、プロパティ（`ProjectProps`）を値とする辞書。 */
+export type ProjectDicEntry = Record<string, ProjectProps>;
 
 // ─────────────────────────────────────────────
 // 分類結果型

@@ -13,6 +13,8 @@ aplys:
   rules:
     when:
       - aplys コマンド・API仕様・CLI実装に関するログ
+    not:
+      - LLMDL / Logrs のコードネーム候補としての Aplys の言及（Logrs で分類）
 
 deckrd:
   def: A document-driven development framework for requirements and task management
@@ -21,6 +23,8 @@ deckrd:
   rules:
     when:
       - deckrd コマンド・要件定義・仕様設計フローに関するログ
+      - deckrd-rules（deckrd-rule-*.md・deckrd-rules-index）・init.sh・claude rules 導入に関するログ
+      - skills/deckrd 配下の変更をまとめる commit メッセージ・squash に関するログ
 
 idd-framework:
   def: An issue-driven development framework providing agent skills for multiple AI coding agents
@@ -40,6 +44,9 @@ gstack:
   rules:
     when:
       - gstack コマンド・ディスパッチャ設計に関するログ
+    not:
+      - gh-stack（GitHub の stacked PR 用 gh 拡張）の利用（dev-tooling で分類）
+      - Logrs のリポジトリ構成・言語仕様（Logrs で分類）
 
 voift:
   def: A project focused on CLAUDE.md design, requirements review, and spec improvement
@@ -89,13 +96,47 @@ esta:
     when:
       - esta に関するログ
 
-lcl:
-  def: The lcl project
+Logrs:
+  def: A semi-formal DSL and language specification for sharing intent with LLMs (aglabo/Logrs)
   category: development
-  desc: lcl プロジェクト
+  desc: Logrs 言語仕様リポジトリ。LLM との認識共有を目的とする半形式 DSL。LCL（旧 LLMDL）/ tech-article-reviewer の DSL を独立 OSS 化したもの
   rules:
     when:
-      - lcl に関するログ
+      - Logrs・logrs-language-spec・.logrs ファイル・Logrs v0.x 仕様レビューに関するログ
+      - Logrs の構文・意味論・実行意味論・heredoc など言語仕様の設計や矛盾修正に関するログ
+      - Logrs リポジトリ構成・仕様 CI（spec チェック・pnpm）・リリースタグに関するログ
+      - LLM を実行エンジン（Runtime Adapter）とする設計・Dual LLM・MCP サーバによる状態管理に関するログ
+      - Core / Macro Package / Definition Package の 3 層モデル・多ドメイン拡張に関するログ
+      - ai-agents-prompt の世界観・キャラクターを Logrs で宣言し会話エンジンと統合する設計のログ
+      - LLMDL に関するログ
+      - LCL（LLM Control Language）・LDL・LLMDL など Logrs 改名前の DSL の設計・経緯に関するログ
+      - TechLog Reviewer / tech-article-reviewer の DSL を独立言語として扱う設計・歴史に関するログ
+      - DSL・言語のプロジェクト名・コードネーム（Aplys・Nudra・UBIQ 等の候補）の命名検討に関するログ
+    not:
+      - キャラクタープラグイン・スキルの実装（ai-characters で分類）
+
+hacker-names:
+  def: A hacker-name generator library for deckrd
+  category: development
+  desc: deckrd 向けハッカー名生成ライブラリ。言語選定・データ形式・パッケージ構成・エントリポイント整備
+  rules:
+    when:
+      - hacker-names・ハッカー名生成ライブラリに関するログ
+
+software-development:
+  def: General software development not belonging to any specific project in this dictionary
+  category: development
+  desc: 既存プロジェクトに属さないソフトウェア開発全般。単発のスクリプト作成・言語やライブラリの使い方・アルゴリズム・設計相談・デバッグ
+  rules:
+    when:
+      - 辞書内のどのプロジェクトにも該当しないプログラミング・設計・デバッグ・テストに関するログ
+      - 単発のスクリプト・ツール作成、言語仕様・ライブラリ・フレームワークの使い方に関するログ
+      - 技術プロトコル・API（WebAuthn / FIDO2・パスキー・BLE 等）の仕組みと、それを使った自作ツールの実現可能性・構成検討のログ
+      - Android アプリ・ブラウザ拡張・Native Messaging などクライアント側ソフトウェアの設計・実装方法の相談のログ
+    not:
+      - 辞書内の既存プロジェクトに関連する開発（そのプロジェクト名で分類）
+      - 開発環境・ツールの導入や設定が主目的（dev-tooling で分類）
+      - レトロPC・ゲーム機向けのプログラミング（retro-game で分類）
 
 # ── インフラ・自宅サーバ ─────────────────────────────────
 
@@ -107,11 +148,14 @@ homelab:
     when:
       - Proxmox VE・PVE・LXC・仮想マシン構築に関するログ
       - RAID・mdadm・bcache・HDD/SSD などストレージ構成に関するログ
+      - mdadm linear RAID の再構築・Data Offset・ループバック検証に関するログ
+      - Btrfs の superblock（blkid・dump-super）・root tree / chunk tree 破損の調査と復旧（dump-tree）に関するログ
       - GPUパススルー・ドライバ設定など自宅サーバのハードウェア設定に関するログ
       - LAN上で動かすサービス（llama.cpp サーバ等）の構築・運用に関するログ
     not:
       - GitHub Actions・CI/CD基盤（ci-platform で分類）
       - 開発マシン上の開発環境設定（dev-tooling で分類）
+      - ローカル LLM のモデル選定・性能評価（llm で分類）
 
 # ── 開発ツール・環境構築 ─────────────────────────────────
 
@@ -122,8 +166,22 @@ dev-tooling:
   rules:
     when:
       - WSL・APT・Git・エディタ・パッケージ管理など開発環境全般のログ
+      - gh-stack（stacked PR 用 gh 拡張）など GitHub CLI 拡張の導入・利用に関するログ
+      - VS Code 設定（.gitignore / .textlintignore など ignore ファイルのハイライト・files.associations）に関するログ
+      - .editorconfig・.gitignore の allowlist 調整に関するログ
+      - コード複雑度（循環的複雑度・認知的複雑度）など計測ツールに関するログ
     not:
       - 特定プロジェクトのツール設定（そのプロジェクト名で分類）
+
+agla-dev-tools:
+  def: Development shell scripts and tooling with cross-platform (Windows CMD / POSIX shell) support
+  category: tooling
+  desc: 開発用スクリプト群。Windows CMD（.cmd）・shebang・CRLF/LF・NODE_PATH・cygpath 非依存のパス正規化・ShellSpec テスト
+  rules:
+    when:
+      - agla-dev-tools に関するログ
+      - Windows CMD と sh スクリプトの共存・.cmd ラッパー・core.autocrlf に関するログ
+      - resolve-paths・normalize_path など開発スクリプト共通ライブラリの ShellSpec テストに関するログ
 
 obsidian:
   def: Obsidian note-taking tool configuration and plugin management
@@ -150,6 +208,26 @@ ai-tools:
   rules:
     when:
       - AIツールの調査・比較・評価に関するログ
+      - Codex CLI（codex exec・--ignore-user-config・MCP サーバ設定・codex mcp-server 廃止・App Server / SDK）に関するログ
+      - Claude Code の設定（settings.json・attribution 抑止）に関するログ
+    not:
+      - ローカル LLM のモデル選定・運用（llm で分類）
+
+llm:
+  def: Local LLM (local AI) model selection, evaluation, and operation such as llama.cpp with GGUF models
+  category: ai
+  desc: ローカル LLM（localAI / localLLM）。llama.cpp・GGUF 量子化モデル（Qwen・DeepSeek 等）の選定・性能評価・メモリ要件の検討
+  rules:
+    when:
+      - localAI・localLLM・ローカル LLM に関するログ
+      - llama.cpp・llama-server・GGUF・量子化（Q4_K_M・imatrix）に関するログ
+      - Qwen（Qwen3.5-35B-A3B 等）・DeepSeek（R1-Distill・V3 / V4）などオープンウェイトモデルの比較に関するログ
+      - MoE / active parameter・Dense モデルの推論速度・メモリ帯域・Vulkan / APU 推論に関するログ
+      - Ollama・LM Studio・vLLM などローカル推論ランタイムに関するログ
+      - 分類・判定用の小型モデル（Ternary Bonsai 等）をローカルで動かす評価のログ
+    not:
+      - chatlog-exporter の llama バックエンド実装（chatlog-exporter で分類）
+      - Proxmox VE・LXC・GPU パススルーなど推論サーバの基盤構築（homelab で分類）
 
 tech-blog-review:
   def: Technical blog article proofreading and quality improvement using AI prompts
@@ -158,6 +236,30 @@ tech-blog-review:
   rules:
     when:
       - 技術ブログ記事の校閲・品質改善に関するログ
+    not:
+      - レビュー用プロンプト・DSL・辞書そのものの開発（tech-article-reviewer で分類）
+
+tech-article-reviewer:
+  def: A repository of prompts, DSL, and dictionaries for reviewing technical articles
+  category: writing
+  desc: 技術記事レビューツール（tech-article-reviewer）。レビュー用プロンプト・DSL・辞書の設計、著者スタイル分析、レビュー実行
+  rules:
+    when:
+      - tech-article-reviewer リポジトリ・レビュー用プロンプトの改訂に関するログ
+      - 著者スタイル分析・外部執筆ガイドラインからのルール作成に関するログ
+      - DSL バックポート・レビュー結果の一貫性チェックに関するログ
+    not:
+      - DSL を独立言語として扱う議論（Logrs で分類）
+      - LCL / LLMDL など DSL 言語そのものの設計（Logrs で分類）
+
+zenn-dev:
+  def: A Zenn article repository covering article writing and its CI setup
+  category: writing
+  desc: Zenn 記事リポジトリ。記事執筆・見出し構成・CI ワークフロー・ShellSpec・pnpm 設定
+  rules:
+    when:
+      - Zenn 記事の執筆・見出し構成・下書きに関するログ
+      - zenn-dev リポジトリの CI・ShellSpec・pnpm・ブランチ運用に関するログ
 
 sandbox-chatgpt:
   def: A sandbox for testing ChatGPT prompts and verifying model behaviors
@@ -166,6 +268,10 @@ sandbox-chatgpt:
   rules:
     when:
       - ChatGPTのプロンプト動作確認・実験的セッションのログ
+      - ChatGPT の Markdown レンダリングなど機能制限の確認のログ
+    not:
+      - Logrs の言語・実行モデル設計（Logrs で分類）
+      - エルファ等キャラクターの表情・プロンプト・プラグイン整備（ai-characters で分類）
 
 sandbox-ailogs:
   def: A sandbox for developing AI log processing tools including frontmatter generation
@@ -183,16 +289,56 @@ chatlog-exporter:
     when:
       - export-chatlog・classify-chatlogs・filter-chatlog・normalize-chatlog・set-frontmatterスキルに関するログ
       - chatlog-exporterのスクリプト・型定義・テストに関するログ
+      - ai-backend（LAN llama サーバの AI バックエンド化・docs/.deckrd/libs/ai-backend・structured-output）に関するログ
+      - filter / strip（DISCARD 判定・定型部除去・paste wrapper 除去）の仕様・decision records に関するログ
+      - chatlog-exporter の docs/.deckrd 配下の変更をまとめる commit メッセージ・squash に関するログ
+    not:
+      - ローカル LLM のモデル選定・評価のみ（llm で分類）
 
 # ── ロールプレイ・創作 ───────────────────────────────────
 
 roleplay:
-  def: Roleplay sessions and character design for AI characters such as Tsumugi
+  def: Conversations and roleplay sessions with AI characters such as Tsumugi and Elpha
   category: creative
-  desc: AIキャラクター（つむぎ等）のロールプレイセッション・キャラクター設定・自己紹介作成
+  desc: AIキャラクター（つむぎ・エルファ等）との会話・ロールプレイセッション
   rules:
     when:
-      - AIキャラクターのロールプレイ・設定定義に関するログ
+      - AIキャラクターとの会話・ロールプレイのセッション
+      - 恋愛・アダルトモードなどシーン状態と人格の分離に関するログ
+    not:
+      - キャラクター設定・チャットのカスタマイズ・プラグイン / スキル整備（ai-characters で分類）
+
+ai-characters:
+  def: AI character settings and chat customization other than the conversations themselves, including the ai-character-kit repository
+  category: creative
+  desc: AIキャラクター全般（会話そのもの以外）。キャラクター設定・人格/口調定義・表情画像・システムプロンプト、ChatGPT のカスタム指示・メモリ・GPTs / プラグインなどチャットのカスタマイズ、ai-character-kit リポジトリでのプラグイン / スキル整備
+  rules:
+    when:
+      - キャラクターの人格・口調・世界観・関係性など設定の作成・見直しに関するログ
+      - キャラクターの表情画像セット・表情選択ルール・システムプロンプト作成に関するログ
+      - ChatGPT のカスタム指示・パーソナライズ・メモリ・GPTs などチャットのカスタマイズに関するログ
+      - ai-character-kit・ai-agents-prompt（characters / universe / relations）に関するログ
+      - Elpha / エルファ のトークスキル・キャラクタールーティング・プラグインタグに関するログ
+      - ChatGPT プラグイン（Plugin Creator アップロード・GitHub Marketplace 登録・更新手順）に関するログ
+      - キャラクター定義の Claude Code / Codex CLI へのスキル移植・Router Skill 設計に関するログ
+    not:
+      - キャラクターとの会話・ロールプレイ本体のセッション（roleplay で分類）
+      - Logrs による宣言 DSL 化の設計（Logrs で分類）
+      - キャラクターと無関係なプロンプトの動作確認（sandbox-chatgpt で分類）
+
+# ── 趣味・レトロ ─────────────────────────────────────────
+
+retro-game:
+  def: Retro computers and video games such as PC-88, PC-98, and Famicom (NES)
+  category: casual
+  desc: レトロゲーム・レトロPC。PC-88・PC-98・ファミコン等のゲーム、実機・エミュレータ、当時のプログラミング（BASIC・Z80・6502）
+  rules:
+    when:
+      - PC-8801（PC-88）・PC-9801（PC-98）・ファミコン（FC/NES）・スーパーファミコン等のゲームに関するログ
+      - レトロPC・ゲーム機の実機・エミュレータ・ROM・周辺機器に関するログ
+      - N88-BASIC・Z80/6502 アセンブラなど当時の機種向けプログラミングに関するログ
+    not:
+      - 現行ゲームや一般的な雑談（misc で分類）
 
 # ── 未分類・雑多 ─────────────────────────────────────────
 
@@ -205,3 +351,4 @@ misc:
       - 特定プロジェクトに分類できないログ
     not:
       - 少しでも特定プロジェクトに関連する（そのプロジェクト名で分類）
+      - 技術的な仕組みの調査から自作ツール・アプリの構成検討へ進むログ（software-development で分類）

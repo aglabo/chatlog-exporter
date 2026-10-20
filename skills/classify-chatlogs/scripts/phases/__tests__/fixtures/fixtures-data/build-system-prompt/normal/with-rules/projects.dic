@@ -1,0 +1,12 @@
+app1:
+  def: Application 1
+  rules:
+    when:
+      - w1
+      - w2
+    not:
+      - n1
+app2:
+  def: Application 2
+misc:
+  def: Miscellaneous

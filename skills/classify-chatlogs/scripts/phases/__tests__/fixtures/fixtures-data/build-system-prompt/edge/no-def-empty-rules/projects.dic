@@ -1,0 +1,8 @@
+bare:
+empty-rules:
+  def: Empty rules
+  rules:
+    when: []
+    not: []
+misc:
+  def: Miscellaneous

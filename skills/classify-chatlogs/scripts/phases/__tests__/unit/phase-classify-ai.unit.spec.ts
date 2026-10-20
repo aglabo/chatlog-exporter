@@ -7,7 +7,7 @@
 // This software is released under the MIT License.
 
 // ─── BDD modules
-import { assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { describe, it } from '@std/testing/bdd';
 
 // ─── Test target
@@ -37,7 +37,28 @@ interface MakeMetaOptions {
   content?: string;
 }
 
+/** `buildSystemPrompt` の `Project definitions:` 以降を検証するテーブル駆動ケース。 */
+interface _TailCase {
+  id: string;
+  label: string;
+  projects: ProjectDicEntry;
+  expected: string;
+}
+
 // functions
+/**
+ * システムプロンプトから `Project definitions:` 見出し以降の末尾を取り出す。
+ *
+ * 見出しが無い場合は空文字列を返し、期待値との比較で失敗させる。
+ *
+ * @param prompt - `buildSystemPrompt` の出力
+ * @returns `Project definitions:` から末尾までの文字列
+ */
+const _tailOf = (prompt: string): string => {
+  const _index = prompt.indexOf('Project definitions:');
+  return _index < 0 ? '' : prompt.slice(_index);
+};
+
 /**
  * テスト用 `ChatlogEntry` を MakeMetaOptions から生成する。
  *
@@ -290,6 +311,102 @@ describe('buildSystemPrompt', () => {
           assertStringIncludes(result, '"file"');
         });
       });
+    });
+  });
+
+  /** 辞書の def / rules から Project definitions ブロックを組み立てる正常ケース。 */
+  describe('When: 正常系', () => {
+    const _cases: _TailCase[] = [
+      {
+        id: 'T-CL-BSP-03-01',
+        label: 'rules.when のみ → when 行だけ出る',
+        projects: { app1: { def: 'Application 1', rules: { when: ['w1', 'w2'] } }, misc: {} },
+        expected: 'Project definitions:\n- app1: Application 1\n  when: w1; w2\n- misc',
+      },
+      {
+        id: 'T-CL-BSP-03-02',
+        label: 'rules.not のみ → not 行だけ出る',
+        projects: { app1: { def: 'Application 1', rules: { not: ['n1', 'n2'] } }, misc: {} },
+        expected: 'Project definitions:\n- app1: Application 1\n  not: n1; n2\n- misc',
+      },
+      {
+        id: 'T-CL-BSP-03-03',
+        label: 'キー順 (非アルファベット順) がそのまま block 順になる',
+        projects: { zeta: { def: 'Z' }, alpha: { def: 'A' }, misc: {} },
+        expected: 'Project definitions:\n- zeta: Z\n- alpha: A\n- misc',
+      },
+      {
+        id: 'T-CL-BSP-03-04',
+        label: 'category / desc は出力しない',
+        projects: { app1: { def: 'Application 1', category: 'dev', desc: 'アプリ 1 の説明' }, misc: {} },
+        expected: 'Project definitions:\n- app1: Application 1\n- misc',
+      },
+    ];
+
+    for (const { id, label, projects, expected } of _cases) {
+      it(`[Normal] ${id}: ${label} (${JSON.stringify(projects)})`, () => {
+        assertEquals(_tailOf(buildSystemPrompt(projects)), expected);
+      });
+    }
+  });
+
+  /** def が文字列でない不正な辞書値を渡すケース。 */
+  describe('When: 異常系', () => {
+    const _cases: _TailCase[] = [
+      {
+        id: 'T-CL-BSP-04-01',
+        label: 'def がオブジェクト → `- <name>` のみ ([object Object] を出さない)',
+        projects: { app1: { def: { when: ['x'] } }, misc: {} },
+        expected: 'Project definitions:\n- app1\n- misc',
+      },
+    ];
+
+    for (const { id, label, projects, expected } of _cases) {
+      it(`[Error] ${id}: ${label} (${JSON.stringify(projects)})`, () => {
+        assertEquals(_tailOf(buildSystemPrompt(projects)), expected);
+      });
+    }
+  });
+
+  /** def の欠落・空のルールなど境界の入力を渡すケース。 */
+  describe('When: エッジケース', () => {
+    const _cases: _TailCase[] = [
+      {
+        id: 'T-CL-BSP-05-01',
+        label: 'def 無し + when 1 件 → 区切り無しの when 行',
+        projects: { app1: { rules: { when: ['w1'] } }, misc: {} },
+        expected: 'Project definitions:\n- app1\n  when: w1\n- misc',
+      },
+      {
+        id: 'T-CL-BSP-05-02',
+        label: 'rules が空オブジェクト → ルール行なし',
+        projects: { app1: { def: 'Application 1', rules: {} }, misc: {} },
+        expected: 'Project definitions:\n- app1: Application 1\n- misc',
+      },
+      {
+        id: 'T-CL-BSP-05-03',
+        label: 'def が空文字列 → def 無しと同じ `- <name>` (末尾空白なし)',
+        projects: { app1: { def: '' }, misc: {} },
+        expected: 'Project definitions:\n- app1\n- misc',
+      },
+    ];
+
+    for (const { id, label, projects, expected } of _cases) {
+      it(`[Edge] ${id}: ${label} (${JSON.stringify(projects)})`, () => {
+        assertEquals(_tailOf(buildSystemPrompt(projects)), expected);
+      });
+    }
+
+    it('[Edge] T-CL-BSP-05-04: 空の辞書 {} → block 0 個で `Project definitions:` で終わる (末尾改行なし)', () => {
+      const _expectedEnding = 'Base your decision on: title, category, topics, tags.\n'
+        + 'Match them against the project definitions below. "when" lists conditions for choosing a project; '
+        + '"not" lists conditions that exclude it.\n'
+        + '\n'
+        + 'Project definitions:';
+
+      const _result = buildSystemPrompt({});
+
+      assert(_result.endsWith(_expectedEnding), `末尾が一致しない: ${JSON.stringify(_result.slice(-80))}`);
     });
   });
 });
