@@ -6,10 +6,10 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-
-# default: ignore all files
+# Default deny all
 *
 
+## General
 # Allow README, LICENSE, CONTRIBUTING
 !**/README*
 !**/LICENSE*
@@ -27,46 +27,31 @@
 
 # Allow settings
 !**/settings.json
+**/*.local.json
 
 ## Root configs
 !**/package.json
 !**/pnpm-lock.yaml
-!/renovate.json
-!/lefthook.yml
-!/dprint.jsonc
-!/.shellspec
-!/.mcp.json
-!/mise.toml
+!**/renovate.json
+!**/lefthook.yml
+!**/dprint.jsonc
+!**/.shellspec
+!**/.mcp.json
+!**/mise.toml
+!**/CHANGELOG.*
+!**/Release-Note.*
 
-# ChangeLog
-!**/CHANGELOG.md
-!**/Release-Note.md
-
-# deno
-!/deno.json?
-!/deno.lock
-
-## .env
-.env
-.env.*
-!.env.example
-
-## Config
-# chatlog-exporter configs (source tree consumed by scripts/sync-skill-assets.sh)
-!/.config/
-!/.config/chatlog-exporter/
-!/.config/chatlog-exporter/**
-
+## Project directories
 # config files
-!/configs/
-!/configs/**
-!/configs/**/*.json
-!/configs/**/*.yml
-!/configs/**/*.yaml
-!/configs/**/*.toml
-!/configs/**/*rc
-!/configs/**/*.js
-!/configs/**/*.mjs
+!configs/
+!configs/**
+!configs/**/*.json
+!configs/**/*.yml
+!configs/**/*.yaml
+!configs/**/*.toml
+!configs/**/*rc
+!configs/**/*.js
+!configs/**/*.mjs
 
 # runners & scripts
 !/runners
@@ -78,8 +63,8 @@
 !/scripts/**/*.ts
 
 ## AI Agents
-# codex, etc
-!**/AGENTS.md
+# General
+!**/AGENT.md
 
 # claude code
 !**/CLAUDE*.md
@@ -87,24 +72,13 @@
 # allowlist details: .claude/.gitignore
 !.claude/
 !**/CLAUDE*.md
+!.claude/
 !.claude/agents/
 !.claude/agents/**
-!.claude/agents/**/*.md
-!.claude/hooks/
-!.claude/hooks/**
-!.claude/hooks/**/*.sh
 !.claude/rules/
 !.claude/rules/**
-!.claude/rules/**/*.md
-!.claude/skills/
-!.claude/skills/**
-!.claude/skills/**/*.md
-!.claude/skills/**/*.ts
-
-# for IDD lib
 !.claude/commands/
 !.claude/commands/**
-!.claude/commands/**/*.sh
 
 ##  Editor
 #   VSCode
@@ -118,41 +92,63 @@
 !.vscode/cspell*/**
 
 
-
-## beads
-!.beads/
-!.beads/config.yaml
-!.beads/issues.jsonl
-
-# WebSite
-# contents are allowlisted by aglabo.github.io/.gitignore.
-# NOTE: the directory line below must stay - root's `*` matches the directory
-#       itself, and git would never descend to read the nested .gitignore.
-!aglabo.github.io/
-
-## Projects
-# projects main
-!skills/
-!skills/**
-!skills/**/*.md
-!skills/**/*.ts
-
-# projects docs
-!docs
-!docs/**
-!docs/**/*.md
-
-
 ##  Git
-# allow git settings
-!/.git*
-
 # allow all gitignore
 !**/.gitignore
+!**/.gitattribute
 
-## mutation testing artifacts (REQ-C-005)
-# must stay after the allowlist re-includes (!/scripts/**/*.ts, !skills/**)
-*.mutation-*.ts
-*.mutation-*.tsx
-deno.mutation-*.json
-temp/mutation.lock
+
+## Deny rules (keep last)
+# default deny rules
+
+#   OS specific files
+.DS_Store
+thumbs.db
+
+#   logs, patches
+**/*.log
+**/*.diff
+**/*.patch
+
+#   history, cache
+**/.history/
+**/.cache/
+
+#   backup/swap/temp
+**/$~*
+**/~*
+**/*~
+**/*.tmp
+**/*.swp
+**/*.lock
+
+#   session files
+**/*session.json
+**/*session
+
+#   .env files
+**/.env*
+!.env.example
+
+#   API keys / credentials
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/*apikey*
+**/*api-key*
+**/*api_key*
+
+#   temporary directories
+**/temp
+**/tmp
+
+#   node
+**/node_modules/
+**/.pnpm-store/
+
+#   mutation testing artifacts (REQ-C-005)
+#   must stay after the allowlist re-includes (!/scripts/**/*.ts)
+**/*.mutation-*.ts
+**/*.mutation-*.tsx
+**/deno.mutation-*.json
