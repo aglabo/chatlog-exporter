@@ -41,7 +41,29 @@
 !**/CHANGELOG.*
 !**/Release-Note.*
 
+# deno
+!/deno.json?
+
 ## Project directories
+# chatlog-exporter configs (source tree consumed by scripts/sync-skill-assets.sh)
+!/.config/
+!/.config/chatlog-exporter/
+!/.config/chatlog-exporter/**
+
+# projects main
+!skills/
+!skills/**
+
+# projects docs
+!docs/
+!docs/**
+
+# WebSite
+# contents are allowlisted by aglabo.github.io/.gitignore.
+# NOTE: the directory line below must stay - root's `*` matches the directory
+#       itself, and git would never descend to read the nested .gitignore.
+!aglabo.github.io/
+
 # config files
 !configs/
 !configs/**
@@ -64,7 +86,7 @@
 
 ## AI Agents
 # General
-!**/AGENT.md
+!**/AGENTS.md
 
 # claude code
 !**/CLAUDE*.md
@@ -95,7 +117,12 @@
 ##  Git
 # allow all gitignore
 !**/.gitignore
-!**/.gitattribute
+!**/.gitattributes
+
+## beads
+!.beads/
+!.beads/config.yaml
+!.beads/issues.jsonl
 
 
 ## Deny rules (keep last)
@@ -152,3 +179,7 @@ thumbs.db
 **/*.mutation-*.ts
 **/*.mutation-*.tsx
 **/deno.mutation-*.json
+
+## Re-allow rules (must stay after the deny rules)
+# deno lockfile (otherwise denied by **/*.lock)
+!/deno.lock
