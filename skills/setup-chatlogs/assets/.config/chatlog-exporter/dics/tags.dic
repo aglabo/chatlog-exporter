@@ -1,7 +1,7 @@
 # src: .config/chatlog-exporter/dics/tags.dic
 # @(#) タグ定義辞書
 #
-# 構造: <namespace>:<value> / namespace / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
+# 構造: <namespace>/<value> / namespace / def（AI判断用・キーを端的に定義する短文）/ desc（人間向け説明）/ rules（判断補助）
 # ネームスペース定義は namespaces.dic を参照
 #
 # 設計方針:

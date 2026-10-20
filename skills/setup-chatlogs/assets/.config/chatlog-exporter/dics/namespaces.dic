@@ -5,7 +5,7 @@
 #
 # 設計方針:
 #   ネームスペースは「何の観点でタグを付けるか」を表す分類軸。
-#   タグは <namespace>:<value> 形式で使用する。
+#   タグは <namespace>/<value> 形式で使用する。
 
 ai:
   def: Tags for AI models, tools, and agent technologies used in the log
