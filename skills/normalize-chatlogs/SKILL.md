@@ -245,7 +245,9 @@ chatlogs/normalizeLogs/
 
 ## 関連スキル
 
-- `/export-chatlog` — ChatLog のエクスポート (normalize-chatlog の前工程)
-- `/filter-chatlog` — 低価値 ChatLog のフィルタリング
+基本ワークフロー: `export-chatlogs` → `filter-chatlogs` → `normalize-chatlogs` → `filter-chatlogs` (2 回目) → `classify-chatlogs` → `set-frontmatter`
+
+- `/export-chatlogs` — ChatLog のエクスポート
+- `/filter-chatlogs` — 低価値 ChatLog のフィルタリング (normalize-chatlogs の前工程 = 1 回目、後工程 = 2 回目)
 - `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類
 - `/set-frontmatter` — フロントマター付加

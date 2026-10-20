@@ -168,7 +168,7 @@ chatlogs/
 出力ファイル名 (`{sessionid12}` 部分) は sessionId のハッシュ先頭 12 文字から生成される。
 ハッシュ生成規則やファイル名の命名規則が将来変更された場合、旧規則で出力済みの
 ファイルは自動的には削除されない。同一セッションが新旧 2つのファイル名で重複して
-存在すると、後続の `/filter-chatlog` や `/classify-chatlogs` が同じ会話を
+存在すると、後続の `/filter-chatlogs` や `/classify-chatlogs` が同じ会話を
 二重処理する可能性がある。
 
 さらに、sessionId が欠落しているレコードは、現在の実装でも **将来の変更を待たずに**
@@ -184,6 +184,9 @@ sessionId 欠落時はランダム値から代替 sessionId を生成する。
 
 ## 関連スキル
 
-- `/filter-chatlog` — 低価値 ChatLog のフィルタリング (export-chatlogs の後工程)
+基本ワークフロー: `export-chatlogs` → `filter-chatlogs` → `normalize-chatlogs` → `filter-chatlogs` (2 回目) → `classify-chatlogs` → `set-frontmatter`
+
+- `/filter-chatlogs` — 低価値 ChatLog のフィルタリング (export-chatlogs の後工程)
+- `/normalize-chatlogs` — トピック別セグメントへの分割
 - `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類
 - `/set-frontmatter` — フロントマター付加
