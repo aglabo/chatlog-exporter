@@ -1,0 +1,120 @@
+---
+title: Customizing prompts
+description: Which AI step each prompt in prompts/ drives, how its placeholders are filled, and what to keep intact when you edit it.
+---
+
+## Overview
+
+The files in `.config/chatlog-exporter/prompts/` are the prompt templates that **set-frontmatter** sends to the AI.
+Editing them changes how set-frontmatter decides `type`, `category`, `title`, `topics`, and `tags`.
+
+The other skills do not read this directory. filter-chatlogs, normalize-chatlogs, and classify-chatlogs build their prompts in code.
+To change what classify-chatlogs chooses from, edit `projects.dic` instead (see [Customizing dictionaries](./dictionaries)).
+
+:::tip
+In most cases, editing the **dictionaries** is enough. They hold the vocabulary and the decision rules for each value,
+and they are inserted into these prompts. Edit the prompts only when you want to change the instructions themselves.
+:::
+
+## The prompts
+
+set-frontmatter processes each log in three steps. Each step uses one template.
+
+| File                  | Step                                   | Decides                                     |
+| --------------------- | -------------------------------------- | ------------------------------------------- |
+| `type-category.yaml`  | 1. Classification                      | `type` and `category`                       |
+| `category-rules.yaml` | (part of step 1)                       | Per-type hints for choosing the category    |
+| `meta.yaml`           | 2. Metadata generation                 | `title`, `topics`, `tags`                   |
+| `review.yaml`         | 3. Review (skipped with `--no-review`) | Checks and corrects the result of steps 1–2 |
+| `type.yaml`           | Not used                               | —                                           |
+| `category.yaml`       | Not used                               | —                                           |
+
+`type.yaml` and `category.yaml` are older single-purpose templates. They are still loaded, but no step uses them,
+so editing them has no effect. Edit `type-category.yaml` instead.
+
+The directory can be changed with `promptsDir` in `config.yaml` or with `--prompts`.
+
+## Template format
+
+Each template (except `category-rules.yaml`) is a YAML file with two keys.
+
+```yaml
+system: |
+  <instructions: role, rules, output format>
+  ${placeholder}
+
+user: |
+  <the request, including the log>
+  ${placeholder}
+```
+
+- `system` and `user` are sent as the system prompt and the user message.
+- `${name}` is a placeholder that set-frontmatter replaces before sending.
+  **Only the placeholders listed below for each template can be used.** An unknown placeholder is an error.
+- The dictionary placeholders (`${type_dics}`, `${topic_list}`, `${tags_list}`, and so on) belong in `system`.
+  If they are found in `user` of `meta.yaml` or `review.yaml`, a warning tells you that the template is outdated.
+
+### Placeholders
+
+| File                 | Section  | Placeholder          | Filled with                                            |
+| -------------------- | -------- | -------------------- | ------------------------------------------------------ |
+| `type-category.yaml` | `system` | `${type_dics}`       | All entries of `types.dic` (key, def, desc, rules)     |
+|                      | `system` | `${category_dics}`   | All entries of `category.dic`                          |
+|                      | `system` | `${category_rules}`  | All guides in `category-rules.yaml`, joined            |
+|                      | `user`   | `${entries}`         | The log body, truncated to `maxContentLength`          |
+| `meta.yaml`          | `system` | `${topic_list}`      | All entries of `topics.dic`                            |
+|                      | `system` | `${tags_list}`       | The keys of `tags.dic`, comma-separated                |
+|                      | `user`   | `${log_type}`        | The `type` decided in step 1                           |
+|                      | `user`   | `${log_category}`    | The `category` decided in step 1                       |
+|                      | `user`   | `${body}`            | The log body, truncated to `maxContentLength`          |
+| `review.yaml`        | `system` | `${type_dics}`       | All entries of `types.dic`                             |
+|                      | `system` | `${topic_list}`      | `topics.dic` in short form (`- key: def`)              |
+|                      | `system` | `${category_list}`   | The keys of `category.dic`, comma-separated            |
+|                      | `system` | `${tags_list}`       | The keys of `tags.dic`, comma-separated                |
+|                      | `user`   | `${result_type}`     | The `type` from step 1                                 |
+|                      | `user`   | `${result_category}` | The `category` from step 1                             |
+|                      | `user`   | `${result_yaml}`     | The `title`, `topics`, and `tags` from step 2, as YAML |
+
+### category-rules.yaml
+
+`category-rules.yaml` is not a template but a set of hints, one per type.
+Each key is a type from `types.dic` and its value is a text block.
+All blocks are joined and inserted into `type-category.yaml` as `${category_rules}`.
+
+```yaml
+execution: |
+  WHEN  evaluating an execution log — look at the FILE PATHS and TARGETS that were modified:
+  ...
+```
+
+When you add a type to `types.dic`, add a guide for it here as well.
+The guides are meant as signals, not decisions: avoid writing "→ category" directly; the final choice follows `category.dic`.
+
+## Output formats you must keep
+
+set-frontmatter parses the AI's reply in code. **If you change the output format, the reply can no longer be read and the step fails.**
+Keep the output instructions of each template exactly as they are.
+
+| File                 | The reply must be                                                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type-category.yaml` | Two lines: `type: <key>` and `category: <key>`. A value not in the dictionary falls back to `research` / `development`.                              |
+| `meta.yaml`          | YAML starting with `title:`, with `title` (string), `topics` (non-empty list), and `tags` (list). No code fences.                                    |
+| `review.yaml`        | YAML starting with `validity:` (`pass` or `fail`), with `errors` (list) and `corrected_frontmatter` (`type`, `category`, `title`, `topics`, `tags`). |
+
+If the reply of `meta.yaml` or `review.yaml` cannot be parsed, set-frontmatter asks again, up to `maxRetry` times
+(see [Customizing config.yaml](./configuration)). If it still fails, that log is not written.
+
+## Notes on editing
+
+- **Keep the "output only" instructions.** Lines such as "Output YAML only. No code fences, no extra text." prevent
+  explanations from mixing into the reply.
+- **Do not remove the dictionary placeholders.** Without them, the AI no longer knows which values are allowed.
+- **Keep the field names.** Renaming `topics` or `tags` in the schema breaks parsing.
+- **A missing file does not fall back to a built-in prompt.** If a template is deleted, or loses its `system` / `user` key,
+  a warning is shown and the AI is called with an empty prompt. Restore the file from the skill package rather than deleting it.
+- Test changes on a few logs before processing a whole month.
+
+:::warning
+`/setup-chatlogs --force` replaces the prompts with the shipped ones. Keep a copy, or commit them, before running it.
+After updating chatlog-exporter, compare your edited prompts with the new shipped ones; the shipped prompts may have changed to match the code.
+:::

@@ -1,0 +1,119 @@
+---
+title: プロンプトのカスタマイズ
+description: prompts/ の各プロンプトがどの AI 処理に使われるか、プレースホルダーの埋め方、編集時に壊してはいけない部分を説明します。
+---
+
+## 概要
+
+`.config/chatlog-exporter/prompts/` のファイルは、**set-frontmatter** が AI に送るプロンプトのテンプレートです。
+編集すると、set-frontmatter が `type`・`category`・`title`・`topics`・`tags` を決める方法が変わります。
+
+他のスキルはこのディレクトリを読みません。filter-chatlogs・normalize-chatlogs・classify-chatlogs のプロンプトはコード内で組み立てています。
+classify-chatlogs の選択肢を変えたい場合は、代わりに `projects.dic` を編集します ([辞書のカスタマイズ](./dictionaries) を参照)。
+
+:::tip
+多くの場合、**辞書**の編集で足ります。辞書には語彙と各値の判断ルールがあり、プロンプトに埋め込まれます。
+プロンプトを編集するのは、指示そのものを変えたいときだけにします。
+:::
+
+## プロンプトの一覧
+
+set-frontmatter は各ログを 3 つのステップで処理し、ステップごとに 1 つのテンプレートを使います。
+
+| ファイル              | ステップ                           | 決めるもの                            |
+| --------------------- | ---------------------------------- | ------------------------------------- |
+| `type-category.yaml`  | 1. 分類                            | `type` と `category`                  |
+| `category-rules.yaml` | (ステップ 1 の一部)                | category を選ぶための種別ごとのヒント |
+| `meta.yaml`           | 2. メタデータ生成                  | `title`・`topics`・`tags`             |
+| `review.yaml`         | 3. レビュー (`--no-review` で省略) | ステップ 1〜2 の結果を検査・修正      |
+| `type.yaml`           | 未使用                             | —                                     |
+| `category.yaml`       | 未使用                             | —                                     |
+
+`type.yaml` と `category.yaml` は、単機能だった頃の古いテンプレートです。読み込まれますがどのステップも使わないため、
+編集しても効果はありません。代わりに `type-category.yaml` を編集します。
+
+ディレクトリは `config.yaml` の `promptsDir`、または `--prompts` で変更できます。
+
+## テンプレートの書式
+
+各テンプレート (`category-rules.yaml` を除く) は、2 つのキーを持つ YAML です。
+
+```yaml
+system: |
+  <指示: 役割・ルール・出力形式>
+  ${placeholder}
+
+user: |
+  <ログを含む依頼>
+  ${placeholder}
+```
+
+- `system` はシステムプロンプト、`user` はユーザーメッセージとして送られます。
+- `${name}` はプレースホルダーで、set-frontmatter が送信前に置き換えます。
+  **使えるのは、下表でテンプレートごとに挙げたプレースホルダーだけです。** 未定義のプレースホルダーはエラーになります。
+- 辞書のプレースホルダー (`${type_dics}`・`${topic_list}`・`${tags_list}` など) は `system` に置きます。
+  `meta.yaml` や `review.yaml` の `user` にあると、テンプレートが古いという警告が出ます。
+
+### プレースホルダー
+
+| ファイル             | セクション | プレースホルダー     | 埋め込まれる値                                   |
+| -------------------- | ---------- | -------------------- | ------------------------------------------------ |
+| `type-category.yaml` | `system`   | `${type_dics}`       | `types.dic` の全エントリ (key・def・desc・rules) |
+|                      | `system`   | `${category_dics}`   | `category.dic` の全エントリ                      |
+|                      | `system`   | `${category_rules}`  | `category-rules.yaml` の全ガイドを連結したもの   |
+|                      | `user`     | `${entries}`         | ログ本文 (`maxContentLength` で切り詰め)         |
+| `meta.yaml`          | `system`   | `${topic_list}`      | `topics.dic` の全エントリ                        |
+|                      | `system`   | `${tags_list}`       | `tags.dic` のキー (カンマ区切り)                 |
+|                      | `user`     | `${log_type}`        | ステップ 1 で決まった `type`                     |
+|                      | `user`     | `${log_category}`    | ステップ 1 で決まった `category`                 |
+|                      | `user`     | `${body}`            | ログ本文 (`maxContentLength` で切り詰め)         |
+| `review.yaml`        | `system`   | `${type_dics}`       | `types.dic` の全エントリ                         |
+|                      | `system`   | `${topic_list}`      | `topics.dic` の簡略版 (`- key: def`)             |
+|                      | `system`   | `${category_list}`   | `category.dic` のキー (カンマ区切り)             |
+|                      | `system`   | `${tags_list}`       | `tags.dic` のキー (カンマ区切り)                 |
+|                      | `user`     | `${result_type}`     | ステップ 1 の `type`                             |
+|                      | `user`     | `${result_category}` | ステップ 1 の `category`                         |
+|                      | `user`     | `${result_yaml}`     | ステップ 2 の `title`・`topics`・`tags` (YAML)   |
+
+### category-rules.yaml
+
+`category-rules.yaml` はテンプレートではなく、種別ごとのヒント集です。
+キーは `types.dic` の種別、値はテキストブロックです。
+全ブロックを連結し、`type-category.yaml` の `${category_rules}` に埋め込みます。
+
+```yaml
+execution: |
+  WHEN  evaluating an execution log — look at the FILE PATHS and TARGETS that were modified:
+  ...
+```
+
+`types.dic` に種別を追加したら、ここにもその種別のガイドを追加します。
+ガイドは判断の材料であって決定ではありません。「→ カテゴリー名」と直接書くのは避け、最終判断は `category.dic` に委ねます。
+
+## 壊してはいけない出力形式
+
+set-frontmatter は AI の応答をコードで解析します。**出力形式を変えると応答を読めなくなり、そのステップは失敗します。**
+各テンプレートの出力形式の指示は、そのまま残してください。
+
+| ファイル             | 応答の形式                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type-category.yaml` | `type: <key>` と `category: <key>` の 2 行。辞書に無い値は `research` / `development` に置き換わります。                                            |
+| `meta.yaml`          | `title:` で始まる YAML。`title` (文字列)・`topics` (空でないリスト)・`tags` (リスト) を持つ。コードフェンスは付けない。                             |
+| `review.yaml`        | `validity:` (`pass` か `fail`) で始まる YAML。`errors` (リスト) と `corrected_frontmatter` (`type`・`category`・`title`・`topics`・`tags`) を持つ。 |
+
+`meta.yaml` や `review.yaml` の応答を解析できない場合、set-frontmatter は `maxRetry` 回まで問い直します
+([config.yaml のカスタマイズ](./configuration) を参照)。それでも失敗したログは書き込まれません。
+
+## 編集時の注意
+
+- **「出力のみ」の指示を残す。** 「Output YAML only. No code fences, no extra text.」のような行は、応答に説明文が混ざるのを防ぎます。
+- **辞書のプレースホルダーを消さない。** 消すと、AI はどの値が許されるか分からなくなります。
+- **フィールド名を変えない。** スキーマの `topics` や `tags` を改名すると解析できなくなります。
+- **ファイルが無くても組み込みのプロンプトには切り替わらない。** テンプレートを削除したり、`system` / `user` キーが欠けたりすると、
+  警告が出たうえで空のプロンプトで AI を呼び出します。削除せず、スキルの配布物から復元してください。
+- 1 か月分を処理する前に、数件のログで変更を試してください。
+
+:::warning
+`/setup-chatlogs --force` はプロンプトを配布版で置き換えます。実行前に控えを取るか、コミットしておいてください。
+chatlog-exporter を更新したら、編集したプロンプトを新しい配布版と比較してください。配布版のプロンプトはコードに合わせて変わることがあります。
+:::

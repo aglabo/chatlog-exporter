@@ -1,0 +1,162 @@
+---
+title: Customizing dictionaries
+description: What each dictionary in dics/ controls, its format, and how to add your own projects, categories, topics, and tags.
+---
+
+## Overview
+
+The dictionaries in `.config/chatlog-exporter/dics/` define the vocabulary the AI may choose from.
+Two skills depend on them:
+
+- **classify-chatlogs** requires `projects.dic`. The AI picks each log's project only from the names defined there.
+- **set-frontmatter** requires the dictionaries in `dics/`. It picks `type`, `category`, `topics`, and `tags` from them.
+
+Because the AI picks from fixed lists, the same vocabulary is used across all logs.
+Edit the dictionaries to match your own projects and interests.
+
+## The dictionaries
+
+| File             | Used by           | When it is read                   | What it defines                                         |
+| ---------------- | ----------------- | --------------------------------- | ------------------------------------------------------- |
+| `projects.dic`   | classify-chatlogs | At startup, before classification | Project names. Each name becomes an output subdirectory |
+| `types.dic`      | set-frontmatter   | At startup (all dictionaries)     | `type` values (the kind of log)                         |
+| `category.dic`   | set-frontmatter   | At startup                        | `category` values (the domain of the log)               |
+| `topics.dic`     | set-frontmatter   | At startup                        | `topics` values (domain + aspects)                      |
+| `tags.dic`       | set-frontmatter   | At startup                        | `tags` values                                           |
+| `namespaces.dic` | (none)            | Not read                          | Tag namespaces (the left side of `tags.dic` keys)       |
+
+The directory can be changed with `dicsDir` in `config.yaml` (and `projectsDic` for the project dictionary),
+or with `--dics` for set-frontmatter. See [Customizing config.yaml](./configuration).
+
+## File format
+
+Every dictionary is a YAML file. Each top-level key is one entry, and the key is the value the AI outputs.
+
+```yaml
+<key>:
+  def: <one short sentence that defines the key — this is what the AI reads>
+  desc: <explanation for humans>
+  rules:
+    when:
+      - <a situation where this key applies>
+    not:
+      - <a situation where it does not apply (and what to choose instead)>
+```
+
+| Field   | Meaning                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `def`   | A short definition of the key. The main text the AI uses to decide. Write it in English.                            |
+| `desc`  | A human-readable description.                                                                                       |
+| `rules` | Hints for borderline cases: `when` (applies), `not` (does not apply), and in some dictionaries `while` and `where`. |
+
+Lines starting with `#` are comments. The comments at the top of each shipped dictionary explain its design and selection rules; read them before editing.
+
+## projects.dic
+
+`projects.dic` has the largest effect on classification accuracy.
+The AI sees only the information in this file when it decides which project a log belongs to.
+
+### What the AI receives
+
+For each project, classify-chatlogs sends the **key**, **`def`**, and **`rules.when` / `rules.not`** to the AI.
+`desc`, `category`, `rules.while`, and `rules.where` are **not sent**, so they do not affect the result.
+For each log, it sends the title, category, topics, and tags from the frontmatter
+(or the first 500 characters of the body if the log has no metadata).
+
+### Adding a project
+
+Add an entry with the project name as the key. For example, to classify logs about a home-made note app called `memo-pad`:
+
+```yaml
+memo-pad:
+  def: A personal note-taking web app built with Deno and Fresh
+  category: development
+  desc: 自作のメモアプリ。Deno + Fresh で開発している
+  rules:
+    when:
+      - memo-pad のコード・UI・データ保存に関するログ
+      - Fresh のルーティングや island を memo-pad 向けに実装したログ
+    not:
+      - Fresh や Deno の一般的な使い方の調査で、memo-pad に触れていないもの（misc で分類）
+```
+
+Tips for accurate classification:
+
+- **Make `def` specific.** Name the technology, the product, or the purpose so the AI can tell projects apart.
+- **Use `when` for the signals that identify the project**: command names, file names, repository names, distinctive terms.
+- **Use `not` for confusable cases**, and say which project to choose instead (`(… で分類)`).
+  When two projects overlap, add a `not` to each of them.
+- **The key becomes a directory name.** It must not contain `/`, `\`, or `:`, and must not be `.` or `..`.
+  Use lowercase and hyphens, as in the shipped dictionary.
+
+### misc
+
+`misc` is the catch-all for logs that match no project.
+If `projects.dic` does not define `misc`, it is added automatically.
+If the file defines no projects at all, every log goes to `misc` and a warning is shown.
+If `projects.dic` does not exist, classify-chatlogs stops with an error.
+
+For other classification behavior (frontmatter `project:` takes priority, short logs, caching),
+see the [`/classify-chatlogs` reference](../reference/classify-chatlogs).
+
+## set-frontmatter dictionaries
+
+set-frontmatter sends the dictionaries to the AI as part of its prompts.
+For `types.dic`, `category.dic`, and `topics.dic`, the key, `def`, `desc`, and all `rules` are sent.
+For `tags.dic`, **only the keys** are sent, as a comma-separated list.
+
+### types.dic
+
+Defines `type`. The shipped file has 5 types: `execution`, `incident`, `discussion`, `research`, and `writing`.
+The AI checks the types **in the order they are written** and takes the first match, so the order of entries matters.
+
+- `research` must exist. It is the fallback when the AI returns a value that is not in the dictionary.
+- If the file is missing or empty, set-frontmatter stops at startup.
+
+### category.dic
+
+Defines `category`, the broad domain of a log (one per log).
+The shipped file has `development`, `infrastructure`, `tooling`, `ai`, `writing`, `knowledge`, `creative`, and `casual`.
+
+- `development` must exist. It is the fallback for an invalid category.
+- If the file is missing or empty, set-frontmatter stops at startup.
+
+### topics.dic
+
+Defines `topics`. A log gets one **domain** and zero to two **aspects**.
+
+- The domain entries must have **the same keys as `category.dic`**: the domain is always set to the log's category.
+  When you add, rename, or remove a category, change `topics.dic` the same way.
+- The aspect entries (`learning`, `decision`, `architecture`, `validation`, and so on) describe the angle of the log.
+  The grouping rules (at most one aspect per group) are written in the file header and in the `meta.yaml` prompt.
+
+### tags.dic
+
+Defines `tags`. Keys are written as `<namespace>/<value>`, for example `ai/claude` or `lang/typescript`.
+
+- **The left side of the key (before `/`) is the namespace.** It reaches the AI as part of the key
+  and tells it which aspect the tag records: `ai/` for AI models, `lang/` for languages, `tool/` for tools, and so on.
+- Only the keys reach the AI, so **the key itself must be self-explanatory**.
+  `def`, `desc`, `rules`, and the `namespace:` field are notes for humans and are not sent.
+- Add tags for the tools, languages, and environments you actually use. Avoid tags that would apply to every log; they carry no information.
+
+### namespaces.dic
+
+Defines the namespaces used on the left side of the `tags.dic` keys (`ai`, `lang`, `tool`, `os`, and so on),
+and when each one applies. When you add a tag, use a namespace defined here.
+
+The file itself is not read by any skill. Namespaces take effect through the tag keys in `tags.dic`.
+When you add a new namespace, add it here as well so the set of namespaces stays documented in one place.
+
+## After editing
+
+- Edits take effect on the next run. There is nothing to rebuild.
+- classify-chatlogs caches its results per file, so logs that were already classified keep their project.
+  Only a cached project that you removed from `projects.dic` is discarded and classified again.
+  To re-classify everything with the new dictionary, delete `classify-cache/` under `cacheDir`.
+- A YAML syntax error stops the skill. Check indentation after editing.
+- To check the effect, run the skill on a small set of logs first. set-frontmatter has `--dry-run`, but it does not call the AI, so it shows the target files rather than the chosen values.
+
+:::warning
+`/setup-chatlogs --force` replaces the dictionaries with the shipped ones. Keep a copy, or commit them, before running it.
+:::
