@@ -81,7 +81,7 @@ const _skillMdCases: _ExpectationTable = new Map([
   ['classify-chatlogs $SCRIPT_PATH', { expectation: 'required', count: 1 }],
   ['filter-chatlogs $SCRIPT_PATH', { expectation: 'required', count: 1 }],
   ['normalize-chatlogs $SCRIPT_PATH', { expectation: 'required', count: 1 }],
-  ['set-frontmatter $SCRIPT_PATH', { expectation: 'required', count: 2 }],
+  ['set-frontmatter $SCRIPT_PATH', { expectation: 'required', count: 3 }],
   ['export-chatlogs $SCRIPT_PATH', { expectation: 'forbidden', count: 1 }],
   ['filter-chatlogs $NOISE_FILTER_PATH', { expectation: 'forbidden', count: 5 }],
   ['filter-chatlogs $STRIP_PATH', { expectation: 'forbidden', count: 3 }],
