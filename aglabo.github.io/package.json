@@ -1,13 +1,22 @@
 {
-  "name": "aglabo.github.io",
-  "version": "1.0.0",
+  "name": "@aglabo/chatlog-exporter-docs",
+  "version": "0.0.1",
   "private": true,
-  "description": "",
-  "keywords": [],
+  "description": "Documentation site for chatlog-exporter (aglabo.github.io)",
+  "keywords": [
+    "chatlog",
+    "exporter",
+    "documentation",
+    "blume"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aglabo/chatlog-exporter.git",
+    "directory": "aglabo.github.io"
+  },
   "license": "MIT",
   "author": "atsushifx",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "docs:dev": "pnpm exec blume dev",
     "docs:build": "pnpm exec blume build"
@@ -16,9 +25,10 @@
     "blume": "~1.5.3",
     "esbuild": "^0.28.2"
   },
-  "packageManager": "pnpm@12.4.1",
+  "packageManager": "pnpm@12.14.0",
   "engines": {
     "node": ">=24",
     "pnpm": ">=12"
-  }
+  },
+  "@(#)": "Documentation site for chatlog-exporter"
 }

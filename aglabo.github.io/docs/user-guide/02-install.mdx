@@ -95,11 +95,11 @@ The following tools must be available.
 
     Running the above deploys the following 3 entries.
 
-    | Destination                 | What it is                                                            | Relative to           |
-    | --------------------------- | --------------------------------------------------------------------- | --------------------- |
-    | `.config/chatlog-exporter/` | `config.yaml`, the `dics/` dictionaries, and the `prompts/` the AI steps use | The current directory |
-    | `deno.json`                 | The Deno settings for chatlog-exporter (the libraries it uses, and so on) | The current directory |
-    | `_cle-libs/`                | The types, constants, and libraries every skill shares                | Beside the skills     |
+| Destination                 | What it is                                                                   | Relative to           |
+| --------------------------- | ---------------------------------------------------------------------------- | --------------------- |
+| `.config/chatlog-exporter/` | `config.yaml`, the `dics/` dictionaries, and the `prompts/` the AI steps use | The current directory |
+| `deno.json`                 | The Deno settings for chatlog-exporter (the libraries it uses, and so on)    | The current directory |
+| `_cle-libs/`                | The types, constants, and libraries every skill shares                       | Beside the skills     |
 
     Only `_cle-libs/` is deployed beside the skills. Each skill refers to it as `../../_cle-libs/`,
     so it has to sit where the skills were installed.
@@ -107,8 +107,10 @@ The following tools must be available.
     If the setup has already been done, the deployment above is skipped.
 
     :::warning
-    `.config/chatlog-exporter/` and `deno.json` are deployed relative to the **current directory**, which is not necessarily the repository root.
-    Running it in a subdirectory other than the repository root does not raise an error; it deploys relative to that subdirectory instead.
+    `.config/chatlog-exporter/` and `deno.json` are deployed relative to the **current directory**,
+    which is not necessarily the repository root.
+    Running it in a subdirectory other than the repository root does not raise an error;
+    it deploys relative to that subdirectory instead.
     Check the current directory before running it.
     :::
 
