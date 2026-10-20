@@ -249,7 +249,7 @@ tags:
 
 - `category.dic`: category 選択肢
 - `topics.dic`: topics 選択肢
-- `tags.dic`: tags 選択肢 (キーが `<namespace>:<value>` 形式)
+- `tags.dic`: tags 選択肢 (キーが `<namespace>/<value>` 形式)
 - `types.dic`: type 選択肢 (`execution` / `incident` / `discussion` / `research` / `writing`)
 
 辞書ファイルが存在しない場合は警告を出して空として扱う。
