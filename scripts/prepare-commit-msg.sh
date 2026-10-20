@@ -77,12 +77,12 @@ readonly SCRIPT_DIR
 OUTPUT_FILE=""
 
 ##
-# @description AI model name for commit message generation (default: sonnet)
-DEFAULT_AI_MODEL="sonnet"
+# @description AI model name for commit message generation (default: gpt-6-luna)
+DEFAULT_AI_MODEL="gpt-6-luna"
 
 ###
-# @description AI model name for commit message generation (default: sonnet)
-AI_MODEL="sonnet"
+# @description AI model name for commit message generation (default: gpt-6-luna)
+AI_MODEL="${DEFAULT_AI_MODEL}"
 
 ##
 # @description Path to commit message generator template
@@ -122,7 +122,7 @@ Arguments:
 
 Options:
   --output FILE, -o FILE      Write commit message to FILE instead of stdout
-  --model MODEL               AI model name (default: sonnet)
+  --model MODEL               AI model name (default: gpt-6-luna)
                               Supported: gpt-*, o1-*, claude-*, haiku, sonnet, opus
   -h, --help                  Show this help message
 
@@ -147,7 +147,7 @@ EOF
 # @description Parse command-line options and set configuration
 # @arg $@ string Command-line arguments to parse
 # @option --output FILE|-o FILE Write commit message to FILE instead of stdout
-# @option --model MODEL Specify AI model name (default: sonnet)
+# @option --model MODEL Specify AI model name (default: gpt-6-luna)
 # @option -h|--help Display usage information
 # @arg $1 string When symlinked as a git hook: commit message file (used as output file)
 # @arg $2 string When symlinked as a git hook: message source (ignored)
@@ -250,16 +250,16 @@ make_context_block() {
 # - Supports piped stdin: ... | "${AI_COMMAND[@]}"
 #
 # **Supported Providers:**
-# - OpenAI (gpt-*, o1-*) → codex exec -s read-only --color never --model <model>
-# - Anthropic (claude-*, haiku, sonnet, opus) → claude -p --model <model>
-# - OpenCode (org/model) → opencode run --model <model>
+# - OpenAI (gpt-*, o1-*) -> codex exec -s read-only --color never --model <model>
+# - Anthropic (claude-*, haiku, sonnet, opus) -> claude -p --model <model>
+# - OpenCode (org/model) -> opencode run --model <model>
 #
 # **Safety Notes:**
 # - Uses array expansion, NOT eval (shell injection safe)
 # - All model names validated before array creation
 # - Unknown models exit with error
 #
-# @arg $1 string AI model name (default: sonnet)
+# @arg $1 string AI model name (default: gpt-6-luna)
 # @return 0 If model is supported and AI_COMMAND is set
 # @return 1 If model is unsupported
 # @global AI_COMMAND Array populated with (command arg1 arg2 ...)
@@ -328,7 +328,7 @@ get_model_command() {
 #     ```
 #
 # Execution flow:
-#   Template + Context → AI → Try Markers → Fallback to Code Block → Return
+#   Template + Context -> AI -> Try Markers -> Fallback to Code Block -> Return
 #
 # @arg $1 string Optional test message (for testing/debugging only)
 # @return 0 If generation and validation succeeds
