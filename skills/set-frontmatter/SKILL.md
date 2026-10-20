@@ -5,7 +5,7 @@ description: >
   /set-frontmatter で呼び出す。
   AIが会話内容を解析してtitle/type/category/topics/tagsを生成。
   .config/chatlog-exporter/dics/ の辞書を参照してcategory/topics/tagsを選定する。
-argument-hint: "<input-path> [output-path] | [agent] [YYYY-MM] [--dry-run] [--no-review]"
+argument-hint: "<input-path> [output-path] | [agent] [YYYY-MM] [--model <model>] [--concurrency <n>] [--dics <dir>] [--prompts <dir>] [--cache-dir <dir>] [--config <file>] [--debug] [--dry-run] [--no-review]"
 allowed-tools: Bash, Glob
 ---
 
@@ -34,6 +34,18 @@ allowed-tools: Bash, Glob
 - `agent YYYY-MM` → 指定 agent・指定年月
 - `--dry-run` → 書き込まず、AI 呼び出しもスキップして状態のみ確認 (後述の注意を参照)
 - `--no-review` → AI によるレビューフェーズ(Phase 3.1)をスキップする
+- `--input-dir <dir>` / `--output-dir <dir>` → パス指定と同じ。フラグと値をそのまま転送する
+- `--model <model>` → AI モデル名 (`--model` フラグとしてそのまま転送)
+- `--concurrency <n>` → 並列実行数 (`--concurrency` フラグとしてそのまま転送、デフォルト: 4)
+- `--dics <dir>` / `--prompts <dir>` / `--cache-dir <dir>` → 辞書・プロンプト・キャッシュのディレクトリ (そのまま転送)
+- `--config <file>` → GlobalConfig ファイルのパス (そのまま転送)
+- `--debug` / `--no-debug` / `--review` → そのまま転送
+
+> 値を取るオプション (`--input-dir` / `--output-dir` / `--model` / `--concurrency` / `--dics` /
+> `--prompts` / `--cache-dir` / `--config`) は、直後の引数を値として一緒に転送する。
+> 値が `/` を含んでもパス指定 (位置引数) として扱わない。
+> 一覧にない `--` オプションも解釈・削除せずそのまま転送し、判定はスクリプトに委ねる
+> (未知のオプションはスクリプトが `UnknownOption` エラーにする)。
 
 > 注意: `project` を引数として指定することはできない。
 > プロジェクト名の位置引数は存在せず、渡すと `UnknownPositional` エラーで異常終了する。
@@ -59,6 +71,7 @@ allowed-tools: Bash, Glob
 - `/set-frontmatter chatgpt 2026-03` → chatgpt/2026/2026-03
 - `/set-frontmatter claude --dry-run` → claude 全年月 (dry-run)
 - `/set-frontmatter claude --no-review` → claude 全年月 (レビューフェーズをスキップ)
+- `/set-frontmatter claude 2026-03 --model haiku --concurrency 8` → claude/2026/2026-03 を haiku・並列 8 で処理
 
 <!-- textlint-enable ja-technical-writing/sentence-length -->
 
@@ -71,23 +84,25 @@ SKILL_DIR   = <set-frontmatter/SKILL.md が存在するディレクトリの絶�
 SCRIPT_PATH = $SKILL_DIR/scripts/set-frontmatter.ts
 ```
 
-辞書ディレクトリは `--dics` で指定しない。スクリプトは `config.yaml` の `dicsDir` (既定 `dics`、`.config/chatlog-exporter/` 相対) を自動解決する。
+ユーザーが `--dics` を指定しない限り、`--dics` を補って渡さない。スクリプトは `config.yaml` の `dicsDir` (既定 `dics`、`.config/chatlog-exporter/` 相対) を自動解決する。
 
 ## ステップ2: 引数解析と対象ディレクトリ決定
 
 ```bash
 AGENT=""         # 未指定なら渡さない（スクリプトが config.yaml の agent を解決する）
 YEAR_MONTH=""
-DRY_RUN_FLAG=""
-REVIEW_FLAG=""
 INPUT_DIR=""
 OUTPUT_DIR=""
 PATH_ARGS=()
+OPTION_ARGS=()   # スクリプトへそのまま転送する -- オプション (値を含む)
 
-# $ARGUMENTS を解析:
-# 1. "--dry-run" → DRY_RUN_FLAG
-# 2. "--no-review" → REVIEW_FLAG="--no-review"
-# 3. 各引数の \ を / に正規化する
+# $ARGUMENTS を先頭から順に解析:
+# 1. 値を取るオプション (--input-dir / --output-dir / --model / --concurrency /
+#    --dics / --prompts / --cache-dir / --config) → フラグと直後の値を OPTION_ARGS に追加
+#    (値は PATH_ARGS / AGENT / YYYY-MM の判定に使わない)
+# 2. それ以外の -- で始まる引数 (--dry-run / --no-review / --review / --debug / --no-debug 等)
+#    → OPTION_ARGS に追加
+# 3. 残りの各引数の \ を / に正規化する
 # 4. 正規化後に / を含む → PATH_ARGS に追加
 # 5. それ以外は AGENT / YYYY-MM として分類
 
@@ -122,23 +137,38 @@ PATH_ARGS=()
 # INPUT_DIR のみ指定 (OUTPUT_DIR は --output-dir を省略してスクリプトのデフォルトに委ねる):
 deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
-  $DRY_RUN_FLAG \
-  $REVIEW_FLAG
+  "${OPTION_ARGS[@]}"
 
 # INPUT_DIR と OUTPUT_DIR 両方指定:
 deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
   --input-dir "$INPUT_DIR" \
   --output-dir "$OUTPUT_DIR" \
-  $DRY_RUN_FLAG \
-  $REVIEW_FLAG
+  "${OPTION_ARGS[@]}"
+
+# パス指定なし (AGENT / YEAR_MONTH は指定されたものだけを位置引数で渡す):
+deno run --config ./deno.jsonc --allow-read --allow-run --allow-write --allow-env --allow-net "$SCRIPT_PATH" \
+  $AGENT $YEAR_MONTH \
+  "${OPTION_ARGS[@]}"
 ```
+
+`OPTION_ARGS` はユーザーが指定した順序・値のまま渡す。Claude が独自にオプションを追加・削除・変更しない。
+
+### 引数からオプションを組み立てる例
+
+- `claude 2026-03` → `deno run ... "$SCRIPT_PATH" claude 2026-03`
+- `claude 2026-03 --model haiku` → `deno run ... "$SCRIPT_PATH" claude 2026-03 --model haiku`
+- `claude --concurrency 8 --no-review` → `deno run ... "$SCRIPT_PATH" claude --concurrency 8 --no-review`
+- `chatlogs/normalizeLogs/claude/2026/2026-04 --dics ./my-dics --debug` →
+  `deno run ... "$SCRIPT_PATH" --input-dir chatlogs/normalizeLogs/claude/2026/2026-04 --dics ./my-dics --debug`
+- `--config ./my-config.yaml --cache-dir ./cache --dry-run` →
+  `deno run ... "$SCRIPT_PATH" --config ./my-config.yaml --cache-dir ./cache --dry-run`
 
 > `--config ./deno.jsonc` は **Deno の設定ファイル指定** であり、下記オプション表の `--config FILE`
 > (GlobalConfig ファイル) とは別物。カレントディレクトリの `deno.jsonc` は、その配下にない
 > モジュールの bare specifier には適用されない。User スコープに導入したスキルがこれに当たる。
 
 INPUT_DIR 配下の Markdown はスクリプトが再帰的に走査するため、ディレクトリを列挙してループ実行する必要はない。
-非パスモード・YEAR_MONTH 未指定 (全年月) の場合も、ステップ 2 で決定した INPUT_DIR をそのまま `--input-dir` に渡す。
+パス指定なしの場合、入力ディレクトリは AGENT / YEAR_MONTH からスクリプトが解決する (YEAR_MONTH 未指定なら全年月)。
 
 ## ステップ4: 結果報告
 
