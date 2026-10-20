@@ -51,6 +51,12 @@ There is no argument for a project. To process a single project, pass its direct
 
 The directory options must contain a `/` (`./dics` works, `dics` does not).
 
+:::note
+The `/set-frontmatter` slash command currently passes only `--dry-run` and `--no-review` to the script.
+The other options in this table are not forwarded yet, so they do not work from the slash command.
+Support for them is tracked in [#549](https://github.com/aglabo/chatlog-exporter/issues/549).
+:::
+
 :::warning
 The run stops before calling the AI if `category.dic` or `types.dic` is missing or empty, or if they lack
 the fallback values (`development` in `category.dic`, `research` in `types.dic`).
