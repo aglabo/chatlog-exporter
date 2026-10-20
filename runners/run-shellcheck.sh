@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-# shellcheck source=runners/libs/init-vars.lib.sh
+# Initialize variables and change to the project root directory
 . "$(dirname "${BASH_SOURCE[0]}")/libs/init-vars.lib.sh"
 cd "${SCRIPT_ROOT}/.."
 
@@ -42,10 +42,7 @@ main() {
     if [[ -d $target ]]; then
       while IFS= read -r -d '' f; do
         files+=("$f")
-      done < <(find "$target" \
-        -path "*/.tools/*" -prune -o \
-        -path "*/node_modules/*" -prune -o \
-        -name "*.sh" -print0)
+      done < <(find "$target" -path "*/.tools/*" -prune -o -name "node_modules" -prune -o -name "*.sh" -print0)
     else
       files+=("$target")
     fi

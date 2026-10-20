@@ -11,233 +11,85 @@
 
 set -euo pipefail
 
-# shellcheck source=runners/libs/init-vars.lib.sh
+# Initialize directory variables
 . "$(dirname "${BASH_SOURCE[0]}")/libs/init-vars.lib.sh"
 
-SHELLSPEC="${SHELLSPEC:-${PROJECT_ROOT}/.tools/shellspec/shellspec}"
+# include using wsl library
+. "${SCRIPT_ROOT}/libs/wsl.lib.sh"
 
-readonly TEST_TYPES=("all" "unit" "functional" "integration" "system" "e2e")
+# Main ShellSpec entry point. The path is relative to PROJECT_ROOT, so it also works as-is on the WSL side
+readonly EXEC_SCRIPT='runners/exec/shellspec-exec.sh'
 
-# Directory name holding spec files, relative to each source tree
-readonly TEST_DIR_NAME="__tests__"
+# One-line error written to stderr when running on Windows but wsl.exe cannot be invoked
+readonly WSL_UNAVAILABLE_ERROR='Error: Windows detected but wsl.exe is not available. Install WSL, or set SHELLSPEC_NO_WSL=1 to run ShellSpec on this shell.'
 
-SKIP_INTEGRATION_TESTS="${SKIP_INTEGRATION_TESTS:-1}"
-SPEC_SEARCH_ROOT="${SPEC_SEARCH_ROOT:-${PROJECT_ROOT}}"
+# Commands whose absence on the WSL side makes ShellSpec fail with confusing errors
+readonly WSL_REQUIRED_COMMANDS=('bash' 'git' 'rg' 'jq')
 
-PARSED_ARGS=()
-RESOLVED_SPEC_FILES=()
-SHELLSPEC_ARGS=()
-
-# shellcheck source=runners/libs/get-filelist.sh
-. "${SCRIPT_ROOT}/libs/get-filelist.lib.sh"
-
-is_test_type() {
-  local arg="$1"
-  local type
-  for type in "${TEST_TYPES[@]}"; do
-    [[ "$arg" == "$type" ]] && return 0
-  done
-  return 1
-}
-
-is_spec_file() {
-  local arg="$1"
-  [[ "$arg" == *.spec.sh ]]
-}
-
-is_spec_glob() {
-  local arg="$1"
-  is_glob_pattern "$arg" && [[ "$arg" == *".spec.sh"* ]]
-}
-
-expand_spec_glob() {
-  local pattern="$1"
-  local norm_pattern
-  norm_pattern=$(normalize_path "$pattern")
-
-  local -a matches
-  mapfile -t matches < <(
-    cd "$SPEC_SEARCH_ROOT" && compgen -G "$norm_pattern" 2>/dev/null || true
-  )
-
-  if [[ ${#matches[@]} -eq 0 ]]; then
-    echo "Error: No spec files found matching glob '${pattern}'" >&2
+#
+# @description Decide whether ShellSpec should run inside WSL.
+#              Pure function: the caller owns the `uname` call and passes its result in
+# @arg $1 string OS name (the value of `uname -s`)
+# @exitcode 0 if the body should run in WSL, 1 if it should run on this shell
+#
+should_use_wsl() {
+  local __os_name="$1"
+  if [[ "${SHELLSPEC_NO_WSL:-}" == '1' ]]; then
     return 1
   fi
-
-  local file
-  for file in "${matches[@]}"; do
-    normalize_path "$file"
-  done
+  is_windows_host "$__os_name"
 }
 
-is_skip_shellspec_file() {
-  local file="$1"
-  local file_path="$file"
-  if [[ "$file_path" != /* ]]; then
-    file_path="${SPEC_SEARCH_ROOT}/${file_path#./}"
-  fi
-
-  [[ -f "$file_path" ]] && head -n 5 "$file_path" 2>/dev/null | grep -q '^# skip shellspec'
+#
+# @description Run the ShellSpec body on this shell
+# @arg $@ Arguments forwarded to the body untouched
+# @exitcode Exit code of the body
+#
+run_local() {
+  bash "${PROJECT_ROOT}/${EXEC_SCRIPT}" "$@"
 }
 
-filter_runnable_specs() {
-  local file
-  for file in "$@"; do
-    if ! is_skip_shellspec_file "$file"; then
-      printf '%s\n' "$file"
-    fi
-  done
-}
-
-get_spec_files() {
-  local test_type="$1"
+#
+# @description Route the ShellSpec body to this shell or to WSL
+# @arg $1 string OS name (the value of `uname -s`)
+# @arg $@ Arguments forwarded to the body untouched
+# @exitcode Exit code of the body
+#
+dispatch() {
+  local __os_name="$1"
   shift
 
-  # get_filelist applies these filters as unanchored regexes, so they have to be
-  # delimited as whole path components: the trailing separator keeps "unit" from
-  # matching "__tests__/unitary", and the leading one keeps "all" from matching
-  # "not__tests__". Both filters contain a separator, so each takes get_filelist's
-  # path-filter branch and is used as-is.
-  #
-  # Separators are written as [/] rather than a bare /: on Windows/Git Bash the
-  # MSYS argument path conversion rewrites a pattern shaped like /�c/ before rg
-  # ever receives it (confirmed via MSYS_NO_PATHCONV), which silently matches
-  # nothing. A pattern starting with [ is left alone. This is not an rg defect.
-  #
-  # TEST_DIR_NAME and TEST_TYPES hold no regex metacharacters, so interpolating
-  # them directly is safe.
-  local type_filter
-  if [[ "$test_type" == "all" ]]; then
-    type_filter="(^|[/])${TEST_DIR_NAME}[/]"
-  else
-    type_filter="(^|[/])${TEST_DIR_NAME}[/]${test_type}[/]"
+  if ! should_use_wsl "$__os_name"; then
+    run_local "$@"
+    return
   fi
 
-  local -a spec_files
-  mapfile -t spec_files < <(get_filelist "$SPEC_SEARCH_ROOT" "*.spec.sh" "$type_filter" "$@")
-  filter_runnable_specs "${spec_files[@]}"
-}
-
-parse_options() {
-  PARSED_ARGS=()
-
-  local arg
-  for arg in "$@"; do
-    if [[ "$arg" == "--integration" ]]; then
-      SKIP_INTEGRATION_TESTS=0
-    elif [[ "$arg" == "--" ]]; then
-      continue
-    else
-      PARSED_ARGS+=("$arg")
-      printf '%s\n' "$arg"
-    fi
-  done
-}
-
-resolve_spec_files() {
-  RESOLVED_SPEC_FILES=()
-  SHELLSPEC_ARGS=()
-
-  [[ $# -eq 0 ]] && return 0
-
-  local first_arg="$1"
-
-  if is_spec_glob "$first_arg"; then
-    local -a expanded_specs
-    mapfile -t expanded_specs < <(expand_spec_glob "$first_arg")
-    mapfile -t RESOLVED_SPEC_FILES < <(filter_runnable_specs "${expanded_specs[@]}")
-    # mapfile masks expand_spec_glob's exit status, so the emptiness has to be
-    # re-checked here. mapfile yields either a zero-length array or a single
-    # empty element for empty input, hence both conditions.
-    if [[ ${#RESOLVED_SPEC_FILES[@]} -eq 0 || -z "${RESOLVED_SPEC_FILES[0]}" ]]; then
-      echo "Error: No runnable spec files found matching glob '${first_arg}'" >&2
-      return 1
-    fi
-    shift
-    SHELLSPEC_ARGS=("$@")
-    printf '%s\n' "${RESOLVED_SPEC_FILES[@]}"
-    return 0
-  fi
-
-  if is_spec_file "$first_arg"; then
-    RESOLVED_SPEC_FILES=("$first_arg")
-    shift
-    SHELLSPEC_ARGS=("$@")
-    printf '%s\n' "${RESOLVED_SPEC_FILES[@]}"
-    return 0
-  fi
-
-  if ! is_test_type "$first_arg"; then
-    printf "Error: Unknown argument '%s'. Expected a test type, spec file, or glob pattern.\n" "$first_arg"
+  if ! is_wsl_available; then
+    printf '%s\n' "$WSL_UNAVAILABLE_ERROR" >&2
     return 1
   fi
 
-  local test_type="$1"
-  shift
-  [[ "$test_type" == "system" ]] && SKIP_INTEGRATION_TESTS=0
-
-  local -a file_filters=()
-  local parsing_shellspec_args=0
-  local arg
-  for arg in "$@"; do
-    if [[ $parsing_shellspec_args -eq 1 || "$arg" == -* ]]; then
-      parsing_shellspec_args=1
-      SHELLSPEC_ARGS+=("$arg")
-    else
-      file_filters+=("$arg")
-    fi
-  done
-
-  local -a spec_files
-  mapfile -t spec_files < <(get_spec_files "$test_type" "${file_filters[@]}")
-  if [[ ${#spec_files[@]} -eq 0 || -z "${spec_files[0]}" ]]; then
-    echo "Error: No spec files found for test type '${test_type}'" >&2
+  local __missing_commands
+  __missing_commands="$(find_missing_wsl_commands "${WSL_REQUIRED_COMMANDS[@]}")"
+  if [[ -n "$__missing_commands" ]]; then
+    local __missing_names="${__missing_commands//$'\n'/ }"
+    printf 'Error: WSL is missing required commands: %s. Install them in your WSL distro (e.g. sudo apt install %s), or set SHELLSPEC_NO_WSL=1 to run ShellSpec on this shell.\n' "$__missing_names" "$__missing_names" >&2
     return 1
   fi
 
-  RESOLVED_SPEC_FILES=("${spec_files[@]}")
-  printf '%s\n' "${RESOLVED_SPEC_FILES[@]}"
+  exec_in_wsl "$PROJECT_ROOT" "$EXEC_SCRIPT" "$@"
 }
 
-run_shellspec() {
-  local -a normalized_args=()
-  local arg
-  for arg in "$@"; do
-    normalized_args+=("$(normalize_path "$arg")")
-  done
-
-  (cd "$PROJECT_ROOT" && export SKIP_INTEGRATION_TESTS && bash "$SHELLSPEC" "${normalized_args[@]}")
-}
-
+#
+# @description Entry point: hand the current OS name to dispatch()
+# @arg $@ Command line arguments, forwarded to the body untouched
+# @exitcode Exit code of the body
+#
 main() {
-  if [[ $# -eq 0 ]]; then
-    run_shellspec
-    exit $?
-  fi
-
-  parse_options "$@" >/dev/null
-
-  # Options-only invocation (e.g. "--integration") selects no specs, which is
-  # the same intent as no arguments at all: run shellspec's default path.
-  if [[ ${#PARSED_ARGS[@]} -eq 0 ]]; then
-    run_shellspec
-    exit $?
-  fi
-
-  local resolved resolved_file
-  resolved_file=$(mktemp)
-  if ! resolve_spec_files "${PARSED_ARGS[@]}" >"$resolved_file"; then
-    resolved=$(cat "$resolved_file")
-    rm -f "$resolved_file"
-    echo "$resolved" >&2
-    exit 1
-  fi
-  rm -f "$resolved_file"
-
-  run_shellspec "${RESOLVED_SPEC_FILES[@]}" "${SHELLSPEC_ARGS[@]}"
+  dispatch "$(uname -s)" "$@"
 }
 
+# Execute main only if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   main "$@"
 fi

@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-##
+#
 # @description Detect if running in CI environment
 # @return 0 If CI environment detected
 # @return 1 If not in CI environment
@@ -111,23 +111,45 @@ setup_shellspec() {
 }
 
 ##
-# @description Check if an aglabo tool is already checked out
+# @description Check if an aglabo tool is checked out and its dependencies are installed
 # @arg $1 string Repository name (e.g. agla-dev-tools)
 # @arg $2 string Directory path where aglabo tools are checked out
-# @return 0 If the tool is installed
-# @return 1 If the tool is not installed
+# @return 0 If both bin/ and node_modules/.bin exist
+# @return 1 If the tool is not checked out or its dependencies are not installed
 is_agla_tool_installed() {
   local repo="$1"
   local tools_dir="$2"
-  [[ -d "${tools_dir}/${repo}/bin" ]]
+  [[ -d "${tools_dir}/${repo}/bin" && -d "${tools_dir}/${repo}/node_modules/.bin" ]]
 }
 
 ##
-# @description Check install state, then check out an aglabo tool repository
+# @description Clone an aglabo tool repository into the install directory
+# @arg $1 string Repository name (e.g. agla-dev-tools)
+# @arg $2 string Directory path where the repository is cloned
+# @return 0 If the clone succeeded
+# @return 1 If the clone failed
+_clone_agla_tool() {
+  local repo="$1"
+  local install_dir="$2"
+
+  if git clone --depth 1 "https://github.com/aglabo/${repo}.git" "$install_dir" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Error: $repo installation failed" >&2
+  if [[ -d "$install_dir" ]]; then
+    echo "Hint: $install_dir already exists but is incomplete. Remove it and retry." >&2
+  fi
+  return 1
+}
+
+##
+# @description Check install state, then check out an aglabo tool repository and install its dependencies
+#   Skips the clone when bin/ already exists (repo checked out but dependencies missing)
 # @arg $1 string Repository name (e.g. agla-dev-tools)
 # @arg $2 string Directory path where aglabo tools are checked out (default: ~/.local/tools)
 # @return 0 If the tool is already installed or was installed successfully
-# @return 1 If the install failed
+# @return 1 If the clone or pnpm install failed
 setup_agla_tool() {
   local repo="$1"
   local tools_dir="${2:-${HOME}/.local/tools}"
@@ -142,18 +164,20 @@ setup_agla_tool() {
 
   mkdir -p "$tools_dir"
 
-  # Clone aglabo tool repository
-  if git clone --depth 1 "https://github.com/aglabo/${repo}.git" "$install_dir" >/dev/null 2>&1; then
-    echo "$repo installed successfully to $install_dir"
-    echo "Add to PATH: export PATH=\"$install_dir/bin:\$PATH\""
-    return 0
+  if [[ ! -d "${install_dir}/bin" ]]; then
+    _clone_agla_tool "$repo" "$install_dir" || return 1
   fi
 
-  echo "Error: $repo installation failed" >&2
-  if [[ -d "$install_dir" ]]; then
-    echo "Hint: $install_dir already exists but is incomplete. Remove it and retry." >&2
+  # Install dependencies (tool wrappers require node_modules/.bin)
+  if ! pnpm --dir "$install_dir" install --frozen-lockfile >/dev/null 2>&1; then
+    echo "Error: $repo pnpm install failed" >&2
+    echo "Hint: run 'pnpm --dir \"$install_dir\" install --frozen-lockfile' manually." >&2
+    return 1
   fi
-  return 1
+
+  echo "$repo installed successfully to $install_dir"
+  echo "Add to PATH: export PATH=\"$install_dir/bin:\$PATH\""
+  return 0
 }
 
 ##
