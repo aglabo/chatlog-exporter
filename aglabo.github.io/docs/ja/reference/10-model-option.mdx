@@ -1,0 +1,145 @@
+---
+title: --model オプション
+description: AI を呼び出すスキルが使う AI バックエンドとモデルを選ぶ --model の値の書き方を説明します。
+---
+
+## 概要
+
+`--model` は、スキルが呼び出す AI を選びます。1 つの値で、どの**バックエンド**を動かすか
+(Claude CLI、Codex CLI、ローカルの llama サーバなど) と、そのバックエンドが使う**モデル**の 2 つが決まります。
+
+`--model` を受け付けるのは、AI を呼び出す次のスキルです。
+
+- [`/filter-chatlogs`](./filter-chatlogs) (`filter` モードのみ。`noise-filter` と `strip` は AI を使いません)
+- [`/normalize-chatlogs`](./normalize-chatlogs)
+- [`/classify-chatlogs`](./classify-chatlogs)
+- [`/set-frontmatter`](./set-frontmatter)
+
+[`/export-chatlogs`](./export-chatlogs) は AI を呼び出さないため、`--model` を無視します。
+
+値は次の順で決まります。
+
+1. コマンドラインの `--model`
+2. `config.yaml` の `model`
+3. 組み込みの既定値 `sonnet`
+
+`--model` は `agent` とは独立しています。`agent` はどのログを読むかを、`--model` はどの AI に読ませるかを選びます。
+たとえば Codex のログを Claude で処理できます: `/classify-chatlogs codex 2026-06 --model sonnet`。
+
+## 値の書き方
+
+書き方は 2 通りあります。
+
+### モデル名のみ
+
+モデル名だけを書くと、名前からバックエンドを判定します。パターンは上から順に照合します。
+
+| 値                                                                                          | バックエンド        |
+| ------------------------------------------------------------------------------------------- | ------------------- |
+| `gpt-*` (例: `gpt-5`)                                                                       | codex               |
+| `default`、`best`、`fable`、`opus`、`sonnet`、`haiku`、`sonnet[1m]`、`opus[1m]`、`opusplan` | claude              |
+| `claude-opus-*`、`claude-sonnet-*`、`claude-haiku-*` (例: `claude-sonnet-4-6`)              | claude              |
+| `gemini-*` (例: `gemini-2.5-pro`)                                                           | antigravity (`agy`) |
+
+どれにも当てはまらない名前はエラーになります。そのようなモデルを使うときは、プロバイダーを明示します (次節)。
+
+### `<provider>/<model>`
+
+モデル名の前にプロバイダー名を `/` で区切って書きます。
+値は**最初の** `/` で分割され、それより後ろはすべてモデル名になります。
+この形式ではモデル名自体を検査しないため、上の表に無いモデルはこの形式で指定します。
+
+| プロバイダー            | バックエンド                 |
+| ----------------------- | ---------------------------- |
+| `claude`、`anthropic`   | claude                       |
+| `codex`、`openai`       | codex                        |
+| `copilot`               | copilot                      |
+| `opencode`              | opencode                     |
+| `google`、`antigravity` | antigravity (`agy`)          |
+| `llama`                 | llama (HTTP。CLI は使わない) |
+
+たとえば `anthropic/sonnet` は `sonnet` と、`openai/gpt-5` は `gpt-5` と同じです。
+
+## バックエンドに渡される値
+
+llama 以外では、スキルはバックエンドの CLI を起動し、その `--model` フラグにモデル名を渡します。
+使う CLI は事前にインストールし、ログインしておく必要があります。
+
+| バックエンド | CLI        | `--model` に渡す値                | 例: 値 → 渡される値                        |
+| ------------ | ---------- | --------------------------------- | ------------------------------------------ |
+| claude       | `claude`   | プロバイダーを除いたモデル名      | `anthropic/opus` → `opus`                  |
+| codex        | `codex`    | プロバイダーを除いたモデル名      | `openai/gpt-5` → `gpt-5`                   |
+| copilot      | `copilot`  | プロバイダーを除いたモデル名      | `copilot/gpt-5` → `gpt-5`                  |
+| antigravity  | `agy`      | プロバイダーを除いたモデル名      | `google/gemini-2.5-pro` → `gemini-2.5-pro` |
+| opencode     | `opencode` | 書いたままの `<provider>/<model>` | `opencode/<model>` → `opencode/<model>`    |
+
+プロバイダー部分まで受け取るのは opencode だけです。プロバイダーは常に `opencode` なので、
+opencode が受け取るのは `opencode/<model>`、つまり opencode 自身の `opencode` プロバイダーのモデルです。
+
+## ローカルの llama サーバ
+
+`llama/<model>` は CLI を起動せず、`config.yaml` の `llamaEndpoint` にある llama サーバへ HTTP で要求します。
+接続先は `config.yaml` でしか指定できず、オプションや環境変数では指定できません。
+
+```yaml
+model: "llama/avalon"
+llamaEndpoint: "http://avalon:8080/"
+concurrency: 1 # llama サーバのスロット数 (--parallel) を超えないこと
+```
+
+- `llamaEndpoint` が空のままだと、`InvalidEndpoint` で中断します。
+- モデル名が空の `llama/` はエラーです。
+- `concurrency` は、サーバが起動しているスロット数以下にします。
+
+## 不正な値
+
+次の場合は、AI を呼び出す前に `InvalidModel` エラーで中断します。
+
+- プロバイダーが未知 (例: `foo/bar`)
+- プロバイダーなしの名前がどのパターンにも当てはまらない (例: `o3`。代わりに `codex/o3` と書きます)
+- モデル名の無い `llama/`
+
+エラーメッセージには受け付ける値の一覧が表示されます。
+
+```text
+"o3" is not valid. Valid models: gpt-*, default, best, fable, opus, sonnet, haiku, ...
+(or <provider>/<model> with provider: claude, anthropic, ...)
+```
+
+## 実行例
+
+手早く安く判定するために Haiku を使います。
+
+```bash
+/filter-chatlogs filter claude 2026-06 --model haiku
+```
+
+Claude のモデルのバージョンを固定します。
+
+```bash
+/set-frontmatter claude 2026-06 --model claude-sonnet-4-6
+```
+
+Codex でログを分割します。
+
+```bash
+/normalize-chatlogs claude 2026-06 --model gpt-5
+```
+
+パターン表に無いモデルを、プロバイダーを明示して使います。
+
+```bash
+/classify-chatlogs claude 2026-06 --model codex/o3
+```
+
+1回だけローカルの llama サーバを使います (`config.yaml` に `llamaEndpoint` の設定が必要です)。
+
+```bash
+/normalize-chatlogs claude 2026-06 --model llama/avalon
+```
+
+毎回の既定を変えるには、`--model` を毎回付ける代わりに `config.yaml` の `model` を設定します。
+
+```yaml
+model: "haiku"
+```
