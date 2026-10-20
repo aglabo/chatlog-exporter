@@ -288,5 +288,9 @@ llamaEndpoint: "http://avalon:8080/"
 
 ## 関連スキル
 
+基本ワークフロー: `export-chatlogs` → `filter-chatlogs` → `normalize-chatlogs` → `filter-chatlogs` (2 回目) → `classify-chatlogs` → `set-frontmatter`
+
 - `/export-chatlogs` — ChatLog のエクスポート
-- `/filter-chatlogs` — 低価値 ChatLog のフィルタリング (set-frontmatter の前工程)
+- `/filter-chatlogs` — 低価値 ChatLog のフィルタリング
+- `/normalize-chatlogs` — トピック別セグメントへの分割
+- `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類 (set-frontmatter の前工程)

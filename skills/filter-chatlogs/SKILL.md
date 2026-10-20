@@ -482,3 +482,12 @@ strip モードの `--dry-run` は **挙動が逆** であり、filter の注意
   対応する `important.md` は判定順序 3 で `done` となる。strip されないまま、当該 `.bak` が一括削除で失われる。
   この実行は `error=0` / 終了コード 0 で完了するため、`::warn::` の `foreign:` 行が唯一の手がかりになる
 - 退避の一括削除に失敗した場合は、サマリー行を出力した **後** に終了コード 1 で異常終了する
+
+## 関連スキル
+
+基本ワークフロー: `export-chatlogs` → `filter-chatlogs` → `normalize-chatlogs` → `filter-chatlogs` (2 回目) → `classify-chatlogs` → `set-frontmatter`
+
+- `/export-chatlogs` — ChatLog のエクスポート (filter-chatlogs 1 回目の前工程)
+- `/normalize-chatlogs` — トピック別セグメントへの分割 (filter-chatlogs 1 回目の後工程、2 回目の前工程)
+- `/classify-chatlogs` — プロジェクト別サブディレクトリへの分類 (filter-chatlogs 2 回目の後工程)
+- `/set-frontmatter` — フロントマター付加
