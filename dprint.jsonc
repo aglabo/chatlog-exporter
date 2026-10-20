@@ -26,10 +26,9 @@
     // Other Configurations
     "**/*.dic",
     // Documents
-    // NOTE: *.mdx は dprint 対象外。markdown プラグインは MDX 非対応で、
-    //       JSX の式属性 (cols={2}) を文字列 ("{2}") に書き換えて壊す。
-    //       lint は remark (pnpm run docs:lint) が担当する。
+
     "**/*.md",
+    "**/*.mdx",
   ],
   "excludes": [
     // node, etc
@@ -46,9 +45,9 @@
     "**/deno.lock",
     "**/pnpm-lock.yaml",
     // test fixtures
-    // dprint がバイト列を正規化すると、空行・末尾改行・改行コードを検証する
-    // エッジケースのフィクスチャが骨抜きになる（markdownlint は **/__tests__/**、
-    // textlint は **/fixtures/** を既に除外済み）。.ts の spec / helper は対象に残す。
+    // dprint がﾊﾞoｲCﾄg列を正規化すると､A空行・末尾改行・改行ｺRｰ[ﾄﾞhを検証する
+    // ｴGｯbｼﾞWｹPｰ[ｽXのﾌtｨBｸNｽXﾁ`ｬﾓが骨抜きになる（markdownlint は **/__tests__/**､A
+    // textlint は **/fixtures/** を既に除外済み）｡B.ts の spec / helper は対象に残す｡B
     "**/fixtures-data/**",
     "**/fixtures/**/*.md",
     "**/fixtures/**/*.yaml",
@@ -78,6 +77,10 @@
   },
   "json": {},
   "markdown": {
+    "associations": [
+      "**/*.md",
+      "**/*.mdx",
+    ],
     "emphasisKind": "asterisks",
   },
   "yaml": {
