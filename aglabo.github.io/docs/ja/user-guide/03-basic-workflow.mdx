@@ -5,10 +5,12 @@ description: スキルを順に適用し、生のセッション履歴を Obsidi
 
 ## 基本ワークフロー
 
-このガイドでは、`Chatlog Exporter` の スキルを順に適用し、生のセッション履歴を Obsidian 用の Markdown へ整える流れを案内します。
+このガイドでは、`Chatlog Exporter` のスキルを順に適用し、生のセッション履歴を Obsidian 用の Markdown へ整える流れを案内します。
+実運用での全体像を示します。まず最小の 1 パスを試したい場合は、[クイックスタート](./quickstart) を参照してください。
+
 各スキルは独立して実行できるので、途中まで実行して結果を確認しながら進められます。
 スキルの実行には、`/setup-chatlogs` で初期設定を済ませておく必要があります。
-詳しくは、[インストール](02-install.mdx) を参照してください。
+詳しくは、[インストール](./install) を参照してください。
 
 :::warning
 **前提条件**
@@ -22,8 +24,33 @@ description: スキルを順に適用し、生のセッション履歴を Obsidi
 
 :::
 
+## 全体の流れ
+
+各ステップの出力が、次のステップの入力になります。
+以下の表は `claude` の `2026-06` 分のログを例にしています。パスはすべて `chatlogs/` からの相対です。
+
+| 順 | スキル                     | 役割                                                        |
+| -- | -------------------------- | ----------------------------------------------------------- |
+| 1  | `export-chatlogs`          | セッション履歴を Markdown にエクスポート                    |
+| 2  | `filter-chatlogs`          | 再利用価値の低いファイルを削除                              |
+| 3  | `normalize-chatlogs`       | トピックス別セグメントに分割                                |
+| 4  | `filter-chatlogs` (2 回目) | 分割後のセグメントを再度ノイズ判定                          |
+| 5  | `classify-chatlogs`        | セグメントをプロジェクト別サブディレクトリに分類            |
+| 6  | `set-frontmatter`          | メタデータ (title / type / category / topics / tags) を付与 |
+
+各ステップが読み書きするディレクトリは次のとおりです。
+
+| 順 | 入力                                 | 出力                                           |
+| -- | ------------------------------------ | ---------------------------------------------- |
+| 1  | エージェントのセッション履歴         | `originalLogs/claude/2026/2026-06/`            |
+| 2  | `originalLogs/claude/2026/2026-06/`  | 同じディレクトリ (DISCARD を削除)              |
+| 3  | `originalLogs/claude/2026/2026-06/`  | `normalizeLogs/claude/2026/2026-06/`           |
+| 4  | `normalizeLogs/claude/2026/2026-06/` | 同じディレクトリ (DISCARD を削除)              |
+| 5  | `normalizeLogs/claude/2026/2026-06/` | `normalizeLogs/claude/2026/2026-06/<project>/` |
+| 6  | `normalizeLogs/claude/2026/2026-06/` | `outputLogs/claude/2026/2026-06/<project>/`    |
+
 :::tip
-`--dry-run` オプションを付けると、スキルを実行せず、処理対象になるファイルを確認できます。 (`/export-chatlog` を除く)
+`--dry-run` オプションを付けると、スキルを実行せず、処理対象になるファイルを確認できます。 (`/export-chatlogs` を除く)
 AIの呼び出しを行わないためトークンを消費しませんが、その分、確認できるのは処理対象であってAIの判定結果ではありません。
 :::
 
@@ -54,8 +81,9 @@ AIの呼び出しを行わないためトークンを消費しませんが、そ
 `/filter-chatlogs` で、再利用価値の低いログを削除します。
 パターンマッチによる機械的な判定と、AIによる判定の2種類があります。
 それぞれ、ログを KEEP / DISCARD に分類し、DISCARD のログを削除します。
+`claude 2026-06` の形式では、`chatlogs/originalLogs/claude/2026/2026-06/` が対象です。
 
-- パターンマッチフィルター
+- パターンマッチフィルター:
   パターンマッチによる機械的な削除は、フィルター名に `noise-filter` を指定します。
 
   ```bash
@@ -81,73 +109,73 @@ AIの呼び出しを行わないためトークンを消費しませんが、そ
 
 :::
 </Step>
-
-<Step title="classify — プロジェクトの分類">
-
-### 3. プロジェクト別の分類
-
-`/classify-chatlogs` で、抽出したログをプロジェクト別のサブディレクトリへ振り分けます。
-`.config/chatlog-exporter/dics/projects.dic` の辞書をもとに、AI がプロジェクト名を推定します。
-
-```bash
-/classify-chatlogs claude 2026-06
-```
-
-ログの内容からプロジェクト名が判別できなかった場合、プロジェクト名は `misc` となります。
-その後、ファイルを `chatlogs/originalLogs/claude/2026/2026-06/<プロジェクト名>/` 下に移動します。
-frontmatter に `project` フィールドが付きます。
-
-:::tip
-
-- `projects.dic` を編集することで、自身のプロジェクトを追加できます。
-
-:::
-</Step>
 <Step title="normalize — トピックス別にログを分割">
 
-### 4. トピックス別にログを分割
+### 3. トピックス別にログを分割
 
 `/normalize-chatlogs` では、1 つのログを AI がトピックス別に複数のセグメントへ分割します (内容によっては、1つのみ)。
-このスキルは引数を省略できません。エージェント名と期間、またはパスを指定してください。
+入力は、フィルター済みの `chatlogs/originalLogs/claude/2026/2026-06/` です。
 
 ```bash
 /normalize-chatlogs claude 2026-06
 ```
 
-分割したファイルは `chatlogs/normalizeLogs/claude/2026/2026-06/<プロジェクト名>/` へ出力します。
-ここから出力先が `originalLogs` ではなく `normalizeLogs` に変わる点に注意してください。
+分割したファイルは、プロジェクト別に振り分けず、`chatlogs/normalizeLogs/claude/2026/2026-06/` の直下へ出力します。
+ここから作業ディレクトリが `originalLogs` ではなく `normalizeLogs` に変わる点に注意してください。
 </Step>
-<Step title="filter (2) — トピックスの整理">
+<Step title="filter (2) — セグメントの整理">
 
-### 5. トピックスの整理
+### 4. セグメントの整理
 
-トピックス別に分割したログファイルの中には、短すぎるログや、内容のないログなどが存在します。
-再度、`/filter-chatlogs` を実行して、上記の不要なログを削除します。
+トピックス別に分割したセグメントの中には、短すぎるログや、内容のないログなどが存在します。
+再度、今度はセグメントを対象に `/filter-chatlogs` を実行して、上記の不要なログを削除します。
 
 ```bash
 /filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
 /filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
 ```
 
-トピックスログのパスを指定すると、トピックスに分割後のログを判定します。
-
 :::warning
-`claude 2026-06`の形式のばあい、旧来の `chatlogs/originalLogs/claude/2026/2026-06/` を指定したことになります。
-`"chatlogs/normalizeLogs/claude/2026/2026-06"` とトピックスログのあるディレクトリを指定します。
+`/filter-chatlogs` の既定の入力は `originalLogs` です。
+`claude 2026-06` の形式のばあい、前段の `chatlogs/originalLogs/claude/2026/2026-06/` を指定したことになります。
+`"chatlogs/normalizeLogs/claude/2026/2026-06"` とセグメントのあるディレクトリを指定します。
+:::
+</Step>
+<Step title="classify — プロジェクトの分類">
+
+### 5. プロジェクト別の分類
+
+`/classify-chatlogs` で、セグメントをプロジェクト別のサブディレクトリへ振り分けます。
+`.config/chatlog-exporter/dics/projects.dic` の辞書をもとに、AI がプロジェクト名を推定します。
+既定の入力は `normalizeLogs` のため、`claude 2026-06` の形式で `chatlogs/normalizeLogs/claude/2026/2026-06/` が対象になります。
+
+```bash
+/classify-chatlogs claude 2026-06
+```
+
+ファイルは `chatlogs/normalizeLogs/claude/2026/2026-06/<プロジェクト名>/` 下に移動し、frontmatter に `project` フィールドが付きます。
+セグメントの内容からプロジェクト名が判別できなかった場合、プロジェクト名は `misc` となります。
+
+:::tip
+
+- `projects.dic` を編集することで、自身のプロジェクトを追加できます。
+- `--dry-run` では AI による分類も行わないため、各ファイルの分類先は事前に確認できません。
+
 :::
 </Step>
 <Step title="set-frontmatter — Frontmatter の付与">
 
 ### 6. Frontmatter の付与
 
-ログを解析し、種別、カテゴリーなどのログ分類用の Frontmatter を付与します。
+セグメントを解析し、種別、カテゴリーなどのログ分類用の Frontmatter を付与します。
 タグは `#<namespace>/<tag>` 形式で付与し、Obsidian 上での検索をしやすくしています。
+入力は、プロジェクト別のサブディレクトリを含む `chatlogs/normalizeLogs/claude/2026/2026-06/` です。
 
 ```bash
 /set-frontmatter claude 2026-06
 ```
 
-完成したファイルは `chatlogs/outputLogs/claude/2026/2026-06/<プロジェクト名>/` 下に出力します。
+完成したファイルは、プロジェクト別のサブディレクトリを保ったまま `chatlogs/outputLogs/claude/2026/2026-06/<プロジェクト名>/` 下に出力します。
 このディレクトリの内容を、そのまま Obsidian の Vault へ取り込めます。
 
 :::tip
@@ -162,7 +190,43 @@ frontmatter に `project` フィールドが付きます。
 
 以上で、`chatlogs/outputLogs/` に Obsidian へインポートできる Markdown が揃います。
 
+## filter を 2 回通す理由
+
+2 回の filter は、ノイズを判定する粒度が異なります。
+
+- **1 回目 (ステップ 2)**: エクスポートしたファイル、つまりセッション全体を単位に判定します。
+  丸ごと価値のないセッションを、normalize に渡す前に取り除きます。
+  AI が分割するファイル数も減るため、トークンの節約にもなります。
+- **2 回目 (ステップ 4)**: normalize が分割したセグメントを単位に判定します。
+  残す価値のあるセッションでも、短い確認や 1 行だけの質問など、中身のないトピックを含むことがあります。
+  これらは分割して初めて独立したファイルになるため、2 回目でしか取り除けません。
+
+## classify を normalize の後に置く理由
+
+`/classify-chatlogs` は、セッションではなくトピックス別のセグメントを単位に分類します。
+1 つのセッションが複数のプロジェクトにまたがることはよくあります (ツールを直したあと、dotfile を調整するなど)。
+先に分割しておけば、セッション全体を 1 つのプロジェクトに押し込まず、セグメントごとに正しいプロジェクトへ振り分けられます。
+また、2 回目の filter を classify の前に置くことで、ノイズのセグメントを AI 分類にかけずに済みます。
+
+このため、`/classify-chatlogs` の既定の入力は `chatlogs/normalizeLogs/` になっています。
+
+## 通しで実行する
+
+`claude` の `2026-06` 分を、上記の順で通して処理するコマンドは次のとおりです。
+ステップ 2 の注意のとおり、filter はまず `--dry-run` を付けて対象を確認してください。
+
+```bash
+/export-chatlogs claude 2026-06
+/filter-chatlogs noise-filter claude 2026-06
+/filter-chatlogs filter claude 2026-06
+/normalize-chatlogs claude 2026-06
+/filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/classify-chatlogs claude 2026-06
+/set-frontmatter claude 2026-06
+```
+
 :::tip
 各スキルは独立して実行できます。
-まずは `/export-chatlogs` だけを試し、出力を確認しながら後続のスキルを 1 つずつ追加していくとよいでしょう。
+まずは [クイックスタート](./quickstart) のとおり `/export-chatlogs` だけを試し、出力を確認しながら後続のスキルを 1 つずつ追加していくとよいでしょう。
 :::

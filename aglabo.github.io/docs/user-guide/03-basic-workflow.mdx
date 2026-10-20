@@ -6,7 +6,9 @@ description: Apply the skills in order to turn raw session logs into Markdown re
 ## Basic workflow
 
 This guide walks you through applying the `chatlog-exporter` skills in order to reshape raw session
-history into Markdown for Obsidian.
+history into Markdown for Obsidian. It shows the whole flow used in day-to-day operation.
+To try a single minimal pass first, see [Quickstart](./quickstart).
+
 Each skill runs independently, so you can stop partway and check the results as you go.
 Running the skills requires that you have finished the initial setup with `/setup-chatlogs`.
 For details, see [Installation](./install).
@@ -23,156 +25,224 @@ The following must be in place.
 
 :::
 
+## The flow at a glance
+
+The output of each step becomes the input of the next.
+The tables use the logs of `claude` for `2026-06` as an example. All paths are relative to `chatlogs/`.
+
+| Step | Skill                       | Role                                               |
+| ---- | --------------------------- | -------------------------------------------------- |
+| 1    | `export-chatlogs`           | Export session history as Markdown                 |
+| 2    | `filter-chatlogs`           | Delete files of little value                       |
+| 3    | `normalize-chatlogs`        | Split logs into topic-based segments               |
+| 4    | `filter-chatlogs` (2nd run) | Judge the split segments for noise again           |
+| 5    | `classify-chatlogs`         | Sort the segments into per-project subdirectories  |
+| 6    | `set-frontmatter`           | Add metadata (title, type, category, topics, tags) |
+
+Each step reads and writes the following directories:
+
+| Step | Input                                | Output                                         |
+| ---- | ------------------------------------ | ---------------------------------------------- |
+| 1    | Session history of the agent         | `originalLogs/claude/2026/2026-06/`            |
+| 2    | `originalLogs/claude/2026/2026-06/`  | Same directory (DISCARD files are deleted)     |
+| 3    | `originalLogs/claude/2026/2026-06/`  | `normalizeLogs/claude/2026/2026-06/`           |
+| 4    | `normalizeLogs/claude/2026/2026-06/` | Same directory (DISCARD files are deleted)     |
+| 5    | `normalizeLogs/claude/2026/2026-06/` | `normalizeLogs/claude/2026/2026-06/<project>/` |
+| 6    | `normalizeLogs/claude/2026/2026-06/` | `outputLogs/claude/2026/2026-06/<project>/`    |
+
 :::tip
-Adding the `--dry-run` option lets you check which files a skill would act on without running it (except for `/export-chatlog`).
+Adding the `--dry-run` option lets you check which files a skill would act on without running it (except for `/export-chatlogs`).
 It skips the AI call, so it consumes no tokens — but for the same reason it shows the targets, not the AI's results.
 :::
 
 <Steps>
-  <Step title="export — Export the logs">
+<Step title="export — Export the logs">
 
-    ### 1. Export the logs
+### 1. Export the logs
 
-    `/export-chatlogs` writes the session history of an AI agent out as Markdown files.
-    As it does so, it excludes noise such as the sessions the system itself uses.
-    Specify the agent name and the period. If you omit the agent, `claude` is used.
+`/export-chatlogs` writes the session history of an AI agent out as Markdown files.
+As it does so, it excludes noise such as the sessions the system itself uses.
+Specify the agent name and the period. If you omit the agent, `claude` is used.
 
-    ```bash
-    /export-chatlogs claude 2026-06
-    ```
+```bash
+/export-chatlogs claude 2026-06
+```
 
-    The exported files are written under `chatlogs/originalLogs/claude/2026/2026-06/`.
+The exported files are written under `chatlogs/originalLogs/claude/2026/2026-06/`.
 
-    :::note
-    Running it again can write the same conversation out a second time under a different name.
-    To start over, delete the directory for that period (for example
-    `chatlogs/originalLogs/claude/2026/2026-06/`) before running it.
-    :::
-
-</Step>
-  <Step title="filter — Delete unneeded logs">
-
-    ### 2. Delete unneeded logs
-
-    `/filter-chatlogs` deletes logs that are of little value to keep.
-    There are two kinds of judgment: mechanical pattern matching, and judgment by AI.
-    Each classifies the logs as KEEP or DISCARD, and deletes the DISCARD ones.
-
-    - Pattern-matching filter
-      For mechanical deletion by pattern matching, give `noise-filter` as the filter name.
-
-      ```bash
-      /filter-chatlogs noise-filter claude 2026-06
-      ```
-
-    - AI filter:
-      For filtering by AI, give `filter` as the filter name.
-
-      ```bash
-      /filter-chatlogs filter claude 2026-06
-      ```
-
-    :::warning
-
-    - This skill *deletes files*. Add `--dry-run` first to review which files are
-      targeted, and only once you have confirmed them, run it without the flag.
-    - The AI filter's `--dry-run` does not call the claude CLI, so it makes no
-      KEEP/DISCARD judgments (`judged=0`). It only lists the files that would be
-      judged; it cannot validate the deletion decisions in advance.
-    - The AI judgment reads each log to judge it, so it consumes tokens.
-      Delete the unneeded files with the pattern-matching filter first, then judge the
-      contents with the AI filter.
-
-    :::
+:::note
+Running it again can write the same conversation out a second time under a different name.
+To start over, delete the directory for that period (for example
+`chatlogs/originalLogs/claude/2026/2026-06/`) before running it.
+:::
 
 </Step>
+<Step title="filter — Delete unneeded logs">
 
+### 2. Delete unneeded logs
+
+`/filter-chatlogs` deletes logs that are of little value to keep.
+There are two kinds of judgment: mechanical pattern matching, and judgment by AI.
+Each classifies the logs as KEEP or DISCARD, and deletes the DISCARD ones.
+The `claude 2026-06` form targets `chatlogs/originalLogs/claude/2026/2026-06/`.
+
+- Pattern-matching filter:
+  For mechanical deletion by pattern matching, give `noise-filter` as the filter name.
+
+  ```bash
+  /filter-chatlogs noise-filter claude 2026-06
+  ```
+
+- AI filter:
+  For filtering by AI, give `filter` as the filter name.
+
+  ```bash
+  /filter-chatlogs filter claude 2026-06
+  ```
+
+:::warning
+
+- This skill *deletes files*. Add `--dry-run` first to review which files are
+  targeted, and only once you have confirmed them, run it without the flag.
+- The AI filter's `--dry-run` does not call the claude CLI, so it makes no
+  KEEP/DISCARD judgments (`judged=0`). It only lists the files that would be
+  judged; it cannot validate the deletion decisions in advance.
+- The AI judgment reads each log to judge it, so it consumes tokens.
+  Delete the unneeded files with the pattern-matching filter first, then judge the
+  contents with the AI filter.
+
+:::
+
+</Step>
+<Step title="normalize — Split logs by topic">
+
+### 3. Split logs by topic
+
+With `/normalize-chatlogs`, the AI splits a single log into several topic-based segments
+(depending on the contents, there may be only one).
+The input is the filtered `chatlogs/originalLogs/claude/2026/2026-06/`.
+
+```bash
+/normalize-chatlogs claude 2026-06
+```
+
+The split files are written directly under `chatlogs/normalizeLogs/claude/2026/2026-06/`,
+without being sorted into project folders.
+Note that from here on the working directory changes from `originalLogs` to `normalizeLogs`.
+
+</Step>
+<Step title="filter (2) — Tidy up the segments">
+
+### 4. Tidy up the segments
+
+Among the segments split by topic, some are too short and some have no substance.
+Run `/filter-chatlogs` again, this time on the segments, to delete those unneeded logs.
+
+```bash
+/filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+```
+
+:::warning
+`/filter-chatlogs` reads `originalLogs` by default, so the `claude 2026-06` form refers
+to the earlier `chatlogs/originalLogs/claude/2026/2026-06/`.
+Specify `"chatlogs/normalizeLogs/claude/2026/2026-06"`, the directory holding the segments.
+:::
+
+</Step>
 <Step title="classify — Classify by project">
 
-    ### 3. Classify by project
+### 5. Classify by project
 
-    `/classify-chatlogs` sorts the exported logs into per-project subdirectories.
-    Based on the dictionary at `.config/chatlog-exporter/dics/projects.dic`, the AI infers the project name.
+`/classify-chatlogs` sorts the segments into per-project subdirectories.
+Based on the dictionary at `.config/chatlog-exporter/dics/projects.dic`, the AI infers the project name.
+Its default input is `normalizeLogs`, so the `claude 2026-06` form targets
+`chatlogs/normalizeLogs/claude/2026/2026-06/`.
 
-    ```bash
-    /classify-chatlogs claude 2026-06
-    ```
+```bash
+/classify-chatlogs claude 2026-06
+```
 
-    If the project name cannot be determined from the contents of a log, the project name becomes `misc`.
-    The files are then moved under `chatlogs/originalLogs/claude/2026/2026-06/<project>/`.
-    A `project` field is added to the frontmatter.
+The files are moved under `chatlogs/normalizeLogs/claude/2026/2026-06/<project>/`,
+and a `project` field is added to the frontmatter.
+If the project name cannot be determined from the contents of a segment, the project name becomes `misc`.
 
-    :::tip
+:::tip
 
-    - Editing `projects.dic` lets you add your own projects.
+- Editing `projects.dic` lets you add your own projects.
+- `--dry-run` also skips the AI classification, so it cannot preview which project each file goes to.
 
-    :::
-
-</Step>
-  <Step title="normalize — Split logs by topic">
-
-    ### 4. Split logs by topic
-
-    With `/normalize-chatlogs`, the AI splits a single log into several topic-based segments
-    (depending on the contents, there may be only one).
-    This skill does not allow its arguments to be omitted. Specify the agent name and the period, or a path.
-
-    ```bash
-    /normalize-chatlogs claude 2026-06
-    ```
-
-    The split files are written to `chatlogs/normalizeLogs/claude/2026/2026-06/`.
-    Note that from here on the output location changes from `originalLogs` to `normalizeLogs`.
+:::
 
 </Step>
-  <Step title="filter (2) — Tidy up the topics">
+<Step title="set-frontmatter — Add frontmatter">
 
-    ### 5. Tidy up the topics
+### 6. Add frontmatter
 
-    Among the log files split by topic, some are too short and some have no substance.
-    Run `/filter-chatlogs` again to delete those unneeded logs.
+This analyzes the segments and adds the frontmatter used to classify them, such as type and category.
+Tags are added in the `#<namespace>/<tag>` form, which makes them easier to search within Obsidian.
+The input is `chatlogs/normalizeLogs/claude/2026/2026-06/`, including the project subdirectories.
 
-    ```bash
-    /filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
-    /filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
-    ```
+```bash
+/set-frontmatter claude 2026-06
+```
 
-    Specifying the path to the topic logs judges the logs after they have been split into topics.
+The finished files are written under `chatlogs/outputLogs/claude/2026/2026-06/<project>/`,
+keeping the project subdirectories.
+The contents of this directory can be imported into an Obsidian vault as they are.
 
-    :::warning
-    The `claude 2026-06` form refers to the earlier `chatlogs/originalLogs/claude/2026/2026-06/`.
-    Specify `"chatlogs/normalizeLogs/claude/2026/2026-06"`, the directory holding the topic logs.
-    :::
+:::tip
 
-</Step>
-  <Step title="set-frontmatter — Add frontmatter">
+- Judging the log type, the category, and the topics, and reviewing the metadata, calls the AI many times.
+  It is best run when your agent AI has capacity to spare.
+- To skip the AI review and finish faster, specify `--no-review`.
 
-    ### 6. Add frontmatter
-
-    This analyzes the logs and adds the frontmatter used to classify them, such as type and category.
-    Tags are added in the `#<namespace>/<tag>` form, which makes them easier to search within Obsidian.
-
-    ```bash
-    /set-frontmatter claude 2026-06
-    ```
-
-    The finished files are written under `chatlogs/outputLogs/claude/2026/2026-06/`.
-    The contents of this directory can be imported into an Obsidian vault as they are.
-
-    :::tip
-
-    - Judging the log type, the category, and the topics, and reviewing the metadata, calls the AI many times.
-      It is best run when your agent AI has capacity to spare.
-    - To skip the AI review and finish faster, specify `--no-review`.
-
-    :::
+:::
 
 </Step>
 </Steps>
 
 With that, `chatlogs/outputLogs/` holds Markdown ready to import into Obsidian.
 
+## Why filter runs twice
+
+The two filter runs judge noise at different levels of detail.
+
+- **1st run (step 2)**: judges each exported file — one whole session.
+  It removes sessions that are worthless as a whole, before they reach normalize.
+  This also cuts the number of files the AI has to split, which saves tokens.
+- **2nd run (step 4)**: judges each segment that normalize split out.
+  A session worth keeping can still contain short or empty topics, such as a brief confirmation
+  or a one-line question. These only become separate files after the split, so only this run can drop them.
+
+## Why classify comes after normalize
+
+`/classify-chatlogs` classifies each topic-based segment, not each session.
+A single session often spans several projects — for example, you fix a tool and then tweak a dotfile.
+Splitting first means each segment is sorted into the right project on its own,
+instead of the whole session going into one project.
+Running the 2nd filter before classify also keeps noise segments out of the AI classification.
+
+For this reason, the default input of `/classify-chatlogs` is `chatlogs/normalizeLogs/`.
+
+## Running it all at once
+
+The commands below run the whole flow in order for `claude`, `2026-06`.
+Add `--dry-run` to the filter commands first to review the targets, as noted in step 2.
+
+```bash
+/export-chatlogs claude 2026-06
+/filter-chatlogs noise-filter claude 2026-06
+/filter-chatlogs filter claude 2026-06
+/normalize-chatlogs claude 2026-06
+/filter-chatlogs noise-filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/filter-chatlogs filter "chatlogs/normalizeLogs/claude/2026/2026-06"
+/classify-chatlogs claude 2026-06
+/set-frontmatter claude 2026-06
+```
+
 :::tip
 Each skill can run independently.
-Start by trying just `/export-chatlogs`, then add the later skills one at a time while checking the output.
+Start by trying just `/export-chatlogs` as in [Quickstart](./quickstart), then add the later skills
+one at a time while checking the output.
 :::
