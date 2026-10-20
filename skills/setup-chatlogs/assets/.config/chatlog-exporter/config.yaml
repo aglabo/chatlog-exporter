@@ -11,7 +11,7 @@ agent: claude
 # AI execution
 # model selects the AI backend. It is independent of "agent" (the export source).
 # Use "llama/<model>" to call the llama server set in llamaEndpoint over HTTP.
-model: "llama/avalon" # local llama server. Empty = built-in default "sonnet"
+model: "sonnet" # Empty = built-in default "sonnet"
 
 # Large local prompts can spend more than 5 minutes in prompt evaluation alone.
 # 0 disables the deadline; this value covers prompt evaluation and generation together.
@@ -34,7 +34,7 @@ maxRandomLength: 16
 
 # Parallel / batch processing
 chunkSize: 2
-concurrency: 1 # must not exceed the llama server slot count (--parallel)
+concurrency: 4 # with "llama/<model>", must not exceed the llama server slot count (--parallel)
 
 # Character count filters
 minCharCount: 1000 # Minimum content length
