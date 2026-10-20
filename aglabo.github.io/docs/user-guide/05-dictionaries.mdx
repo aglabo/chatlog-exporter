@@ -154,6 +154,12 @@ When you add a new namespace, add it here as well so the set of namespaces stays
 - classify-chatlogs caches its results per file, so logs that were already classified keep their project.
   Only a cached project that you removed from `projects.dic` is discarded and classified again.
   To re-classify everything with the new dictionary, delete `classify-cache/` under `cacheDir`.
+- set-frontmatter also skips logs it has already written, so changes to `types` / `category` / `topics` / `tags`
+  apply only to logs it has not processed yet.
+  To process written logs again with the new dictionary, delete both of the following, then run it again:
+  - `fm-cache/` under `cacheDir`
+  - The files set-frontmatter wrote to its output directory (`--output-dir`).
+    A completed output file marks its log as written again, even after `fm-cache/` is deleted.
 - A YAML syntax error stops the skill. Check indentation after editing.
 - To check the effect, run the skill on a small set of logs first. set-frontmatter has `--dry-run`, but it does not call the AI, so it shows the target files rather than the chosen values.
 

@@ -22,8 +22,11 @@ and [Customizing prompts](./prompts).
   so `--config my.yaml` reads `.config/chatlog-exporter/my.yaml`.
 - **Missing file**: if the default `config.yaml` does not exist, the built-in defaults are used.
   If the file given with `--config` does not exist, the run stops with an error.
-- **Missing keys**: a key you leave out, or leave empty, falls back to its built-in default.
+- **Missing keys**: a key you leave out falls back to its built-in default.
   You only need to write the keys you want to change.
+- **Empty keys**: an empty number or true/false key (for example `timeoutMs:`) also falls back to its default.
+  An empty text key (for example `agent:`, `model:`, or `dicsDir:`) does **not**. It is read as an empty string.
+  To use the default for a text key, delete the whole line.
 
 A value is chosen in this order:
 
